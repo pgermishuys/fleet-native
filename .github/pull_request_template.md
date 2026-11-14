@@ -1,12 +1,17 @@
-<!-- AGENTS.md, "Working in a session", says what goes here. -->
+<!-- AGENTS.md, "Pictures, always" and "Working in a session", says what goes here.
+     The "Picture in the description" check fails until this description has an image. -->
 
-## Slice or lane
+## Pictures
 
-<!-- Its name in docs/PORT.md, and its demo sentence. Does the sentence hold after this pull request? -->
+<!-- Required, from the moment this is opened. Pictures of the app showing what this changes,
+     committed under shots/<topic>/ (a component: shots/parity/<nn>-<component>/, beside Fleet's own
+     client, same state, same size, both themes) and linked by commit:
+     ![What it shows](https://github.com/pgermishuys/fleet-native/raw/<sha>/shots/<topic>/<file>.png) -->
 
-## Picture
+## Component
 
-<!-- At least one picture of the app, committed under shots/<topic>/ and linked by commit. -->
+<!-- Its number and name in docs/PORT.md. Which part of its checklist (docs/parity/) this covers,
+     and what is still open. -->
 
 ## Checked
 
@@ -15,14 +20,10 @@
 | | Linux | Windows | macOS |
 |---|---|---|---|
 | Tests | | | |
-| Scenes looked at | | | |
+| Pictures looked at | | | |
 | Run in a window | | | |
-
-## Budget
-
-<!-- Lines of Rust added so far against the slice's budget; pull request N of M. -->
 
 ## Docs
 
-- [ ] `docs/PORT.md` says what is done and what is left
+- [ ] `docs/PORT.md` row and `docs/parity/` checklist updated
 - [ ] `docs/RUNE.md` has what this taught us about Rune (or nothing new)

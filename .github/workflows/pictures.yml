@@ -1,0 +1,28 @@
+# Every pull request shows the app in its description (AGENTS.md, "Pictures, always").
+# Runs again when the description is edited, so adding a picture turns the check green.
+name: Pictures
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions: {}
+
+jobs:
+  picture:
+    name: Picture in the description
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Look for an image in the description
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          # A markdown image or an <img> tag, after HTML comments (the template's hints) are removed.
+          stripped="$(printf '%s' "$BODY" | perl -0pe 's/<!--.*?-->//gs')"
+          if printf '%s' "$stripped" | grep -Eq '!\[[^]]*\]\([^)[:space:]]+[^)]*\)|<img[^>]+src="[^"]+"'; then
+            echo "Found a picture in the description."
+          else
+            echo "::error::This pull request's description has no picture of the app. Every pull request shows the app from the moment it is opened (AGENTS.md, 'Pictures, always')."
+            exit 1
+          fi
