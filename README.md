@@ -1,18 +1,30 @@
-# Fleet's desktop shell in Rune
+# fleet-native
 
-A prototype that rebuilds the layout of Weave Fleet's desktop app in
-[Rune](https://github.com/anomalyco/rune), a GPU-rendered UI framework written in Rust. It exists
-to see what Fleet's shell looks and feels like without a browser engine under it.
+[Weave Fleet](https://github.com/pgermishuys/weave-fleet)'s desktop app, rebuilt as a native app
+with [Rune](https://github.com/anomalyco/rune), a GPU-rendered UI framework written in Rust. No
+browser engine under it.
 
-It draws the shell only, from invented data. It doesn't talk to a Fleet server.
+**This is an experiment.** Fleet's desktop app is the Electron one in weave-fleet; that is the one
+to install. This repository exists to find out whether a native Fleet is enough better to be worth
+building. So far it draws Fleet's shell from invented data and doesn't talk to a Fleet server.
+
+| Read | For |
+|---|---|
+| [`docs/PORT.md`](docs/PORT.md) | The plan: what gets built in what order, and what is undecided |
+| [`docs/FLEET.md`](docs/FLEET.md) | Fleet's server contract, and where each part lives in weave-fleet |
+| [`docs/RUNE.md`](docs/RUNE.md) | What Rune has, what it lacks, what we learned |
+| [`AGENTS.md`](AGENTS.md) | How to work in this repository (written for coding agents; people too) |
+
+![The shell, dark theme](shots/shell/dark.png)
 
 ## Run it
 
-You need [rustup](https://rustup.rs). The first build downloads Rune and takes a few minutes.
+You need [rustup](https://rustup.rs). The first build downloads and compiles Rune, which takes
+minutes; after that a change rebuilds in seconds.
 
 ```sh
-cd native
-cargo run --release
+cargo run             # a debug build: quick to build, fine for work
+cargo run --release   # to feel how fast it is
 ```
 
 - **macOS and Windows** need nothing else (on Windows, the Visual Studio C++ build tools that
@@ -21,9 +33,11 @@ cargo run --release
   `sudo apt-get install libxkbcommon-dev libwayland-dev libxkbcommon-x11-0`
   (Fedora: `dnf install libxkbcommon-devel wayland-devel libxkbcommon-x11`).
 
-**Windows without Rust:** every push to this branch builds `fleet-shell.exe` on GitHub (the
-"Rune prototype (Windows)" workflow). Download the `fleet-shell-windows-x64` artifact from the
-latest run, unzip it and run the exe. It isn't signed, so Windows asks once before it runs.
+**Without Rust:** every push to `main` builds the app for Windows, macOS and Linux on GitHub.
+Open the latest [CI run](../../actions/workflows/ci.yml?query=branch%3Amain), sign in, and
+download `fleet-native-windows-x64`, `fleet-native-macos-arm64` or `fleet-native-linux-x64`.
+Nothing is signed, so Windows asks once before it runs, and macOS needs
+`xattr -d com.apple.quarantine fleet-native` first.
 
 The window opens at the desktop app's size (1360 x 880, no smaller than 720 x 480) and follows the
 system's light or dark theme.
@@ -53,42 +67,35 @@ Keys (Cmd on macOS, Ctrl elsewhere):
 
 Everything behind the shell: the server connection, real sessions, New session, the command
 palette, the terminal, Settings and the other rail views, menus and dialogs, markdown and code
-blocks in messages, tool call details, the content panel's tabs, and the phone layout.
+blocks in messages, tool call details and the content panel's tabs. [`docs/PORT.md`](docs/PORT.md)
+has the order they get built in.
 
-## Pictures without a window
+## Tests and pictures without a window
 
-The prototype can draw itself to a file, which is how it was checked on a machine with no display.
-On Linux without a GPU, install `mesa-vulkan-drivers` and set
-`VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json`.
+```sh
+cargo test                    # drives the app with no window and no GPU
+bash scripts/snap-scenes.sh   # draws every scene to shots/out/<scene>.png
+```
+
+A scene is a named state of the app (`light`, `dark`, `sidebar-closed`, `content-open`,
+`needs-input`, `automations`). On Linux without a GPU, install `mesa-vulkan-drivers`; if a picture
+still fails, set `VK_ICD_FILENAMES` to `/usr/share/vulkan/icd.d/lvp_icd*.json`.
+
+One picture, or a scripted run, by hand:
 
 ```sh
 cargo build
-target/debug/fleet-shell --list-scenes
-target/debug/fleet-shell --snap dark.png --size 1280x760 --scale 2 --theme dark
-target/debug/fleet-shell --snap plan.png --scene content-open --size 1280x760 --scale 2
+target/debug/fleet-native --list-scenes
+target/debug/fleet-native --snap plan.png --scene content-open --size 1280x760 --scale 2 --at 0.3
 ```
-
-Scenes: `light`, `dark`, `sidebar-closed`, `content-open`, `needs-input`, `automations`.
 
 `scripts/tour.json` clicks and types through the shell (opens sessions, sends a message, opens the
 plan, drags the gutter, hides the list, switches theme). Take a picture at one of its marks
 (`sent`, `replied`, `plan`, `dragged`, `end`), or record the whole run (needs `ffmpeg`):
 
 ```sh
-target/debug/fleet-shell --script scripts/tour.json --snap replied.png --at mark:replied
-target/debug/fleet-shell --script scripts/tour.json --video tour.mp4
-```
-
-## In a browser
-
-Rune also builds for the web (WebGPU on a canvas; experimental). The page needs a browser with
-WebGPU, and HTTPS anywhere but `localhost`.
-
-```sh
-git clone https://github.com/anomalyco/rune ../../rune   # for its build script; any folder will do
-cargo install wasm-bindgen-cli --version 0.2.130 --locked
-bash ../../rune/scripts/web-build.sh fleet-shell --out target/web
-python3 -m http.server -d target/web 8000   # then open http://localhost:8000
+target/debug/fleet-native --script scripts/tour.json --snap replied.png --at mark:replied
+target/debug/fleet-native --script scripts/tour.json --video tour.mp4
 ```
 
 ## How it's put together
@@ -96,7 +103,7 @@ python3 -m http.server -d target/web 8000   # then open http://localhost:8000
 | File | Holds |
 |---|---|
 | `src/lib.rs` | The state, the keys, Send and Interrupt, and the app's `AppSpec` |
-| `src/theme.rs` | Fleet's colours and type sizes, copied from `client/src/assets/main.css` |
+| `src/theme.rs` | Fleet's colours and type sizes, copied from weave-fleet's `client/src/assets/main.css` |
 | `src/mock.rs` | The invented projects, sessions and messages |
 | `src/view.rs` | `[rail][context]` over the status bar, and the resize gutter |
 | `src/view/rail.rs` | The rail |
@@ -105,9 +112,10 @@ python3 -m http.server -d target/web 8000   # then open http://localhost:8000
 | `src/view/status.rs` | The status bar |
 | `src/view/parts.rs` | The working glyph, the running dot and the toolbar button |
 | `src/icons.rs` | Lucide icons, generated |
+| `src/tests.rs` | Tests that click, type and read the state with no window |
 
-Sizes are Fleet's CSS pixels at its 14px root font size, taken from the Vue components named at
-the top of each file.
+Sizes are Fleet's CSS pixels at its 14px root font size, taken from the Vue components (in
+weave-fleet's `client/`) named at the top of each file.
 
 `Cargo.toml` pins Rune to one commit. Rune is pre-release and its API changes, so move the pin on
 purpose (the `rev` appears five times).
@@ -115,10 +123,11 @@ purpose (the `rev` appears five times).
 ### Icons
 
 `src/icons.rs` is generated from the same lucide package Fleet's client uses. To add an icon, add
-its name to this command and run it again (after `bun install` in `client/`):
+its name to this command and run it again. It reads the package from a weave-fleet checkout
+(after `bun install` in its `client/`):
 
 ```sh
-python3 tools/gen-icons.py ../client/node_modules/lucide-vue-next \
+python3 tools/gen-icons.py ../weave-fleet/client/node_modules/lucide-vue-next \
   message-square workflow zap chart-column github settings circle-question-mark plus folder-plus \
   search chevron-down chevron-right archive square-terminal octagon-x git-fork ellipsis \
   chart-no-axes-column git-branch terminal file-text pencil paperclip circle-x arrow-up list-todo \
@@ -126,6 +135,8 @@ python3 tools/gen-icons.py ../client/node_modules/lucide-vue-next \
 ```
 
 ## Licences
+
+This repository has no licence yet (`docs/PORT.md`, "Open decisions"). What it borrows:
 
 - Rune: MIT.
 - Inter (`assets/fonts/InterVariable.ttf`): SIL Open Font License, `assets/fonts/Inter-LICENSE.txt`.

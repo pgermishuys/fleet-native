@@ -1,0 +1,159 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A new push to a pull request replaces its run. Runs on main are never cancelled.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: never
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  check:
+    name: Check (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Linux, os: ubuntu-latest }
+          - { name: Windows, os: windows-latest }
+          - { name: macOS, os: macos-15 }
+    steps:
+      - uses: actions/checkout@v4
+
+      # Two packages to build; the Vulkan software driver to draw pictures on a runner with no GPU.
+      - name: Linux packages
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxkbcommon-dev libwayland-dev mesa-vulkan-drivers
+
+      - name: Rust (rust-toolchain.toml)
+        run: rustup show
+
+      # Rune is most of the build. Pull requests read the cache; only main writes it.
+      - name: Restore the build cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: check-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+
+      - name: Format
+        if: runner.os == 'Linux'
+        run: cargo fmt --check
+
+      - name: Lint
+        run: cargo clippy --all-targets --locked -- -D warnings
+
+      - name: Test
+        run: cargo test --locked
+
+      - name: Draw every scene
+        run: bash scripts/snap-scenes.sh
+
+      - name: Upload the pictures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scenes-${{ matrix.name }}
+          path: shots/out/
+          if-no-files-found: warn
+
+      - name: Save the build cache
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: check-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+
+  # A release build of each system's app, to download and try. Not on pull requests.
+  package:
+    name: Package (${{ matrix.name }})
+    if: github.event_name != 'pull_request'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: linux-x64, os: ubuntu-latest }
+          - { name: windows-x64, os: windows-latest }
+          - { name: macos-arm64, os: macos-15 }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Linux packages
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxkbcommon-dev libwayland-dev
+
+      - name: Rust (rust-toolchain.toml)
+        run: rustup show
+
+      - name: Restore the build cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: package-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+
+      # On Windows, link the C runtime in, so the exe runs without the Visual C++ redistributable.
+      - name: Build
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then export RUSTFLAGS="-C target-feature=+crt-static"; fi
+          cargo build --release --locked
+
+      # Zip loses the "can run" bit, so macOS and Linux get a tar inside the artifact.
+      - name: Collect
+        run: |
+          mkdir dist
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            cp target/release/fleet-native.exe README.md dist/
+          else
+            tar -czf "dist/fleet-native-${{ matrix.name }}.tar.gz" -C target/release fleet-native -C "$PWD" README.md
+          fi
+          ls -la dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fleet-native-${{ matrix.name }}
+          path: dist/
+          if-no-files-found: error
+
+      - name: Save the build cache
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: package-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}

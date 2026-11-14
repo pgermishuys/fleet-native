@@ -11,7 +11,11 @@ pub fn rail(s: &State, t: &Theme) -> El {
     if let Some(image) = &s.logo {
         logo = logo.child(el().size(32.0, 32.0 * 234.0 / 511.0).pixels(image.pixels()));
     }
-    col().w(48.0).h_full().py(8.0).items_center()
+    col()
+        .w(48.0)
+        .h_full()
+        .py(8.0)
+        .items_center()
         .child(logo)
         .child(item(s, t, Some(Rail::Sessions), &MESSAGE_SQUARE, "Sessions", false))
         // Workflows is a Labs feature, off by default: Fleet dims it and adds an amber dot.
@@ -33,17 +37,23 @@ fn divider(t: &Theme) -> El {
 /// One rail button. `which` is the view it opens; Help opens a menu in Fleet and nothing here.
 fn item(s: &State, t: &Theme, which: Option<Rail>, glyph: &'static Icon, label: &str, off: bool) -> El {
     let active = which == Some(s.rail);
-    let mut face = el().size(18.0, 18.0).child(
-        icon(glyph, 18.0).color(if active { t.text } else { t.muted }).group_color(t.text).opacity(if off { 0.55 } else { 1.0 }),
-    );
+    let mut face = el()
+        .size(18.0, 18.0)
+        .child(icon(glyph, 18.0).color(if active { t.text } else { t.muted }).group_color(t.text).opacity(if off { 0.55 } else { 1.0 }));
     if off {
         face = face.child(el().absolute(17.0, -3.0).size(6.0, 6.0).radius(3.0).fill(t.idle));
     }
     el().key(format!("rail-{}", label.split(' ').next().unwrap_or(label).to_lowercase()))
-        .size(40.0, 40.0).mb(2.0).center().radius(8.0)
+        .size(40.0, 40.0)
+        .mb(2.0)
+        .center()
+        .radius(8.0)
         .fill(if active { t.wash(9.0) } else { Color::TRANSPARENT })
         .hover(if active { Color::TRANSPARENT } else { t.wash(5.0) })
-        .hover_group().cursor(Cursor::Pointer).help(label).label(label)
+        .hover_group()
+        .cursor(Cursor::Pointer)
+        .help(label)
+        .label(label)
         .on_press(move |s: &mut State| {
             if let Some(which) = which {
                 s.rail = which;

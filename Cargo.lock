@@ -875,7 +875,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "fleet-shell"
+name = "fleet-native"
 version = "0.0.1"
 dependencies = [
  "rune",

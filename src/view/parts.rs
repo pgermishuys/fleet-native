@@ -12,9 +12,13 @@ pub fn quad(color: Color) -> El {
     let mut glyph = el().size(8.0, 8.0);
     for (left, top, phase) in DOTS {
         let still = if phase == 0.0 { 0.16 } else { 1.0 };
-        glyph = glyph.child(
-            el().absolute(left, top).size(3.0, 3.0).radius(1.5).fill(color).cycle(Cycle { period: 0.8, phase, stops: &STEPS, still, fps: 30.0 }),
-        );
+        glyph = glyph.child(el().absolute(left, top).size(3.0, 3.0).radius(1.5).fill(color).cycle(Cycle {
+            period: 0.8,
+            phase,
+            stops: &STEPS,
+            still,
+            fps: 30.0,
+        }));
     }
     glyph
 }
@@ -33,8 +37,16 @@ pub fn diamond(color: Color) -> El {
 /// Fleet's `toolbar-icon` button: 24.5px square (Tailwind `size-7` at a 14px root), muted icon,
 /// a 6% wash and the text colour on hover.
 pub fn tool_button(t: &Theme, key: &str, glyph: &'static Icon, size: f32, tip: &str) -> El {
-    el().key(key).size(24.5, 24.5).center().radius(8.0).hover(t.wash(6.0)).press(t.wash(10.0)).hover_group()
-        .cursor(Cursor::Pointer).help(tip).label(tip)
+    el().key(key)
+        .size(24.5, 24.5)
+        .center()
+        .radius(8.0)
+        .hover(t.wash(6.0))
+        .press(t.wash(10.0))
+        .hover_group()
+        .cursor(Cursor::Pointer)
+        .help(tip)
+        .label(tip)
         .on_press(|_: &mut State| {})
         .child(icon(glyph, size).color(t.muted).group_color(t.text))
 }

@@ -195,4 +195,5 @@ pub fn projects() -> Vec<Project> {
 }
 
 /// What the agent in this prototype answers to anything you send.
-pub const CANNED_REPLY: &str = "This is a layout prototype, so no agent is listening. The message you sent is drawn by Rune the same way Fleet's client draws it.";
+pub const CANNED_REPLY: &str =
+    "This is a layout prototype, so no agent is listening. The message you sent is drawn by Rune the same way Fleet's client draws it.";

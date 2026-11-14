@@ -1,7 +1,6 @@
-# Weave Fleet's desktop shell, rebuilt in Rune (github.com/anomalyco/rune) as a look-and-feel
-# prototype. Mock data only: it doesn't talk to a Fleet server. See README.md.
+# Weave Fleet as a native desktop app, built with Rune (github.com/anomalyco/rune). See README.md.
 [package]
-name = "fleet-shell"
+name = "fleet-native"
 version = "0.0.1"
 edition = "2024"
 publish = false
