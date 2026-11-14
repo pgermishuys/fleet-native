@@ -41,7 +41,7 @@ fn a_snapshot_then_events_fill_the_open_conversation_and_the_status() {
     let events: Vec<Event> = live
         .iter()
         .filter_map(|f| match f {
-            signalr::Frame::Event { topic, data } if topic.starts_with("session:") => Event::from_wire(data),
+            signalr::Frame::Event { topic, data, .. } if topic.starts_with("session:") => Event::from_wire(data),
             _ => None,
         })
         .collect();

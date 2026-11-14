@@ -335,15 +335,16 @@ fn a_step_finish_adds_its_tokens_and_cost_to_the_message() {
 }
 
 #[test]
-fn reads_only_the_events_this_path_applies() {
+fn applies_nine_events_and_keeps_the_rest() {
     let wire = |t: &str, p: Value| json!({"type": t, "eventId": null, "properties": p});
     assert_eq!(Event::from_wire(&wire("turn.started", json!({}))), Some(Event::TurnStarted));
     assert_eq!(Event::from_wire(&wire("session.idled", json!({}))), Some(Event::SessionIdled));
-    assert_eq!(Event::from_wire(&wire("session.status", json!({}))), None);
+    // The rest are kept for their owners (`events.rs`), not dropped.
+    assert!(matches!(Event::from_wire(&wire("session.status", json!({}))), Some(Event::Other(..))));
     // Only text deltas stream into a part.
     let reasoning =
         wire("message.part.delta.streamed", json!({"sessionID": "s", "messageID": "m", "partID": "p", "field": "reasoning", "delta": "x"}));
-    assert_eq!(Event::from_wire(&reasoning), None);
+    assert!(!Event::from_wire(&reasoning).unwrap().applied());
 }
 
 #[test]
@@ -413,7 +414,7 @@ fn live_events_and_a_later_snapshot_agree() {
     let mut state = create_state(&snapshot_of(&live));
     let mut seen_busy = false;
     for frame in &live {
-        if let signalr::Frame::Event { topic, data } = frame
+        if let signalr::Frame::Event { topic, data, .. } = frame
             && topic.starts_with("session:")
             && let Some(event) = Event::from_wire(data)
         {
@@ -478,5 +479,6 @@ fn the_list_leaves_out_sub_agents_and_dims_old_sessions() {
     assert_eq!(sessions::age(3_600_000 * 5, 0), ("5h".to_string(), 1.0));
 }
 
+mod events;
 mod state;
 mod wire;

@@ -1,8 +1,10 @@
 //! The connection to a Fleet server: one thread owns the hub's WebSocket, short-lived threads make
 //! the HTTP calls, and every result reaches the state through `AppHandle::update`, so the UI
 //! thread does no network work. Events are batched to one hand-over per frame's worth.
-use super::reducer::{Event, create_state};
+use super::events::Event;
+use super::reducer::create_state;
 use super::signalr::{self, Frame};
+use super::state::Topic;
 use super::{http, sessions};
 use crate::State;
 use rune::{AppHandle, Tx};
@@ -237,21 +239,32 @@ fn serve(mut ws: WebSocket<TcpStream>, base: &str, rx: &Receiver<Cmd>, open: &mu
             Ok(Message::Text(text)) => {
                 for frame in signalr::parse(&text) {
                     match frame {
-                        Frame::Event { topic, data } if topic == "sessions" => match data.get("type").and_then(Value::as_str) {
-                            Some("activity_status") => {
-                                let id = data.pointer("/properties/sessionId").and_then(Value::as_str).unwrap_or("").to_string();
-                                let status = sessions::status_of(
-                                    data.pointer("/properties/activityStatus").and_then(Value::as_str).unwrap_or("idle"),
-                                );
-                                post.update(move |s, _| s.on_activity(&id, status));
+                        Frame::Event { topic, data, .. } if topic == "sessions" => {
+                            // Whoever owns an event reads it from here (`State::subscribe`); the list's own
+                            // reactions below don't wait for them.
+                            if let Some(event) = Event::from_wire(&data) {
+                                post.update(move |s, _| s.dispatch(&Topic::Sessions, std::slice::from_ref(&event)));
                             }
-                            // A session was made, renamed, archived or removed: the list is the truth.
-                            _ => dirty_list = dirty_list.or(Some(Instant::now())),
-                        },
-                        Frame::Event { topic, data } if open.as_ref().is_some_and(|id| topic == format!("session:{id}")) => {
+                            match data.get("type").and_then(Value::as_str) {
+                                Some("activity_status") => {
+                                    let id = data.pointer("/properties/sessionId").and_then(Value::as_str).unwrap_or("").to_string();
+                                    let status = sessions::status_of(
+                                        data.pointer("/properties/activityStatus").and_then(Value::as_str).unwrap_or("idle"),
+                                    );
+                                    post.update(move |s, _| s.on_activity(&id, status));
+                                }
+                                // A session was made, renamed, archived or removed: the list is the truth.
+                                _ => dirty_list = dirty_list.or(Some(Instant::now())),
+                            }
+                        }
+                        Frame::Event { topic, event_id, data } if open.as_ref().is_some_and(|id| topic == format!("session:{id}")) => {
+                            // One frame that can't be read is skipped; the rest of the batch stands.
                             if let Some(event) = Event::from_wire(&data) {
                                 batch_since.get_or_insert_with(Instant::now);
                                 batch.push(event);
+                                if let Some(id) = event_id {
+                                    batch.push(Event::Cursor(id));
+                                }
                             }
                         }
                         Frame::Completion { id, result, error } => {

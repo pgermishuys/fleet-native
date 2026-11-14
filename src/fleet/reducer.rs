@@ -1,70 +1,14 @@
 //! Fleet's reducer, ported as a plain function: `client/src/lib/domain-event-reducer.ts` and
 //! `event-state.ts`. A snapshot makes a `StreamState`; each event changes it. No Rune, no I/O.
 //!
-//! Done: messages and their parts, text deltas, turn start/end/failure, session idle, and the
+//! The event type itself is `events.rs`. Done: messages and their parts, text deltas, turn start/end/failure, session idle, and the
 //! session's own status. Not yet (lane 1, "Every event"): delegations, running work, context
 //! usage, sub-agent activity, and the optimistic-prompt confirmation.
 use super::model::{Explicit, Msg, PartData, StreamState, StreamStatus, Tokens};
 use crate::view::conversation::Role;
 use serde_json::{Map, Value};
 
-/// The events this path applies, read from the hub's `{type, eventId, properties}`.
-#[derive(Clone, Debug, PartialEq)]
-pub enum Event {
-    MessageCreated(Lifecycle),
-    MessageUpdated(Lifecycle),
-    PartUpdated(Value),
-    TextDelta { session_id: String, message_id: String, part_id: String, delta: String, offset: Option<i64> },
-    TurnStarted,
-    TurnEnded,
-    TurnFailed { session_id: String, message_id: Option<String>, error: Value },
-    SessionIdled,
-}
-
-/// A message's `info`, and its parts when the event carries them (the harness's own
-/// `message.updated` has none).
-#[derive(Clone, Debug, PartialEq)]
-pub struct Lifecycle {
-    pub info: Value,
-    pub parts: Option<Vec<Value>>,
-}
-
-impl Event {
-    /// An event as the hub sends it: `data` is `{type, eventId?, properties}`. Events this path
-    /// doesn't apply give `None`.
-    pub fn from_wire(data: &Value) -> Option<Event> {
-        let props = data.get("properties")?;
-        let text = |v: &Value, k: &str| v.get(k).and_then(Value::as_str).map(str::to_string);
-        Some(match data.get("type")?.as_str()? {
-            kind @ ("message.created" | "message.updated" | "user.prompt.committed") => {
-                let life = Lifecycle { info: props.get("info")?.clone(), parts: props.get("parts").and_then(Value::as_array).cloned() };
-                if kind == "message.created" { Event::MessageCreated(life) } else { Event::MessageUpdated(life) }
-            }
-            "message.part.updated" => Event::PartUpdated(props.get("part")?.clone()),
-            "message.part.delta.streamed" => {
-                if text(props, "field")? != "text" {
-                    return None;
-                }
-                Event::TextDelta {
-                    session_id: text(props, "sessionID")?,
-                    message_id: text(props, "messageID")?,
-                    part_id: text(props, "partID")?,
-                    delta: text(props, "delta")?,
-                    offset: props.get("offset").and_then(Value::as_i64),
-                }
-            }
-            "turn.started" => Event::TurnStarted,
-            "turn.ended" => Event::TurnEnded,
-            "turn.failed" => Event::TurnFailed {
-                session_id: text(props, "sessionID")?,
-                message_id: text(props, "messageID"),
-                error: props.get("error")?.clone(),
-            },
-            "session.idled" => Event::SessionIdled,
-            _ => return None,
-        })
-    }
-}
+pub use super::events::{Event, Lifecycle};
 
 /// `createSessionStreamState`: the snapshot's messages become `message.created` events on an
 /// empty state.
@@ -95,6 +39,9 @@ pub fn apply(state: &mut StreamState, event: &Event) {
         }
         Event::TurnStarted => set_explicit(state, Explicit::Busy),
         Event::TurnEnded | Event::SessionIdled => set_explicit(state, Explicit::Idle),
+        Event::Cursor(id) => state.last_event_id = Some(*id),
+        // Read, and handed to whoever owns them (`State::subscribe`); nothing for the stream to change.
+        Event::Other(..) | Event::Unknown { .. } => {}
         Event::TurnFailed { session_id, message_id, error } => {
             // The turn is over and the harness has used up its retries: stop looking busy now,
             // not when the idle that follows arrives.

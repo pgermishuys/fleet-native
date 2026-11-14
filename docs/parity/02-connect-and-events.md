@@ -68,10 +68,10 @@ Counted by exact name, with the apostrophe in "doesn't" dropped as `src/fleet/te
 
 `FLEET.md` says 56 + 3 + 4 + 11. Message ordering now has 7 cases (a Pi group of 3 was added), so its 4 is out of date; the reducer file's 56 holds.
 
-## The wire: 31 events, and the rest
+## The wire: 31 domain events, and the rest
 
 `src/WeaveFleet.Domain/Events/DomainEvent.cs` lists **31** polymorphic domain events. The Vue client's union
-(`…/lib/domain-events.ts`, `DomainEvent`) has **59** `type` strings, because the server also pushes
+(`…/lib/domain-events.ts`, `DomainEvent`) has **64** `type` strings (counted by script on `82cb3ed1`: 71 in the file, minus seven part types; an earlier count of 59 was wrong), because the server also pushes
 other records on the `sessions` topic (`activity_status`, `session_created`, …) and on `session:<id>`
 (`context.updated`, `work.*`, `permission.*`, …) outside that class. "All 31 events" in `PORT.md`
 means the first list. The checklist covers the second, which is a superset: a native client that only
@@ -248,24 +248,34 @@ Each row: what Fleet does, its source, the native state. `[ ]` open, `[x]` done 
 
 ### 4. Every event is read
 
-- [ ] **4.1 A complete event type.** `Event::from_wire` returns `None` for anything it doesn't apply, so 50 of the 59
+- [x] **4.1 A complete event type.** `Event::from_wire` returns `None` for anything it doesn't apply, so 55 of the 64
   event types vanish (`reducer.rs`, the `_ => return None`). Replace it with an `Event` that has a variant for every
   type in the union (typed fields for those the reducer applies, the raw `properties` for the rest) and an
   `Event::Unknown { kind, properties }` for a type this build doesn't know (a newer Fleet), which is logged once and
   never an error. Frames that fail to parse in the middle of a batch skip that one frame
   (`use-session-stream.ts`, `applySafely`: "a malformed event must not take the rest of a frame's events down").
-- [ ] **4.2 A place to hand them to.** The hub thread posts `session:<id>` and `sessions` events that aren't the
+- [x] **4.2 A place to hand them to.** The hub thread posts `session:<id>` and `sessions` events that aren't the
   reducer's to a small subscriber list in `State` (a `Vec<Box<dyn FnMut(&Event)>>` or an enum of channels), the shape of
   `onGlobalEvent` / `onDomainEvent` (`composables/signalr`, `on-domain-event.ts`), so components 3-22 attach without
   touching `link.rs`. Subscribers get events for the open session and for `sessions`; a component that wants another
   session's `session:<id>` topic asks for it (the Files canvas keeps listening to a session while you're on another;
   `use-signalr-socket.ts`, `topicListenersV2`).
-- [ ] **4.3 `toDomainEvent`**: the wire calls the payload `properties`; the hub's `eventId` argument may be `null`
+- [x] **4.3 `toDomainEvent`**: the wire calls the payload `properties`; the hub's `eventId` argument may be `null`
   (live) or negative; `lastEventId` is taken from a live event's id when it's a number (`getDomainEventCursor`).
   Native keeps `last_event_id` from the snapshot only.
-- [ ] **4.4 Fixtures.** One captured frame per event type in `tests/fixtures/` (invented content), and a test that each
+- [x] **4.4 Fixtures.** One captured frame per event type in `tests/fixtures/` (invented content), and a test that each
   parses into its own variant. Weave-fleet's `tests/contracts/fleet-api-events.json` has samples of the
   server's shapes; read them as the starting point and rewrite the content.
+- **Done in piece A** (`src/fleet/events.rs`, `state.rs`, `tests/events.rs`). Notes: the 64 types are one `Kind` table; the
+  nine the reducer applies have `Event` variants, the other 55 are `Event::Other(kind, properties)`, and a type not in the
+  table is `Event::Unknown`, logged once. `user.prompt.committed` is still a `MessageUpdated` (piece D gives it a variant).
+  Subscribers: `State::subscribe(only, listener)` and `State::dispatch(topic, events)`; the hub thread dispatches every
+  `sessions` event and the open session's whole batch (applied events too, so a listener needs no second path). **Left for
+  later:** subscribing to *another* session's topic (4.2's last sentence) is not built; it needs the topic set of piece E
+  (row 5.2). The `eventId` argument is read as Vue reads it (any number moves the cursor), but the captured frames carry `0`
+  where the payload's own `eventId` is `null`, so a live cursor can read 0: `last_event_id` has no reader yet; piece E decides.
+  Fixture: `tests/fixtures/hub-events-all.jsonl` (64 frames, invented content, shapes from `domain-events.ts` payloads, not
+  captured: the fields beyond the ones the reducer reads are placeholders).
 - Tests to port: none exist in Fleet for the dispatch itself. New tests here: every type in the union parses; an
   unknown type is kept as `Unknown`; a malformed frame between two good ones leaves both applied.
 
@@ -365,7 +375,7 @@ Each row: what Fleet does, its source, the native state. `[ ]` open, `[x]` done 
 1. **Discovery runs only for a real window with no `--server`, `--scene`, `--snap` or `--script`.** That keeps scenes
    and tests the same every run. With none found, the mock data stays and a notice says no Fleet is running, until
    component 24 starts one.
-2. **The reducer's "31 events" are the 59 in the client's union.** The server's `DomainEvent.cs` has 31; Fleet's UI reacts to more.
+2. **The reducer's "31 events" are the 64 in the client's union.** The server's `DomainEvent.cs` has 31; Fleet's UI reacts to more.
 3. **`reopened-session.test.ts` is split.** Case 1 ("links the sub-agent card to its delegation") and case 3 ("updates a tool still running…")
    test the reducer and are ported here; case 2 uses `toToolCardItem` (component 3) and moves there.
 4. **Presence and focus are always on** until Settings (component 16) has the two preferences that gate focus.

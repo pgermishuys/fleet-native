@@ -22,9 +22,11 @@ pub fn pong() -> String {
 pub enum Frame {
     /// The server's answer to the handshake; the error is its reason for refusing.
     Handshake(Option<String>),
-    /// `Event(topic, eventId, data)`, the one method the server calls.
+    /// `Event(topic, eventId, data)`, the one method the server calls. `event_id` is the middle
+    /// argument: null for a live event of the hub's own, else a number (negative for some).
     Event {
         topic: String,
+        event_id: Option<i64>,
         data: Value,
     },
     /// The result of an invocation of ours.
@@ -50,8 +52,9 @@ fn frame(text: &str) -> Frame {
         None => Frame::Handshake(s("error")),
         Some(1) if s("target").as_deref() == Some("Event") => {
             let args = v.get("arguments").and_then(Value::as_array);
+            let event_id = args.and_then(|a| a.get(1)).and_then(Value::as_i64);
             match (args.and_then(|a| a.first()).and_then(Value::as_str), args.and_then(|a| a.get(2))) {
-                (Some(topic), Some(data)) => Frame::Event { topic: topic.to_string(), data: data.clone() },
+                (Some(topic), Some(data)) => Frame::Event { topic: topic.to_string(), event_id, data: data.clone() },
                 _ => Frame::Other,
             }
         }

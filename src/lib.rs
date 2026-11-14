@@ -63,6 +63,8 @@ pub struct State {
     pub connection: Connection,
     /// The open session's conversation as the reducer holds it.
     pub stream: Option<StreamState>,
+    /// Components that read events the stream doesn't apply (`fleet::state::Subscribers`).
+    pub subscribers: fleet::state::Subscribers,
     /// The last thing that went wrong, shown in the status bar.
     pub notice: Option<String>,
     /// The kit's overlays, the palette and the gallery's own controls (`src/ui/`).
@@ -100,6 +102,7 @@ impl Default for State {
             link: None,
             connection: Connection::Connecting,
             stream: None,
+            subscribers: Default::default(),
             notice: None,
             ui: ui::Ui::default(),
             gallery: false,

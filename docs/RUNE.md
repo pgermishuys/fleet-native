@@ -209,3 +209,9 @@ All found at the pinned commit, building Fleet's controls in `src/ui/`.
   "Copy session ID" in the palette is listed as waiting.
 - **`↵` and `⌫`** (U+21B5, U+232B) draw as empty boxes in Inter and JetBrains Mono; the palette's
   footer says "Enter" and "Backspace" in words.
+
+## Component 2, piece A (events)
+
+Nothing in Rune was needed: the event catalogue and the subscriber list are plain Rust. One thing worth
+knowing: `State` holds subscribers as `Box<dyn FnMut + Send>`, and Rune's `AppHandle::update` closures reach
+them on the UI thread, so a listener may touch `State` freely but must not block.
