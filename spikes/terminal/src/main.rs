@@ -112,8 +112,9 @@ impl State {
     }
 
     fn point(&self, x: f32, y: f32) -> (Point, Side) {
-        let col = (x / cell_w()).clamp(0.0, self.engine.size.cols as f32 - 1.0);
-        let line = (y / LINE).clamp(0.0, self.engine.size.lines as f32 - 1.0) as i32 - self.screen.offset as i32;
+        // The pointer is in the box's points, padding included.
+        let col = ((x - PAD[3]) / cell_w()).clamp(0.0, self.engine.size.cols as f32 - 1.0);
+        let line = ((y - PAD[0]) / LINE).clamp(0.0, self.engine.size.lines as f32 - 1.0) as i32 - self.screen.offset as i32;
         (Point::new(Line(line), Column(col as usize)), if col.fract() < 0.5 { Side::Left } else { Side::Right })
     }
 }
