@@ -9,6 +9,7 @@ mod script;
 #[cfg(test)]
 mod tests;
 mod theme;
+pub mod ui;
 pub mod view;
 
 use fleet::link::{Connection, Link, Post};
@@ -63,6 +64,10 @@ pub struct State {
     pub stream: Option<StreamState>,
     /// The last thing that went wrong, shown in the status bar.
     pub notice: Option<String>,
+    /// The kit's overlays, the palette and the gallery's own controls (`src/ui/`).
+    pub ui: ui::Ui,
+    /// Shows the kit gallery in place of the sessions view (a scene, `--scene kit`).
+    pub gallery: bool,
     /// Stands in for the open session while the list is empty.
     blank: Project,
 }
@@ -95,6 +100,8 @@ impl Default for State {
             connection: Connection::Connecting,
             stream: None,
             notice: None,
+            ui: ui::Ui::default(),
+            gallery: false,
             blank: Project { name: "Sessions".into(), path: String::new(), open: true, sessions: vec![mock::blank_session()] },
         }
     }
@@ -112,6 +119,21 @@ impl State {
     /// Every session in list order, for the previous/next keys.
     fn order(&self) -> Vec<(usize, usize)> {
         self.projects.iter().enumerate().flat_map(|(p, project)| (0..project.sessions.len()).map(move |s| (p, s))).collect()
+    }
+
+    /// Whether a real or mock session is open (not the blank stand-in).
+    pub fn has_session(&self) -> bool {
+        self.projects.get(self.open.0).is_some_and(|p| self.open.1 < p.sessions.len())
+    }
+
+    pub fn step_session(&mut self, by: isize, tx: &mut Tx) {
+        self.step(by, tx);
+    }
+
+    /// Shows Fleet's toast for `seconds`, with an optional pill action.
+    pub fn toast(&mut self, message: String, action: Option<String>, seconds: f64, tx: &mut Tx) {
+        self.ui.toast = Some(ui::toast::Toast { message, action, until: self.clock + seconds, total: seconds });
+        tx.wake_after(std::time::Duration::from_millis(100));
     }
 
     fn step(&mut self, by: isize, tx: &mut Tx) {
@@ -188,6 +210,20 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     // Whole seconds only, so the "Working · 18s" label redraws once a second.
     let ticked = now.floor() != s.clock.floor();
     s.clock = now;
+    let toast = match &s.ui.toast {
+        Some(t) if now >= t.until => {
+            s.ui.toast = None;
+            true
+        }
+        Some(_) => {
+            tx.wake_after(std::time::Duration::from_millis(100));
+            true
+        }
+        None => false,
+    };
+    if toast {
+        return true;
+    }
     match s.reply {
         Some((p, i, due)) if now >= due => {
             let session = &mut s.projects[p].sessions[i];
@@ -205,7 +241,11 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
 }
 
 fn on_key(s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool {
-    if ev.is_command('b') {
+    if ev.is_command('k') {
+        ui::palette::toggle(s, tx);
+    } else if ev.is_command('b') && ev.mods.shift {
+        s.content_open = !s.content_open;
+    } else if ev.is_command('b') {
         s.sidebar_open = !s.sidebar_open;
     } else if ev.is_command('[') {
         s.step(-1, tx);
@@ -243,7 +283,36 @@ pub fn spec() -> AppSpec<State> {
             ("long-conversation", |s| s.open_long()),
             ("long-streaming", |s| s.show_streaming(900)),
             ("automations", |s| s.rail = Rail::Automations),
-            ("server-notice", |s| s.notice = Some("Couldn't send the message: connection refused".into())),
+            ("kit", |s| ui::scenes::set(s, "kit", true)),
+            ("kit-light", |s| ui::scenes::set(s, "kit", false)),
+            ("kit-palette", |s| ui::scenes::set(s, "kit-palette", true)),
+            ("kit-palette-light", |s| ui::scenes::set(s, "kit-palette", false)),
+            ("kit-palette-level", |s| ui::scenes::set(s, "kit-palette-level", true)),
+            ("kit-palette-level-light", |s| ui::scenes::set(s, "kit-palette-level", false)),
+            ("kit-palette-search", |s| ui::scenes::set(s, "kit-palette-search", true)),
+            ("kit-palette-search-light", |s| ui::scenes::set(s, "kit-palette-search", false)),
+            ("kit-agent-menu", |s| ui::scenes::set(s, "kit-agent-menu", true)),
+            ("kit-agent-menu-light", |s| ui::scenes::set(s, "kit-agent-menu", false)),
+            ("kit-more-menu", |s| ui::scenes::set(s, "kit-more-menu", true)),
+            ("kit-more-menu-light", |s| ui::scenes::set(s, "kit-more-menu", false)),
+            ("kit-context-menu", |s| ui::scenes::set(s, "kit-context-menu", true)),
+            ("kit-context-menu-light", |s| ui::scenes::set(s, "kit-context-menu", false)),
+            ("kit-toast", |s| ui::scenes::set(s, "kit-toast", true)),
+            ("kit-toast-light", |s| ui::scenes::set(s, "kit-toast", false)),
+            ("kit-menu", |s| ui::scenes::set(s, "kit-menu", true)),
+            ("kit-menu-light", |s| ui::scenes::set(s, "kit-menu", false)),
+            ("kit-select", |s| ui::scenes::set(s, "kit-select", true)),
+            ("kit-select-light", |s| ui::scenes::set(s, "kit-select", false)),
+            ("kit-popover", |s| ui::scenes::set(s, "kit-popover", true)),
+            ("kit-popover-light", |s| ui::scenes::set(s, "kit-popover", false)),
+            ("kit-directory", |s| ui::scenes::set(s, "kit-directory", true)),
+            ("kit-directory-light", |s| ui::scenes::set(s, "kit-directory", false)),
+            ("kit-dialog", |s| ui::scenes::set(s, "kit-dialog", true)),
+            ("kit-dialog-light", |s| ui::scenes::set(s, "kit-dialog", false)),
+            ("kit-alert", |s| ui::scenes::set(s, "kit-alert", true)),
+            ("kit-alert-light", |s| ui::scenes::set(s, "kit-alert", false)),
+            ("kit-sheet", |s| ui::scenes::set(s, "kit-sheet", true)),
+            ("kit-sheet-light", |s| ui::scenes::set(s, "kit-sheet", false)),
         ],
         fonts: &[include_bytes!("../assets/fonts/InterVariable.ttf"), include_bytes!("../assets/fonts/JetBrainsMono-Variable.ttf")],
         families: ("Inter", "JetBrains Mono"),
