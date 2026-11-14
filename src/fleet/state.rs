@@ -4,6 +4,7 @@ use super::events::{Event, Kind};
 use super::link::Connection;
 use super::model::{Msg, StreamState};
 use super::reducer;
+use super::sessions;
 use super::view;
 use crate::State;
 use crate::mock::{Project, Status};
@@ -124,11 +125,20 @@ impl State {
     }
 
     /// A frame's worth of the open session's events.
-    pub fn on_events(&mut self, id: &str, events: Vec<Event>, _tx: &mut Tx) {
+    pub fn on_events(&mut self, id: &str, events: Vec<Event>, tx: &mut Tx) {
         if self.open_id().as_deref() != Some(id) {
             return;
         }
         self.dispatch(&Topic::Session(id.to_string()), &events);
+        self.on_stream_events(id, events, tx);
+    }
+
+    /// Events the open stream applies without telling the subscribers: the ones that came on the
+    /// `sessions` topic (already dispatched there), and the others after `dispatch`.
+    pub fn on_stream_events(&mut self, id: &str, events: Vec<Event>, _tx: &mut Tx) {
+        if self.open_id().as_deref() != Some(id) || events.is_empty() {
+            return;
+        }
         let Some(state) = self.stream.as_mut() else { return };
         let was_working = state.session_status.working();
         for event in &events {
@@ -150,7 +160,6 @@ impl State {
     fn sync_open(&mut self) {
         let Some(stream) = &self.stream else { return };
         let shown: Vec<&Msg> = stream.messages.iter().filter(|m| !m.compaction_summary).collect();
-        let working = stream.session_status.working();
         // Not `session_mut()`: that would borrow all of `self` while `stream` is still read.
         let (p, i) = self.open;
         let Some(session) = self.projects.get_mut(p).and_then(|p| p.sessions.get_mut(i)) else { return };
@@ -165,11 +174,33 @@ impl State {
         } else {
             session.messages = shown.into_iter().map(view::message).collect();
         }
-        if working {
-            session.status = Status::Working;
+        // The row shows the derived status: a sub-agent's question is the amber diamond, every other
+        // kind of work the working glyph.
+        let status = sessions::stream_status_of(stream.session_status);
+        if status != Status::Idle {
+            session.status = status;
         } else if session.status == Status::Working {
+            // Not NeedsInput: that may be the session's own question, from the list.
             session.status = Status::Idle;
             session.age = "now".into();
+        }
+    }
+
+    /// A scene: the open session's row as it reads once the reducer has derived its status from a
+    /// snapshot with one sub-agent, working (`waiting` false) or stopped on a question.
+    pub fn show_sub_agent(&mut self, waiting: bool) {
+        let child = if waiting { "waiting_input" } else { "busy" };
+        let snapshot = serde_json::json!({
+            "messages": [],
+            "activityStatus": "idle",
+            "delegations": [{"delegationId": "d1", "childSessionId": "c1", "title": "Check the tests", "status": "running", "childActivityStatus": child}],
+        });
+        let status = sessions::stream_status_of(reducer::create_state(&snapshot).session_status);
+        if let Some(session) = self.session_mut() {
+            session.status = status;
+        }
+        if status == Status::Working {
+            self.working_since = self.clock;
         }
     }
 

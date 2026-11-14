@@ -1,6 +1,7 @@
 //! The conversation as the reducer accumulates it: weave-fleet's `AccumulatedMessage`
 //! (`client/src/lib/client-types.ts`). Tool state stays raw JSON here, because the reducer merges
 //! it key by key; `view.rs` boils it down for drawing.
+use super::delegations::Delegation;
 use crate::view::conversation::Role;
 use serde_json::Value;
 
@@ -83,8 +84,8 @@ pub enum Explicit {
     Retry,
 }
 
-/// The derived status (`SessionStreamStatus`). `Delegating` and `WaitingInput` need delegations,
-/// which the reducer lane adds; nothing derives them yet.
+/// The derived status (`SessionStreamStatus`): the session's own status and its sub-agents together
+/// (`delegations::derive_status`). `WaitingInput` is a sub-agent stopped on a question.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum StreamStatus {
     Idle,
@@ -104,6 +105,7 @@ impl StreamStatus {
 #[derive(Clone, Debug, PartialEq)]
 pub struct StreamState {
     pub messages: Vec<Msg>,
+    pub delegations: Vec<Delegation>,
     pub explicit_status: Explicit,
     pub session_status: StreamStatus,
     pub last_event_id: Option<i64>,

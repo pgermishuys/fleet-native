@@ -1,23 +1,27 @@
 //! Fleet's reducer, ported as a plain function: `client/src/lib/domain-event-reducer.ts` and
 //! `event-state.ts`. A snapshot makes a `StreamState`; each event changes it. No Rune, no I/O.
 //!
-//! The event type itself is `events.rs`. Done: messages and their parts, text deltas, turn start/end/failure, session idle, and the
-//! session's own status. Not yet (lane 1, "Every event"): delegations, running work, context
-//! usage, sub-agent activity, and the optimistic-prompt confirmation.
-use super::model::{Explicit, Msg, PartData, StreamState, StreamStatus, Tokens};
+//! The event type itself is `events.rs`. Done: messages and their parts, text deltas, turn start/end/failure, session idle,
+//! delegations and the status derived from them (`delegations.rs`). Not yet: running work, context
+//! usage, and the optimistic-prompt confirmation.
+use super::delegations::{self, Delegation};
+use super::model::{Explicit, Msg, PartData, StreamState, Tokens};
 use crate::view::conversation::Role;
 use serde_json::{Map, Value};
 
-pub use super::events::{Event, Lifecycle};
+pub use super::events::{Event, Kind, Lifecycle};
 
 /// `createSessionStreamState`: the snapshot's messages become `message.created` events on an
 /// empty state.
 pub fn create_state(snapshot: &Value) -> StreamState {
     let explicit_status = to_explicit(snapshot.get("activityStatus").and_then(Value::as_str).unwrap_or(""));
+    let delegations: Vec<Delegation> =
+        snapshot.get("delegations").and_then(Value::as_array).into_iter().flatten().filter_map(Delegation::from_snapshot).collect();
     let mut state = StreamState {
         messages: Vec::new(),
+        session_status: delegations::derive_snapshot_status(explicit_status, &delegations),
+        delegations,
         explicit_status,
-        session_status: derive_status(explicit_status),
         last_event_id: snapshot.get("lastEventId").or_else(|| snapshot.get("lastSequenceNumber")).and_then(Value::as_i64),
     };
     for message in snapshot.get("messages").and_then(Value::as_array).into_iter().flatten() {
@@ -39,6 +43,20 @@ pub fn apply(state: &mut StreamState, event: &Event) {
         }
         Event::TurnStarted => set_explicit(state, Explicit::Busy),
         Event::TurnEnded | Event::SessionIdled => set_explicit(state, Explicit::Idle),
+        Event::Delegation { kind, event } => {
+            if *kind == Kind::DelegationCreated {
+                delegations::apply_created(&mut state.delegations, event);
+            } else {
+                delegations::upsert(&mut state.delegations, event);
+            }
+            rederive(state);
+        }
+        // Only a sub-agent's status is read here; the session's own comes from its turn events.
+        Event::ActivityStatus { session_id, activity_status } => {
+            if delegations::set_child_activity(&mut state.delegations, session_id, activity_status) {
+                rederive(state);
+            }
+        }
         Event::Cursor(id) => state.last_event_id = Some(*id),
         // Read, and handed to whoever owns them (`State::subscribe`); nothing for the stream to change.
         Event::Other(..) | Event::Unknown { .. } => {}
@@ -59,17 +77,19 @@ fn to_explicit(activity: &str) -> Explicit {
     }
 }
 
-fn derive_status(explicit: Explicit) -> StreamStatus {
-    match explicit {
-        Explicit::Busy => StreamStatus::Busy,
-        Explicit::Retry => StreamStatus::Retry,
-        Explicit::Idle => StreamStatus::Idle,
-    }
+fn rederive(state: &mut StreamState) {
+    state.session_status = delegations::derive_status(state.explicit_status, &state.delegations);
 }
 
 fn set_explicit(state: &mut StreamState, explicit: Explicit) {
     state.explicit_status = explicit;
-    state.session_status = derive_status(explicit);
+    rederive(state);
+}
+
+/// `withActivityStatus`: a kept stream that is opened again takes the session list's current status,
+/// which the `sessions` topic kept current while it was away.
+pub fn with_activity_status(state: &mut StreamState, activity: &str) {
+    set_explicit(state, to_explicit(activity));
 }
 
 fn to_role(role: &Value) -> Role {

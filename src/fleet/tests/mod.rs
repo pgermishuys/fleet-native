@@ -21,12 +21,12 @@ fn with_completed(mut l: Lifecycle, completed: i64) -> Lifecycle {
     l
 }
 
-fn snapshot(activity: &str, messages: Vec<Lifecycle>) -> Value {
+pub(super) fn snapshot(activity: &str, messages: Vec<Lifecycle>) -> Value {
     let messages: Vec<Value> = messages.into_iter().map(|l| json!({"info": l.info, "parts": l.parts})).collect();
     json!({"session": {}, "messages": messages, "delegations": [], "activityStatus": activity, "lastEventId": null})
 }
 
-fn new_state() -> StreamState {
+pub(super) fn new_state() -> StreamState {
     create_state(&snapshot("idle", vec![]))
 }
 
@@ -479,6 +479,7 @@ fn the_list_leaves_out_sub_agents_and_dims_old_sessions() {
     assert_eq!(sessions::age(3_600_000 * 5, 0), ("5h".to_string(), 1.0));
 }
 
+mod delegations;
 mod events;
 mod state;
 mod wire;

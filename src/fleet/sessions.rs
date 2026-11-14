@@ -1,5 +1,6 @@
 //! The session list from `GET /api/sessions`: rows grouped under their projects, in the shapes the
 //! session list draws (`mock::Project`, `mock::Session`).
+use super::model::StreamStatus;
 use crate::mock::{Project, Session, Status};
 use serde_json::Value;
 
@@ -10,6 +11,15 @@ pub fn status_of(activity: &str) -> Status {
         "busy" | "working" | "retry" | "delegating" => Status::Working,
         "waiting_input" => Status::NeedsInput,
         _ => Status::Idle,
+    }
+}
+
+/// How the open conversation's derived status reads in the list: the same glyphs as `status_of`.
+pub fn stream_status_of(status: StreamStatus) -> Status {
+    match status {
+        StreamStatus::Idle => Status::Idle,
+        StreamStatus::WaitingInput => Status::NeedsInput,
+        StreamStatus::Busy | StreamStatus::Retry | StreamStatus::Delegating => Status::Working,
     }
 }
 

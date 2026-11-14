@@ -215,3 +215,8 @@ All found at the pinned commit, building Fleet's controls in `src/ui/`.
 Nothing in Rune was needed: the event catalogue and the subscriber list are plain Rust. One thing worth
 knowing: `State` holds subscribers as `Box<dyn FnMut + Send>`, and Rune's `AppHandle::update` closures reach
 them on the UI thread, so a listener may touch `State` freely but must not block.
+
+## Component 2, piece B (delegations)
+
+Nothing in Rune was needed. A scene is a plain `fn(&mut State)`, so it can't capture anything: a scene that needs a
+state (here, the row status derived from a snapshot) calls a `State` method, and a light variant is a second scene.
