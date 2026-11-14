@@ -1,0 +1,11 @@
+{"events": [
+  {"t": 2.0,  "type": "tap", "key": "composer"},
+  {"t": 2.3,  "type": "type", "text": "run-tests", "every": 0.03},
+  {"t": 3.0,  "type": "key", "name": "Enter"},
+  {"t": 8.0,  "type": "mark", "name": "tools"},
+  {"t": 9.0,  "type": "tap", "key": "composer"},
+  {"t": 9.3,  "type": "type", "text": "long-reply", "every": 0.03},
+  {"t": 10.0, "type": "key", "name": "Enter"},
+  {"t": 16.0, "type": "mark", "name": "streaming"},
+  {"t": 16.5, "type": "mark", "name": "end"}
+]}

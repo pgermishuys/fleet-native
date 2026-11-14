@@ -65,12 +65,32 @@ Until the "desktop shell" lane, this app doesn't start a server: it is given one
 | Hub class | `SessionEventsHub` | `src/WeaveFleet.Api/Hubs/SessionEventsHub.cs` |
 | Reconnect delays in the Vue client | 1 s, 2 s, 5 s, 10 s | `use-signalr-socket.ts` |
 
-SignalR's JSON protocol over a WebSocket is small: `POST <hub>/negotiate?negotiateVersion=1` (or
-skip it and connect a WebSocket directly), send the handshake `{"protocol":"json","version":1}`,
-and then every frame is a JSON object ending in the byte `0x1e`. Message types: 1 invocation,
-3 completion, 6 ping, 7 close. Microsoft's "SignalR Hub Protocol" document is the reference. There
-are no captured frames in weave-fleet; capture your own from a scratch Fleet and keep them as test
-fixtures.
+SignalR's JSON protocol over a WebSocket is small: `POST <hub>/negotiate?negotiateVersion=1`
+(answers `{connectionToken, ...}`), connect a WebSocket to `<hub>?id=<connectionToken>`, send the
+handshake `{"protocol":"json","version":1}` (the server answers `{}`), and then every frame is a
+JSON object ending in the byte `0x1e`. Message types: 1 invocation, 3 completion, 6 ping, 7 close.
+Microsoft's "SignalR Hub Protocol" document is the reference. There are no captured frames in
+weave-fleet; `tests/fixtures/hub-*.jsonl` here are real ones from a scratch Fleet (v0.72.0), with
+the separators dropped so each line is one frame.
+
+What the captures showed (v0.72.0):
+
+- The snapshot (the completion of `SubscribeToSessionAsync`) is several KB and the server sends it
+  as a fragmented WebSocket message; a client that doesn't join continuation frames loses its tail.
+- Live events come as `Event(topic, eventId, data)` with `eventId` null or negative; `data` is
+  `{type, eventId, properties}`. On `session:<id>`: `message.updated` (a user prompt, with
+  `info`, `parts` and the `correlationId` of the POST), `turn.started`, `session.status`,
+  `message.part.updated`, `message.part.delta.streamed` (word-sized deltas with `offset`),
+  `message.updated` (the assistant's `info` only, no parts), `session.updated`, `session.idled`,
+  `session.idle`. Some carry the harness's own session id (`ses_...`) in `properties.sessionID`,
+  not Fleet's; use the topic for which session it is. On `sessions`: `activity_status`
+  (`{sessionId, activityStatus, capabilities}`), repeated several times per change.
+- A tool part is `{type:"tool", tool:"bash", callID, state:{status, input, output, metadata, time}}`;
+  it arrives as `running`, then `running` with output, then `completed`. The snapshot's copy of the
+  same part has no `time` in its state, so a call's duration is known live but not after a reload.
+- `GET /api/sessions` rows carry `activityStatus`, `projectName`, `workspaceDirectory`, `branch`,
+  `totalTokens` (null when none), `parentSessionId`, `retentionStatus` and `session.time.updated`
+  in milliseconds.
 
 Methods the client calls:
 
@@ -184,6 +204,9 @@ Two ways to get one:
 
 1. **A released server.** Download `fleet-v<version>-<linux-x64|osx-arm64|win-x64>` from
    weave-fleet's Releases, unpack it, and run `bin/fleet --port <n>` with the scratch `HOME`.
+   The launcher takes the port from `--port`: `Fleet__Port` is ignored by it, and with neither it
+   starts on 6262, where a real Fleet lives (it failed to bind here, but check the port you gave).
+   `scripts/scratch-fleet.sh` does all of this, with the scripted model.
 2. **From source, with a scripted model.** `mobile/e2e/start-fleet.sh` in weave-fleet starts a
    throwaway Fleet whose agent talks to `mobile/e2e/fakellm.py`, a stand-in model that replies from
    a script. Replies are the same every run and cost nothing, which is what a streaming test

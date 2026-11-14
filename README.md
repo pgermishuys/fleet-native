@@ -6,7 +6,8 @@ browser engine under it.
 
 **This is an experiment.** Fleet's desktop app is the Electron one in weave-fleet; that is the one
 to install. This repository exists to find out whether a native Fleet is enough better to be worth
-building. So far it draws Fleet's shell from invented data and doesn't talk to a Fleet server.
+building. So far it draws Fleet's shell, from invented data or, with `--server`, from a Fleet
+server: its sessions, the open conversation (text and tool rows) and what you send to the agent.
 
 | Read | For |
 |---|---|
@@ -16,6 +17,8 @@ building. So far it draws Fleet's shell from invented data and doesn't talk to a
 | [`AGENTS.md`](AGENTS.md) | How to work in this repository (written for coding agents; people too) |
 
 ![The shell, dark theme](shots/shell/dark.png)
+
+![A reply streaming in from a scratch Fleet](shots/server/streaming.png)
 
 ## Run it
 
@@ -39,6 +42,18 @@ download `fleet-native-windows-x64`, `fleet-native-macos-arm64` or `fleet-native
 Nothing is signed, so Windows asks once before it runs, and macOS needs
 `xattr -d com.apple.quarantine fleet-native` first.
 
+### Against a Fleet server
+
+```sh
+cargo run -- --server http://127.0.0.1:6411
+```
+
+Loopback and no token only so far: the server must be on this machine, and `http://`. Never point
+it at a Fleet you use: sending a message makes its agent act. `scripts/scratch-fleet.sh` starts a
+throwaway Fleet in an empty home with a scripted model instead of a real one (it needs a released
+server, a weave-fleet checkout for the model's script, and `opencode`; its header says how).
+With no `--server`, the invented sessions are shown, which is what the tests and scenes use.
+
 The window opens at the desktop app's size (1360 x 880, no smaller than 720 x 480) and follows the
 system's light or dark theme.
 
@@ -50,7 +65,7 @@ system's light or dark theme.
 | Session list | Click a session to open it. Click a project to fold it. Type in the filter. Drag the gutter to resize the list (200 to 500). |
 | Header | The open session's title, project, harness, model, branch and path. The buttons show their tooltips and do nothing, except Abort. |
 | Conversation | Scrolls, and stays at the bottom as messages arrive. Text can be selected. |
-| Composer | Type and press Enter (or click Send). The message joins the conversation and a canned reply follows 2.5 seconds later. Shift+Enter adds a line; the field grows to seven lines. |
+| Composer | Type and press Enter (or click Send). The message joins the conversation and a canned reply follows 2.5 seconds later. With `--server` the message goes to the agent and the reply streams in as it is written. Shift+Enter adds a line; the field grows to seven lines. |
 | Content panel | Click the collapsed rail on the right to open the session's plan; the chevron closes it. In a sheet too narrow for a third column the panel opens over the conversation, as in Fleet. |
 | Status bar | The keyboard hints, the harness and the open session's token count. |
 
@@ -65,7 +80,7 @@ Keys (Cmd on macOS, Ctrl elsewhere):
 
 ## What isn't built
 
-Everything behind the shell: the server connection, real sessions, New session, the command
+Everything behind the shell: older history and the rest of the reducer's events, New session, the command
 palette, the terminal, Settings and the other rail views, menus and dialogs, markdown and code
 blocks in messages, tool call details and the content panel's tabs. [`docs/PORT.md`](docs/PORT.md)
 has the order they get built in.

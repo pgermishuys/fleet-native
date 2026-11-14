@@ -30,9 +30,12 @@ pub fn bar(s: &State, t: &Theme) -> El {
         .child(hint(vec![kbd("Esc")], "Interrupt"))
         .child(sep())
         .child(hint(vec![kbd(&format!("{cmd} J"))], "Terminal"));
-    let session = row()
-        .center_y()
-        .gap(8.0)
+    let mut session = row().center_y().gap(8.0);
+    // What's wrong with the server connection, in the colour Fleet gives errors.
+    if let Some(note) = s.connection_note() {
+        session = session.child(text(note).font(label).color(t.error).truncate()).child(text("|").font(label).color(t.border));
+    }
+    let session = session
         .child(text("opencode").font(mono(11.0, 500.0, 1.3)).color(t.muted))
         .child(text("|").font(label).color(t.border))
         .child(text(format!("{} tokens", thousands(s.session().tokens))).font(label.features("'tnum' 1")).color(t.muted));

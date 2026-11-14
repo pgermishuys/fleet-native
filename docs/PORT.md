@@ -23,7 +23,7 @@ the features Rune can't do will cost. Step 1 answers the first. "Open decisions"
 | Tests with no window; every scene drawn on Linux, Windows and macOS in CI | Built |
 | Conversation split out of `sheet.rs`, with the message type (`Message`, `Part`) | Done (slice A, PR 1) |
 | Markdown, code blocks, long conversations | Step 1, slice A, in progress |
-| A real server | Step 1, slice B |
+| A real server: sessions, a conversation (text and tool rows), prompt and abort, live events | Done (slice B): `--server <url>`; reconnect, `LoadHistory` and the rest of the reducer are left |
 | Everything else | Step 2 |
 
 ## How work is cut
@@ -87,6 +87,14 @@ no token.
 - **New crates:** HTTP, WebSocket and JSON. Name each in the pull request with what it adds to a
   clean build. Start from threads and blocking calls (`docs/RUNE.md`, "Work off the UI thread").
 - **Budget:** 3,000 lines, 4 pull requests.
+- **Done** (checked on Linux against a scratch Fleet v0.72.0; the demo sentence holds). Left, for
+  the lanes that own them: delegations, running work, context usage and the optimistic prompt in
+  the reducer (lane 1; its tests are ported case for case for what this path touches, same names);
+  older history (`LoadHistoryAsync`, when the snapshot says `hasMore`); `SetPresenceAsync` and
+  `SetSessionFocusAsync`; the status of sessions other than the open one beyond `activity_status`;
+  https, tokens and several machines (lane 10); rebuilding only the changed messages instead of the
+  whole open conversation on each batch (slice A's long conversation will want it). The reconnect
+  loop is written to the Vue client's delays but not exercised against a dropped connection.
 - **Starts when** slice A's first pull request (the conversation file and message type) is merged,
   so the two don't rewrite the same type. After that they can run side by side.
 

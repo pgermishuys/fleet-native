@@ -13,6 +13,12 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 rune = { git = "https://github.com/anomalyco/rune", rev = "f1f54ce8bf485ee3a95804deace315f53a8970f6", features = ["tooling"] }
 
+# The server connection (src/fleet/). Blocking calls on plain threads, no async runtime, no TLS yet
+# (loopback only; the machines lane adds it).
+serde_json = "1"
+ureq = { version = "3", default-features = false }
+tungstenite = { version = "0.28", default-features = false, features = ["handshake"] }
+
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2"
 

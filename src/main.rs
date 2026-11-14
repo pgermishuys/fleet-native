@@ -2,5 +2,5 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
 fn main() {
-    fleet_native::start();
+    fleet_native::start_desktop();
 }

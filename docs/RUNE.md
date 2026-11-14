@@ -113,6 +113,20 @@ Rune has no HTTP or WebSocket client, and nothing slow may run in a view, a hand
 - `rune::Latest<T>`: latest-wins requests on a small worker pool, for things like a search box.
   Not for a long-lived stream.
 
+What the first connection (slice B) found:
+
+- `AppSpec`'s `App::args(argv)` lets the app take its own flags (`--server`) and hand the rest to
+  Rune; `App::handle()` before `run` gives the `AppHandle` for a thread started first. (used)
+- `AppHandle::update` closures are applied by the real loop and by `--snap` / `--script` runs, so
+  a headless picture can show a live server. They are **not** drained by `headless_runtime`
+  (that queue is crate-private), so a test can't use the handle. The app posts through a small
+  `Post` (`src/fleet/link.rs`) that is the handle in the app and a queue the test drains itself.
+- A headless picture of a live server needs the clock to cover the network's: the script's marks
+  are virtual time while frames render at software speed, so take the picture a few seconds after
+  the last event and hold a streaming reply with the scripted model (`long-reply`).
+- Blocking `ureq` (without TLS) and `tungstenite` on plain threads were enough: no async runtime.
+  A read timeout of 20 ms on the socket lets one thread both read the hub and take commands.
+
 Starting point for the server connection: plain threads and blocking crates (one thread for the
 hub's WebSocket, short-lived ones or a small pool for HTTP), each handing results over with
 `AppHandle::update`. No async runtime unless a slice shows it's needed: it would be the largest

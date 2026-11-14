@@ -16,7 +16,7 @@ const CONTENT_MIN: f32 = 280.0;
 
 pub fn sheet(s: &State, t: &Theme) -> El {
     let session = s.session();
-    let project = &s.projects[s.open.0];
+    let project = s.project();
     let centre = col()
         .grow(1.0)
         .min_w(0.0)
@@ -77,7 +77,7 @@ fn header(t: &Theme, project: &Project, session: &Session) -> El {
         .center_y()
         .gap(6.0)
         .clip_rounded(0.0)
-        .child(plain(project.name))
+        .child(plain(&project.name))
         .child(dot())
         .child(plain("OpenCode"))
         .child(dot())
@@ -88,11 +88,11 @@ fn header(t: &Theme, project: &Project, session: &Session) -> El {
                 .center_y()
                 .gap(4.0)
                 .child(icon(&GIT_BRANCH, 12.0).color(t.muted))
-                .child(text(session.branch).font(path_font).color(t.text)),
+                .child(text(session.branch.clone()).font(path_font).color(t.text)),
         )
         .child(dot())
         // The path is what gives way when the header runs out of room.
-        .child(text(project.path).font(path_font).color(t.muted.alpha(0.8)).truncate().shrink())
+        .child(text(project.path.clone()).font(path_font).color(t.muted.alpha(0.8)).truncate().shrink())
         // Add a tag.
         .child(
             el().key("add-tag")
@@ -114,7 +114,7 @@ fn header(t: &Theme, project: &Project, session: &Session) -> El {
         .shrink()
         .min_w(0.0)
         .gap(3.0)
-        .child(text(session.title).font(sans(14.0, 600.0, 1.3).tracking(-0.07)).color(t.text).truncate())
+        .child(text(session.title.clone()).font(sans(14.0, 600.0, 1.3).tracking(-0.07)).color(t.text).truncate())
         .child(meta);
 
     let mut actions = row().center_y().gap(2.0).ml(10.5).child(tool_button(t, "terminal", &SQUARE_TERMINAL, 14.0, "Terminal"));
