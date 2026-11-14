@@ -241,7 +241,8 @@ fn next_step(s: &mut State, tx: &mut Tx) {
         // Where the page's button sits in the page (page.html: 20px padding, heading, one line).
         Some("osr-2-clicked") => {
             if let Some(host) = host() {
-                let ev = mouse(80.0, 82.0);
+                let ev = mouse(90.0, 100.0);
+                host.send_mouse_move_event(Some(&ev), 0);
                 host.send_mouse_click_event(Some(&ev), MouseButtonType::default(), 0, 1);
                 host.send_mouse_click_event(Some(&ev), MouseButtonType::default(), 1, 1);
             }
