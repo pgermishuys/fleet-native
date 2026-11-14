@@ -30,8 +30,8 @@ the features Rune can't do will cost. Step 1 answers the first. "Open decisions"
 
 - A **slice** goes through every layer and ends in something a person can try. It has a demo
   sentence, a budget, and the files it owns.
-- One session builds one slice or component, from start to merged, without stopping between its
-  pull requests.
+- One session builds one piece (one pull request) of a component, from start to merged. A
+  component's planning session splits it into pieces first.
 - Budgets are counts: lines of Rust added (tests included) and pull requests. Past the budget by
   half, stop and say why.
 - **Step 1 comes first and finishes before Step 2 starts.** Fanning out across layers before one
@@ -107,26 +107,31 @@ way. The desktop app is split into the logical components below and ported in th
 builds on the ones before it. Sizes are Fleet's Vue lines for the same area, to judge the work,
 not a target. A component over about 5,000 Vue lines is built in slices, one session each, in order.
 
-Each component ports from **weave-fleet's `main` on the day it starts** and records that commit in
-its checklist, so the port tracks Fleet as it is, not as it was.
-
 ### How a component gets done
 
-1. **Checklist first.** Read the component's Vue files (and the stores, composables and `lib/`
-   code behind them) and write `docs/parity/<nn>-<component>.md`: every element, action,
-   shortcut, menu item and state (empty, loading, error, long text, both themes), each with the Vue
-   file it comes from. Mark what is out of reach and why. This is the component's first pull
-   request, so what "done" means is visible before any code.
-2. **Port it.** Logic as plain Rust with no Rune in it where it can be, with Fleet's own tests
-   ported under the same names where they exist. Views at Fleet's sizes, tokens and wording.
-3. **Pictures beside Fleet's.** The same scratch Fleet, the same state, the same window size, both
-   themes: the native app (`--snap`, `--script`, or a window under Xvfb) next to Fleet's own client
-   in a browser (the scratch Fleet serves it; it is what the Electron app shows). Commit the pairs
-   under `shots/parity/<nn>-<component>/` and put them in the pull request.
-4. **Live check** against a scratch Fleet with a scripted model (`scripts/scratch-fleet.sh`), never a
-   real one.
-5. **Merge** when CI is green on Linux, Windows and macOS, with the checklist ticked and every gap
-   written down with its reason. Then tell the orchestrator.
+Every piece of work gets its own Fleet session, so each session's context stays small (the owner's
+instruction, 14 November 2026).
+
+1. **A planning session** reads the component's Vue files (and the stores, composables and `lib/`
+   code behind them) and writes `docs/parity/<nn>-<component>.md`: the weave-fleet commit it read;
+   every element, action, shortcut, menu item, event and state (empty, loading, error, long text,
+   both themes), each with its source file; what the native app already has; what is out of reach
+   and why. It ends with the **pieces**: in build order, each one pull request of a few hundred
+   lines of Rust (at most about 800), with the checklist rows it covers, the files it touches, what
+   it depends on, the tests to port by name, and the pictures that prove it. That file is one pull
+   request, and the planning session stops there.
+2. **One new session per piece**, one at a time, each starting from the checklist file alone. It
+   builds its piece: logic as plain Rust with no Rune in it where it can be, Fleet's own tests
+   ported under the same names, views at Fleet's sizes, tokens and wording. It takes the pictures
+   beside Fleet's (the same scratch Fleet, the same state, the same window size, both themes: the
+   native app next to Fleet's own client, which is what the Electron app shows), committed under
+   `shots/parity/<nn>-<component>/`. It checks live against a scratch Fleet with a scripted model
+   (`scripts/scratch-fleet.sh`), never a real one. It ticks its rows in the checklist, writes down
+   every gap with its reason, and merges when every check is green on top of current `main`.
+3. The orchestrator looks at each piece's pictures against its rows before the next piece starts.
+
+Each component ports from **weave-fleet's `main` on the day its planning session starts** and
+records that commit in its checklist, so the port tracks Fleet as it is, not as it was.
 
 ### The order
 
