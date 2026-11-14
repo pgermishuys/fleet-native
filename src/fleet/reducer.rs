@@ -2,10 +2,13 @@
 //! `event-state.ts`. A snapshot makes a `StreamState`; each event changes it. No Rune, no I/O.
 //!
 //! The event type itself is `events.rs`. Done: messages and their parts, text deltas, turn start/end/failure, session idle,
-//! delegations and the status derived from them (`delegations.rs`). Not yet: running work, context
-//! usage, and the optimistic-prompt confirmation.
+//! delegations and the status derived from them (`delegations.rs`), running work (`work.rs`), context
+//! usage (`context.rs`) and the `command` and `mod` marks on a prompt. Not yet: the optimistic-prompt
+//! confirmation.
+use super::context::to_context_usage;
 use super::delegations::{self, Delegation};
-use super::model::{Explicit, Msg, PartData, StreamState, Tokens};
+use super::model::{Explicit, ModKind, ModMark, Msg, PartData, SlashCommand, StreamState, Tokens};
+use super::work::{self, apply_item, to_item};
 use crate::view::conversation::Role;
 use serde_json::{Map, Value};
 
@@ -21,6 +24,8 @@ pub fn create_state(snapshot: &Value) -> StreamState {
         messages: Vec::new(),
         session_status: delegations::derive_snapshot_status(explicit_status, &delegations),
         delegations,
+        running_work: work::to_items(snapshot.get("runningWork")),
+        context: snapshot.get("context").and_then(to_context_usage),
         explicit_status,
         last_event_id: snapshot.get("lastEventId").or_else(|| snapshot.get("lastSequenceNumber")).and_then(Value::as_i64),
     };
@@ -55,6 +60,16 @@ pub fn apply(state: &mut StreamState, event: &Event) {
         Event::ActivityStatus { session_id, activity_status } => {
             if delegations::set_child_activity(&mut state.delegations, session_id, activity_status) {
                 rederive(state);
+            }
+        }
+        Event::Work { item, .. } => {
+            if let Some(item) = to_item(item) {
+                apply_item(&mut state.running_work, item);
+            }
+        }
+        Event::Context(usage) => {
+            if let Some(usage) = to_context_usage(usage) {
+                state.context = Some(usage);
             }
         }
         Event::Cursor(id) => state.last_event_id = Some(*id),
@@ -165,7 +180,30 @@ fn ensure_message(messages: &mut Vec<Msg>, info: &Value) {
     msg.parent_id = str_of(info, "parentID");
     msg.steered = info.get("steered") == Some(&Value::Bool(true));
     msg.compaction_summary = info.get("compactionSummary") == Some(&Value::Bool(true));
+    if msg.role == Role::User {
+        msg.command = read_command(info);
+        msg.mod_mark = read_mod(info);
+    }
     insert_sorted(messages, msg);
+}
+
+/// `readCommand`: the slash command on a message info. Empty arguments are dropped.
+fn read_command(info: &Value) -> Option<SlashCommand> {
+    let command = info.get("command").filter(|c| c.is_object())?;
+    let name = command.get("name")?.as_str().filter(|n| !n.is_empty())?.to_string();
+    let arguments = command.get("arguments").and_then(Value::as_str).filter(|a| !a.is_empty()).map(str::to_string);
+    Some(SlashCommand { name, arguments })
+}
+
+/// `readMod`: which mod sent or rewrote a prompt.
+fn read_mod(info: &Value) -> Option<ModMark> {
+    let mark = info.get("mod").filter(|m| m.is_object())?;
+    let kind = match mark.get("kind")?.as_str()? {
+        "sent" => ModKind::Sent,
+        "rewritten" => ModKind::Rewritten,
+        _ => return None,
+    };
+    Some(ModMark { kind, name: mark.get("name")?.as_str().filter(|n| !n.is_empty())?.to_string() })
 }
 
 fn is_turn_error(v: &Value) -> bool {
@@ -229,6 +267,11 @@ fn merge_update(messages: &mut [Msg], info: &Value, parts: Option<&[Value]>) {
     }
     if info.get("compactionSummary") == Some(&Value::Bool(true)) {
         msg.compaction_summary = true;
+    }
+    // A prompt's marks can arrive on a later update; an agent message never has them.
+    if msg.role == Role::User {
+        msg.command = read_command(info).or(msg.command.take());
+        msg.mod_mark = read_mod(info).or(msg.mod_mark.take());
     }
     if let Some(parts) = parts {
         let snapshot: Vec<PartData> = parts.iter().enumerate().filter_map(|(i, p)| committed_part(&id, p, i)).collect();

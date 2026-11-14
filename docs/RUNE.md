@@ -220,3 +220,9 @@ them on the UI thread, so a listener may touch `State` freely but must not block
 
 Nothing in Rune was needed. A scene is a plain `fn(&mut State)`, so it can't capture anything: a scene that needs a
 state (here, the row status derived from a snapshot) calls a `State` method, and a light variant is a second scene.
+
+## Component 2, piece C (work, context, marks)
+
+Nothing in Rune was needed. To check that a snapshot taken again rebuilds only what changed, a test writes a marker
+into a part id (not part of a row's `version()`) on the view rows and sees which survive; `State.projects` is public
+for that.

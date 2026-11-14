@@ -56,6 +56,8 @@ pub fn long_from_events(rt: &mut Runtime<State>) -> &'static str {
     let state = StreamState {
         messages,
         delegations: Vec::new(),
+        running_work: Vec::new(),
+        context: None,
         explicit_status: Explicit::Busy,
         session_status: StreamStatus::Busy,
         last_event_id: None,

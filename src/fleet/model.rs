@@ -1,7 +1,9 @@
 //! The conversation as the reducer accumulates it: weave-fleet's `AccumulatedMessage`
 //! (`client/src/lib/client-types.ts`). Tool state stays raw JSON here, because the reducer merges
 //! it key by key; `view.rs` boils it down for drawing.
+use super::context::ContextUsage;
 use super::delegations::Delegation;
+use super::work::RunningWorkItem;
 use crate::view::conversation::Role;
 use serde_json::Value;
 
@@ -52,6 +54,29 @@ pub struct Msg {
     pub steered: bool,
     /// The summary a compaction wrote as a message of its own; shown behind the divider, not as a reply.
     pub compaction_summary: bool,
+    /// The slash command a prompt came from (`SlashCommand`); user messages only.
+    pub command: Option<SlashCommand>,
+    /// The mod that sent or rewrote a prompt (`ModMark`); user messages only.
+    pub mod_mark: Option<ModMark>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct SlashCommand {
+    pub name: String,
+    /// Left out (`None`) when the command had none.
+    pub arguments: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ModKind {
+    Sent,
+    Rewritten,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ModMark {
+    pub kind: ModKind,
+    pub name: String,
 }
 
 impl Msg {
@@ -72,6 +97,8 @@ impl Msg {
             finish: None,
             steered: false,
             compaction_summary: false,
+            command: None,
+            mod_mark: None,
         }
     }
 }
@@ -106,6 +133,11 @@ impl StreamStatus {
 pub struct StreamState {
     pub messages: Vec<Msg>,
     pub delegations: Vec<Delegation>,
+    /// What the agent left running (`work.*`); background work isn't the session's own, so it doesn't
+    /// touch the status.
+    pub running_work: Vec<RunningWorkItem>,
+    /// How full the context window is: the snapshot's `context`, replaced whole by each `context.updated`.
+    pub context: Option<ContextUsage>,
     pub explicit_status: Explicit,
     pub session_status: StreamStatus,
     pub last_event_id: Option<i64>,
