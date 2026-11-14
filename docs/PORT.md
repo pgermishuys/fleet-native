@@ -22,7 +22,7 @@ the features Rune can't do will cost. Step 1 answers the first. "Open decisions"
 | Shell: rail, session list, header, conversation, composer, content panel, status bar | Built, from invented data |
 | Tests with no window; every scene drawn on Linux, Windows and macOS in CI | Built |
 | Conversation split out of `sheet.rs`, with the message type (`Message`, `Part`) | Done (slice A, PR 1) |
-| Markdown, highlighted code, tables, virtual rows, the 2,000-message "Long conversation" and its scripted stream | Done (slice A, PR 2); the measurements are PR 3 |
+| Markdown, highlighted code, tables, virtual rows, the 2,000-message "Long conversation" and its scripted stream | Done (slice A, PR 2); measurements in `docs/measurements/conversation.md` (PR 3): native numbers measured, real-hardware run still to do |
 | A real server: sessions, a conversation (text and tool rows), prompt and abort, live events | Done (slice B): `--server <url>`; reconnect, `LoadHistory` and the rest of the reducer are left |
 | Everything else | Step 2 |
 

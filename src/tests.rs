@@ -210,35 +210,11 @@ fn a_person_scrolled_up_is_left_alone_while_a_reply_streams() {
     assert_eq!(rt.scroll_at_bottom("stream"), Some(false), "streaming pulled the view back down");
 }
 
-/// The long conversation as the reducer holds it, with an empty reply at its end, standing in for a
-/// server's session that is mid-stream. Returns the open session's id.
-fn long_from_events(rt: &mut Runtime<State>) -> &'static str {
-    use crate::fleet::model::{Explicit, Msg, PartData, StreamState, StreamStatus};
-    let messages = (0..2_000)
-        .map(|n| {
-            let mut m = Msg::new(format!("msg_{n:05}"), "bench", if n % 2 == 0 { Role::User } else { Role::Assistant });
-            let body = format!("Message {n}.\n\n- one\n- two\n\n```rust\nfn f{n}() {{}}\n```\n").repeat(4);
-            m.parts.push(PartData::Text { id: format!("prt_{n:05}"), text: body });
-            m
-        })
-        .collect();
-    let state = StreamState { messages, explicit_status: Explicit::Busy, session_status: StreamStatus::Busy, last_event_id: None };
-    rt.update(move |s, tx| {
-        let at = s.long_session().unwrap();
-        s.open = at;
-        s.projects[at.0].sessions[at.1].id = "bench".into();
-        s.on_snapshot("bench", state, tx);
-    });
-    rt.frame(FRAME);
-    rt.frame(FRAME);
-    "bench"
-}
-
 #[test]
 fn a_batch_of_deltas_rebuilds_only_the_last_message() {
     use crate::fleet::reducer::Event;
     let mut rt = app();
-    let id = long_from_events(&mut rt);
+    let id = crate::bench::long_from_events(&mut rt);
     let text_at = |rt: &Runtime<State>, n: usize| match &rt.state.session().messages[n].parts[0] {
         Part::Text { text, .. } => (text.as_ptr(), text.len()),
         _ => panic!("not text"),
@@ -267,7 +243,7 @@ fn a_batch_of_deltas_rebuilds_only_the_last_message() {
 fn events_leave_a_person_who_scrolled_up_where_they_are() {
     use crate::fleet::reducer::Event;
     let mut rt = app();
-    let id = long_from_events(&mut rt);
+    let id = crate::bench::long_from_events(&mut rt);
     for _ in 0..30 {
         rt.wheel(640.0, 400.0, 300.0);
         rt.frame(FRAME);

@@ -1,0 +1,24 @@
+{
+ "events": [
+  {
+   "t": 0.5,
+   "type": "tap",
+   "key": "project-3"
+  },
+  {
+   "t": 1.0,
+   "type": "mark",
+   "name": "open"
+  },
+  {
+   "t": 1.0,
+   "type": "tap",
+   "key": "session-3-0"
+  },
+  {
+   "t": 3.0,
+   "type": "mark",
+   "name": "end"
+  }
+ ]
+}
