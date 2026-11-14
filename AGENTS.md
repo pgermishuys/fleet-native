@@ -150,18 +150,36 @@ private hostnames, and anything from a real Fleet (titles, prompts, repository n
   smallest case that shows it into `docs/RUNE.md` and work around it here. Don't open issues on
   Rune's repository unless the user asks.
 
+## Pictures, always
+
+**No pull request is opened or merged without pictures of the app in its description.** That
+includes docs-only, CI-only and refactoring pull requests: a refactor shows the app still draws the
+same, a CI change shows a picture from the run it changed.
+
+- The pictures are in the description **from the moment the pull request is opened**. Never a
+  placeholder filled in later: take them first, then open it.
+- Commit them under `shots/<topic>/` (a component's go under `shots/parity/<nn>-<component>/`) and
+  link them by commit (`https://github.com/pgermishuys/fleet-native/raw/<sha>/shots/...`), so the
+  link keeps showing what was true for that pull request.
+- Show what the pull request changes. For a component, that is the native app beside Fleet's own
+  client, same state, same size, both themes.
+- Look at every picture before you put it in. A picture you didn't look at is not a check.
+- CI enforces it: the **Picture in the description** check fails while the description has no
+  image, and `main` only takes a pull request whose checks (that one and all three systems) are
+  green on top of current `main`.
+
 ## Working in a session
 
 - Take one component from `docs/PORT.md` and follow "How a component gets done" there: the parity
   checklist first, then the port, then pictures beside Fleet's own client. Don't stop between
   your pull requests; stop at the end of the component or for something below.
 - Work on a branch. Rebase on `main`; don't merge `main` in.
-- A pull request has: what part of the component's checklist it covers and what is still open; the
-  pictures beside Fleet's (committed under `shots/parity/<nn>-<component>/`, `--scale 1` unless
-  detail matters, linked by commit); what was checked on which system.
+- A pull request has: its pictures (above); what part of the component's checklist it covers and
+  what is still open; what was checked on which system.
 - In the same pull request, update the component's row in `docs/PORT.md`, its checklist in
   `docs/parity/`, and add what you learned about Rune to `docs/RUNE.md`.
-- Merge when CI is green on all three systems. Squash.
+- Merge when every check is green (all three systems and the picture check) on top of current
+  `main`; rebase and wait for the new run if `main` moved. Squash.
 - Stop and ask when: a gap needs a product decision that `docs/PORT.md`, "Decisions", doesn't
   cover; the component needs Rune's pin moved; or Rune can't do something the component needs
   (write the smallest case into `docs/RUNE.md` first).
