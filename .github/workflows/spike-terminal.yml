@@ -1,0 +1,91 @@
+# The terminal spike (spikes/terminal) on Windows and macOS: a release build to download and
+# try, its tests, its scenes drawn, and its bench numbers. Lives on the spike branch only.
+name: Spike terminal
+
+on:
+  push:
+    branches: [spike/terminal]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: never
+
+defaults:
+  run:
+    shell: bash
+    working-directory: spikes/terminal
+
+jobs:
+  build:
+    name: Spike (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: windows-x64, os: windows-latest, exe: terminal-spike.exe }
+          - { name: macos-arm64, os: macos-15, exe: terminal-spike }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rust (rust-toolchain.toml)
+        run: rustup show
+
+      - name: Restore the build cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            spikes/terminal/target
+          key: spike-terminal-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('spikes/terminal/Cargo.lock') }}
+          restore-keys: spike-terminal-${{ runner.os }}-${{ runner.arch }}-
+
+      # No Visual C++ runtime to install on the machine that runs it.
+      - name: Static CRT (Windows)
+        if: runner.os == 'Windows'
+        run: echo "RUSTFLAGS=-C target-feature=+crt-static" >> "$GITHUB_ENV"
+
+      - name: Test
+        run: cargo test --release --locked
+
+      - name: Build
+        run: cargo build --release --locked
+
+      - name: Bench
+        run: ./target/release/${{ matrix.exe }} --bench < /dev/null | tee bench.txt
+
+      - name: Draw every scene
+        run: |
+          mkdir -p out
+          for scene in $(./target/release/${{ matrix.exe }} --list-scenes < /dev/null | tr -d '\r'); do
+            ./target/release/${{ matrix.exe }} --snap "out/$scene.png" --scene "$scene" --size 760x480 --scale 2 --at 0.3 < /dev/null | cat
+          done
+          ls -la out
+
+      - name: Upload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: terminal-spike-${{ matrix.name }}
+          path: |
+            spikes/terminal/target/release/${{ matrix.exe }}
+            spikes/terminal/bench.txt
+            spikes/terminal/out/
+          if-no-files-found: warn
+
+      - name: Save the build cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            spikes/terminal/target
+          key: spike-terminal-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('spikes/terminal/Cargo.lock') }}-${{ github.run_id }}

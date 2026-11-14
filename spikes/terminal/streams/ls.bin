@@ -1,0 +1,15 @@
+total 20K
+lrwxrwxrwx 1    9 2026-03-14 09:26 [0m[01;36mLATEST[0m -> README.md
+-rw-rw-r-- 1   36 2026-03-14 09:26 README.md
+drwxrwxr-x 2 4.0K 2026-03-14 09:26 [01;34massets[0m
+drwxrwxr-x 2 4.0K 2026-03-14 09:26 [01;34mdocs[0m
+drwxrwxr-x 2 4.0K 2026-03-14 09:26 [01;34mscripts[0m
+drwxrwxr-x 3 4.0K 2026-03-14 09:26 [01;34msrc[0m
+assets:
+glow.png
+
+scripts:
+[0m[01;32mtrim.sh[0m*
+
+src/lamp:
+mod.rs  wick.rs

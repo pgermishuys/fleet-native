@@ -1,0 +1,35 @@
+# Research spike: a terminal grid drawn with Rune (docs/research/terminal.md on its own branch).
+# Never merged. Its own workspace so the app's build and lock file stay as they are.
+[package]
+name = "terminal-spike"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+rune = { git = "https://github.com/anomalyco/rune", rev = "f1f54ce8bf485ee3a95804deace315f53a8970f6", features = ["tooling"] }
+# The terminal state: parser, grid, scrollback, modes, selection. Its pty module comes along
+# (not optional); the spike uses it for a local shell only. Fleet's own client wouldn't.
+alacritty_terminal = "0.26"
+# The runner-up, only for the parse-speed comparison (`--bench`).
+vt100 = "0.18"
+
+# Rune patches these crates, and a dependency's [patch] doesn't reach the app that depends on it,
+# so the app repeats them from the same rev (Rune's README, "Depending on Rune").
+[patch.crates-io]
+winit = { git = "https://github.com/anomalyco/rune", rev = "f1f54ce8bf485ee3a95804deace315f53a8970f6" }
+parley_engine = { git = "https://github.com/anomalyco/rune", rev = "f1f54ce8bf485ee3a95804deace315f53a8970f6" }
+wgpu-hal = { git = "https://github.com/anomalyco/rune", rev = "f1f54ce8bf485ee3a95804deace315f53a8970f6" }
+accesskit_windows = { git = "https://github.com/anomalyco/rune", rev = "f1f54ce8bf485ee3a95804deace315f53a8970f6" }
+
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
+opt-level = 1
+
+[profile.release]
+codegen-units = 16
