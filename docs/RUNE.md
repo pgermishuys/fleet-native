@@ -60,8 +60,8 @@ needs.
 
 | Fleet uses | In Rune | What it means |
 |---|---|---|
-| A web view: pages agents show (`fleet_page_show`), HTML previews, the browser canvas (all sandboxed iframes today) | None | The biggest gap. Options are in `docs/PORT.md`. |
-| A terminal (xterm.js) | None | Would be built here: a terminal-state crate and a grid drawn with Rune text. The pty is the server's, reached over a socket (`client/src/lib/terminal-socket.ts`), so the app needs no pty of its own. |
+| A web view: pages agents show (`fleet_page_show`), HTML previews, the browser canvas (all sandboxed iframes today) | None of its own; `App::on_window` + `WindowHandle::with_raw_handle` hand the window to `wry` | `wry` works on all three systems as a child web view, but it sits on top of everything Rune draws. Chosen route and limits: `docs/research/web-content.md`; decision 1 in `docs/PORT.md`. |
+| A terminal (xterm.js) | `rune::grid` / `GridRow` draws a terminal grid a row at a time (since 13 November 2026) | With `alacritty_terminal` for the state it draws vim, colours and wide characters right on all three systems. The pty is the server's. `docs/research/terminal.md`. |
 | A code editor (CodeMirror: the file viewer, merge view, search) | Text fields and syntax colours, but no line numbers, gutters, folding or find and replace | The diff view covers Changes; the file viewer needs building. |
 | HTTP and WebSocket | None on desktop | The app brings its own crates. See "Work off the UI thread". |
 | A menu bar | macOS only | Windows and Linux draw their own, as Fleet's Electron app mostly does anyway. |

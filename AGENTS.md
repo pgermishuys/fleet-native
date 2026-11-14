@@ -13,12 +13,13 @@ Windows, Linux). The phone app and the browser UI are not part of this.
 What exists: the shell (rail, session list, conversation, composer, content panel, status bar),
 drawn from invented data. `README.md` lists what works.
 
-What to build, in what order, and what is undecided: **`docs/PORT.md`. Read it before you start.**
-A session takes one slice or one lane from it, and nothing else.
+What to build, in what order, and what has been decided: **`docs/PORT.md`. Read it before you
+start.** A session takes one component (or one slice of one) from it, and nothing else.
 
 | Read | For |
 |---|---|
-| `docs/PORT.md` | The plan: slices, lanes, who owns which files, open decisions |
+| `docs/PORT.md` | The plan: the components in order, how each is done, the decisions |
+| `docs/research/` | Why the terminal and web content are built the way they are |
 | `docs/FLEET.md` | Fleet's server contract and where each part lives in weave-fleet |
 | `docs/RUNE.md` | What Rune has, what it lacks, and what we learned using it |
 
@@ -151,14 +152,16 @@ private hostnames, and anything from a real Fleet (titles, prompts, repository n
 
 ## Working in a session
 
-- Take one slice or lane from `docs/PORT.md`. Stay inside the files it owns; if you must touch
-  another lane's file, keep it to a few lines and say so in the pull request.
+- Take one component from `docs/PORT.md` and follow "How a component gets done" there: the parity
+  checklist first, then the port, then pictures beside Fleet's own client. Don't stop between
+  your pull requests; stop at the end of the component or for something below.
 - Work on a branch. Rebase on `main`; don't merge `main` in.
-- A pull request has: the slice's demo sentence and whether it now holds; at least one picture of
-  the app (commit it under `shots/<topic>/`, `--scale 1` unless detail matters, and link it by
-  commit); what was checked on which system; lines added against the slice's budget.
-- In the same pull request, update `docs/PORT.md` (what's done, what's left) and add what you
-  learned about Rune to `docs/RUNE.md`.
+- A pull request has: what part of the component's checklist it covers and what is still open; the
+  pictures beside Fleet's (committed under `shots/parity/<nn>-<component>/`, `--scale 1` unless
+  detail matters, linked by commit); what was checked on which system.
+- In the same pull request, update the component's row in `docs/PORT.md`, its checklist in
+  `docs/parity/`, and add what you learned about Rune to `docs/RUNE.md`.
 - Merge when CI is green on all three systems. Squash.
-- Stop and ask the user when: a gap needs a product decision (`docs/PORT.md`, "Open decisions");
-  you're past the budget by half; or the slice needs Rune's pin moved.
+- Stop and ask when: a gap needs a product decision that `docs/PORT.md`, "Decisions", doesn't
+  cover; the component needs Rune's pin moved; or Rune can't do something the component needs
+  (write the smallest case into `docs/RUNE.md` first).
