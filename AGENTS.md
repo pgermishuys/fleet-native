@@ -14,7 +14,7 @@ What exists: the shell (rail, session list, conversation, composer, content pane
 drawn from invented data. `README.md` lists what works.
 
 What to build, in what order, and what has been decided: **`docs/PORT.md`. Read it before you
-start.** A session takes one component (or one slice of one) from it, and nothing else.
+start.** A session takes one piece of one component from it, and nothing else.
 
 | Read | For |
 |---|---|
@@ -170,12 +170,12 @@ same, a CI change shows a picture from the run it changed.
 
 ## Working in a session
 
-- Take one component from `docs/PORT.md` and follow "How a component gets done" there: the parity
-  checklist first, then the port, then pictures beside Fleet's own client. Don't stop between
-  your pull requests; stop at the end of the component or for something below.
+- A session does one thing from `docs/PORT.md`, "How a component gets done": either a component's
+  planning (its checklist and piece list), or one piece from a checklist in `docs/parity/`. Stay
+  inside that piece's rows and files; when it's merged, report and stop.
 - Work on a branch. Rebase on `main`; don't merge `main` in.
-- A pull request has: its pictures (above); what part of the component's checklist it covers and
-  what is still open; what was checked on which system.
+- A pull request has: its pictures (above); which checklist rows it covers and what is still open;
+  what was checked on which system.
 - In the same pull request, update the component's row in `docs/PORT.md`, its checklist in
   `docs/parity/`, and add what you learned about Rune to `docs/RUNE.md`.
 - Merge when every check is green (all three systems and the picture check) on top of current
