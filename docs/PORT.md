@@ -30,15 +30,18 @@ the features Rune can't do will cost. Step 1 answers the first. "Open decisions"
 
 - A **slice** goes through every layer and ends in something a person can try. It has a demo
   sentence, a budget, and the files it owns.
-- One session builds one slice or lane, from start to merged.
+- One session builds one slice or component, from start to merged, without stopping between its
+  pull requests.
 - Budgets are counts: lines of Rust added (tests included) and pull requests. Past the budget by
   half, stop and say why.
 - **Step 1 comes first and finishes before Step 2 starts.** Fanning out across layers before one
   thin path works end to end is how a lot of code gets written and little of it works.
+- **Step 2 goes one component at a time**, in the order below (the owner's instruction, 14 November
+  2026: "logical piece by logical piece"). The next starts when the last is merged and checked.
 
 ## Step 1: the gate
 
-Two slices. Both must be on `main`, with their demo sentences true, before any lane in Step 2
+Two slices. Both must be on `main`, with their demo sentences true, before any component in Step 2
 starts. If slice A's numbers say native isn't clearly better, stop there and report.
 
 ### Slice A: a conversation that streams
@@ -88,64 +91,102 @@ no token.
   clean build. Start from threads and blocking calls (`docs/RUNE.md`, "Work off the UI thread").
 - **Budget:** 3,000 lines, 4 pull requests.
 - **Done** (checked on Linux against a scratch Fleet v0.72.0; the demo sentence holds). Left, for
-  the lanes that own them: delegations, running work, context usage and the optimistic prompt in
-  the reducer (lane 1; its tests are ported case for case for what this path touches, same names);
+  the components that own them: delegations, running work, context usage and the optimistic prompt in
+  the reducer (component 2; its tests are ported case for case for what this path touches, same names);
   older history (`LoadHistoryAsync`, when the snapshot says `hasMore`); `SetPresenceAsync` and
   `SetSessionFocusAsync`; the status of sessions other than the open one beyond `activity_status`;
-  https, tokens and several machines (lane 10); (rebuilding only the changed messages on each batch was done in slice A, PR 2). The reconnect
+  https, tokens and several machines (component 17). Rebuilding only the changed messages on each batch was done in slice A, PR 2. The reconnect
   loop is written to the Vue client's delays but not exercised against a dropped connection.
 - **Starts when** slice A's first pull request (the conversation file and message type) is merged,
   so the two don't rewrite the same type. After that they can run side by side.
 
-## Step 2: lanes
+## Step 2: components, one at a time
 
-Each lane is one session at a time and owns its folder. Lanes with no "needs" can run side by side
-once Step 1 is done. Sizes are the Vue client's lines for the same area (`docs/FLEET.md`); a lane
-far bigger than a session splits into slices, each with its own demo sentence, before it starts.
+The goal is **parity with Fleet's desktop app**: everything it does, the native app does, the same
+way. The desktop app is split into the logical components below and ported in this order. Each
+builds on the ones before it. Sizes are Fleet's Vue lines for the same area, to judge the work,
+not a target. A component over about 5,000 Vue lines is built in slices, one session each, in order.
 
-| Lane | Demo sentence | Owns | Vue source | Needs |
-|---|---|---|---|---|
-| 1. Every event | Every case in Fleet's reducer tests passes here under the same name, and a session with subagents, a question and a failed turn shows the right status at each step. | `src/fleet/reducer*` | `lib/domain-event-reducer.ts`, 74 test cases | |
-| 2. Parts of a message | Tool calls open to show their input and output, edits show a diff, reasoning folds, a compaction shows its divider, and a question or permission ask can be answered. | `src/view/conversation/` | `components/session` (20,360) | Lane 1 for asks |
-| 3. Composer | Pick the agent, model and effort, attach a file, queue or steer a message while the agent works, and use `/` commands and `@` mentions. | `src/view/composer/` | `components/session` composer files | |
-| 4. Session list | Start a new session, add a project folder, rename, archive, filter, and see child sessions under their parent with Fleet's muted lineage lines. | `src/view/sessions/` | `components/sessions` (11,741) | |
-| 5. Kit | Buttons, menus, dialogs, selects, tooltips, toasts and the command palette look and behave like Fleet's, and every other lane uses them. | `src/ui/` | `components/ui` (3,615) | Start first: others lean on it |
-| 6. Content panel | The tabs: Changes with its diff and review, Files and a file viewer, Progress, Turns, Agents. | `src/view/content/` | `components/canvas` (9,369) | Decisions 1 and 3 for pages, browser, editor |
-| 7. Terminal | The drawer opens a working terminal on the session's folder. | `src/view/terminal/` | `components/terminal` (1,206 plus xterm.js) | Decision 2 |
-| 8. Settings | Every settings page, under the same menu. | `src/view/settings/` | `components/settings` (17,521) | Lane 5 |
-| 9. Other rail views | Workflows, Automations, Analytics, Jobs, Fleet and GitHub, one slice each. | `src/view/<name>/` | their folders | Lane 5 |
-| 10. Machines | Connect to a Fleet on another machine with a token, pair a new one, and run sessions on it. | `src/fleet/machines*` | `lib/machines.ts`, `lib/machine-target.ts` | |
-| 11. Desktop shell | Double-click the app with no Fleet running: it starts its own server, shows the window, and a second launch brings the first to the front. Tray, notifications, deep links, window position. | `src/desktop/` | `desktop/src` | |
-| 12. Packages | A signed installer for macOS, Windows and Linux with the server inside, and updates. | `.github/workflows/`, `packaging/` | `desktop-packages.yml` | Lane 11 |
-| 13. Mods | A mod's buttons, chips and panes appear where they do in Fleet. | `src/view/mods/` | `components/mods` (2,140) | Lane 5; decision 1 for pages |
-| 14. Reach and keys | A screen reader reads every screen; every Fleet shortcut works; Tab order is right. | all (review pass) | | Last |
+Each component ports from **weave-fleet's `main` on the day it starts** and records that commit in
+its checklist, so the port tracks Fleet as it is, not as it was.
 
-## Open decisions
+### How a component gets done
 
-These are the owner's to make. A session that reaches one stops and asks; it doesn't pick.
+1. **Checklist first.** Read the component's Vue files (and the stores, composables and `lib/`
+   code behind them) and write `docs/parity/<nn>-<component>.md`: every element, action,
+   shortcut, menu item and state (empty, loading, error, long text, both themes), each with the Vue
+   file it comes from. Mark what is out of reach and why. This is the component's first pull
+   request, so what "done" means is visible before any code.
+2. **Port it.** Logic as plain Rust with no Rune in it where it can be, with Fleet's own tests
+   ported under the same names where they exist. Views at Fleet's sizes, tokens and wording.
+3. **Pictures beside Fleet's.** The same scratch Fleet, the same state, the same window size, both
+   themes: the native app (`--snap`, `--script`, or a window under Xvfb) next to Fleet's own client
+   in a browser (the scratch Fleet serves it; it is what the Electron app shows). Commit the pairs
+   under `shots/parity/<nn>-<component>/` and put them in the pull request.
+4. **Live check** against a scratch Fleet with a scripted model (`scripts/scratch-fleet.sh`), never a
+   real one.
+5. **Merge** when CI is green on Linux, Windows and macOS, with the checklist ticked and every gap
+   written down with its reason. Then tell the orchestrator.
 
-1. **Web content.** Fleet shows HTML in four places: pages agents show, HTML previews, the browser
-   canvas and mod pages. Rune has no web view. Options: (a) open them in a separate system web
-   view window beside the app; (b) embed the system web view inside the window (possible, but it
-   sits on top of everything Rune draws, so nothing can overlap it); (c) leave those features to
-   the Electron and browser clients. Nothing before lane 6 needs the answer.
-2. **Terminal.** Build one here from a terminal-state crate and Rune text (the server already owns
-   the pty), or leave it out of the native app at first.
-3. **File viewer and editor.** Fleet's is CodeMirror. Rune has syntax colours and a diff view but
-   no editor with line numbers, folding or find. Read-only viewer first, or not at all?
-4. **The web build.** Rune can also build for browsers, and the prototype has the scaffolding. It
-   was never seen drawing, CI doesn't build it, and the first networking code will break it.
-   Default until decided: don't spend effort keeping it alive.
-5. **Licence.** This repository is public and has none, as weave-fleet has none.
-6. **Moving Rune's pin.** Rune changes about 40 times a day and breaks its API without notice.
-   Suggested: one session a week moves the pin in its own pull request, and no lane moves it.
-7. **Catching up with Fleet.** The Vue client keeps changing while this is built. Suggested: after
-   each Fleet release, one session reads what changed in `client/` for the areas already ported
-   and either ports it or lists it here.
-8. **When this replaces Electron.** Not before lanes 1 to 5, 11 and 12 are done and decisions 1
-   to 3 are made. Until then both exist and Electron is the one that ships.
+### The order
 
-## Later
+| # | Component | Parity means | Vue source (`client/src/`) | Vue lines | State |
+|---|---|---|---|---|---|
+| | **Milestone 1: daily driver** | At the end, a working day can be run in the native app against the user's own Fleet. | | | |
+| 1 | Kit | Buttons, menus, popovers, dialogs, selects, comboboxes, tooltips, toasts, right-click menus and the command palette, looking and behaving like Fleet's. Every later component uses them. | `components/ui`, the palette in `components/layout/AppShell.vue` | 3,600 | |
+| 2 | Connect and every event | Finds the Fleet running on this machine with no `--server` (`fleet.instance.json`, `/readyz`, as `desktop/src/instance.ts` does); reconnects; older history; presence and focus; all 31 events, with all of Fleet's reducer tests passing here under the same names. | `lib/domain-event-reducer.ts` and its tests, `composables/use-session-stream.ts`, `use-signalr-socket.ts`, `stores/` | 3,900 | |
+| 3 | Conversation parts | Tool cards and their output, diffs, reasoning, shell blocks, compaction, turn folding and retry, interrupted turns, background work, subagent rows, images and the lightbox, browser steps, find in conversation, export to markdown. 2 slices. | `components/session`: `ActivityStream`, `MessageBubble`, `ToolCard`, `ToolOutputBody`, `DiffView`, `ReasoningBlock`, `ShellCommandBlock`, … | 7,300 | |
+| 4 | Questions and permissions | Every ask an agent can raise, answered from the conversation; allowed rules. | `QuestionCard`, `PermissionCard`, `Allowed*`, `PagePickCard` | 1,800 | |
+| 5 | Composer | Agent, model and effort pickers; `/` commands and `@` mentions; attachments; queue and steer; the context ring. | `Composer`, `ComposerFrame`, `AutocompletePopup`, `*Selector`, `EffortToggle`, `QueuedMessages`, `ContextRing` | 4,400 | |
+| 6 | Session list | Projects and machines, status glyphs, rename, archive with undo, delete, drafts, child sessions with muted lineage lines, filter, right-click menus. 2 slices. | `components/sessions` | 7,900 | |
+| 7 | New session and first run | The new-session composer with its folder, machine, harness, profile, base and GitHub pickers; new project; the welcome and repositories pages; harness setup. 2 slices. | `components/sessions/new-session`, `harness-setup`, `onboarding`, `pages/WelcomePage`, `pages/RepositoriesPage` | 5,300 | |
+| 8 | Session header and context | The header and its actions, fork, session analytics, smart links and the pull request pill. | `SessionDetailHeader`, `SessionActionToolbar`, `ForkSessionDialog`, `components/session-context` | 4,800 | |
+| 9 | App frame | Every rail entry and badge, the whole status bar (running work, usage limits), notices, report a problem, sign-in and pairing pages. | `components/layout`, `notices`, `report`, `auth`, `skills` dialogs | 6,500 | |
+| | **Milestone 2: the workspace** | | | | |
+| 10 | Content panel | Tabs, the collapsed right rail, Progress, Turns, Agents (the agent's browser is pictures from the server). | `components/canvas`: `CanvasHost`, `ProgressCanvas`, `TurnsCanvas`, `Agents*`, `AgentTabView` | 3,300 | |
+| 11 | Files and file viewer | The file tree, Go to file, a read-only file viewer with highlighting (slice 1); editing and saving (slice 2). | `FilesCanvas`, `FileCanvas`, `GoToFileDialog`, `FileBrowser*`, `LinesBar` | 3,200 | |
+| 12 | Changes and review | Changes with diffs, review, find, files changed, find in files. | `ChangesCanvas`, `ChangesReview`, `ChangesFindBar`, `DiffsTray`, `FilesChanged*`, `FindInFilesResults` | 4,500 | |
+| 13 | Terminal drawer | Decision 2. Slices 7a, 7b, 7c of `docs/research/terminal.md`: the view, Fleet's terminals, the drawer. | `components/terminal`, `lib/terminal-socket.ts` | 1,200 | |
+| 14 | Web content | Decision 1. The page tab, the browser canvas, the Document tab and rendered HTML files in a web view; pages in the conversation and HTML previews in lists as cards. | `PageCanvas`, `BrowserCanvas`, `ConversationPage`, `visual-renderers`, `mods/ModPage` | 2,800 | |
+| 15 | Side conversation | The `/btw` panel. | `SideConversationPanel` | 800 | |
+| | **Milestone 3: every rail view** | | | | |
+| 16 | Settings | Every page under the same menu. 4 slices: General, Appearance, Workspace, Storage, System · Harnesses, profiles, sign-in · Permissions, credentials, memory and Dreaming, skills and tools · Machines, phones, updates, Labs, What's new. | `components/settings` | 17,500 | |
+| 17 | Machines | Several machines in the session list, the machine switch, pairing, a node's sessions. Checked in each setup Fleet runs in (one machine; a node and the app on one machine; several machines). | `lib/machines.ts`, `lib/machine-target.ts`, `MachineSessionsGroup`, `MachineSwitch` | (in 6, 16) | |
+| 18 | Workflows | The library, a workflow's steps, recent runs and the Run box. 2 slices. | `components/workflows` | 6,600 | |
+| 19 | Automations | The list and detail, create and edit. | `components/automations` | 3,600 | |
+| 20 | Analytics | Overview, Daily, Projects, Models, Sessions; filters and export. | `components/analytics` | 3,000 | |
+| 21 | GitHub | Repositories, issues, pull requests. A plugin here as in Fleet: core never imports it; it fills places core offers. 2 slices. | `plugins/builtin/github`, `components/github` | 6,700 | |
+| 22 | Mods | A mod's buttons, chips, panes and pages where Fleet shows them. | `components/mods` | 2,100 | |
+| 23 | Labs views | Jobs, Fleet (mission control), the board. 2 slices. | `components/jobs`, `mission-control`, `board`, `dashboard` | 6,700 | |
+| | **Milestone 4: replaces Electron** | | | | |
+| 24 | Desktop shell | Starts its own server when none is running, one instance, tray, menus, notifications, deep links, window position, the shell environment. | weave-fleet's `desktop/src` | 1,200 (TS) | |
+| 25 | Packages and updates | Signed installers for Windows, macOS and Linux with the server inside, and self-update. | `.github/workflows/desktop-packages.yml` | | |
+| 26 | Parity audit | Every screen beside Fleet's once more; keyboard and screen reader pass; catch up with Fleet's latest release. Then replacing Electron is the owner's call. | | | |
 
-Kept out on purpose, so slices stay thin: the phone layout, themes other than light and dark,
-several windows, the board, video, and anything Fleet has behind a Labs switch.
+Between milestones, two sessions run on their own: one **catches the finished components up** with
+what changed in Fleet since they were ported, and one **moves Rune's pin** (all five revs, alone in
+its pull request, every scene looked at again).
+
+## Decisions
+
+Made on 14 November 2026 by the orchestrator, under the owner's go-ahead to complete the port; the
+owner can overturn any of them.
+
+1. **Web content: `wry`** (the system web view as a child of the window), from
+   `docs/research/web-content.md`. Places that are whole tabs (pages, the browser canvas, the
+   Document tab, rendered HTML files) show a live web view, hidden while any Rune overlay is open
+   over it. Pages inside the conversation, mod pages in lists and HTML previews in tool cards become
+   a card with an Open button that shows the page in the page tab. If the cards turn out not to be
+   enough, CEF (off screen, about 380 MB) is the way to live inline pages, as its own component.
+2. **Terminal: `alacritty_terminal` + `rune::grid`**, from `docs/research/terminal.md`.
+3. **File viewer: read-only first, then editing**, both in component 11.
+4. **The web build is dropped.** Desktop only.
+5. **Licence**: still the owner's. It doesn't block the port.
+6. **Rune's pin** moves between milestones, never inside a component.
+7. **Catching up with Fleet**: a catch-up session between milestones (above).
+8. **Replacing Electron** is the owner's call after component 26.
+
+## Out of scope
+
+The phone layout and the phone app, the browser build of this app, and Fleet's themes other than
+light and dark. They stay with Fleet's web client.
