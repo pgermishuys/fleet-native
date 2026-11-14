@@ -154,6 +154,10 @@ fn session_row(s: &State, t: &Theme, p: usize, i: usize, session: &Session) -> E
         .hover(if active { Color::TRANSPARENT } else { t.wash(5.0) })
         .cursor(Cursor::Pointer)
         .on_press_tx(move |s: &mut State, tx: &mut Tx| s.open_session(p, i, tx))
+        .on_secondary_press(move |s: &mut State, at, _: &mut Tx| {
+            s.ui.point = (at.x, at.y);
+            s.ui.open = Some(crate::ui::Open::Context(p, i));
+        })
         // The slot a row with children puts its caret in.
         .child(el().size(10.0, 14.0))
         .child(glyph)

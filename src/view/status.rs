@@ -21,7 +21,15 @@ pub fn bar(s: &State, t: &Theme) -> El {
         .shrink()
         .min_w(0.0)
         .clip_rounded(0.0)
-        .child(hint(vec![kbd(&format!("{cmd} K"))], "Command palette"))
+        .child(
+            hint(vec![kbd(&format!("{cmd} K"))], "Command palette")
+                .key("palette-hint")
+                .radius(5.0)
+                .hover(t.wash(5.0))
+                .cursor(rune::Cursor::Pointer)
+                .label("Command palette")
+                .on_press_tx(|s: &mut State, tx: &mut crate::Tx| crate::ui::palette::open(s, tx)),
+        )
         .child(sep())
         .child(hint(vec![kbd(cmd), kbd("["), kbd("]")], "Prev / next session"))
         .child(sep())

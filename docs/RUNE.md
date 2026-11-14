@@ -176,3 +176,36 @@ In Rune's repository at the pinned commit:
 | `examples/background` | A background thread and `AppHandle` |
 | `examples/settings` | A whole Settings window |
 | `crates/rune/examples/custom_titlebar.rs`, `popup_menu.rs` | An app-drawn title bar; native menus |
+
+## What the kit (component 1) taught us
+
+All found at the pinned commit, building Fleet's controls in `src/ui/`.
+
+- **`rune-kit`'s Menu, Select, Dialog and Popover hardcode their sizes** (a 6px menu radius, 28px
+  rows, a 6px dialog radius, `surface_raised` fills), so they can't be styled as Fleet's
+  (10px radius, 5px padding, 30px rows, a 1px border, square dialogs) through a `Kit`. The kit here
+  is built straight on Rune's own primitives instead: `.anchored_fit(key, Side, Align, gap)`,
+  `.modal(click_outside, dismiss)`, `.focus_group()`, `.focus_highlight(c)`, `.focus_return(key)`,
+  `Transition::scale_anchor`. (used)
+- **Overlays are mounted once, at the root**, from one `Ui::open` value, anchored by the *key* of
+  the trigger: `rune_kit::root(view, overlays)`. A view only keys its trigger and sets `open`.
+  (used)
+- **A menu row needs `.focusable(true)`** or arrow keys never reach it. A modal panel opens with
+  focus on the panel: the first Down lands on the first row (as reka's menus do), and
+  `.focus_selected(true)` on a checked row makes it the one Down starts from. (used, tested)
+- **Edge order differs between calls:** `border_sides([top, right, bottom, left], c)` but
+  `pin(left, top, right, bottom)`. (used)
+- **Tooltips:** `Cx::help_look(HelpLook)` restyles every `.help("..")` at once; Fleet's tooltip
+  (foreground fill, background ink, square, `px-3 py-1.5`, 700ms) is one `HelpLook`. (used)
+- **A text field's own keys and changes** are `.on_input_key(..)` and `.on_input_change(..)`;
+  `.on_key` is for focus groups. (used)
+- **`Tx::scroll_into_view(key)`** keeps the keyboard's row on screen in a scroll. (used)
+- **`--scene` takes one name**; a second `--scene` doesn't add to the first, so a state and a
+  theme are one scene each (`kit-menu`, `kit-menu-light`).
+- **No hover border.** `.hover(c)` is a fill only, so Fleet's ghost button (a border that appears
+  on hover) shows its border only when pressed in the CSS and not here. Gap, not blocking.
+- **No underline** on `text()`, so the link button and `hover:underline` are colour only.
+- **No clipboard write from a handler** at this pin (`MemoryClipboard` is the test double), so
+  "Copy session ID" in the palette is listed as waiting.
+- **`↵` and `⌫`** (U+21B5, U+232B) draw as empty boxes in Inter and JetBrains Mono; the palette's
+  footer says "Enter" and "Backspace" in words.

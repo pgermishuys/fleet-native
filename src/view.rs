@@ -20,13 +20,16 @@ const SIDEBAR_MAX: f32 = 500.0;
 pub fn root(s: &State, cx: &mut Cx<State>) -> El {
     let t = Theme::of(s.dark.unwrap_or_else(|| cx.system_dark()));
     s.drawn_dark.set(t.dark);
+    cx.help_look(crate::ui::help_look(&t));
     let mut main = row().w_full().grow(1.0).min_h(0.0).padding(8.0).child(rail::rail(s, &t));
     main = match s.rail {
+        _ if s.gallery => main.child(crate::ui::gallery::view(s, &t).ml(8.0)),
         Rail::Sessions if s.sidebar_open => main.child(sessions::panel(s, &t).ml(8.0)).child(gutter(&t)).child(sheet::sheet(s, &t)),
         Rail::Sessions => main.child(sheet::sheet(s, &t).ml(8.0)),
         other => main.child(notice(&t, other).ml(8.0)),
     };
-    col().w_full().h_full().fill(t.main_bg).child(main).child(status::bar(s, &t))
+    let frame = col().w_full().h_full().fill(t.main_bg).child(main).child(status::bar(s, &t));
+    rune_kit::root(frame, crate::ui::overlays(s, &t))
 }
 
 /// The resize handle between the session list and the sheet: 8px wide in the 16px between them.

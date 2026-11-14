@@ -24,6 +24,15 @@ pub struct Theme {
     pub running: Color,
     pub idle: Color,
     pub error: Color,
+    /// `--primary-foreground`: ink on a solid accent fill.
+    pub primary_fg: Color,
+    /// `--destructive` (and `--destructive-foreground`, white in both themes).
+    pub destructive: Color,
+    /// `--accent-dim`: the active filter chip's fill.
+    pub accent_dim: Color,
+    /// `--complete` and `--queued`.
+    pub complete: Color,
+    pub queued: Color,
 }
 
 impl Theme {
@@ -41,6 +50,11 @@ impl Theme {
                 running: c("#22c55e"),
                 idle: c("#f59e0b"),
                 error: c("#ef4444"),
+                primary_fg: c("#ffffff"),
+                destructive: c("#dc2626"),
+                accent_dim: c("#6366f1").alpha(0.15),
+                complete: c("#3b82f6"),
+                queued: c("#8b5cf6"),
             }
         } else {
             Theme {
@@ -55,6 +69,11 @@ impl Theme {
                 running: c("#16a34a"),
                 idle: c("#d97706"),
                 error: c("#dc2626"),
+                primary_fg: c("#ffffff"),
+                destructive: c("#dc2626"),
+                accent_dim: c("#5B6EC7").alpha(0.12),
+                complete: c("#2563eb"),
+                queued: c("#7c3aed"),
             }
         }
     }
@@ -62,6 +81,30 @@ impl Theme {
     /// `color-mix(in srgb, var(--text) N%, transparent)`: Fleet's hover and selection washes.
     pub fn wash(&self, percent: f32) -> Color {
         self.text.alpha(percent / 100.0)
+    }
+
+    /// `--color-secondary`: `color-mix(in srgb, var(--text) 8%, transparent)`, the segmented tabs' track.
+    pub fn secondary(&self) -> Color {
+        self.wash(8.0)
+    }
+
+    /// `--color-input`: `color-mix(in srgb, var(--text) 18%, transparent)`, field borders and the
+    /// Switch's off track.
+    pub fn input(&self) -> Color {
+        self.wash(18.0)
+    }
+
+    /// `--menu-shadow`: the raised look of menus, popovers and dialogs' lift.
+    pub fn menu_shadows(&self) -> Vec<Shadow> {
+        let (a, b) = if self.dark {
+            (c("#000000").alpha(0.55), c("#000000").alpha(0.25))
+        } else {
+            (c("#1A1918").alpha(0.22), c("#1A1918").alpha(0.06))
+        };
+        vec![
+            Shadow { x: 0.0, y: 16.0, blur: 40.0, spread: -12.0, color: a, inset: false },
+            Shadow { x: 0.0, y: 2.0, blur: 6.0, spread: 0.0, color: b, inset: false },
+        ]
     }
 
     /// `--sheet-shadow`: none in dark, two soft layers in light.
@@ -76,6 +119,11 @@ impl Theme {
         ]
     }
 }
+
+/// `--radius-card`, `--radius-btn` and `--radius-panel`.
+pub const RADIUS_CARD: f32 = 10.0;
+pub const RADIUS_BTN: f32 = 8.0;
+pub const RADIUS_PANEL: f32 = 12.0;
 
 /// Inter at `size`/`weight` with a CSS line-height multiplier.
 pub const fn sans(size: f32, weight: f32, line: f32) -> TextStyle {
