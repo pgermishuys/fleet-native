@@ -1,7 +1,8 @@
 //! Every event the hub sends, read (`client/src/lib/domain-events.ts`, the `DomainEvent` union of
-//! 59 `type` strings). The reducer applies nine of them (`Event` variants with fields); the rest
+//! 64 `type` strings). The reducer applies twelve of them (`Event` variants with fields); the rest
 //! are kept whole as `Event::Other(kind, properties)` for the component that owns them, and a
 //! type this build has never heard of (a newer Fleet) is `Event::Unknown`. Nothing is dropped.
+use super::delegations::DelegationEvent;
 use serde_json::Value;
 use std::collections::HashSet;
 use std::sync::Mutex;
@@ -27,6 +28,17 @@ pub enum Event {
         error: Value,
     },
     SessionIdled,
+    /// `delegation.created`, `.updated` or `.completed` (`kind` says which; the last two upsert).
+    Delegation {
+        kind: Kind,
+        event: DelegationEvent,
+    },
+    /// A session's activity on the `sessions` topic. The stream reads it for its sub-agents' sessions;
+    /// the fields are empty when the frame lacks them, and the reducer then ignores it.
+    ActivityStatus {
+        session_id: String,
+        activity_status: String,
+    },
     /// A type in the union that the reducer doesn't apply (yet): its `properties`, untouched. Also a
     /// `message.part.delta.streamed` for a field other than `text`.
     Other(Kind, Value),
@@ -50,8 +62,8 @@ pub struct Lifecycle {
 
 macro_rules! kinds {
     ($($variant:ident = $wire:literal,)*) => {
-        /// A type of the union. The nine the reducer applies have their own `Event` variants and
-        /// appear here too, so one table lists all 59.
+        /// A type of the union. The twelve the reducer applies have their own `Event` variants and
+        /// appear here too, so one table lists all 64.
         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
         pub enum Kind { $($variant,)* }
 
@@ -168,6 +180,13 @@ impl Event {
                 Event::TurnFailed { session_id: text("sessionID")?, message_id: text("messageID"), error: props.get("error")?.clone() }
             }
             Kind::SessionIdled => Event::SessionIdled,
+            Kind::DelegationCreated | Kind::DelegationUpdated | Kind::DelegationCompleted => {
+                Event::Delegation { kind: known, event: DelegationEvent::from_wire(props)? }
+            }
+            Kind::ActivityStatus => Event::ActivityStatus {
+                session_id: props.get("sessionId").and_then(Value::as_str).unwrap_or_default().to_string(),
+                activity_status: props.get("activityStatus").and_then(Value::as_str).unwrap_or_default().to_string(),
+            },
             other => Event::Other(other, props.clone()),
         })
     }
@@ -183,6 +202,8 @@ impl Event {
             Event::TurnEnded => Kind::TurnEnded,
             Event::TurnFailed { .. } => Kind::TurnFailed,
             Event::SessionIdled => Kind::SessionIdled,
+            Event::Delegation { kind, .. } => *kind,
+            Event::ActivityStatus { .. } => Kind::ActivityStatus,
             Event::Other(kind, _) => *kind,
             Event::Unknown { .. } | Event::Cursor(_) => return None,
         })

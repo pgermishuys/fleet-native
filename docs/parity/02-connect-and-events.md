@@ -172,22 +172,33 @@ Each row: what Fleet does, its source, the native state. `[ ]` open, `[x]` done 
 
 ### 2. Reducer: delegations and the derived status (`lib/domain-event-reducer.ts`, `lib/delegation-state.ts`)
 
-- [ ] **2.1 State.** `delegations: Vec<Delegation>` (`delegationId`, `parentToolCallId`, `childSessionId`, `title`,
+- [x] **2.1 State.** `delegations: Vec<Delegation>` (`delegationId`, `parentToolCallId`, `childSessionId`, `title`,
   `status` pending/running/completed/error/cancelled with unknown → pending, `createdAt`, `childActivityStatus`,
   `background`). From the snapshot's `delegations` (`mapSnapshotDelegation`) and `delegation.created/updated/completed`.
-- [ ] **2.2 Upsert rules.** `applyDelegationCreated` merges over an existing id; `applyDelegationUpdated` keeps
+- [x] **2.2 Upsert rules.** `applyDelegationCreated` merges over an existing id; `applyDelegationUpdated` keeps
   fields the event doesn't carry, never drops `background` once set, returns the same list when nothing changed;
   `delegation.updated/completed` for an unknown id creates it (`upsertDelegation`).
-- [ ] **2.3 Child status.** `activity_status` on the `sessions` topic whose `sessionId` is a delegation's
+- [x] **2.3 Child status.** `activity_status` on the `sessions` topic whose `sessionId` is a delegation's
   `childSessionId` sets `childActivityStatus`; any other session's leaves the state alone. The stream also hears
   `sessions` events for the open session (`use-session-stream.ts`, `unsubscribeActivity`), held until the snapshot
   and applied after it.
-- [ ] **2.4 Derived status** (`SessionStreamStatus`: idle, busy, retry, delegating, waiting_input). `deriveSessionStatus`:
+- [x] **2.4 Derived status** (`SessionStreamStatus`: idle, busy, retry, delegating, waiting_input). `deriveSessionStatus`:
   a waiting child → `waiting_input`; else explicit busy / retry; else an active non-background delegation → `delegating`;
   else idle. Snapshot hydration (`deriveSnapshotSessionStatus`): an active, not-waiting delegation → `delegating` even
   if the snapshot says busy. A background delegation isn't work. `isDelegationWaiting`, `isStreamWorking`
   (anything but idle).
-- [ ] **2.5 `withActivityStatus`**: the kept state of a reopened session takes the list's current status.
+- [x] **2.5 `withActivityStatus`**: the kept state of a reopened session takes the list's current status.
+- **Done in piece B** (`src/fleet/delegations.rs`, `reducer.rs`, `link.rs`, `state.rs`, `sessions.rs`, `tests/delegations.rs`).
+  Notes: `Event::Delegation{kind,event}` and `Event::ActivityStatus` are applied variants (12 now, 52 `Other`); the reducer
+  derives status with `delegations::derive_status` (and `derive_snapshot_status` for a snapshot); `reducer::with_activity_status`
+  (2.5) is written and tested but nothing calls it until piece E keeps streams (`open_session` still clears). The hub thread
+  hands the open session's `sessions`-topic `activity_status` to `State::on_stream_events` (held until the snapshot, then
+  applied after the batch). The open row shows the derived status (`sessions::stream_status_of`: waiting_input is the amber
+  diamond). All 27 reducer cases and `reopened-session` case 1 pass under Fleet's names; case 3 is covered by an existing
+  tool-merge test, case 2 needs component 3's tool card. **Gap:** `upsert` ports `upsertDelegation` but an unchanged update
+  does not fall through to `applyDelegationCreated` (Fleet's fallthrough would blank a title the event omits); no test of Fleet's depends on it.
+  **Pictures:** the scripted model (`fakellm.py`) can't call the task tool, so Fleet's own client can't be shown delegating;
+  the native scenes `delegating` and `sub-agent-asks` (both themes) derive the row's status through the reducer from a snapshot.
 - Tests (domain-event-reducer.test.ts, 27 left that belong here, same names): "derives delegating status from idle
   snapshots with active delegations", "hydrates as delegating from busy snapshots with active delegations", "keeps busy
   status while turns are active even with delegations", "enters delegating when an active delegation is created while

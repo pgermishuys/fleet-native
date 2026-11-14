@@ -284,6 +284,17 @@ pub fn spec() -> AppSpec<State> {
             ("sidebar-closed", |s| s.sidebar_open = false),
             ("content-open", |s| s.content_open = true),
             ("needs-input", |s| s.open = (0, 1)),
+            // The row's status as the reducer derives it from a snapshot with a sub-agent.
+            ("delegating", |s| s.show_sub_agent(false)),
+            ("delegating-light", |s| {
+                s.dark = Some(false);
+                s.show_sub_agent(false)
+            }),
+            ("sub-agent-asks", |s| s.show_sub_agent(true)),
+            ("sub-agent-asks-light", |s| {
+                s.dark = Some(false);
+                s.show_sub_agent(true)
+            }),
             ("long-conversation", |s| s.open_long()),
             // The reply streams in on the app's clock: the scene the scripts in scripts/bench/ measure.
             ("long-live", |s| s.open_long_live()),

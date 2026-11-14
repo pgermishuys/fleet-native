@@ -188,6 +188,8 @@ fn serve(mut ws: WebSocket<TcpStream>, base: &str, rx: &Receiver<Cmd>, open: &mu
     // Events that came before the open session's snapshot are applied after it.
     let mut waiting_for_snapshot = false;
     let mut batch: Vec<Event> = Vec::new();
+    // The sessions topic's activity events carry no cursor of this session's, so they wait apart from its own.
+    let mut pending_activity: Vec<Event> = Vec::new();
     let mut batch_since: Option<Instant> = None;
     let mut dirty_list: Option<Instant> = None;
     let mut last_ping = Instant::now();
@@ -214,6 +216,7 @@ fn serve(mut ws: WebSocket<TcpStream>, base: &str, rx: &Receiver<Cmd>, open: &mu
                         call(&mut ws, "UnsubscribeFromSessionAsync", vec![json!(old)])?;
                     }
                     batch.clear();
+                    pending_activity.clear();
                     let n = call(&mut ws, "SubscribeToSessionAsync", vec![json!(id)])?;
                     asked.insert(n.to_string(), id.clone());
                     waiting_for_snapshot = true;
@@ -243,6 +246,15 @@ fn serve(mut ws: WebSocket<TcpStream>, base: &str, rx: &Receiver<Cmd>, open: &mu
                             // Whoever owns an event reads it from here (`State::subscribe`); the list's own
                             // reactions below don't wait for them.
                             if let Some(event) = Event::from_wire(&data) {
+                                // A sub-agent's status reaches the open session's stream too (`use-session-stream.ts`).
+                                if let (Event::ActivityStatus { .. }, Some(id)) = (&event, open.clone()) {
+                                    if waiting_for_snapshot {
+                                        pending_activity.push(event.clone());
+                                    } else {
+                                        let event = event.clone();
+                                        post.update(move |s, tx| s.on_stream_events(&id, vec![event], tx));
+                                    }
+                                }
                                 post.update(move |s, _| s.dispatch(&Topic::Sessions, std::slice::from_ref(&event)));
                             }
                             match data.get("type").and_then(Value::as_str) {
@@ -278,11 +290,13 @@ fn serve(mut ws: WebSocket<TcpStream>, base: &str, rx: &Receiver<Cmd>, open: &mu
                                     let state = create_state(&result);
                                     // Events that arrived before the snapshot follow it.
                                     let after = std::mem::take(&mut batch);
+                                    let activity = std::mem::take(&mut pending_activity);
                                     batch_since = None;
                                     waiting_for_snapshot = false;
                                     post.update(move |s, tx| {
                                         s.on_snapshot(&session, state, tx);
                                         s.on_events(&session, after, tx);
+                                        s.on_stream_events(&session, activity, tx);
                                     });
                                 }
                             }
