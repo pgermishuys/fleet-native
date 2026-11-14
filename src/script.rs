@@ -80,6 +80,12 @@ impl State {
         }
     }
 
+    /// Opens the long conversation with its reply about to stream, as it does for a person.
+    pub fn open_long_live(&mut self) {
+        self.open_long();
+        self.script_next = 0.0;
+    }
+
     /// Puts the long conversation partway through a reply and holds it there, for a picture: the
     /// text is fixed, not read off the clock, so the picture is the same on every run.
     pub fn show_streaming(&mut self, shown: usize) {
