@@ -1,7 +1,7 @@
 //! Invented projects, sessions and conversations. Nothing here comes from a real Fleet.
 use crate::view::conversation::{Message, Part, ToolState};
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Status {
     /// A turn is running: the four-dot glyph, and no time label.
     Working,
@@ -12,26 +12,33 @@ pub enum Status {
 }
 
 pub struct Session {
-    pub title: &'static str,
+    /// The server's id; empty for the invented sessions.
+    pub id: String,
+    pub title: String,
     pub status: Status,
     /// Compact age ("2m", "3h", "4d") and how far Fleet dims the row for it (1.0, 0.55 or 0.40).
-    pub age: &'static str,
+    pub age: String,
     pub dim: f32,
-    pub branch: &'static str,
+    pub branch: String,
     pub messages: Vec<Message>,
     pub tokens: u32,
 }
 
 pub struct Project {
-    pub name: &'static str,
-    pub path: &'static str,
+    pub name: String,
+    pub path: String,
     pub open: bool,
     pub sessions: Vec<Session>,
 }
 
 fn session(title: &'static str, status: Status, age: &'static str, dim: f32, branch: &'static str, messages: Vec<Message>) -> Session {
     let tokens = 1_840 + 3_217 * messages.len() as u32;
-    Session { title, status, age, dim, branch, messages, tokens }
+    Session { id: String::new(), title: title.into(), status, age: age.into(), dim, branch: branch.into(), messages, tokens }
+}
+
+/// What the session slot shows when there is nothing to open (a server with no sessions yet).
+pub fn blank_session() -> Session {
+    session("No session open", Status::Idle, "", 1.0, "", Vec::new())
 }
 
 /// A short stand-in conversation for the sessions that aren't written out in full.
@@ -42,8 +49,8 @@ fn brief(ask: &'static str, answer: &'static str) -> Vec<Message> {
 pub fn projects() -> Vec<Project> {
     vec![
         Project {
-            name: "Orchard",
-            path: "~/code/orchard",
+            name: "Orchard".into(),
+            path: "~/code/orchard".into(),
             open: true,
             sessions: vec![
                 session(
@@ -142,8 +149,8 @@ pub fn projects() -> Vec<Project> {
             ],
         },
         Project {
-            name: "Lighthouse",
-            path: "~/code/lighthouse",
+            name: "Lighthouse".into(),
+            path: "~/code/lighthouse".into(),
             open: true,
             sessions: vec![
                 session(
@@ -182,8 +189,8 @@ pub fn projects() -> Vec<Project> {
             ],
         },
         Project {
-            name: "Field notes",
-            path: "~/notes/field",
+            name: "Field notes".into(),
+            path: "~/notes/field".into(),
             open: false,
             sessions: vec![session(
                 "Summarise last week's notes",
