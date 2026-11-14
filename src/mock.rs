@@ -1,4 +1,5 @@
 //! Invented projects, sessions and conversations. Nothing here comes from a real Fleet.
+use crate::view::conversation::{Message, Part, ToolState};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Status {
@@ -10,22 +11,6 @@ pub enum Status {
     Idle,
 }
 
-pub enum Msg {
-    User(String),
-    Assistant(Vec<&'static str>),
-    Tool { name: &'static str, detail: &'static str, state: ToolState },
-}
-
-#[derive(Clone, Copy, PartialEq)]
-pub enum ToolState {
-    Running,
-    /// Lines added and removed by an edit.
-    Diff(u32, u32),
-    /// How long a shell command took.
-    Took(&'static str),
-    Plain,
-}
-
 pub struct Session {
     pub title: &'static str,
     pub status: Status,
@@ -33,7 +18,7 @@ pub struct Session {
     pub age: &'static str,
     pub dim: f32,
     pub branch: &'static str,
-    pub messages: Vec<Msg>,
+    pub messages: Vec<Message>,
     pub tokens: u32,
 }
 
@@ -44,18 +29,14 @@ pub struct Project {
     pub sessions: Vec<Session>,
 }
 
-fn tool(name: &'static str, detail: &'static str, state: ToolState) -> Msg {
-    Msg::Tool { name, detail, state }
-}
-
-fn session(title: &'static str, status: Status, age: &'static str, dim: f32, branch: &'static str, messages: Vec<Msg>) -> Session {
+fn session(title: &'static str, status: Status, age: &'static str, dim: f32, branch: &'static str, messages: Vec<Message>) -> Session {
     let tokens = 1_840 + 3_217 * messages.len() as u32;
     Session { title, status, age, dim, branch, messages, tokens }
 }
 
 /// A short stand-in conversation for the sessions that aren't written out in full.
-fn brief(ask: &'static str, answer: &'static str) -> Vec<Msg> {
-    vec![Msg::User(ask.into()), Msg::Assistant(vec![answer])]
+fn brief(ask: &'static str, answer: &'static str) -> Vec<Message> {
+    vec![Message::user("u1", ask), Message::assistant("a1", vec![Part::text("a1-t", answer)])]
 }
 
 pub fn projects() -> Vec<Project> {
@@ -72,21 +53,34 @@ pub fn projects() -> Vec<Project> {
                     1.0,
                     "cache-on-disk",
                     vec![
-                        Msg::User("The image cache lives in memory and we lose it on every restart. Can you move it to disk, and keep the 200 MB limit?".into()),
-                        Msg::Assistant(vec![
-                            "I'll read how the cache is used first, then swap the store underneath it so callers don't change.",
-                        ]),
-                        tool("Read", "src/cache/image_cache.ts", ToolState::Plain),
-                        tool("Read", "src/cache/eviction.ts", ToolState::Plain),
-                        Msg::Assistant(vec![
-                            "The cache is one map behind get and put, and eviction already works from a size total. So the change is small: a disk store with the same two calls, an index file for sizes and last use, and eviction that deletes files instead of dropping entries.",
-                            "I'll write the store, move the tests over to a temporary folder, and run them.",
-                        ]),
-                        tool("Edit", "src/cache/disk_store.ts", ToolState::Diff(86, 0)),
-                        tool("Edit", "src/cache/image_cache.ts", ToolState::Diff(14, 31)),
-                        tool("Bash", "bun test src/cache", ToolState::Took("4.2s")),
-                        Msg::User("Also make sure a half-written file can't be served after a crash.".into()),
-                        tool("Bash", "bun test src/cache --rerun-each 20", ToolState::Running),
+                        Message::user(
+                            "u1",
+                            "The image cache lives in memory and we lose it on every restart. Can you move it to disk, and keep the 200 MB limit?",
+                        ),
+                        Message::assistant(
+                            "a1",
+                            vec![
+                                Part::text(
+                                    "a1-t1",
+                                    "I'll read how the cache is used first, then swap the store underneath it so callers don't change.",
+                                ),
+                                Part::tool("a1-r1", "Read", "src/cache/image_cache.ts", ToolState::Plain),
+                                Part::tool("a1-r2", "Read", "src/cache/eviction.ts", ToolState::Plain),
+                                Part::text(
+                                    "a1-t2",
+                                    "The cache is one map behind get and put, and eviction already works from a size total. So the change is small: a disk store with the same two calls, an index file for sizes and last use, and eviction that deletes files instead of dropping entries.",
+                                ),
+                                Part::text("a1-t3", "I'll write the store, move the tests over to a temporary folder, and run them."),
+                                Part::tool("a1-e1", "Edit", "src/cache/disk_store.ts", ToolState::Diff(86, 0)),
+                                Part::tool("a1-e2", "Edit", "src/cache/image_cache.ts", ToolState::Diff(14, 31)),
+                                Part::tool("a1-b1", "Bash", "bun test src/cache", ToolState::Took(4.2)),
+                            ],
+                        ),
+                        Message::user("u2", "Also make sure a half-written file can't be served after a crash."),
+                        Message::assistant(
+                            "a2",
+                            vec![Part::tool("a2-b1", "Bash", "bun test src/cache --rerun-each 20", ToolState::Running)],
+                        ),
                     ],
                 ),
                 session(
@@ -96,11 +90,20 @@ pub fn projects() -> Vec<Project> {
                     1.0,
                     "main",
                     vec![
-                        Msg::User("The checkout page shows the yearly plan first. Should it?".into()),
-                        Msg::Assistant(vec![
-                            "It shows whichever plan comes first in plans.json, and yearly was added at the top last month. Nothing in the code picks one on purpose.",
-                            "I can make monthly the default, or keep yearly first and mark it as the default explicitly. Which do you want?",
-                        ]),
+                        Message::user("u1", "The checkout page shows the yearly plan first. Should it?"),
+                        Message::assistant(
+                            "a1",
+                            vec![
+                                Part::text(
+                                    "a1-t1",
+                                    "It shows whichever plan comes first in plans.json, and yearly was added at the top last month. Nothing in the code picks one on purpose.",
+                                ),
+                                Part::text(
+                                    "a1-t2",
+                                    "I can make monthly the default, or keep yearly first and mark it as the default explicitly. Which do you want?",
+                                ),
+                            ],
+                        ),
                     ],
                 ),
                 session(

@@ -1,7 +1,8 @@
 //! The shell driven with no window: a runtime built as a headless render builds it, then
 //! clicked and typed at by element key. New behaviour gets a test here (or in a `tests.rs`
 //! beside its module) before it gets a snapshot.
-use crate::mock::{Msg, Status};
+use crate::mock::Status;
+use crate::view::conversation::{Part, Role};
 use crate::{Rail, State, send, spec};
 use rune::{App, Env, Key, KeyEvent, Mods, Runtime, TextEdit};
 
@@ -101,13 +102,15 @@ fn a_sent_message_gets_its_canned_reply() {
         send(s, tx);
     });
     let session = &rt.state.projects[0].sessions[1];
-    assert!(matches!(session.messages.last(), Some(Msg::User(text)) if text == "Ship it"));
+    let last = session.messages.last().unwrap();
+    assert_eq!(last.role, Role::User);
+    assert!(matches!(&last.parts[..], [Part::Text { text, .. }] if text == "Ship it"));
     assert!(session.status == Status::Working);
     assert!(rt.state.draft.text.is_empty());
 
     run(&mut rt, 3.0);
     let session = &rt.state.projects[0].sessions[1];
-    assert!(matches!(session.messages.last(), Some(Msg::Assistant(_))));
+    assert_eq!(session.messages.last().unwrap().role, Role::Assistant);
     assert!(session.status == Status::Idle);
 }
 

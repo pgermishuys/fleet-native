@@ -21,7 +21,8 @@ the features Rune can't do will cost. Step 1 answers the first. "Open decisions"
 |---|---|
 | Shell: rail, session list, header, conversation, composer, content panel, status bar | Built, from invented data |
 | Tests with no window; every scene drawn on Linux, Windows and macOS in CI | Built |
-| Markdown, code blocks, long conversations | Step 1, slice A |
+| Conversation split out of `sheet.rs`, with the message type (`Message`, `Part`) | Done (slice A, PR 1) |
+| Markdown, code blocks, long conversations | Step 1, slice A, in progress |
 | A real server | Step 1, slice B |
 | Everything else | Step 2 |
 

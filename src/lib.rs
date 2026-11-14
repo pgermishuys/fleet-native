@@ -7,10 +7,11 @@ mod mock;
 #[cfg(test)]
 mod tests;
 mod theme;
-mod view;
+pub mod view;
 
-use mock::{Msg, Project, Session, Status, ToolState};
+use mock::{Project, Session, Status};
 use rune::{AppSpec, Image, ImageCache, Key, KeyEvent, TextEdit, Tx};
+use view::conversation::{Message, Part, ToolState};
 
 /// The rail entries, in Fleet's order. Only Sessions is rebuilt; the others show a notice.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -99,7 +100,8 @@ pub fn send(s: &mut State, tx: &mut Tx) {
     }
     let (p, i) = s.open;
     let session = &mut s.projects[p].sessions[i];
-    session.messages.push(Msg::User(text));
+    let id = format!("u{}", session.messages.len() + 1);
+    session.messages.push(Message::user(id, text));
     session.status = Status::Working;
     session.age = "now";
     session.dim = 1.0;
@@ -123,8 +125,8 @@ pub fn interrupt(s: &mut State) {
 
 /// A turn that ends takes its running tool calls with it.
 fn end_tools(session: &mut Session) {
-    for msg in &mut session.messages {
-        if let Msg::Tool { state, .. } = msg
+    for part in session.messages.iter_mut().flat_map(|m| m.parts.iter_mut()) {
+        if let Part::Tool { state, .. } = part
             && *state == ToolState::Running
         {
             *state = ToolState::Plain;
@@ -140,7 +142,9 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         Some((p, i, due)) if now >= due => {
             let session = &mut s.projects[p].sessions[i];
             end_tools(session);
-            session.messages.push(Msg::Assistant(vec![mock::CANNED_REPLY]));
+            let id = format!("a{}", session.messages.len() + 1);
+            let reply = Part::text(format!("{id}-t"), mock::CANNED_REPLY);
+            session.messages.push(Message::assistant(id, vec![reply]));
             session.status = Status::Idle;
             s.reply = None;
             tx.scroll_to_bottom("stream");
