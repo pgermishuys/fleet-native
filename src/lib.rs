@@ -5,6 +5,7 @@
 mod icons;
 pub mod fleet;
 mod mock;
+mod script;
 #[cfg(test)]
 mod tests;
 mod theme;
@@ -50,6 +51,9 @@ pub struct State {
     pub working_since: f64,
     /// A canned reply on its way: (project, session, due).
     reply: Option<(usize, usize, f64)>,
+    /// The scripted reply streaming into the long conversation, and when the next one may start.
+    script: Option<script::Script>,
+    script_next: f64,
     cache: Option<ImageCache>,
     pub logo: Option<Image>,
     /// The Fleet server this window shows, once the connection has started; `None` draws `mock.rs`.
@@ -83,6 +87,8 @@ impl Default for State {
             clock: 0.0,
             working_since: -18.0,
             reply: None,
+            script: None,
+            script_next: 1.0,
             cache: None,
             logo: None,
             link: None,
@@ -162,6 +168,8 @@ pub fn interrupt(s: &mut State) {
         session.status = Status::Idle;
         end_tools(session);
         s.reply = None;
+        s.script = None;
+        s.script_next = f64::INFINITY;
     }
 }
 
@@ -192,7 +200,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
             tx.scroll_to_bottom("stream");
             true
         }
-        _ => ticked && s.session().status == Status::Working,
+        _ => s.tick_script() || (ticked && s.session().status == Status::Working),
     }
 }
 
@@ -232,6 +240,8 @@ pub fn spec() -> AppSpec<State> {
             ("sidebar-closed", |s| s.sidebar_open = false),
             ("content-open", |s| s.content_open = true),
             ("needs-input", |s| s.open = (0, 1)),
+            ("long-conversation", |s| s.open_long()),
+            ("long-streaming", |s| s.show_streaming(900)),
             ("automations", |s| s.rail = Rail::Automations),
             ("server-notice", |s| s.notice = Some("Couldn't send the message: connection refused".into())),
         ],

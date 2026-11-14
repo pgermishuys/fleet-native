@@ -7,10 +7,27 @@ pub fn messages(from: &[Msg]) -> Vec<Message> {
     from.iter().filter(|m| !m.compaction_summary).map(message).collect()
 }
 
-fn message(m: &Msg) -> Message {
+/// What `Message::version` would say of `m` once boiled down, without copying its text: the way to
+/// tell which of two thousand messages an event batch touched.
+pub fn version(m: &Msg) -> (usize, usize) {
+    let weight = |p: &PartData| match p {
+        PartData::Text { text, .. } | PartData::Reasoning { text, .. } => text.len(),
+        other => part(other).weight(),
+    };
+    (
+        m.parts.len() + usize::from(turn_failure(m).is_some()),
+        m.parts.iter().map(weight).sum::<usize>() + turn_failure(m).map_or(0, str::len),
+    )
+}
+
+fn turn_failure(m: &Msg) -> Option<&str> {
+    m.turn_error.as_ref()?.get("message")?.as_str()
+}
+
+pub fn message(m: &Msg) -> Message {
     let mut parts: Vec<Part> = m.parts.iter().map(part).collect();
     // The conversation has no failure row yet (the parts lane draws one); until then say it in words.
-    if let Some(reason) = m.turn_error.as_ref().and_then(|e| e.get("message")).and_then(Value::as_str) {
+    if let Some(reason) = turn_failure(m) {
         parts.push(Part::text(format!("{}-failed", m.id), format!("The turn failed: {reason}")));
     }
     Message::new(m.id.clone(), m.role, parts)

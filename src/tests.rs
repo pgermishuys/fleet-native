@@ -133,3 +133,154 @@ fn escape_interrupts_the_working_session() {
     rt.frame(FRAME);
     assert!(rt.state.session().status == Status::Idle);
 }
+
+/// Opens the long conversation with its scripted reply held back.
+fn long() -> Runtime<State> {
+    let mut rt = app();
+    rt.update(|s, _| s.open_long());
+    rt.frame(FRAME);
+    rt.frame(FRAME);
+    rt
+}
+
+#[test]
+fn the_long_conversation_has_two_thousand_messages() {
+    let rt = long();
+    assert_eq!(rt.state.session().title, "Long conversation");
+    assert_eq!(rt.state.session().messages.len(), 2_000);
+}
+
+#[test]
+fn only_the_rows_on_screen_are_built() {
+    let mut rt = long();
+    // Pinned to the end: the last message is drawn, the first never was.
+    assert!(rt.find("a999-p0").is_some(), "the end of the conversation isn't on screen");
+    assert!(rt.find("a0-p0").is_none(), "the first message was built");
+    // Scroll a long way up: the end goes away and rows near the middle come in.
+    for _ in 0..400 {
+        rt.wheel(640.0, 400.0, 600.0);
+        rt.frame(FRAME);
+    }
+    assert!(rt.find("a999-p0").is_none(), "the end stayed built after scrolling away");
+    assert_eq!(rt.scroll_at_bottom("stream"), Some(false));
+}
+
+#[test]
+fn a_streaming_reply_grows_and_the_view_stays_at_the_end() {
+    let mut rt = app();
+    rt.update(|s, _| {
+        s.open_long();
+        s.script_next = 0.0;
+    });
+    rt.frame(FRAME);
+    rt.frame(FRAME);
+    let len = |rt: &Runtime<State>| match rt.state.session().messages.last().and_then(|m| m.parts.last()) {
+        Some(Part::Text { text, .. }) => text.len(),
+        _ => panic!("the reply has no text part"),
+    };
+    let before = len(&rt);
+    run(&mut rt, 1.0);
+    let after = len(&rt);
+    assert!(after > before + 200, "{before} then {after}: the reply didn't stream");
+    assert_eq!(rt.scroll_at_bottom("stream"), Some(true), "the view left the end of the conversation");
+    assert_eq!(rt.state.session().status, Status::Working);
+    // The whole reply arrives, the turn ends, and a few seconds later the next one starts.
+    run(&mut rt, 8.0);
+    assert_eq!(rt.state.session().status, Status::Idle);
+    let before = rt.state.session().messages.len();
+    run(&mut rt, 3.0);
+    assert!(rt.state.session().messages.len() > before, "the script didn't ask its next question");
+}
+
+#[test]
+fn a_person_scrolled_up_is_left_alone_while_a_reply_streams() {
+    let mut rt = app();
+    rt.update(|s, _| {
+        s.open_long();
+        s.script_next = 0.0;
+    });
+    rt.frame(FRAME);
+    rt.frame(FRAME);
+    for _ in 0..30 {
+        rt.wheel(640.0, 400.0, 300.0);
+        rt.frame(FRAME);
+    }
+    assert_eq!(rt.scroll_at_bottom("stream"), Some(false));
+    run(&mut rt, 1.0);
+    assert_eq!(rt.scroll_at_bottom("stream"), Some(false), "streaming pulled the view back down");
+}
+
+/// The long conversation as the reducer holds it, with an empty reply at its end, standing in for a
+/// server's session that is mid-stream. Returns the open session's id.
+fn long_from_events(rt: &mut Runtime<State>) -> &'static str {
+    use crate::fleet::model::{Explicit, Msg, PartData, StreamState, StreamStatus};
+    let messages = (0..2_000)
+        .map(|n| {
+            let mut m = Msg::new(format!("msg_{n:05}"), "bench", if n % 2 == 0 { Role::User } else { Role::Assistant });
+            let body = format!("Message {n}.\n\n- one\n- two\n\n```rust\nfn f{n}() {{}}\n```\n").repeat(4);
+            m.parts.push(PartData::Text { id: format!("prt_{n:05}"), text: body });
+            m
+        })
+        .collect();
+    let state = StreamState { messages, explicit_status: Explicit::Busy, session_status: StreamStatus::Busy, last_event_id: None };
+    rt.update(move |s, tx| {
+        let at = s.long_session().unwrap();
+        s.open = at;
+        s.projects[at.0].sessions[at.1].id = "bench".into();
+        s.on_snapshot("bench", state, tx);
+    });
+    rt.frame(FRAME);
+    rt.frame(FRAME);
+    "bench"
+}
+
+#[test]
+fn a_batch_of_deltas_rebuilds_only_the_last_message() {
+    use crate::fleet::reducer::Event;
+    let mut rt = app();
+    let id = long_from_events(&mut rt);
+    let text_at = |rt: &Runtime<State>, n: usize| match &rt.state.session().messages[n].parts[0] {
+        Part::Text { text, .. } => (text.as_ptr(), text.len()),
+        _ => panic!("not text"),
+    };
+    let (middle_ptr, _) = text_at(&rt, 1_000);
+    let (_, tail_len) = text_at(&rt, 1_999);
+    // What the hub sends in a frame: a few dozen deltas to the reply being written.
+    let batch: Vec<Event> = (0..40)
+        .map(|k| Event::TextDelta {
+            session_id: "bench".into(),
+            message_id: "msg_01999".into(),
+            part_id: "prt_01999".into(),
+            delta: format!("word{k} "),
+            offset: None,
+        })
+        .collect();
+    rt.update(move |s, tx| s.on_events(id, batch, tx));
+    rt.frame(FRAME);
+    let (ptr_after, _) = text_at(&rt, 1_000);
+    assert_eq!(middle_ptr, ptr_after, "a message the batch didn't touch was copied again");
+    assert!(text_at(&rt, 1_999).1 > tail_len, "the reply didn't grow");
+    assert_eq!(rt.scroll_at_bottom("stream"), Some(true));
+}
+
+#[test]
+fn events_leave_a_person_who_scrolled_up_where_they_are() {
+    use crate::fleet::reducer::Event;
+    let mut rt = app();
+    let id = long_from_events(&mut rt);
+    for _ in 0..30 {
+        rt.wheel(640.0, 400.0, 300.0);
+        rt.frame(FRAME);
+    }
+    assert_eq!(rt.scroll_at_bottom("stream"), Some(false));
+    let delta = Event::TextDelta {
+        session_id: "bench".into(),
+        message_id: "msg_01999".into(),
+        part_id: "prt_01999".into(),
+        delta: "more ".into(),
+        offset: None,
+    };
+    rt.update(move |s, tx| s.on_events(id, vec![delta], tx));
+    rt.frame(FRAME);
+    assert_eq!(rt.scroll_at_bottom("stream"), Some(false), "an event pulled the view back to the end");
+}

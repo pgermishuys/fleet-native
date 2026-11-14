@@ -22,7 +22,7 @@ the features Rune can't do will cost. Step 1 answers the first. "Open decisions"
 | Shell: rail, session list, header, conversation, composer, content panel, status bar | Built, from invented data |
 | Tests with no window; every scene drawn on Linux, Windows and macOS in CI | Built |
 | Conversation split out of `sheet.rs`, with the message type (`Message`, `Part`) | Done (slice A, PR 1) |
-| Markdown, code blocks, long conversations | Step 1, slice A, in progress |
+| Markdown, highlighted code, tables, virtual rows, the 2,000-message "Long conversation" and its scripted stream | Done (slice A, PR 2); the measurements are PR 3 |
 | A real server: sessions, a conversation (text and tool rows), prompt and abort, live events | Done (slice B): `--server <url>`; reconnect, `LoadHistory` and the rest of the reducer are left |
 | Everything else | Step 2 |
 
@@ -92,8 +92,7 @@ no token.
   the reducer (lane 1; its tests are ported case for case for what this path touches, same names);
   older history (`LoadHistoryAsync`, when the snapshot says `hasMore`); `SetPresenceAsync` and
   `SetSessionFocusAsync`; the status of sessions other than the open one beyond `activity_status`;
-  https, tokens and several machines (lane 10); rebuilding only the changed messages instead of the
-  whole open conversation on each batch (slice A's long conversation will want it). The reconnect
+  https, tokens and several machines (lane 10); (rebuilding only the changed messages on each batch was done in slice A, PR 2). The reconnect
   loop is written to the Vue client's delays but not exercised against a dropped connection.
 - **Starts when** slice A's first pull request (the conversation file and message type) is merged,
   so the two don't rewrite the same type. After that they can run side by side.

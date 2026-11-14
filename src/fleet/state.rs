@@ -1,7 +1,7 @@
 //! How what the connection learns reaches the state. Every method here runs on the UI thread, from
 //! an `AppHandle::update` closure, and does no I/O.
 use super::link::Connection;
-use super::model::StreamState;
+use super::model::{Msg, StreamState};
 use super::reducer::{self, Event};
 use super::view;
 use crate::State;
@@ -87,7 +87,7 @@ impl State {
     }
 
     /// A frame's worth of the open session's events.
-    pub fn on_events(&mut self, id: &str, events: Vec<Event>, tx: &mut Tx) {
+    pub fn on_events(&mut self, id: &str, events: Vec<Event>, _tx: &mut Tx) {
         if self.open_id().as_deref() != Some(id) {
             return;
         }
@@ -99,17 +99,34 @@ impl State {
         if !was_working && state.session_status.working() {
             self.working_since = self.clock;
         }
+        // No scroll to the end here: the conversation follows the end by itself while the person is
+        // there, and a person who scrolled up to read is left where they are.
         self.sync_open();
-        tx.scroll_to_bottom("stream");
     }
 
-    /// Redraws the open session from the reducer's state. Rebuilds every message each time, which
-    /// is fine for a thin slice; a long conversation will want only what changed.
+    /// Redraws the open session from the reducer's state. Only the messages that changed are
+    /// rebuilt: a streaming reply touches the last one, and copying all two thousand every frame
+    /// is what a long conversation can't afford. The last message is always rebuilt, so an edit
+    /// in place there is never missed; an edit in place to an earlier one that keeps its size is
+    /// (the reducer doesn't make those).
     fn sync_open(&mut self) {
         let Some(stream) = &self.stream else { return };
-        let (messages, working) = (view::messages(&stream.messages), stream.session_status.working());
-        let Some(session) = self.session_mut() else { return };
-        session.messages = messages;
+        let shown: Vec<&Msg> = stream.messages.iter().filter(|m| !m.compaction_summary).collect();
+        let working = stream.session_status.working();
+        // Not `session_mut()`: that would borrow all of `self` while `stream` is still read.
+        let (p, i) = self.open;
+        let Some(session) = self.projects.get_mut(p).and_then(|p| p.sessions.get_mut(i)) else { return };
+        let same_shape = session.messages.len() == shown.len() && session.messages.iter().zip(&shown).all(|(a, b)| a.id == b.id);
+        if same_shape {
+            let last = shown.len().saturating_sub(1);
+            for (i, (old, new)) in session.messages.iter_mut().zip(&shown).enumerate() {
+                if i == last || old.version() != view::version(new) {
+                    *old = view::message(new);
+                }
+            }
+        } else {
+            session.messages = shown.into_iter().map(view::message).collect();
+        }
         if working {
             session.status = Status::Working;
         } else if session.status == Status::Working {

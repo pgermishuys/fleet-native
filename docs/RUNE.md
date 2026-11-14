@@ -39,10 +39,10 @@ Add to this page in the pull request where you learn something.
 | Drag (resize gutters) | `.on_drag` with `Drag`/`Phase` | used |
 | Keyboard shortcuts | `AppSpec::on_key`, `KeyEvent::is_command` | used |
 | Scrolling that stays at the bottom | `.scroll(ScrollSpec { stick_bottom })`, `Tx::scroll_to_bottom(key)` | used |
-| Very long lists (a long conversation, 5,000 sessions) | `virtual_rows(count, build)` builds only what's on screen; `.virtualize(h)`; `memo(id, version, build)` reuses a subtree | read |
+| Very long lists (a long conversation, 5,000 sessions) | `virtual_rows(count, est_height, key, build)` builds only what's on screen; `memo(id, version, build)` reuses a subtree | used (2,000 messages) |
 | Text that streams in | `.streaming(true)`, `.reveal(..)` | read |
-| Markdown: CommonMark, tables, streaming, selectable, find in document | `rune_kit::Markdown` (feature `markdown`) | read |
-| Code highlighting | about 80 languages, incremental, in `rune-kit` (`syntax::highlight`) | read |
+| Markdown: CommonMark, tables, streaming, selectable, find in document | `rune_kit::markdown::Markdown` (feature `markdown`) | used (paragraphs, lists, tables, code, quotes, streaming; not find or tasks) |
+| Code highlighting | about 80 languages, incremental, in `rune-kit` (`syntax::highlight`) | used (through Markdown) |
 | Diffs: unified and split, word-level, folding, 50,000 lines | `rune_kit::diff` (`DiffView`) | read |
 | Mermaid | flowcharts, sequence and state diagrams only (feature `mermaid`) | read |
 | Menus, popovers, selects, comboboxes, dialogs, toasts, tooltips | `rune-kit`; `.modal(..)` traps focus | read |
@@ -96,6 +96,22 @@ needs.
   depends on it.
 - **Speed numbers from a software renderer mean nothing.** Headless runs print frame times;
   under lavapipe they are 100 ms and more. Measure on real hardware, in a release build.
+
+- **`rune-kit` is a second crate from the same repository.** Depend on it with the same `rev` as
+  `rune` (the rev now appears six times: `rune`, `rune-kit`, four patches). Its `markdown` feature
+  adds `pulldown-cmark`; `rune-highlights` brings `wasmparser` and `unicase` into the build.
+- **A test's `rt.wheel(x, y, dy)`: positive `dy` scrolls up** (towards the start of the content).
+- **`virtual_rows` plus `memo`:** the row's `key` closure and `build` closure get `&State`, not the
+  view's `Cx`, so copy what the rows need (the theme, the markdown style) into the closure. Build
+  the row's own `memo` inside `build` with a small tuple version (a message's part count and the
+  sum of its text lengths, never its text). A reply that only ever grows says so by its length.
+- **`Markdown` is cached when it isn't streaming** (no handlers, built-in highlighter), so a
+  finished message costs a lookup; only the part still arriving (`streaming(true)`) is built each
+  frame.
+- **`poll` returning true during a scroll** logs "committed the view on N of N frames of a scroll"
+  in debug builds. Streaming does that on purpose: the text changes every frame.
+- **Headings can't be tinted separately** in `MarkdownStyle`: `text()` colours body and headings
+  alike, so Fleet's accent-tinted headings (`--md-heading`) aren't drawn yet.
 
 ## Work off the UI thread
 

@@ -1,6 +1,8 @@
 //! Invented projects, sessions and conversations. Nothing here comes from a real Fleet.
 use crate::view::conversation::{Message, Part, ToolState};
 
+pub mod long;
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Status {
     /// A turn is running: the four-dot glyph, and no time label.
@@ -200,6 +202,13 @@ pub fn projects() -> Vec<Project> {
                 "main",
                 brief("Summarise last week's notes in five lines.", "Five lines, one per day you wrote."),
             )],
+        },
+        // Where the slice A measurements scroll. Folded, so the list looks as it did.
+        Project {
+            name: "Benchmarks".into(),
+            path: "~/code/benchmarks".into(),
+            open: false,
+            sessions: vec![session(long::TITLE, Status::Idle, "1d", 0.55, "main", long::conversation())],
         },
     ]
 }

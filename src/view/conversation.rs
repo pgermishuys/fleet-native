@@ -5,11 +5,14 @@
 //! (`client/src/lib/client-types.ts`) so the reducer in `src/fleet/` can fill it later: a message
 //! has a role and ordered parts, and every part has an id.
 use super::parts::{pulse, quad};
+use super::prose;
 use crate::State;
 use crate::icons::*;
 use crate::mock::{Session, Status};
 use crate::theme::{Theme, mono, sans};
-use rune::{Cursor, El, Icon, ScrollSpec, col, el, icon, row, text};
+use rune::{Cursor, El, GrowthSpec, Icon, ScrollSpec, col, el, icon, memo, row, text};
+use rune_kit::markdown::MarkdownStyle;
+use std::borrow::Cow;
 
 /// The conversation's and the composer's column (`max-width: 760px`).
 pub const COLUMN: f32 = 760.0;
@@ -99,28 +102,58 @@ impl Part {
     }
 }
 
-/// The scrolling column of messages and, while a turn runs, the "Working" line.
-pub fn stream(s: &State, t: &Theme, session: &Session) -> El {
-    let mut column = col().w_full().max_w(COLUMN);
-    // Fleet's margins: 20px after a message or text, none between tool rows, 12px before the text
-    // that follows a run of them.
-    let mut after_tool = None;
-    for msg in &session.messages {
-        for part in &msg.parts {
-            let is_tool = matches!(part, Part::Tool { .. });
-            let above = match (after_tool, is_tool) {
-                (None, _) => 0.0,
-                (Some(true), true) => 0.0,
-                (Some(true), false) => 12.0,
-                (Some(false), _) => 20.0,
-            };
-            column = column.child(el().w_full().mt(above).py(2.0).child(part_view(t, msg.role, part)));
-            after_tool = Some(is_tool);
+/// What a row is worth when it hasn't been laid out yet; the real height replaces it once the row
+/// is on screen.
+const ESTIMATED_ROW: f32 = 150.0;
+
+impl Part {
+    /// A number that moves whenever the part draws differently. Text only ever grows while it
+    /// streams, so its length says so; hashing it on every frame is the cost `memo` avoids.
+    pub fn weight(&self) -> usize {
+        match self {
+            Part::Text { text, .. } | Part::Reasoning { text, .. } => text.len(),
+            Part::Tool { state, .. } => match *state {
+                ToolState::Running => 1,
+                ToolState::Diff(a, r) => 2 + a as usize + r as usize,
+                ToolState::Took(secs) => 3 + secs.to_bits() as usize,
+                ToolState::Plain => 4,
+            },
+            _ => 5,
         }
     }
-    if session.status == Status::Working {
-        column = column.child(working(s, t));
+}
+
+impl Message {
+    /// Changes whenever something the row draws changes, in a few integer reads.
+    pub fn version(&self) -> (usize, usize) {
+        (self.parts.len(), self.parts.iter().map(Part::weight).sum())
     }
+}
+
+/// The scrolling column of messages and, while a turn runs, the "Working" line. Only the rows on
+/// screen are built (`virtual_rows`), and a row whose message hasn't changed is reused (`memo`).
+pub fn stream(t: &Theme, session: &Session) -> El {
+    let theme = *t;
+    let md = prose::style(t);
+    let working = session.status == Status::Working;
+    let count = session.messages.len() + usize::from(working);
+    let rows = col().key("timeline").w_full().max_w(COLUMN).growth(GrowthSpec::default()).virtual_rows(
+        count,
+        ESTIMATED_ROW,
+        |s: &State, i| match s.session().messages.get(i) {
+            Some(m) => Cow::Borrowed(m.id.as_str()),
+            None => Cow::Borrowed("working"),
+        },
+        move |s: &State, i| {
+            let session = s.session();
+            let Some(msg) = session.messages.get(i) else { return working_row(s, &theme) };
+            let after_tool = i.checked_sub(1).map(|p| matches!(session.messages[p].parts.last(), Some(Part::Tool { .. })));
+            let streaming = i + 1 == session.messages.len() && session.status == Status::Working && msg.role == Role::Assistant;
+            memo(msg.id.clone(), (msg.version(), theme.dark, after_tool, streaming), || {
+                message_row(&theme, &md, msg, after_tool, streaming)
+            })
+        },
+    );
     col()
         .key("stream")
         .w_full()
@@ -128,10 +161,31 @@ pub fn stream(s: &State, t: &Theme, session: &Session) -> El {
         .shrink()
         .min_h(0.0)
         .scroll(ScrollSpec { stick_bottom: true })
-        .child(col().w_full().pt(24.0).px(32.0).pb(12.0).items_center().child(column))
+        .child(col().w_full().pt(24.0).px(32.0).pb(12.0).items_center().child(rows))
 }
 
-fn part_view(t: &Theme, role: Role, part: &Part) -> El {
+/// One message: its parts, spaced as Fleet spaces them. `after_tool` is how the message above
+/// ended (`None` for the first), so a run of tool rows reads as one block across messages.
+fn message_row(t: &Theme, md: &MarkdownStyle, msg: &Message, after_tool: Option<bool>, streaming: bool) -> El {
+    let mut column = col().w_full();
+    let mut after_tool = after_tool;
+    for (k, part) in msg.parts.iter().enumerate() {
+        let is_tool = matches!(part, Part::Tool { .. });
+        // 20px after a message or text, none between tool rows, 12px before the text that follows a run of them.
+        let above = match (after_tool, is_tool) {
+            (None, _) => 0.0,
+            (Some(true), true) => 0.0,
+            (Some(true), false) => 12.0,
+            (Some(false), _) => 20.0,
+        };
+        let live = streaming && k + 1 == msg.parts.len();
+        column = column.child(el().w_full().mt(above).py(2.0).child(part_view(t, md, msg.role, part, live)));
+        after_tool = Some(is_tool);
+    }
+    column
+}
+
+fn part_view(t: &Theme, md: &MarkdownStyle, role: Role, part: &Part, live: bool) -> El {
     match (part, role) {
         // Right-aligned with the small corner at bottom right. The empty 18% in front keeps the
         // bubble to Fleet's `max-width: 82%` of the column at any width.
@@ -148,9 +202,7 @@ fn part_view(t: &Theme, role: Role, part: &Part) -> El {
                 .border(1.0, t.border)
                 .fill(t.wash(5.0)),
         ),
-        (Part::Text { text: body, .. }, Role::Assistant) => {
-            text(body.clone()).font(sans(15.0, 400.0, 1.65)).color(t.text).wrap().selectable(true).w_full()
-        }
+        (Part::Text { id, text: body }, Role::Assistant) => prose::prose(md, id, body, live),
         (Part::Tool { tool, detail, state, .. }, _) => tool_row(t, tool, detail, *state),
         // The remaining parts get their real look in the parts lane; for now they say what they are.
         (Part::Reasoning { text: body, summary, .. }, _) => {
@@ -198,7 +250,7 @@ fn tool_row(t: &Theme, name: &str, detail: &str, state: ToolState) -> El {
 }
 
 /// "Working · 18s" under the last message (`WorkingIndicator.vue`), without Fleet's shimmer.
-fn working(s: &State, t: &Theme) -> El {
+fn working_row(s: &State, t: &Theme) -> El {
     let seconds = (s.clock - s.working_since).max(0.0) as u64;
     let time = if seconds < 60 { format!("{seconds}s") } else { format!("{}m", seconds / 60) };
     let font = sans(13.0, 400.0, 1.3).features("'tnum' 1");
