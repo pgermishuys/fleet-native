@@ -58,6 +58,7 @@ jobs:
           mkdir -p shots
           export SPIKE_SHOT='powershell -NoProfile -ExecutionPolicy Bypass -File ci\shot.ps1 shots\{name}.png'
           export SPIKE_CLICK='powershell -NoProfile -ExecutionPolicy Bypass -File ci\click.ps1 {x} {y}'
+          export SPIKE_TYPE='powershell -NoProfile -ExecutionPolicy Bypass -File ci\type.ps1 {text}'
           ./target/release/${{ matrix.exe }} --demo 2>&1 | cat
           ls shots
 

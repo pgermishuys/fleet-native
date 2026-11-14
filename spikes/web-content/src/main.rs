@@ -47,6 +47,7 @@ pub struct State {
     page_cards: u32,
     web_rect: [f32; 4],
     web_screen: [f32; 4],
+    note_screen: [f32; 4],
     note: TextEdit,
     clock: f64,
     demo: Option<Demo>,
@@ -61,7 +62,7 @@ struct Demo {
     /// A picture or click is being taken on another thread.
     busy: bool,
 }
-const STEPS: [&str; 6] = ["1-loaded", "2-clicked", "3-gutter", "4-resized", "5-menu", "6-menu-hidden"];
+const STEPS: [&str; 8] = ["1-loaded", "2-clicked", "3-keyboard", "4-gutter", "5-resized", "6-menu", "7-menu-hidden", "8-shown-again"];
 
 fn with_web(f: impl FnOnce(&WebView)) {
     WEB.with(|w| {
@@ -79,8 +80,14 @@ fn bounds([x, y, w, h]: [f32; 4]) -> Rect {
 fn place(s: &State) {
     let hidden = s.menu_open && s.hide_under_menu;
     with_web(|web| {
-        let _ = web.set_bounds(bounds(s.web_rect));
-        let _ = web.set_visible(!hidden);
+        // WebKitGTK comes back black after being unmapped, so on Linux the view moves out of
+        // the window instead of hiding.
+        if cfg!(target_os = "linux") {
+            let _ = web.set_bounds(bounds(if hidden { [-4000.0, -4000.0, 1.0, 1.0] } else { s.web_rect }));
+        } else {
+            let _ = web.set_bounds(bounds(s.web_rect));
+            let _ = web.set_visible(!hidden);
+        }
     });
 }
 
@@ -92,6 +99,10 @@ fn attach(window: &rune::WindowHandle) {
     #[cfg(target_os = "linux")]
     if let Err(e) = gtk::init() {
         eprintln!("gtk::init failed: {e}");
+        return;
+    }
+    // A control run: the same app with no web view, to tell a focus problem from an input one.
+    if std::env::var("SPIKE_NO_WEB").is_ok() {
         return;
     }
     let made = window.with_raw_handle(|handle| {
@@ -188,7 +199,8 @@ fn view(s: &State, _: &mut rune::Cx<State>) -> El {
                 .py(6.0)
                 .radius(8.0)
                 .fill(c("#1b1b20"))
-                .on_edit(|s: &mut State| &mut s.note),
+                .on_edit(|s: &mut State| &mut s.note)
+                .on_screen_layout(|s: &mut State, r| s.note_screen = r),
         );
 
     let gutter = el()
@@ -304,11 +316,14 @@ fn run_template(var: &str, subs: &[(&str, String)]) {
     for (k, v) in subs {
         cmd = cmd.replace(k, v);
     }
-    let status = if cfg!(windows) {
-        std::process::Command::new("cmd").args(["/C", &cmd]).status()
-    } else {
-        std::process::Command::new("sh").args(["-c", &cmd]).status()
+    #[cfg(windows)]
+    let status = {
+        use std::os::windows::process::CommandExt;
+        // CREATE_NO_WINDOW: a console window would open over the app and into the picture.
+        std::process::Command::new("cmd").args(["/C", &cmd]).creation_flags(0x0800_0000).status()
     };
+    #[cfg(not(windows))]
+    let status = std::process::Command::new("sh").args(["-c", &cmd]).status();
     if let Err(e) = status {
         eprintln!("{var}: {e}");
     }
@@ -322,13 +337,51 @@ fn next_step(s: &mut State, tx: &mut Tx) {
     tx.wake_after(Duration::from_millis(100));
     match STEPS.get(demo.step).copied() {
         Some("2-clicked") => click_page_button(s.web_screen),
-        Some("3-gutter") => s.left_w = 380.0,
-        Some("4-resized") => tx.resize_window_instant((860.0, 560.0)),
-        Some("5-menu") => s.menu_open = true,
-        Some("6-menu-hidden") => s.hide_under_menu = true,
+        Some("3-keyboard") => {
+            demo.due += 9.0;
+            type_in_both(s.web_screen, s.note_screen);
+        }
+        Some("4-gutter") => {
+            report_fields(s);
+            s.left_w = 380.0;
+        }
+        Some("5-resized") => tx.resize_window_instant((860.0, 560.0)),
+        Some("6-menu") => s.menu_open = true,
+        Some("7-menu-hidden") => s.hide_under_menu = true,
+        Some("8-shown-again") => s.menu_open = false,
         _ => tx.quit(),
     }
     place(s);
+}
+
+/// Where a page element is, in window points, from the page itself.
+fn page_rect(id: &'static str, then: impl FnOnce([f32; 4]) + Send + 'static) {
+    // wry calls back through `Fn`, so the one-shot continuation waits in a slot.
+    let then = std::sync::Mutex::new(Some(then));
+    let js = format!("JSON.stringify(document.getElementById('{id}').getBoundingClientRect())");
+    with_web(|web| {
+        let _ = web.evaluate_script_with_callback(&js, move |json| {
+            // The result is a JSON string holding JSON, so its quotes may arrive escaped.
+            let flat = json.replace('\\', "");
+            let num = |k: &str| flat.split(&format!("\"{k}\":")).nth(1).and_then(|r| r.split([',', '}']).next()?.parse::<f32>().ok());
+            match (num("x"), num("y"), num("width"), num("height")) {
+                (Some(x), Some(y), Some(w), Some(h)) => {
+                    if let Some(then) = then.lock().unwrap().take() {
+                        then([x, y, w, h])
+                    }
+                }
+                _ => eprintln!("no rect for #{id} in {json}"),
+            }
+        });
+    });
+}
+
+/// A real mouse click and real key presses, through the commands CI gives (screen pixels).
+fn click(at: [f32; 2]) {
+    run_template("SPIKE_CLICK", &[("{x}", format!("{:.0}", at[0])), ("{y}", format!("{:.0}", at[1]))]);
+}
+fn center(origin: [f32; 4], [x, y, w, h]: [f32; 4]) -> [f32; 2] {
+    [origin[0] + x + w / 2.0, origin[1] + y + h / 2.0]
 }
 
 /// A real click when the platform gave us a way to make one, else the page clicks itself.
@@ -339,16 +392,45 @@ fn click_page_button(web_screen: [f32; 4]) {
         });
         return;
     }
-    with_web(|web| {
-        let _ = web.evaluate_script_with_callback("JSON.stringify(document.getElementById('add').getBoundingClientRect())", move |json| {
-            let num = |k: &str| json.split(&format!("\\\"{k}\\\":")).nth(1).and_then(|r| r.split([',', '}']).next()?.parse::<f32>().ok());
-            let (Some(x), Some(y), Some(w), Some(h)) = (num("x"), num("y"), num("width"), num("height")) else {
-                eprintln!("no button rect in {json}");
-                return;
-            };
-            let at = [web_screen[0] + x + w / 2.0, web_screen[1] + y + h / 2.0];
-            std::thread::spawn(move || run_template("SPIKE_CLICK", &[("{x}", format!("{:.0}", at[0])), ("{y}", format!("{:.0}", at[1]))]));
+    page_rect("add", move |r| {
+        std::thread::spawn(move || click(center(web_screen, r)));
+    });
+}
+
+/// Where the keyboard goes: click the page's field and type, then click Rune's field and type.
+fn type_in_both(web_screen: [f32; 4], rune_field: [f32; 4]) {
+    if std::env::var("SPIKE_CLICK").is_err() || std::env::var("SPIKE_TYPE").is_err() {
+        eprintln!("no real input on this system: keyboard step skipped");
+        return;
+    }
+    if WEB.with(|w| w.borrow().is_none()) {
+        std::thread::spawn(move || {
+            click(center([0.0; 4], rune_field));
+            run_template("SPIKE_TYPE", &[("{text}", "harbour".into())]);
         });
+        return;
+    }
+    page_rect("note", move |r| {
+        std::thread::spawn(move || {
+            click(center(web_screen, r));
+            run_template("SPIKE_TYPE", &[("{text}", "tides".into())]);
+            click(center([0.0; 4], rune_field));
+            run_template("SPIKE_TYPE", &[("{text}", "harbour".into())]);
+            // Then hand the keyboard back to the app window by hand, and type again.
+            if let Some(app) = HANDLE.get() {
+                app.update(|_: &mut State, _| with_web(|web| drop(web.focus_parent())));
+            }
+            std::thread::sleep(Duration::from_millis(300));
+            run_template("SPIKE_TYPE", &[("{text}", "bay".into())]);
+        });
+    });
+}
+
+/// Where the typed keys landed, for the log.
+fn report_fields(s: &State) {
+    eprintln!("rune field: {:?}", s.note.text);
+    with_web(|web| {
+        let _ = web.evaluate_script_with_callback("document.getElementById('note').value", |v| eprintln!("page field: {v}"));
     });
 }
 

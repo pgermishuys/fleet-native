@@ -64,7 +64,7 @@ wrap_render_handler! {
             // SAFETY: CEF hands a width x height BGRA buffer that lives for this call.
             let bgra = unsafe { std::slice::from_raw_parts(buffer, (width * height * 4) as usize) };
             let mut rgba = bgra.to_vec();
-            for px in rgba.chunks_exact_mut(4) {
+            for px in rgba.as_chunks_mut::<4>().0 {
                 px.swap(0, 2);
             }
             FRAME.get_or_init(Pixels::new).set(width as u32, height as u32, rgba);
@@ -259,7 +259,7 @@ fn init() -> State {
 
 fn main() {
     let _ = api_hash(sys::CEF_API_VERSION_LAST, 0);
-    let args = Args::new();
+    let args = cef::args::Args::new();
     let mut app = CefAppBuilder::new(0);
     // CEF starts its renderer and GPU helpers as copies of this executable; they stop here.
     let code = execute_process(Some(args.as_main_args()), Some(&mut app), std::ptr::null_mut());
