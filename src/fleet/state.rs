@@ -1,14 +1,51 @@
 //! How what the connection learns reaches the state. Every method here runs on the UI thread, from
 //! an `AppHandle::update` closure, and does no I/O.
+use super::events::{Event, Kind};
 use super::link::Connection;
 use super::model::{Msg, StreamState};
-use super::reducer::{self, Event};
+use super::reducer;
 use super::view;
 use crate::State;
 use crate::mock::{Project, Status};
 use rune::Tx;
 
+/// Where an event came from, for `State::subscribe` (`onGlobalEvent` is `Sessions`, `onDomainEvent`
+/// is `Session`).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum Topic {
+    Sessions,
+    Session(String),
+}
+
+type Listener = Box<dyn FnMut(&Topic, &Event) + Send>;
+
+/// Who wants events the reducer doesn't apply. Components 3-22 attach here, so none of them
+/// touches `link.rs`.
+#[derive(Default)]
+pub struct Subscribers(Vec<(Option<Kind>, Listener)>);
+
 impl State {
+    /// Calls `listener` with every event that isn't the open stream's own to apply: on the `sessions`
+    /// topic, and on the open session's. `only` limits it to one type. Runs on the UI thread, so it
+    /// must not block. (A component that needs another session's topic asks the link for it; the
+    /// Files canvas will, in component 11.)
+    pub fn subscribe(&mut self, only: Option<Kind>, listener: impl FnMut(&Topic, &Event) + Send + 'static) {
+        self.subscribers.0.push((only, Box::new(listener)));
+    }
+
+    /// Hands events to the subscribers. Events the reducer applies go too, so a listener can follow
+    /// them without a second path; `Cursor` marks are internal and skipped.
+    pub fn dispatch(&mut self, topic: &Topic, events: &[Event]) {
+        for event in events.iter().filter(|e| !matches!(e, Event::Cursor(_))) {
+            let kind = event.kind();
+            for (only, listener) in &mut self.subscribers.0 {
+                if only.is_none() || *only == kind {
+                    listener(topic, event);
+                }
+            }
+        }
+    }
+
     /// The id of the open session on the server; `None` for the invented ones.
     pub fn open_id(&self) -> Option<String> {
         Some(self.projects.get(self.open.0)?.sessions.get(self.open.1)?.id.clone()).filter(|id| !id.is_empty())
@@ -91,6 +128,7 @@ impl State {
         if self.open_id().as_deref() != Some(id) {
             return;
         }
+        self.dispatch(&Topic::Session(id.to_string()), &events);
         let Some(state) = self.stream.as_mut() else { return };
         let was_working = state.session_status.working();
         for event in &events {

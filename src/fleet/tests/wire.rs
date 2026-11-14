@@ -86,7 +86,7 @@ fn hub(stream: TcpStream, head: String) {
                 Some("SubscribeToSessionAsync") => {
                     reply_with(&mut ws, json!({"type": 3, "invocationId": call["invocationId"], "result": snapshot_of(&live)}));
                     for f in &live {
-                        if let signalr::Frame::Event { topic, data } = f {
+                        if let signalr::Frame::Event { topic, data, .. } = f {
                             reply_with(&mut ws, json!({"type": 1, "target": "Event", "arguments": [topic, 0, data]}));
                         }
                     }
