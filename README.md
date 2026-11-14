@@ -120,9 +120,12 @@ target/debug/fleet-native --script scripts/tour.json --video tour.mp4
 | `src/lib.rs` | The state, the keys, Send and Interrupt, and the app's `AppSpec` |
 | `src/theme.rs` | Fleet's colours and type sizes, copied from weave-fleet's `client/src/assets/main.css` |
 | `src/mock.rs` | The invented projects, sessions and messages |
+| `src/mock/long.rs` | The 2,000-message "Long conversation" and the reply that streams into it |
+| `src/script.rs` | The scripted reply (no server): grows the last message on the app's clock |
 | `src/view.rs` | `[rail][context]` over the status bar, and the resize gutter |
 | `src/view/rail.rs` | The rail |
 | `src/view/sessions.rs` | The session list |
+| `src/view/conversation.rs`, `prose.rs` | The message type, the virtual list of messages, and a message's markdown |
 | `src/view/sheet.rs` | The workspace sheet: header, conversation, composer, content panel |
 | `src/view/status.rs` | The status bar |
 | `src/view/parts.rs` | The working glyph, the running dot and the toolbar button |

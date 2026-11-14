@@ -2,6 +2,7 @@
 //! 14px root (see `client/src/components/layout/AppShell.vue`).
 pub mod conversation;
 mod parts;
+mod prose;
 mod rail;
 mod sessions;
 mod sheet;

@@ -23,7 +23,7 @@ pub fn sheet(s: &State, t: &Theme) -> El {
         .h_full()
         .min_h(0.0)
         .child(header(t, project, session))
-        .child(stream(s, t, session))
+        .child(stream(t, session))
         .child(composer(s, t, session));
     let mut sheet = row()
         .key("workspace-sheet")
