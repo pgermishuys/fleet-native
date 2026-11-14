@@ -1,14 +1,13 @@
 //! The workspace sheet: the session header, the conversation, the composer, and the content
 //! panel on the right (collapsed to a 48px rail by default).
-use super::parts::{pulse, quad, tool_button};
+use super::conversation::{COLUMN, stream};
+use super::parts::tool_button;
 use crate::icons::*;
-use crate::mock::{Msg, Project, Session, Status, ToolState};
+use crate::mock::{Project, Session, Status};
 use crate::theme::{Theme, mono, sans};
 use crate::{State, interrupt, send};
-use rune::{Color, Cursor, El, Icon, ScrollSpec, Shadow, auto_grow, col, el, icon, row, spacer, text, text_input};
+use rune::{Color, Cursor, El, Shadow, auto_grow, col, el, icon, row, spacer, text, text_input};
 
-/// The conversation's and the composer's column (`max-width: 760px`).
-const COLUMN: f32 = 760.0;
 /// `AppShell.vue`: the content panel is a column only while the conversation keeps 480px beside
 /// the panel at its narrowest (280px). In a narrower sheet it opens over the conversation.
 const MIN_CONVERSATION: f32 = 480.0;
@@ -138,108 +137,6 @@ fn header(t: &Theme, project: &Project, session: &Session) -> El {
         .border_sides([0.0, 0.0, 1.0, 0.0], t.border)
         .child(main)
         .child(actions)
-}
-
-fn stream(s: &State, t: &Theme, session: &Session) -> El {
-    let mut column = col().w_full().max_w(COLUMN);
-    let mut after_tool = None;
-    for msg in &session.messages {
-        let is_tool = matches!(msg, Msg::Tool { .. });
-        // Fleet's margins: 20px after a message, none between tool rows, 10px before the text
-        // that follows a run of them.
-        let above = match (after_tool, is_tool) {
-            (None, _) => 0.0,
-            (Some(true), true) => 0.0,
-            (Some(true), false) => 12.0,
-            (Some(false), _) => 20.0,
-        };
-        column = column.child(el().w_full().mt(above).py(2.0).child(message(t, msg)));
-        after_tool = Some(is_tool);
-    }
-    if session.status == Status::Working {
-        column = column.child(working(s, t));
-    }
-    col()
-        .key("stream")
-        .w_full()
-        .grow(1.0)
-        .shrink()
-        .min_h(0.0)
-        .scroll(ScrollSpec { stick_bottom: true })
-        .child(col().w_full().pt(24.0).px(32.0).pb(12.0).items_center().child(column))
-}
-
-fn message(t: &Theme, msg: &Msg) -> El {
-    match msg {
-        // Right-aligned with the small corner at bottom right. The empty 18% in front keeps the
-        // bubble to Fleet's `max-width: 82%` of the column at any width.
-        Msg::User(body) => row().w_full().justify_end().child(el().w_frac(0.18)).child(
-            text(body.clone())
-                .font(sans(15.0, 400.0, 1.55))
-                .color(t.text)
-                .wrap()
-                .selectable(true)
-                .shrink()
-                .px(14.0)
-                .py(10.0)
-                .corners([14.0, 14.0, 4.0, 14.0])
-                .border(1.0, t.border)
-                .fill(t.wash(5.0)),
-        ),
-        Msg::Assistant(paragraphs) => col()
-            .w_full()
-            .gap(12.75)
-            .children(paragraphs.iter().map(|p| text(*p).font(sans(15.0, 400.0, 1.65)).color(t.text).wrap().selectable(true).w_full())),
-        Msg::Tool { name, detail, state } => tool_row(t, name, detail, *state),
-    }
-}
-
-/// One tool call (`ToolCard.vue`'s summary row): icon, name, what it ran, and how it went.
-fn tool_row(t: &Theme, name: &str, detail: &str, state: ToolState) -> El {
-    let glyph: &'static Icon = match name {
-        "Bash" => &TERMINAL,
-        "Edit" => &PENCIL,
-        _ => &FILE_TEXT,
-    };
-    // Reads are quieter than commands and edits.
-    let (weight, ink) = if name == "Read" { (400.0, t.muted) } else { (500.0, t.text) };
-    let count = mono(12.0, 400.0, 1.3);
-    let line = row()
-        .w_full()
-        .min_h(30.0)
-        .center_y()
-        .gap(9.0)
-        .px(8.0)
-        .radius(6.0)
-        .hover(t.wash(5.0))
-        .cursor(Cursor::Pointer)
-        .on_press(|_: &mut State| {})
-        .child(icon(glyph, 14.0).color(t.muted.alpha(0.75)))
-        .child(text(name).font(sans(13.0, weight, 1.3)).color(ink))
-        .child(text(detail).font(mono(12.0, 400.0, 1.3)).color(t.muted).truncate().grow(1.0));
-    match state {
-        ToolState::Running => line.child(pulse(t.running)),
-        ToolState::Diff(added, removed) => line
-            .child(text(format!("+{added}")).font(count).color(t.running))
-            .child(text(format!("\u{2212}{removed}")).font(count).color(t.error)),
-        ToolState::Took(time) => line.child(text(time).font(count).color(t.muted)),
-        ToolState::Plain => line,
-    }
-}
-
-/// "Working · 18s" under the last message (`WorkingIndicator.vue`), without Fleet's shimmer.
-fn working(s: &State, t: &Theme) -> El {
-    let seconds = (s.clock - s.working_since).max(0.0) as u64;
-    let time = if seconds < 60 { format!("{seconds}s") } else { format!("{}m", seconds / 60) };
-    let font = sans(13.0, 400.0, 1.3).features("'tnum' 1");
-    row()
-        .w_full()
-        .h(24.0)
-        .my(4.0)
-        .center_y()
-        .gap(10.0)
-        .child(quad(t.text))
-        .child(row().gap(5.0).child(text("Working").font(font).color(t.muted)).child(text(format!("· {time}")).font(font).color(t.muted)))
 }
 
 fn composer(s: &State, t: &Theme, session: &Session) -> El {
