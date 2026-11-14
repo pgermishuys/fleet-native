@@ -27,11 +27,26 @@ pub struct Shared {
     pub exited: AtomicBool,
     pub title: Mutex<String>,
     waker: Mutex<Option<rune::Waker>>,
-    /// Where the terminal's own answers go (cursor position, device attributes): the shell.
-    answer: Mutex<Option<EventLoopSender>>,
+    /// Where typing, pastes, resizes and the terminal's own answers (cursor position, device
+    /// attributes) go: the shell, or Fleet's socket.
+    pub out: Mutex<Option<Out>>,
 }
 
+/// What goes back to the shell.
+pub enum Input {
+    Bytes(Vec<u8>),
+    Resize(WindowSize),
+}
+
+pub type Out = Box<dyn FnMut(Input) + Send>;
+
 impl Shared {
+    pub fn send(&self, input: Input) {
+        if let Some(out) = &mut *self.out.lock().unwrap() {
+            out(input);
+        }
+    }
+
     /// One wake per change the UI hasn't read yet, so a flood costs one redraw a frame.
     pub fn wake(&self) {
         if !self.dirty.swap(true, Ordering::AcqRel)
@@ -49,11 +64,7 @@ impl EventListener for Listener {
     fn send_event(&self, event: Event) {
         match event {
             Event::Wakeup => self.0.wake(),
-            Event::PtyWrite(text) => {
-                if let Some(tx) = &*self.0.answer.lock().unwrap() {
-                    let _ = tx.send(Msg::Input(Cow::Owned(text.into_bytes())));
-                }
-            }
+            Event::PtyWrite(text) => self.0.send(Input::Bytes(text.into_bytes())),
             Event::Title(t) => {
                 *self.0.title.lock().unwrap() = t;
                 self.0.wake();
@@ -89,7 +100,6 @@ pub struct Engine {
     pub term: Arc<FairMutex<Term<Listener>>>,
     pub shared: Arc<Shared>,
     pub size: Size,
-    shell: Option<EventLoopSender>,
 }
 
 impl Engine {
@@ -98,7 +108,7 @@ impl Engine {
         // Fleet's xterm keeps 5,000 lines (`TerminalView.vue`), as the server's replay does.
         let config = Config { scrolling_history: 5000, ..Config::default() };
         let term = Term::new(config, &size, Listener(shared.clone()));
-        Engine { term: Arc::new(FairMutex::new(term)), shared, size, shell: None }
+        Engine { term: Arc::new(FairMutex::new(term)), shared, size }
     }
 
     pub fn set_waker(&self, waker: rune::Waker) {
@@ -136,28 +146,28 @@ impl Engine {
         let options = tty::Options { env, ..tty::Options::default() };
         let pty = tty::new(&options, self.window_size(cell), 0)?;
         let event_loop = EventLoop::new(self.term.clone(), Listener(self.shared.clone()), pty, false, false)?;
-        let tx = event_loop.channel();
-        *self.shared.answer.lock().unwrap() = Some(tx.clone());
-        self.shell = Some(tx);
+        let tx: EventLoopSender = event_loop.channel();
+        *self.shared.out.lock().unwrap() = Some(Box::new(move |input| {
+            let _ = tx.send(match input {
+                Input::Bytes(b) => Msg::Input(Cow::Owned(b)),
+                Input::Resize(size) => Msg::Resize(size),
+            });
+        }));
         event_loop.spawn();
         Ok(())
     }
 
     pub fn write(&self, bytes: Vec<u8>) {
-        if let Some(tx) = &self.shell {
-            let _ = tx.send(Msg::Input(Cow::Owned(bytes)));
-        }
+        self.shared.send(Input::Bytes(bytes));
     }
 
     pub fn resize(&mut self, size: Size, cell: (f32, f32)) {
         self.size = size;
         self.term.lock().resize(size);
-        if let Some(tx) = &self.shell {
-            let _ = tx.send(Msg::Resize(self.window_size(cell)));
-        }
+        self.shared.send(Input::Resize(self.window_size(cell)));
     }
 
-    fn window_size(&self, (w, h): (f32, f32)) -> WindowSize {
+    pub fn window_size(&self, (w, h): (f32, f32)) -> WindowSize {
         WindowSize { num_lines: self.size.lines as u16, num_cols: self.size.cols as u16, cell_width: w as u16, cell_height: h as u16 }
     }
 }
@@ -168,7 +178,8 @@ pub fn flood(total: u64) -> impl Iterator<Item = Vec<u8>> + Send {
     let mut pattern = Vec::new();
     for s in crate::STREAMS {
         pattern.extend_from_slice(s.1);
-        pattern.extend_from_slice(b"\x1b[0m\r\n");
+        // Back to the normal screen: vim's and less's recordings end inside the alternate one.
+        pattern.extend_from_slice(b"\x1b[?1049l\x1b[0m\r\n");
     }
     for i in 0..400 {
         pattern

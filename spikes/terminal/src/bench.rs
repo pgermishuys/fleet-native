@@ -76,13 +76,15 @@ fn frames() {
                     })
                     .collect(),
             };
+            let mut fresh = false;
             rt.update(|s, _| {
                 if !bytes.is_empty() {
                     s.engine.feed_now(bytes.as_bytes());
                 }
-                s.refresh();
+                fresh = s.refresh();
             });
-            read.push(rt.state.screen.read_us);
+            // Nothing new to read: the read is skipped.
+            read.push(if fresh { rt.state.screen.read_us } else { 0 });
             let start = Instant::now();
             if rows == 0 {
                 rt.invalidate();

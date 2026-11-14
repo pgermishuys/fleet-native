@@ -2,12 +2,14 @@
 //! look of Fleet's `TerminalView.vue` (xterm.js) without the drawer around it.
 //!
 //!   terminal-spike                  a local shell (the spike's stand-in for Fleet's socket)
+//!   terminal-spike --fleet http://127.0.0.1:6391   a scratch Fleet's setup terminal, over its socket
 //!   terminal-spike --flood 200      200 MB of output parsed on a thread while the UI draws
 //!   terminal-spike --scene vim      a recorded stream (see `--list-scenes`), as `--snap` uses
 //!   terminal-spike --bench          parse and draw numbers, no window
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 mod bench;
 mod engine;
+mod fleet;
 mod keys;
 mod screen;
 
@@ -210,6 +212,11 @@ fn setup(s: &mut State, waker: rune::Waker) {
         s.engine.spawn_feeder(engine::flood(mb << 20));
         s.source = "flood";
         s.started = Some(Instant::now());
+    } else if let Some(at) = args.iter().position(|a| a == "--fleet") {
+        s.source = "fleet";
+        if let Err(e) = fleet::attach(&s.engine, args.get(at + 1).map_or("", |v| v.as_str())) {
+            eprintln!("no Fleet terminal: {e}");
+        }
     } else if let Err(e) = s.engine.spawn_shell((cell_w(), LINE)) {
         eprintln!("no shell: {e}");
     }
@@ -244,6 +251,9 @@ fn status(s: &State) -> String {
     if let (Some(t), true) = (s.started, s.source == "flood") {
         line += &format!("  {:.1} s", t.elapsed().as_secs_f32());
     }
+    if s.source == "fleet" {
+        line += &format!("  last control: {}", s.engine.shared.title.lock().unwrap());
+    }
     if s.engine.shared.exited.load(Ordering::Relaxed) {
         line += "  [exited]";
     }
@@ -252,10 +262,10 @@ fn status(s: &State) -> String {
 
 fn view(s: &State, _: &mut rune::Cx<State>) -> El {
     let (cols, lines) = (s.engine.size.cols, s.engine.size.lines);
-    let screen = grid(cols as u16, cell_w(), LINE, s.screen.rows.clone())
-        .w(cols as f32 * cell_w())
-        .h(lines as f32 * LINE)
-        .grid_caret_opt(s.screen.cursor.as_ref().map(|c| (c.col as u16, c.line as u16)));
+    let mut screen = grid(cols as u16, cell_w(), LINE, s.screen.rows.clone()).w(cols as f32 * cell_w()).h(lines as f32 * LINE);
+    if let Some(c) = &s.screen.cursor {
+        screen = screen.grid_caret(c.col as u16, c.line as u16);
+    }
     let mut term = el()
         .key("terminal")
         .grow(1.0)
@@ -283,19 +293,6 @@ fn view(s: &State, _: &mut rune::Cx<State>) -> El {
         .fill(s.pal.bar)
         .child(text(status(s)).font(rune::tok::TextStyle::new(11.0, 400.0).mono()).color(s.pal.fg.alpha(0.7)).single_line());
     col().w_full().h_full().fill(s.pal.bg).on_paste(on_paste).child(term).child(bar)
-}
-
-trait CaretOpt {
-    fn grid_caret_opt(self, at: Option<(u16, u16)>) -> Self;
-}
-
-impl CaretOpt for El {
-    fn grid_caret_opt(self, at: Option<(u16, u16)>) -> Self {
-        match at {
-            Some((c, r)) => self.grid_caret(c, r),
-            None => self,
-        }
-    }
 }
 
 fn light(s: &mut State) {
