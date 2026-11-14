@@ -2,6 +2,7 @@
 //! `sessions`, `view`) have no Rune and no I/O, and are tested against frames captured from a
 //! real server (`tests/fixtures/`). The impure parts (`http`, `link`) do the network work on their
 //! own threads and hand results to the state.
+pub mod context;
 pub mod delegations;
 pub mod events;
 pub mod http;
@@ -12,6 +13,7 @@ pub mod sessions;
 pub mod signalr;
 pub mod state;
 pub mod view;
+pub mod work;
 
 #[cfg(test)]
 mod tests;

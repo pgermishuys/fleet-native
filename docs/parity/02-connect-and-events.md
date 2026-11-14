@@ -60,11 +60,11 @@ Counted by exact name, with the apostrophe in "doesn't" dropped as `src/fleet/te
 | `message-ordering.test.ts` | 7 | 0 by name. "orders_messages_by_id_wherever_they_arrive" and "orders_a_forks_counted_copies_by_their_counter" cover the idea under other names | 7: rename and port the rest |
 | `event-state.test.ts` | 29 | 1 (`preserves_longer_streamed_text_when_shorter_final_lifecycle_snapshot_arrives`) | 28 |
 | `reopened-session.test.ts` | 3 | 0 | 3 (see "Tests to port": two need component 3's tool card) |
-| `running-work.test.ts` | 11 | 0 | 11 |
-| `late-tool-update.test.ts` | 2 | 0 | 2 |
+| `running-work.test.ts` | 11 | 11 (piece C) | 0 |
+| `late-tool-update.test.ts` | 2 | 2 (piece C) | 0 |
 | `history-merge.test.ts` | 7 | 0 | 7 |
 | `merge-messages.test.ts` | 7 | 0 | 7 |
-| `context-usage.test.ts` | 11 | 0 | 5 belong here (`toContextUsage`), 6 to component 5's ring |
+| `context-usage.test.ts` | 11 | 5 (piece C) | 0 here; 6 belong here (`toContextUsage`), 6 to component 5's ring |
 
 `FLEET.md` says 56 + 3 + 4 + 11. Message ordering now has 7 cases (a Pi group of 3 was added), so its 4 is out of date; the reducer file's 56 holds.
 
@@ -218,7 +218,7 @@ Each row: what Fleet does, its source, the native state. `[ ]` open, `[x]` done 
 
 ### 3. Reducer: work, context, prompts and marks
 
-- [ ] **3.1 Running work** (`lib/running-work.ts`). State `running_work: Vec<RunningWorkItem>` from the snapshot's
+- [x] **3.1 Running work** (`lib/running-work.ts`). State `running_work: Vec<RunningWorkItem>` from the snapshot's
   `runningWork` (`toRunningWorkItems`: drop non-items, unknown kind → `task`, unknown status → `running`, defaults for
   missing fields, sorted by `startedAt` then `id`), kept current by `work.started/updated/ended` (`withWorkItem`,
   `applyWorkItem`: replace by id; an item that ended doesn't come back to running; same item returns the same list).
@@ -226,7 +226,7 @@ Each row: what Fleet does, its source, the native state. `[ ]` open, `[x]` done 
   bar use: `isWorkRunning`, `workElapsedMs`, `formatElapsed`, `formatAgo`, `workResult`, `workFailed`, `turnStartedAt`
   (the prompt that began the turn; a steered prompt doesn't restart it). The strip itself is component 9; its state
   and these helpers are here.
-- [ ] **3.2 Context usage** (`lib/context-usage.ts`). `context: Option<ContextUsage>` from the snapshot's `context`,
+- [x] **3.2 Context usage** (`lib/context-usage.ts`). `context: Option<ContextUsage>` from the snapshot's `context`,
   replaced whole by each `context.updated`; a payload that isn't one is ignored (`toContextUsage`: needs a session,
   counts sent as strings accepted, missing window = unknown, `splitKnown` defaults true, a harness giving only the
   total marks it). The ring, percent, tone and "turns before compaction" are component 5; `formatTokens` is shared.
@@ -239,12 +239,12 @@ Each row: what Fleet does, its source, the native state. `[ ]` open, `[x]` done 
   the optimistic ones after, in their own order. Native today sends text with no correlation id (`http.rs`), and
   `user.prompt.committed` is applied as `message.updated`. The send path is the composer's (component 5); the registry,
   confirmation, timeout and merge are here.
-- [ ] **3.4 Marks and parts on messages** (`lib/event-state.ts`): slash `command` (name, arguments dropped when empty,
+- [x] **3.4 Marks and parts on messages** (`lib/event-state.ts`): slash `command` (name, arguments dropped when empty,
   ignored on an agent message, taken from a later update), `mod` mark (sent / rewritten), `steered` (set by a later
   update too), `compactionSummary`, file parts kept from a snapshot and accumulated ones kept when a snapshot has none,
   compaction part from live and snapshot, `step-start` / `step-finish` totals, late tool update by call id under another
   part id, pending-message update with no parts. Native has `steered` and compaction; it has no `command` or `mod` marks.
-- [ ] **3.5 `reuseUnchangedMessages`** (`lib/reuse-unchanged-messages.ts`): a fresh snapshot keeps the unchanged
+- [x] **3.5 `reuseUnchangedMessages`** (`lib/reuse-unchanged-messages.ts`): a fresh snapshot keeps the unchanged
   messages' identity so the view rebuilds only what changed. Native does the same with `version()` in `sync_open`
   (`src/fleet/state.rs`); keep that, add a test that a snapshot after a reconnect rebuilds nothing that didn't change.
 - Tests: domain-event-reducer.test.ts "reconciles_optimistic_prompt_when_committed_event_has_matching_correlation_id",
@@ -256,6 +256,19 @@ Each row: what Fleet does, its source, the native state. `[ ]` open, `[x]` done 
   `event-state.test.ts` the remaining 28 (compare ids, ensureMessage ordering, applyPartUpdate, applyTextDelta,
   mergeMessageUpdate, slash commands, compaction dividers); `message-ordering.test.ts` (7, rename);
   `late-tool-update.test.ts` (2).
+
+Piece C built 3.1, 3.2, 3.4 and 3.5 (`work.rs`, `context.rs`, `command`/`mod` marks on `Msg`). Gaps, with reasons:
+
+- Times in a work item stay the server's ISO text, as in Fleet; `parse_iso_ms` reads them (no time crate in the
+  lockfile, none added). It reads `Z` and `±hh:mm`, not every form `Date.parse` accepts.
+- 3.4: native's `event-state` file-part cases are two in Fleet (the plan said three); both are ported. Native's
+  `PartData::File` has no more than id, mime, filename, url, as before.
+- 3.5: native has no object identity to reuse as the Vue client does; the check is that a snapshot taken again keeps
+  the view rows of unchanged messages (`a_snapshot_after_a_reconnect_rebuilds_only_what_changed`). The last message is
+  always rebuilt, by design (`sync_open`).
+- Neither the work state nor the context is drawn yet: the strip is component 9, the ring component 5. `command`
+  and `mod` marks aren't drawn either (component 4's message rendering).
+- Check in a live Fleet not done: the scratch Fleet's scripted model starts no background work.
 
 ### 4. Every event is read
 
@@ -558,11 +571,11 @@ as underscores, apostrophes dropped. A case marked "done" passes today.
 | `message-ordering.test.ts` | 7 | 0 | J | 4 plain cases and the Pi group's 3; two Rust tests cover the first idea under other names: rename them |
 | `event-state.test.ts` | 29 | 1 | C, J | the slash-command, compaction, file-part and `applyPartUpdate` cases in C; `compareMessageIds`, `ensureMessage`, `applyTextDelta`, `mergeMessageUpdate` ordering cases in J |
 | `reopened-session.test.ts` | 3 | 0 | B (2), component 3 (1) | case 2 needs `toToolCardItem` |
-| `running-work.test.ts` | 11 | 0 | C | |
-| `late-tool-update.test.ts` | 2 | 0 | C | |
+| `running-work.test.ts` | 11 | 11 | C | done |
+| `late-tool-update.test.ts` | 2 | 2 | C | done |
 | `history-merge.test.ts` | 7 | 0 | F | |
 | `merge-messages.test.ts` | 7 | 0 | D | |
-| `context-usage.test.ts` | 11 | 0 | C (5), component 5 (6) | `toContextUsage` here; percent, tone, turns before compaction and `formatTokens` are the ring's |
+| `context-usage.test.ts` | 11 | 5 | C (5), component 5 (6) | `toContextUsage` here; percent, tone, turns before compaction and `formatTokens` are the ring's |
 
 Native-only tests that stay (they test things Fleet's tests don't): UTF-16 delta offsets, a tool call's state
 merged key by key, a step-finish's tokens and cost, the SignalR frame round trip, the fixtures, the list parser,

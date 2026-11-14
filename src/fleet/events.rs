@@ -1,5 +1,5 @@
 //! Every event the hub sends, read (`client/src/lib/domain-events.ts`, the `DomainEvent` union of
-//! 64 `type` strings). The reducer applies twelve of them (`Event` variants with fields); the rest
+//! 64 `type` strings). The reducer applies fourteen of them (`Event` variants with fields); the rest
 //! are kept whole as `Event::Other(kind, properties)` for the component that owns them, and a
 //! type this build has never heard of (a newer Fleet) is `Event::Unknown`. Nothing is dropped.
 use super::delegations::DelegationEvent;
@@ -33,6 +33,14 @@ pub enum Event {
         kind: Kind,
         event: DelegationEvent,
     },
+    /// `work.started`, `.updated` or `.ended` (`kind` says which; all three replace the item by id). The
+    /// payload is kept as sent: a payload that isn't an item changes nothing.
+    Work {
+        kind: Kind,
+        item: Value,
+    },
+    /// `context.updated`: the whole usage, as sent.
+    Context(Value),
     /// A session's activity on the `sessions` topic. The stream reads it for its sub-agents' sessions;
     /// the fields are empty when the frame lacks them, and the reducer then ignores it.
     ActivityStatus {
@@ -62,7 +70,7 @@ pub struct Lifecycle {
 
 macro_rules! kinds {
     ($($variant:ident = $wire:literal,)*) => {
-        /// A type of the union. The twelve the reducer applies have their own `Event` variants and
+        /// A type of the union. The fourteen the reducer applies have their own `Event` variants and
         /// appear here too, so one table lists all 64.
         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
         pub enum Kind { $($variant,)* }
@@ -183,6 +191,8 @@ impl Event {
             Kind::DelegationCreated | Kind::DelegationUpdated | Kind::DelegationCompleted => {
                 Event::Delegation { kind: known, event: DelegationEvent::from_wire(props)? }
             }
+            Kind::WorkStarted | Kind::WorkUpdated | Kind::WorkEnded => Event::Work { kind: known, item: props.clone() },
+            Kind::ContextUpdated => Event::Context(props.clone()),
             Kind::ActivityStatus => Event::ActivityStatus {
                 session_id: props.get("sessionId").and_then(Value::as_str).unwrap_or_default().to_string(),
                 activity_status: props.get("activityStatus").and_then(Value::as_str).unwrap_or_default().to_string(),
@@ -203,6 +213,8 @@ impl Event {
             Event::TurnFailed { .. } => Kind::TurnFailed,
             Event::SessionIdled => Kind::SessionIdled,
             Event::Delegation { kind, .. } => *kind,
+            Event::Work { kind, .. } => *kind,
+            Event::Context(_) => Kind::ContextUpdated,
             Event::ActivityStatus { .. } => Kind::ActivityStatus,
             Event::Other(kind, _) => *kind,
             Event::Unknown { .. } | Event::Cursor(_) => return None,

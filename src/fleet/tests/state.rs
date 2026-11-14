@@ -95,6 +95,47 @@ fn a_refreshed_list_keeps_the_open_session_and_its_conversation() {
     assert_eq!(rt.state.session().messages.len(), shown);
 }
 
+/// `reuseUnchangedMessages`: a snapshot taken again (after a reconnect) rebuilds only the messages
+/// that changed. A part id isn't part of what a row's version reads, so a marker left in one shows
+/// whether its message was rebuilt.
+#[test]
+fn a_snapshot_after_a_reconnect_rebuilds_only_what_changed() {
+    use crate::view::conversation::Part;
+    let mut rt = app();
+    rt.update(|s, tx| s.on_list(list(), tx));
+    let id = rt.state.open_id().unwrap();
+    let turn = |reply: &str| {
+        let m = |id: &str, role: &str, created: i64, text: &str| life(id, role, created, Some(text), Some(&format!("{id}-text")));
+        snapshot(
+            "idle",
+            vec![
+                m("msg_1", "user", 1, "one"),
+                m("msg_2", "assistant", 2, "two"),
+                m("msg_3", "user", 3, "three"),
+                m("msg_4", "assistant", 4, reply),
+            ],
+        )
+    };
+    rt.update({
+        let (id, snap) = (id.clone(), turn("four"));
+        move |s, tx| s.on_snapshot(&id, create_state(&snap), tx)
+    });
+    let marker = |rt: &Runtime<State>, at: usize| match &rt.state.session().messages[at].parts[0] {
+        Part::Text { id, .. } => id.to_string(),
+        _ => panic!("not text"),
+    };
+    for at in 0..4 {
+        let (p, i) = rt.state.open;
+        if let Part::Text { id, .. } = &mut rt.state.projects[p].sessions[i].messages[at].parts[0] {
+            *id = "kept".into();
+        }
+    }
+    // The same conversation again, but the last reply grew while the connection was away.
+    rt.update(move |s, tx| s.on_snapshot(&id, create_state(&turn("four, and more")), tx));
+    assert_eq!([0, 1, 2].map(|at| marker(&rt, at)), ["kept", "kept", "kept"], "unchanged messages keep their object");
+    assert_eq!(marker(&rt, 3), "msg_4-text", "the changed one was rebuilt");
+}
+
 #[test]
 fn an_empty_list_leaves_a_window_that_still_draws() {
     let mut rt = app();
