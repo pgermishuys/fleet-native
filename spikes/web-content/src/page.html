@@ -1,0 +1,44 @@
+<!doctype html>
+<!-- An invented test page, standing in for one an agent shows with fleet_page_show. -->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  :root { --fleet-bg: #141418; --fleet-text: #e8e8ec; --fleet-muted: #8e8e9a; --fleet-accent: #6366f1; --fleet-card: #1b1b20; }
+  html, body { margin: 0; background: var(--fleet-bg); color: var(--fleet-text); font: 14px/1.45 system-ui, sans-serif; }
+  body { padding: 20px 24px; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .muted { color: var(--fleet-muted); }
+  button { font: inherit; color: white; background: var(--fleet-accent); border: 0; border-radius: 8px; padding: 8px 14px; cursor: pointer; }
+  input { font: inherit; color: inherit; background: var(--fleet-card); border: 1px solid #ffffff22; border-radius: 8px; padding: 7px 10px; width: 220px; }
+  .row { display: flex; gap: 10px; align-items: center; margin: 14px 0; }
+  .card { background: var(--fleet-card); border: 1px solid #ffffff14; border-radius: 10px; padding: 10px 14px; margin: 8px 0; }
+  .edge { position: fixed; inset: 0; border: 3px dashed var(--fleet-accent); pointer-events: none; border-radius: 10px; }
+</style>
+</head>
+<body>
+<div class="edge"></div>
+<h1>Lantern Bay tide planner</h1>
+<div class="muted">A test page. <span id="ticks">The script hasn't run.</span></div>
+<div class="row">
+  <button id="add">Add a tide card</button>
+  <input id="note" placeholder="Type here to test the keyboard">
+</div>
+<div id="cards"><div class="card">High water 06:12, 4.1 m</div></div>
+<script>
+  let ticks = 0, cards = 1;
+  setInterval(() => { document.getElementById("ticks").textContent = "Script ticks: " + (++ticks); }, 250);
+  document.getElementById("add").addEventListener("click", () => {
+    cards += 1;
+    const card = document.createElement("div");
+    card.className = "card";
+    card.textContent = "Card " + cards + ": low water " + (12 + cards) + ":0" + (cards % 6) + ", 0." + cards + " m";
+    document.getElementById("cards").prepend(card);
+    // The bridge back to the app, as Fleet's pages post fleet:page-choice to their parent.
+    window.ipc.postMessage(JSON.stringify({ type: "cards", count: cards }));
+  });
+  // The app pushes its theme in, as Fleet posts fleet:theme to a page.
+  window.fleetTheme = (vars) => { for (const [k, v] of Object.entries(vars)) document.documentElement.style.setProperty(k, v); };
+</script>
+</body>
+</html>

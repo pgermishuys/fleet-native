@@ -1,0 +1,85 @@
+# The web-content spike (spikes/web-content): build it on Windows and macOS, run its scripted
+# demo on the runner's desktop, and upload the binary and the screenshots. On the spike branch
+# only; never merged.
+name: spike web-content
+
+on:
+  push:
+    branches: [spike/web-content]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: never
+
+defaults:
+  run:
+    shell: bash
+    working-directory: spikes/web-content
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Windows, os: windows-latest, exe: web-content-spike.exe }
+          - { name: macOS, os: macos-15, exe: web-content-spike }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rust (rust-toolchain.toml)
+        run: rustup show
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            spikes/web-content/target
+          key: spike-web-content-${{ runner.os }}-${{ hashFiles('spikes/web-content/Cargo.lock', 'rust-toolchain.toml') }}
+
+      # No Visual C++ runtime to install on the machine that runs it.
+      - name: Build (release)
+        env:
+          RUSTFLAGS: ${{ runner.os == 'Windows' && '-C target-feature=+crt-static' || '' }}
+        run: cargo build --release --locked
+
+      - name: Run the scripted demo (Windows)
+        if: runner.os == 'Windows'
+        timeout-minutes: 5
+        run: |
+          mkdir -p shots
+          export SPIKE_SHOT='powershell -NoProfile -ExecutionPolicy Bypass -File ci\shot.ps1 shots\{name}.png'
+          export SPIKE_CLICK='powershell -NoProfile -ExecutionPolicy Bypass -File ci\click.ps1 {x} {y}'
+          ./target/release/${{ matrix.exe }} --demo 2>&1 | cat
+          ls shots
+
+      - name: Run the scripted demo (macOS)
+        if: runner.os == 'macOS'
+        timeout-minutes: 5
+        run: |
+          mkdir -p shots
+          export SPIKE_SHOT='screencapture -x shots/{name}.png'
+          ./target/release/${{ matrix.exe }} --demo 2>&1 | cat
+          ls shots
+
+      - name: Upload the binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-content-spike-${{ matrix.name }}
+          path: spikes/web-content/target/release/${{ matrix.exe }}
+
+      - name: Upload the screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-content-shots-${{ matrix.name }}
+          path: spikes/web-content/shots/
+          if-no-files-found: warn

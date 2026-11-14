@@ -1,0 +1,53 @@
+# Research spike: an OS web view (wry) placed over a Rune panel. Never merged; see
+# docs/research/web-content.md on the research branch.
+[package]
+name = "web-content-spike"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+rune = { git = "https://github.com/anomalyco/rune", rev = "f1f54ce8bf485ee3a95804deace315f53a8970f6", features = ["tooling"] }
+# Default features: the system web view, and on Linux the X11 child window `build_as_child` needs.
+wry = "0.57"
+
+# The second spike: Chromium off screen (`cargo build --features osr --bin osr`). Optional, so the
+# wry spike's build never downloads CEF.
+cef = { version = "156", optional = true }
+
+[features]
+osr = ["dep:cef"]
+
+[[bin]]
+name = "web-content-spike"
+path = "src/main.rs"
+
+[[bin]]
+name = "osr"
+path = "src/osr.rs"
+required-features = ["osr"]
+
+[target.'cfg(target_os = "linux")'.dependencies]
+gtk = "0.18"
+
+# WebView2 needs a single-threaded COM apartment on the UI thread. Rune already builds this crate.
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = ["Win32_System_Com"] }
+
+[patch.crates-io]
+winit = { git = "https://github.com/anomalyco/rune", rev = "f1f54ce8bf485ee3a95804deace315f53a8970f6" }
+parley_engine = { git = "https://github.com/anomalyco/rune", rev = "f1f54ce8bf485ee3a95804deace315f53a8970f6" }
+wgpu-hal = { git = "https://github.com/anomalyco/rune", rev = "f1f54ce8bf485ee3a95804deace315f53a8970f6" }
+accesskit_windows = { git = "https://github.com/anomalyco/rune", rev = "f1f54ce8bf485ee3a95804deace315f53a8970f6" }
+
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
+opt-level = 1
+
+[profile.release]
+codegen-units = 16
