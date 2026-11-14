@@ -19,7 +19,8 @@ Add to this page in the pull request where you learn something.
   `&mut State`. The view runs again after a handler; hover, press and scroll don't re-run it.
   (used)
 - It draws everything itself on the GPU: Metal on macOS, Direct3D 12 on Windows, Vulkan on Linux
-  (a software Vulkan driver works for pictures). (used on Linux and Windows; macOS read)
+  (a software Vulkan driver works for pictures). (used on Linux and Windows; on macOS CI builds it,
+  runs the tests and draws every scene, but nobody has opened its window yet)
 - Pre-release, MIT. No releases: apps pin a commit of its `dev` branch. About 40 changelog entries
   a day in early November 2026, some marked "Breaking:". It takes no pull requests.
 - Apps build some of Rune's types as struct literals (`AppSpec`, `ScrollSpec`, `TextStyle`,
