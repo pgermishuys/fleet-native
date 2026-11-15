@@ -97,6 +97,12 @@ pub struct State {
     pub reasoning_open: std::collections::HashSet<String>,
     pub summary_open: std::collections::HashSet<String>,
     pub shell_wide: std::collections::HashSet<String>,
+    /// Finished turns the user opened (`openTurns`), by the turn's first message id, whether you watched the latest turn
+    /// run, which session that was about, and what folding left of the messages (`conv::fold_plan`).
+    pub turns_open: std::collections::HashSet<String>,
+    pub watched: conv::fold::WatchedTurn,
+    watched_of: Option<String>,
+    pub fold_plan: conv::fold_plan::FoldPlan,
     /// What the error box above the composer says (`sendError`, row 1.10): a refused prompt, for now.
     pub composer_error: Option<String>,
     /// A prompt was sent and the session hasn't said it is busy yet (`optimisticBusy`, row 2.11).
@@ -158,6 +164,10 @@ impl Default for State {
             diff_all: Default::default(),
             inline_diffs: false,
             thinking: Default::default(),
+            turns_open: Default::default(),
+            watched: Default::default(),
+            watched_of: None,
+            fold_plan: Default::default(),
             reasoning_open: Default::default(),
             summary_open: Default::default(),
             shell_wide: Default::default(),
@@ -710,13 +720,18 @@ pub fn spec() -> AppSpec<State> {
                 s.dark = Some(false);
                 s.show_compaction_open()
             }),
-            // Turn folding (piece 3F), as plain rows with a text line where the fold row will go.
-            ("fold-logic", |s| s.show_conversation(mock::fold::of_folded_turns(false))),
-            ("fold-logic-light", |s| {
+            // Turn folding (pieces 3F and 3G): the first turn folds, the second runs (or both are done).
+            ("fold", |s| s.show_folded(false, true)),
+            ("fold-light", |s| {
                 s.dark = Some(false);
-                s.show_conversation(mock::fold::of_folded_turns(false))
+                s.show_folded(false, true)
             }),
-            ("fold-logic-opened", |s| s.show_conversation(mock::fold::of_folded_turns(true))),
+            ("fold-open", |s| s.show_folded(true, true)),
+            ("fold-open-light", |s| {
+                s.dark = Some(false);
+                s.show_folded(true, true)
+            }),
+            ("fold-done", |s| s.show_folded(false, false)),
             ("recap", |s| s.show_recap()),
             ("recap-light", |s| {
                 s.dark = Some(false);

@@ -5,6 +5,7 @@
 //! (`client/src/lib/client-types.ts`) so the reducer in `src/fleet/` can fill it later: a message
 //! has a role and ordered parts, and every part has an id.
 use super::compaction;
+use super::fold;
 use super::message::{self, copy_text};
 use super::parts::quad;
 use super::prose;
@@ -15,6 +16,7 @@ use crate::State;
 use crate::conv::bubble::{cluster_position, show_meta};
 use crate::conv::card::ToolBody;
 use crate::conv::compaction::CompactionView;
+use crate::conv::fold_plan::{FoldPlan, Kept};
 use crate::conv::shell::ShellCommand;
 use crate::conv::tools::{ToolRowEntry, ToolStatus, group_reads};
 use crate::fleet::model::{ModMark, SlashCommand};
@@ -196,37 +198,60 @@ impl Message {
 
 /// The scrolling column of messages and, while a turn runs, the "Working" line. Only the rows on
 /// screen are built (`virtual_rows`), and a row whose message hasn't changed is reused (`memo`).
-pub fn stream(t: &Theme, session: &Session, partial: bool, older: Option<Older>) -> El {
+pub fn stream(t: &Theme, session: &Session, plan: &FoldPlan, partial: bool, older: Option<Older>) -> El {
     let theme = *t;
     let md = Styles { prose: prose::style(t), reasoning: reasoning::style(t), summary: compaction::style(t) };
     let working = session.status == Status::Working;
-    let count = session.messages.len() + usize::from(working);
+    let shown = plan.count(session.messages.len());
+    let count = shown + usize::from(working);
     let rows = col().key("timeline").w_full().max_w(COLUMN).growth(GrowthSpec::default()).virtual_rows(
         count,
         ESTIMATED_ROW,
-        |s: &State, i| match s.session().messages.get(i) {
-            Some(m) => Cow::Borrowed(m.id.as_str()),
-            None => Cow::Borrowed("working"),
+        |s: &State, i| {
+            let session = s.session();
+            match s.fold_plan.index(i, session.messages.len()).and_then(|m| session.messages.get(m)) {
+                Some(m) => Cow::Borrowed(m.id.as_str()),
+                None => Cow::Borrowed("working"),
+            }
         },
         move |s: &State, i| {
             let session = s.session();
-            let Some(msg) = session.messages.get(i) else { return working_row(s, &theme) };
-            let after_tool = i.checked_sub(1).map(|p| matches!(session.messages[p].parts.last(), Some(Part::Tool { .. } | Part::Shell(_))));
-            let streaming = i + 1 == session.messages.len() && session.status == Status::Working && msg.role == Role::Assistant;
+            let plan = &s.fold_plan;
+            let len = session.messages.len();
+            let Some(at) = plan.index(i, len) else { return working_row(s, &theme) };
+            let msg = &session.messages[at];
+            let kept = plan.kept.get(&msg.id);
+            // The message above, as drawn: folding may have taken the ones between.
+            let above = i.checked_sub(1).and_then(|p| plan.index(p, len)).map(|p| &session.messages[p]);
+            let above_kept = above.and_then(|m| plan.kept.get(&m.id));
+            let after_tool =
+                above.map(|m| drawn_parts(m, above_kept).last().is_some_and(|p| matches!(p, Part::Tool { .. } | Part::Shell(_))));
+            let streaming = at + 1 == len && session.status == Status::Working && msg.role == Role::Assistant;
             let opened = open_mask(msg, s);
-            let same_as_prev = i.checked_sub(1).is_some_and(|p| session.messages[p].role == msg.role);
+            let same_as_prev = at.checked_sub(1).is_some_and(|p| session.messages[p].role == msg.role);
             // The pill's relative time moves every 30s; "Copied" lasts a moment.
             let frame = (
                 same_as_prev,
-                session.messages.get(i + 1).is_some_and(|n| n.role == msg.role),
+                session.messages.get(at + 1).is_some_and(|n| n.role == msg.role),
                 msg.meta.created_at.map(|_| message::now_ms(s) / 30_000),
                 s.copied.as_ref().is_some_and(|(m, until)| *m == msg.id && s.clock < *until),
                 s.prompt_open.contains(&msg.id),
             );
             memo(
                 msg.id.clone(),
-                (msg.version(), theme.dark, after_tool, streaming, msg.needs_retry, opened, s.thinking, frame, s.lists().models.len()),
-                || message_row(&theme, &md, msg, after_tool, streaming, s, (frame.0, frame.1)),
+                (
+                    msg.version(),
+                    theme.dark,
+                    after_tool,
+                    streaming,
+                    msg.needs_retry,
+                    opened,
+                    s.thinking,
+                    frame,
+                    s.lists().models.len(),
+                    fold_key(kept),
+                ),
+                || message_row(&theme, &md, msg, (kept, after_tool), streaming, s, (frame.0, frame.1)),
             )
         },
     );
@@ -369,6 +394,32 @@ fn open_mask(msg: &Message, s: &State) -> u64 {
     hash.finish()
 }
 
+/// The parts of a message that draw once its turn folds: only the calls that stayed, and its thinking only if it stayed.
+fn drawn_parts<'a>(msg: &'a Message, kept: Option<&Kept>) -> Vec<&'a Part> {
+    msg.parts
+        .iter()
+        .filter(|p| match (p, kept) {
+            (Part::Tool { id, .. }, Some(k)) => k.tools.contains(id),
+            (Part::Reasoning { .. }, Some(k)) => k.reasoning,
+            _ => true,
+        })
+        .collect()
+}
+
+/// A number that moves when folding changes how the message draws (the fold row, its open state, what stayed).
+fn fold_key(kept: Option<&Kept>) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let Some(kept) = kept else { return 0 };
+    let mut hash = std::collections::hash_map::DefaultHasher::new();
+    kept.tools.len().hash(&mut hash);
+    (kept.reasoning, kept.fold_only).hash(&mut hash);
+    if let Some((turn, open)) = &kept.fold {
+        let s = &turn.summary;
+        (open, s.duration_ms, s.reads, s.edits, s.commands, s.other, s.failed, s.outcome as u8).hash(&mut hash);
+    }
+    hash.finish() | 1
+}
+
 /// The runs of consecutive tool calls among a message's parts.
 fn tool_runs(parts: &[Part]) -> Vec<Vec<&Part>> {
     let mut runs: Vec<Vec<&Part>> = Vec::new();
@@ -391,7 +442,8 @@ fn message_row(
     t: &Theme,
     md: &Styles,
     msg: &Message,
-    after_tool: Option<bool>,
+    // What folding left of it, and how the message above ended.
+    (kept, after_tool): (Option<&Kept>, Option<bool>),
     streaming: bool,
     s: &State,
     // Whether the message above and the one below are the same sender's.
@@ -407,24 +459,33 @@ fn message_row(
         (Some(false), _) if grouped_with_prev => 6.0,
         (Some(false), _) => 20.0,
     };
+    // The fold row comes first among the marks above a bubble (row 1.22).
+    let mut lead = above(after_tool, false);
+    if let Some((turn, open)) = kept.and_then(|k| k.fold.as_ref()) {
+        column = column.child(el().w_full().mt(above(after_tool, true)).child(fold::fold_row(t, turn, *open)));
+        after_tool = Some(true);
+        lead = 0.0;
+    }
+    let fold_only = kept.is_some_and(|k| k.fold_only);
+    let parts = drawn_parts(msg, kept);
     // The gap above a message goes above its marks, not between them and the bubble.
-    let marks = message::marks(t, msg, above(after_tool, false));
+    let marks = message::marks(t, msg, lead);
     let mut lead_spent = marks.is_some();
     column = column.children(marks);
     let mut k = 0;
     let mut copy_pinned = false;
-    while k < msg.parts.len() {
+    while k < parts.len() {
         // Thinking that is hidden, or has nothing to say, takes no room either.
-        if let Part::Reasoning { text, summary, .. } = &msg.parts[k]
+        if let Part::Reasoning { text, summary, .. } = parts[k]
             && !reasoning::is_drawn(s.thinking, text, summary.as_deref())
         {
             k += 1;
             continue;
         }
-        if matches!(msg.parts[k], Part::Tool { .. }) {
-            let end = msg.parts[k..].iter().position(|p| !matches!(p, Part::Tool { .. })).map_or(msg.parts.len(), |n| k + n);
+        if matches!(parts[k], Part::Tool { .. }) {
+            let end = parts[k..].iter().position(|p| !matches!(p, Part::Tool { .. })).map_or(parts.len(), |n| k + n);
             // Two or more reads in a row fold into one "Read N files" row (`groupReads`).
-            for entry in group_reads(msg.parts[k..end].iter()) {
+            for entry in group_reads(parts[k..end].iter().copied()) {
                 let row = match entry {
                     ToolRowEntry::Tool(part) => toolrow::tool_entry(t, s, part),
                     ToolRowEntry::Reads { tools, id } => toolrow::reads_entry(t, s, &id, &tools, s.open_reads.contains(&id)),
@@ -435,15 +496,20 @@ fn message_row(
             k = end;
             continue;
         }
-        let live = streaming && k + 1 == msg.parts.len();
+        let live = streaming && k + 1 == parts.len();
         // Commands the user ran sit close together, as tool rows do (Fleet stacks them 7px apart).
-        let is_shell = matches!(msg.parts[k], Part::Shell(_));
+        let is_shell = matches!(parts[k], Part::Shell(_));
         let gap = if is_shell && after_tool == Some(true) { 3.0 } else { above(after_tool, false) };
         let gap = if std::mem::take(&mut lead_spent) { 0.0 } else { gap };
-        let mut part = el().w_full().mt(gap).py(2.0).child(part_view(t, s, md, msg, &msg.parts[k], live));
+        let mut part = el().w_full().mt(gap).py(2.0).child(part_view(t, s, md, msg, parts[k], live));
         // The copy button of an assistant message sits at the top right of its text, below the gap above it (a user's
         // is inside its bubble). It hangs on the first text part so the 20px gap isn't counted into its offset.
-        if !copy_pinned && msg.role != Role::User && matches!(msg.parts[k], Part::Text { .. }) && !copy_text(msg).trim().is_empty() {
+        if !copy_pinned
+            && !fold_only
+            && msg.role != Role::User
+            && matches!(parts[k], Part::Text { .. })
+            && !copy_text(msg).trim().is_empty()
+        {
             part = part.child(message::copy_button(t, s, msg).pin(None, Some(0.0), Some(0.0), None));
             copy_pinned = true;
         }
@@ -454,11 +520,11 @@ fn message_row(
     let user = msg.role == Role::User;
     let cluster = cluster_position(grouped_with_prev, grouped_with_next);
     // A message with no text part (tools only) still copies: the button goes on the column itself.
-    if !user && !copy_pinned && !copy_text(msg).trim().is_empty() {
+    if !user && !fold_only && !copy_pinned && !copy_text(msg).trim().is_empty() {
         column = column.child(message::copy_button(t, s, msg).pin(None, Some(0.0), Some(0.0), None));
     }
     // A turn of only tool rows has no bubble, so no pill either.
-    if !user && show_meta(false, cluster) && !copy_text(msg).trim().is_empty() {
+    if !user && !fold_only && show_meta(false, cluster) && !copy_text(msg).trim().is_empty() {
         column = column.children(message::meta_pill(t, s, msg));
     }
     if msg.needs_retry {

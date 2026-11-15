@@ -426,3 +426,11 @@ Nothing in Rune was needed: this piece is plain Rust. Two things for whoever bui
   `build_list` and `fold_turns`, then keeps or drops the drawn `Part`s by id, so the picture is what the logic decided.
 - **The fold-row glyph `▸` is missing from the text font** (it draws as a box); the scene says the line in plain words, and the
   row in piece G uses an icon.
+
+## Component 3, piece G (fold row and the stream's list)
+
+- **`virtual_rows` indexes a list you own.** The folded list is shorter than the session's messages, so the stream keeps the
+  mapping (`FoldPlan::visible`) and its row closure looks the message up through it; the row key and the memo key use the
+  message id, and the memo key carries a hash of what folding did to that message (open state, calls kept).
+- **`focus_ring(width, offset, colour)` takes a negative offset** for an inset ring (`outline-offset: -2px`).
+- **`hover_group` plus `group_color` on children** gives CSS's "button hover turns its text and icon `--text`".

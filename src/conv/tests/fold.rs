@@ -440,3 +440,23 @@ fn the_fold_row_opens_and_closes_its_turn_and_turn_ids_name_each_message_turn() 
 fn shell(id: &str) -> ListMessage {
     msg(id, Role::Shell)
 }
+
+/// `TurnFoldRow`'s words and `formatDuration(ms, { tenths: true })`, which it reads.
+mod turn_fold_row {
+    use crate::conv::fold::{format_duration_tenths, worked_text};
+
+    #[test]
+    fn says_how_long_the_turn_took_in_whole_seconds_then_minutes() {
+        assert_eq!(worked_text(Some(34_000)), "Worked for 34 s");
+        assert_eq!(worked_text(Some(125_000)), "Worked for 2 min 05 s");
+        assert_eq!(worked_text(Some(3_600_000)), "Worked for 1 h");
+        assert_eq!(worked_text(Some(93_600_000)), "Worked for 1 d 02 h");
+        assert_eq!(format_duration_tenths(Some(2_450)), "2.4 s");
+    }
+
+    #[test]
+    fn says_worked_briefly_under_a_tenth_of_a_second_and_just_worked_with_no_duration() {
+        assert_eq!(worked_text(Some(40)), "Worked briefly");
+        assert_eq!(worked_text(None), "Worked");
+    }
+}

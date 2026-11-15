@@ -11,6 +11,9 @@ use super::sessions;
 use super::view;
 use crate::State;
 use crate::conv::compaction::fold_compaction_summaries;
+use crate::conv::fold::FoldOptions;
+use crate::conv::fold_plan::FoldPlan;
+use crate::conv::message_list::ListContext;
 use crate::mock::{Project, Status};
 use crate::view::conversation::{Message, Older};
 use rune::Tx;
@@ -299,7 +302,10 @@ impl State {
     /// in place there is never missed; an edit in place to an earlier one that keeps its size is
     /// (the reducer doesn't make those).
     pub(crate) fn sync_open(&mut self) {
-        let Some(stream) = &self.stream else { return };
+        let Some(stream) = &self.stream else {
+            self.fold_plan = Default::default();
+            return;
+        };
         let folded = fold_compaction_summaries(&stream.messages);
         let shown: Vec<&Msg> = stream.messages.iter().filter(|m| !folded.hidden.contains(&m.id)).collect();
         let summary_of = |m: &Msg| folded.summaries.get(&m.id).map(String::as_str);
@@ -352,6 +358,34 @@ impl State {
             session.status = Status::Idle;
             session.age = "now".into();
         }
+        self.refold();
+    }
+
+    /// Works out which messages the stream draws and which fold (`foldTurns`), from the reducer's messages. Runs when the
+    /// messages change and when a turn is opened or closed; without a conversation from a server everything draws.
+    pub fn refold(&mut self) {
+        let Some(stream) = &self.stream else {
+            self.fold_plan = Default::default();
+            return;
+        };
+        if self.watched_of != self.stream_of {
+            self.watched.on_session_change();
+            self.watched_of = self.stream_of.clone();
+        }
+        let running = stream.session_status.working();
+        self.watched.on_working(running);
+        let sent = self.prompts.of(&self.open_id().unwrap_or_default());
+        let context = ListContext { delegations: &stream.delegations, models: &[], thinking: self.thinking };
+        let options = FoldOptions { running, keep_last: self.watched.watched(), directory: None, open: &self.turns_open };
+        let mut plan = FoldPlan::build(&stream.messages, sent, &context, &options);
+        plan.place(self.session().messages.iter().map(|m| m.id.as_str()));
+        self.fold_plan = plan;
+    }
+
+    /// The fold row's click.
+    pub fn toggle_turn(&mut self, turn_id: &str) {
+        crate::conv::fold::toggle_turn(&mut self.turns_open, turn_id);
+        self.refold();
     }
 
     /// A scene: the open session's row as it reads once the reducer has derived its status from a

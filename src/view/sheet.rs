@@ -23,7 +23,7 @@ pub fn sheet(s: &State, t: &Theme) -> El {
         .h_full()
         .min_h(0.0)
         .child(header(t, project, session, s.link.is_some()))
-        .child(stream(t, session, s.is_partial(), s.older()))
+        .child(stream(t, session, &s.fold_plan, s.is_partial(), s.older()))
         .children(super::recap::recap_line(t, s.recap()))
         .child(super::composer::composer(s, t, session));
     let mut sheet = row()
