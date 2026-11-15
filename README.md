@@ -36,11 +36,28 @@ cargo run --release   # to feel how fast it is
   `sudo apt-get install libxkbcommon-dev libwayland-dev libxkbcommon-x11-0`
   (Fedora: `dnf install libxkbcommon-devel wayland-devel libxkbcommon-x11`).
 
-**Without Rust:** every push to `main` builds the app for Windows, macOS and Linux on GitHub.
-Open the latest [CI run](../../actions/workflows/ci.yml?query=branch%3Amain), sign in, and
-download `fleet-native-windows-x64`, `fleet-native-macos-arm64` or `fleet-native-linux-x64`.
-Nothing is signed, so Windows asks once before it runs, and macOS needs
-`xattr -d com.apple.quarantine fleet-native` first.
+### Try it
+
+No Rust needed. Every merge to `main` replaces one public pre-release,
+[`latest`](https://github.com/pgermishuys/fleet-native/releases/tag/latest), with fresh builds. The links never change:
+
+- Windows: [`fleet-native-windows-x64.zip`](https://github.com/pgermishuys/fleet-native/releases/download/latest/fleet-native-windows-x64.zip)
+- macOS (Apple silicon): [`fleet-native-macos-arm64.tar.gz`](https://github.com/pgermishuys/fleet-native/releases/download/latest/fleet-native-macos-arm64.tar.gz)
+- Linux: [`fleet-native-linux-x64.tar.gz`](https://github.com/pgermishuys/fleet-native/releases/download/latest/fleet-native-linux-x64.tar.gz)
+
+Each holds the app and this README. `latest.json` beside them gives the commit, the build number and each file's
+SHA-256; `fleet-native --version` prints the build you have.
+
+**What works** is the table below, and what is still missing is under "What isn't built" and in
+[`docs/PORT.md`](docs/PORT.md): it is a partly built experiment, not a replacement for Fleet's desktop app.
+It finds the Fleet running on the same machine by itself; for another one, run `fleet-native --server <url>`.
+Sending a message makes that Fleet's agent act.
+
+These builds are **unsigned**:
+
+- **Windows:** SmartScreen says "Windows protected your PC". Click **More info**, then **Run anyway**.
+- **macOS:** unpack, then `xattr -d com.apple.quarantine fleet-native` and run `./fleet-native`.
+- **Linux:** unpack and run `./fleet-native`; it needs `libxkbcommon-x11-0` on X11.
 
 ### Against a Fleet server
 
