@@ -483,7 +483,9 @@ fn the_list_leaves_out_sub_agents_and_dims_old_sessions() {
 
 mod attach;
 mod autocomplete;
+mod cards;
 mod catalog;
+mod composables;
 mod delegations;
 mod events;
 mod export;

@@ -135,6 +135,24 @@ impl Theme {
         Color { r: p * color.r + (1.0 - p) * b.r, g: p * color.g + (1.0 - p) * b.g, b: p * color.b + (1.0 - p) * b.b, a: b.a }
     }
 
+    /// `--md-marker`: `color-mix(in srgb, var(--accent) 55%, var(--muted))`, a list's bullets and numbers. Rune mixes in
+    /// linear light, so it lands a little off the browser's.
+    pub fn md_marker(&self) -> Color {
+        self.muted.mix(self.accent, 0.55)
+    }
+
+    /// The eight `--syntax-*` tokens of `markdown.css` (One Dark and One Light, Fleet's no-JS defaults), in the order
+    /// keyword, string, number, comment, function, attr, type, literal. A chosen code theme overrides them in Fleet;
+    /// the code themes land with Settings.
+    pub fn syntax(&self) -> [Color; 8] {
+        let h: [&str; 8] = if self.dark {
+            ["#c678dd", "#98c379", "#d19a66", "#8b949e", "#61afef", "#e5c07b", "#e06c75", "#56b6c2"]
+        } else {
+            ["#a626a4", "#50a14f", "#986801", "#a0a1a7", "#4078f2", "#c18401", "#e45649", "#0184bc"]
+        };
+        h.map(c)
+    }
+
     /// `--color-secondary`: `color-mix(in srgb, var(--text) 8%, transparent)`, the segmented tabs' track.
     pub fn secondary(&self) -> Color {
         self.wash(8.0)

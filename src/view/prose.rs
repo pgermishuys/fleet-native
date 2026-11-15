@@ -1,17 +1,20 @@
 //! A message's markdown, styled as Fleet's `.md-content` (`client/src/assets/markdown.css`):
 //! 15px body at 1.65, headings tinted toward the accent, a hairline card around code, inline code
-//! on a 7% wash, tables with the same rules. Highlighting is Rune's built-in lexers; Fleet's
-//! highlight.js colours come from its code themes, which land with Settings.
+//! on a 7% wash, tables with the same rules. Highlighting is Rune's built-in lexers painted with Fleet's eight
+//! `--syntax-*` colours (`Theme::syntax`); highlight.js and Rune split tokens a little differently (see `docs/RUNE.md`).
 use crate::conv::find::Marks;
 use crate::fleet::find::MARK;
 use crate::theme::{Theme, mono, sans};
 use rune::El;
 use rune_kit::markdown::{self, Case, Highlight, Markdown, MarkdownStyle};
+use rune_kit::syntax::Syntax;
 
 pub fn style(t: &Theme) -> MarkdownStyle {
-    MarkdownStyle::neutral(t.dark)
+    let [keyword, string, number, comment, function, attr, ty, literal] = t.syntax();
+    // `muted` is only the list markers and h4+ headings in Rune's renderer; Fleet tints the markers (`--md-marker`).
+    let mut s = MarkdownStyle::neutral(t.dark)
         .text(t.text)
-        .muted(t.muted)
+        .muted(t.md_marker())
         .link(t.accent)
         .body_font(sans(15.0, 400.0, 1.65))
         .heading_font(1, sans(21.0, 600.0, 1.3).tracking(-0.3))
@@ -28,13 +31,35 @@ pub fn style(t: &Theme) -> MarkdownStyle {
         .table(t.border, t.accent.alpha(if t.dark { 0.15 } else { 0.12 }))
         .table_header_text(t.text)
         .list(21.0, 4.0)
+        .list_markers_outside(true)
         // Find's marks (`mark.find-hit`): `--status-waiting` at 38%, the current one solid with dark ink, no ring.
         .highlight_bg(t.idle.alpha(0.38))
         .highlight_fg(None)
         .highlight_ring(None)
         .highlight_current_bg(t.idle)
         .highlight_current_fg(Some(t.find_ink))
-        .highlight_current_ring(None)
+        .highlight_current_ring(None);
+    for (kind, color) in [
+        (Syntax::Keyword, keyword),
+        (Syntax::Heading, keyword),
+        (Syntax::String, string),
+        (Syntax::Regex, string),
+        (Syntax::Number, number),
+        (Syntax::Comment, comment),
+        (Syntax::Function, function),
+        (Syntax::Property, attr),
+        (Syntax::Attribute, attr),
+        (Syntax::Type, ty),
+        (Syntax::Variable, ty),
+        (Syntax::Link, literal),
+        // Fleet leaves these in the text colour.
+        (Syntax::Punctuation, t.text),
+        (Syntax::Operator, t.text),
+        (Syntax::Parameter, t.text),
+    ] {
+        s = s.syntax(kind, color);
+    }
+    s
 }
 
 /// One text part. `streaming` is true for the part still being written, which keeps its earlier
