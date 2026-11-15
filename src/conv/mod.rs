@@ -9,6 +9,8 @@ pub mod card;
 pub mod compaction;
 pub mod diff;
 pub mod export;
+pub mod export_dialog;
+pub mod export_history;
 pub mod find;
 pub mod fold;
 pub mod fold_plan;

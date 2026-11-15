@@ -11,6 +11,7 @@ pub mod compact;
 pub mod context;
 pub mod delegations;
 pub mod events;
+pub mod export;
 pub mod find;
 pub mod finder;
 pub mod history;

@@ -143,6 +143,11 @@ impl Link {
         });
     }
 
+    /// The way back to the UI thread, for a thread that reports as it goes (an export's page count).
+    pub fn post(&self) -> Post {
+        self.post.clone()
+    }
+
     pub fn abort(&self, session: &str) {
         let (base, session) = (self.base.clone(), session.to_string());
         self.in_background(move || http::abort(&base, &session), "Couldn't interrupt the session");
