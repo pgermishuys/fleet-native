@@ -1,6 +1,7 @@
 //! Finding the Fleet (checklist rows 1.1-1.3 and 1.8): the cases of weave-fleet's `desktop/test/desktop.test.ts`
 //! ("instance file", "resolvePaths") and of `instance.ts`'s `isReady` and `findRunningFleet`, with the instance
 //! file in a temporary folder.
+use crate::fleet::discover;
 use crate::fleet::instance::{self, Instance, data_dir, find_running_fleet, is_loopback_http_url, is_ready, parse_instance};
 use serde_json::json;
 use std::io::{Read, Write};
@@ -136,7 +137,7 @@ fn the_data_folder_is_the_override_or_weave_in_the_home_folder() {
 fn with_no_home_folder_there_is_no_data_folder_and_no_fixed_path_is_tried() {
     assert_eq!(data_dir(env(&[])), None);
     assert_eq!(data_dir(env(&[("HOME", ""), ("USERPROFILE", "")])), None);
-    assert!(instance::discover(env(&[])).is_none());
+    assert!(discover::places(discover::Os::current(), &env(&[])).is_empty());
 }
 
 #[cfg(unix)]
@@ -246,15 +247,14 @@ fn discover_reads_the_instance_file_in_the_data_folder_and_nowhere_else() {
     let (url, t) = server("200 OK");
     write_file(&dir, std::process::id(), &url);
     let dir_s = dir.to_string_lossy().to_string();
-    let found =
-        instance::discover(env(&[("FLEET_DESKTOP_DATA_DIR", &dir_s), ("HOME", "/nonexistent-home"), ("USERPROFILE", "/nonexistent-home")]))
-            .unwrap();
+    let at = |pairs: &[(&str, &str)]| discover::find_in(&discover::places(discover::Os::current(), &env(pairs)));
+    let found = at(&[("FLEET_DESKTOP_DATA_DIR", &dir_s), ("HOME", "/nonexistent-home"), ("USERPROFILE", "/nonexistent-home")]).unwrap();
     assert_eq!(found.url, url);
     t.join().unwrap();
     // A home folder with no `.weave` finds nothing.
     let empty = temp("empty-home");
     let home_s = empty.to_string_lossy().to_string();
-    assert!(instance::discover(env(&[("HOME", &home_s), ("USERPROFILE", &home_s)])).is_none());
+    assert!(at(&[("HOME", &home_s), ("USERPROFILE", &home_s), ("LOCALAPPDATA", &home_s), ("APPDATA", &home_s)]).is_none());
 }
 
 #[test]

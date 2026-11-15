@@ -652,8 +652,10 @@ impl State {
     pub fn connection_note(&self) -> Option<String> {
         match (&self.link, &self.connection) {
             (None, _) | (_, Connection::Online) => self.notice.clone(),
-            (_, Connection::Connecting) => Some("Connecting…".to_string()),
-            (_, Connection::Down(why)) => Some(format!("Reconnecting: {why}")),
+            // Name the address, in Fleet's own wording for a server it can't reach ("Can't reach …. Trying again…",
+            // `UnreachableBanner.vue`). The reason (`why`) is for the log: "Connection refused (os error 61)" helps no one.
+            (Some(link), Connection::Connecting) => Some(format!("Connecting to {}…", link.base)),
+            (Some(link), Connection::Down(_)) => Some(format!("Can't reach Fleet at {}. Trying again…", link.base)),
         }
     }
 }

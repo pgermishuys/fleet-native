@@ -24,10 +24,15 @@ pub const FILE: &str = "fleet.instance.json";
 /// `get` reads the environment, so a test can give it one. The home folder is `HOME` (`USERPROFILE` on
 /// Windows), as Node's `os.homedir()` has it; with neither there is no data folder, never a fixed path.
 pub fn data_dir(get: impl Fn(&str) -> Option<String>) -> Option<PathBuf> {
+    data_dir_for(cfg!(windows), &get)
+}
+
+/// `data_dir` for a system that isn't the one running (Windows has `USERPROFILE`, the others `HOME`).
+pub fn data_dir_for(windows: bool, get: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
     if let Some(dir) = get("FLEET_DESKTOP_DATA_DIR").filter(|d| !d.is_empty()) {
         return Some(PathBuf::from(dir));
     }
-    let home = get(if cfg!(windows) { "USERPROFILE" } else { "HOME" }).filter(|h| !h.is_empty())?;
+    let home = get(if windows { "USERPROFILE" } else { "HOME" }).filter(|h| !h.is_empty())?;
     Some(Path::new(&home).join(".weave"))
 }
 
@@ -112,9 +117,4 @@ pub const READY_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(
 pub fn find_running_fleet(file: &Path) -> Option<Instance> {
     let instance = read_instance(file)?;
     (is_process_alive(instance.pid) && is_ready(&instance.url, READY_TIMEOUT)).then_some(instance)
-}
-
-/// The Fleet on this machine, by the environment: the instance file in the data folder.
-pub fn discover(get: impl Fn(&str) -> Option<String>) -> Option<Instance> {
-    find_running_fleet(&data_dir(get)?.join(FILE))
 }

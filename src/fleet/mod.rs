@@ -12,6 +12,7 @@ pub mod command;
 pub mod compact;
 pub mod context;
 pub mod delegations;
+pub mod discover;
 pub mod events;
 pub mod export;
 pub mod find;

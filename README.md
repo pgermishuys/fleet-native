@@ -51,7 +51,7 @@ SHA-256; `fleet-native --version` prints the build you have.
 
 **What works** is the table below, and what is still missing is under "What isn't built" and in
 [`docs/PORT.md`](docs/PORT.md): it is a partly built experiment, not a replacement for Fleet's desktop app.
-It finds the Fleet running on the same machine by itself; for another one, run `fleet-native --server <url>`.
+It finds the Fleet running on the same machine by itself (see "Try it"); for another one, run `fleet-native --server <url>` or set `FLEET_NATIVE_SERVER`.
 Sending a message makes that Fleet's agent act.
 
 These builds are **unsigned**:
@@ -81,7 +81,20 @@ Loopback and no token only so far: the server must be on this machine, and `http
 it at a Fleet you use: sending a message makes its agent act. `scripts/scratch-fleet.sh` starts a
 throwaway Fleet in an empty home with a scripted model instead of a real one (it needs a released
 server, a weave-fleet checkout for the model's script, and `opencode`; its header says how).
-With no `--server`, the invented sessions are shown, which is what the tests and scenes use.
+`FLEET_NATIVE_SERVER=<url>` does the same where arguments are awkward (macOS from Finder: `open -a "Fleet Native" --args --server <url>`
+also works, or set it with `launchctl setenv FLEET_NATIVE_SERVER <url>` before opening the app); `--server` wins when both are given.
+
+With neither, the app looks for the Fleet running on this machine, in this order, and uses the first that answers `/readyz`:
+
+1. an instance file (`fleet.instance.json`, written by a running Fleet next to its database) at `Fleet__DatabasePath` (extension swapped),
+   `WEAVE_FLEET_DATA_DIR` (what the `fleet` command uses; default `~/.weave`), `FLEET_DESKTOP_DATA_DIR` or `~/.weave` (Fleet's desktop app);
+2. the server program's own default, `LocalApplicationData/WeaveFleet`: `~/Library/Application Support/WeaveFleet` (macOS),
+   `%LOCALAPPDATA%\WeaveFleet` (Windows), `~/.local/share/WeaveFleet` (Linux);
+3. the port Fleet's desktop app remembers in `desktop-settings.json` (`~/Library/Application Support/Fleet`, `%APPDATA%\Fleet`,
+   `~/.config/Fleet`), since it takes any free port when 6262 is busy;
+4. port 6262.
+
+When none answers, the status bar says where it looked. With no Fleet found and no `--server`, the invented sessions are shown, which is what the tests and scenes use.
 
 The window opens at the desktop app's size (1360 x 880, no smaller than 720 x 480) and follows the
 system's light or dark theme.
