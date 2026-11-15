@@ -7,11 +7,10 @@
 #   FLEET_NATIVE_BUILD=1 cargo build && bash scripts/update-check.sh target/debug/fleet-native
 set -euo pipefail
 src="${1:?path of a binary built with FLEET_NATIVE_BUILD=1}"
-[ -f "$src" ] || src="$src.exe"
 tmp="$(mktemp -d)"
 trap 'kill "${server:-0}" 2>/dev/null || true; rm -rf "$tmp"' EXIT
 case "$(uname -s)" in
-  MINGW*|MSYS*|CYGWIN*) key=windows-x64; name=fleet-native-windows-x64.zip; exe=fleet-native.exe ;;
+  MINGW*|MSYS*|CYGWIN*) src="${src%.exe}.exe"; key=windows-x64; name=fleet-native-windows-x64.zip; exe=fleet-native.exe ;;
   Linux) key=linux-x64; name=fleet-native-linux-x64.tar.gz; exe=fleet-native ;;
   *) echo "not for this system" >&2; exit 2 ;;
 esac
@@ -19,6 +18,7 @@ py=python3; command -v python3 >/dev/null || py=python
 mkdir -p "$tmp/app" "$tmp/release"
 cp "$src" "$tmp/app/$exe"
 "$tmp/app/$exe" --version
+case "$("$tmp/app/$exe" --version)" in *"build 1 "*) ;; *) echo "build this with FLEET_NATIVE_BUILD=1" >&2; exit 1 ;; esac
 # The "new build": the same program with a few bytes after the end, which neither ELF nor PE minds.
 "$py" - "$src" "$tmp/release" "$name" "$exe" "$key" <<'P'
 import sys, hashlib, json, tarfile, zipfile, os
