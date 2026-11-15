@@ -1372,18 +1372,32 @@ fn events_press_is_taken_by_a_monitor_with_a_call() {
     assert!(rt.find("work-row-m1").is_some());
 }
 
+/// A fake server's read of one request, whole: answering before the client's headers are in makes Windows reset the
+/// connection under the client.
+fn read_request(stream: &mut std::net::TcpStream) -> String {
+    use std::io::Read;
+    let mut got = Vec::new();
+    let mut buf = [0u8; 1024];
+    while !got.windows(4).any(|w| w == b"\r\n\r\n") {
+        match stream.read(&mut buf) {
+            Ok(0) | Err(_) => break,
+            Ok(n) => got.extend_from_slice(&buf[..n]),
+        }
+    }
+    String::from_utf8_lossy(&got).into_owned()
+}
+
 #[test]
 fn stop_and_output_calls_go_to_fleets_item_id_and_read_the_answer_as_the_server_writes_it() {
-    use std::io::{Read, Write};
+    use std::io::Write;
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
     let log = seen.clone();
     std::thread::spawn(move || {
         for mut stream in listener.incoming().flatten() {
-            let mut buf = [0u8; 2048];
-            let n = stream.read(&mut buf).unwrap_or(0);
-            let line = String::from_utf8_lossy(&buf[..n]).lines().next().unwrap_or("").to_string();
+            let request = read_request(&mut stream);
+            let line = request.lines().next().unwrap_or("").to_string();
             let (status, body) = if line.contains("/stop") {
                 ("409 Conflict", r#"{"error":"The session isn't running."}"#)
             } else {
@@ -1603,16 +1617,15 @@ fn activity_stream_and_work_fleet_stopped_says_stopped_not_error_for_a_shell_fle
 #[test]
 fn activity_stream_and_work_fleet_stopped_asks_fleet_for_older_work_when_the_stream_no_longer_has_it() {
     use crate::conv::background::BackgroundState;
-    use std::io::{Read, Write};
+    use std::io::Write;
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
     let (log, stopped) = (seen.clone(), stopped_shell("sh_dev").1);
     std::thread::spawn(move || {
         for mut stream in listener.incoming().flatten() {
-            let mut buf = [0u8; 2048];
-            let n = stream.read(&mut buf).unwrap_or(0);
-            log.lock().unwrap().push(String::from_utf8_lossy(&buf[..n]).lines().next().unwrap_or("").to_string());
+            let request = read_request(&mut stream);
+            log.lock().unwrap().push(request.lines().next().unwrap_or("").to_string());
             let body = serde_json::json!([stopped]).to_string();
             let _ = write!(
                 stream,
