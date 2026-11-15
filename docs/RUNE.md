@@ -647,3 +647,12 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 
 - Nothing new about Rune. A scripted run (`--script`) steps a virtual clock one frame at a time (about 0.4 s of wall time per frame on a software renderer), while the app's own threads and `Instant` timers run in wall time. To change the server in the middle of a run, work out the wall time of the mark first (here 24 s of script took about 240 s) and change the server about 60 % of the way.
 - A scene or test that gives the open session another id must also move the route: `State::set_session_id`.
+
+
+## Component 3, piece T (the sweep)
+
+- **`MarkdownStyle::muted` is the list marker colour** (bullets and numbers) and the colour of h4 and deeper headings, nothing else; set it to the marker tint to get Fleet's accent-coloured markers. Number markers draw in the body weight (Fleet's are 600 and tabular).
+- **`list_markers_outside(true)`** puts a list's markers a space's width before the text, as a browser sets `1. `; without it a two-digit number touches its text.
+- **Code colours**: `MarkdownStyle::syntax(kind, colour)` per `Syntax` kind. hljs has eight colours; Rune's kinds map many-to-one (`Number` stands for hljs's `number` and `literal`; `Type` for `type`, `built_in`, `variable`; `Property` and `Attribute` for `attr`), and nothing sets italics for comments. Set `Punctuation`, `Operator` and `Parameter` to the text colour to match Fleet, which leaves them plain.
+- **A scripted run can scroll the stream**: `{"type":"scroll","key":"stream","dy":-700,"dur":0.3}`; `{"type":"key","name":"l","cmd":true,"shift":true}` flips the theme for a live picture. Rune draws a debug frame in 120-400 ms under load, so a live picture of a 45 s state needs a release build or a quiet machine.
+- **A headless test has no fonts**: `rune::text::measure` in a test measures a fallback face (a 100-character mono line came out 682 px at 12.5 px, not 750); only the running app has the bundled fonts.

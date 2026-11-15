@@ -126,6 +126,18 @@ pub fn background_status(state: &Value, finished: &Finished) -> Option<ToolStatu
     })
 }
 
+/// `workStatus` of `toToolCardItem`: what a call shows from the running-work item it started. "Background" while that
+/// work runs on after the call returned (a Claude Code call reports itself done at once), "Stopped" once Fleet stopped
+/// it; `None` leaves the call's own state to say. Not yet read by the list: it needs the work item of each call
+/// (`workByCall`) in `ListContext`.
+pub fn work_status(work: Option<&RunningWorkItem>) -> Option<ToolStatus> {
+    let work = work?;
+    if crate::fleet::work::is_running(work) {
+        return work.background.then_some(ToolStatus::Background);
+    }
+    (work.ended_reason == Some(EndedReason::Cancelled)).then_some(ToolStatus::Stopped)
+}
+
 /// `withEnd`: a notice with how its work really ended. Work Fleet stopped reads stopped; the error the harness reported
 /// for it is the stop's doing (a removed shell is "not found"), not the work's, so it isn't shown.
 pub fn with_end(mut notice: BackgroundNotice, finished: &Finished) -> BackgroundNotice {

@@ -1725,3 +1725,34 @@ fn a_filter_matches_a_sessions_status_word_not_only_its_title() {
     assert!(rt.find("session-1-1").is_some(), "the session that waits for input");
     assert!(rt.find("session-1-0").is_none());
 }
+
+// MessageBubble.attached-files.test.ts: "leaves the agent's replies alone"
+#[test]
+fn an_attached_files_note_in_an_agents_reply_is_left_as_text() {
+    let mut rt = frame_app();
+    let chip = "attached-.weave/attachments/3f9a2c1d/build-output.log";
+    assert!(rt.find(chip).is_some(), "the user's message draws it");
+    rt.update(|s, _| {
+        let m = &mut s.session_mut().unwrap().messages[0];
+        m.role = crate::view::conversation::Role::Assistant;
+        m.meta.created_at = Some(1);
+    });
+    rt.frame(FRAME);
+    run(&mut rt, 0.3);
+    assert!(rt.find(chip).is_none(), "an agent's reply never reads as a note of attached files");
+}
+
+#[test]
+fn markdown_markers_take_the_accent_tint_and_code_takes_fleets_syntax_colours() {
+    for dark in [true, false] {
+        let t = crate::theme::Theme::of(dark);
+        let marker = t.md_marker();
+        // `--md-marker` lies between `--muted` and `--accent`, nearer the accent.
+        assert!((marker.b - t.muted.b).abs() < (t.accent.b - t.muted.b).abs() + 1e-6);
+        assert_ne!(marker, t.muted);
+        assert_ne!(marker, t.accent);
+    }
+    let keyword = crate::theme::Theme::of(true).syntax()[0];
+    assert_eq!(keyword, rune::color::hex("#c678dd").unwrap(), "One Dark's keyword colour, Fleet's default");
+    assert_eq!(crate::theme::Theme::of(false).syntax()[0], rune::color::hex("#a626a4").unwrap());
+}

@@ -37,7 +37,7 @@ sub-agent state, no output, no diff.
 7. Scrolling follows Fleet's rules (pin to bottom by intent, jump to latest, older messages when
    within 100 px of the top, show a message).
 
-## What the native app already has
+## What the native app already has (as of the planning session; see "Piece T, done" at the end for the state now)
 
 From slice A and component 2 (details at the head of each part below):
 
@@ -62,6 +62,10 @@ From slice A and component 2 (details at the head of each part below):
   worked around, Copy stays disabled and Save writes to the Downloads folder (a product decision).
 
 ## Rows
+
+> **Reading the "Native today" column.** It was written by the planning readers before any piece was built. Pieces A to J
+> updated the rows they covered; for pieces K to S the authoritative record is that piece's own "Piece X, done" note at the end of
+> this file, and for everything still open, the table under "Piece T, done". Where the two disagree, those win.
 
 <!-- part 1-stream -->
 ### 1 — The conversation stream and its turn-level pieces
@@ -1063,7 +1067,7 @@ each state it draws, ticks its rows here, updates `docs/PORT.md` and adds what i
 - **Tests to port:** `export-history.test.ts`, `ExportMarkdownDialog.test.ts`.
 - **Pictures:** the dialog loading, ready with preview, failed, dark and light, beside Fleet's.
 
-### T. Sweep
+### T. Sweep (done, see "Piece T, done")
 - Everything left: rows still open, Fleet tests not yet ported under their names, scenes for every state, a pass over both themes against Fleet's client, the hand-offs below, `docs/PORT.md` marked Done with gaps listed. ~300 lines.
 
 Order notes: A, E, K, O have no dependency on each other and any one can go first; F needs A; the
@@ -1147,3 +1151,35 @@ fold view (G) is the largest visible change and unlocks H, I, J, P.
 - **Differences from Fleet (v0.72.0):** the size label uses `formatBytes` ("588 B", "0.6 KB") as the Vue source does; row 7.21 says `toFixed(1)` KB, which the source doesn't do. Fleet's retry button is "Try again" (the row says Retry). Time zone: the file is written in the machine's zone (`local_offset_secs`).
 - **Tests:** `src/conv/tests/export_history.rs` (all five of `export-history.test.ts`, plus unreadable page, abort, tool-result merge, URL encoding), `src/fleet/tests/export.rs` (all seven of `ExportMarkdownDialog.test.ts`; Save writes into a temporary folder; the command's open and Esc; a stale answer is dropped).
 - **Pictures:** `shots/parity/03-s-export/`: `fleet-{ready,output,preview}-{dark,light}.png` (Fleet's client, the `run-tests` session) beside `native-scene-dialog*` (ready, output with a key line, preview, loading, failed; dark and light). `native-live-ready-dark.png` is the app against a scratch Fleet (a different session of two turns, so not the same file as Fleet's pictures). Loading and failed can't be made live; they are scenes only, and Fleet's own were not photographed.
+
+#### Piece T, done (the sweep)
+
+Component 3 is **Done, with the gaps below**. Every row is closed or has a named owner.
+
+- **Fleet's tests:** every case in the in-scope Fleet test files is in `docs/parity/03-conversation-parts-tests.md`, each with its Rust test or its owner. 400 of 487 are ported (59 new in this piece: `src/conv/tests/classification.rs`, `sweep.rs`, `src/fleet/tests/composables.rs`, `cards.rs`, and `reopened-session` "keeps a generic tool card and the canvas card", which component 2 left for this component). 54 belong to other components, 23 are DOM-only or have no step of their own here, 2 do not apply, 8 are open (below).
+- **The gaps the later notes listed:** list markers and numbers are accent-coloured as `--md-marker` (`Theme::md_marker`; Rune's `muted` colour is used only for list markers and h4+ headings, so h4+ headings take that tint too, where Fleet draws h4 in `--text` and h5/h6 in `--muted`), and sit outside the text column as in Fleet. Code colours are Fleet's eight `--syntax-*` tokens (`Theme::syntax`, One Dark and One Light) set on Rune's syntax kinds; hljs's `literal` and `number` share one Rune kind (`Number`), comments are not italic, and a chosen code theme (Settings) isn't read. Mono width: the bundled JetBrains Mono's advance is 0.6 em (read from the font), the same as Fleet's; the "5% wider" seen in 3E can't be reproduced, because Chromium here resolved Fleet's mono stack to a different face on each probe (0.602 em and 0.64 em); no change made. Scrolling to the top: it already stops at the join by asking for older messages within 100 px of the top and keeping the reader's place (piece J, `asks_for_older_messages_when_scrolled_near_the_top_and_not_before`); the scratch Fleet has no session longer than one page, so this was not seen live.
+- **Live run** against a scratch Fleet (v0.72.0, the scripted model): `run-tests`, `write-file`, `edit-file`, `spawn-agent`, `long-reply`, `background-work`, `slow-task` with a steered prompt, find and export, all in the native app and in Fleet's client. Pictures in `shots/parity/03-t-sweep/`: the finished turns folded and opened (`edits-folded`, `edits-open`: run-tests, a write, an edit and a sub-agent call), a long list reply (`list`), the steered prompt with its "Sent mid-turn" chip (`steered`), find (`find`) and the export dialog (`export`), each as `fleet-*` beside `native-*` in dark and light where both could be made; Fleet's running state is `fleet-running-dark.png`, and the code colours `native-scene-code-*` (a scene: the scripted model writes no code block).
+- **Seen live and not matching:** Fleet draws the number of an ordered list in bold and tabular (`ol > li::marker`), native in the body weight (Rune draws the marker as plain text). Fleet's released v0.72.0 says "Worked briefly" and "1s"; native follows `main` ("Worked for 47 s", "1.0 s"), as the piece K and I notes say. Fleet opens its Changes panel beside the conversation by default (component 10); the pictures close it to compare the conversation alone. The native running state (Working line with the call's time) was not taken live: on this machine, with other sessions loading it, the debug build took longer than the 45 s `slow-task` to draw its first picture; the Working line is shown by the piece I scenes beside Fleet's `fleet-running-dark.png`.
+- **A bug found and left open:** `toToolCardItem`'s `workStatus` (a Claude Code call that moved work to the background reads "Background", and "Stopped" once Fleet stopped it) was never read by the list. `conv::background::work_status` and its test exist; wiring it needs the running-work item of each call in `ListContext` and `fleet::view::part`. Owner: component 3 follow-up, with the first Claude Code session to check it against (the scratch Fleet's harness is OpenCode, which reports background work through its notice, which works).
+
+**Open rows, each with its owner**
+
+| Rows | What | Owner and reason |
+|---|---|---|
+| 1.6 | A hovered message coming forward over the next one | Rune: `raise()` isn't a hover state (`docs/RUNE.md`); the pill sits inside its own message |
+| 1.33 | The session diff's file stats for a folded turn's "edited N files" | Component 12 (Changes and review, the session-diff store); until then the counts come from the call's own lines |
+| 1.46 | Scroll intent from a wheel or key | Rune doesn't pass wheel or key events to the app; kept as the offset-move rule (`keep_scroll`) |
+| 1.50 | `show-message` from the Turns canvas | Component 10 (content panel) sends it; the handler is done |
+| 1.90, 1.91, 1.92 | Model header, visual canvases, file-link cache | Components 8, 10 and 11 |
+| 2.9, 3.52, 7.x Copy | A copy button that writes the clipboard from a handler | Done through `Tx::copy` where a handler can; the failure state needs Rune to report one |
+| 2.25-2.29, and 8 test cases | `@` session chips, `$` skill chips, file links in running text | Rune's `Markdown` has no inline-chip hook; needs a pre-pass that splits text into runs (`docs/RUNE.md`), or Rune; no component owns it |
+| 2.30, 3.10-3.13, 3.19 | Show canvas, Improve, mod slots | Components 10 and the mods component |
+| 3.7 | `workStatus` | Above |
+| 4.4 | The background strip's fold kept across restarts | Component 9 (app frame: a local settings file) |
+| 4.12 | The sub-agent's model name in its row | Component 6 (the child session's model, once child sessions are in the list) |
+| 4.18, 4.31, 4.45 | Open a sub-agent's session; the "SubagentPromptLine" in it | Component 6 (child sessions aren't in the session list) and 5 (can-prompt) |
+| 5.12 | Phone layout of browser steps | n/a (desktop only) |
+| 6.4, 6.12 | Find in a side conversation; the field's clear button | Component 15 (side conversation); 6.12 is optional |
+| 7.1a, 7.1c second entry, 7.34 | Export from the session header menu; Share | Component 8 (header); Share is phones only, skipped |
+| Hover borders and underlines | Ghost buttons, thumbnails, the fold toggle, summary link | Rune has no hover border or underline from the view (`docs/RUNE.md`) |
+| Spinner rotation, "Working" shimmer | Fade and plain text instead | Rune can't loop a rotation or clip a gradient to glyphs |
