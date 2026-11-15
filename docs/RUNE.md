@@ -385,3 +385,14 @@ Nothing in Rune was needed. Learned:
 - **`El::on_key` on an ancestor** of the text field is where Ctrl/Cmd+Enter is read; plain Enter and Shift+Enter stay the
   field's (`on_submit`, newline). A headless test can't tell which of the two sent a Ctrl+Enter on an idle session (both send), so
   the steer-versus-queue difference is first testable in piece I.
+
+## Component 5, piece C (choice logic)
+
+Nothing in Rune was needed: this piece is plain Rust. Two things for whoever builds on it:
+
+- **Number formatting is ours to write.** Rust has no `Intl`; `src/composer/format.rs` writes en-US grouping itself, and
+  rounds the decimal text half up. Rust's `format!("{:.1}", 1.25)` gives "1.2" (ties to even), JavaScript's `toFixed` and
+  `Intl` give "1.3", so a token count of 1,250 would have drawn differently from Fleet's meter.
+- **Fleet's `watch` is a state machine here.** `EffortMemory::update` runs only when `[fetched, key, levels]` changed since
+  its last run, as Vue's `watch` does; call it from `poll` after the catalog or preferences change, with the draft's effort.
+
