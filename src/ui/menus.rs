@@ -1,25 +1,12 @@
 //! The menus the shell opens: the composer's agent and model pickers, the header's "More
 //! actions", and a session row's right-click menu. Entries and wording are Fleet's where
 //! Fleet's are known; the agent and model lists are the session's own (`State::lists`).
-use super::menu::{Entry, Item, Mark, context, dropdown as drop, dropdown_capped, item};
+use super::menu::{Entry, Item, Mark, context, dropdown as drop, item};
+use crate::composer::selector as rules;
 use crate::icons::*;
 use crate::theme::Theme;
 use crate::{State, Tx};
 use rune::{Align, El, Side};
-
-/// `max-height: min(320px, 60vh)` of Fleet's selector menu; the viewport's height isn't known here, so 320.
-const MENU_MAX_H: f32 = 320.0;
-
-/// A picker's rows: Default first (empty id), then the list, the current pick marked.
-fn rows(current: &str, default: String, listed: Vec<(String, String)>, pick: fn(&mut State, &str, &mut Tx)) -> Vec<Entry> {
-    std::iter::once((String::new(), default))
-        .chain(listed)
-        .map(|(id, label)| {
-            let on = id == current;
-            Entry::Item(Item::new(label).mark(Mark::Radio(on)).on(move |s, tx| pick(s, &id, tx)))
-        })
-        .collect()
-}
 
 fn waiting(label: &'static str, icon: &'static rune::Icon, n: u8) -> Entry {
     Entry::Item(Item::new(label).icon(icon).on(move |s: &mut State, tx: &mut Tx| {
@@ -27,18 +14,20 @@ fn waiting(label: &'static str, icon: &'static rune::Icon, n: u8) -> Entry {
     }))
 }
 
+/// The composer's pickers: Fleet's selector box (`view/selector.rs`) above the chip, over a scrim that closes it.
+fn selector(s: &State, t: &Theme, name: &'static str) -> Vec<El> {
+    let key = format!("{name}-pop");
+    let panel = crate::view::selector::panel(s, t, name).focus_return(name.to_string()).modal(true, |s: &mut State| s.close_selector());
+    vec![
+        super::overlay::scrim(&format!("{key}-scrim"), |s: &mut State| s.close_selector()),
+        super::overlay::anchored(panel, name, Side::Top, Align::Start, rules::GAP),
+    ]
+}
+
 pub fn dropdown(s: &State, t: &Theme, name: &'static str) -> Vec<El> {
     match name {
-        "agent" => {
-            let listed = s.lists().agents.iter().map(|a| (a.id.clone(), a.name.clone())).collect();
-            let entries = rows(&s.choice().agent, s.default_labels().agent_label, listed, State::pick_agent);
-            dropdown_capped(t, "agent-pop", "agent", entries, Side::Top, Align::Start, Some(MENU_MAX_H))
-        }
-        "model" => {
-            let listed = s.lists().models.iter().map(|m| (m.selection_key.clone(), m.name.clone())).collect();
-            let entries = rows(&s.choice().model, s.default_labels().model_label, listed, State::pick_model);
-            dropdown_capped(t, "model-pop", "model", entries, Side::Top, Align::Start, Some(MENU_MAX_H))
-        }
+        "agent" => selector(s, t, "agent"),
+        "model" => selector(s, t, "model"),
         "more" => drop(t, "more-pop", "more", more(), Side::Bottom, Align::End),
         _ => drop(t, "gallery-pop", "g-menu", gallery(s), Side::Bottom, Align::Start),
     }

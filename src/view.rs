@@ -11,6 +11,7 @@ mod prose;
 mod rail;
 mod reasoning;
 mod recap;
+pub mod selector;
 mod sessions;
 mod sheet;
 mod shell;
@@ -38,7 +39,12 @@ pub fn root(s: &State, cx: &mut Cx<State>) -> El {
         Rail::Sessions => main.child(sheet::sheet(s, &t).ml(8.0)),
         other => main.child(notice(&t, other).ml(8.0)),
     };
-    let frame = col().w_full().h_full().fill(t.main_bg).child(main).child(status::bar(s, &t));
+    // The window's size, for the selector menu's width and height caps (`100vw - 16px`, `60vh`).
+    let frame = col().w_full().h_full().fill(t.main_bg).child(main).child(status::bar(s, &t)).on_layout(|s: &mut State, [_, _, w, h]| {
+        if (s.ui.sel.window.0 - w).abs() > 0.5 || (s.ui.sel.window.1 - h).abs() > 0.5 {
+            s.ui.sel.window = (w, h);
+        }
+    });
     rune_kit::root(frame, crate::ui::overlays(s, &t))
 }
 

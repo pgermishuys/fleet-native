@@ -317,16 +317,39 @@ impl State {
             }
             "agent-menu" => {
                 self.open = (0, 2);
-                self.ui.open = Some(ui::Open::Menu("agent"));
+                self.open_selector("agent");
             }
             "model-menu" => {
                 self.open = (0, 2);
-                self.ui.open = Some(ui::Open::Menu("model"));
+                self.open_selector("model");
+            }
+            // Typed text keeps the rows that contain it; the highlight moves to the first match.
+            "model-filtered" => {
+                self.open = (0, 2);
+                self.open_selector("model");
+                self.ui.sel.filter = rune::TextEdit::new("o");
+                self.keep_selector();
+            }
+            // Nothing matches: Default stays (it always does), so the list never goes empty.
+            "model-nomatch" => {
+                self.open = (0, 2);
+                self.open_selector("model");
+                self.ui.sel.filter = rune::TextEdit::new("zzz");
+                self.keep_selector();
+            }
+            // A favourite on top of the list, and the pointer on a row that isn't starred.
+            "model-starred" => {
+                self.open = (0, 2);
+                let key = composer::groups::model_picker_key("opencode", "anthropic", "opus-5-5");
+                let picker = composer::groups::ModelPicker { favourites: vec![key], ..Default::default() };
+                self.pickers.prefs.set(composer::groups::PREFERENCE_KEY, &picker.to_json());
+                self.open_selector("model");
+                self.ui.sel.active = 3;
             }
             "models-long" => {
                 self.open = (0, 2);
                 self.pickers.add_mock_models(15);
-                self.ui.open = Some(ui::Open::Menu("model"));
+                self.open_selector("model");
             }
             _ => {}
         }
@@ -792,6 +815,21 @@ pub fn spec() -> AppSpec<State> {
                 s.show_composer("model-menu")
             }),
             ("composer-models-long", |s| s.show_composer("models-long")),
+            ("composer-models-long-light", |s| {
+                s.dark = Some(false);
+                s.show_composer("models-long")
+            }),
+            ("composer-model-filtered", |s| s.show_composer("model-filtered")),
+            ("composer-model-filtered-light", |s| {
+                s.dark = Some(false);
+                s.show_composer("model-filtered")
+            }),
+            ("composer-model-nomatch", |s| s.show_composer("model-nomatch")),
+            ("composer-model-starred", |s| s.show_composer("model-starred")),
+            ("composer-model-starred-light", |s| {
+                s.dark = Some(false);
+                s.show_composer("model-starred")
+            }),
             ("automations", |s| s.rail = Rail::Automations),
             ("kit", |s| ui::scenes::set(s, "kit", true)),
             ("kit-light", |s| ui::scenes::set(s, "kit", false)),

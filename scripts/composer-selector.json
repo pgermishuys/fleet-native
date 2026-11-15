@@ -1,0 +1,11 @@
+{"events": [
+  {"t": 3.0, "type": "tap", "key": "model"},
+  {"t": 4.0, "type": "mark", "name": "open"},
+  {"t": 4.2, "type": "type", "text": "free", "every": 0.1},
+  {"t": 5.2, "type": "mark", "name": "filtered"},
+  {"t": 5.4, "type": "key", "name": "Escape"},
+  {"t": 5.8, "type": "tap", "key": "model"},
+  {"t": 6.4, "type": "move", "key": "model-pop-item2"},
+  {"t": 6.8, "type": "tap", "key": "model-star2"},
+  {"t": 7.6, "type": "mark", "name": "starred"}
+]}

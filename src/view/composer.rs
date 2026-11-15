@@ -84,21 +84,31 @@ fn frame(s: &State, t: &Theme, disabled: bool, mode: Mode) -> El {
 }
 
 fn toolbar(s: &State, t: &Theme, disabled: bool, mode: Mode) -> El {
+    let open = s.ui.open;
     let chip = |key: &'static str, chip: crate::fleet::catalog::Chip| {
+        let name: &'static str = if key == "agent" { "agent" } else { "model" };
+        let expanded = open == Some(crate::ui::Open::Menu(name));
         let mut b = row()
             .key(key)
+            .role("button")
+            .label(if key == "agent" { "Agent selector" } else { "Model selector" })
             .h(28.0)
             .px(8.0)
             .gap(5.0)
             .center_y()
             .radius(8.0)
             .hover(t.wash(6.0))
+            .focus_ring(2.0, 2.0, t.accent)
             .cursor(Cursor::Pointer)
             .shrink()
             .min_w(0.0)
-            .on_press(move |s: &mut State| s.ui.open = Some(crate::ui::Open::Menu(if key == "agent" { "agent" } else { "model" })))
+            .on_press(move |s: &mut State| s.open_selector(name))
             .child(text(chip.label).font(sans(12.0, 400.0, 1.2)).color(t.text.alpha(0.8)).truncate().shrink())
-            .child(icon(&CHEVRON_DOWN, 13.0).color(t.muted));
+            // The chevron turns over while the menu is open.
+            .child(icon(&CHEVRON_DOWN, 13.0).color(t.muted).rotate(if expanded { std::f32::consts::PI } else { 0.0 }));
+        if expanded {
+            b = b.fill(t.wash(6.0));
+        }
         // The narrow rule shortened the label: the whole one is the tooltip (row 3.2).
         if let Some(full) = chip.help {
             b = b.help(full);
