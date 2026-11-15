@@ -4,6 +4,7 @@
 use super::choice::{AgentOption, ModelOption, default_model_description, model_description};
 use super::format::format_tokens;
 use super::groups::{Level, ModelPicker, ModelSection, group_models, model_picker_key};
+use crate::fleet::usage::ModelProviderUsage;
 
 /// The menu's width, and the room it leaves at the window's edge (`.selector-dropdown`, `MENU_WIDTH`).
 pub const MENU_WIDTH: f32 = 380.0;
@@ -24,6 +25,8 @@ pub struct Item {
     /// `Some`: the row has a star, filled when `true`.
     pub starred: Option<bool>,
     pub context_size: Option<String>,
+    /// The model's provider id (a model row), for the usage bar of its heading.
+    pub provider_id: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -41,6 +44,8 @@ pub struct Shown {
     /// The provider is the heading, or the same on every row: not worth repeating on each.
     pub hide_meta: bool,
     pub rows: Vec<Row>,
+    /// A provider heading's usage bar, and with it the rows' dimming (`fleet::usage`); set by the state.
+    pub usage: Option<ModelProviderUsage>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -95,7 +100,7 @@ pub fn shown(items: &[Item], sections: Option<&[Section]>, query: &str) -> Vec<S
                     Row { item: item.clone(), index: index - 1 }
                 })
                 .collect();
-            Shown { title: s.title.clone(), provider: s.provider, hide_meta, rows }
+            Shown { title: s.title.clone(), provider: s.provider, hide_meta, rows, usage: None }
         })
         .collect()
 }
@@ -185,6 +190,7 @@ pub fn model_item(m: &ModelOption, starred: Option<bool>) -> Item {
         price_note: m.capability.as_deref().filter(|c| !c.is_empty()).map(capitalised),
         starred,
         context_size: m.context_window.filter(|w| *w > 0).map(|w| format_tokens(Some(w as f64))),
+        provider_id: m.provider_id.clone(),
     }
 }
 

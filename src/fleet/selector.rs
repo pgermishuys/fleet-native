@@ -55,7 +55,12 @@ impl State {
     /// What is drawn now, rows numbered.
     pub fn selector_shown(&self, name: &str) -> Vec<Shown> {
         let (items, sections) = self.selector_data(name);
-        rules::shown(&items, sections.as_deref(), &self.ui.sel.filter.text)
+        let mut view = rules::shown(&items, sections.as_deref(), &self.ui.sel.filter.text);
+        // Only a provider heading carries the bar, so only a menu with provider headings has any.
+        for section in view.iter_mut().filter(|v| v.provider) {
+            section.usage = section.rows.first().and_then(|r| self.provider_usage(&r.item.provider_id));
+        }
+        view
     }
 
     /// The id of the row picked now (`v-model`): "" is Default.

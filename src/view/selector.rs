@@ -3,11 +3,15 @@
 //! a star on model rows, and a "N more" cue where the list runs on. The rules are in `composer/selector.rs`, what it
 //! keeps in `fleet/selector.rs`. The chip itself is in `view/composer.rs`.
 use crate::composer::selector::{self as rules, Item, Shown};
+use crate::fleet::usage::{ModelProviderUsage, Tone, usage_tooltip};
 use crate::icons::*;
 use crate::theme::{RADIUS_BTN, RADIUS_CARD, Theme, sans};
 use crate::{State, Tx};
 use rune::{Color, Cursor, El, Key, KeyEvent, Shadow, col, el, icon, row, text, text_input};
 
+/// The usage bar's size (`.selector-dropdown__usage-bar`).
+const BAR_W: f32 = 28.0;
+const BAR_H: f32 = 4.0;
 /// The filter box: 7 px above and below a 12 px line, 1 px border.
 const FILTER_H: f32 = 31.0;
 /// What the panel takes besides the list: its padding and border, the filter, and the gap below it.
@@ -28,9 +32,9 @@ pub fn panel(s: &State, t: &Theme, name: &'static str) -> El {
             s.ui.sel.list_bottom = bottom;
         }
     });
-    for section in &shown {
+    for (list_i, section) in shown.iter().enumerate() {
         if let Some(title) = &section.title {
-            list = list.child(heading(t, title, section.provider));
+            list = list.child(heading(t, title, section.provider, section.usage.as_ref(), list_i));
         }
         for r in &section.rows {
             list = list.child(option(s, t, name, section, r.index, &r.item, r.item.id == selected));
@@ -103,16 +107,37 @@ fn filter(s: &State, t: &Theme, name: &'static str) -> El {
         .focus_within_ring(2.0, -1.0, t.accent)
 }
 
-/// `.selector-dropdown__heading`: 10px uppercase; a provider's is indented and lighter.
-fn heading(t: &Theme, title: &str, provider: bool) -> El {
+/// `.selector-dropdown__heading`: 10px uppercase; a provider's is indented and lighter, and may end with its usage.
+fn heading(t: &Theme, title: &str, provider: bool, usage: Option<&ModelProviderUsage>, at: usize) -> El {
     let style = if provider { sans(9.5, 500.0, 1.5) } else { sans(10.0, 600.0, 1.5) };
-    row()
+    let mut r = row()
         .w_full()
         .pt(8.0)
         .pb(3.0)
         .pr(10.0)
         .pl(if provider { 16.0 } else { 10.0 })
-        .child(text(title.to_uppercase()).font(style.tracking(0.06 * if provider { 9.5 } else { 10.0 })).color(t.muted))
+        .justify_between()
+        .child(text(title.to_uppercase()).font(style.tracking(0.06 * if provider { 9.5 } else { 10.0 })).color(t.muted));
+    if let Some(u) = usage {
+        r = r.child(usage_bar(t, u, at));
+    }
+    r
+}
+
+/// `.selector-dropdown__usage`: "resets 2:05 PM" while dimmed, then a 28 x 4 bar filled to the percent, all in the
+/// tone's colour (the track is that colour at 22%). Weight 400, no case change, no tracking.
+fn usage_bar(t: &Theme, u: &ModelProviderUsage, at: usize) -> El {
+    let ink = match u.tone {
+        Tone::Quiet => t.muted,
+        Tone::Warn => t.status_waiting_text,
+        Tone::Used => t.error_text,
+    };
+    let mut group = row().key(format!("model-provider-usage{at}")).gap(6.0).center_y().help(usage_tooltip(u));
+    if let Some(resets) = &u.reset_text {
+        group = group.child(text(resets.clone()).font(sans(9.5, 400.0, 1.5)).color(ink).key(format!("model-provider-resets{at}")));
+    }
+    let fill = el().w(BAR_W * u.percent.clamp(0, 100) as f32 / 100.0).h(BAR_H).radius(999.0).fill(ink);
+    group.child(row().w(BAR_W).h(BAR_H).radius(999.0).fill(ink.alpha(0.22)).child(fill))
 }
 
 fn option(s: &State, t: &Theme, name: &'static str, section: &Shown, index: usize, item: &Item, selected: bool) -> El {
@@ -186,9 +211,9 @@ fn option(s: &State, t: &Theme, name: &'static str, section: &Shown, index: usiz
     r
 }
 
-/// Rows under a provider heading whose limit is used up dim (piece F). Nothing dims yet.
-fn section_dimmed(_: &Shown) -> bool {
-    false
+/// Rows under a provider heading whose limit is used up or nearly dim, and stay pickable.
+fn section_dimmed(section: &Shown) -> bool {
+    section.usage.as_ref().is_some_and(|u| u.dimmed)
 }
 
 /// `.selector-dropdown__star`: shown on the highlighted row (hover or keys) and always when starred.

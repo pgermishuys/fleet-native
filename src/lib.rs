@@ -371,6 +371,16 @@ impl State {
                 self.pickers.add_mock_models(15);
                 self.open_selector("model");
             }
+            // Usage bars on the provider headings: 60% (quiet), 97% (dimmed, with its reset time), used up.
+            "models-usage" => {
+                self.open = (0, 2);
+                self.pickers.add_mock_provider_models(("openai", "OpenAI"), 3);
+                self.pickers.add_mock_provider_models(("github-copilot", "GitHub Copilot"), 2);
+                let now = 20_000 * 86_400_000 + (12 * 3600 - conv::time::local_offset_secs()) * 1000;
+                self.now_ms = Some(now);
+                self.pickers.usage.limits = mock::usage_limits(now);
+                self.open_selector("model");
+            }
             _ => {}
         }
     }
@@ -901,6 +911,11 @@ pub fn spec() -> AppSpec<State> {
             ("composer-model-filtered-light", |s| {
                 s.dark = Some(false);
                 s.show_composer("model-filtered")
+            }),
+            ("composer-models-usage", |s| s.show_composer("models-usage")),
+            ("composer-models-usage-light", |s| {
+                s.dark = Some(false);
+                s.show_composer("models-usage")
             }),
             ("composer-model-nomatch", |s| s.show_composer("model-nomatch")),
             ("composer-model-starred", |s| s.show_composer("model-starred")),

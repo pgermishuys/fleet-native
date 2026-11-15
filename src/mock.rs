@@ -232,6 +232,32 @@ pub fn projects() -> Vec<Project> {
 pub const CANNED_REPLY: &str =
     "This is a layout prototype, so no agent is listening. The message you sent is drawn by Rune the same way Fleet's client draws it.";
 
+/// Invented usage for the scene with bars on the headings: Claude at 60%, Codex at 97% (resets 2:05 PM today) and
+/// Copilot used up (resets in a few hours).
+pub fn usage_limits(now: i64) -> crate::fleet::usage::UsageLimits {
+    use crate::fleet::usage::{ProviderUsage, Status, UsageLimits, Window};
+    let provider = |id: &str, name: &str, utilization: f64, resets_in_min: i64, status: Status| ProviderUsage {
+        provider: id.into(),
+        name: name.into(),
+        windows: vec![Window {
+            window: "five_hour".into(),
+            utilization: Some(utilization),
+            resets_at: Some(now + resets_in_min * 60_000),
+            window_seconds: Some(18_000.0),
+            status,
+        }],
+        ..ProviderUsage::default()
+    };
+    UsageLimits {
+        enabled: true,
+        providers: vec![
+            provider("claude", "Claude", 0.6, 180, Status::Allowed),
+            provider("codex", "Codex", 0.97, 125, Status::Allowed),
+            provider("copilot", "GitHub Copilot", 0.2, 240, Status::Rejected),
+        ],
+    }
+}
+
 /// The agents and models the invented sessions offer (the pickers' lists when no server is given): two providers, one
 /// model with no effort levels, and three with levels so the toggle can be shown.
 pub fn catalog() -> crate::fleet::catalog::SessionCatalog {

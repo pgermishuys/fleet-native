@@ -119,6 +119,8 @@ pub struct Pickers {
     catalogs: HashMap<String, SessionCatalog>,
     pub harnesses: Vec<HarnessInfo>,
     pub prefs: Prefs,
+    /// Usage limits: the providers' and each harness's (`fleet::usage`).
+    pub usage: super::usage::Usage,
     efforts: HashMap<String, EffortMemory>,
     /// The lists the invented sessions show, so scenes and tests need no server.
     mock: SessionCatalog,
@@ -143,6 +145,13 @@ impl Pickers {
         for i in 1..=n {
             let provider = if i % 2 == 0 { ("orchard", "Orchard") } else { ("meadow", "Meadow") };
             self.mock.models.push(ModelOption::new(provider.0, provider.1, &format!("m{i}"), &format!("Model {i}")));
+        }
+    }
+
+    /// A scene: `n` more models of one provider (`(id, name)`).
+    pub fn add_mock_provider_models(&mut self, provider: (&str, &str), n: usize) {
+        for i in 1..=n {
+            self.mock.models.push(ModelOption::new(provider.0, provider.1, &format!("{}-{i}", provider.0), &format!("{} {i}", provider.1)));
         }
     }
 
@@ -437,6 +446,7 @@ impl State {
             }
         });
         self.load_preferences();
+        self.load_usage();
         if let Some(id) = self.open_id() {
             self.load_catalog(&id);
         }
