@@ -3,10 +3,12 @@
 //! under the row is `toolcard.rs`; a click on the row opens and closes it.
 //!
 //! What a call is called, drawn with and summarised as comes from the registry (`conv::tools`); this file only draws.
+use super::agent_row;
 use super::conversation::{Part, ToolState};
 use super::parts::{pulse, triangle};
 use super::toolcard;
 use crate::State;
+use crate::conv::background::{AgentRow, delegation_of};
 use crate::conv::card::{Toggle, is_open};
 use crate::conv::tools::{Category, ToolIcon, ToolStatus, format_call_duration, get_tool, is_shell_row};
 use crate::icons::*;
@@ -53,7 +55,14 @@ fn header(t: &Theme) -> El {
 
 /// The call's own part, as a row.
 pub fn tool_entry(t: &Theme, s: &State, part: &Part) -> El {
-    let Part::Tool { id, tool, detail, status, state, body, .. } = part else { return el() };
+    let Part::Tool { id, tool, call_id, detail, status, state, body, agent } = part else { return el() };
+    // A sub-agent call whose session exists is one row of its own: who, what, how it's going, and a way in.
+    if get_tool(tool).category == Category::Subagent
+        && let Some(delegation) = s.stream.as_ref().and_then(|st| delegation_of(&st.delegations, call_id, id))
+        && let Some(row) = AgentRow::of(agent, delegation)
+    {
+        return agent_row::agent_row(t, id, &row);
+    }
     let open = is_open(tool, body, s.inline_diffs, s.tool_open.get(id.as_str()).copied());
     let under = body.initially_collapsed;
     let key = id.clone();

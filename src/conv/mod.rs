@@ -2,6 +2,7 @@
 //! (`lib/tools/` in weave-fleet), a call's status and duration, and which rows fold together.
 //! Views under `src/view/` draw from these; tests under `tests/` are Fleet's, under the same names.
 pub mod attached;
+pub mod background;
 pub mod bubble;
 pub mod card;
 pub mod compaction;

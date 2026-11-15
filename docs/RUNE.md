@@ -542,3 +542,9 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 - **Positions are byte offsets on character boundaries**, as the text edit's caret is; Fleet's are UTF-16 indices. Slice with them only after the caret is known to be on a boundary.
 - **`Autocomplete::on_key` is a pure function of the text, caret and lists**; it returns an `Edit` and a `KeyOutcome` (`consumed`, `stop`, `swallowed`). The view applies the edit, sets the caret now and again on the next tick, and calls `poll` after the lists, text or caret change.
 
+
+## Component 3, piece M (sub-agent rows and background notices)
+
+- **A memo key tuple stops at 12 elements** (`Hash` is only implemented that far): nest the newest keys in a sub-tuple.
+- **A row that reads state at draw time needs that state in its memo key.** The sub-agent row reads the delegation list, which changes with no change to the message; `view::agent_row::key` hashes what the row shows.
+- **`group_opacity` inside a row with `.hover_group()`** shows "Open" on that row's hover only; the message's own group is the next one out.

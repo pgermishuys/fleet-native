@@ -23,7 +23,7 @@ pub(super) fn took(ms: i64) -> Value {
 
 pub(super) fn conversation(messages: Vec<Value>) -> Vec<crate::view::conversation::Message> {
     let state = reducer::create_state(&json!({"session": {}, "messages": messages, "delegations": [], "activityStatus": "idle"}));
-    view::messages(&state.messages)
+    view::messages(&state.messages, &Default::default())
 }
 
 /// One call of every kind the checklist's pictures name: read, edit, write, bash, grep, glob, task, webfetch, todo, an

@@ -388,7 +388,7 @@ fn snapshot_of(frames: &[signalr::Frame]) -> Value {
 fn the_snapshot_of_a_finished_turn_reads_as_text_and_a_tool_row() {
     let state = create_state(&snapshot_of(&frames_of("hub-snapshot-after-turn.jsonl")));
     assert_eq!(state.session_status, StreamStatus::Idle);
-    let shown = view::messages(&state.messages);
+    let shown = view::messages(&state.messages, &Default::default());
     let tools: Vec<(&str, &str, ToolState)> = shown
         .iter()
         .flat_map(|m| &m.parts)
@@ -426,7 +426,9 @@ fn live_events_and_a_later_snapshot_agree() {
     assert_eq!(state.session_status, StreamStatus::Idle);
 
     let later = create_state(&snapshot_of(&frames_of("hub-snapshot-after-turn.jsonl")));
-    let flatten = |s: &StreamState| view::messages(&s.messages).into_iter().map(|m| (m.id, m.role, m.parts.len())).collect::<Vec<_>>();
+    let flatten = |s: &StreamState| {
+        view::messages(&s.messages, &Default::default()).into_iter().map(|m| (m.id, m.role, m.parts.len())).collect::<Vec<_>>()
+    };
     assert_eq!(flatten(&state), flatten(&later));
     let last_text = |s: &StreamState| {
         s.messages
@@ -438,7 +440,7 @@ fn live_events_and_a_later_snapshot_agree() {
     assert_eq!(last_text(&state), last_text(&later));
     assert!(last_text(&state).unwrap().contains("All 42 tests pass"));
     // Live, the call carries its start and end, so its row shows how long it took.
-    let took = view::messages(&state.messages)
+    let took = view::messages(&state.messages, &Default::default())
         .iter()
         .flat_map(|m| m.parts.iter())
         .any(|p| matches!(p, Part::Tool { state: ToolState::Took(secs), .. } if *secs > 0.0));

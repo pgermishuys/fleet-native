@@ -5,6 +5,7 @@
 //!
 //! Not ported on purpose: the WeakMap caches that keep a message's view the same object from one update to the next
 //! (the native stream memoises rows instead), and `message-diagnostics.ts`, a localStorage log nobody sees.
+use super::background::{Finished, background_status, delegation_of, parse_background_notice};
 use super::gist::Thinking;
 use super::tools::{Category, ToolRowItem, ToolStatus, get_tool};
 use crate::composer::choice::ModelOption;
@@ -165,7 +166,7 @@ pub struct ListMessage {
     pub cluster: ClusterPosition,
     pub show_identity: bool,
     pub turn_error: Option<TurnError>,
-    /// This is the notice that work the agent moved into the background finished (the notice's own parse is piece K's).
+    /// This is the notice that work the agent moved into the background finished (`conv::background`).
     pub background: bool,
     pub steered: bool,
     pub shell: bool,
@@ -323,6 +324,8 @@ pub fn messages_after<'a>(messages: &'a [Msg], boundary: Option<&str>) -> (&'a [
 /// What the views read besides the message itself.
 pub struct ListContext<'a> {
     pub delegations: &'a [Delegation],
+    /// How the background work in the conversation ended (`finishedBackgroundWork`).
+    pub finished: &'a Finished,
     pub models: &'a [ModelOption],
     pub thinking: Thinking,
 }
@@ -336,13 +339,11 @@ fn text_at(value: &Value, key: &str) -> Option<String> {
 }
 
 fn list_tool(id: &str, kind: &str, call_id: &str, state: &Value, context: &ListContext) -> ListTool {
-    let mut tool = ListTool::new(id, kind, ToolStatus::from_word(state.get("status").and_then(Value::as_str)));
+    let status =
+        background_status(state, context.finished).unwrap_or_else(|| ToolStatus::from_word(state.get("status").and_then(Value::as_str)));
+    let mut tool = ListTool::new(id, kind, status);
     // A sub-agent call points at its session once there is one (`withDelegation`).
-    tool.delegation = get_tool(kind).category == Category::Subagent
-        && context.delegations.iter().any(|d| {
-            (d.parent_tool_call_id.as_deref() == Some(call_id) || d.parent_tool_call_id.as_deref() == Some(id))
-                && d.child_session_id.is_some()
-        });
+    tool.delegation = get_tool(kind).category == Category::Subagent && delegation_of(context.delegations, call_id, id).is_some();
     tool.screenshot = metadata(state, "screenshot").is_some_and(|s| {
         text_at(s, "sessionId").is_some()
             && text_at(s, "id").is_some()
@@ -375,6 +376,7 @@ pub fn list_message(m: &Msg, context: &ListContext) -> ListMessage {
     out.sender_key = sender_key(m.role, m.agent.as_deref());
     out.model_name = Some(model_display_name(m.model_id.as_deref(), context.models)).filter(|n| !n.is_empty());
     out.body = render_message_body(&m.parts);
+    out.background = parse_background_notice(&out.body).is_some();
     out.steered = m.role == Role::User && m.steered;
     out.command = if m.role == Role::User { m.command.clone() } else { None };
     out.mod_mark = if m.role == Role::User { m.mod_mark.clone() } else { None };

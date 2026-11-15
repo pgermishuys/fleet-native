@@ -1,16 +1,21 @@
 //! Boils the reducer's messages down to what the conversation draws (`view::conversation`).
 use super::model::{Msg, PartData};
+use crate::conv::background::{AgentCall, Finished, background_status, parse_background_notice, with_end};
 use crate::conv::card::tool_body;
 use crate::conv::compaction::fold_compaction_summaries;
+use crate::conv::message_list::render_message_body;
 use crate::conv::shell::shell_command_of;
-use crate::conv::tools::{ToolStatus, get_tool, is_shell_row, is_write_call, tool_duration_ms};
+use crate::conv::tools::{Category, ToolStatus, get_tool, is_shell_row, is_write_call, tool_duration_ms};
 use crate::view::conversation::{Failure, Message, Meta, Part, Role, ToolState};
 use serde_json::Value;
 
 /// The conversation's messages: a compaction's summary message is folded into its divider (`foldCompactionSummaries`).
-pub fn messages(from: &[Msg]) -> Vec<Message> {
+pub fn messages(from: &[Msg], finished: &Finished) -> Vec<Message> {
     let folded = fold_compaction_summaries(from);
-    from.iter().filter(|m| !folded.hidden.contains(&m.id)).map(|m| message(m, folded.summaries.get(&m.id).map(String::as_str))).collect()
+    from.iter()
+        .filter(|m| !folded.hidden.contains(&m.id))
+        .map(|m| message(m, folded.summaries.get(&m.id).map(String::as_str), finished))
+        .collect()
 }
 
 /// What `Message::version` would say of `m` once boiled down, without copying its text: the way to
@@ -18,7 +23,7 @@ pub fn messages(from: &[Msg]) -> Vec<Message> {
 pub fn version(m: &Msg, folded: Option<&str>) -> (usize, usize) {
     let weight = |p: &PartData| match p {
         PartData::Text { text, .. } | PartData::Reasoning { text, .. } => text.len(),
-        other => part(other, m.role, folded).weight(),
+        other => part(other, m.role, folded, &Finished::new()).weight(),
     };
     (
         m.parts.len() + usize::from(turn_failure(m).is_some()),
@@ -38,8 +43,19 @@ fn failure(m: &Msg) -> Option<Failure> {
 }
 
 /// `folded` is the summary a compaction's own message gave this one, when it is a divider without one of its own.
-pub fn message(m: &Msg, folded: Option<&str>) -> Message {
-    let parts: Vec<Part> = m.parts.iter().map(|p| part(p, m.role, folded)).collect();
+pub fn message(m: &Msg, folded: Option<&str>, finished: &Finished) -> Message {
+    let mut parts: Vec<Part> = m.parts.iter().map(|p| part(p, m.role, folded, finished)).collect();
+    // The notice that background work finished: its own words (what the helper said) under a chip, with how the work
+    // really ended (`withEnd`).
+    let notice =
+        (m.role != Role::Shell).then(|| parse_background_notice(&render_message_body(&m.parts))).flatten().map(|n| with_end(n, finished));
+    if let Some(notice) = &notice {
+        parts = if notice.text.trim().is_empty() {
+            vec![]
+        } else {
+            vec![Part::Text { id: format!("{}-notice", m.id), text: notice.text.clone() }]
+        };
+    }
     let mut out = Message::new(m.id.clone(), m.role, parts);
     out.meta = Meta {
         created_at: m.created_at,
@@ -48,11 +64,12 @@ pub fn message(m: &Msg, folded: Option<&str>) -> Message {
         mod_mark: m.mod_mark.clone(),
         steered: m.steered,
         failure: failure(m),
+        background: notice,
     };
     out
 }
 
-fn part(p: &PartData, role: Role, folded: Option<&str>) -> Part {
+fn part(p: &PartData, role: Role, folded: Option<&str>, finished: &Finished) -> Part {
     match p {
         // A command the user ran is its own block, not a tool row.
         PartData::Tool { id, state, .. } if role == Role::Shell => Part::Shell(shell_command_of(id, state)),
@@ -75,9 +92,12 @@ fn part(p: &PartData, role: Role, folded: Option<&str>) -> Part {
                 tool: tool.clone(),
                 call_id: call_id.clone(),
                 detail: title(tool, state),
-                status: ToolStatus::from_word(state.get("status").and_then(Value::as_str)),
+                // A call that went to the background says so until its notice arrives (`backgroundStatus`).
+                status: background_status(state, finished)
+                    .unwrap_or_else(|| ToolStatus::from_word(state.get("status").and_then(Value::as_str))),
                 state: tool_state(tool, state, &body.diff),
                 body: Box::new(body),
+                agent: if get_tool(tool).category == Category::Subagent { AgentCall::of(state) } else { AgentCall::default() },
             }
         }
     }

@@ -3,6 +3,7 @@
 //! `components/session/__tests__/ToolCard.rows.test.ts`, `MessageToolList.test.ts`, `reasoning-gist.test.ts`, `compaction.test.ts`, `shell-commands.test.ts`, `attached-files.test.ts`, `file-references.test.ts`, `format-utils.ts`, `turn-fold.test.ts`, `turn-fold-row-stats.test.ts`, `merge-messages.test.ts`,
 //! `turn-error.test.ts`, `turn-retry.test.ts`, `TurnRetryBar.test.ts`, `WorkingIndicator.test.ts`, `InterruptedCard.test.ts`, `working-on.test.ts`, `retry-status.test.ts`, `ActivityStream.messages.test.ts` and `ActivityStream.thinking.test.ts`, the list ones).
 mod attached;
+mod background;
 mod bubble;
 mod card;
 mod compaction;
