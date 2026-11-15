@@ -14,6 +14,7 @@ pub mod groups;
 pub mod images;
 pub mod long;
 pub mod parts;
+pub mod questions;
 pub mod ring;
 pub mod rows;
 pub mod tools;

@@ -29,6 +29,7 @@ pub mod prefs;
 pub mod presence;
 pub mod projects;
 pub mod prompts;
+pub mod questions;
 pub mod queue;
 pub mod reducer;
 pub mod references;

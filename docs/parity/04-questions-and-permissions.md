@@ -277,12 +277,21 @@ for what talks to the server, with Fleet's tests ported under the same names.
 - **Tests to port:** `use-session-permissions.test.ts` (6), PermissionCard's "answers once, or for the rest of the session", "answers by number key, and denies with Escape", "denies with the words typed for the agent on Enter", "keeps the card and says why when the answer fails", "takes keyboard focus on its first choice and moves it with the arrow keys", "leaves focus alone while the user types in the composer", "answers 1, 2 and 3 as once, always and reject, and Esc doesn't answer", "opens Permission settings".
 - **Pictures (taken, `shots/parity/04b-permission-live/`):** the live run: `ask-permission` shows the card in the native app; Allow once in the app and the next frame has no card and the agent's "Wrote the report" line; a second run with Deny and words; the error state against a scratch Fleet whose ask was answered elsewhere (404 removes it) and against a refused answer. Each beside Fleet's own client, dark and light. Check the HTTP calls in the scratch Fleet's log.
 
-### C. Question card: logic and the waiting view
+### C. Question card: logic and the waiting view — done
 - **Rows:** 1.1-1.17, 1.20, 1.24, 2.3, 2.6 (state and drawing; no sending yet).
 - **Files:** `src/asks/question.rs` (`QuestionInput`, `getQuestionInput/Answers/Status`, selection state and its rules, answer builder, key hint, link runs), `src/view/question.rs`, `src/mock.rs`, `src/lib.rs` (scenes), `src/icons.rs` via the generator if `MessageCircleQuestion` at 15 px needs nothing new.
 - **Depends on:** A (the card's box and number-key chips are shared: put them in `src/view/ask_card.rs`, created by A or moved there by C). ~650 lines.
 - **Tests to port:** QuestionCard's "asks for an answer and marks itself as needing you", "keeps the line breaks agents put in the question and option descriptions", the selection half of "sends the picked choice" and "sends typed text instead of a choice", "picks a choice by its number key and sends on Enter" (the number-key half), `linkify-text.test.ts` (4), plus new tests for single and multiple exclusivity (1.12), `hasAnyAnswer`, the key hint.
 - **Pictures:** scenes: one question with two choices (Fleet's own card live from `ask-me`); a picked choice (click it in Fleet for the same state); a multiple question with "Pick any that apply."; typed text in "Something else…" (type it in Fleet); two questions with sub-headings; long text with a link; no custom answer. The scripted model raises only the one single-choice question, so the last four are "Fleet not shown": compare with the CSS in the rows, or extend the scratch clone of `fakellm.py` (never committed anywhere). Dark and light.
+
+**Done in C (rows 1.1-1.17, 1.20, 1.24, 2.3, 2.6; pictures `shots/parity/04c-question-waiting/`, native beside Fleet's own client for the card, a pick and typed text, both themes; the multiple, two-question, long-text and no-custom states are scenes only, the scripted model raises just `ask-me`).** The card draws in the permission slot after the messages (`sheet.rs`) from `State.questions`; piece D moves it inside its message (8.2) and fills it from the tool part. Gaps, with reasons:
+- 1.7 hover border (accent 35%): Rune has no hover border colour; not drawn. 1.8 check stroke 3: icons have one stroke; drawn at 11px.
+- 1.2 title not truncated at 30 characters: Fleet doesn't either (the header is the model's); it ellipsises at the card's width.
+- 1.4 selectable and links open the system browser (`tx.open_url`); not clicked in a window here, only built.
+- 1.20 focus ring on the card itself: no card focus yet (piece D focuses the first choice). Choices carry the 2px ring.
+- 1.12 "typing clears the pick": Rune has no change hook on a field, so `State::keep_questions` runs once a frame (one frame late).
+- 1.14 Send answer and Skip are drawn, press nothing, and the hover on Send (opacity .88) is absent: piece D.
+- 1.9/1.11 picked and typed looks match Fleet's; Fleet's real `<input>` shows a faint inner box when focused (browser default), not copied.
 
 ### D. Question card live: answer, skip, answered and skipped rows
 - **Rows:** 1.18, 1.19, 1.21-1.23, 2.1, 2.2, 2.4, 2.5, 7.1-7.3, 7.9, 7.10, 8.2.

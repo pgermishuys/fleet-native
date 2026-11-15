@@ -25,6 +25,8 @@ mod tests_panel;
 #[cfg(test)]
 mod tests_project;
 #[cfg(test)]
+mod tests_questions;
+#[cfg(test)]
 mod tests_rows;
 mod theme;
 pub mod ui;
@@ -78,6 +80,8 @@ pub struct State {
     /// Every session's waiting permission asks as Fleet last said (component 4); the open session's are drawn after its
     /// messages (`open_asks`).
     pub asks: fleet::asks::Asks,
+    /// The question cards on screen and their picks (`fleet::questions`).
+    pub questions: fleet::questions::Questions,
     /// An answer on its way, or why it failed, by ask id; and the asks whose card already took the keyboard.
     pub ask_acts: std::collections::HashMap<String, fleet::retry::Act>,
     pub ask_seen: std::collections::HashSet<String>,
@@ -247,6 +251,7 @@ impl Default for State {
             filter: TextEdit::new(""),
             draft: TextEdit::new(""),
             asks: Default::default(),
+            questions: Default::default(),
             ask_acts: Default::default(),
             ask_seen: Default::default(),
             deny: TextEdit::new(""),
@@ -923,7 +928,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     let scrolled = s.keep_scroll(tx);
     let pictures = s.keep_images(tx);
     let renamed = s.keep_rename(tx);
-    let found = s.find_poll(tx);
+    let found = s.find_poll(tx) | s.keep_questions();
     let exported = s.export_poll(tx);
     // "Copied" on a message's button ends by itself.
     let copied = match &s.copied {
@@ -1323,6 +1328,42 @@ pub fn spec() -> AppSpec<State> {
             }),
             ("failure-action-failed", |s| s.show_failure(mock::failure::Case::ActionFailed, false)),
             ("failure-earlier", |s| s.show_failure(mock::failure::Case::Earlier, false)),
+            // Piece C of component 4: the question card waiting on you.
+            ("question", |s| s.show_question(mock::questions::Case::Single)),
+            ("question-light", |s| {
+                s.dark = Some(false);
+                s.show_question(mock::questions::Case::Single)
+            }),
+            ("question-picked", |s| s.show_question(mock::questions::Case::Picked)),
+            ("question-picked-light", |s| {
+                s.dark = Some(false);
+                s.show_question(mock::questions::Case::Picked)
+            }),
+            ("question-multiple", |s| s.show_question(mock::questions::Case::Multiple)),
+            ("question-multiple-light", |s| {
+                s.dark = Some(false);
+                s.show_question(mock::questions::Case::Multiple)
+            }),
+            ("question-typed", |s| s.show_question(mock::questions::Case::Typed)),
+            ("question-typed-light", |s| {
+                s.dark = Some(false);
+                s.show_question(mock::questions::Case::Typed)
+            }),
+            ("question-two", |s| s.show_question(mock::questions::Case::Two)),
+            ("question-two-light", |s| {
+                s.dark = Some(false);
+                s.show_question(mock::questions::Case::Two)
+            }),
+            ("question-long", |s| s.show_question(mock::questions::Case::Long)),
+            ("question-long-light", |s| {
+                s.dark = Some(false);
+                s.show_question(mock::questions::Case::Long)
+            }),
+            ("question-no-custom", |s| s.show_question(mock::questions::Case::NoCustom)),
+            ("question-no-custom-light", |s| {
+                s.dark = Some(false);
+                s.show_question(mock::questions::Case::NoCustom)
+            }),
             ("ask-command", |s| s.show_ask(mock::asks::Case::Command)),
             ("ask-command-light", |s| {
                 s.dark = Some(false);

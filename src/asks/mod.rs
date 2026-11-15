@@ -2,7 +2,11 @@
 //! no Rune: the views in `view::permission` read it, and the stores of later pieces fill it.
 pub mod focus;
 pub mod permission;
+pub mod question;
 pub mod wording;
+
+#[cfg(test)]
+mod tests_question;
 
 #[cfg(test)]
 mod tests;
