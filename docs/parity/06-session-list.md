@@ -1671,7 +1671,7 @@ both themes, unless the piece is non-visual. A piece may only touch the files it
 | O | The New project dialog | 1.103-1.121, 6.7 | A | 450 |
 | P | The draft row and drafts storage | 2.70-2.79, 2.160-2.166 | F | 400 |
 | Q | The right panel's shell | 1.122-1.138 | B, F | 500 |
-| R | Machine heading and another machine's group, from mock data | 5.1-5.52 (owner `L`, `L+17` drawn from mock) | F, G | 700 |
+| R | **Moved to component 17** (15 November 2026): the machine heading and another machine's group are built there from real data, in its pieces C, E, F and G (`docs/parity/17-machines.md`). Not built from this list. | 5.1-5.52 | | |
 | S | Drag and drop (optional) | 1.82-1.88, 2.120-2.132, 3.73 | I, J, M, a Rune case | 600 |
 | T | The sweep | every row still open | all | 400 |
 
@@ -1837,7 +1837,7 @@ Rows 5.53-5.76 (machine data, feeds, diagnosis, pairing) are component 17's: its
   rail, the empty-session auto-open rule; the bodies are component 10's.
 - **Tests:** Part A `SessionsV2RightPanel.test.ts`. **Pictures:** open, collapsed, widened.
 
-### R. Machine heading and another machine's group, from mock data
+### R. Machine heading and another machine's group, from mock data (moved to component 17, pieces C, E, F, G: `docs/parity/17-machines.md`; do not build it from here)
 - **Touches:** `src/view/machine_header.rs`, `src/view/machine_group.rs`, `src/theme.rs` (coral),
   `src/mock.rs` (two machines, one down; invented names).
 - **Behaviour:** the "no heading with one machine" test (5.1); the heading's dot, name, count, note
