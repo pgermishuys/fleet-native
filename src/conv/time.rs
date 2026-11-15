@@ -2,11 +2,11 @@
 //! `Intl.DateTimeFormat("en-US")` writes them. No Rune in here. The caller gives the local offset from UTC, because
 //! the standard library can't read the time zone and a crate for it is a decision of its own (checklist, row 2.13).
 
-const DAY: i64 = 86_400_000;
-const MONTHS: [&str; 12] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+pub(crate) const DAY: i64 = 86_400_000;
+pub(crate) const MONTHS: [&str; 12] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 /// (year, month 0-11, day, hour 0-23, minute) of a unix-ms time `offset_secs` east of UTC.
-fn civil(ms: i64, offset_secs: i64) -> (i64, usize, i64, i64, i64) {
+pub(crate) fn civil(ms: i64, offset_secs: i64) -> (i64, usize, i64, i64, i64) {
     let local = ms + offset_secs * 1000;
     let days = local.div_euclid(DAY);
     let in_day = local.rem_euclid(DAY) / 1000;
@@ -23,7 +23,7 @@ fn civil(ms: i64, offset_secs: i64) -> (i64, usize, i64, i64, i64) {
     (year, month as usize, day, in_day / 3600, in_day % 3600 / 60)
 }
 
-fn clock(hour: i64, minute: i64) -> String {
+pub(crate) fn clock(hour: i64, minute: i64) -> String {
     format!("{}:{minute:02} {}", if hour % 12 == 0 { 12 } else { hour % 12 }, if hour < 12 { "AM" } else { "PM" })
 }
 

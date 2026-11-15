@@ -109,7 +109,13 @@ impl Theme {
     /// shell or side mode (70). `--border` is translucent, so the mix is premultiplied as CSS does it; Rune's
     /// colours are linear, so the blend is a little off the browser's, which mixes the sRGB numbers.
     pub fn accent_border(&self, percent: f32) -> Color {
-        let (p, b, a) = (percent / 100.0, self.border, self.accent);
+        self.border_mix(self.accent, percent)
+    }
+
+    /// `color-mix(in srgb, <color> P%, var(--border))`: a card's border tinted toward `color` (the failure card's
+    /// `--error` at 35%). Premultiplied, as `accent_border` explains.
+    pub fn border_mix(&self, color: Color, percent: f32) -> Color {
+        let (p, b, a) = (percent / 100.0, self.border, color);
         let alpha = p * a.a + (1.0 - p) * b.a;
         let m = |x: f32, y: f32| (p * x * a.a + (1.0 - p) * y * b.a) / alpha;
         Color { r: m(a.r, b.r), g: m(a.g, b.g), b: m(a.b, b.b), a: alpha }

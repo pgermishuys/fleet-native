@@ -13,9 +13,11 @@ pub mod merge_reads;
 pub mod message_list;
 pub mod output;
 pub mod references;
+pub mod retry;
 pub mod shell;
 pub mod time;
 pub mod tools;
+pub mod turn_error;
 
 #[cfg(test)]
 mod tests;
