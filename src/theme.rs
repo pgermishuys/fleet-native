@@ -105,6 +105,16 @@ impl Theme {
         self.text.alpha(percent / 100.0)
     }
 
+    /// `color-mix(in srgb, var(--accent) P%, var(--border))`: the frame's border while it has focus (55) or is in
+    /// shell or side mode (70). `--border` is translucent, so the mix is premultiplied as CSS does it; Rune's
+    /// colours are linear, so the blend is a little off the browser's, which mixes the sRGB numbers.
+    pub fn accent_border(&self, percent: f32) -> Color {
+        let (p, b, a) = (percent / 100.0, self.border, self.accent);
+        let alpha = p * a.a + (1.0 - p) * b.a;
+        let m = |x: f32, y: f32| (p * x * a.a + (1.0 - p) * y * b.a) / alpha;
+        Color { r: m(a.r, b.r), g: m(a.g, b.g), b: m(a.b, b.b), a: alpha }
+    }
+
     /// `--color-secondary`: `color-mix(in srgb, var(--text) 8%, transparent)`, the segmented tabs' track.
     pub fn secondary(&self) -> Color {
         self.wash(8.0)

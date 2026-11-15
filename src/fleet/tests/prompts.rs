@@ -226,7 +226,8 @@ fn a_refused_prompt_leaves_the_conversation_and_its_text_returns_to_the_composer
     });
     assert!(rt.state.prompts.of(&id).is_empty());
     assert_eq!(rt.state.draft.text, "Ship the feature");
-    assert_eq!(rt.state.notice.as_deref(), Some("Couldn't send the message: HTTP 500"));
+    assert_eq!(rt.state.composer_error.as_deref(), Some("HTTP 500"));
+    assert_eq!(rt.state.notice, None);
 }
 
 #[test]

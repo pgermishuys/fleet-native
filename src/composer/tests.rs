@@ -377,3 +377,29 @@ fn the_apps_folder_is_its_own_and_never_fleets() {
     let dir = app_dir(env(&[("HOME", "/h"), ("APPDATA", "/h/roaming"), ("FLEET_DESKTOP_DATA_DIR", "/h/.weave")])).unwrap();
     assert!(!dir.to_string_lossy().contains(".weave"));
 }
+
+#[test]
+fn the_composer_reads_busy_after_a_send_until_the_session_has_been_busy_and_stops() {
+    let mut o = Optimistic::new(10.0);
+    assert!(o.keep(false, 11.0), "the gap before the server's first busy");
+    assert!(o.keep(true, 12.0));
+    assert!(!o.keep(false, 13.0), "busy and then not: the turn is over");
+}
+
+#[test]
+fn an_optimistic_busy_gives_up_on_a_prompt_that_never_became_a_turn() {
+    let mut o = Optimistic::new(10.0);
+    assert!(o.keep(false, 24.9));
+    assert!(!o.keep(false, 25.1));
+}
+
+#[test]
+fn the_draft_is_a_shell_command_only_where_the_harness_runs_them_and_the_side_conversation_wins() {
+    let plain = Caps::default();
+    assert_eq!(mode_of("!ls", &plain, false), Mode::Prompt);
+    assert_eq!(mode_of("!ls", &STEERS, false), Mode::Shell);
+    assert_eq!(mode_of("ls", &STEERS, false), Mode::Prompt);
+    assert_eq!(mode_of("!ls", &STEERS, true), Mode::Side);
+    assert_eq!((send_label(Mode::Prompt), send_label(Mode::Shell)), ("Send", "Run command"));
+    assert_eq!(send_label(Mode::Side), "Ask in the side conversation");
+}

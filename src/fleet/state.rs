@@ -216,6 +216,7 @@ impl State {
             server_message_id: None,
         };
         self.prompts.confirm(session, &confirm);
+        self.composer_error = None;
         self.notice = None;
         self.sync_open();
     }
@@ -229,7 +230,9 @@ impl State {
         {
             self.draft = rune::TextEdit::new(prompt.body);
         }
-        self.notice = Some(format!("Couldn't send the message: {why}"));
+        // The error box above the composer (row 1.10), not the status bar.
+        self.composer_error = Some(why);
+        self.optimistic = None;
         self.sync_open();
     }
 
