@@ -1372,6 +1372,16 @@ fn events_press_is_taken_by_a_monitor_with_a_call() {
     assert!(rt.find("work-row-m1").is_some());
 }
 
+/// Ends a fake server's answer the way a real server does: stop sending, then wait for the client to close, so
+/// Windows doesn't reset the connection under an answer the client hasn't read yet.
+fn finish(stream: &mut std::net::TcpStream) {
+    use std::io::Read;
+    let _ = stream.shutdown(std::net::Shutdown::Write);
+    let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(2)));
+    let mut sink = [0u8; 256];
+    while matches!(stream.read(&mut sink), Ok(n) if n > 0) {}
+}
+
 /// A fake server's read of one request, whole: answering before the client's headers are in makes Windows reset the
 /// connection under the client.
 fn read_request(stream: &mut std::net::TcpStream) -> String {
@@ -1409,6 +1419,7 @@ fn stop_and_output_calls_go_to_fleets_item_id_and_read_the_answer_as_the_server_
                 "HTTP/1.1 {status}\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
                 body.len()
             );
+            finish(&mut stream);
         }
     });
     let (code, body) = crate::fleet::http::work_stop(&base, "sess", "a91d").unwrap();
@@ -1632,6 +1643,7 @@ fn activity_stream_and_work_fleet_stopped_asks_fleet_for_older_work_when_the_str
                 "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
                 body.len()
             );
+            finish(&mut stream);
         }
     });
     let (messages, _) = stopped_shell("sh_dev");
