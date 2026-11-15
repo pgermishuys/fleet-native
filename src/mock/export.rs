@@ -1,6 +1,9 @@
-//! The "Fix pagination" / `run-tests` session as the scripted model writes it, for the export scene: the same messages the
+//! The "Fix pagination" / `run-tests` session as the scripted model writes it, for the export scenes: the same messages the
 //! scratch Fleet holds after "run-tests", with invented times so the file reads the same every time.
-use crate::conv::export::{DEFAULT_EXPORT_OPTIONS, ExportContext, ExportOptions, ExportToolMode, build_markdown};
+use crate::State;
+use crate::conv::export::ExportToolMode;
+use crate::conv::export_dialog::{Load, Pane};
+use crate::conv::export_history::HistoryError;
 use crate::fleet::model::{Msg, PartData};
 use crate::view::conversation::Role;
 use serde_json::json;
@@ -46,17 +49,52 @@ pub fn session() -> Vec<Msg> {
     ]
 }
 
-/// The Markdown of that session, with the tools as lines or with their output.
-pub fn markdown(with_output: bool) -> String {
-    let options =
-        ExportOptions { tools: if with_output { ExportToolMode::Output } else { ExportToolMode::Line }, ..DEFAULT_EXPORT_OPTIONS };
-    let context = ExportContext {
-        title: "Fix pagination".into(),
-        harness: Some("opencode".into()),
-        model: Some("fake-model".into()),
-        directory: Some("/work/proj/demo".into()),
-        exported_at: AT + 60_000,
-        offset_secs: 0,
-    };
-    build_markdown(&session(), &options, &context).markdown
+/// The same session with a command that printed a key-looking line, for the dialog's warning about keys. Invented.
+fn session_with_key() -> Vec<Msg> {
+    let mut all = session();
+    all.push(message(
+        "m6",
+        Role::Assistant,
+        Some("fake-model"),
+        vec![PartData::Tool {
+            id: "p6".into(),
+            tool: "bash".into(),
+            call_id: "c2".into(),
+            state: json!({"status": "completed", "input": {"command": "env", "description": "Show the environment"}, "output": "HOME=/work\nAPI_KEY=abcdef1234567890\n"}),
+        }],
+    ));
+    all
+}
+
+/// The states the dialog's scenes and pictures show.
+#[derive(Clone, Copy)]
+pub enum Case {
+    Ready,
+    /// Tool output on: the warning about keys and the line that looks like one.
+    Output,
+    Preview,
+    Loading,
+    Failed,
+}
+
+/// The dialog open over the sessions view in `case`, with the export's time fixed so the file reads the same every time.
+pub fn show(s: &mut State, case: Case) {
+    s.now_ms = Some(AT + 60_000);
+    s.show_export(Load::Loading(0));
+    let generation = s.export.dialog.as_ref().map_or(0, |d| d.generation);
+    match case {
+        Case::Loading => s.export_progress(generation, 120),
+        Case::Failed => s.export_done(
+            generation,
+            Err(HistoryError::Failed("Fleet could not load the conversation (error 502 after 200 messages).".into())),
+        ),
+        Case::Ready | Case::Preview => s.export_done(generation, Ok(session())),
+        Case::Output => {
+            s.export_done(generation, Ok(session_with_key()));
+            s.export_set_tools(ExportToolMode::Output);
+        }
+    }
+    if matches!(case, Case::Preview) {
+        s.export_set_pane(Pane::Preview);
+    }
 }

@@ -631,3 +631,10 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 - `Tx::scroll_into_view_in(scroller, row)` needs the row's key from the previous frame; keying every popup row by index (`autocomplete-row-{i}`) is enough, also when the arrows wrap.
 - A headless `Runtime` can drive a live server: give the `Link` a `Post` that sends each job down a channel, and `rt.update(job)` them between frames (`fleet::tests::live::live_composer`). Type with `Key::Text`, send with `Key::Enter`, Ctrl+Enter with `Mods { ctrl: true, .. }`.
 - A menu with more than eight models from several providers is grouped, so `model-pop-item{N}` is the Nth displayed row, not the Nth model: pick through the filter (type, Enter) in tests that must not depend on order.
+
+## Export dialog (component 3, piece S)
+
+- **A save dialog exists at this pin**: `tx.save_file(FileDialogOptions { file_name, .. }.filter("Markdown", &["md"]), |s, answer, tx| ..)` answers `Ok(Some(path))`, `Ok(None)` on cancel. A headless runtime lists it (`rt.file_dialog()` gives its kind and options) and `rt.resolve_file_dialog(Some(path))` answers it. Write the file on a thread; tests write to a temporary folder.
+- **`Tx::copy` is the clipboard write**; it reports no failure, so a copy-failed message can't be shown.
+- **`MarkdownStyle` has no heading colour or rule**: Fleet's preview draws headings in the accent colour with a line under h1 and h2; only the fonts can be matched.
+- **A modal's Esc and outside press** both call the `.modal(true, dismiss)` closure, so one handler closes a dialog.

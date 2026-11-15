@@ -224,7 +224,6 @@ pub fn all(s: &State) -> Vec<Command> {
         ("copy-session-id", "Copy session ID", "Copy the active session ID.", &COPY, 0u8),
         ("fork-session", "Fork session", "Branch the active session into a new one.", &GIT_BRANCH_PLUS, 8),
         ("new-session-in-folder", "New session in this folder", "Start another session in the same folder.", &FOLDER_PLUS, 7),
-        ("export-conversation", "Export as Markdown", "Copy or save the active conversation as Markdown.", &DOWNLOAD, 3),
         ("export-raw-messages", "Export raw messages (JSON)", "Download the loaded messages as JSON.", &DOWNLOAD, 3),
     ] {
         let mut cmd = c(id, label, d, icon, Session, None, &[], if n == 0 { now(|_, _| {}) } else { Run::Waiting(n) });
@@ -235,6 +234,18 @@ pub fn all(s: &State) -> Vec<Command> {
         }
         list.push(cmd);
     }
+    let mut export = c(
+        "export-conversation",
+        "Export as Markdown",
+        "Copy or save the active conversation as Markdown.",
+        &DOWNLOAD,
+        Session,
+        None,
+        &["export", "download", "conversation", "markdown", "copy", "transcript"],
+        now(|s, _| s.export_open()),
+    );
+    export.disabled = !open;
+    list.push(export);
     let mut top = c(
         "scroll-to-top",
         "Scroll to top",

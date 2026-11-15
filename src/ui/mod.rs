@@ -121,6 +121,9 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
         let panel = crate::view::autocomplete::popup(s, t, popup, s.pickers.composer_w);
         layer.push(panel.anchored_fit("composer-frame", rune::Side::Top, rune::Align::Start, 6.0));
     }
+    if let Some(export) = crate::view::export::dialog(s, t) {
+        layer.extend(export);
+    }
     if let Some(lightbox) = &s.images.lightbox {
         layer.extend(crate::view::image::lightbox(s, t, lightbox));
     }

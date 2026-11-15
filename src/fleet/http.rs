@@ -34,6 +34,15 @@ pub fn get_bytes(base: &str, path: &str) -> Result<Vec<u8>, String> {
     response.body_mut().with_config().limit(25 * 1024 * 1024).read_to_vec().map_err(|e| e.to_string())
 }
 
+/// A page of the conversation for an export (`GET /api/sessions/{id}/messages`): the status and the body of whatever
+/// answered, so a refusal can say its code. `Err` only when nothing answered.
+pub fn get_page(base: &str, path: &str) -> Result<(u16, String), String> {
+    let mut response = agent_for(30).get(url(base, path)).config().http_status_as_error(false).build().call().map_err(|e| e.to_string())?;
+    let status = response.status().as_u16();
+    let body = response.body_mut().with_config().limit(64 * 1024 * 1024).read_to_string().map_err(|e| e.to_string())?;
+    Ok((status, body))
+}
+
 pub fn post(base: &str, path: &str, body: &Value) -> Result<Value, String> {
     read(agent().post(url(base, path)).header("content-type", "application/json").send(body.to_string()))
 }

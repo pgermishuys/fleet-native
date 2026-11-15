@@ -6,7 +6,7 @@ use crate::State;
 use crate::theme::{Theme, sans};
 use rune::{Align, Color, Cursor, El, Side, Spring, Transition, Vec2, col, el, icon, row, text};
 
-fn lift(t: &Theme, mut e: El) -> El {
+pub(crate) fn lift(t: &Theme, mut e: El) -> El {
     for s in t.menu_shadows() {
         e = e.box_shadow(s);
     }
@@ -14,7 +14,7 @@ fn lift(t: &Theme, mut e: El) -> El {
 }
 
 /// `DialogOverlay`: `bg-black/80`, fading in.
-fn overlay(key: &str) -> El {
+pub(crate) fn overlay(key: &str) -> El {
     el().key(format!("{key}-overlay")).role("none").absolute(0.0, 0.0).w_full().h_full().fill(Color::BLACK.alpha(0.8)).a11y_hidden()
 }
 
@@ -53,26 +53,29 @@ pub fn dialog(t: &Theme, d: Dialog) -> Vec<El> {
         panel = panel.child(row().w_full().justify_end().gap(rem(0.5)).children(d.footer));
     }
     if d.close_button {
-        panel = panel.child(
-            el().key(format!("{}-close", d.key))
-                .role("button")
-                .label("Close")
-                .pin(None, Some(rem(1.0)), Some(rem(1.0)), None)
-                .size(rem(1.0), rem(1.0))
-                .center()
-                .cursor(Cursor::Pointer)
-                .opacity(0.7)
-                .hover(Color::TRANSPARENT)
-                .focus_ring(2.0, 2.0, t.accent)
-                .on_press(close)
-                .child(icon(&crate::icons::X, rem(1.0)).color(t.text)),
-        );
+        panel = panel.child(close_x(t, d.key, close));
     }
     let panel = lift(t, panel)
         .transition(Transition::scale_anchor(0.95, Vec2::new(0.5, 0.5)))
         .token_motion(Spring::new(0.2, 0.0))
         .modal(d.click_outside, close);
     vec![overlay(d.key), centred(&format!("{}-frame", d.key), panel)]
+}
+
+/// `DialogContent`'s close button, at the top right: 16px, 70% opaque until hovered.
+pub(crate) fn close_x(t: &Theme, key: &str, on_press: impl Fn(&mut State) + 'static) -> El {
+    el().key(format!("{key}-close"))
+        .role("button")
+        .label("Close")
+        .pin(None, Some(rem(1.0)), Some(rem(1.0)), None)
+        .size(rem(1.0), rem(1.0))
+        .center()
+        .cursor(Cursor::Pointer)
+        .opacity(0.7)
+        .hover(Color::TRANSPARENT)
+        .focus_ring(2.0, 2.0, t.accent)
+        .on_press(on_press)
+        .child(icon(&crate::icons::X, rem(1.0)).color(t.text))
 }
 
 /// `AlertDialogCancel` and `AlertDialogAction`: an outline and a default button.

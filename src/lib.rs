@@ -164,8 +164,8 @@ pub struct State {
     pub ui: ui::Ui,
     /// Shows the kit gallery in place of the sessions view (a scene, `--scene kit`).
     pub gallery: bool,
-    /// A scene: the Markdown an export writes, drawn as plain text in place of the sessions view (piece R's picture).
-    pub export_text: Option<String>,
+    /// Export as Markdown: the dialog, while it is open (`fleet::export`).
+    pub export: fleet::export::Export,
     /// The conversation's scroll: whether it follows the end, where Rune last said the box was (`on_scroll_offset` may not
     /// change state, so it leaves it in the probe and `poll` reads it), and the message just jumped to.
     pub pin: conv::pin::Pin,
@@ -263,7 +263,7 @@ impl Default for State {
             compact: Default::default(),
             ui: ui::Ui::default(),
             gallery: false,
-            export_text: None,
+            export: Default::default(),
             pin: Default::default(),
             scroll_probe: Default::default(),
             scroll_seen: None,
@@ -818,6 +818,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     let scrolled = s.keep_scroll(tx);
     let pictures = s.keep_images(tx);
     let found = s.find_poll(tx);
+    let exported = s.export_poll(tx);
     // "Copied" on a message's button ends by itself.
     let copied = match &s.copied {
         Some((_, until)) if now >= *until => {
@@ -830,7 +831,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         }
         None => false,
     };
-    poll_rest(s, now, tx) || composer_changed || copied || scrolled || pictures || found
+    poll_rest(s, now, tx) || composer_changed || copied || scrolled || pictures || found || exported
 }
 
 impl State {
@@ -1510,12 +1511,31 @@ pub fn spec() -> AppSpec<State> {
                 s.show_composer("model-starred")
             }),
             ("automations", |s| s.rail = Rail::Automations),
-            ("export-markdown", |s| s.export_text = Some(mock::export::markdown(false))),
-            ("export-markdown-light", |s| {
+            ("export-dialog", |s| mock::export::show(s, mock::export::Case::Ready)),
+            ("export-dialog-light", |s| {
                 s.dark = Some(false);
-                s.export_text = Some(mock::export::markdown(false))
+                mock::export::show(s, mock::export::Case::Ready)
             }),
-            ("export-markdown-output", |s| s.export_text = Some(mock::export::markdown(true))),
+            ("export-dialog-output", |s| mock::export::show(s, mock::export::Case::Output)),
+            ("export-dialog-output-light", |s| {
+                s.dark = Some(false);
+                mock::export::show(s, mock::export::Case::Output)
+            }),
+            ("export-dialog-preview", |s| mock::export::show(s, mock::export::Case::Preview)),
+            ("export-dialog-preview-light", |s| {
+                s.dark = Some(false);
+                mock::export::show(s, mock::export::Case::Preview)
+            }),
+            ("export-dialog-loading", |s| mock::export::show(s, mock::export::Case::Loading)),
+            ("export-dialog-loading-light", |s| {
+                s.dark = Some(false);
+                mock::export::show(s, mock::export::Case::Loading)
+            }),
+            ("export-dialog-failed", |s| mock::export::show(s, mock::export::Case::Failed)),
+            ("export-dialog-failed-light", |s| {
+                s.dark = Some(false);
+                mock::export::show(s, mock::export::Case::Failed)
+            }),
             ("kit", |s| ui::scenes::set(s, "kit", true)),
             ("kit-light", |s| ui::scenes::set(s, "kit", false)),
             ("kit-palette", |s| ui::scenes::set(s, "kit-palette", true)),

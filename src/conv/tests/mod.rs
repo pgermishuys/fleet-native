@@ -10,6 +10,7 @@ mod card;
 mod compaction;
 mod diff;
 mod export;
+mod export_history;
 mod find;
 mod fold;
 mod gist;

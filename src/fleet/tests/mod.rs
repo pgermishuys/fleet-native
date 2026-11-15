@@ -486,6 +486,7 @@ mod autocomplete;
 mod catalog;
 mod delegations;
 mod events;
+mod export;
 mod files;
 mod find;
 mod finder;
