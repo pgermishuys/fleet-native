@@ -172,6 +172,8 @@ pub struct State {
     pub images: fleet::images::Images,
     /// The steps the agent took in its own browser, per session.
     pub browser: conv::browser::Steps,
+    /// Find in this conversation: the bar, the query and the hits (`conv::find`, `fleet::find`).
+    pub find: conv::find::Find,
     /// Stands in for the open session while the list is empty.
     blank: Project,
 }
@@ -259,6 +261,7 @@ impl Default for State {
             work: Default::default(),
             images: Default::default(),
             browser: Default::default(),
+            find: Default::default(),
             blank: Project { name: "Sessions".into(), path: String::new(), open: true, sessions: vec![mock::blank_session()] },
         }
     }
@@ -784,6 +787,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     let composer_changed = s.keep_composer_state(now) | s.keep_autocomplete(now, tx) | s.keep_attachments(tx);
     let scrolled = s.keep_scroll(tx);
     let pictures = s.keep_images(tx);
+    let found = s.find_poll(tx);
     // "Copied" on a message's button ends by itself.
     let copied = match &s.copied {
         Some((_, until)) if now >= *until => {
@@ -796,7 +800,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         }
         None => false,
     };
-    poll_rest(s, now, tx) || composer_changed || copied || scrolled || pictures
+    poll_rest(s, now, tx) || composer_changed || copied || scrolled || pictures || found
 }
 
 impl State {
@@ -858,6 +862,9 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
 }
 
 fn on_key(s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool {
+    if s.find_key(ev, tx) {
+        return true;
+    }
     if ev.is_command('k') {
         ui::palette::toggle(s, tx);
     } else if ev.is_command('b') && ev.mods.shift {
@@ -923,6 +930,27 @@ pub fn spec() -> AppSpec<State> {
             ("older-loading-light", |s| {
                 s.dark = Some(false);
                 s.show_older(Older::Loading)
+            }),
+            ("find-found", |s| s.show_find("cache", conv::find::Scope::Messages, 1, None)),
+            ("find-found-light", |s| {
+                s.dark = Some(false);
+                s.show_find("cache", conv::find::Scope::Messages, 1, None)
+            }),
+            ("find-none", |s| s.show_find("zebra", conv::find::Scope::Messages, 0, None)),
+            ("find-older", |s| s.show_find("cache", conv::find::Scope::Messages, 1, Some(Older::Loading))),
+            ("find-older-light", |s| {
+                s.dark = Some(false);
+                s.show_find("cache", conv::find::Scope::Messages, 1, Some(Older::Loading))
+            }),
+            ("find-failed", |s| s.show_find("cache", conv::find::Scope::Messages, 1, Some(Older::Failed))),
+            ("find-tools", |s| {
+                s.show_conversation(mock::tools::of_output_only(&["t1", "t2"]));
+                s.show_find("error", conv::find::Scope::Tools, 1, None)
+            }),
+            ("find-tools-light", |s| {
+                s.dark = Some(false);
+                s.show_conversation(mock::tools::of_output_only(&["t1", "t2"]));
+                s.show_find("error", conv::find::Scope::Tools, 1, None)
             }),
             ("tool-rows", |s| s.show_conversation(mock::tools::of_each_kind())),
             ("tool-rows-light", |s| {

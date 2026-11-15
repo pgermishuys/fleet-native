@@ -9,6 +9,7 @@ pub mod composer;
 pub mod conversation;
 pub mod diff;
 pub mod failure;
+pub mod find;
 mod fold;
 pub mod history;
 pub mod image;

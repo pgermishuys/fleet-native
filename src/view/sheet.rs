@@ -29,7 +29,7 @@ pub fn sheet(s: &State, t: &Theme) -> El {
             &s.fold_plan,
             s.is_partial(),
             s.older(),
-            Scroll { jump: s.pin.show_jump(), probe: s.scroll_probe.clone() },
+            Scroll { jump: s.pin.show_jump(), probe: s.scroll_probe.clone(), find: super::find::bar(s, t) },
         ))
         .children(super::recap::recap_line(t, s.recap()))
         .child(super::composer::composer(s, t, session));

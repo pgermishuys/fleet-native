@@ -9,6 +9,7 @@ mod bubble;
 mod card;
 mod compaction;
 mod diff;
+mod find;
 mod fold;
 mod gist;
 mod image_sniff;
