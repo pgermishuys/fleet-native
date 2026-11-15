@@ -111,15 +111,19 @@ pub fn panel(s: &State, t: &Theme) -> El {
         list = list.child(group);
     }
     // Fleet counts a group even with no session in it, so "no group left" is `first` here.
+    if s.is_refused() && !s.has_rows() {
+        let line = if crate::fleet::auth::is_set() { "The access token was refused." } else { "Run fleet-native with --token <token>." };
+        list = list.child(empty_state(t, "This Fleet needs a token", line));
+    }
     // No Fleet was found: nothing is listed, and there is nothing to try again.
     if s.no_fleet && !s.has_rows() {
-        list = list.child(empty_state(t, "No Fleet found", "Start Fleet, or run fleet-native with --server <url>."));
+        list = list.child(empty_state(t, "No Fleet found", "Start Fleet, or run fleet-native with --server <url>. A Fleet on another machine also needs --token <token>: Fleet shows it in Settings > Machines > This machine."));
     }
     let kind = feedback(s.list_is_loading(), error.as_deref(), s.has_rows(), usize::from(!first));
     match kind {
         Feedback::Loading => list = list.child(loading_block(t)),
         Feedback::Error(e) => list = list.child(error_block(t, &e)),
-        Feedback::Empty if s.no_fleet => {}
+        Feedback::Empty if s.no_fleet || s.is_refused() => {}
         Feedback::Empty => {
             let (title, line) = empty_words(!needle.is_empty(), false);
             list = list.child(empty_state(t, title, line));

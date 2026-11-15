@@ -180,7 +180,10 @@ pub fn not_found(looked: &[Place]) -> String {
             seen.push(d);
         }
     }
-    format!("No Fleet found (looked in {}). Start Fleet, or run with --server <url> or set FLEET_NATIVE_SERVER.", seen.join(", "))
+    format!(
+        "No Fleet found (looked in {}). Start Fleet, or use --server <url> and --token <token> (or FLEET_NATIVE_SERVER and FLEET_NATIVE_TOKEN).",
+        seen.join(", ")
+    )
 }
 
 /// The address named by `--server` or, failing that, `FLEET_NATIVE_SERVER`.

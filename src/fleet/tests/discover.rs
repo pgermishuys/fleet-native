@@ -217,7 +217,7 @@ fn the_notice_says_where_it_looked_and_how_to_name_a_fleet() {
     assert_eq!(
         notice,
         "No Fleet found (looked in /Users/me/.weave, /Users/me/Library/Application Support/WeaveFleet, /Users/me/Library/Application Support/Fleet, port 6262). \
-         Start Fleet, or run with --server <url> or set FLEET_NATIVE_SERVER."
+         Start Fleet, or use --server <url> and --token <token> (or FLEET_NATIVE_SERVER and FLEET_NATIVE_TOKEN)."
     );
 }
 

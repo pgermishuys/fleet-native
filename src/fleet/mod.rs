@@ -5,6 +5,7 @@
 pub mod actions;
 pub mod asks;
 pub mod attach;
+pub mod auth;
 pub mod autocomplete;
 pub mod browser;
 pub mod catalog;

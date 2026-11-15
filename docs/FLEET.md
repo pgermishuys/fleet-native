@@ -36,7 +36,14 @@ events to it with one reducer. A native client does the same.
 | Server bound to loopback, client on the same machine | Nothing. Loopback requests are trusted (`src/WeaveFleet.Api/Auth/LoopbackAuthPolicy.cs`). This is how the Electron app works. |
 | Another machine, or a server that requires a token | `Authorization: Bearer <token>` on HTTP; `?access_token=<token>` on the hub's WebSocket (`Auth/BearerTokenHandler.cs`). The token is the machine's own or a paired device's. |
 
-Start with loopback and no token. Tokens, pairing and several machines are a later lane.
+Fleet Native takes a token with `--token <t>` or `FLEET_NATIVE_TOKEN` (`fleet::auth`): the header on every HTTP call, `&access_token=` on the hub URL, nothing in
+any address the window shows. A 401 or 403 stops the reconnecting and says the Fleet needs a token (or refused this one). Plain `http://` only: there is no
+TLS in the build, so a machine behind `tailscale serve` (https) can't be reached yet. Pairing and several machines are still a later lane.
+
+**Where the desktop app keeps a remote machine** (weave-fleet `main`): not in a file on the client. Fleet's desktop app always runs, or finds, a Fleet on this
+machine and serves its page from it; the other machines it knows live in that Fleet's own database (`RemoteMachineService`, `GET /api/machines`, tokens only
+for the owner), and older versions kept them in the page's `localStorage` (`weave:machines`) inside Electron's profile. Neither is read from here. The token of a
+Fleet on another machine is shown on that Fleet: Settings > Machines > This machine (also `fleet.machine.json` next to its database, `accessToken`).
 
 ## How the desktop app starts its server
 

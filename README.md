@@ -81,6 +81,10 @@ Loopback and no token only so far: the server must be on this machine, and `http
 it at a Fleet you use: sending a message makes its agent act. `scripts/scratch-fleet.sh` starts a
 throwaway Fleet in an empty home with a scripted model instead of a real one (it needs a released
 server, a weave-fleet checkout for the model's script, and `opencode`; its header says how).
+A Fleet on another machine asks for its access token: `--token <token>` or `FLEET_NATIVE_TOKEN` (Fleet shows it in Settings > Machines > This machine;
+the environment variable keeps it out of the process list). Only `http://` addresses work so far, so use the machine's own address (for example its
+`--host 0.0.0.0` or tailnet address), not one behind `tailscale serve`. Without the token the window says the Fleet needs one and doesn't keep retrying.
+
 `FLEET_NATIVE_SERVER=<url>` does the same where arguments are awkward (macOS from Finder: `open -a "Fleet Native" --args --server <url>`
 also works, or set it with `launchctl setenv FLEET_NATIVE_SERVER <url>` before opening the app); `--server` wins when both are given.
 

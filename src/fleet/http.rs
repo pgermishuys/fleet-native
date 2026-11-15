@@ -1,15 +1,19 @@
 //! The HTTP calls this slice makes, blocking: run them on a thread, never in a view or a handler.
-//! Loopback and no token (`docs/FLEET.md`, "Signing in"); https and bearer tokens arrive with the
-//! machines lane.
+//! Plain `http://` only (no TLS yet); a bearer token goes with every call when one was given (`auth`).
 use serde_json::{Value, json};
 use std::time::Duration;
+
+/// Every agent starts here, so the access token (if one was given) goes with every call.
+fn builder() -> ureq::config::ConfigBuilder<ureq::typestate::AgentScope> {
+    ureq::Agent::config_builder().middleware(super::auth::middleware)
+}
 
 fn agent() -> ureq::Agent {
     agent_for(15)
 }
 
 fn agent_for(seconds: u64) -> ureq::Agent {
-    ureq::Agent::config_builder().timeout_global(Some(Duration::from_secs(seconds))).build().into()
+    builder().timeout_global(Some(Duration::from_secs(seconds))).build().into()
 }
 
 fn url(base: &str, path: &str) -> String {
@@ -57,7 +61,7 @@ pub fn delete(base: &str, path: &str) -> Result<Value, String> {
 
 /// `GET /readyz` within `timeout`: whether the Fleet at `base` is up (any 2xx).
 pub fn ready(base: &str, timeout: Duration) -> bool {
-    let agent: ureq::Agent = ureq::Agent::config_builder().timeout_global(Some(timeout)).build().into();
+    let agent: ureq::Agent = builder().timeout_global(Some(timeout)).build().into();
     agent.get(url(base, "/readyz")).call().is_ok()
 }
 
@@ -142,8 +146,7 @@ pub fn prompt_body(text: &str, correlation_id: &str, pick: &Pick) -> Value {
 /// a request that gave up first would turn into a refusal.
 pub fn prompt(base: &str, session: &str, correlation_id: &str, text: &str, pick: &Pick) -> Result<Value, String> {
     let body = prompt_body(text, correlation_id, pick);
-    let agent: ureq::Agent =
-        ureq::Agent::config_builder().timeout_global(Some(Duration::from_secs(60))).http_status_as_error(false).build().into();
+    let agent: ureq::Agent = builder().timeout_global(Some(Duration::from_secs(60))).http_status_as_error(false).build().into();
     let mut response = agent
         .post(url(base, &format!("/api/sessions/{session}/prompt")))
         .header("content-type", "application/json")
@@ -209,8 +212,7 @@ pub fn escape(text: &str) -> String {
 /// `POST /api/sessions/{id}/attachments?name=<name>`: the raw file in the body, with its own type. The answer is
 /// `{path, name, size, lines, mime}`; a refusal's reason is the server's own `{error}` text (`uploadSessionAttachment`).
 pub fn upload(base: &str, session: &str, name: &str, content_type: &str, body: Vec<u8>) -> Result<Value, String> {
-    let agent: ureq::Agent =
-        ureq::Agent::config_builder().timeout_global(Some(Duration::from_secs(300))).http_status_as_error(false).build().into();
+    let agent: ureq::Agent = builder().timeout_global(Some(Duration::from_secs(300))).http_status_as_error(false).build().into();
     let target = url(base, &format!("/api/sessions/{session}/attachments?name={}", escape(name)));
     let mut response = agent.post(target).header("content-type", content_type).send(body).map_err(|e| e.to_string())?;
     let status = response.status();
@@ -249,8 +251,7 @@ fn status_with(method: &str, base: &str, path: &str, body: Option<&Value>) -> Re
 
 /// `status_with` that hands back the body as it came, for a caller that reads the server's reason out of it.
 pub fn text_with(method: &str, base: &str, path: &str, body: Option<&Value>) -> Result<(u16, String), String> {
-    let agent: ureq::Agent =
-        ureq::Agent::config_builder().timeout_global(Some(Duration::from_secs(15))).http_status_as_error(false).build().into();
+    let agent: ureq::Agent = builder().timeout_global(Some(Duration::from_secs(15))).http_status_as_error(false).build().into();
     let target = url(base, path);
     let json = || body.map_or("{}".to_string(), Value::to_string);
     let response = match method {
