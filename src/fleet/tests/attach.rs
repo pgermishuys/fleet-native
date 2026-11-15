@@ -38,11 +38,19 @@ fn images_on(rt: &mut Runtime<State>) {
     rt.frame(FRAME);
 }
 
-/// Frames until `until` holds (the reads are on threads).
+/// Frames until `until` holds (the reads and decodes are on threads). The bound is a hang detector, not a speed check: the
+/// suite's other tests keep every core busy on a CI runner, and a read or decode queued behind them can take far longer
+/// than it does alone. What was still missing is in the message, so a hang says which half of the wait it was.
 fn settle(rt: &mut Runtime<State>, until: impl Fn(&State) -> bool, what: &str) {
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(60);
     while !until(&rt.state) {
-        assert!(Instant::now() < deadline, "{what}");
+        assert!(
+            Instant::now() < deadline,
+            "{what}: held {:?}, error {:?}, picture slots {:?}",
+            held(rt),
+            rt.state.attach_error(),
+            rt.state.held_images().iter().map(|i| rt.state.images.state_of(&i.preview_key())).collect::<Vec<_>>(),
+        );
         rt.frame(FRAME);
         std::thread::sleep(Duration::from_millis(5));
     }
