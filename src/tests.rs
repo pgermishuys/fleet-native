@@ -272,3 +272,78 @@ fn clicking_the_reads_row_opens_and_closes_the_folded_reads() {
     click(&mut rt, "reads-reads-r1");
     assert!(rt.find("tool-r1").is_none());
 }
+
+/// `ToolCard.rows.test.ts` and `ToolOutputBody.test.ts` as the app runs them: a click on a call's row opens its body.
+fn output_app(only: &'static [&'static str]) -> Runtime<State> {
+    let mut rt = app();
+    rt.update(move |s, _| s.show_conversation(crate::mock::tools::of_output_only(only)));
+    rt.frame(FRAME);
+    rt
+}
+
+#[test]
+fn a_closed_card_draws_no_body_and_a_click_on_its_row_opens_and_closes_it() {
+    let mut rt = output_app(&["t1"]);
+    assert!(rt.find("tool-t1").is_some());
+    assert!(rt.find("tool-t1-body").is_none(), "a closed card draws no body");
+    click(&mut rt, "tool-t1");
+    assert!(rt.find("tool-t1-body").is_some());
+    assert!(rt.find("tool-t1-output").is_some());
+    click(&mut rt, "tool-t1");
+    assert!(rt.find("tool-t1-body").is_none());
+}
+
+#[test]
+fn a_call_that_failed_starts_open_with_what_it_printed_and_closes_to_a_preview_line() {
+    let mut rt = output_app(&["t2"]);
+    assert!(rt.find("tool-t2-body").is_some(), "errors start open");
+    assert!(rt.find("tool-t2-preview").is_none(), "an open card has no preview line");
+    click(&mut rt, "tool-t2");
+    assert!(rt.find("tool-t2-body").is_none());
+    assert!(rt.find("tool-t2-preview").is_some(), "a closed failed card keeps a line");
+}
+
+#[test]
+fn a_shell_card_has_one_header_and_one_copy_button() {
+    let mut rt = output_app(&["t1"]);
+    click(&mut rt, "tool-t1");
+    assert!(rt.find("tool-t1-header").is_some());
+    assert!(rt.find("tool-t1-copy").is_some());
+}
+
+#[test]
+fn long_output_shows_the_last_12_lines_until_asked_then_toggles_back() {
+    let mut rt = output_app(&["t3"]);
+    // The row measures itself after it opens, so the toggles are clicked once it has settled.
+    click(&mut rt, "tool-t3");
+    run(&mut rt, 0.5);
+    assert!(rt.find("tool-t3-expand").is_some());
+    assert!(rt.find("tool-t3-collapse").is_none());
+    click(&mut rt, "tool-t3-expand");
+    run(&mut rt, 0.5);
+    assert!(rt.state.tool_wide.contains("t3"));
+    assert_eq!(rt.scroll_at_bottom("tool-t3-output"), Some(true), "the box opens on the last lines");
+    assert!(rt.find("tool-t3-collapse").is_some());
+    assert!(rt.find("tool-t3-expand").is_none());
+    click(&mut rt, "tool-t3-collapse");
+    run(&mut rt, 0.5);
+    assert!(!rt.state.tool_wide.contains("t3"));
+    assert!(rt.find("tool-t3-expand").is_some());
+}
+
+#[test]
+fn a_call_that_printed_nothing_says_so() {
+    let mut rt = output_app(&["t4"]);
+    click(&mut rt, "tool-t4");
+    assert!(rt.find("tool-t4-empty").is_some());
+    assert!(rt.find("tool-t4-output").is_none());
+}
+
+#[test]
+fn a_summary_shows_above_the_output() {
+    let mut rt = output_app(&["t5"]);
+    click(&mut rt, "tool-t5");
+    assert!(rt.find("tool-t5-summary").is_some());
+    assert!(rt.find("tool-t5-output").is_some());
+    assert!(rt.find("tool-t5-empty").is_none());
+}

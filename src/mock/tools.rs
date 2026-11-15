@@ -90,7 +90,75 @@ pub fn of_each_status() -> Vec<crate::view::conversation::Message> {
     ])
 }
 
+/// The test run a card opens on: a few passing cases, one failing, timings dimmed, in terminal colours.
+fn test_run() -> String {
+    let (esc, ok, bad) = ("\x1b", "\x1b[32m✓\x1b[0m", "\x1b[31m✗\x1b[0m");
+    let mut out = format!("{esc}[1mbun test{esc}[0m v1.1\n\nsrc/orders/total.test.ts:\n");
+    for (name, ms) in [("adds line items", 2), ("applies a percentage discount", 1), ("rounds half to even", 3)] {
+        out += &format!("{ok} {name} {esc}[2m[{ms}.00ms]{esc}[0m\n");
+    }
+    out += &format!("{bad} {esc}[1;31mrounds a negative total{esc}[0m {esc}[2m[4.00ms]{esc}[0m\n");
+    out += &format!(
+        "{esc}[31merror{esc}[0m: expect(received).toBe(expected)\n\nExpected: {esc}[32m-12.34{esc}[0m\nReceived: {esc}[31m-12.35{esc}[0m\n\n"
+    );
+    out += &format!(" {esc}[32m3 pass{esc}[0m\n {esc}[31m1 fail{esc}[0m\nRan 4 tests across 1 file. {esc}[2m[31.00ms]{esc}[0m\n");
+    out
+}
+
+/// A suite of `n` cases, one line each, for the long-output card.
+fn suite(n: usize) -> String {
+    (1..=n).map(|i| format!("\x1b[32m✓\x1b[0m orders/case_{i:03} \x1b[2m[{}ms]\x1b[0m", i % 7 + 1)).collect::<Vec<_>>().join("\n")
+}
+
+/// Cards that have something under their row: a test run (`t1`), a failed build (`t2`), a long output (`t3`), a call that
+/// printed nothing (`t4`) and one with a summary (`t5`). Only the named calls, so a card is on screen without scrolling.
+pub fn of_output_only(ids: &[&str]) -> Vec<crate::view::conversation::Message> {
+    let calls = vec![
+        call("t1", "bash", "completed", json!({"command": "bun test src/orders"}), {
+            let mut x = took(31);
+            x["output"] = json!(test_run());
+            x["metadata"] = json!({"exit": 1});
+            x
+        }),
+        call(
+            "t2",
+            "bash",
+            "error",
+            json!({"command": "bun run build"}),
+            json!({"error": "\u{1b}[31merror\u{1b}[0m TS2322: Type 'string' is not assignable to type 'number'.\n  src/orders/total.ts:41:7\nBuild failed with 1 error."}),
+        ),
+        call("t3", "bash", "completed", json!({"command": "bun test --all"}), {
+            let mut x = took(5_200);
+            x["output"] = json!(suite(200));
+            x["metadata"] = json!({"exit": 0});
+            x
+        }),
+        call("t4", "webfetch", "completed", json!({"url": "https://example.test/docs/rounding"}), json!({})),
+        call(
+            "t5",
+            "read",
+            "completed",
+            json!({"filePath": "src/orders/total.ts"}),
+            json!({"summary": "Read 120 lines.", "output": "export const total = (items) => items.reduce(add, 0);"}),
+        ),
+    ];
+    let calls = calls.into_iter().filter(|c| ids.contains(&c["id"].as_str().unwrap_or(""))).collect();
+    conversation(vec![
+        message("u1", "user", 1, vec![json!({"type": "text", "id": "u1-t", "text": "Run the order tests and the build."})]),
+        message("a1", "assistant", 2, calls),
+    ])
+}
+
 impl State {
+    /// Opens the cards of `of_output` the picture shows, and widens the long one when asked.
+    pub fn open_cards(&mut self, ids: &[&str], wide: &[&str]) {
+        use crate::conv::card::Toggle;
+        for id in ids {
+            self.tool_open.insert((*id).to_string(), Toggle { open: true, under: true });
+        }
+        self.tool_wide.extend(wide.iter().map(|s| s.to_string()));
+    }
+
     /// A scene: the first session shows `messages` instead of its own.
     pub fn show_conversation(&mut self, messages: Vec<crate::view::conversation::Message>) {
         self.open = (0, 0);

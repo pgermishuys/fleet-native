@@ -8,6 +8,7 @@ use super::parts::quad;
 use super::prose;
 use super::toolrow;
 use crate::State;
+use crate::conv::card::ToolBody;
 use crate::conv::tools::{ToolRowEntry, ToolStatus, group_reads};
 use crate::icons::*;
 use crate::mock::{Session, Status};
@@ -56,6 +57,8 @@ pub enum Part {
         detail: String,
         status: ToolStatus,
         state: ToolState,
+        /// What opens under the row: output, summary, preview.
+        body: Box<ToolBody>,
     },
     File {
         id: String,
@@ -105,14 +108,22 @@ impl Part {
 
     pub fn tool(id: impl Into<String>, tool: &str, detail: &str, state: ToolState) -> Self {
         let id = id.into();
-        Part::Tool { call_id: format!("call-{id}"), id, tool: tool.into(), detail: detail.into(), status: ToolStatus::Completed, state }
+        Part::Tool {
+            call_id: format!("call-{id}"),
+            id,
+            tool: tool.into(),
+            detail: detail.into(),
+            status: ToolStatus::Completed,
+            state,
+            body: Box::default(),
+        }
     }
 
     /// A call that is still running.
     pub fn running_tool(id: impl Into<String>, tool: &str, detail: &str) -> Self {
         match Part::tool(id, tool, detail, ToolState::Plain) {
-            Part::Tool { id, tool, call_id, detail, state, .. } => {
-                Part::Tool { id, tool, call_id, detail, status: ToolStatus::Running, state }
+            Part::Tool { id, tool, call_id, detail, state, body, .. } => {
+                Part::Tool { id, tool, call_id, detail, status: ToolStatus::Running, state, body }
             }
             other => other,
         }
@@ -129,13 +140,13 @@ impl Part {
     pub fn weight(&self) -> usize {
         match self {
             Part::Text { text, .. } | Part::Reasoning { text, .. } => text.len(),
-            Part::Tool { state, status, detail, .. } => {
+            Part::Tool { state, status, detail, body, .. } => {
                 let shown = match *state {
                     ToolState::Diff(a, r) => 2 + a as usize + r as usize,
                     ToolState::Took(secs) => 3 + secs.to_bits() as usize,
                     ToolState::Plain => 4,
                 };
-                shown + (*status as usize) * 7 + detail.len()
+                shown + (*status as usize) * 7 + detail.len() + body.output.len() + body.summary.len()
             }
             _ => 5,
         }
@@ -168,9 +179,9 @@ pub fn stream(t: &Theme, session: &Session, partial: bool, older: Option<Older>)
             let Some(msg) = session.messages.get(i) else { return working_row(s, &theme) };
             let after_tool = i.checked_sub(1).map(|p| matches!(session.messages[p].parts.last(), Some(Part::Tool { .. })));
             let streaming = i + 1 == session.messages.len() && session.status == Status::Working && msg.role == Role::Assistant;
-            let opened = open_mask(msg, &s.open_reads);
+            let opened = open_mask(msg, s);
             memo(msg.id.clone(), (msg.version(), theme.dark, after_tool, streaming, msg.needs_retry, opened), || {
-                message_row(&theme, &md, msg, after_tool, streaming, &s.open_reads)
+                message_row(&theme, &md, msg, after_tool, streaming, s)
             })
         },
     );
@@ -263,12 +274,24 @@ fn read_groups(msg: &Message) -> Vec<String> {
     ids
 }
 
-/// Which of a message's read groups are open, one bit each: part of the row's memo key.
-fn open_mask(msg: &Message, open: &std::collections::HashSet<String>) -> u64 {
-    if open.is_empty() {
+/// Which of a message's read groups and tool cards the user opened or widened: part of the row's memo key. Nothing
+/// opened (the common case) costs two empty checks.
+fn open_mask(msg: &Message, s: &State) -> u64 {
+    use std::hash::{Hash, Hasher};
+    if s.open_reads.is_empty() && s.tool_open.is_empty() && s.tool_wide.is_empty() {
         return 0;
     }
-    read_groups(msg).iter().take(64).enumerate().filter(|(_, id)| open.contains(*id)).fold(0, |mask, (i, _)| mask | 1 << i)
+    let mut hash = std::collections::hash_map::DefaultHasher::new();
+    for id in read_groups(msg) {
+        s.open_reads.contains(&id).hash(&mut hash);
+    }
+    for part in &msg.parts {
+        if let Part::Tool { id, .. } = part {
+            s.tool_open.get(id.as_str()).hash(&mut hash);
+            s.tool_wide.contains(id.as_str()).hash(&mut hash);
+        }
+    }
+    hash.finish()
 }
 
 /// The runs of consecutive tool calls among a message's parts.
@@ -289,14 +312,7 @@ fn tool_runs(parts: &[Part]) -> Vec<Vec<&Part>> {
 
 /// One message: its parts, spaced as Fleet spaces them. `after_tool` is how the message above
 /// ended (`None` for the first), so a run of tool rows reads as one block across messages.
-fn message_row(
-    t: &Theme,
-    md: &MarkdownStyle,
-    msg: &Message,
-    after_tool: Option<bool>,
-    streaming: bool,
-    open_reads: &std::collections::HashSet<String>,
-) -> El {
+fn message_row(t: &Theme, md: &MarkdownStyle, msg: &Message, after_tool: Option<bool>, streaming: bool, s: &State) -> El {
     let mut column = col().w_full();
     let mut after_tool = after_tool;
     // 20px after a message or text, none between tool rows, 12px before the text that follows a run of them.
@@ -312,8 +328,8 @@ fn message_row(
             // Two or more reads in a row fold into one "Read N files" row (`groupReads`).
             for entry in group_reads(msg.parts[k..end].iter()) {
                 let row = match entry {
-                    ToolRowEntry::Tool(part) => toolrow::tool_entry(t, part),
-                    ToolRowEntry::Reads { tools, id } => toolrow::reads_entry(t, &id, &tools, open_reads.contains(&id)),
+                    ToolRowEntry::Tool(part) => toolrow::tool_entry(t, s, part),
+                    ToolRowEntry::Reads { tools, id } => toolrow::reads_entry(t, s, &id, &tools, s.open_reads.contains(&id)),
                 };
                 column = column.child(el().w_full().mt(above(after_tool, true)).py(2.0).child(row));
                 after_tool = Some(true);
@@ -322,7 +338,7 @@ fn message_row(
             continue;
         }
         let live = streaming && k + 1 == msg.parts.len();
-        column = column.child(el().w_full().mt(above(after_tool, false)).py(2.0).child(part_view(t, md, msg.role, &msg.parts[k], live)));
+        column = column.child(el().w_full().mt(above(after_tool, false)).py(2.0).child(part_view(t, s, md, msg.role, &msg.parts[k], live)));
         after_tool = Some(false);
         k += 1;
     }
@@ -335,7 +351,7 @@ fn message_row(
     column
 }
 
-fn part_view(t: &Theme, md: &MarkdownStyle, role: Role, part: &Part, live: bool) -> El {
+fn part_view(t: &Theme, s: &State, md: &MarkdownStyle, role: Role, part: &Part, live: bool) -> El {
     match (part, role) {
         // Right-aligned with the small corner at bottom right. The empty 18% in front keeps the
         // bubble to Fleet's `max-width: 82%` of the column at any width.
@@ -353,7 +369,7 @@ fn part_view(t: &Theme, md: &MarkdownStyle, role: Role, part: &Part, live: bool)
                 .fill(t.wash(5.0)),
         ),
         (Part::Text { id, text: body }, Role::Assistant) => prose::prose(md, id, body, live),
-        (Part::Tool { .. }, _) => toolrow::tool_entry(t, part),
+        (Part::Tool { .. }, _) => toolrow::tool_entry(t, s, part),
         // The remaining parts get their real look in the parts lane; for now they say what they are.
         (Part::Reasoning { text: body, summary, .. }, _) => {
             let shown = summary.as_deref().unwrap_or(body);

@@ -7,6 +7,7 @@ mod rail;
 mod sessions;
 mod sheet;
 mod status;
+pub mod toolcard;
 pub mod toolrow;
 
 use crate::theme::{Theme, sans};

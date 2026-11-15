@@ -313,3 +313,15 @@ Nothing in Rune was needed. Learned:
 - **A filled triangle**: `canvas(Shape::new().fill(points, color)).size(8.0, 8.0)` draws Fleet's error glyph; no icon file needed.
 - **A memoised row that depends on a set in `State`** (the open "Read N files" groups) must put that set's effect in the memo key (`open_mask`), or a click changes the state and the row doesn't redraw.
 - Lucide renamed `message-circle-question` to `message-circle-question-mark`; the generator takes the file name, so the constant is `MESSAGE_CIRCLE_QUESTION_MARK`.
+
+## Component 3, piece B (tool card and output)
+
+- **Coloured terminal output is one `rich(content, spans)` text**, a `Span` per styled run (colour, weight 600, italic,
+  underline, `.bg(colour, 0.0)`); a 2,000-line box is a single element and lays out fast enough. Dim is the colour at 60% alpha.
+- **`Color::mix` mixes in linear light, CSS `color-mix(in srgb)` in sRGB.** `view::toolcard::mix` encodes, mixes and decodes
+  so the bright and cyan terminal colours match Fleet.
+- **A freshly opened row in a `virtual_rows` list measures itself a few frames later**: a click on something inside it
+  right after opening can land on the stale layout. A headless test runs about half a second (`run`) before clicking it.
+- **`on_press_tx` + `tx.scroll_to_bottom_instant(key)`** moves a scroll box that doesn't exist yet this frame: the box
+  opens on its last lines. `ScrollSpec { stick_bottom }` alone didn't (it showed the top in a picture).
+- **No clipboard write from a handler** (still): the output's Copy button is drawn and says so.

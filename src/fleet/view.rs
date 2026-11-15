@@ -1,5 +1,6 @@
 //! Boils the reducer's messages down to what the conversation draws (`view::conversation`).
 use super::model::{Msg, PartData};
+use crate::conv::card::tool_body;
 use crate::conv::tools::{ToolStatus, get_tool, is_shell_row, is_write_call, tool_duration_ms};
 use crate::view::conversation::{Message, Part, ToolState};
 use serde_json::Value;
@@ -51,6 +52,7 @@ fn part(p: &PartData) -> Part {
             detail: title(tool, state),
             status: ToolStatus::from_word(state.get("status").and_then(Value::as_str)),
             state: tool_state(tool, state),
+            body: Box::new(tool_body(tool, &title(tool, state), state)),
         },
     }
 }

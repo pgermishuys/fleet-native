@@ -40,6 +40,9 @@ pub struct Theme {
     /// `--complete` and `--queued`.
     pub complete: Color,
     pub queued: Color,
+    /// `--complete-text` and `--queued-text`: blue and violet ink that read on the page (terminal colours).
+    pub complete_text: Color,
+    pub queued_text: Color,
 }
 
 impl Theme {
@@ -66,6 +69,8 @@ impl Theme {
                 accent_dim: c("#6366f1").alpha(0.15),
                 complete: c("#3b82f6"),
                 queued: c("#8b5cf6"),
+                complete_text: c("#4F8FF7"),
+                queued_text: c("#9F78F8"),
             }
         } else {
             Theme {
@@ -89,6 +94,8 @@ impl Theme {
                 accent_dim: c("#5B6EC7").alpha(0.12),
                 complete: c("#2563eb"),
                 queued: c("#7c3aed"),
+                complete_text: c("#2159D4"),
+                queued_text: c("#7537DF"),
             }
         }
     }

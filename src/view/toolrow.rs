@@ -1,11 +1,13 @@
 //! One tool call as a row, and the "Read N files" row that folds reads together. Ports the header of
 //! `components/session/ToolCard.vue` (`.tool-header`) and the reads head of `MessageToolList.vue`. The body that opens
-//! under the row (output, diff) is the next piece; the row is not expandable yet.
+//! under the row is `toolcard.rs`; a click on the row opens and closes it.
 //!
 //! What a call is called, drawn with and summarised as comes from the registry (`conv::tools`); this file only draws.
 use super::conversation::{Part, ToolState};
 use super::parts::{pulse, triangle};
+use super::toolcard::{self, INLINE_TOOL_DIFFS};
 use crate::State;
+use crate::conv::card::{Toggle, is_open};
 use crate::conv::tools::{Category, ToolIcon, ToolStatus, format_call_duration, get_tool, is_shell_row};
 use crate::icons::*;
 use crate::theme::{Theme, mono, sans};
@@ -50,9 +52,20 @@ fn header(t: &Theme) -> El {
 }
 
 /// The call's own part, as a row.
-pub fn tool_entry(t: &Theme, part: &Part) -> El {
-    let Part::Tool { id, tool, detail, status, state, .. } = part else { return el() };
-    tool_row(t, id, tool, detail, *status, *state)
+pub fn tool_entry(t: &Theme, s: &State, part: &Part) -> El {
+    let Part::Tool { id, tool, detail, status, state, body, .. } = part else { return el() };
+    let open = is_open(tool, body, INLINE_TOOL_DIFFS, s.tool_open.get(id.as_str()).copied());
+    let under = body.initially_collapsed;
+    let key = id.clone();
+    let header = tool_row(t, id, tool, detail, *status, *state).on_press(move |s: &mut State| {
+        s.tool_open.insert(key.clone(), Toggle { open: !open, under });
+    });
+    let mut card = rune::col().w_full().child(header);
+    // A failed call keeps what it printed, one line, under its closed row.
+    if let (false, ToolStatus::Error, Some(line)) = (open, *status, body.preview.as_deref()) {
+        card = card.child(toolcard::preview(t, id, line));
+    }
+    if open { card.child(toolcard::body(t, s, id, tool, body)) } else { card }
 }
 
 /// `.tool-header__background`: 11px, 500, uppercase, 0.02em apart.
@@ -122,7 +135,7 @@ pub fn tool_row(t: &Theme, id: &str, kind: &str, detail: &str, status: ToolStatu
 
 /// `Read N files` (`MessageToolList.vue`, `.reads-head`): the folded reads, closed until asked. Open, each read is its
 /// own row, indented 14px.
-pub fn reads_entry(t: &Theme, id: &str, tools: &[&Part], open: bool) -> El {
+pub fn reads_entry(t: &Theme, s: &State, id: &str, tools: &[&Part], open: bool) -> El {
     let working = tools.iter().any(|p| matches!(p, Part::Tool { status: ToolStatus::Running | ToolStatus::Pending, .. }));
     let key = id.to_string();
     let mut head = header(t)
@@ -140,5 +153,5 @@ pub fn reads_entry(t: &Theme, id: &str, tools: &[&Part], open: bool) -> El {
     }
     head = head.child(icon(&CHEVRON_RIGHT, 12.0).color(t.muted.alpha(0.75)).rotate(if open { FRAC_PI_2 } else { 0.0 }));
     let list = rune::col().w_full().child(head);
-    if open { list.child(rune::col().w_full().pl(14.0).children(tools.iter().map(|p| tool_entry(t, p)))) } else { list }
+    if open { list.child(rune::col().w_full().pl(14.0).children(tools.iter().map(|p| tool_entry(t, s, p)))) } else { list }
 }
