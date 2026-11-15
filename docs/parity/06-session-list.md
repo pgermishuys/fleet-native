@@ -150,6 +150,25 @@ Pictures, Fleet's own client (above or left) beside native, one scratch Fleet v0
 ![delete, dark](../../shots/parity/06-session-list/piece-g/pair-delete-dark.png)
 ![delete, all sessions, dark](../../shots/parity/06-session-list/piece-g/pair-delete-all-dark.png)
 
+## Piece H, built (15 November 2026)
+
+Rename in place on a row, F2 and double-click, and the confirm dialog with its two users (Clear attachments, Delete session). `src/fleet/actions.rs` (`PATCH /api/sessions/{id}` `{title}`, `DELETE /api/sessions/{id}`, `DELETE .../attachments`, the refusal words as `failure_text`; `State` methods that send on a thread, with the invented list taking the change when there is no server), `src/ui/confirm.rs` (one `Confirm` in `Ui`: title, subject, body, labels, destructive, busy, error, the call; drawn on `ui::dialog`; `ErrorNote`), `ui::button::button_lead` (a button with its own leading element, for the 14px spinner), `src/view/session_row.rs` (the editing row, F2, double-press), the row menu's Rename, Clear attachments… and Delete permanently… (`src/ui/menus.rs`, now `w-66`). Tests: `src/tests_row_actions.rs` (28; "renames in place on double click", "optimistically renames and rolls back on failure", the `ConfirmAction` cases and the Clear and Delete cases under their names).
+
+Done: **3.71, 3.72** (F2 only; Alt+Up/Down and the arrows belong to pins and lineage: pieces I and M), **3.80-3.83**, **4.30-4.36**; **3.70** partly (a click while renaming is ignored: the editing row has no press handler; shift and ctrl click are piece J's); **3.74** untouched (no read-only rows yet: piece R). Run against a scratch Fleet v0.72.0: renamed a session in the row (the title changed on the server). Not run live: delete and clear against the server's own refusal (the scratch Fleet has nothing that refuses); those paths are tested through `confirm_done` and `session_call_done`.
+
+Open, with reasons: **4.33** where focus starts (Cancel when destructive) is `autofocus` on the button; a headless modal focuses itself, so it can't be read in a test, and the Xvfb window I tried ignored the injected keys, so it is **not checked**. Focus going back to where it was is left to Rune's modal. The last ask is not kept drawn while the dialog fades out (the dialog leaves at once). **3.81** one tick, one frame and a 0 ms retry to focus the field are not needed: Rune focuses on the next frame. **3.82** "on another machine the machine's own list is patched": no other machines yet (piece R, component 17). **3.84** a deleted session's unsent drafts are not forgotten (`clearStoredDraftsOf`): drafts storage is piece P. **4.31** `canDelete` (a session's `capabilities`) is not read: the item is always offered. **4.36** the menu is the row's old five-item stub plus the two new items; its full set is piece L. **Differences found in v0.72.0 (the released client the Fleet pictures come from) against `main`:** v0.72.0 asks "Are you sure?" with the title in the sentence and buttons "Delete" and "Clear", and has no subject line; `main` (followed here) has the `ConfirmHost` dialog, so the dialog pictures set v0.72.0 beside the native one only for the frame. v0.72.0's rename field has a faint 1 px border; `main`'s has none. A long title is shown scrolled to its end in the field (Rune puts the view at the selection's end; a browser keeps the start).
+
+Pictures, Fleet's own client (left) beside native, one scratch Fleet v0.72.0 with three sessions: rename in place, the Delete session dialog, the Clear attachments dialog. Scenes (native only): rename, the dialog busy, and with a refusal.
+
+![rename, dark](../../shots/parity/06-session-list/piece-h/pair-rename-dark.png)
+![rename, light](../../shots/parity/06-session-list/piece-h/pair-rename-light.png)
+![delete, dark](../../shots/parity/06-session-list/piece-h/pair-delete-dark.png)
+![delete, light](../../shots/parity/06-session-list/piece-h/pair-delete-light.png)
+![clear, dark](../../shots/parity/06-session-list/piece-h/pair-clear-dark.png)
+![clear, light](../../shots/parity/06-session-list/piece-h/pair-clear-light.png)
+![busy](../../shots/parity/06-session-list/piece-h/scene-confirm-busy.png)
+![refused](../../shots/parity/06-session-list/piece-h/scene-confirm-error.png)
+
 ## What "done" means
 
 1. The list is Fleet's: projects from `GET /api/projects` in their own order (Pinned first,

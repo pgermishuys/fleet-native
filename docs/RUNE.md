@@ -739,3 +739,12 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 - **`rich` text keeps `\n` as a line break** and wraps inside a `w_full` column; a `Span` with `underline` plus a `Link` gives Fleet's underlined address that opens with `tx.open_url`.
 - **Negative margins work** (`.mt(-4.0)` for the "Pick any that apply." line).
 - **`focus_within_ring(1.0, -1.0, ..)`** on a row is `:focus-within` for a field inside it; `text_input` line height 1.7 matches a browser input's row height at 13px.
+
+## Session list, piece H (row rename, confirm dialog)
+
+- **A headless modal focuses itself, not its `autofocus` child**: `rt.elements()` shows the dialog panel as focused whatever is marked
+  `.autofocus()`, and `tx.focus(key, true)` from the handler that opens it fails (the buttons aren't mounted yet). Mark the button
+  `autofocus` and look in a window. Keys injected with xdotool into an Xvfb window with no window manager did not reach the app here.
+- **`on_double_press_tx` fires after the first press's handler too**: a row that opens on press and renames on double press opens twice
+  first; two `click`s in a test with no pointer move between them are a double press.
+- **A text field starts scrolled to the selection's end**: select-all on a title longer than the field shows its end, a browser keeps the start.

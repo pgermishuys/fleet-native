@@ -1,7 +1,7 @@
 //! The menus the shell opens: the composer's agent and model pickers, the header's "More
 //! actions", and a session row's right-click menu. Entries and wording are Fleet's where
 //! Fleet's are known; the agent and model lists are the session's own (`State::lists`).
-use super::menu::{Entry, Item, Mark, context, dropdown as drop, item};
+use super::menu::{Entry, Item, Mark, dropdown as drop, item};
 use crate::composer::selector as rules;
 use crate::icons::*;
 use crate::theme::Theme;
@@ -52,19 +52,29 @@ fn more() -> Vec<Entry> {
 pub fn session_context(s: &State, t: &Theme, p: usize, i: usize) -> Vec<El> {
     let at = s.ui.point;
     let open = Entry::Item(Item::new("Open").icon(&MESSAGE_SQUARE).on(move |s: &mut State, tx: &mut Tx| s.open_session(p, i, tx)));
-    context(
+    // `ContextMenuContent class="w-66"`.
+    super::menu::context_w(
         t,
         "ctx",
         at,
         vec![
             open,
-            waiting("Rename", &PENCIL, 6),
+            Entry::Item(
+                Item::new("Rename").icon(&PENCIL).shortcut("F2").on(move |s: &mut State, tx: &mut Tx| s.start_row_rename(p, i, tx)),
+            ),
             waiting("Archive", &ARCHIVE, 6),
+            Entry::Item(
+                Item::new("Clear attachments…").icon(&PAPERCLIP).on(move |s: &mut State, tx: &mut Tx| s.ask_clear_attachments(p, i, tx)),
+            ),
             Entry::Separator,
-            Entry::Item(Item::new("Delete").icon(&X).destructive().on(|s: &mut State, tx: &mut Tx| {
-                s.toast("Delete isn't in the native app yet (component 6 of the port).".into(), None, 4.0, tx);
-            })),
+            Entry::Item(
+                Item::new("Delete permanently…")
+                    .icon(&TRASH_2)
+                    .destructive()
+                    .on(move |s: &mut State, tx: &mut Tx| s.ask_delete_session(p, i, tx)),
+            ),
         ],
+        Some(super::rem(16.5)),
     )
 }
 
