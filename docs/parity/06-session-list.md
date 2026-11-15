@@ -39,6 +39,25 @@ left 760×760; the native app ran headless with `--server` and its picture is sc
 shown: the native right-click menu (its three stubs are in `src/ui/menus.rs`), the Archived view,
 a draft row, machine headings (they need a second machine).
 
+## Piece A, built (15 November 2026)
+
+Read against weave-fleet `main` at `d39cb75` (15 November 2026): nothing in `client/src/components/sessions/`, `lib/session-project-groups.ts`, `lib/session-pins.ts`, `composables/use-projects.ts` or the stores changed since `49640bf`; the 8 files that did (onboarding, selector dropdown, tool-card, settings tabs, annotation types) are not this component's.
+
+Done, in `src/fleet/groups.rs` (pure) with tests in `src/fleet/tests/groups.rs` and `src/tests.rs`:
+
+- **1.31, 1.32** the filter matches title, id, project name and `sessionStatus`; a project whose name matches keeps all its sessions. The panel draws through `matching_sessions`.
+- **1.37 (part), 1.38** unchanged: still `parse_sessions` (hidden, non-active and child rows dropped; newest first). The Undo queue and the retention filter are piece B/I.
+- **1.39, 1.40, 1.41** groups come from `GET /api/projects` by `position`, then name; an empty project shows with a 0; no project is "Ungrouped", last; Scratch only with sessions or when the draft key points at it (`build_project_groups`, `draft_group_key_for`, `draft_group_id_for`).
+- **1.42** `can_move_up/down` and the reorder targets are computed (the menu is piece G).
+- **1.43** `split_pinned`, `pin_order_for`, `pinned_neighbour_for`, `pinned_project_group` are ported and tested; the Pinned group is not drawn yet (piece J), so a pinned session stays in its project for now.
+- **2.1-2.17 (compute)** and **6.6** `GET /api/projects` is read with every list (not only once as Fleet does; a rename elsewhere shows at the next list), a failure keeps the last good projects (`ProjectsLoad`, which ports `useProjects`' loading/refreshing/error/overtaken-request rules).
+- `Project` has `id`, `kind`, `position`; `Session` has a `listing` (project ids, `pinOrder`, lineage ids, detached).
+
+Open or different, on purpose: 1.33 (folded projects while filtering) is unchanged and still to verify in piece E; the fold state is kept by project id now (name for the invented list); `ProjectsLoad.error` is kept but not shown (piece E draws the error block); the projects read has no Scratch-only group row of its own, so Scratch shows with its sessions as in Fleet. Fleet has no unit test for `session-project-groups.ts`; the cases in `tests/groups.rs` come from reading it.
+
+![Fleet's own client, the list (dark)](../../shots/parity/06-session-list/piece-a/fleet-dark.png)
+![Native, same Fleet (dark)](../../shots/parity/06-session-list/piece-a/native-dark.png)
+
 ## What "done" means
 
 1. The list is Fleet's: projects from `GET /api/projects` in their own order (Pinned first,

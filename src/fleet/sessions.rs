@@ -1,5 +1,6 @@
 //! The session list from `GET /api/sessions`: rows grouped under their projects, in the shapes the
 //! session list draws (`mock::Project`, `mock::Session`).
+use super::groups::{Listing, ProjectInfo, ProjectKind, build_project_groups};
 use super::model::StreamStatus;
 use super::rows::{Row, glyph_of};
 use crate::mock::{Project, Session, Status};
@@ -46,12 +47,10 @@ pub fn age(now_ms: i64, then_ms: i64) -> (String, f32) {
     )
 }
 
-/// Groups the rows by project name, most recently used first inside each group, groups in the
-/// order they first appear. Archived, hidden and sub-agent sessions aren't listed here (the session
-/// list lane shows lineage and the Archived view).
-pub fn parse_list(rows: &Value, now_ms: i64) -> Vec<Project> {
-    let mut projects: Vec<Project> = Vec::new();
-    let mut listed: Vec<(i64, usize, Session)> = Vec::new();
+/// The sessions the list holds, newest first. Archived, hidden and sub-agent sessions aren't listed here (the session
+/// list lane shows lineage and the Archived view). Pure, so it can run on a thread.
+pub fn parse_sessions(rows: &Value, now_ms: i64) -> Vec<Session> {
+    let mut listed: Vec<(i64, Session)> = Vec::new();
     for row in rows.as_array().into_iter().flatten() {
         let text = |k: &str| row.get(k).and_then(Value::as_str);
         if row.get("isHidden") == Some(&Value::Bool(true))
@@ -61,19 +60,6 @@ pub fn parse_list(rows: &Value, now_ms: i64) -> Vec<Project> {
             continue;
         }
         let Some(id) = row.pointer("/session/id").and_then(Value::as_str) else { continue };
-        let name = text("projectName").unwrap_or("Sessions");
-        let at = match projects.iter().position(|p| p.name == name) {
-            Some(at) => at,
-            None => {
-                projects.push(Project {
-                    name: name.to_string(),
-                    path: text("workspaceDirectory").unwrap_or("").to_string(),
-                    open: true,
-                    sessions: vec![],
-                });
-                projects.len() - 1
-            }
-        };
         let updated = row.pointer("/session/time/updated").and_then(Value::as_i64).unwrap_or(0);
         let (age, dim) = age(now_ms, updated);
         let mut info = Row::from_list_item(row);
@@ -81,7 +67,6 @@ pub fn parse_list(rows: &Value, now_ms: i64) -> Vec<Project> {
         let status = glyph_of(&info.lifecycle, &info.activity);
         listed.push((
             updated,
-            at,
             Session {
                 id: id.to_string(),
                 title: row.pointer("/session/title").and_then(Value::as_str).unwrap_or("Untitled").to_string(),
@@ -92,12 +77,37 @@ pub fn parse_list(rows: &Value, now_ms: i64) -> Vec<Project> {
                 messages: Vec::new(),
                 tokens: row.get("totalTokens").and_then(Value::as_u64).unwrap_or(0).min(u32::MAX as u64) as u32,
                 row: info,
+                listing: Listing::from_row(row),
             },
         ));
     }
     listed.sort_by_key(|(updated, ..)| std::cmp::Reverse(*updated));
-    for (_, at, session) in listed {
-        projects[at].sessions.push(session);
-    }
-    projects
+    listed.into_iter().map(|(_, session)| session).collect()
+}
+
+/// The sessions under their projects (rows 1.39-1.41): every user project even when it has none, in the projects' own
+/// order, Ungrouped last. Pinned sessions stay in their project until the Pinned group is drawn (component 6, piece J).
+pub fn group_sessions(sessions: Vec<Session>, infos: &[ProjectInfo]) -> Vec<Project> {
+    build_project_groups(sessions, infos, None)
+        .into_iter()
+        .map(|g| Project {
+            kind: g.project_id.as_deref().and_then(|id| infos.iter().find(|p| p.id == id)).map_or(ProjectKind::User, |p| p.kind),
+            position: g.project_id.as_deref().and_then(|id| infos.iter().find(|p| p.id == id)).map_or(0, |p| p.position),
+            path: g.sessions.first().map(|s| s.listing.workspace_directory.clone()).unwrap_or_default(),
+            id: g.id,
+            name: g.name,
+            open: true,
+            sessions: g.sessions,
+        })
+        .collect()
+}
+
+/// `parse_sessions` and `group_sessions` in one, with no projects read: every group is named by its rows.
+pub fn parse_list(rows: &Value, now_ms: i64) -> Vec<Project> {
+    parse_list_in(rows, &[], now_ms)
+}
+
+/// The same under the projects read from `GET /api/projects`.
+pub fn parse_list_in(rows: &Value, infos: &[ProjectInfo], now_ms: i64) -> Vec<Project> {
+    group_sessions(parse_sessions(rows, now_ms), infos)
 }

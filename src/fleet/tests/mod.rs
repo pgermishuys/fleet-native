@@ -490,6 +490,7 @@ mod export;
 mod files;
 mod find;
 mod finder;
+mod groups;
 mod history;
 mod instance;
 mod live;

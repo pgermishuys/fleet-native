@@ -50,6 +50,8 @@ pub struct State {
     /// while `dark` still follows the system.
     pub drawn_dark: std::cell::Cell<bool>,
     pub projects: Vec<Project>,
+    /// `GET /api/projects`: what orders and names the groups, and whether the last read failed.
+    pub project_load: fleet::groups::ProjectsLoad,
     /// The open session: (project, session).
     pub open: (usize, usize),
     pub filter: TextEdit,
@@ -198,6 +200,7 @@ impl Default for State {
             sheet_w: 0.0,
             drawn_dark: std::cell::Cell::new(true),
             projects: if SERVER.get().is_some() { Vec::new() } else { mock::projects() },
+            project_load: fleet::groups::ProjectsLoad::new(true),
             open: (0, 0),
             filter: TextEdit::new(""),
             draft: TextEdit::new(""),
@@ -272,7 +275,15 @@ impl Default for State {
             images: Default::default(),
             browser: Default::default(),
             find: Default::default(),
-            blank: Project { name: "Sessions".into(), path: String::new(), open: true, sessions: vec![mock::blank_session()] },
+            blank: Project {
+                id: String::new(),
+                kind: Default::default(),
+                position: 0,
+                name: "Sessions".into(),
+                path: String::new(),
+                open: true,
+                sessions: vec![mock::blank_session()],
+            },
         }
     }
 }
@@ -961,6 +972,16 @@ pub fn spec() -> AppSpec<State> {
             ("older-loading-light", |s| {
                 s.dark = Some(false);
                 s.show_older(Older::Loading)
+            }),
+            ("list-groups", |s| s.show_groups("")),
+            ("list-groups-light", |s| {
+                s.dark = Some(false);
+                s.show_groups("")
+            }),
+            ("list-filter-project", |s| s.show_groups("light")),
+            ("list-filter-project-light", |s| {
+                s.dark = Some(false);
+                s.show_groups("light")
             }),
             ("find-found", |s| s.show_find("cache", conv::find::Scope::Messages, 1, None)),
             ("find-found-light", |s| {

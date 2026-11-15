@@ -9,6 +9,7 @@ pub mod find;
 pub mod finder;
 pub mod fold;
 pub mod frame;
+pub mod groups;
 pub mod images;
 pub mod long;
 pub mod parts;
@@ -40,9 +41,37 @@ pub struct Session {
     pub tokens: u32,
     /// What the server's list row carries beyond the glyph; empty for the invented sessions.
     pub row: crate::fleet::rows::Row,
+    /// Where the row belongs: its project, pin and lineage ids.
+    pub listing: crate::fleet::groups::Listing,
+}
+
+impl crate::fleet::groups::Listed for Session {
+    fn id(&self) -> &str {
+        &self.id
+    }
+    fn title(&self) -> &str {
+        &self.title
+    }
+    /// The server's `sessionStatus`; the invented sessions have none, so it is what their glyph means.
+    fn status_word(&self) -> &str {
+        match (self.row.lifecycle.as_str(), self.status) {
+            ("", Status::Working) => "active",
+            ("", Status::NeedsInput) => "waiting_input",
+            ("", Status::Idle) => "idle",
+            (word, _) => word,
+        }
+    }
+    fn listing(&self) -> &crate::fleet::groups::Listing {
+        &self.listing
+    }
 }
 
 pub struct Project {
+    /// The server's project id; empty for the group of sessions with no project (`ungrouped`) is `"ungrouped"`.
+    pub id: String,
+    pub kind: crate::fleet::groups::ProjectKind,
+    /// `position` from `GET /api/projects`; the groups order by it.
+    pub position: i64,
     pub name: String,
     pub path: String,
     pub open: bool,
@@ -61,6 +90,7 @@ fn session(title: &'static str, status: Status, age: &'static str, dim: f32, bra
         messages,
         tokens,
         row: Default::default(),
+        listing: Default::default(),
     }
 }
 
@@ -75,8 +105,11 @@ fn brief(ask: &'static str, answer: &'static str) -> Vec<Message> {
 }
 
 pub fn projects() -> Vec<Project> {
-    vec![
+    let mut projects = vec![
         Project {
+            id: "mock-orchard".into(),
+            kind: Default::default(),
+            position: 1,
             name: "Orchard".into(),
             path: "~/code/orchard".into(),
             open: true,
@@ -174,6 +207,9 @@ pub fn projects() -> Vec<Project> {
             ],
         },
         Project {
+            id: "mock-lighthouse".into(),
+            kind: Default::default(),
+            position: 2,
             name: "Lighthouse".into(),
             path: "~/code/lighthouse".into(),
             open: true,
@@ -214,6 +250,9 @@ pub fn projects() -> Vec<Project> {
             ],
         },
         Project {
+            id: "mock-field-notes".into(),
+            kind: Default::default(),
+            position: 3,
             name: "Field notes".into(),
             path: "~/notes/field".into(),
             open: false,
@@ -228,12 +267,23 @@ pub fn projects() -> Vec<Project> {
         },
         // Where the slice A measurements scroll. Folded, so the list looks as it did.
         Project {
+            id: "mock-benchmarks".into(),
+            kind: Default::default(),
+            position: 4,
             name: "Benchmarks".into(),
             path: "~/code/benchmarks".into(),
             open: false,
             sessions: vec![session(long::TITLE, Status::Idle, "1d", 0.55, "main", long::conversation())],
         },
-    ]
+    ];
+    // Each invented session knows its project the way a server row does, so the filter matches on it.
+    for project in &mut projects {
+        for session in &mut project.sessions {
+            session.listing.project_id = Some(project.id.clone());
+            session.listing.project_name = Some(project.name.clone());
+        }
+    }
+    projects
 }
 
 /// What the agent in this prototype answers to anything you send.

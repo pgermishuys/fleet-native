@@ -10,7 +10,7 @@ use super::rows::RowPatch;
 use super::signalr::{self, Frame};
 use super::state::Topic;
 use super::topics::{Topics, reconnect_delay};
-use super::{http, sessions};
+use super::{groups, http, sessions};
 use crate::State;
 use rune::{AppHandle, Tx};
 use serde_json::{Value, json};
@@ -171,8 +171,11 @@ fn fetch_list(base: &str, post: &Post) {
     let (base, post) = (base.to_string(), post.clone());
     std::thread::spawn(move || match http::sessions(&base) {
         Ok(rows) => {
-            let projects = sessions::parse_list(&rows, now_ms());
-            post.update(move |s, tx| s.on_list(projects, tx));
+            let listed = sessions::parse_sessions(&rows, now_ms());
+            // Read with every list so a project's rename, move or delete shows; a failure keeps the last good answer
+            // (`useProjects`).
+            let projects = http::projects(&base).map(|body| groups::parse_projects(&body));
+            post.update(move |s, tx| s.on_sessions(listed, projects, tx));
         }
         Err(e) => post.update(move |s, _| s.notice = Some(format!("Couldn't load the session list: {e}"))),
     });

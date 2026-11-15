@@ -638,3 +638,7 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 - **`Tx::copy` is the clipboard write**; it reports no failure, so a copy-failed message can't be shown.
 - **`MarkdownStyle` has no heading colour or rule**: Fleet's preview draws headings in the accent colour with a line under h1 and h2; only the fonts can be matched.
 - **A modal's Esc and outside press** both call the `.modal(true, dismiss)` closure, so one handler closes a dialog.
+## Session list, piece A (projects, groups, the filter's data)
+
+- Nothing new about Rune: the grouping, the filter and the pin split are plain Rust in `src/fleet/groups.rs`. One shape fits both the app's `Session` and the tests' own item: a `Listed` trait (id, title, status word, `Listing`), so the logic runs on whatever row a later piece adds.
+- A scene that must show an empty project builds it in `mock/groups.rs`; the invented list gets project ids and positions in `mock::projects()` so the filter's project-name match is tested without a server.
