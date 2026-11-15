@@ -4,6 +4,7 @@
 //! `turn-error.test.ts`, `turn-retry.test.ts`, `TurnRetryBar.test.ts`, `WorkingIndicator.test.ts`, `InterruptedCard.test.ts`, `working-on.test.ts`, `retry-status.test.ts`, `ActivityStream.messages.test.ts` and `ActivityStream.thinking.test.ts`, the list ones).
 mod attached;
 mod background;
+mod browser;
 mod bubble;
 mod card;
 mod compaction;

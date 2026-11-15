@@ -12,6 +12,8 @@ mod script;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
+mod tests_browser;
+#[cfg(test)]
 mod tests_images;
 mod theme;
 pub mod ui;
@@ -163,6 +165,8 @@ pub struct State {
     pub work: conv::work_clock::WorkStrip,
     /// The pictures the conversation shows (a call's screenshot, a user's images) and the lightbox over them.
     pub images: fleet::images::Images,
+    /// The steps the agent took in its own browser, per session.
+    pub browser: conv::browser::Steps,
     /// Stands in for the open session while the list is empty.
     blank: Project,
 }
@@ -246,6 +250,7 @@ impl Default for State {
             shown: None,
             work: Default::default(),
             images: Default::default(),
+            browser: Default::default(),
             blank: Project { name: "Sessions".into(), path: String::new(), open: true, sessions: vec![mock::blank_session()] },
         }
     }
@@ -1010,6 +1015,16 @@ pub fn spec() -> AppSpec<State> {
             ("image-attachments-light", |s| {
                 s.dark = Some(false);
                 s.show_images(mock::images::Case::Attachments)
+            }),
+            ("browser-steps", |s| s.show_browser(mock::browser::Case::Done)),
+            ("browser-steps-light", |s| {
+                s.dark = Some(false);
+                s.show_browser(mock::browser::Case::Done)
+            }),
+            ("browser-steps-running", |s| s.show_browser(mock::browser::Case::Running)),
+            ("browser-steps-running-light", |s| {
+                s.dark = Some(false);
+                s.show_browser(mock::browser::Case::Running)
             }),
             ("agent-done", |s| s.show_agents(mock::agents::Case::Done)),
             ("agent-done-light", |s| {

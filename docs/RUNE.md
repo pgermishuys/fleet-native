@@ -581,3 +581,9 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 - A scroller that should open on its last row is `ScrollSpec { stick_bottom: true }`; moving the highlight calls `tx.scroll_into_view_in(scroller_key, row_key)`.
 - `on_input_key` sees every key, including a plain character, so "any other key closes the list and goes on" is `return false` after closing; no keydown/keyup split is needed.
 - `on_hover` fires once as the pointer enters a row: it is Fleet's `mouseenter`, and with the keyboard's highlight in the same field the pointer moving over a row wins only when it moves.
+
+## Component 3, piece O (browser steps)
+
+- **A row's memo key has to include everything that arrives later for it**: a step's picture decoding after the row was built left a black box until its state was part of the key (`browser_steps::key`), just as in piece N.
+- **A headless test can't read a drawn text**: `Runtime` finds elements by key and position only, so wording is tested in the plain logic (`conv::browser::heading`) and the test checks the element exists.
+- **`El` has `px` and `py` but no `p`.**

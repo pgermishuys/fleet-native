@@ -5,6 +5,7 @@
 //! (`client/src/lib/client-types.ts`) so the reducer in `src/fleet/` can fill it later: a message
 //! has a role and ordered parts, and every part has an id.
 use super::agent_row;
+use super::browser_steps;
 use super::compaction;
 use super::failure;
 use super::fold;
@@ -295,7 +296,7 @@ pub fn stream(t: &Theme, session: &Session, plan: &FoldPlan, partial: bool, olde
                     frame,
                     s.lists().models.len(),
                     fold_key(kept),
-                    (failure, agent_row::key(s, msg), image::key(s, &msg.parts)),
+                    (failure, agent_row::key(s, msg), image::key(s, &msg.parts), browser_steps::key(s, &msg.parts)),
                     s.is_shown(&msg.id),
                 ),
                 || message_row(&theme, &md, msg, (kept, after_tool), streaming, s, (frame.0, frame.1)),

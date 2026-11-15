@@ -97,6 +97,7 @@ impl State {
             self.load_queue(&id);
             self.load_retry(&id);
             self.load_interruption(&id);
+            self.load_browser(&id);
         }
         self.reset_scroll();
         self.follow_end(tx);
@@ -121,6 +122,7 @@ impl State {
             self.load_queue(&id);
             self.load_retry(&id);
             self.load_interruption(&id);
+            self.load_browser(&id);
         }
         if self.stream.is_some() {
             self.loading = true;
@@ -308,7 +310,16 @@ impl State {
                 self.prompts.confirm(id, &confirm);
             }
         }
-        let Some(state) = self.stream.as_mut() else { return };
+        let mut changed = false;
+        for event in &events {
+            changed |= self.apply_browser_event(id, event);
+        }
+        let Some(state) = self.stream.as_mut() else {
+            if changed {
+                self.sync_open();
+            }
+            return;
+        };
         let was_working = state.session_status.working();
         for event in &events {
             reducer::apply(state, event);

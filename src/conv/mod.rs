@@ -3,6 +3,7 @@
 //! Views under `src/view/` draw from these; tests under `tests/` are Fleet's, under the same names.
 pub mod attached;
 pub mod background;
+pub mod browser;
 pub mod bubble;
 pub mod card;
 pub mod compaction;
