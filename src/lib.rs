@@ -386,6 +386,9 @@ pub fn start_desktop() {
         return bench::conversation();
     }
     let (server, rest) = split_args(std::env::args().skip(1));
+    // Pictures, scripted runs and scenes never go looking for a Fleet: they must come out the same every time.
+    let headless =
+        rest.iter().any(|a| matches!(a.as_str(), "--snap" | "--script" | "--scene" | "--video" | "--frames" | "--tree" | "--trace"));
     if let Some(url) = &server {
         let _ = SERVER.set(url.clone());
     }
@@ -402,16 +405,33 @@ pub fn start_desktop() {
                 link.window_visible(visible);
             }
         });
+    let handle = app.handle();
     if let Some(url) = server {
-        let handle = app.handle();
-        let link = Link::start(url, Post::from_handle(handle.clone()));
-        handle.update(move |s, _| {
-            // Nothing invented shows against a real server: the list and the conversation stay empty until it answers.
-            s.projects.clear();
-            s.link = Some(link);
+        connect_to(&handle, url);
+    } else if !headless {
+        // No `--server`: look for the Fleet running on this machine, as Fleet's desktop app does
+        // (`fleet::instance`), off the UI thread because it reads a file and asks the server.
+        let handle = handle.clone();
+        std::thread::spawn(move || match fleet::instance::discover(|k| std::env::var(k).ok()) {
+            Some(found) => connect_to(&handle, found.url),
+            None => handle.update(|s, _| s.notice = Some(NO_FLEET.to_string())),
         });
     }
     app.run();
+}
+
+/// What the window says when discovery finds no Fleet; the mock data stays, so it is still a window to look at.
+pub const NO_FLEET: &str = "No Fleet is running on this machine.";
+
+/// Starts the connection to the Fleet at `url`.
+fn connect_to(handle: &rune::AppHandle<State>, url: String) {
+    let link = Link::start(url, Post::from_handle(handle.clone()));
+    handle.update(move |s, _| {
+        // Nothing invented shows against a real server: the list and the conversation stay empty until it answers.
+        s.projects.clear();
+        s.notice = None;
+        s.link = Some(link);
+    });
 }
 
 /// Takes `--server <url>` (or `--server=<url>`) out of the arguments.

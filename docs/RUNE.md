@@ -285,3 +285,13 @@ Nothing in Rune was needed. Learned:
 - Under Xvfb the scratch Fleet's rename and archive are `PATCH /api/sessions/{id}` (`{"title"}`) and `PATCH …/retention`
   (`{"retentionStatus":"archived"}`); a session started with `initialPrompt` `slow-task` stays working for about 45 s, which is long
   enough to take both themes' pictures of the working glyph.
+
+## Component 2, piece I (finding the Fleet)
+
+Nothing in Rune was needed. Learned:
+
+- `App::handle()` can be cloned into a thread started before `app.run()`; `handle.update` from it applies once the window runs, so
+  discovery needs no `poll` and no channel of our own.
+- Under Xvfb a run for a picture needs a clean environment (`env -i`) to hold `HOME` and `FLEET_DESKTOP_DATA_DIR` to the scratch
+  folder, and then `XAUTHORITY`, `DISPLAY`, `VK_ICD_FILENAMES` and the sysroot's `LD_LIBRARY_PATH` have to be passed back in by hand.
+

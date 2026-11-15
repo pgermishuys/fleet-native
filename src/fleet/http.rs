@@ -31,6 +31,12 @@ pub fn post(base: &str, path: &str, body: &Value) -> Result<Value, String> {
     read(agent().post(url(base, path)).header("content-type", "application/json").send(body.to_string()))
 }
 
+/// `GET /readyz` within `timeout`: whether the Fleet at `base` is up (any 2xx).
+pub fn ready(base: &str, timeout: Duration) -> bool {
+    let agent: ureq::Agent = ureq::Agent::config_builder().timeout_global(Some(timeout)).build().into();
+    agent.get(url(base, "/readyz")).call().is_ok()
+}
+
 /// The session list's rows (`GET /api/sessions`).
 pub fn sessions(base: &str) -> Result<Value, String> {
     get(base, "/api/sessions?limit=200")

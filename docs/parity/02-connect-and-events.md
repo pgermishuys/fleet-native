@@ -143,30 +143,40 @@ Each row: what Fleet does, its source, the native state. `[ ]` open, `[x]` done 
 
 ### 1. Finding the Fleet (`desktop/src/instance.ts`, `main.ts`, `paths.ts`)
 
-- [ ] **1.1 The instance file.** `<dataDir>/fleet.instance.json`; `dataDir` is `FLEET_DESKTOP_DATA_DIR` or `~/.weave`
+- [x] **1.1 The instance file.** `<dataDir>/fleet.instance.json`; `dataDir` is `FLEET_DESKTOP_DATA_DIR` or `~/.weave`
   (`paths.ts`, `resolvePaths`). Parsed by `parseInstance`: needs an integer `pid > 0` and a `url`; `url` trailing
   slashes stripped; `version`, `databasePath`, `desktop`, `startedAt` default to `"unknown"`, `""`, `false`, `""`.
   Anything that isn't a JSON object gives nothing.
-- [ ] **1.2 Loopback only.** `isLoopbackHttpUrl`: `http:` and host `127.0.0.1`, `[::1]` or `localhost`. The file sits in a
+- [x] **1.2 Loopback only.** `isLoopbackHttpUrl`: `http:` and host `127.0.0.1`, `[::1]` or `localhost`. The file sits in a
   user-writable folder; a remote URL in it is never loaded. (The `--server` path takes whatever it's given and
   `host_of` takes `http://` only: `[::1]` must work here too.)
-- [ ] **1.3 Alive and answering.** `isProcessAlive(pid)` (`kill(pid, 0)`; EPERM counts as alive), then `GET <url>/readyz`
+- [x] **1.3 Alive and answering.** `isProcessAlive(pid)` (`kill(pid, 0)`; EPERM counts as alive), then `GET <url>/readyz`
   within 1,500 ms (`isReady`). Both, or no Fleet (`findRunningFleet`).
-- [ ] **1.4 When it runs.** Desktop: at launch (`connect()` in `main.ts`), and again after "taken" (another Fleet took the
+- [x] **1.4 When it runs.** Desktop: at launch (`connect()` in `main.ts`), and again after "taken" (another Fleet took the
   database while this one started: poll `findRunningFleet` every 500 ms for 60 attempts, then
   "Another Fleet is using your data, but it isn't answering."). Native: at launch only; the retry belongs to
   component 24, which starts a server.
-- [ ] **1.5 Nothing running.** Desktop starts its own server (component 24). Until then the window must say so. Wording
+- [x] **1.5 Nothing running.** Desktop starts its own server (component 24). Until then the window must say so. Wording
   is ours (Fleet's splash says "Starting Fleet…"): "No Fleet is running on this machine." with the mock data
   kept so scenes still draw. *Decision needed: see "Decisions this plan makes".*
-- [ ] **1.6 `--server` wins** over discovery; a `--server` that doesn't answer keeps retrying (it does today).
-- [ ] **1.7 Scenes, tests and `--snap`/`--script` never discover.** Headless runs must come out the same every time
+- [x] **1.6 `--server` wins** over discovery; a `--server` that doesn't answer keeps retrying (it does today).
+- [x] **1.7 Scenes, tests and `--snap`/`--script` never discover.** Headless runs must come out the same every time
   (`AGENTS.md`, "Mock data stays").
-- [ ] **1.8 Tests (`desktop/src/__tests__/` has instance tests; port those cases):** `parseInstance` valid, defaults,
+- [x] **1.8 Tests (`desktop/src/__tests__/` has instance tests; port those cases):** `parseInstance` valid, defaults,
   not JSON, not an object, bad pid (0, negative, fractional, string), remote URL, `localhost`, `[::1]`, trailing slash;
   `isReady` true on 200, false on refused and on timeout; `findRunningFleet` with a dead pid and with a live one.
   Check names with `ls desktop/src/__tests__` on the day.
-- Out of reach: nothing. A pid check needs `libc::kill` on Unix and `OpenProcess` on Windows; `libc` and `windows-sys`
+- **Done by piece I** (`src/fleet/instance.rs`, tests in `src/fleet/tests/instance.rs`, under the Vue tests' names where there is
+  one). Gaps and notes: the pid check is `libc::kill` on Unix only; off Unix (Windows) `is_process_alive` says yes and `/readyz`
+  alone decides, so a stale file whose port something else now answers on would be believed there (no `windows-sys` named as a
+  direct dependency). Fleet's `desktop/test/desktop.test.ts` only has the `parseInstance`, `isLoopbackHttpUrl` and `resolvePaths`
+  cases; `isReady` and `findRunningFleet` have no Vue tests, so the cases above are written here from `instance.ts`. The data
+  folder is Fleet's own (`FLEET_DESKTOP_DATA_DIR`, else `<home>/.weave`, home from `HOME`/`USERPROFILE`); a scratch Fleet with
+  `Fleet__DatabasePath=$H/fleet.db` writes its file at `$H/fleet.instance.json`, so a check sets `FLEET_DESKTOP_DATA_DIR=$H`.
+  A URL with a user name (`http://127.0.0.1@host`) is refused outright. Discovery is skipped when Rune's `--snap`, `--script`,
+  `--scene`, `--video`, `--frames`, `--tree` or `--trace` is given (1.7). Row 1.5 uses the wording "No Fleet is running on this
+  machine." in the status bar with the mock data kept (the plan's default; the owner can overturn it).
+- Was out of reach: nothing. A pid check needs `libc::kill` on Unix and `OpenProcess` on Windows; `libc` and `windows-sys`
   are already in `Cargo.lock`. If naming either as a direct dependency is more than the rule below allows, `readyz`
   alone (1,500 ms) gives the same answer for a stale file.
 

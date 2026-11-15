@@ -237,9 +237,12 @@ fn history_failed(post: &Post, session: String, cursor: String, why: &str) {
     post.update(move |s, _| s.on_history_page(&session, &cursor, Err(why)));
 }
 
-fn host_of(base: &str) -> Result<String, String> {
+pub(crate) fn host_of(base: &str) -> Result<String, String> {
     let rest = base.strip_prefix("http://").ok_or("only http:// servers on this machine are supported so far")?;
-    Ok(rest.trim_end_matches('/').to_string())
+    let host = rest.trim_end_matches('/');
+    // `http://127.0.0.1` has no port to connect to: it is 80, as for any browser.
+    let has_port = host.rsplit_once(':').is_some_and(|(_, p)| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit()));
+    Ok(if has_port { host.to_string() } else { format!("{host}:80") })
 }
 
 fn connect(base: &str) -> Result<WebSocket<TcpStream>, String> {

@@ -928,6 +928,7 @@ dependencies = [
 name = "fleet-native"
 version = "0.0.1"
 dependencies = [
+ "libc",
  "rune",
  "rune-kit",
  "serde_json",
