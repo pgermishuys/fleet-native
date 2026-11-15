@@ -204,8 +204,17 @@ pub fn dropdown_capped(t: &Theme, key: &str, anchor: &str, entries: Vec<Entry>, 
 
 /// A right-click menu at a window point (`context-menu/`).
 pub fn context(t: &Theme, key: &str, at: (f32, f32), entries: Vec<Entry>) -> Vec<El> {
+    context_w(t, key, at, entries, None)
+}
+
+/// `context`, `width` wide (`w-56` on the project menu).
+pub fn context_w(t: &Theme, key: &str, at: (f32, f32), entries: Vec<Entry>, width: Option<f32>) -> Vec<El> {
     let point = format!("{key}-point");
-    let p = panel(t, key, entries).modal(true, |s: &mut State| s.ui.open = None);
+    let mut p = panel(t, key, entries);
+    if let Some(w) = width {
+        p = p.w(w);
+    }
+    let p = p.modal(true, |s: &mut State| s.ui.open = None);
     vec![
         scrim(&format!("{key}-scrim"), |s: &mut State| s.ui.open = None),
         el().key(point.clone()).absolute(at.0, at.1).size(0.0, 0.0),

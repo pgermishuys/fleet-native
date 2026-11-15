@@ -68,6 +68,11 @@ pub fn session_context(s: &State, t: &Theme, p: usize, i: usize) -> Vec<El> {
     )
 }
 
+/// A project header's right-click menu (`ProjectGroup.vue`).
+pub fn project_context(s: &State, t: &Theme, p: usize) -> Vec<El> {
+    crate::view::project_menu::context(s, t, p)
+}
+
 /// The gallery's own menu: every row kind once.
 fn gallery(s: &State) -> Vec<Entry> {
     let check = s.ui.g_check;

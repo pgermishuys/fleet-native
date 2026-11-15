@@ -134,6 +134,22 @@ Pictures, Fleet's own client (left) beside native (right), 1280x760 cropped to t
 ![folding, light](../../shots/parity/06-session-list/piece-f/pair-fold-light.png)
 ![headers, Pinned and Ungrouped (light above, dark below)](../../shots/parity/06-session-list/piece-f/headers-pinned-ungrouped.png)
 
+## Piece G, built (15 November 2026)
+
+The project's +, right-click menu, rename in place, Move up/down and the delete dialog. `src/fleet/projects.rs` (requests and rules as plain data: `rename_outcome`, `move_targets`, the paths and bodies; `State` methods that send a call on a thread with `Link::off_thread` and read the list again on success; with no server the invented list takes the change, so scenes and tests need none), `src/view/project_header.rs` (`project_shell`: + and name field), `src/view/project_menu.rs`, `src/view/project_dialogs.rs`, `ui::dialog::Dialog` gained `title_icon`, `description_el` and `dismiss`. Tests: `src/tests_project.rs` (30; the `ProjectGroup.test.ts` cases "shows a New session + button that emits newSession without toggling", "has no + button for the ungrouped group" and "shows no rename input for the ungrouped group" under those names, the rest written from the source because Fleet has no tests for the menu, `InlineEdit` or the delete dialog).
+
+Done: **2.6, 2.20-2.23, 2.25-2.30, 2.40-2.47, 2.50-2.59, 2.140, 2.141**; **2.24** and **2.142** partly (below). Run against a scratch Fleet v0.72.0: renamed a project (the name changed on the server), moved one down (positions 1..n sent in sequence; the list came back in the new order), deleted one with "Delete project only" (it left `GET /api/projects`; its sessions stayed). **2.48:** checked: `PATCH /api/projects/{id}` with `description: null` leaves a project's description as it was (a project made with one kept it), so Fleet's `null` is harmless; nothing to fix.
+
+Open, with reasons: **2.24** the + and the menu's New session record the project (`proj.new_session_in`) and say in a toast that the New session page is component 7's; they cannot go to `/sessions/new?projectId=` yet. **2.21, 2.22** no 150 ms ease on the + (Rune has no transitions). **2.60** left as Fleet has it: the dialog counts the group's filtered rows (`shown_count`). **2.142** Fleet is silent when a request fails; here a toast says why, which is a difference on purpose (the brief). **2.47/2.59** the same. The delete dialog's radio is drawn (Fleet uses the browser's, blue in both themes). **Differences found in v0.72.0 (the released client the pictures come from) against `main`, followed here as `main`:** the dialog's description and card lines are drawn in the full text colour in v0.72.0 (its CSS has no `--color-muted-foreground`, so `text-muted-foreground` inherits), the confirm button reads "Delete Project", and the name field's ring is 1 px; `main` has the muted lines, "Delete project" and a 3 px ring. Not checked: a real keyboard's F2 (the test focuses the header and presses it), Windows and macOS (CI).
+
+Pictures, Fleet's own client (above or left) beside native, one scratch Fleet v0.72.0 with four projects: the + on a hovered header, the menu, rename in place (name selected), the delete dialog with its first card picked, and with the second.
+
+![the +, dark](../../shots/parity/06-session-list/piece-g/pair-plus-dark.png)
+![the menu, dark](../../shots/parity/06-session-list/piece-g/pair-menu-dark.png)
+![rename, dark](../../shots/parity/06-session-list/piece-g/pair-rename-dark.png)
+![delete, dark](../../shots/parity/06-session-list/piece-g/pair-delete-dark.png)
+![delete, all sessions, dark](../../shots/parity/06-session-list/piece-g/pair-delete-all-dark.png)
+
 ## What "done" means
 
 1. The list is Fleet's: projects from `GET /api/projects` in their own order (Pinned first,
@@ -570,7 +586,7 @@ nothing but the status-bar words), and `theme.rs` has no coral token. Row 5.1 is
 | 2.3 | Keyboard focus ring: 2px solid `--accent`, offset -2 (inside) | PG `.project-header:focus-visible` | None (header has no `.focus_ring`) |
 | 2.4 | Chevron `ChevronDown` 13x13, shrink 0, colour `--muted` at 70%; collapsed rotates -90deg; transform eases 150ms | PG `.project-chevron`, `.collapsed` | Partial: `icon(&CHEVRON_DOWN, 13)` with `.rotate`; instant, no ease |
 | 2.5 | Title: 12px (0.85714rem), weight 600, line 1.3, one line, ellipsis; takes the space left (`flex 1 1 auto; min-width 0`) | PG `.project-title`, `.project-copy` | Done: `sans(12, 600, 1.3).truncate().grow(1)` |
-| 2.6 | Title reserves `margin-right: 28` for the + slot when the + exists (real projects only); nothing moves when + appears | PG `.project-shell > .project-header .project-title` | None |
+| 2.6 | Title reserves `margin-right: 28` for the + slot when the + exists (real projects only); nothing moves when + appears | PG `.project-shell > .project-header .project-title` | Done (piece G): `project_header(.., plus)` keeps 28 px clear |
 | 2.7 | Count: 12px, weight 500, `--muted` at 70%, tabular figures, no shrink; shows `project.sessionCount` (under a filter: the filtered count) | PG `.project-count`; SPG `filterProjectGroups` | Done: `text(count)` with `'tnum'`; count is the filtered rows |
 | 2.8 | Click on header toggles open/closed, emits `toggle(project.id)`; state is `aria-expanded` | PG `handleToggle` | Done: `on_press` flips `Project.open` |
 | 2.9 | Open/closed is remembered across restarts, per machine and project: key `project:<machineKey>:<projectId>` in the map stored at `weave:sessions-collapsed-groups`; only collapsed groups are stored; default open | SB `projectGroupKey`, `setGroupCollapsed` (l.126-152) | None (in memory only) |
@@ -587,46 +603,46 @@ nothing but the status-bar words), and `theme.rs` has no coral token. Row 5.1 is
 
 | # | Row | Source | Native today |
 |---|---|---|---|
-| 2.20 | + button, only for a real project (not Ungrouped, not Pinned): 22x22 grid-centred, absolute `top 2; right 34`, radius 6, transparent, `Plus` icon 15x15, colour `--muted`; `data-testid=project-new-session` | PG `.project-new` | None |
-| 2.21 | + is hidden (opacity 0) until the group header is hovered or has focus inside; fades with `--transition`; sits left of the count | PG `.project-shell:hover/:focus-within .project-new` | None |
-| 2.22 | + hover: fill `--text` 10%, colour `--accent-text`; focus ring 2px `--accent`, offset -1 | PG `.project-new:hover/:focus-visible` | None |
-| 2.23 | + wording: `aria-label` and tooltip `title` = `New session in {project.name}` | PG template | None |
-| 2.24 | + click does not toggle the group; emits `newSession(projectId)`; SP goes to `/sessions/new?projectId=<id>` (Sessions rail active) | PG `handleNewSessionRequest`; SP `handleProjectSessionCreate`, `openNewSessionPage` | None |
-| 2.25 | + is disabled while a rename, reorder or delete request is in flight (`isUpdating \|\| isReordering \|\| isDeleting`) | PG `isAnyActionPending` | None |
-| 2.26 | Right-click on header or + opens the context menu (`w-56` = 196 wide); only for a real project and not while renaming | PG `ContextMenu v-if="canShowContextMenu && !isInlineEditing"` | None (only session rows have a menu: `menus::session_context`) |
-| 2.27 | Menu items in order: **New session** (`Plus`, icon `size-3.5` = 12.25) ; separator ; **Rename** (`Pencil`, shortcut chip `F2`) ; **Move up** (`ArrowUp`, only if `canMoveUp`) ; **Move down** (`ArrowDown`, only if `canMoveDown`) ; separator ; **Delete…** (`Trash2`, destructive variant, ellipsis U+2026) | PG template l.544-592 | None (`ui::menu::{Item, context}` exist: `.icon`, `.shortcut`, `.destructive`, `.disabled`) |
-| 2.28 | Every item is disabled while a project request is pending | PG `:disabled="isAnyActionPending"` | None |
+| 2.20 | + button, only for a real project (not Ungrouped, not Pinned): 22x22 grid-centred, absolute `top 2; right 34`, radius 6, transparent, `Plus` icon 15x15, colour `--muted`; `data-testid=project-new-session` | PG `.project-new` | Done (piece G): `project_shell`, 22x22, `pin(2, 34)`, 15 px icon, key `project-new-<n>` |
+| 2.21 | + is hidden (opacity 0) until the group header is hovered or has focus inside; fades with `--transition`; sits left of the count | PG `.project-shell:hover/:focus-within .project-new` | Done (piece G): `group_opacity(0, 1)` under the shell's `hover_group` (also lit by focus inside). Fleet fades it over 150 ms; instant here |
+| 2.22 | + hover: fill `--text` 10%, colour `--accent-text`; focus ring 2px `--accent`, offset -1 | PG `.project-new:hover/:focus-visible` | Done (piece G): fill 10 %, `accent_text` icon, 2 px ring offset -1 |
+| 2.23 | + wording: `aria-label` and tooltip `title` = `New session in {project.name}` | PG template | Done (piece G): label and tooltip |
+| 2.24 | + click does not toggle the group; emits `newSession(projectId)`; SP goes to `/sessions/new?projectId=<id>` (Sessions rail active) | PG `handleNewSessionRequest`; SP `handleProjectSessionCreate`, `openNewSessionPage` | Partial (piece G): does not fold the group and records the project (`proj.new_session_in`); the New session page is component 7, so a toast says so |
+| 2.25 | + is disabled while a rename, reorder or delete request is in flight (`isUpdating \|\| isReordering \|\| isDeleting`) | PG `isAnyActionPending` | Done (piece G): `proj.pending` disables the + and every menu item |
+| 2.26 | Right-click on header or + opens the context menu (`w-56` = 196 wide); only for a real project and not while renaming | PG `ContextMenu v-if="canShowContextMenu && !isInlineEditing"` | Done (piece G): `Open::ProjectMenu`, 196 wide, not for Ungrouped, not while renaming |
+| 2.27 | Menu items in order: **New session** (`Plus`, icon `size-3.5` = 12.25) ; separator ; **Rename** (`Pencil`, shortcut chip `F2`) ; **Move up** (`ArrowUp`, only if `canMoveUp`) ; **Move down** (`ArrowDown`, only if `canMoveDown`) ; separator ; **Delete…** (`Trash2`, destructive variant, ellipsis U+2026) | PG template l.544-592 | Done (piece G): `view/project_menu.rs`, items and their conditions in Fleet's order, F2 chip |
+| 2.28 | Every item is disabled while a project request is pending | PG `:disabled="isAnyActionPending"` | Done (piece G) |
 | 2.29 | Menu item styling (hover, destructive, shortcut chip, the hint footer) is the shared `menuItemClass` | `components/ui/menu-classes`, `ContextMenuItem.vue` | Done in `ui/menu.rs` (shared) |
-| 2.30 | Menu closes on select; New session, Rename, Delete… and the moves close it before acting | PG `handleNewSessionRequest`, `startRename`, `openDeleteDialog`, `handleMoveUp/Down` | None |
+| 2.30 | Menu closes on select; New session, Rename, Delete… and the moves close it before acting | PG `handleNewSessionRequest`, `startRename`, `openDeleteDialog`, `handleMoveUp/Down` | Done (piece G): the shared menu closes before the handler runs |
 
 ### 3. Rename (IE and the PG rename flow)
 
 | # | Row | Source | Native today |
 |---|---|---|---|
-| 2.40 | Rename starts from menu Rename or **F2** on the focused header; ignored for Ungrouped/Pinned and while a request is pending | PG `startRename`, `handleHeaderKeydown` | None |
-| 2.41 | While renaming the header is a non-button `div.project-header--editing` (cursor default, hover fill off), same chevron, the input replaces the title, a spacer replaces the count (count hidden) | PG template l.626-646, `.project-header--editing` | None |
-| 2.42 | Input: autofocus and select all on mount (after next tick); placeholder `Project name`; initial value = current name | IE `onMounted`; PG `placeholder` | None |
-| 2.43 | Input box: `h-8` (28), full width, `px-2` (7), `py-1` (3.5), 1px border `--input`, transparent fill (dark: `input/30`), text-sm 12.25, no radius, `shadow-xs` | IE class | None (`text_input` exists, used by the filter at 32px) |
-| 2.44 | Focus: border `--ring`, 3px ring `ring/50`; disabled (while saving): opacity 50%, no pointer events | IE class | None |
-| 2.45 | **Enter** commits, **Escape** cancels, **blur** commits; only the first of these counts (`hasCompleted`); a disabled input never commits | IE `commit`, `cancel`, `handleKeydown`, `handleBlur` | None |
-| 2.46 | Commit: trim; empty or unchanged name does nothing (edit mode closes, no request); else `PATCH /api/projects/{id}` body `{ "name": <trimmed>, "description": null }`; then emits `projectChanged` -> SP re-reads projects, then sessions | PG `handleRename`; USA `useUpdateProject` l.698; SP `handleProjectChanged` | None |
-| 2.47 | Edit mode closes at once on commit (before the request answers); on failure nothing is shown (error stays in the composable) | PG `handleRename` catch | None |
+| 2.40 | Rename starts from menu Rename or **F2** on the focused header; ignored for Ungrouped/Pinned and while a request is pending | PG `startRename`, `handleHeaderKeydown` | Done (piece G): menu Rename and F2 on the focused header (the header is `focusable`) |
+| 2.41 | While renaming the header is a non-button `div.project-header--editing` (cursor default, hover fill off), same chevron, the input replaces the title, a spacer replaces the count (count hidden) | PG template l.626-646, `.project-header--editing` | Done (piece G): `editing` in `project_header.rs`; same chevron, field, no count |
+| 2.42 | Input: autofocus and select all on mount (after next tick); placeholder `Project name`; initial value = current name | IE `onMounted`; PG `placeholder` | Done (piece G): focus and select-all on start (`start_rename`); placeholder `Project name` |
+| 2.43 | Input box: `h-8` (28), full width, `px-2` (7), `py-1` (3.5), 1px border `--input`, transparent fill (dark: `input/30`), text-sm 12.25, no radius, `shadow-xs` | IE class | Done (piece G): 28 high, `px 7`, `py 3.5`, `--input` border, dark fill `wash(5.4)`; width is Fleet's `project-copy` plus half the spare room (worked out from the panel width) |
+| 2.44 | Focus: border `--ring`, 3px ring `ring/50`; disabled (while saving): opacity 50%, no pointer events | IE class | Done (piece G): border accent and 3 px ring while focused (main's `ring-[3px]`; v0.72.0 draws 1 px); disabled 50 % while the request is on its way |
+| 2.45 | **Enter** commits, **Escape** cancels, **blur** commits; only the first of these counts (`hasCompleted`); a disabled input never commits | IE `commit`, `cancel`, `handleKeydown`, `handleBlur` | Done (piece G): Enter commits, Escape cancels, blur commits (polled: `keep_rename`), only the first counts |
+| 2.46 | Commit: trim; empty or unchanged name does nothing (edit mode closes, no request); else `PATCH /api/projects/{id}` body `{ "name": <trimmed>, "description": null }`; then emits `projectChanged` -> SP re-reads projects, then sessions | PG `handleRename`; USA `useUpdateProject` l.698; SP `handleProjectChanged` | Done (piece G): trimmed, empty or unchanged asks for nothing; `PATCH /api/projects/{id}` `{name, description: null}`; the list is read again |
+| 2.47 | Edit mode closes at once on commit (before the request answers); on failure nothing is shown (error stays in the composable) | PG `handleRename` catch | Done (piece G): closes at once; a failure is told in a toast (Fleet shows nothing), which is a difference |
 | 2.48 | Fleet quirk to report, not copy: rename sends `description: null`, which may clear a project's description server-side (check `PATCH /api/projects/{id}` before porting) | PG l.425 | n/a |
 
 ### 4. Delete project dialog (CD)
 
 | # | Row | Source | Native today |
 |---|---|---|---|
-| 2.50 | Opens from the menu's Delete…; closes on Cancel or Escape; an alert dialog (overlay press does not close); cannot be closed while deleting | PG `openDeleteDialog`; CD `handleOpenChange` | None (`ui::dialog::dialog` with `close_button:false` exists) |
-| 2.51 | Panel: `AlertDialogContent`: `max-w-lg` (448), `p-6` (21), `gap-4` (14), 1px `--border`, `bg-background`, no radius, `shadow-lg`, centred; overlay `black/80` | `components/ui/alert-dialog/AlertDialogContent.vue` | Done: `ui/dialog.rs::dialog` |
-| 2.52 | Title: flex, `gap-2` (7), `AlertTriangle` 14x14 (`h-4 w-4`) in `--error-text`, then `Delete {projectName}?`; font `text-lg` 15.75 weight 600 | CD template l.62-65 | None |
-| 2.53 | Description (`text-sm` 12.25, muted): `Choose what should happen to the` + count in `font-medium text-foreground` + `session` + `s` unless count is 1 + ` in this project.` | CD l.66-70 | None |
-| 2.54 | Two radio cards in a grid with `gap-3` (10.5); each card: flex, `gap-3`, `p-4` (14), 1px border, `text-sm`, cursor pointer, native radio `mt-0.5` (1.75), text stack `space-y-1` (3.5) | CD l.73-107 | None |
-| 2.55 | Card 1 `move_to_scratch` (default each time the dialog opens): title `Delete project only` (font-medium, foreground), text `Move all sessions to Ungrouped and keep them available.` (muted); fill `--secondary` 60%, border `--border`; hover fill `--secondary`; selected: border `--primary`, fill `--primary` 5% | CD l.74-89 | None |
-| 2.56 | Card 2 `delete_sessions`: title `Delete project and all sessions`, text `This permanently removes the project and every session inside it.`; fill `--destructive` 5%, border `--destructive` 40%; hover fill 10%; selected: border `--destructive`, fill 10% | CD l.91-106 | None |
-| 2.57 | Radios disabled while deleting; selection resets to card 1 on every open | CD `watch(open)` | None |
-| 2.58 | Footer right-aligned, `gap-2` (7): **Cancel** (outline button) and **Delete project** (destructive: `bg-destructive`, dark 60%, white text); both `h-9` (31.5), `px-4` (14), text-sm weight 500; while deleting both disabled (opacity 50%) and the label reads `Deleting…` (U+2026) | CD l.109-126; `ui/button/index.ts` | Partial: `dialog::footer_button` (outline/default only; no destructive variant) |
-| 2.59 | Confirm: `DELETE /api/projects/{id}?mode=move_to_scratch\|delete_sessions`; on success the dialog closes and emits `projectChanged` (projects then sessions re-read); on failure the dialog stays open with **no error text** (silent: record as a Fleet gap) | PG `handleDelete`; USA `useDeleteProject` l.341 | None |
+| 2.50 | Opens from the menu's Delete…; closes on Cancel or Escape; an alert dialog (overlay press does not close); cannot be closed while deleting | PG `openDeleteDialog`; CD `handleOpenChange` | Done (piece G): `view/project_dialogs.rs`; Cancel and Escape close it, the overlay does not, nothing closes it while deleting |
+| 2.51 | Panel: `AlertDialogContent`: `max-w-lg` (448), `p-6` (21), `gap-4` (14), 1px `--border`, `bg-background`, no radius, `shadow-lg`, centred; overlay `black/80` | `components/ui/alert-dialog/AlertDialogContent.vue` | Done on `ui::dialog` (`title_icon`, `description_el`, `dismiss` added to `Dialog`) |
+| 2.52 | Title: flex, `gap-2` (7), `AlertTriangle` 14x14 (`h-4 w-4`) in `--error-text`, then `Delete {projectName}?`; font `text-lg` 15.75 weight 600 | CD template l.62-65 | Done (piece G) |
+| 2.53 | Description (`text-sm` 12.25, muted): `Choose what should happen to the` + count in `font-medium text-foreground` + `session` + `s` unless count is 1 + ` in this project.` | CD l.66-70 | Done (piece G): count in medium weight, singular for 1 |
+| 2.54 | Two radio cards in a grid with `gap-3` (10.5); each card: flex, `gap-3`, `p-4` (14), 1px border, `text-sm`, cursor pointer, native radio `mt-0.5` (1.75), text stack `space-y-1` (3.5) | CD l.73-107 | Done (piece G): cards as rows with a drawn radio (a native radio is the browser's) |
+| 2.55 | Card 1 `move_to_scratch` (default each time the dialog opens): title `Delete project only` (font-medium, foreground), text `Move all sessions to Ungrouped and keep them available.` (muted); fill `--secondary` 60%, border `--border`; hover fill `--secondary`; selected: border `--primary`, fill `--primary` 5% | CD l.74-89 | Done (piece G): first card is the default every time; fills as Fleet's source |
+| 2.56 | Card 2 `delete_sessions`: title `Delete project and all sessions`, text `This permanently removes the project and every session inside it.`; fill `--destructive` 5%, border `--destructive` 40%; hover fill 10%; selected: border `--destructive`, fill 10% | CD l.91-106 | Done (piece G) |
+| 2.57 | Radios disabled while deleting; selection resets to card 1 on every open | CD `watch(open)` | Done (piece G) |
+| 2.58 | Footer right-aligned, `gap-2` (7): **Cancel** (outline button) and **Delete project** (destructive: `bg-destructive`, dark 60%, white text); both `h-9` (31.5), `px-4` (14), text-sm weight 500; while deleting both disabled (opacity 50%) and the label reads `Deleting…` (U+2026) | CD l.109-126; `ui/button/index.ts` | Done (piece G): `Variant::Destructive`; label `Deleting…`. v0.72.0's client says "Delete Project"; main says "Delete project", which is what is drawn |
+| 2.59 | Confirm: `DELETE /api/projects/{id}?mode=move_to_scratch\|delete_sessions`; on success the dialog closes and emits `projectChanged` (projects then sessions re-read); on failure the dialog stays open with **no error text** (silent: record as a Fleet gap) | PG `handleDelete`; USA `useDeleteProject` l.341 | Done (piece G): `DELETE ...?mode=`; on failure the dialog stays and a toast says why (Fleet shows nothing: difference) |
 | 2.60 | The session count in the dialog is `project.sessionCount` of the **filtered** group (with a search on it shows the filtered count): Fleet quirk | PG `:session-count` | n/a |
 
 ### 5. Draft row (DR) and its slot
@@ -692,9 +708,9 @@ nothing but the status-bar words), and `theme.rs` has no coral token. Row 5.1 is
 
 | # | Row | Source | Native today |
 |---|---|---|---|
-| 2.140 | `canMoveUp`: the group is a user group (not Ungrouped) and not first; `canMoveDown`: not last among user groups; Ungrouped and Pinned have neither | SPG l.164-175 | None |
-| 2.141 | A move swaps the group with its neighbour; targets = every user group in the **new** order with `position = index + 1`; the menu sends one `PATCH /api/projects/{id}/reorder` body `{ position }` per target, **in sequence**, then emits `projectChanged` | SPG `buildReorderTargets`, `swapProjects`; PG `handleMoveUp/Down`; USA `useReorderProject` l.727 | None |
-| 2.142 | A failed request stops the loop silently; no list re-read happens (`projectChanged` not emitted) | PG catch | None |
+| 2.140 | `canMoveUp`: the group is a user group (not Ungrouped) and not first; `canMoveDown`: not last among user groups; Ungrouped and Pinned have neither | SPG l.164-175 | Done (piece G): `State::can_move`, `move_targets` (Scratch counts as an orderable group, as in `buildProjectGroups`) |
+| 2.141 | A move swaps the group with its neighbour; targets = every user group in the **new** order with `position = index + 1`; the menu sends one `PATCH /api/projects/{id}/reorder` body `{ position }` per target, **in sequence**, then emits `projectChanged` | SPG `buildReorderTargets`, `swapProjects`; PG `handleMoveUp/Down`; USA `useReorderProject` l.727 | Done (piece G): one `PATCH .../reorder` per project in sequence, then the list is read again |
+| 2.142 | A failed request stops the loop silently; no list re-read happens (`projectChanged` not emitted) | PG catch | Partial (piece G): a failed request stops the loop; a toast says so (Fleet is silent) and the list is not re-read, as Fleet |
 
 ### 9. Archive queue (AQ), as the list uses it
 

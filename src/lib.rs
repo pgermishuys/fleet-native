@@ -23,6 +23,8 @@ mod tests_images;
 #[cfg(test)]
 mod tests_panel;
 #[cfg(test)]
+mod tests_project;
+#[cfg(test)]
 mod tests_rows;
 mod theme;
 pub mod ui;
@@ -65,6 +67,8 @@ pub struct State {
     pub projects: Vec<Project>,
     /// `GET /api/projects`: what orders and names the groups, and whether the last read failed.
     pub project_load: fleet::groups::ProjectsLoad,
+    /// Rename, delete and move on a project, and the + (`fleet::projects`).
+    pub proj: fleet::projects::Projects,
     /// What the window shows: the open session by its id, so a refetch, a filter or a pin doesn't move it.
     pub route: fleet::store::Route,
     /// The list's own state beyond its rows: loading, error, the request in flight, sessions opened from other machines.
@@ -233,6 +237,7 @@ impl Default for State {
             drawn_dark: std::cell::Cell::new(true),
             projects: if SERVER.get().is_some() { Vec::new() } else { mock::projects() },
             project_load: fleet::groups::ProjectsLoad::new(true),
+            proj: Default::default(),
             route: if SERVER.get().is_some() {
                 fleet::store::Route::None
             } else {
@@ -917,6 +922,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     let composer_changed = s.keep_composer_state(now) | s.keep_autocomplete(now, tx) | s.keep_attachments(tx);
     let scrolled = s.keep_scroll(tx);
     let pictures = s.keep_images(tx);
+    let renamed = s.keep_rename(tx);
     let found = s.find_poll(tx);
     let exported = s.export_poll(tx);
     // "Copied" on a message's button ends by itself.
@@ -931,7 +937,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         }
         None => false,
     };
-    poll_rest(s, now, tx) || composer_changed || copied || scrolled || pictures || found || exported
+    poll_rest(s, now, tx) || composer_changed || copied || scrolled || pictures || found || exported || renamed
 }
 
 impl State {
@@ -1089,6 +1095,24 @@ pub fn spec() -> AppSpec<State> {
                 s.dark = Some(false);
                 s.show_older(Older::Loading)
             }),
+            // Piece G of the session list: the project menu, rename in place and the delete dialog.
+            ("project-menu", |s| s.show_project_menu(1, 335.0)),
+            ("project-menu-light", |s| {
+                s.dark = Some(false);
+                s.show_project_menu(1, 335.0)
+            }),
+            ("project-rename", |s| s.show_project_rename(1)),
+            ("project-rename-light", |s| {
+                s.dark = Some(false);
+                s.show_project_rename(1)
+            }),
+            ("project-delete", |s| s.show_project_delete(1, fleet::projects::DeleteMode::MoveToScratch, false)),
+            ("project-delete-light", |s| {
+                s.dark = Some(false);
+                s.show_project_delete(1, fleet::projects::DeleteMode::MoveToScratch, false)
+            }),
+            ("project-delete-all", |s| s.show_project_delete(1, fleet::projects::DeleteMode::DeleteSessions, false)),
+            ("project-delete-busy", |s| s.show_project_delete(1, fleet::projects::DeleteMode::DeleteSessions, true)),
             ("list-groups", |s| s.show_groups("")),
             ("list-groups-light", |s| {
                 s.dark = Some(false);

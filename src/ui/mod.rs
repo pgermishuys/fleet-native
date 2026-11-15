@@ -36,6 +36,8 @@ pub enum Open {
     Menu(&'static str),
     /// A right-click menu on a session: (project, session).
     Context(usize, usize),
+    /// A right-click menu on a project's header: its place in the list.
+    ProjectMenu(usize),
     Select(&'static str),
     Popover(&'static str),
     Directory,
@@ -105,6 +107,7 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
         Some(Open::Palette) => palette::view(s, t),
         Some(Open::Menu(name)) => menus::dropdown(s, t, name),
         Some(Open::Context(p, i)) => menus::session_context(s, t, p, i),
+        Some(Open::ProjectMenu(p)) => menus::project_context(s, t, p),
         Some(Open::Select(name)) => gallery::select_content(s, t, name),
         Some(Open::Popover("context")) => crate::view::ring_popover::overlay(s, t),
         Some(Open::Popover(name)) => gallery::popover_content(s, t, name),
@@ -120,6 +123,9 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
     {
         let panel = crate::view::autocomplete::popup(s, t, popup, s.pickers.composer_w);
         layer.push(panel.anchored_fit("composer-frame", rune::Side::Top, rune::Align::Start, 6.0));
+    }
+    if let Some(delete) = crate::view::project_dialogs::delete(s, t) {
+        layer.extend(delete);
     }
     if let Some(export) = crate::view::export::dialog(s, t) {
         layer.extend(export);

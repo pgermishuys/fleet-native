@@ -212,6 +212,7 @@ pub fn dialog(_s: &State, t: &Theme) -> Vec<El> {
             ],
             close_button: true,
             click_outside: true,
+            ..Default::default()
         },
     )
 }
@@ -230,6 +231,7 @@ pub fn alert(_s: &State, t: &Theme) -> Vec<El> {
             ],
             close_button: false,
             click_outside: false,
+            ..Default::default()
         },
     )
 }

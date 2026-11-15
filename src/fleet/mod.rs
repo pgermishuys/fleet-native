@@ -27,6 +27,7 @@ pub mod modes;
 pub mod panel;
 pub mod prefs;
 pub mod presence;
+pub mod projects;
 pub mod prompts;
 pub mod queue;
 pub mod reducer;
