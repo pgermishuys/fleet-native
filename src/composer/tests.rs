@@ -22,6 +22,7 @@ fn harness(kind: &str, steering: bool, by_default: bool, shell: bool, side: bool
         supports_shell_commands: shell,
         supports_side_conversations: side,
         supports_image_attachments: images,
+        ..Default::default()
     }
 }
 

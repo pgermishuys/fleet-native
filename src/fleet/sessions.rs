@@ -76,7 +76,8 @@ pub fn parse_list(rows: &Value, now_ms: i64) -> Vec<Project> {
         };
         let updated = row.pointer("/session/time/updated").and_then(Value::as_i64).unwrap_or(0);
         let (age, dim) = age(now_ms, updated);
-        let info = Row::from_list_item(row);
+        let mut info = Row::from_list_item(row);
+        info.updated = updated;
         let status = glyph_of(&info.lifecycle, &info.activity);
         listed.push((
             updated,

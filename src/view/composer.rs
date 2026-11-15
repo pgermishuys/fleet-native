@@ -70,6 +70,10 @@ fn frame(s: &State, t: &Theme, disabled: bool, mode: Mode) -> El {
         // Return is the field's own submit; Ctrl/Cmd+Return is its other choice (steer where Enter queues, queue where
         // it steers). The field takes the key before the frame does, so it is asked here.
         .on_input_key(|s: &mut State, ev: &rune::KeyEvent, tx| {
+            // The popup, when it is open, takes the arrows, Enter, Tab and Esc first (row 5.13).
+            if s.autocomplete_key(ev, tx) {
+                return true;
+            }
             if ev.key == Key::Enter && (ev.mods.cmd || ev.mods.ctrl) {
                 submit(s, tx, true);
                 return true;

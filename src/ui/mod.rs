@@ -113,6 +113,14 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
         Some(Open::Alert) => gallery::alert(s, t),
         Some(Open::Sheet(side)) => gallery::sheet(s, t, side),
     };
+    // The autocomplete popup, 6 px above the composer's frame and as wide as it; it never takes focus from the text area.
+    if s.ui.open.is_none()
+        && let Some(popup) = &s.auto.popup
+        && s.pickers.composer_w > 0.0
+    {
+        let panel = crate::view::autocomplete::popup(s, t, popup, s.pickers.composer_w);
+        layer.push(panel.anchored_fit("composer-frame", rune::Side::Top, rune::Align::Start, 6.0));
+    }
     if let Some(toast) = &s.ui.toast {
         layer.push(
             rune::col()

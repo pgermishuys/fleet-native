@@ -239,3 +239,38 @@ pub fn queue_send(base: &str, session: &str, item: &str) -> Result<(u16, Value),
 pub fn work_all(base: &str, session: &str) -> Result<(u16, Value), String> {
     status_of("GET", base, &format!("/api/sessions/{session}/work?all=true"))
 }
+
+/// `GET /api/sessions/{id}/commands`: the harness's slash commands and skills (the `/` and `$` lists). The status is
+/// read by the caller: the error text is the body's `error`, or "HTTP n".
+pub fn commands(base: &str, session: &str) -> Result<(u16, Value), String> {
+    status_of("GET", base, &format!("/api/sessions/{session}/commands"))
+}
+
+/// A query-string value, escaped (the file search's `q` holds `/`, spaces and anything typed after the `@`).
+fn query_value(value: &str) -> String {
+    value
+        .bytes()
+        .map(|b| if b.is_ascii_alphanumeric() || b"-._~".contains(&b) { (b as char).to_string() } else { format!("%{b:02X}") })
+        .collect()
+}
+
+/// `GET /api/sessions/{id}/find/files?q=`: the session's files and folders matching `q`; folders end in "/".
+pub fn find_files(base: &str, session: &str, q: &str) -> Result<(u16, Value), String> {
+    status_of("GET", base, &format!("/api/sessions/{session}/find/files?q={}", query_value(q)))
+}
+
+/// `GET /api/directories/find?path=&q=`: the same search in a folder, for a draft with no session yet (component 7).
+pub fn find_in_directory(base: &str, path: &str, q: &str) -> Result<(u16, Value), String> {
+    status_of("GET", base, &format!("/api/directories/find?path={}&q={}", query_value(path), query_value(q)))
+}
+
+/// `GET /api/sessions?retentionStatus=all&limit=200`: every session, archived ones too, for the `@` list.
+pub fn sessions_for_mentions(base: &str) -> Result<Value, String> {
+    get(base, "/api/sessions?retentionStatus=all&limit=200")
+}
+
+/// `POST /api/sessions/{id}/command` `{command, arguments?, agent?, model?}`: run a slash command (202). A refusal is an
+/// answer with a status.
+pub fn command(base: &str, session: &str, body: &Value) -> Result<(u16, Value), String> {
+    status_with("POST", base, &format!("/api/sessions/{session}/command"), Some(body))
+}

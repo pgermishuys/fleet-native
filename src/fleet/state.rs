@@ -93,6 +93,7 @@ impl State {
             }
             self.sync_open();
             self.load_catalog(&id);
+            self.load_commands(&id);
             self.load_queue(&id);
             self.load_retry(&id);
             self.load_interruption(&id);
@@ -116,6 +117,7 @@ impl State {
     pub fn on_reconnected(&mut self) {
         self.load_pickers();
         if let Some(id) = self.open_id() {
+            self.load_commands(&id);
             self.load_queue(&id);
             self.load_retry(&id);
             self.load_interruption(&id);

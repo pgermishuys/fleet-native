@@ -117,6 +117,9 @@ pub struct State {
     pub composer_error: Option<String>,
     /// Each session's queue as Fleet last said it (`fleet::queue`).
     pub queue: fleet::queue::Queues,
+    /// What the `/`, `@` and `$` lists are made from, and the popup they open (`fleet::finder`, `fleet::autocomplete`).
+    pub finder: fleet::finder::Finder,
+    pub auto: fleet::autocomplete::Auto,
     /// A prompt was sent and the session hasn't said it is busy yet (`optimisticBusy`, row 2.11).
     pub optimistic: Option<composer::status::Optimistic>,
     /// The session whose Interrupt is on its way (`aborting`): the button stays off until it is idle.
@@ -196,6 +199,8 @@ impl Default for State {
             retry_acts: Default::default(),
             retry_seen: 0,
             queue: Default::default(),
+            finder: Default::default(),
+            auto: Default::default(),
             interrupt_acts: Default::default(),
             quiet_machine: None,
             reasoning_open: Default::default(),
@@ -517,6 +522,11 @@ pub fn submit(s: &mut State, tx: &mut Tx, modifier: bool) {
             queue_draft(s, tx, fleet::queue::ItemKind::Command, Some((command, args)))
         }
         composer::route::Route::Shell { queue: true, .. } => queue_draft(s, tx, fleet::queue::ItemKind::Shell, None),
+        // A slash command runs as a command (piece K). Without a server the canned reply stands in, as for a prompt.
+        composer::route::Route::Command { command, args, queue: false } if s.link.is_some() && s.open_id().is_some() => {
+            s.send_command(tx, command, args);
+            tx.focus("composer", false);
+        }
         composer::route::Route::Prompt { steer, .. } => {
             send_as(s, tx, steer);
             tx.focus("composer", false);
@@ -637,7 +647,7 @@ fn end_tools(session: &mut Session) {
 }
 
 fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
-    let composer_changed = s.keep_composer_state(now);
+    let composer_changed = s.keep_composer_state(now) | s.keep_autocomplete(now, tx);
     let scrolled = s.keep_scroll(tx);
     // "Copied" on a message's button ends by itself.
     let copied = match &s.copied {
@@ -1014,6 +1024,37 @@ pub fn spec() -> AppSpec<State> {
             }),
             ("composer-queue-opencode2", |s| s.show_composer("queue-opencode2")),
             ("composer-queue-no-steer", |s| s.show_composer("queue-no-steer")),
+            ("autocomplete-slash", |s| s.show_autocomplete("slash")),
+            ("autocomplete-slash-light", |s| {
+                s.dark = Some(false);
+                s.show_autocomplete("slash")
+            }),
+            ("autocomplete-slash-filtered", |s| s.show_autocomplete("slash-filtered")),
+            ("autocomplete-mention", |s| s.show_autocomplete("mention")),
+            ("autocomplete-mention-light", |s| {
+                s.dark = Some(false);
+                s.show_autocomplete("mention")
+            }),
+            ("autocomplete-mention-query", |s| s.show_autocomplete("mention-query")),
+            ("autocomplete-mention-folder", |s| s.show_autocomplete("mention-folder")),
+            ("autocomplete-mention-folder-light", |s| {
+                s.dark = Some(false);
+                s.show_autocomplete("mention-folder")
+            }),
+            ("autocomplete-skill", |s| s.show_autocomplete("skill")),
+            ("autocomplete-skill-light", |s| {
+                s.dark = Some(false);
+                s.show_autocomplete("skill")
+            }),
+            ("autocomplete-skill-warning", |s| s.show_autocomplete("skill-warning")),
+            ("autocomplete-skill-warning-light", |s| {
+                s.dark = Some(false);
+                s.show_autocomplete("skill-warning")
+            }),
+            ("autocomplete-skill-disabled", |s| s.show_autocomplete("skill-disabled")),
+            ("autocomplete-loading", |s| s.show_autocomplete("loading")),
+            ("autocomplete-error", |s| s.show_autocomplete("error")),
+            ("autocomplete-empty", |s| s.show_autocomplete("empty")),
             ("composer-disabled", |s| s.show_composer("disabled")),
             ("composer-disabled-light", |s| {
                 s.dark = Some(false);

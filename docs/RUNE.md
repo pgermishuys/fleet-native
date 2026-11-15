@@ -548,3 +548,13 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 - **A memo key tuple stops at 12 elements** (`Hash` is only implemented that far): nest the newest keys in a sub-tuple.
 - **A row that reads state at draw time needs that state in its memo key.** The sub-agent row reads the delegation list, which changes with no change to the message; `view::agent_row::key` hashes what the row shows.
 - **`group_opacity` inside a row with `.hover_group()`** shows "Open" on that row's hover only; the message's own group is the next one out.
+
+## Component 5, piece K (the autocomplete popup)
+
+- **A popup over a field is `anchored_fit(frame_key, Side::Top, Align::Start, 6.0)` in `ui::overlays`**, with `.w(measured frame width)` from the frame's `on_layout`: there is no "as wide as the anchor". It needs no scrim and takes no focus, so the field keeps typing.
+- **A pressed row keeps the field's focus with `.focusable(false)`**; then `tx.focus("composer", false)` after the edit is belt and braces.
+- **The field keeps Esc for itself** (an `on_key` on the app never sees it while a text field has focus), so Esc to interrupt, and to close a popup, are both answered in the field's `on_input_key`.
+- **`on_input_key` runs before the editor and before `on_submit`**: returning `true` for Enter stops the send, and for Tab keeps focus in the field.
+- **Replacing the text as one undoable edit**: `set_selection(0, len)` then `insert(new)`; `replace_text` drops the undo history. Set the caret after, and once more on the next frame.
+- **`rich(..).truncate()` gives a one-line label with a marked range** (a `Span` colour and weight): the popup's match mark.
+- **A footer under a scroller is a sibling, not a sticky child**, which draws the same and needs no negative margins.

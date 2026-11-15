@@ -44,6 +44,10 @@ pub struct HarnessInfo {
     pub supports_shell_commands: bool,
     pub supports_side_conversations: bool,
     pub supports_image_attachments: bool,
+    /// The harness's own name (`displayName`), which the `@` and `$` lists say.
+    pub display_name: Option<String>,
+    /// The agent can read another session through Fleet's tools, so `@` sessions go as links (`supportsFleetTools`).
+    pub supports_fleet_tools: bool,
 }
 
 /// What the composer may offer for the session's harness (`HarnessCapabilities`).
