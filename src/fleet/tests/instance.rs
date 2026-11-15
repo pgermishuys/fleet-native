@@ -1,9 +1,7 @@
 //! Finding the Fleet (checklist rows 1.1-1.3 and 1.8): the cases of weave-fleet's `desktop/test/desktop.test.ts`
 //! ("instance file", "resolvePaths") and of `instance.ts`'s `isReady` and `findRunningFleet`, with the instance
 //! file in a temporary folder.
-use crate::fleet::instance::{
-    self, Instance, data_dir, find_running_fleet, is_loopback_http_url, is_process_alive, is_ready, parse_instance,
-};
+use crate::fleet::instance::{self, Instance, data_dir, find_running_fleet, is_loopback_http_url, is_ready, parse_instance};
 use serde_json::json;
 use std::io::{Read, Write};
 use std::net::TcpListener;
