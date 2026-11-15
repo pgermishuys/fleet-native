@@ -8,6 +8,7 @@ use super::conversation::{Message, Role, Styles};
 use super::prose;
 use super::toolcard::mix;
 use crate::State;
+use crate::composer::choice::model_display_name;
 use crate::conv::attached::{AttachedFileRef, file_extension_label, parse_attached_note};
 use crate::conv::bubble::{STEERED_TEXT, STEERED_TIP, has_expanded_prompt, looks_like_markdown, mod_mark_text};
 use crate::conv::references::format_slash_command;
@@ -40,24 +41,24 @@ fn chip(t: &Theme, key: &str, glyph: &'static Icon, label: String, tip: &str) ->
         .gap(5.0)
         .center_y()
         .max_w(380.0)
-        .mb(6.0)
         .px(10.0)
         .py(4.0)
         .radius(999.0)
-        .border(1.0, t.border.alpha(0.9))
+        .border(1.0, t.border.alpha(t.border.a * 0.9))
         .border_layout()
         .fill(mix(t.card_bg, t.accent_dim, 0.04))
         .help(tip)
         .child(icon(glyph, 11.9).color(t.muted))
-        .child(text(label).font(sans(10.5, 600.0, 1.3)).color(t.text).truncate())
+        .child(text(label).font(sans(10.5, 600.0, 1.5)).color(t.text).truncate())
 }
 
 /// The marks above a user's bubble (rows 1.55, 1.56 / 2.15, 2.16), right-aligned with it.
-pub fn marks(t: &Theme, msg: &Message) -> Option<El> {
+pub fn marks(t: &Theme, msg: &Message, lead: f32) -> Option<El> {
     if msg.role != Role::User || (msg.meta.mod_mark.is_none() && !msg.meta.steered) {
         return None;
     }
-    let mut marks = col().items_end().w_full();
+    // Fleet's chips end in a 6px margin and the bubble's own 2px padding follows: 8px to the bubble.
+    let mut marks = col().items_end().w_full().mt(lead).gap(6.0).mb(6.0);
     if let Some(m) = &msg.meta.mod_mark {
         let (label, tip) = mod_mark_text(m.kind, &m.name);
         marks = marks.child(chip(t, "mod-mark", &PUZZLE, label, tip));
@@ -117,10 +118,11 @@ pub fn meta_pill(t: &Theme, s: &State, msg: &Message) -> Option<El> {
         pill = pill.box_shadow(shadow);
     }
     let font = sans(11.0, 400.0, 1.0).features("'tnum' 1");
-    if let Some(model) = msg.meta.model.as_deref().filter(|m| !m.is_empty()) {
+    let model = model_display_name(msg.meta.model.as_deref(), &s.lists().models);
+    if !model.is_empty() {
         pill = pill
             .child(el().size(5.0, 5.0).radius(2.5).fill(t.accent.alpha(0.75)))
-            .child(text(model.to_string()).font(font).color(t.text.alpha(0.72)))
+            .child(text(model).font(font).color(t.text.alpha(0.72)))
             .child(text("\u{b7}").font(font).color(t.muted.alpha(0.65)));
     }
     pill = pill.child(text(format_relative_time(created, now, offset)).font(font).color(t.muted));
@@ -205,15 +207,15 @@ fn file_chip(t: &Theme, file: &AttachedFileRef) -> El {
         .on_press(|_: &mut State| {})
         .child(
             text(file_extension_label(&file.name))
-                .font(mono(9.0, 400.0, 1.2))
+                .font(mono(9.0, 400.0, 1.55))
                 .color(t.muted)
                 .px(4.0)
                 .radius(3.0)
                 .border(1.0, t.border)
                 .border_layout(),
         )
-        .child(text(file.name.clone()).font(sans(12.0, 400.0, 1.3)).color(t.text).truncate())
-        .child(text(file.details.clone()).font(sans(11.0, 400.0, 1.3)).color(t.muted))
+        .child(text(file.name.clone()).font(sans(12.0, 400.0, 1.55)).color(t.text).truncate())
+        .child(text(file.details.clone()).font(sans(11.0, 400.0, 1.55)).color(t.muted))
 }
 
 /// The chips under the typed text and the note the agent got, kept visible (rows 2.22, 2.23).
@@ -260,6 +262,6 @@ pub fn user_bubble(t: &Theme, s: &State, md: &Styles, msg: &Message, id: &str, b
         .border_layout()
         .fill(t.wash(5.0))
         .child(content)
-        .child(copy_button(t, s, msg).pin(Some(-34.0), Some(6.0), None, None));
+        .child(copy_button(t, s, msg).pin(Some(-34.0), Some(4.0), None, None));
     row().w_full().justify_end().child(user_time(t, s, msg)).child(bubble)
 }
