@@ -13,6 +13,7 @@ pub mod reducer;
 pub mod sessions;
 pub mod signalr;
 pub mod state;
+pub mod topics;
 pub mod view;
 pub mod work;
 

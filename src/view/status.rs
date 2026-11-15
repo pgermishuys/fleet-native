@@ -43,6 +43,20 @@ pub fn bar(s: &State, t: &Theme) -> El {
     if let Some(note) = s.connection_note() {
         session = session.child(text(note).font(label).color(t.error).truncate()).child(text("|").font(label).color(t.border));
     }
+    // On a server, nothing of the invented session shows: no agent and no token total until a session is open.
+    if s.link.is_some() && !s.has_session() {
+        return row()
+            .key("status-bar")
+            .w_full()
+            .h(28.0)
+            .center_y()
+            .gap(10.0)
+            .px(12.0)
+            .pb(2.0)
+            .child(hints)
+            .child(spacer().min_w(0.0))
+            .child(session);
+    }
     let session = session
         .child(text("opencode").font(mono(11.0, 500.0, 1.3)).color(t.muted))
         .child(text("|").font(label).color(t.border))

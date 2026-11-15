@@ -5,6 +5,7 @@ use super::events::Event;
 use super::reducer::create_state;
 use super::signalr::{self, Frame};
 use super::state::Topic;
+use super::topics::{Topics, reconnect_delay};
 use super::{http, sessions};
 use crate::State;
 use rune::{AppHandle, Tx};
@@ -16,8 +17,6 @@ use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender, channel};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tungstenite::{Error as WsError, Message, WebSocket};
 
-/// The Vue client's reconnect delays (`use-signalr-socket.ts`).
-const RECONNECT: [Duration; 4] = [Duration::from_secs(1), Duration::from_secs(2), Duration::from_secs(5), Duration::from_secs(10)];
 /// How long events wait to be handed over together: about one frame.
 const BATCH: Duration = Duration::from_millis(16);
 const PING: Duration = Duration::from_secs(10);
@@ -49,6 +48,9 @@ pub enum Cmd {
     Open(String),
     /// Fetch the session list again.
     Refresh,
+    /// Listen to another session's topic as well (its events go to `State::subscribe`).
+    Watch(String),
+    Unwatch(String),
 }
 
 /// What the UI keeps of the connection.
@@ -77,6 +79,15 @@ impl Link {
 
     pub fn open(&self, session: &str) {
         let _ = self.cmds.send(Cmd::Open(session.to_string()));
+    }
+
+    /// Listens to a session that isn't open (the Files canvas keeps listening while you are on another).
+    pub fn watch(&self, session: &str) {
+        let _ = self.cmds.send(Cmd::Watch(session.to_string()));
+    }
+
+    pub fn unwatch(&self, session: &str) {
+        let _ = self.cmds.send(Cmd::Unwatch(session.to_string()));
     }
 
     /// Sends a prompt already shown as pending under `correlation_id`; the receipt confirms it and a
@@ -126,25 +137,37 @@ fn connection(post: &Post, c: Connection) {
 
 /// The hub thread: connect, serve, and on loss wait and connect again.
 fn run(base: String, rx: Receiver<Cmd>, post: Post) {
-    let mut open: Option<String> = None;
+    let mut topics = Topics::default();
     let mut attempt = 0;
     loop {
-        fetch_list(&base, &post);
         let why = match connect(&base) {
             Ok(ws) => {
                 attempt = 0;
+                // Only now that the server answers: a list asked for while it was down would fail, and the
+                // list is what a restarted server has to hand back.
+                fetch_list(&base, &post);
                 connection(&post, Connection::Online);
-                serve(ws, &base, &rx, &mut open, &post)
+                post.update(|s, _| s.on_reconnected());
+                serve(ws, &base, &rx, &mut topics, &post)
             }
             Err(e) => e,
         };
         connection(&post, Connection::Down(why));
-        // Commands that come while waiting still count: the session to open on the next connection.
-        let deadline = Instant::now() + RECONNECT[attempt.min(RECONNECT.len() - 1)];
+        topics.forget_snapshots();
+        // Commands that come while waiting still count: the topics to subscribe on the next connection.
+        let deadline = Instant::now() + reconnect_delay(attempt);
         attempt += 1;
         while let Some(left) = deadline.checked_duration_since(Instant::now()) {
             match rx.recv_timeout(left) {
-                Ok(Cmd::Open(id)) => open = Some(id),
+                Ok(Cmd::Open(id)) => {
+                    topics.set_open(Some(id));
+                }
+                Ok(Cmd::Watch(id)) => {
+                    topics.watch(&id);
+                }
+                Ok(Cmd::Unwatch(id)) => {
+                    topics.unwatch(&id);
+                }
                 Ok(Cmd::Refresh) => {}
                 Err(RecvTimeoutError::Timeout) => break,
                 Err(RecvTimeoutError::Disconnected) => return,
@@ -182,7 +205,7 @@ fn connect(base: &str) -> Result<WebSocket<TcpStream>, String> {
 }
 
 /// Serves one connection until it fails; the error says why.
-fn serve(mut ws: WebSocket<TcpStream>, base: &str, rx: &Receiver<Cmd>, open: &mut Option<String>, post: &Post) -> String {
+fn serve(mut ws: WebSocket<TcpStream>, base: &str, rx: &Receiver<Cmd>, topics: &mut Topics, post: &Post) -> String {
     let mut next_id = 0u32;
     let mut call = |ws: &mut WebSocket<TcpStream>, target: &str, args: Vec<Value>| -> Result<u32, String> {
         next_id += 1;
@@ -196,17 +219,20 @@ fn serve(mut ws: WebSocket<TcpStream>, base: &str, rx: &Receiver<Cmd>, open: &mu
     let mut batch: Vec<Event> = Vec::new();
     // The sessions topic's activity events carry no cursor of this session's, so they wait apart from its own.
     let mut pending_activity: Vec<Event> = Vec::new();
+    // Snapshots to hand over: the ones that arrived, and a cached one reused for a topic already listened to.
+    let mut ready: Vec<(String, Value)> = Vec::new();
     let mut batch_since: Option<Instant> = None;
     let mut dirty_list: Option<Instant> = None;
     let mut last_ping = Instant::now();
 
+    // Every topic again, so each gets a fresh snapshot (`topicListenersV2` after a reconnect).
     let started = (|| -> Result<(), String> {
         call(&mut ws, "SubscribeToSessionsTopicAsync", vec![])?;
-        if let Some(id) = open.as_ref() {
+        for id in topics.all() {
             let n = call(&mut ws, "SubscribeToSessionAsync", vec![json!(id)])?;
-            asked.insert(n.to_string(), id.clone());
-            waiting_for_snapshot = true;
+            asked.insert(n.to_string(), id);
         }
+        waiting_for_snapshot = topics.open().is_some();
         Ok(())
     })();
     if let Err(e) = started {
@@ -216,17 +242,36 @@ fn serve(mut ws: WebSocket<TcpStream>, base: &str, rx: &Receiver<Cmd>, open: &mu
     loop {
         while let Ok(cmd) = rx.try_recv() {
             let result = match cmd {
-                Cmd::Open(id) if open.as_ref() == Some(&id) => Ok(()),
+                Cmd::Open(id) if topics.open() == Some(id.as_str()) => Ok(()),
                 Cmd::Open(id) => (|| {
-                    if let Some(old) = open.take() {
+                    let held = topics.has_watched(&id);
+                    if let Some(old) = topics.set_open(Some(id.clone())) {
                         call(&mut ws, "UnsubscribeFromSessionAsync", vec![json!(old)])?;
                     }
                     batch.clear();
                     pending_activity.clear();
-                    let n = call(&mut ws, "SubscribeToSessionAsync", vec![json!(id)])?;
-                    asked.insert(n.to_string(), id.clone());
                     waiting_for_snapshot = true;
-                    *open = Some(id);
+                    // A second listener on a topic reuses its snapshot only if nothing arrived since.
+                    match topics.fresh_snapshot(&id).filter(|_| held) {
+                        Some(snapshot) => ready.push((id, snapshot.clone())),
+                        None => {
+                            let n = call(&mut ws, "SubscribeToSessionAsync", vec![json!(id)])?;
+                            asked.insert(n.to_string(), id);
+                        }
+                    }
+                    Ok::<(), String>(())
+                })(),
+                Cmd::Watch(id) => (|| {
+                    if topics.watch(&id) {
+                        let n = call(&mut ws, "SubscribeToSessionAsync", vec![json!(id)])?;
+                        asked.insert(n.to_string(), id);
+                    }
+                    Ok::<(), String>(())
+                })(),
+                Cmd::Unwatch(id) => (|| {
+                    if topics.unwatch(&id) {
+                        call(&mut ws, "UnsubscribeFromSessionAsync", vec![json!(id)])?;
+                    }
                     Ok::<(), String>(())
                 })(),
                 Cmd::Refresh => {
@@ -253,7 +298,7 @@ fn serve(mut ws: WebSocket<TcpStream>, base: &str, rx: &Receiver<Cmd>, open: &mu
                             // reactions below don't wait for them.
                             if let Some(event) = Event::from_wire(&data) {
                                 // A sub-agent's status reaches the open session's stream too (`use-session-stream.ts`).
-                                if let (Event::ActivityStatus { .. }, Some(id)) = (&event, open.clone()) {
+                                if let (Event::ActivityStatus { .. }, Some(id)) = (&event, topics.open().map(str::to_string)) {
                                     if waiting_for_snapshot {
                                         pending_activity.push(event.clone());
                                     } else {
@@ -275,35 +320,34 @@ fn serve(mut ws: WebSocket<TcpStream>, base: &str, rx: &Receiver<Cmd>, open: &mu
                                 _ => dirty_list = dirty_list.or(Some(Instant::now())),
                             }
                         }
-                        Frame::Event { topic, event_id, data } if open.as_ref().is_some_and(|id| topic == format!("session:{id}")) => {
+                        Frame::Event { topic, event_id, data } if topic.starts_with("session:") => {
+                            let id = &topic["session:".len()..];
+                            topics.note_event(id);
                             // One frame that can't be read is skipped; the rest of the batch stands.
-                            if let Some(event) = Event::from_wire(&data) {
+                            let Some(event) = Event::from_wire(&data) else { continue };
+                            if topics.open() == Some(id) {
                                 batch_since.get_or_insert_with(Instant::now);
                                 batch.push(event);
-                                if let Some(id) = event_id {
-                                    batch.push(Event::Cursor(id));
+                                if let Some(cursor) = event_id {
+                                    batch.push(Event::Cursor(cursor));
                                 }
+                            } else if topics.has_watched(id) {
+                                let topic = Topic::Session(id.to_string());
+                                post.update(move |s, _| s.dispatch(&topic, std::slice::from_ref(&event)));
                             }
                         }
                         Frame::Completion { id, result, error } => {
                             let Some(session) = asked.remove(&id) else { continue };
-                            if open.as_deref() != Some(session.as_str()) {
-                                continue;
-                            }
                             match error {
-                                Some(e) => post.update(move |s, _| s.notice = Some(format!("Couldn't open the session: {e}"))),
+                                Some(e) if topics.open() == Some(session.as_str()) => {
+                                    post.update(move |s, _| s.notice = Some(format!("Couldn't open the session: {e}")))
+                                }
+                                Some(_) => {}
                                 None => {
-                                    let state = create_state(&result);
-                                    // Events that arrived before the snapshot follow it.
-                                    let after = std::mem::take(&mut batch);
-                                    let activity = std::mem::take(&mut pending_activity);
-                                    batch_since = None;
-                                    waiting_for_snapshot = false;
-                                    post.update(move |s, tx| {
-                                        s.on_snapshot(&session, state, tx);
-                                        s.on_events(&session, after, tx);
-                                        s.on_stream_events(&session, activity, tx);
-                                    });
+                                    topics.record_snapshot(&session, &result);
+                                    if topics.open() == Some(session.as_str()) {
+                                        ready.push((session, result));
+                                    }
                                 }
                             }
                         }
@@ -317,8 +361,24 @@ fn serve(mut ws: WebSocket<TcpStream>, base: &str, rx: &Receiver<Cmd>, open: &mu
             Err(WsError::Io(e)) if matches!(e.kind(), std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut) => {}
             Err(e) => return e.to_string(),
         }
+        for (session, result) in std::mem::take(&mut ready) {
+            if topics.open() != Some(session.as_str()) {
+                continue;
+            }
+            let state = create_state(&result);
+            // Events that arrived before the snapshot follow it.
+            let after = std::mem::take(&mut batch);
+            let activity = std::mem::take(&mut pending_activity);
+            batch_since = None;
+            waiting_for_snapshot = false;
+            post.update(move |s, tx| {
+                s.on_snapshot(&session, state, tx);
+                s.on_events(&session, after, tx);
+                s.on_stream_events(&session, activity, tx);
+            });
+        }
         if !waiting_for_snapshot
-            && let (Some(since), Some(id)) = (batch_since, open.clone())
+            && let (Some(since), Some(id)) = (batch_since, topics.open().map(str::to_string))
             && since.elapsed() >= BATCH
         {
             let events = std::mem::take(&mut batch);

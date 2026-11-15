@@ -22,8 +22,8 @@ pub fn sheet(s: &State, t: &Theme) -> El {
         .min_w(0.0)
         .h_full()
         .min_h(0.0)
-        .child(header(t, project, session))
-        .child(stream(t, session))
+        .child(header(t, project, session, s.link.is_some()))
+        .child(stream(t, session, s.is_partial()))
         .child(composer(s, t, session));
     let mut sheet = row()
         .key("workspace-sheet")
@@ -65,7 +65,8 @@ pub fn sheet(s: &State, t: &Theme) -> El {
     }
 }
 
-fn header(t: &Theme, project: &Project, session: &Session) -> El {
+/// `on_server`: the agent and model aren't known from the list yet, so none is invented.
+fn header(t: &Theme, project: &Project, session: &Session, on_server: bool) -> El {
     let meta_font = sans(12.0, 400.0, 1.4);
     let path_font = mono(11.5, 400.0, 1.4);
     let dot = || text("·").font(meta_font).color(t.muted.alpha(0.6));
@@ -78,10 +79,10 @@ fn header(t: &Theme, project: &Project, session: &Session) -> El {
         .gap(6.0)
         .clip_rounded(0.0)
         .child(plain(&project.name))
-        .child(dot())
-        .child(plain("OpenCode"))
-        .child(dot())
-        .child(plain("Sonnet 5.5"))
+        .children((!on_server).then(dot))
+        .children((!on_server).then(|| plain("OpenCode")))
+        .children((!on_server).then(dot))
+        .children((!on_server).then(|| plain("Sonnet 5.5")))
         .child(dot())
         .child(
             row()

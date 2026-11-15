@@ -60,15 +60,48 @@ impl State {
         if let Some(p) = self.projects.get_mut(project) {
             p.open = true;
         }
-        if let (Some(link), Some(id)) = (&self.link, self.open_id()) {
-            self.stream = None;
-            link.open(&id);
+        if let Some(id) = self.open_id()
+            && self.link.is_some()
+            && self.stream_of.as_deref() != Some(id.as_str())
+        {
+            self.keep_current_stream();
+            // What was kept shows at once, with the status the list has now; the snapshot that follows replaces it.
+            let shown = self.kept.get(&id).cloned().map(|mut kept| {
+                let activity = if self.session().status == Status::Working { "busy" } else { "idle" };
+                reducer::with_activity_status(&mut kept, activity);
+                kept
+            });
+            self.stream = shown;
+            self.stream_of = Some(id.clone());
+            self.loading = true;
+            if let Some(link) = &self.link {
+                link.open(&id);
+            }
+            self.sync_open();
         }
         tx.scroll_to_bottom("stream");
     }
 
+    /// Keeps the conversation being left, if it came from a snapshot (`keepCurrentStream`).
+    fn keep_current_stream(&mut self) {
+        let (id, stream) = (self.stream_of.take(), self.stream.take());
+        if let (Some(id), Some(stream), false) = (id, stream, self.loading) {
+            self.kept.keep(&id, stream);
+        }
+    }
+
+    /// The connection came back: every conversation shown is out of date until its new snapshot.
+    pub fn on_reconnected(&mut self) {
+        if self.stream.is_some() {
+            self.loading = true;
+        }
+    }
+
     /// The session list arrived, or changed. Keeps which projects are folded and which session is open.
     pub fn on_list(&mut self, mut projects: Vec<Project>, tx: &mut Tx) {
+        if self.notice.as_deref().is_some_and(|n| n.starts_with("Couldn't load the session list")) {
+            self.notice = None;
+        }
         let open_id = self.open_id();
         for project in &mut projects {
             if let Some(old) = self.projects.iter().find(|p| p.name == project.name) {
@@ -91,6 +124,7 @@ impl State {
             None => {
                 self.open = (0, 0);
                 self.stream = None;
+                self.stream_of = None;
                 if !self.projects.is_empty() {
                     self.open_session(0, 0, tx);
                 }
@@ -123,6 +157,8 @@ impl State {
         }
         self.prompts.on_messages(id, &state.messages);
         self.stream = Some(state);
+        self.stream_of = Some(id.to_string());
+        self.loading = false;
         self.sync_open();
         tx.scroll_to_bottom("stream");
     }
@@ -270,9 +306,21 @@ impl State {
         }
     }
 
+    /// A scene: the harness was unavailable, so the snapshot is the cached one (`isPartial`).
+    pub fn show_partial(&mut self) {
+        // No conversation yet, so the banner at the top of the scroll is in view.
+        self.open = (usize::MAX, 0);
+        self.stream = Some(reducer::create_state(&serde_json::json!({"messages": [], "isPartial": true})));
+    }
+
     fn session_mut(&mut self) -> Option<&mut crate::mock::Session> {
         let (p, i) = self.open;
         self.projects.get_mut(p)?.sessions.get_mut(i)
+    }
+
+    /// The open conversation is the harness's cached data, not live (`isPartial`).
+    pub fn is_partial(&self) -> bool {
+        self.stream.as_ref().is_some_and(|s| s.is_partial)
     }
 
     /// What the status bar says about the connection; `None` when all is well or there's no server.

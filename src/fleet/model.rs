@@ -141,4 +141,6 @@ pub struct StreamState {
     pub explicit_status: Explicit,
     pub session_status: StreamStatus,
     pub last_event_id: Option<i64>,
+    /// The snapshot says the harness was unavailable and this is cached data (`isPartial`).
+    pub is_partial: bool,
 }

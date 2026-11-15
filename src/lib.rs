@@ -66,6 +66,11 @@ pub struct State {
     /// Components that read events the stream doesn't apply (`fleet::state::Subscribers`).
     pub prompts: fleet::prompts::Prompts,
     pub subscribers: fleet::state::Subscribers,
+    /// Which session `stream` belongs to, and whether its snapshot is still on the way (what's shown may be a kept copy).
+    pub stream_of: Option<String>,
+    pub loading: bool,
+    /// The conversations of sessions left, shown again at once on return (`keptStreams`).
+    pub kept: fleet::topics::Kept,
     /// The last thing that went wrong, shown in the status bar.
     pub notice: Option<String>,
     /// The kit's overlays, the palette and the gallery's own controls (`src/ui/`).
@@ -105,6 +110,9 @@ impl Default for State {
             stream: None,
             prompts: Default::default(),
             subscribers: Default::default(),
+            stream_of: None,
+            loading: false,
+            kept: Default::default(),
             notice: None,
             ui: ui::Ui::default(),
             gallery: false,
@@ -303,6 +311,11 @@ pub fn spec() -> AppSpec<State> {
                 s.dark = Some(false);
                 s.show_sub_agent(true)
             }),
+            ("partial-snapshot", |s| s.show_partial()),
+            ("partial-snapshot-light", |s| {
+                s.dark = Some(false);
+                s.show_partial()
+            }),
             ("long-conversation", |s| s.open_long()),
             // The reply streams in on the app's clock: the scene the scripts in scripts/bench/ measure.
             ("long-live", |s| s.open_long_live()),
@@ -369,7 +382,11 @@ pub fn start_desktop() {
     if let Some(url) = server {
         let handle = app.handle();
         let link = Link::start(url, Post::from_handle(handle.clone()));
-        handle.update(move |s, _| s.link = Some(link));
+        handle.update(move |s, _| {
+            // Nothing invented shows against a real server: the list and the conversation stay empty until it answers.
+            s.projects.clear();
+            s.link = Some(link);
+        });
     }
     app.run();
 }

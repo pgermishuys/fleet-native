@@ -9,7 +9,7 @@ use super::prose;
 use crate::State;
 use crate::icons::*;
 use crate::mock::{Session, Status};
-use crate::theme::{Theme, mono, sans};
+use crate::theme::{RADIUS_CARD, Theme, mono, sans};
 use rune::{Cursor, El, GrowthSpec, Icon, ScrollSpec, col, el, icon, memo, row, text};
 use rune_kit::markdown::MarkdownStyle;
 use std::borrow::Cow;
@@ -134,7 +134,7 @@ impl Message {
 
 /// The scrolling column of messages and, while a turn runs, the "Working" line. Only the rows on
 /// screen are built (`virtual_rows`), and a row whose message hasn't changed is reused (`memo`).
-pub fn stream(t: &Theme, session: &Session) -> El {
+pub fn stream(t: &Theme, session: &Session, partial: bool) -> El {
     let theme = *t;
     let md = prose::style(t);
     let working = session.status == Status::Working;
@@ -163,7 +163,28 @@ pub fn stream(t: &Theme, session: &Session) -> El {
         .shrink()
         .min_h(0.0)
         .scroll(ScrollSpec { stick_bottom: true })
-        .child(col().w_full().pt(24.0).px(32.0).pb(12.0).items_center().child(rows))
+        .child(col().w_full().pt(24.0).px(32.0).pb(12.0).items_center().children(partial.then(|| partial_banner(&theme))).child(rows))
+}
+
+/// `.partial-snapshot-banner` (`ActivityStream.vue`): the harness was unavailable and this is cached data.
+/// Fleet's ⚠️ is an emoji; the drawing has no colour emoji font, so the mark is the text glyph.
+fn partial_banner(t: &Theme) -> El {
+    let font = sans(13.0, 400.0, 1.4);
+    row()
+        .key("partial-banner")
+        .w_full()
+        .max_w(COLUMN)
+        .mb(16.0)
+        .px(16.0)
+        .py(12.0)
+        .gap(8.0)
+        .center_y()
+        .fill(t.idle.alpha(0.10))
+        .border(1.0, t.idle.alpha(0.30))
+        .border_layout()
+        .radius(RADIUS_CARD)
+        .child(text("⚠").font(sans(14.0, 400.0, 1.0)).color(t.idle_text))
+        .child(text("Connection to live session is temporarily unavailable. Showing cached data.").font(font).color(t.idle_text))
 }
 
 /// One message: its parts, spaced as Fleet spaces them. `after_tool` is how the message above
