@@ -75,3 +75,113 @@ fn live_watch() {
         std::thread::sleep(Duration::from_millis(50));
     }
 }
+
+/// The whole composer against a scratch Fleet, headless: a model picked, a send, a message queued and one steered, a
+/// file attached and uploaded, an `@` session reference, `!` and `/btw`. Prints each step with what the server holds.
+///
+///     FLEET_LIVE_URL=http://127.0.0.1:6471 cargo test live_composer -- --ignored --nocapture
+///
+/// The scratch Fleet needs "Fix pagination" and a second session ("Notes"), which is the one that opens; the `@` list offers the other.
+#[test]
+#[ignore = "needs a scratch Fleet"]
+fn live_composer() {
+    use rune::{Key, KeyEvent, Mods, Runtime};
+    let Ok(url) = std::env::var("FLEET_LIVE_URL") else { return };
+    let (jobs, queue) = channel::<Job>();
+    let jobs = Mutex::new(jobs);
+    let post = Post::new(move |job| {
+        let _ = jobs.lock().unwrap().send(job);
+    });
+    let mut rt = app();
+    let link = Link::start(url.clone(), post);
+    rt.update(move |s, _| s.link = Some(link));
+
+    fn pump(rt: &mut Runtime<State>, queue: &std::sync::mpsc::Receiver<Job>, secs: f32) {
+        let start = Instant::now();
+        while start.elapsed().as_secs_f32() < secs {
+            while let Ok(job) = queue.try_recv() {
+                rt.update(job);
+            }
+            rt.frame(1.0 / 60.0);
+            std::thread::sleep(Duration::from_millis(30));
+        }
+    }
+    fn key(rt: &mut Runtime<State>, key: Key, ctrl: bool) {
+        rt.key(KeyEvent { key, mods: Mods { ctrl, ..Mods::default() } });
+        rt.frame(1.0 / 60.0);
+        rt.frame(1.0 / 60.0);
+    }
+    fn typed(rt: &mut Runtime<State>, text: &str) {
+        key(rt, Key::Text(text.into()), false);
+    }
+    fn click(rt: &mut Runtime<State>, name: &str) {
+        let (x, y) = rt.find(name).unwrap_or_else(|| panic!("no element keyed {name:?}"));
+        rt.pointer_move(x, y);
+        rt.pointer_down(x, y);
+        rt.pointer_up(x, y);
+        for _ in 0..30 {
+            rt.frame(1.0 / 60.0);
+        }
+    }
+    let messages = |id: &str| -> String {
+        let out = std::process::Command::new("curl").args(["-s", &format!("{url}/api/sessions/{id}/messages")]).output().unwrap();
+        String::from_utf8_lossy(&out.stdout).to_string()
+    };
+
+    pump(&mut rt, &queue, 6.0);
+    let id = rt.state.open_id().expect("the first session is open");
+    println!("open session {} ({} sessions)", &id[..8], rt.state.projects.iter().map(|p| p.sessions.len()).sum::<usize>());
+    println!("model chip: {:?}", rt.state.choice().model);
+
+    // A model picked from the session's own list, then a prompt that makes the agent work.
+    click(&mut rt, "model");
+    typed(&mut rt, "fake");
+    key(&mut rt, Key::Enter, false);
+    println!("picked model: {:?}", rt.state.choice().model);
+    click(&mut rt, "composer");
+    typed(&mut rt, "slow-task");
+    key(&mut rt, Key::Enter, false);
+    pump(&mut rt, &queue, 4.0);
+    println!("after send: status={:?} interrupt={} draft={:?}", rt.state.composer_status(), rt.state.can_interrupt(), rt.state.draft.text);
+
+    // While it works: Enter queues, Ctrl+Enter steers (OpenCode 1 queues by default).
+    typed(&mut rt, "queued while working");
+    key(&mut rt, Key::Enter, false);
+    pump(&mut rt, &queue, 2.0);
+    println!("queued items: {:?}", rt.state.queue.of(&id).iter().map(|i| i.text.clone()).collect::<Vec<_>>());
+    typed(&mut rt, "steer this one in");
+    key(&mut rt, Key::Enter, true);
+    pump(&mut rt, &queue, 4.0);
+    let held = messages(&id);
+    println!("steered text on the server: {}", held.contains("steer this one in"));
+
+    // An attached file and an `@` session reference go with the next prompt.
+    let dir = std::env::temp_dir().join("fleet-native-live-composer");
+    std::fs::create_dir_all(&dir).unwrap();
+    let file = dir.join("notes.txt");
+    std::fs::write(&file, "one\ntwo\n").unwrap();
+    rt.update(move |s, tx| s.add_files(&[file], tx));
+    pump(&mut rt, &queue, 1.0);
+    typed(&mut rt, "@Fix");
+    pump(&mut rt, &queue, 2.0);
+    key(&mut rt, Key::Enter, false);
+    typed(&mut rt, "look at both");
+    println!("draft before send: {:?}", rt.state.draft.text);
+    pump(&mut rt, &queue, 40.0);
+    println!("draft after the wait: {:?} attached={}", rt.state.draft.text, rt.state.held_files().len());
+    key(&mut rt, Key::Enter, false);
+    pump(&mut rt, &queue, 6.0);
+    let all = messages(&id);
+    // A small text file goes in the prompt itself (11.4); a bigger or binary one is uploaded and named in a note.
+    println!("small file inline in the prompt: {}", all.contains("notes.txt:"));
+    println!("session references block: {}", all.contains("fleet-session-references"));
+
+    // `!` runs in the folder; `/btw` shows the toast until the side panel exists.
+    typed(&mut rt, "!ls");
+    key(&mut rt, Key::Enter, false);
+    pump(&mut rt, &queue, 3.0);
+    println!("shell ran: {}", messages(&id).contains("README.md"));
+    typed(&mut rt, "/btw what is this");
+    key(&mut rt, Key::Enter, false);
+    println!("draft kept after /btw: {:?}", rt.state.draft.text);
+}

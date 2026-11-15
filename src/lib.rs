@@ -704,6 +704,7 @@ fn queue_draft(s: &mut State, tx: &mut Tx, kind: fleet::queue::ItemKind, command
     if kind == fleet::queue::ItemKind::Prompt {
         s.add_references(&mut pick, &text);
     }
+    s.record_recent_model(&pick);
     let options = fleet::queue::Options { kind, command, pick };
     s.draft.clear();
     s.enqueue(&owner, typed, text, options);
