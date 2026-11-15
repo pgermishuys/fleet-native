@@ -7,6 +7,7 @@ pub mod frame;
 pub mod long;
 pub mod parts;
 pub mod tools;
+pub mod working;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Status {

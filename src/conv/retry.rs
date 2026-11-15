@@ -15,7 +15,7 @@ pub fn limit_title(kind: Option<&str>) -> Option<&'static str> {
 }
 
 /// `formatDuration(ms, { precision: "minutes" })` from a minute up: "3 min", "2 h 05 min", "2 d 03 h".
-fn minutes_text(ms: i64) -> String {
+pub(crate) fn minutes_text(ms: i64) -> String {
     let minutes = ms.max(0) / 60_000;
     let (hours, days) = (minutes / 60, minutes / 1440);
     if minutes < 60 {

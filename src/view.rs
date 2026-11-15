@@ -6,6 +6,7 @@ pub mod conversation;
 pub mod diff;
 pub mod failure;
 mod fold;
+pub mod interrupted;
 pub mod message;
 mod parts;
 mod prose;
@@ -19,6 +20,7 @@ mod shell;
 mod status;
 pub mod toolcard;
 pub mod toolrow;
+pub mod working;
 
 use crate::theme::{Theme, sans};
 use crate::{Rail, State};

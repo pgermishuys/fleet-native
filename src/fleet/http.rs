@@ -164,3 +164,18 @@ pub fn retry_send(base: &str, session: &str) -> Result<(u16, Value), String> {
 pub fn retry_cancel(base: &str, session: &str) -> Result<(u16, Value), String> {
     status_of("DELETE", base, &format!("/api/sessions/{session}/retry"))
 }
+
+/// `GET /api/sessions/{id}/interruption`: the turn a restart cut off, or 204 for none (`use-session-interruption.ts`).
+pub fn interruption_load(base: &str, session: &str) -> Result<(u16, Value), String> {
+    status_of("GET", base, &format!("/api/sessions/{session}/interruption"))
+}
+
+/// `POST /api/sessions/{id}/interruption/continue`: Continue (or Ask again).
+pub fn interruption_continue(base: &str, session: &str) -> Result<(u16, Value), String> {
+    status_of("POST", base, &format!("/api/sessions/{session}/interruption/continue"))
+}
+
+/// `DELETE /api/sessions/{id}/interruption`: Dismiss.
+pub fn interruption_dismiss(base: &str, session: &str) -> Result<(u16, Value), String> {
+    status_of("DELETE", base, &format!("/api/sessions/{session}/interruption"))
+}

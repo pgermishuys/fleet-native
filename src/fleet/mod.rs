@@ -9,6 +9,7 @@ pub mod events;
 pub mod history;
 pub mod http;
 pub mod instance;
+pub mod interrupted;
 pub mod link;
 pub mod model;
 pub mod prefs;
