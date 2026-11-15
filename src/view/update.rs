@@ -5,7 +5,7 @@ use crate::State;
 use crate::theme::{Theme, sans};
 use crate::ui::button::{Size, Variant, button, disabled};
 use crate::ui::controls::progress;
-use crate::ui::dialog::{Dialog, dialog};
+use crate::ui::dialog::{Dialog, dialog as kit_dialog};
 use crate::ui::rem;
 use crate::update::Phase;
 use rune::{Cursor, El, col, row, text};
@@ -76,7 +76,7 @@ pub fn dialog(s: &State, t: &Theme) -> Option<Vec<El>> {
             .key("update-later");
     let later = if busy { disabled(later) } else { later.on_press(|s: &mut State| s.update_close()) };
     let date = if offer.date.is_empty() { String::new() } else { format!(" · {}", offer.date) };
-    Some(dialog(
+    Some(kit_dialog(
         t,
         Dialog {
             key: "update",
