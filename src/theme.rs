@@ -27,6 +27,8 @@ pub struct Theme {
     pub idle: Color,
     /// `--idle-text`: amber ink that reads on the page (the same as `--idle` in the dark theme).
     pub idle_text: Color,
+    /// `--status-waiting-text` (`var(--idle-text)`): the usage bars from 80%.
+    pub status_waiting_text: Color,
     pub error: Color,
     /// `--running-text` and `--error-text`: green and red ink that read on the page (the `+N −N` counts).
     pub running_text: Color,
@@ -61,6 +63,7 @@ impl Theme {
                 running: c("#22c55e"),
                 idle: c("#f59e0b"),
                 idle_text: c("#f59e0b"),
+                status_waiting_text: c("#f59e0b"),
                 error: c("#ef4444"),
                 running_text: c("#22c55e"),
                 error_text: c("#EF5E5F"),
@@ -86,6 +89,7 @@ impl Theme {
                 running: c("#16a34a"),
                 idle: c("#d97706"),
                 idle_text: c("#975304"),
+                status_waiting_text: c("#975304"),
                 error: c("#dc2626"),
                 running_text: c("#107435"),
                 error_text: c("#B92323"),

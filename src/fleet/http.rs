@@ -103,6 +103,16 @@ pub fn harnesses(base: &str) -> Result<Value, String> {
     get(base, "/api/harnesses")
 }
 
+/// `GET /api/usage/limits`.
+pub fn usage_limits(base: &str) -> Result<Value, String> {
+    get(base, "/api/usage/limits")
+}
+
+/// `GET /api/harnesses/usage`.
+pub fn harness_usage(base: &str) -> Result<Value, String> {
+    get(base, "/api/harnesses/usage")
+}
+
 /// `GET /api/preferences`.
 pub fn preferences(base: &str) -> Result<Value, String> {
     get(base, "/api/preferences")

@@ -48,6 +48,7 @@ impl State {
         for event in events.iter().filter(|e| !matches!(e, Event::Cursor(_))) {
             let kind = event.kind();
             self.on_catalog_event(event);
+            self.on_usage_event(event);
             for (only, listener) in &mut self.subscribers.0 {
                 if only.is_none() || *only == kind {
                     listener(topic, event);
