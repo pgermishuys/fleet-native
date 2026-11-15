@@ -369,3 +369,35 @@ pub fn summary_parts(summary: &TurnSummary) -> Vec<String> {
     }
     parts
 }
+
+/// `formatDuration(ms, { tenths: true })` (`lib/format/duration.ts`): "0.4 s" under ten seconds, "34 s", "2 min 05 s",
+/// "1 h 05 min", "1 d 02 h". Empty when there is no duration.
+pub fn format_duration_tenths(ms: Option<i64>) -> String {
+    let Some(ms) = ms else { return String::new() };
+    let span = ms.max(0);
+    if span < 10_000 {
+        return format!("{:.1} s", ((span / 100) as f64 / 10.0).max(0.1));
+    }
+    let seconds = span / 1000;
+    if seconds < 60 {
+        return format!("{seconds} s");
+    }
+    let minutes = seconds / 60;
+    if minutes < 60 {
+        let s = seconds % 60;
+        return if s == 0 { format!("{minutes} min") } else { format!("{minutes} min {s:02} s") };
+    }
+    let hours = minutes / 60;
+    if hours < 24 {
+        return if minutes % 60 == 0 { format!("{hours} h") } else { format!("{hours} h {:02} min", minutes % 60) };
+    }
+    let days = hours / 24;
+    if hours % 24 == 0 { format!("{days} d") } else { format!("{days} d {:02} h", hours % 24) }
+}
+
+/// The fold row's first words (`TurnFoldRow` `worked`): "Worked for 34 s", "Worked briefly" under a second, "Worked" when
+/// the turn has no duration.
+pub fn worked_text(duration_ms: Option<i64>) -> String {
+    let took = format_duration_tenths(duration_ms);
+    if took.starts_with("0.") { "Worked briefly".into() } else { format!("Worked for {took}").trim_end_matches(" for ").to_string() }
+}

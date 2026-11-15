@@ -4,6 +4,7 @@ mod compaction;
 pub mod composer;
 pub mod conversation;
 pub mod diff;
+mod fold;
 mod message;
 mod parts;
 mod prose;

@@ -771,3 +771,64 @@ fn the_copy_button_says_copied_after_a_press() {
     run(&mut rt, 2.0);
     assert!(rt.state.copied.is_none(), "it goes back to the icon by itself");
 }
+
+/// `TurnFold.test.ts` ("says what the turn did on one line and toggles on click") as the app runs it: a finished turn is
+/// one row, a click opens it to its own calls, another click folds it again, and the running turn stays open.
+#[test]
+fn a_finished_turn_folds_to_one_row_and_opens_on_click() {
+    let mut rt = app();
+    rt.update(|s, _| s.show_folded(false, true));
+    rt.frame(FRAME);
+    assert!(rt.find("turn-fold-u1").is_some(), "the finished turn has its fold row");
+    assert!(rt.find("tool-t1").is_none(), "its command is folded away");
+    assert!(rt.find("tool-t5").is_some(), "the sub-agent call stays");
+    assert!(rt.find("tool-t6").is_some(), "the failed call stays");
+    assert!(rt.find("tool-t7").is_some(), "the running turn stays open");
+    assert!(rt.find("turn-fold-u2").is_none(), "the running turn has no fold row");
+    click(&mut rt, "turn-fold-u1");
+    assert!(rt.state.turns_open.contains("u1"));
+    assert!(rt.find("tool-t1").is_some(), "a click opens the turn to its calls");
+    assert!(rt.find("turn-fold-u1").is_some(), "the fold row stays above them");
+    click(&mut rt, "turn-fold-u1");
+    assert!(rt.find("tool-t1").is_none(), "another click folds it again");
+}
+
+#[test]
+fn when_the_turn_is_over_it_stays_as_watched_and_folds_once_the_next_prompt_goes() {
+    let mut rt = app();
+    rt.update(|s, _| s.show_folded(false, true));
+    rt.frame(FRAME);
+    // The session stopped working while you looked at it: the turn you watched stays open.
+    rt.update(|s, _| {
+        if let Some(stream) = s.stream.as_mut() {
+            stream.session_status = crate::fleet::model::StreamStatus::Idle;
+            // Its last call finished with the turn.
+            for part in stream.messages.iter_mut().flat_map(|m| m.parts.iter_mut()) {
+                if let crate::fleet::model::PartData::Tool { state, .. } = part {
+                    state["status"] = serde_json::json!("completed");
+                }
+            }
+        }
+        s.refold();
+    });
+    rt.frame(FRAME);
+    assert!(rt.find("turn-fold-u2").is_none(), "the turn you watched is as you saw it");
+    assert!(rt.find("tool-t7").is_some());
+    // Sending the next prompt makes it a finished turn: it folds.
+    rt.update(|s, _| {
+        s.prompts.add("", "Go on.", 50_000, 0.0);
+        s.sync_open();
+    });
+    rt.frame(FRAME);
+    assert!(rt.find("turn-fold-u2").is_some(), "the next prompt folds the turn you watched");
+}
+
+#[test]
+fn a_session_opened_after_its_turns_ended_folds_all_of_them() {
+    let mut rt = app();
+    rt.update(|s, _| s.show_folded(false, false));
+    rt.frame(FRAME);
+    assert!(rt.find("turn-fold-u1").is_some());
+    assert!(rt.find("turn-fold-u2").is_some(), "no turn was watched, so the last one folds too");
+    assert!(rt.find("tool-t7").is_none());
+}

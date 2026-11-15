@@ -209,5 +209,6 @@ impl State {
             session.status = crate::mock::Status::Idle;
             session.messages = messages;
         }
+        self.fold_plan = Default::default();
     }
 }

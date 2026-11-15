@@ -7,6 +7,7 @@ pub mod card;
 pub mod compaction;
 pub mod diff;
 pub mod fold;
+pub mod fold_plan;
 pub mod gist;
 pub mod merge_reads;
 pub mod message_list;
