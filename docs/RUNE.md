@@ -342,3 +342,14 @@ Nothing in Rune was needed. Learned:
 - **Under `virtual_rows` a card taller than the view isn't all built**: a headless test of its last rows scrolls first
   (`rt.wheel`) or checks the state instead.
 - Not done: the hover underline on "Show N unchanged lines" (a `Span` underline needs the hover state in the view).
+
+## Component 5, piece A (drafts and routing)
+
+- **A click's handler runs after the frame's `poll`.** Switching session from a click changed `State.open`, but a
+  `poll` that follows `open` to swap the text area's draft saw the old session until the next frame. The swap is
+  also made in `open_session`, so the text area is right in the frame the click lands in; `poll` keeps it right
+  for every other way `open` changes.
+- **Scripted runs end the process at the last event.** A thread started for a file write can be cut off, so a
+  script that wants the file written ends a second after its last keystroke (the write waits 0.3 s).
+- **Pictures and scenes must not touch the data folder.** The drafts file is read and written only for a real
+  window, or a headless run that sets `FLEET_NATIVE_DATA_DIR`.

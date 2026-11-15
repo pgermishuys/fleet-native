@@ -1,0 +1,10 @@
+{"events": [
+  {"t": 2.0, "type": "tap", "key": "session-0-0"},
+  {"t": 2.4, "type": "tap", "key": "composer"},
+  {"t": 2.6, "type": "type", "text": "Also cover the last page with one item.", "every": 0.02},
+  {"t": 3.6, "type": "tap", "key": "session-0-1"},
+  {"t": 4.0, "type": "tap", "key": "composer"},
+  {"t": 4.2, "type": "type", "text": "Rename them one file at a time.", "every": 0.02},
+  {"t": 5.2, "type": "mark", "name": "typed"},
+  {"t": 6.0, "type": "mark", "name": "saved"}
+]}
