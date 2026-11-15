@@ -89,10 +89,23 @@ fn look(t: &Theme, v: Variant) -> Look {
 /// A button with an optional icon and label. Chain `.key(..)` and `.on_press(..)` on the result.
 pub fn button(t: &Theme, v: Variant, size: Size, glyph: Option<&'static Icon>, label: &str) -> El {
     let l = look(t, v);
-    let (h, px, gap) = size.dims(glyph.is_some() && !label.is_empty());
+    let glyph_size = if size.square() && matches!(v, Variant::ToolbarIcon | Variant::ToolbarIconDanger) { rem(0.9) } else { rem(1.0) };
+    let lead = glyph.map(|g| {
+        let i = icon(g, glyph_size).color(l.ink);
+        match l.hover_ink {
+            Some(c) => i.group_color(c),
+            None => i,
+        }
+    });
+    button_lead(t, v, size, lead, label)
+}
+
+/// `button` with its leading element made by the caller (a spinner), spaced as an icon is.
+pub fn button_lead(t: &Theme, v: Variant, size: Size, lead: Option<El>, label: &str) -> El {
+    let l = look(t, v);
+    let (h, px, gap) = size.dims(lead.is_some() && !label.is_empty());
     // `text-sm` is 0.875rem; the filter chip is `text-[11px]`.
     let font = if matches!(v, Variant::Filter { .. }) { sans(11.0, 500.0, 1.4) } else { sans(rem(0.875), 500.0, 1.4) };
-    let glyph_size = if size.square() && matches!(v, Variant::ToolbarIcon | Variant::ToolbarIconDanger) { rem(0.9) } else { rem(1.0) };
     let mut e = row()
         .h(h)
         .px(px)
@@ -108,12 +121,8 @@ pub fn button(t: &Theme, v: Variant, size: Size, glyph: Option<&'static Icon>, l
     if size.square() {
         e = e.w(h);
     }
-    if let Some(g) = glyph {
-        let mut i = icon(g, glyph_size).color(l.ink);
-        if let Some(c) = l.hover_ink {
-            i = i.group_color(c);
-        }
-        e = e.child(i);
+    if let Some(lead) = lead {
+        e = e.child(lead);
     }
     if !label.is_empty() {
         let mut tx = text(label.to_string()).font(font).color(l.ink);

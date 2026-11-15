@@ -4,6 +4,7 @@
 //! `Ui::open`, anchored to the key of the element that opened them.
 pub mod button;
 pub mod commands;
+pub mod confirm;
 pub mod controls;
 pub mod dialog;
 pub mod directory_picker;
@@ -64,6 +65,8 @@ pub struct Ui {
     pub g_input: TextEdit,
     pub g_area: TextEdit,
     pub g_collapsed: bool,
+    /// The question being asked, if any (`ui::confirm`).
+    pub confirm: Option<confirm::Confirm>,
 }
 
 impl Default for Ui {
@@ -83,6 +86,7 @@ impl Default for Ui {
             g_input: TextEdit::new(""),
             g_area: TextEdit::new(""),
             g_collapsed: false,
+            confirm: None,
         }
     }
 }
@@ -126,6 +130,9 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
     }
     if let Some(delete) = crate::view::project_dialogs::delete(s, t) {
         layer.extend(delete);
+    }
+    if let Some(ask) = confirm::view(s, t) {
+        layer.extend(ask);
     }
     if let Some(export) = crate::view::export::dialog(s, t) {
         layer.extend(export);

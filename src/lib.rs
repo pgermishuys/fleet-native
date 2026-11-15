@@ -27,6 +27,8 @@ mod tests_project;
 #[cfg(test)]
 mod tests_questions;
 #[cfg(test)]
+mod tests_row_actions;
+#[cfg(test)]
 mod tests_rows;
 mod theme;
 pub mod ui;
@@ -71,6 +73,8 @@ pub struct State {
     pub project_load: fleet::groups::ProjectsLoad,
     /// Rename, delete and move on a project, and the + (`fleet::projects`).
     pub proj: fleet::projects::Projects,
+    /// Rename in place on a row (`fleet::actions`).
+    pub act: fleet::actions::RowActions,
     /// What the window shows: the open session by its id, so a refetch, a filter or a pin doesn't move it.
     pub route: fleet::store::Route,
     /// The list's own state beyond its rows: loading, error, the request in flight, sessions opened from other machines.
@@ -242,6 +246,7 @@ impl Default for State {
             projects: if SERVER.get().is_some() { Vec::new() } else { mock::projects() },
             project_load: fleet::groups::ProjectsLoad::new(true),
             proj: Default::default(),
+            act: Default::default(),
             route: if SERVER.get().is_some() {
                 fleet::store::Route::None
             } else {
@@ -927,7 +932,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     let composer_changed = s.keep_composer_state(now) | s.keep_autocomplete(now, tx) | s.keep_attachments(tx);
     let scrolled = s.keep_scroll(tx);
     let pictures = s.keep_images(tx);
-    let renamed = s.keep_rename(tx);
+    let renamed = s.keep_rename(tx) | s.keep_row_rename(tx);
     let found = s.find_poll(tx) | s.keep_questions();
     let exported = s.export_poll(tx);
     // "Copied" on a message's button ends by itself.
@@ -1118,6 +1123,28 @@ pub fn spec() -> AppSpec<State> {
             }),
             ("project-delete-all", |s| s.show_project_delete(1, fleet::projects::DeleteMode::DeleteSessions, false)),
             ("project-delete-busy", |s| s.show_project_delete(1, fleet::projects::DeleteMode::DeleteSessions, true)),
+            // Piece H of the session list: a row renamed in place and the two questions its menu asks.
+            ("row-rename", |s| s.show_row_rename(0, 1)),
+            ("row-rename-light", |s| {
+                s.dark = Some(false);
+                s.show_row_rename(0, 1)
+            }),
+            ("confirm-delete", |s| s.show_confirm(true, 0, 1, false, None)),
+            ("confirm-delete-light", |s| {
+                s.dark = Some(false);
+                s.show_confirm(true, 0, 1, false, None)
+            }),
+            ("confirm-clear", |s| s.show_confirm(false, 0, 1, false, None)),
+            ("confirm-clear-light", |s| {
+                s.dark = Some(false);
+                s.show_confirm(false, 0, 1, false, None)
+            }),
+            ("confirm-busy", |s| s.show_confirm(true, 0, 1, true, None)),
+            ("confirm-error", |s| s.show_confirm(true, 0, 1, false, Some("This session is still running a task."))),
+            ("confirm-error-light", |s| {
+                s.dark = Some(false);
+                s.show_confirm(true, 0, 1, false, Some("This session is still running a task."))
+            }),
             ("list-groups", |s| s.show_groups("")),
             ("list-groups-light", |s| {
                 s.dark = Some(false);

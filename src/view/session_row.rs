@@ -3,13 +3,14 @@
 //! Hover buttons, rename, the menu and lineage come after (docs/parity/06-session-list.md, rows 3.x).
 use super::parts::{cut_dot, status_glyph};
 use super::progress_ring::progress_ring;
+use crate::fleet::actions::RENAME_FIELD;
 use crate::fleet::row_chips::{self, Checks, PrBadge, PrState};
 use crate::fleet::row_status::{self, Dim, Glyph, RowItem, RowStatus, Tone};
 use crate::icons::{CHEVRON_RIGHT, GIT_MERGE, GIT_PULL_REQUEST, GIT_PULL_REQUEST_CLOSED, GIT_PULL_REQUEST_DRAFT, LOADER_CIRCLE};
 use crate::mock::Session;
 use crate::theme::{RADIUS_BTN, Theme, mono, sans};
 use crate::{State, Tx};
-use rune::{Color, Cursor, El, el, icon, row, text};
+use rune::{Color, Cursor, El, Key, KeyEvent, el, icon, row, text, text_input};
 
 /// The clock a list is drawn by: read once for all rows, so they agree and the time zone is asked once.
 pub struct RowClock {
@@ -152,6 +153,9 @@ pub fn session_row_with(s: &State, t: &Theme, clock: &RowClock, p: usize, i: usi
         // Nothing live: the empty slot keeps titles on one left edge.
         None => el().size(8.0, 8.0).key(format!("session-slot-{key}")),
     };
+    if s.row_renaming(p, i) {
+        return el().w_full().py(1.0).child(editing(s, t, &key, glyph));
+    }
     let title = row_status::display_title(None, &session.title);
     let mut line = row()
         .key(format!("session-{key}"))
@@ -166,9 +170,19 @@ pub fn session_row_with(s: &State, t: &Theme, clock: &RowClock, p: usize, i: usi
         .hover(if active { Color::TRANSPARENT } else { t.wash(5.0) })
         .hover_group()
         .cursor(Cursor::Pointer)
+        .focusable(true)
         .focus_ring(2.0, -2.0, t.accent)
         .help("Double-click to rename")
         .on_press_tx(move |s: &mut State, tx: &mut Tx| s.open_session(p, i, tx))
+        .on_double_press_tx(move |s: &mut State, tx: &mut Tx| s.start_row_rename(p, i, tx))
+        // `handleRowKeydown`: F2 renames.
+        .on_key(move |s: &mut State, ev: &KeyEvent, tx: &mut Tx| {
+            if ev.key == Key::Function(2) {
+                s.start_row_rename(p, i, tx);
+                return true;
+            }
+            false
+        })
         .on_secondary_press(move |s: &mut State, at, _: &mut Tx| {
             s.ui.point = (at.x, at.y);
             s.ui.open = Some(crate::ui::Open::Context(p, i));
@@ -232,6 +246,45 @@ pub fn session_row_with(s: &State, t: &Theme, clock: &RowClock, p: usize, i: usi
         line = line.child(word);
     }
     el().w_full().py(1.0).child(line)
+}
+
+/// `.session-item--editing`: the row with the title as a field, no hover, no pick, nothing on the right; the field has
+/// the raw title selected (`.session-title--editing`: the title's own size, no border, no padding).
+fn editing(s: &State, t: &Theme, key: &str, glyph: El) -> El {
+    let field = text_input(&s.act.edit, sans(13.0, 400.0, 1.2))
+        .key(RENAME_FIELD)
+        .label("Session name")
+        .placeholder("Session name", t.row_meta_ink())
+        .single_line()
+        .color(t.text)
+        .caret(t.text, t.accent.alpha(0.35))
+        .w_full()
+        .min_w(0.0)
+        .grow(1.0)
+        .on_edit(|s: &mut State| &mut s.act.edit)
+        .on_input_key(|s: &mut State, ev: &KeyEvent, tx: &mut Tx| match ev.key {
+            Key::Enter => {
+                s.finish_row_rename(true, tx);
+                true
+            }
+            Key::Escape => {
+                s.finish_row_rename(false, tx);
+                true
+            }
+            _ => false,
+        });
+    row()
+        .key(format!("session-{key}"))
+        .w_full()
+        .min_h(32.0)
+        .center_y()
+        .gap(9.0)
+        .pl(6.0)
+        .pr(10.0)
+        .radius(RADIUS_BTN)
+        .child(el().size(14.0, 14.0).mr(-4.0))
+        .child(glyph)
+        .child(field)
 }
 
 /// The chevron a parent's row carries in place of the empty slot (`.session-caret`): muted, rotated 90 degrees while the

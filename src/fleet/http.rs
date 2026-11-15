@@ -243,18 +243,25 @@ pub fn negotiate(base: &str) -> Result<String, String> {
 /// A call whose status the caller reads itself: a 404 or a 500 is an answer here, not an error. Only a request that
 /// never got an answer is `Err`. `body` is sent as JSON (`{}` when a POST has none).
 fn status_with(method: &str, base: &str, path: &str, body: Option<&Value>) -> Result<(u16, Value), String> {
+    let (status, text) = text_with(method, base, path, body)?;
+    Ok((status, serde_json::from_str(&text).unwrap_or(Value::Null)))
+}
+
+/// `status_with` that hands back the body as it came, for a caller that reads the server's reason out of it.
+pub fn text_with(method: &str, base: &str, path: &str, body: Option<&Value>) -> Result<(u16, String), String> {
     let agent: ureq::Agent =
         ureq::Agent::config_builder().timeout_global(Some(Duration::from_secs(15))).http_status_as_error(false).build().into();
     let target = url(base, path);
+    let json = || body.map_or("{}".to_string(), Value::to_string);
     let response = match method {
         "GET" => agent.get(target).call(),
         "DELETE" => agent.delete(target).call(),
-        _ => agent.post(target).header("content-type", "application/json").send(body.map_or("{}".to_string(), Value::to_string)),
+        "PATCH" => agent.patch(target).header("content-type", "application/json").send(json()),
+        _ => agent.post(target).header("content-type", "application/json").send(json()),
     };
     let mut response = response.map_err(|e| e.to_string())?;
     let status = response.status().as_u16();
-    let text = response.body_mut().read_to_string().unwrap_or_default();
-    Ok((status, serde_json::from_str(&text).unwrap_or(Value::Null)))
+    Ok((status, response.body_mut().read_to_string().unwrap_or_default()))
 }
 
 fn status_of(method: &str, base: &str, path: &str) -> Result<(u16, Value), String> {
