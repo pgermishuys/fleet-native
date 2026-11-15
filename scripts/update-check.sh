@@ -8,7 +8,7 @@
 set -euo pipefail
 src="${1:?path of a debug build}"
 tmp="$(mktemp -d)"
-trap 'kill "${server:-0}" 2>/dev/null || true; rm -rf "$tmp"' EXIT
+trap 'kill "${server:-0}" 2>/dev/null || true; rm -rf "$tmp" 2>/dev/null || true' EXIT
 case "$(uname -s)" in
   MINGW*|MSYS*|CYGWIN*) src="${src%.exe}.exe"; key=windows-x64; name=fleet-native-windows-x64.zip; exe=fleet-native.exe ;;
   Linux) key=linux-x64; name=fleet-native-linux-x64.tar.gz; exe=fleet-native ;;
