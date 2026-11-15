@@ -117,7 +117,7 @@ pub fn panel(s: &State, t: &Theme) -> El {
     }
     // No Fleet was found: nothing is listed, and there is nothing to try again.
     if s.no_fleet && !s.has_rows() {
-        list = list.child(empty_state(t, "No Fleet found", "Start Fleet, or run fleet-native with --server <url>. A Fleet on another machine also needs --token <token>: Fleet shows it in Settings > Machines > This machine."));
+        list = list.child(empty_state(t, "No Fleet found", "Looking again every few seconds. Start Fleet, or run fleet-native with --server <url>. A Fleet on another machine also needs --token <token>: Fleet shows it in Settings > Machines > This machine."));
     }
     let kind = feedback(s.list_is_loading(), error.as_deref(), s.has_rows(), usize::from(!first));
     match kind {

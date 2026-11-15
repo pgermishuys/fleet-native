@@ -165,10 +165,20 @@ pub fn all_places(os: Os, get: &dyn Fn(&str) -> Option<String>) -> Vec<Place> {
     all
 }
 
-/// Looks for the Fleet on this machine: the places in order, each checked with `/readyz`.
-pub fn discover(get: &dyn Fn(&str) -> Option<String>) -> Result<Found, Vec<Place>> {
-    let all = all_places(Os::current(), get);
-    find_in(&all).ok_or(all)
+/// How long to wait between looks while no Fleet answers: Fleet's desktop app may still be starting its server.
+pub const LOOK_AGAIN: std::time::Duration = std::time::Duration::from_secs(3);
+
+/// Looks until a Fleet answers. `on_missing` hears of each look that found nothing (the first one is when to tell
+/// the user; later ones change nothing), so a Fleet that comes up a moment after the app is still found.
+pub fn search(places: impl Fn() -> Vec<Place>, every: std::time::Duration, mut on_missing: impl FnMut(&[Place])) -> Found {
+    loop {
+        let looked = places();
+        if let Some(found) = find_in(&looked) {
+            return found;
+        }
+        on_missing(&looked);
+        std::thread::sleep(every);
+    }
 }
 
 /// What the status bar says when nothing was found: where it looked and how to point the app at a Fleet.

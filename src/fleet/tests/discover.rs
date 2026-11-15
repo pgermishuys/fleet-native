@@ -252,3 +252,29 @@ fn a_normal_start_with_no_fleet_holds_no_mock_data() {
     assert!(!s.list_is_loading() && s.no_fleet && s.live && !s.is_mock());
     assert_eq!(s.connection_note().as_deref(), Some("No Fleet found."));
 }
+
+#[test]
+fn it_keeps_looking_and_finds_a_fleet_that_starts_a_moment_after_the_window() {
+    let dir = temp("late");
+    let file = dir.join("data/fleet.instance.json");
+    let url = server();
+    let writer = {
+        let (file, url) = (file.clone(), url.clone());
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(400));
+            write(&file, &instance_json(&url));
+        })
+    };
+    let mut missing = 0;
+    let found = discover::search(
+        || vec![Place::InstanceFile(file.clone())],
+        std::time::Duration::from_millis(50),
+        |looked| {
+            assert_eq!(looked.len(), 1);
+            missing += 1;
+        },
+    );
+    writer.join().unwrap();
+    assert_eq!(found.url, url);
+    assert!(missing >= 2, "it looked more than once before the Fleet was there: {missing}");
+}

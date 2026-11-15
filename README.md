@@ -85,8 +85,8 @@ A Fleet on another machine asks for its access token: `--token <token>` or `FLEE
 the environment variable keeps it out of the process list). Only `http://` addresses work so far, so use the machine's own address (for example its
 `--host 0.0.0.0` or tailnet address), not one behind `tailscale serve`. Without the token the window says the Fleet needs one and doesn't keep retrying.
 
-`FLEET_NATIVE_SERVER=<url>` does the same where arguments are awkward (macOS from Finder: `open -a "Fleet Native" --args --server <url>`
-also works, or set it with `launchctl setenv FLEET_NATIVE_SERVER <url>` before opening the app); `--server` wins when both are given.
+`FLEET_NATIVE_SERVER=<url>` does the same where arguments are awkward (macOS from Finder: `open -n -a "Fleet Native" --args --server <url>`
+also works; `open` ignores `--args` while the app is already running, so quit it first or add `-n`; or set it with `launchctl setenv FLEET_NATIVE_SERVER <url>` before opening the app); `--server` wins when both are given.
 
 With neither, the app looks for the Fleet running on this machine, in this order, and uses the first that answers `/readyz`:
 
@@ -98,7 +98,7 @@ With neither, the app looks for the Fleet running on this machine, in this order
    `~/.config/Fleet`), since it takes any free port when 6262 is busy;
 4. port 6262.
 
-When none answers, the status bar says where it looked. With no Fleet found the window is empty and says so; it never shows invented data in a normal run. The invented sessions are what the tests and scenes use, and `fleet-native --demo` shows them by hand.
+When none answers, the status bar says where it looked. With no Fleet found the window is empty and says so; it never shows invented data in a normal run. The invented sessions are what the tests and scenes use, and `fleet-native --demo` shows them by hand. The app keeps looking every few seconds, so it connects when Fleet's desktop app finishes starting its server.
 
 The window opens at the desktop app's size (1360 x 880, no smaller than 720 x 480) and follows the
 system's light or dark theme.
