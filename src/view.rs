@@ -20,6 +20,7 @@ pub mod message;
 mod parts;
 pub mod permission;
 pub mod progress_ring;
+pub mod project_header;
 mod prose;
 pub mod queued;
 mod rail;

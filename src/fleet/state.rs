@@ -73,6 +73,10 @@ impl State {
     /// Opens a session in the list and, on a server, asks it for the conversation.
     pub fn open_session(&mut self, project: usize, session: usize, tx: &mut Tx) {
         self.set_open((project, session));
+        // The right panel comes back the way this session left it, else the way it was last left anywhere.
+        if let Some(c) = self.open_id().and_then(|id| self.sidebar.remembered_right(&id)) {
+            self.content_open = !c;
+        }
         // The text area shows the new session's draft at once, not a frame later.
         self.keep_drafts(self.clock, tx);
         if let Some(p) = self.projects.get_mut(project) {
@@ -130,6 +134,51 @@ impl State {
         }
         if self.stream.is_some() {
             self.loading = true;
+        }
+    }
+
+    /// Hides or shows the session list (Ctrl/Cmd+B) and remembers it.
+    pub fn set_sidebar_open(&mut self, open: bool) {
+        self.sidebar_open = open;
+        self.sidebar.set_panel_collapsed(!open);
+        self.save_settings();
+    }
+
+    /// Opens or closes the right panel and remembers it for the open session (`setRightPanelCollapsed`).
+    pub fn set_content_open(&mut self, open: bool) {
+        self.content_open = open;
+        let id = self.open_id();
+        self.sidebar.set_right_collapsed(id.as_deref(), !open);
+        self.save_settings();
+    }
+
+    /// A project header was pressed: fold or unfold its group and remember it (`handleToggleProject`).
+    pub fn toggle_project(&mut self, p: usize) {
+        let Some(project) = self.projects.get_mut(p) else { return };
+        project.open = !project.open;
+        let key = fold_key(project);
+        self.sidebar.set_group_collapsed(&key, !project.open);
+        self.save_settings();
+    }
+
+    /// The settings file was read (off the UI thread): the list and the panels take what it says.
+    pub fn adopt_settings(&mut self, dir: std::path::PathBuf, stored: super::settings::Sidebar) {
+        self.sidebar.adopt(dir, stored);
+        self.sidebar_open = !self.sidebar.panel_collapsed();
+        for project in &mut self.projects {
+            if self.sidebar.is_group_collapsed(&fold_key(project)) {
+                project.open = false;
+            }
+        }
+        if let Some(c) = self.open_id().and_then(|id| self.sidebar.remembered_right(&id)) {
+            self.content_open = !c;
+        }
+    }
+
+    /// Writes the settings file on a thread, if it has a folder and something changed.
+    fn save_settings(&mut self) {
+        if let Some((dir, json)) = self.sidebar.take_save() {
+            super::settings::spawn_save(dir, json);
         }
     }
 
@@ -196,11 +245,9 @@ impl State {
 
     /// The session list arrived, or changed. Keeps which projects are folded and which session is open.
     pub fn on_list(&mut self, mut projects: Vec<Project>, tx: &mut Tx) {
+        // Which groups are folded is remembered by project id (`isProjectExpanded`), not by what the last list had.
         for project in &mut projects {
-            let same = |p: &&Project| if project.id.is_empty() { p.name == project.name } else { p.id == project.id };
-            if let Some(old) = self.projects.iter().find(same) {
-                project.open = old.open;
-            }
+            project.open = !self.sidebar.is_group_collapsed(&fold_key(project));
         }
         // The open session's conversation isn't in the list; carry it over.
         let old_messages = self.session_mut().map(|s| std::mem::take(&mut s.messages)).unwrap_or_default();
@@ -605,4 +652,9 @@ impl State {
             (_, Connection::Down(why)) => Some(format!("Reconnecting: {why}")),
         }
     }
+}
+
+/// The key a project's group is folded under: this machine's, by project id (the Pinned group's is `pinned`).
+fn fold_key(project: &Project) -> String {
+    super::settings::project_group_key(super::settings::HOME_MACHINE_KEY, &project.id)
 }

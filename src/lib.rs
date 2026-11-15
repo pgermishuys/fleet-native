@@ -17,6 +17,8 @@ mod tests_asks;
 #[cfg(test)]
 mod tests_browser;
 #[cfg(test)]
+mod tests_header;
+#[cfg(test)]
 mod tests_images;
 #[cfg(test)]
 mod tests_panel;
@@ -51,6 +53,10 @@ pub struct State {
     pub sidebar_open: bool,
     pub sidebar_w: f32,
     pub content_open: bool,
+    /// What is remembered between runs: folded groups and the two side panels (`fleet::settings`).
+    pub sidebar: fleet::settings::Sidebar,
+    /// A scene that shows one header of each kind above the list (the Pinned group isn't drawn until piece J).
+    pub sample_headers: bool,
     /// The workspace sheet's measured width; 0 until its first layout.
     pub sheet_w: f32,
     /// The theme the last frame was drawn in, so the theme key can flip what is on screen even
@@ -218,6 +224,8 @@ impl Default for State {
             sidebar_open: true,
             sidebar_w: view::SIDEBAR_W,
             content_open: false,
+            sidebar: Default::default(),
+            sample_headers: false,
             sheet_w: 0.0,
             drawn_dark: std::cell::Cell::new(true),
             projects: if SERVER.get().is_some() { Vec::new() } else { mock::projects() },
@@ -1003,9 +1011,9 @@ fn on_key(s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool {
     if ev.is_command('k') {
         ui::palette::toggle(s, tx);
     } else if ev.is_command('b') && ev.mods.shift {
-        s.content_open = !s.content_open;
+        s.set_content_open(!s.content_open);
     } else if ev.is_command('b') {
-        s.sidebar_open = !s.sidebar_open;
+        s.set_sidebar_open(!s.sidebar_open);
     } else if ev.is_command('[') {
         s.step(-1, tx);
     } else if ev.is_command(']') {
@@ -1038,6 +1046,11 @@ pub fn spec() -> AppSpec<State> {
             ("dark", |s| s.dark = Some(true)),
             ("sidebar-closed", |s| s.sidebar_open = false),
             ("content-open", |s| s.content_open = true),
+            ("project-headers", |s| s.sample_headers = true),
+            ("project-headers-light", |s| {
+                s.sample_headers = true;
+                s.dark = Some(false);
+            }),
             ("needs-input", |s| s.set_open((0, 1))),
             // Piece C of the session list: a row for every status, in both themes.
             ("row-statuses", |s| s.show_row_statuses(true)),
@@ -1812,7 +1825,7 @@ pub fn start_desktop() {
             }
         });
     let handle = app.handle();
-    // The drafts come back from the app's own data folder, read off the UI thread. A picture or a scripted run
+    // The drafts and the remembered choices (folded groups, the side panels) come back from the app's own data folder, read off the UI thread. A picture or a scripted run
     // only touches the folder when `FLEET_NATIVE_DATA_DIR` names one, so they come out the same every time.
     if (!headless || std::env::var_os("FLEET_NATIVE_DATA_DIR").is_some())
         && let Some(dir) = composer::drafts::app_dir(|k| std::env::var(k).ok())
@@ -1820,7 +1833,11 @@ pub fn start_desktop() {
         let handle = handle.clone();
         std::thread::spawn(move || {
             let stored = composer::drafts::load(&dir);
-            handle.update(move |s, _| s.adopt_drafts(dir, stored));
+            let settings = fleet::settings::load(&dir);
+            handle.update(move |s, _| {
+                s.adopt_settings(dir.clone(), settings);
+                s.adopt_drafts(dir, stored);
+            });
         });
     }
     if let Some(url) = server {

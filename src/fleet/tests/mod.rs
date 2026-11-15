@@ -505,6 +505,7 @@ mod row_status;
 mod rows;
 mod scroll;
 mod selector;
+mod settings;
 mod state;
 mod store;
 mod usage;

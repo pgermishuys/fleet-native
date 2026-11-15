@@ -38,6 +38,7 @@ pub mod rows;
 pub mod scroll;
 pub mod selector;
 pub mod sessions;
+pub mod settings;
 pub mod signalr;
 pub mod state;
 pub mod store;

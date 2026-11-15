@@ -1,11 +1,12 @@
 //! The session list (`SessionsPanel.vue`, `ProjectGroup.vue`): New session, the filter, sessions grouped by project,
 //! and the Archived link. A row is `session_row.rs`.
+use super::project_header::{Header, project_header};
 use super::session_row::session_row;
 use crate::State;
 use crate::fleet::groups::{matching_sessions, session_matches_query};
 use crate::fleet::panel::{Feedback, banner_copy, empty_words, feedback};
 use crate::icons::*;
-use crate::mock::{Project, Session};
+use crate::mock::Session;
 use crate::theme::{Theme, sans};
 use rune::{Color, Cursor, El, ScrollSpec, col, el, icon, row, text, text_input};
 
@@ -68,6 +69,17 @@ pub fn panel(s: &State, t: &Theme) -> El {
     let needle = s.filter.text.trim().to_lowercase();
     let clock = super::session_row::RowClock::now(s);
     let mut list = col().w_full().px(8.0).pb(12.0);
+    if s.sample_headers {
+        // The Pinned group is piece J's: until then a scene draws one header of each kind for the picture.
+        let samples = [
+            ("sample-pinned", Header::Pinned, "Pinned", 2, true),
+            ("sample-ungrouped", Header::Ungrouped, "Ungrouped", 3, false),
+            ("sample-project", Header::Project, "A project with a very long name that has to be cut short", 12, true),
+        ];
+        for (key, kind, name, count, open) in samples {
+            list = list.child(col().w_full().mb(10.0).child(project_header(t, key.into(), kind, name, count, open)));
+        }
+    }
     let error = s.list_error();
     // Rows from an earlier read stay on screen under a banner that says the refresh failed.
     if let (Some(e), true) = (&error, s.has_rows()) {
@@ -79,10 +91,13 @@ pub fn panel(s: &State, t: &Theme) -> El {
         let matches = |session: &Session| session_matches_query(session, &needle, &s.project_load.projects);
         let Some(kept) = matching_sessions(&project.name, &project.sessions, &needle, matches) else { continue };
         let rows: Vec<(usize, &Session)> = kept.into_iter().map(|i| (i, &project.sessions[i])).collect();
-        let mut group = col().w_full().mt(if first { 0.0 } else { 10.0 }).child(project_header(t, p, project, rows.len()));
+        let kind = if project.id == crate::fleet::groups::UNGROUPED_ID { Header::Ungrouped } else { Header::Project };
+        let header = project_header(t, format!("project-{p}"), kind, &project.name, rows.len(), project.open)
+            .on_press(move |s: &mut State| s.toggle_project(p));
+        let mut group = col().w_full().mt(if first { 0.0 } else { 10.0 }).child(header);
         first = false;
-        // A filter shows its matches even in a folded project.
-        if project.open || !needle.is_empty() {
+        // A folded project stays folded while a filter is typed: Fleet's `expanded` doesn't know the query.
+        if project.open {
             let mut body = col().w_full().pt(2.0);
             for (i, session) in rows {
                 body = body.child(session_row(s, t, &clock, p, i, session));
@@ -120,6 +135,7 @@ pub fn panel(s: &State, t: &Theme) -> El {
 
     col()
         .key("session-list")
+        .label("Sessions context panel")
         .w(s.sidebar_w)
         .h_full()
         .min_h(0.0)
@@ -127,26 +143,6 @@ pub fn panel(s: &State, t: &Theme) -> El {
         .child(filter)
         .child(col().key("sessions").w_full().grow(1.0).shrink().min_h(0.0).scroll(ScrollSpec { stick_bottom: false }).child(list))
         .child(archived)
-}
-
-fn project_header(t: &Theme, p: usize, project: &Project, count: usize) -> El {
-    let turn = if project.open { 0.0 } else { -std::f32::consts::FRAC_PI_2 };
-    row()
-        .key(format!("project-{p}"))
-        .w_full()
-        .min_h(26.0)
-        .center_y()
-        .gap(6.0)
-        .pl(6.0)
-        .pr(10.0)
-        .radius(8.0)
-        .hover(t.wash(5.0))
-        .hover_group()
-        .cursor(Cursor::Pointer)
-        .on_press(move |s: &mut State| s.projects[p].open = !s.projects[p].open)
-        .child(icon(&CHEVRON_DOWN, 13.0).color(t.muted.alpha(0.7)).rotate(turn))
-        .child(text(project.name.clone()).font(sans(12.0, 600.0, 1.3)).color(t.muted).group_color(t.text).truncate().grow(1.0))
-        .child(text(count.to_string()).font(sans(12.0, 500.0, 1.3).features("'tnum' 1")).color(t.muted.alpha(0.7)))
 }
 
 /// `.sessions-feedback-state`: the first load.

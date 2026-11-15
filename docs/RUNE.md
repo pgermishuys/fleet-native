@@ -699,3 +699,14 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 - A `Span` can be underlined, but only for a whole run, not on hover, so "Permission settings" changes no more than colour.
 - A fake model that writes a path takes it from its own `HOME`: start the scripted model with an invented `HOME`, or
   the picture of Fleet's card shows the machine's home folder.
+
+
+## Session list, piece F (settings file, project header)
+
+- **A scene can open the app's own folder safely**: `--script`/`--snap` runs read and write `settings.json` only when
+  `FLEET_NATIVE_DATA_DIR` names a folder, so a picture never touches the real one. The write happens on a thread; a scripted run
+  that folds a group and ends has written it by the time the process exits (checked: a second start folded the same group).
+- **`.label(..)` on a keyed column** gives the panel its "Sessions context panel" name without changing layout.
+- **`focus_ring(2.0, -2.0, accent)` on a pressable row** is the header's `:focus-visible`; Rune draws it for keyboard focus only.
+  Not looked at with a real keyboard here (no window), only that the call builds and the headers draw the same.
+- Still no transition: the caret's 150 ms turn and the 150 ms height animation on folding are instant (as for every other ease).
