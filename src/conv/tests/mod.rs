@@ -10,6 +10,7 @@ mod compaction;
 mod diff;
 mod fold;
 mod gist;
+mod image_sniff;
 mod merge_reads;
 mod message_list;
 mod output;

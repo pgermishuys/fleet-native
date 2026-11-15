@@ -66,6 +66,8 @@ pub struct ToolBody {
     pub has_diff: bool,
     /// Only a call that failed starts open.
     pub initially_collapsed: bool,
+    /// The screenshot Fleet kept for the call, which shows under it even while the row is folded.
+    pub screenshot: Option<super::image_sniff::Shot>,
 }
 
 /// The card's diff lines (`cardDiffLines`, then `withFileEdit`'s fallback for write kinds).
@@ -94,6 +96,7 @@ pub fn tool_body(tool: &str, title: &str, state: &Value) -> ToolBody {
         summary,
         header,
         initially_collapsed: state.get("status").and_then(Value::as_str) != Some("error"),
+        screenshot: super::image_sniff::tool_screenshot(state),
     }
 }
 

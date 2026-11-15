@@ -5,6 +5,7 @@
 //! What a call is called, drawn with and summarised as comes from the registry (`conv::tools`); this file only draws.
 use super::agent_row;
 use super::conversation::{Part, ToolState};
+use super::image;
 use super::parts::{pulse, triangle};
 use super::toolcard;
 use crate::State;
@@ -74,7 +75,14 @@ pub fn tool_entry(t: &Theme, s: &State, part: &Part) -> El {
     if let (false, ToolStatus::Error, Some(line)) = (open, *status, body.preview.as_deref()) {
         card = card.child(toolcard::preview(t, id, line));
     }
-    if open { card.child(toolcard::body(t, s, id, tool, body)) } else { card }
+    if open {
+        card = card.child(toolcard::body(t, s, id, tool, body));
+    }
+    // What the agent saw sits under the call, open or folded.
+    if let Some(shot) = &body.screenshot {
+        card = card.child(image::screenshot(t, s, id, shot, detail));
+    }
+    card
 }
 
 /// `.tool-header__background`: 11px, 500, uppercase, 0.02em apart.

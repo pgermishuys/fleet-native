@@ -6,6 +6,7 @@ pub mod failure;
 pub mod finder;
 pub mod fold;
 pub mod frame;
+pub mod images;
 pub mod long;
 pub mod parts;
 pub mod ring;

@@ -8,6 +8,7 @@ use super::agent_row;
 use super::compaction;
 use super::failure;
 use super::fold;
+use super::image;
 use super::interrupted;
 use super::message::{self, copy_text};
 use super::prose;
@@ -193,7 +194,14 @@ impl Part {
                     ToolState::Took(secs) => 3 + secs.to_bits() as usize,
                     ToolState::Plain => 4,
                 };
-                shown + (*status as usize) * 7 + detail.len() + body.output.len() + body.summary.len() + agent.kind.len() + agent.task.len()
+                shown
+                    + (*status as usize) * 7
+                    + usize::from(body.screenshot.is_some())
+                    + detail.len()
+                    + body.output.len()
+                    + body.summary.len()
+                    + agent.kind.len()
+                    + agent.task.len()
             }
             Part::Compaction { summary, .. } => 5 + summary.as_ref().map_or(0, String::len),
             Part::Shell(c) => 6 + c.output.len() + (c.state as usize) * 3 + c.exit.map_or(0, |e| e as usize),
@@ -287,7 +295,7 @@ pub fn stream(t: &Theme, session: &Session, plan: &FoldPlan, partial: bool, olde
                     frame,
                     s.lists().models.len(),
                     fold_key(kept),
-                    (failure, agent_row::key(s, msg)),
+                    (failure, agent_row::key(s, msg), image::key(s, &msg.parts)),
                     s.is_shown(&msg.id),
                 ),
                 || message_row(&theme, &md, msg, (kept, after_tool), streaming, s, (frame.0, frame.1)),
@@ -538,6 +546,8 @@ fn message_row(
         column = column.child(el().w_full().mt(if lead_spent { 0.0 } else { lead }).child(agent_row::background_note(t, note)));
         lead_spent = true;
     }
+    let images_only = parts.iter().any(|p| is_image(p)) && !parts.iter().any(|p| matches!(p, Part::Text { .. }));
+    let mut image_bubble = false;
     let mut k = 0;
     let mut copy_pinned = false;
     while k < parts.len() {
@@ -560,6 +570,16 @@ fn message_row(
                 after_tool = Some(true);
             }
             k = end;
+            continue;
+        }
+        // A user's images are drawn in their bubble; a message of images alone gets a bubble of its own.
+        if msg.role == Role::User && is_image(parts[k]) {
+            if images_only && !std::mem::replace(&mut image_bubble, true) {
+                let part = message::user_bubble(t, s, md, msg, "", "");
+                column = column.child(el().w_full().mt(above(after_tool, false)).py(2.0).child(part));
+                after_tool = Some(false);
+            }
+            k += 1;
             continue;
         }
         let live = streaming && k + 1 == parts.len();
@@ -606,6 +626,11 @@ fn message_row(
         ));
     }
     column
+}
+
+/// An image a user attached (`MessageBubble.vue`'s `images`).
+pub fn is_image(part: &Part) -> bool {
+    matches!(part, Part::File { mime, .. } if mime.starts_with("image/"))
 }
 
 fn part_view(t: &Theme, s: &State, md: &Styles, msg: &Message, part: &Part, live: bool) -> El {

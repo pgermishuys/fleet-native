@@ -136,6 +136,16 @@ impl Theme {
         self.wash(18.0)
     }
 
+    /// `ImageLightbox.vue`: `rgba(0,0,0,.8)` over the whole window, a literal in Fleet too (the same in both themes).
+    pub fn scrim(&self) -> Color {
+        Color::BLACK.alpha(0.8)
+    }
+
+    /// The lightbox picture's `0 8px 32px rgba(0,0,0,.5)`.
+    pub fn lightbox_shadow(&self) -> Shadow {
+        Shadow { x: 0.0, y: 8.0, blur: 32.0, spread: 0.0, color: Color::BLACK.alpha(0.5), inset: false }
+    }
+
     /// `--menu-shadow`: the raised look of menus, popovers and dialogs' lift.
     pub fn menu_shadows(&self) -> Vec<Shadow> {
         let (a, b) = if self.dark {

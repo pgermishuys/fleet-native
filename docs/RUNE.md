@@ -564,3 +564,11 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 - A `text_input` can be tinted without being rich text: `.text_highlights([TextHighlight::new(bytes, colour).pad(3.0)])` on the field's `El` paints a rounded fill behind each wrapped line of a byte range, never reshapes the text and leaves bold/italic shortcuts and HTML paste off. So Fleet's mirror element is not needed. The corner radius isn't settable (Fleet's is 4 px).
 - `on_input_key` runs before the field's own keys, so a handler can call `TextEdit::set_selection(start, end)` and return `false`: the field then deletes that selection as one undoable edit (Backspace takes a reference whole, and undo brings it back). Returning `true` consumes the key (the arrows).
 - There is no click or key-up hook on the field; the caret is moved out of a reference by checking `TextEdit::range()` each frame.
+## Component 3, piece N (images and the lightbox)
+
+- **`ImageCache::load(bytes)` returns at once and decodes on a worker**: keep the `Image`, ask `is_ready()` and `error()` from `poll` (with `tx.wake_after`), and draw `el().pixels(image.pixels())`; the element draws whatever has decoded by then.
+- **A scene is applied before `setup`**, so `State::cache` is `None` there: bytes handed over by a scene must wait until the cache exists (`Images::parked`).
+- **`pixels_fit(.., SurfaceFit::Fit | Fill)` is `object-fit` `contain` and `cover`, but only about the centre.** There is no top-left anchor.
+- **A view can't start work, so it leaves a want in a `RefCell`** that `poll` drains (`Images::want`); the row's memo key has to include the picture's state or the row never redraws when it arrives.
+- **A full-window overlay is a `col().absolute(0,0).w_full().h_full()` with `.modal(false, close)`** and its own `on_press(close)`; the picture inside takes an empty `on_press` so a press on it doesn't reach the scrim. `on_layout` on that frame is the only way to know the window's size (the lightbox's 90%).
+- **Focus can't be read headless**: after `autofocus` on a modal's button, Space and Enter pressed nothing in a `Runtime`, so "focus lands on the close button / returns to the thumbnail" is unverified by tests.

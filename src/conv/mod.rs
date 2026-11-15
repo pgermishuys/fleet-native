@@ -10,6 +10,7 @@ pub mod diff;
 pub mod fold;
 pub mod fold_plan;
 pub mod gist;
+pub mod image_sniff;
 pub mod merge_reads;
 pub mod message_list;
 pub mod output;
