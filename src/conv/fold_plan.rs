@@ -1,7 +1,7 @@
 //! What the stream draws of its messages once finished turns fold, as plain data the view reads: which messages are gone,
 //! which one hosts each fold row, which tool calls and thinking blocks stay. It is `foldTurns` over `buildList` of the
 //! reducer's messages, kept beside the view's own messages by id (the view's `Message` is drawn from the same ones).
-use super::fold::{FoldOptions, fold_turns};
+use super::fold::{FoldOptions, fold_turns, turn_ids_of};
 use super::message_list::{ListContext, ListMessage, build_list};
 use crate::fleet::model::Msg;
 use crate::fleet::prompts::SentPrompt;
@@ -28,6 +28,8 @@ pub struct FoldPlan {
     pub kept: HashMap<String, Kept>,
     /// Where the messages that still draw sit among the session's messages; `None` when every one draws.
     pub visible: Option<Vec<usize>>,
+    /// The turn each message belongs to (`turnIdsOf`), which Find opens when a match is in a folded one.
+    pub turns: HashMap<String, String>,
 }
 
 impl FoldPlan {
@@ -57,7 +59,7 @@ impl FoldPlan {
         let list = build_list(messages, sent, context);
         let folded = fold_turns(&list, options);
         let shown: HashSet<&str> = folded.iter().map(|m| m.id.as_str()).collect();
-        let mut plan = FoldPlan::default();
+        let mut plan = FoldPlan { turns: turn_ids_of(&list), ..FoldPlan::default() };
         for before in &list {
             if !shown.contains(before.id.as_str()) {
                 plan.hidden.insert(before.id.clone());

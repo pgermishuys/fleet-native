@@ -325,12 +325,22 @@ pub fn stream(t: &Theme, session: &Session, plan: &FoldPlan, partial: bool, olde
                 .children(older.map(|o| older_row(&theme, o)))
                 .child(rows),
         );
-    col().key("stream-shell").w_full().grow(1.0).shrink().min_h(0.0).child(stream).children(scroll.jump.then(|| scroll::jump_lane(&theme)))
+    col()
+        .key("stream-shell")
+        .w_full()
+        .grow(1.0)
+        .shrink()
+        .min_h(0.0)
+        .child(stream)
+        .children(scroll.jump.then(|| scroll::jump_lane(&theme)))
+        .children(scroll.find)
 }
 
 /// What the stream needs of `State`'s scroll: whether Jump to latest shows, and where the box reports itself.
 pub struct Scroll {
     pub jump: bool,
+    /// The find bar, floating over the top right of the box (`view::find`).
+    pub find: Option<El>,
     pub probe: std::rc::Rc<std::cell::Cell<Option<rune::ScrollPos>>>,
 }
 

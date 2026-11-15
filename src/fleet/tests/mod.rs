@@ -486,6 +486,7 @@ mod autocomplete;
 mod catalog;
 mod delegations;
 mod events;
+mod find;
 mod finder;
 mod history;
 mod instance;

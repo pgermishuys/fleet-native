@@ -595,3 +595,13 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 - `on_drop_files` on the frame plus `on_drop_hover` is the whole drop; `Runtime::drag_files(paths, at)` and `drop_files` drive it. No drops on Wayland.
 - A hover group follows keyboard focus too, so a control shown with `group_opacity(0, 1)` shows when Tab reaches it; the hidden button still takes a click, so a test can press it without hovering.
 - A file read, a 5 MB base64 encode and a decode belong on a thread: a thread answers through an `mpsc` channel that `poll` drains, with `tx.wake_after(30 ms)` while one is out (the picture cache's own loads work like this).
+
+## Component 3, piece P (find bar)
+
+- **Ctrl/Cmd+F reaches the window's `on_key` after a focused text field passes it on** (step 7 of "Key routing"), so `tx.focused()` names the field and the app decides by its key; the composer's `text_input` passes it too.
+- **A bar over a scroller is an `absolute(0,0).w_full()` row with `justify_end` and padding** inside the column; it doesn't take presses outside the card.
+- **`on_input_key` sees Escape and Enter first**, so "Esc closes, Shift+Enter steps back" is a match on `ev.key` and `ev.mods.shift`. Selecting a field's text is `TextEdit::set_selection(0, len)`, with `tx.focus(key, false)` for the focus.
+- **A headless `Runtime` can't say what has focus, but `rt.elements()` has a `focused` flag per element**, which a test can read by key.
+- **There is no `search` field type with a clear button**: Chromium draws one in Fleet's field; here it is plain.
+- **A row keeping its width is `.shrink().min_w(0.0)` with `.wrap()` on the text**: without it a long status line ran out of the card.
+
