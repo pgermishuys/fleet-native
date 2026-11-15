@@ -39,6 +39,10 @@ pub fn bar(s: &State, t: &Theme) -> El {
         .child(sep())
         .child(hint(vec![kbd(&format!("{cmd} J"))], "Terminal"));
     let mut session = row().center_y().gap(8.0);
+    // A newer build is waiting: an item in the same style as the hints, nothing that pops up.
+    if let Some(update) = super::update::item(s, t) {
+        session = session.child(update).child(text("|").font(label).color(t.border));
+    }
     // What's wrong with the server connection, in the colour Fleet gives errors.
     if let Some(note) = s.connection_note() {
         session = session.child(text(note).font(label).color(t.error).truncate()).child(text("|").font(label).color(t.border));

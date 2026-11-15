@@ -32,6 +32,7 @@ mod tests_row_actions;
 mod tests_rows;
 mod theme;
 pub mod ui;
+pub mod update;
 pub mod view;
 
 use conv::tools::ToolStatus;
@@ -210,6 +211,8 @@ pub struct State {
     pub gallery: bool,
     /// Export as Markdown: the dialog, while it is open (`fleet::export`).
     pub export: fleet::export::Export,
+    /// A newer build to install: the status bar's item and its dialog (`update`).
+    pub update: update::Update,
     /// The conversation's scroll: whether it follows the end, where Rune last said the box was (`on_scroll_offset` may not
     /// change state, so it leaves it in the probe and `poll` reads it), and the message just jumped to.
     pub pin: conv::pin::Pin,
@@ -335,6 +338,7 @@ impl Default for State {
             ui: ui::Ui::default(),
             gallery: false,
             export: Default::default(),
+            update: Default::default(),
             pin: Default::default(),
             scroll_probe: Default::default(),
             scroll_seen: None,
@@ -1857,6 +1861,31 @@ pub fn spec() -> AppSpec<State> {
                 s.show_composer("model-starred")
             }),
             ("automations", |s| s.rail = Rail::Automations),
+            ("update-item", |s| mock::update::show(s, mock::update::Case::Item)),
+            ("update-item-light", |s| {
+                s.dark = Some(false);
+                mock::update::show(s, mock::update::Case::Item)
+            }),
+            ("update-dialog", |s| mock::update::show(s, mock::update::Case::Dialog)),
+            ("update-dialog-light", |s| {
+                s.dark = Some(false);
+                mock::update::show(s, mock::update::Case::Dialog)
+            }),
+            ("update-downloading", |s| mock::update::show(s, mock::update::Case::Downloading)),
+            ("update-downloading-light", |s| {
+                s.dark = Some(false);
+                mock::update::show(s, mock::update::Case::Downloading)
+            }),
+            ("update-failed", |s| mock::update::show(s, mock::update::Case::Failed)),
+            ("update-failed-light", |s| {
+                s.dark = Some(false);
+                mock::update::show(s, mock::update::Case::Failed)
+            }),
+            ("update-manual", |s| mock::update::show(s, mock::update::Case::Manual)),
+            ("update-manual-light", |s| {
+                s.dark = Some(false);
+                mock::update::show(s, mock::update::Case::Manual)
+            }),
             ("export-dialog", |s| mock::export::show(s, mock::export::Case::Ready)),
             ("export-dialog-light", |s| {
                 s.dark = Some(false);
@@ -1945,6 +1974,9 @@ pub fn start_desktop() {
         println!("{}", version_line());
         return;
     }
+    if std::env::args().skip(1).any(|a| a == "--update-now") {
+        std::process::exit(update::update_now(!std::env::args().any(|a| a == "--no-restart")));
+    }
     if std::env::args().any(|a| a == "--bench-conversation") {
         return bench::conversation();
     }
@@ -1993,6 +2025,9 @@ pub fn start_desktop() {
                 s.adopt_drafts(dir, stored);
             });
         });
+    }
+    if !headless {
+        update::start_checker(&handle);
     }
     if let Some(url) = server {
         connect_to(&handle, url);

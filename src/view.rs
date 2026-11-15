@@ -41,6 +41,7 @@ mod shell;
 mod status;
 pub mod toolcard;
 pub mod toolrow;
+pub mod update;
 pub mod work;
 pub mod work_output;
 pub mod working;

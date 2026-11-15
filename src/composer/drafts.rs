@@ -299,17 +299,27 @@ pub fn write_file(dir: &Path, json: &str) -> std::io::Result<()> {
     std::fs::rename(&tmp, dir.join(FILE))
 }
 
+static ASKED: AtomicU64 = AtomicU64::new(0);
+static WRITTEN: Mutex<u64> = Mutex::new(0);
+
+/// Writes unless a later write already went out, so a slow thread never puts older text over newer.
+fn write_in_order(mine: u64, dir: &Path, json: &str) {
+    let mut written = WRITTEN.lock().unwrap_or_else(|e| e.into_inner());
+    if mine > *written {
+        *written = mine;
+        let _ = write_file(dir, json);
+    }
+}
+
 /// Writes on a thread. A write that was asked for before one already written is dropped, so a slow thread
 /// never puts older text over newer.
 pub fn spawn_save(dir: PathBuf, json: String) {
-    static ASKED: AtomicU64 = AtomicU64::new(0);
-    static WRITTEN: Mutex<u64> = Mutex::new(0);
     let mine = ASKED.fetch_add(1, Ordering::SeqCst) + 1;
-    std::thread::spawn(move || {
-        let mut written = WRITTEN.lock().unwrap_or_else(|e| e.into_inner());
-        if mine > *written {
-            *written = mine;
-            let _ = write_file(&dir, &json);
-        }
-    });
+    std::thread::spawn(move || write_in_order(mine, &dir, &json));
+}
+
+/// Writes now and returns when it is on disk, for the one moment a thread is too late: the app is about to restart itself
+/// (the updater). It goes through the same ordering, so a thread still in flight can't write over it afterwards.
+pub fn save_now(dir: &Path, json: &str) {
+    write_in_order(ASKED.fetch_add(1, Ordering::SeqCst) + 1, dir, json);
 }
