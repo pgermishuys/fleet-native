@@ -5,6 +5,7 @@
 //!
 //! Reading and writing the file is blocking: `load` and `spawn_save` run it on a thread, never the UI thread.
 use super::history::History;
+use super::refs::{Picks, SessionReference};
 use serde_json::{Map, Value};
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
@@ -62,6 +63,8 @@ pub fn app_dir(get: impl Fn(&str) -> Option<String>) -> Option<PathBuf> {
 pub struct Stored {
     pub drafts: BTreeMap<String, String>,
     pub history: BTreeMap<String, Vec<String>>,
+    /// The files, folders and sessions picked from the `@` list into each draft, by the draft's owner.
+    pub picks: BTreeMap<String, Picks>,
 }
 
 #[derive(Debug, Default)]
@@ -69,6 +72,7 @@ pub struct Drafts {
     texts: BTreeMap<String, String>,
     history: HashMap<String, History>,
     choices: HashMap<String, Choice>,
+    picks: BTreeMap<String, Picks>,
     /// The data folder, once the app knows it; `None` keeps everything in memory (tests, scenes, pictures).
     dir: Option<PathBuf>,
     /// When the oldest unwritten change was made, on the app's clock.
@@ -108,6 +112,7 @@ impl Drafts {
         }
         self.history.remove(session);
         self.choices.remove(session);
+        self.picks.remove(session);
         self.touch(now);
     }
 
@@ -126,6 +131,24 @@ impl Drafts {
         } else {
             self.choices.insert(session.to_string(), choice);
         }
+    }
+
+    /// The picks kept with a session's draft (`file-refs.` and the remembered sessions of Fleet's draft storage).
+    pub fn picks_of(&self, owner: &str) -> Option<&Picks> {
+        self.picks.get(owner)
+    }
+
+    /// Keeps a draft's picks with it; nothing picked removes the entry. Returns whether anything changed.
+    pub fn set_picks(&mut self, owner: &str, picks: &Picks, now: f64) -> bool {
+        let empty = picks.files().is_empty() && picks.sessions().is_empty();
+        let changed = if empty { self.picks.remove(owner).is_some() } else { self.picks.get(owner) != Some(picks) };
+        if changed && !empty {
+            self.picks.insert(owner.to_string(), picks.clone());
+        }
+        if changed {
+            self.touch(now);
+        }
+        changed
     }
 
     pub fn history(&self, session: &str) -> Option<&History> {
@@ -149,6 +172,9 @@ impl Drafts {
             if !text.is_empty() {
                 self.texts.entry(key).or_insert(text);
             }
+        }
+        for (owner, picks) in stored.picks {
+            self.picks.entry(owner).or_insert(picks);
         }
         for (session, entries) in stored.history {
             self.history.entry(session).or_insert_with(|| History::from_entries(entries));
@@ -190,11 +216,42 @@ impl Drafts {
             .filter(|(k, h)| !h.entries.is_empty() && !k.starts_with("mock."))
             .map(|(k, h)| (k.clone(), Value::Array(h.entries.iter().cloned().map(Value::String).collect())))
             .collect();
+        let picks: Map<String, Value> =
+            self.picks.iter().filter(|(k, _)| !k.starts_with("mock.")).map(|(k, p)| (k.clone(), picks_json(p))).collect();
         let mut root = Map::new();
         root.insert("drafts".into(), Value::Object(drafts));
+        root.insert("picks".into(), Value::Object(picks));
         root.insert("history".into(), Value::Object(history));
         Value::Object(root).to_string()
     }
+}
+
+fn picks_json(picks: &Picks) -> Value {
+    let sessions: Vec<Value> =
+        picks.sessions().iter().map(|r| serde_json::json!({ "token": r.token, "sessionId": r.session_id, "title": r.title })).collect();
+    serde_json::json!({ "files": picks.files(), "sessions": sessions })
+}
+
+fn parse_picks(value: &Value) -> Picks {
+    let text = |v: &Value, key: &str| v.get(key).and_then(Value::as_str).map(str::to_string);
+    let files = value
+        .get("files")
+        .and_then(Value::as_array)
+        .map_or_else(Vec::new, |a| a.iter().filter_map(|f| f.as_str().map(str::to_string)).collect());
+    let mut sessions: Vec<SessionReference> = value.get("sessions").and_then(Value::as_array).map_or_else(Vec::new, |a| {
+        a.iter()
+            .filter_map(|r| {
+                Some(SessionReference {
+                    token: text(r, "token")?,
+                    session_id: text(r, "sessionId")?,
+                    title: text(r, "title").unwrap_or_default(),
+                })
+            })
+            .collect()
+    });
+    let extra = sessions.len().saturating_sub(super::refs::MAX_REMEMBERED);
+    sessions.drain(..extra);
+    Picks::from_parts(files, sessions)
 }
 
 /// Parses the file; anything that isn't one is an empty store (a damaged file loses its drafts, nothing worse).
@@ -205,6 +262,14 @@ pub fn parse(json: &str) -> Stored {
         for (key, text) in drafts {
             if let Some(text) = text.as_str().filter(|t| !t.is_empty()) {
                 stored.drafts.insert(key.clone(), text.to_string());
+            }
+        }
+    }
+    if let Some(Value::Object(picks)) = root.get("picks") {
+        for (owner, value) in picks {
+            let parsed = parse_picks(value);
+            if !parsed.files().is_empty() || !parsed.sessions().is_empty() {
+                stored.picks.insert(owner.clone(), parsed);
             }
         }
     }

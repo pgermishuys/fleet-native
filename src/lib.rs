@@ -458,6 +458,11 @@ impl State {
         self.drafts.set_dir(Some(dir));
         self.drafts.merge(stored);
         if let Some(owner) = self.draft_of.clone()
+            && let Some(picks) = self.drafts.picks_of(&owner).cloned()
+        {
+            self.auto.seed_picks(&owner, picks);
+        }
+        if let Some(owner) = self.draft_of.clone()
             && self.draft.text.is_empty()
         {
             self.draft = TextEdit::new(self.drafts.text_of(&owner));
@@ -476,6 +481,9 @@ impl State {
             }
             self.draft = TextEdit::new(self.drafts.text_of(&owner));
             self.draft_of = Some(owner.clone());
+            if let Some(picks) = self.drafts.picks_of(&owner).cloned() {
+                self.auto.seed_picks(&owner, picks);
+            }
             // The error box, the optimistic busy and an abort on its way belong to the composer of one session
             // (not cleared on the first look, so a scene can set them).
             if had_old {
@@ -486,6 +494,8 @@ impl State {
         } else if self.drafts.text_of(&owner) != self.draft.text {
             self.drafts.write(&composer::drafts::session_draft_key(&owner), &self.draft.text, now);
         }
+        self.keep_caret_outside_references();
+        self.keep_picks(&owner, now);
         if self.drafts.save_due(now) {
             if let Some((dir, json)) = self.drafts.take_save() {
                 composer::drafts::spawn_save(dir, json);
@@ -549,7 +559,11 @@ fn queue_draft(s: &mut State, tx: &mut Tx, kind: fleet::queue::ItemKind, command
     }
     let now = s.clock;
     s.drafts.push_history(&owner, &text, now);
-    let options = fleet::queue::Options { kind, command, pick: s.prompt_pick(None) };
+    let mut pick = s.prompt_pick(None);
+    if kind == fleet::queue::ItemKind::Prompt {
+        s.add_references(&mut pick, &text);
+    }
+    let options = fleet::queue::Options { kind, command, pick };
     s.draft.clear();
     s.enqueue(&owner, typed, text, options);
     tx.focus("composer", false);
@@ -1024,6 +1038,17 @@ pub fn spec() -> AppSpec<State> {
             }),
             ("composer-queue-opencode2", |s| s.show_composer("queue-opencode2")),
             ("composer-queue-no-steer", |s| s.show_composer("queue-no-steer")),
+            ("references", |s| s.show_references("all")),
+            ("references-light", |s| {
+                s.dark = Some(false);
+                s.show_references("all")
+            }),
+            ("references-caret-beside", |s| s.show_references("beside")),
+            ("references-caret-beside-light", |s| {
+                s.dark = Some(false);
+                s.show_references("beside")
+            }),
+            ("references-removed", |s| s.show_references("removed")),
             ("autocomplete-slash", |s| s.show_autocomplete("slash")),
             ("autocomplete-slash-light", |s| {
                 s.dark = Some(false);

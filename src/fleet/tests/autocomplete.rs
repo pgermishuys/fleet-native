@@ -19,13 +19,13 @@ fn click(rt: &mut Runtime<State>, key: &str) {
     rt.frame(FRAME);
 }
 
-fn press(rt: &mut Runtime<State>, key: Key) {
+pub(super) fn press(rt: &mut Runtime<State>, key: Key) {
     rt.key(KeyEvent { key, mods: Mods::default() });
     rt.frame(FRAME);
     rt.frame(FRAME);
 }
 
-fn typed(rt: &mut Runtime<State>, text: &str) {
+pub(super) fn typed(rt: &mut Runtime<State>, text: &str) {
     click(rt, "composer");
     press(rt, Key::Text(text.into()));
 }
@@ -250,15 +250,15 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 #[derive(Default)]
-struct Seen {
+pub(super) struct Seen {
     /// Method, path and body of every call but the list, the hub and the lists the popup asks for.
-    calls: Vec<(String, String, Value)>,
+    pub(super) calls: Vec<(String, String, Value)>,
     /// Paths of the `GET`s the popup made.
-    gets: Vec<String>,
+    pub(super) gets: Vec<String>,
     /// What `POST …/command` answers instead of 202.
-    refuse: Option<(u16, Value)>,
-    commands: Value,
-    files: Option<Value>,
+    pub(super) refuse: Option<(u16, Value)>,
+    pub(super) commands: Value,
+    pub(super) files: Option<Value>,
 }
 
 fn serve(mut stream: TcpStream, seen: Arc<Mutex<Seen>>) {
@@ -329,15 +329,15 @@ fn serve(mut stream: TcpStream, seen: Arc<Mutex<Seen>>) {
     }
 }
 
-struct Live {
-    rt: Runtime<State>,
-    id: String,
+pub(super) struct Live {
+    pub(super) rt: Runtime<State>,
+    pub(super) id: String,
     jobs: std::sync::mpsc::Receiver<Job>,
     seen: Arc<Mutex<Seen>>,
 }
 
 impl Live {
-    fn start(seen: Seen) -> Live {
+    pub(super) fn start(seen: Seen) -> Live {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
         let seen = Arc::new(Mutex::new(seen));
@@ -369,7 +369,7 @@ impl Live {
         live
     }
 
-    fn wait(&mut self, until: &dyn Fn(&Live) -> bool, what: &str) {
+    pub(super) fn wait(&mut self, until: &dyn Fn(&Live) -> bool, what: &str) {
         let deadline = Instant::now() + Duration::from_secs(20);
         while !until(self) {
             assert!(Instant::now() < deadline, "{what}");
@@ -381,7 +381,7 @@ impl Live {
         }
     }
 
-    fn calls(&self) -> Vec<(String, String, Value)> {
+    pub(super) fn calls(&self) -> Vec<(String, String, Value)> {
         self.seen.lock().unwrap().calls.clone()
     }
 
@@ -389,12 +389,12 @@ impl Live {
         self.seen.lock().unwrap().gets.clone()
     }
 
-    fn idle(&mut self) {
+    pub(super) fn idle(&mut self) {
         self.rt.update(|s, _| s.projects[0].sessions[0].status = crate::mock::Status::Idle);
     }
 }
 
-fn commands() -> Value {
+pub(super) fn commands() -> Value {
     json!({"commands": [{"name": "start-work", "description": "Begin a task", "kind": "command"}, {"name": "tidy-docs", "kind": "skill"}]})
 }
 

@@ -21,6 +21,7 @@ pub mod presence;
 pub mod prompts;
 pub mod queue;
 pub mod reducer;
+pub mod references;
 pub mod refresh;
 pub mod retry;
 pub mod rows;

@@ -4,12 +4,13 @@
 //! them; they sit where Fleet puts them: agent chip, model chip, [effort], [Allowed], Interrupt, [ring],
 //! [Send now / Queue], Send.
 use super::conversation::COLUMN;
+use crate::composer::draftrefs::RefKind;
 use crate::composer::status::{ComposerStatus, Mode, has_content, mode_of, send_words};
 use crate::icons::*;
 use crate::mock::Session;
 use crate::theme::{Theme, sans};
 use crate::{State, interrupt, submit};
-use rune::{Color, Cursor, El, Key, Shadow, auto_grow, col, el, icon, row, spacer, text, text_input};
+use rune::{Color, Cursor, El, Key, Shadow, TextHighlight, auto_grow, col, el, icon, row, spacer, text, text_input};
 
 /// Fleet puts the composer's pieces in this order above the frame: the error box, the background strip
 /// (component 3, piece K, `view::work`), the mod band (component 22), the queue (piece I) and the paste offer (piece O).
@@ -74,6 +75,10 @@ fn frame(s: &State, t: &Theme, disabled: bool, mode: Mode) -> El {
             if s.autocomplete_key(ev, tx) {
                 return true;
             }
+            // Backspace, Delete and the arrows take a picked reference as one piece (row 7.3).
+            if s.reference_key(ev) {
+                return true;
+            }
             if ev.key == Key::Enter && (ev.mods.cmd || ev.mods.ctrl) {
                 submit(s, tx, true);
                 return true;
@@ -90,8 +95,26 @@ fn frame(s: &State, t: &Theme, disabled: bool, mode: Mode) -> El {
         .box_shadow(Shadow { x: 0.0, y: 10.0, blur: 28.0, spread: -18.0, color: Color::BLACK.alpha(0.5), inset: false })
         .on_layout(|s: &mut State, [_, _, w, _]| s.pickers.composer_w = w)
         .focus_within_ring(1.0, -1.0, if mode == Mode::Prompt { focus } else { edge });
-    frame = frame.child(auto_grow(field, 1, 7)).child(toolbar(s, t, disabled, mode));
+    frame = frame.child(auto_grow(field.text_highlights(reference_tints(s, t)), 1, 7)).child(toolbar(s, t, disabled, mode));
     frame
+}
+
+/// `.composer-reference`: each reference is tinted behind the text, widened 3 px each side without moving the text. `@path`
+/// and `@folder/` are the accent at 28%, a session 18%, a skill that goes with the message `--running` at 22% and one
+/// that goes as a note `--idle` at 22% (rows 7.1, 7.4).
+fn reference_tints(s: &State, t: &Theme) -> Vec<TextHighlight> {
+    s.draft_references()
+        .into_iter()
+        .map(|span| {
+            let tint = match span.kind {
+                RefKind::File | RefKind::Folder => t.accent.alpha(0.28),
+                RefKind::Session => t.accent.alpha(0.18),
+                RefKind::Skill { note: false } => t.running.alpha(0.22),
+                RefKind::Skill { note: true } => t.idle.alpha(0.22),
+            };
+            TextHighlight::new(span.range, tint).pad(3.0)
+        })
+        .collect()
 }
 
 fn toolbar(s: &State, t: &Theme, disabled: bool, mode: Mode) -> El {

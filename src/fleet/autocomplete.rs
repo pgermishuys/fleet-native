@@ -52,6 +52,18 @@ impl Auto {
     pub fn picks_of(&self, owner: &str) -> Option<&Picks> {
         self.picks.get(owner)
     }
+
+    pub fn picks_mut(&mut self, owner: &str) -> &mut Picks {
+        self.picks.entry(owner.to_string()).or_default()
+    }
+
+    /// Gives a draft the picks kept with it, unless it has some already (a session typed in since the app started).
+    pub fn seed_picks(&mut self, owner: &str, picks: Picks) {
+        let held = self.picks.entry(owner.to_string()).or_default();
+        if *held == Picks::default() {
+            *held = picks;
+        }
+    }
 }
 
 impl State {

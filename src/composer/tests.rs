@@ -404,3 +404,43 @@ fn the_draft_is_a_shell_command_only_where_the_harness_runs_them_and_the_side_co
     assert_eq!((send_label(Mode::Prompt), send_label(Mode::Shell)), ("Send", "Run command"));
     assert_eq!(send_label(Mode::Side), "Ask in the side conversation");
 }
+
+// ─── picks kept with the draft (draft-storage.test.ts, "composer drafts"; `use-draft-references.ts`) ───
+
+#[test]
+fn picked_files_and_sessions_come_back_with_the_draft_after_a_restart() {
+    use super::drafts::{Drafts, load, write_file};
+    use super::refs::{Picks, SessionReference};
+    let dir = std::env::temp_dir().join(format!("fleet-native-picks-{}", std::process::id()));
+    let mut picks = Picks::default();
+    picks.remember_file("@src/app.ts");
+    picks.remember_file("@docs/");
+    picks.remember_session(SessionReference { token: "@notes".into(), session_id: "s-1".into(), title: "Notes".into() });
+    let mut drafts = Drafts::default();
+    drafts.set_dir(Some(dir.clone()));
+    assert!(drafts.set_picks("s-9", &picks, 0.0));
+    assert!(!drafts.set_picks("s-9", &picks, 0.0), "the same picks change nothing");
+    let (folder, json) = drafts.take_save().unwrap();
+    write_file(&folder, &json).unwrap();
+
+    let mut restarted = Drafts::default();
+    restarted.merge(load(&dir));
+    assert_eq!(restarted.picks_of("s-9"), Some(&picks));
+    assert_eq!(restarted.picks_of("s-1"), None);
+
+    // Nothing picked removes the entry.
+    assert!(restarted.set_picks("s-9", &Picks::default(), 1.0));
+    assert_eq!(restarted.picks_of("s-9"), None);
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
+fn a_damaged_picks_entry_loses_only_the_picks() {
+    let stored = super::drafts::parse(
+        r#"{"drafts":{"session.a":"hi"},"picks":{"a":"nonsense","b":{"files":[1,"@x/"],"sessions":[{"token":"@t"}]}}}"#,
+    );
+    assert_eq!(stored.drafts["session.a"], "hi");
+    assert!(!stored.picks.contains_key("a"));
+    assert_eq!(stored.picks["b"].files(), ["@x/"]);
+    assert!(stored.picks["b"].sessions().is_empty(), "a session with no id is dropped");
+}
