@@ -396,3 +396,16 @@ Nothing in Rune was needed: this piece is plain Rust. Two things for whoever bui
 - **Fleet's `watch` is a state machine here.** `EffortMemory::update` runs only when `[fetched, key, levels]` changed since
   its last run, as Vue's `watch` does; call it from `poll` after the catalog or preferences change, with the draft's effort.
 
+
+## Component 3, piece E (message frame)
+
+- **A clipboard write from a handler exists at this pin**: `.on_press_tx(|s, tx| tx.copy(text))` (`Tx::copy`). The older notes saying
+  there is none are out of date; the message's copy button uses it. Headless runs never write the system clipboard, so a test can
+  only check the state around it. (The tool output's Copy and the palette's "Copy session ID" can now be switched on.)
+- **Out-of-flow children work outside the parent's box**: `.pin(left, top, right, bottom)` takes negative values
+  (`pin(Some(0.0), None, None, Some(-20.0))` hangs a pill below its parent), nothing clips it, and `.paint_order(n)` lifts it over the
+  next row. `.hover_group()` on the parent plus `.group_opacity(0.0, 1.0)` on the child reveals it, hit area included.
+- **`.border_sides([top, right, bottom, left], c)`** is the one-sided border (the note's left rule, the prompt's top rule). It takes no layout space: pad the box.
+- **`memo` re-keys a row by its id**, so an element key set on the row's root (`msg-<id>`) is replaced by the id itself: scripts and tests find the row as `<id>`.
+- **A script's first frames have no layout yet**: a `move` at 0.3s found no element; at 1.0s it did.
+- **No inline chips or clickable inline code in `Markdown`**: the `@`, `$` and file-link chips of rows 2.25-2.29 need a pre-pass that splits the text into runs; not done.

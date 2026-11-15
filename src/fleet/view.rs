@@ -4,7 +4,7 @@ use crate::conv::card::tool_body;
 use crate::conv::compaction::fold_compaction_summaries;
 use crate::conv::shell::shell_command_of;
 use crate::conv::tools::{ToolStatus, get_tool, is_shell_row, is_write_call, tool_duration_ms};
-use crate::view::conversation::{Message, Part, Role, ToolState};
+use crate::view::conversation::{Message, Meta, Part, Role, ToolState};
 use serde_json::Value;
 
 /// The conversation's messages: a compaction's summary message is folded into its divider (`foldCompactionSummaries`).
@@ -37,7 +37,15 @@ pub fn message(m: &Msg, folded: Option<&str>) -> Message {
     if let Some(reason) = turn_failure(m) {
         parts.push(Part::text(format!("{}-failed", m.id), format!("The turn failed: {reason}")));
     }
-    Message::new(m.id.clone(), m.role, parts)
+    let mut out = Message::new(m.id.clone(), m.role, parts);
+    out.meta = Meta {
+        created_at: m.created_at,
+        model: m.model_id.clone(),
+        command: m.command.clone(),
+        mod_mark: m.mod_mark.clone(),
+        steered: m.steered,
+    };
+    out
 }
 
 fn part(p: &PartData, role: Role, folded: Option<&str>) -> Part {
