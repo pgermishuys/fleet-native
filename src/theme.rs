@@ -138,6 +138,12 @@ impl Theme {
         self.text.alpha(percent / 100.0)
     }
 
+    /// `rgba(239, 68, 68, a)`: the red of the list's "showing cached sessions" banner. Fleet writes it as a literal, so
+    /// it is the same in both themes (`--error` is `#ef4444` dark and `#dc2626` light).
+    pub fn feedback_red(&self, alpha: f32) -> Color {
+        c("#ef4444").alpha(alpha)
+    }
+
     /// `color-mix(in srgb, <color> share, var(--text))`: a status colour as a row's text (`--row-error` and the rest).
     pub fn text_mix(&self, color: Color, share: f32) -> Color {
         // CSS mixes the sRGB numbers; Rune's colours are linear, so decode, mix and encode back.

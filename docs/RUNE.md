@@ -679,3 +679,13 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
   on elements of the same size (the glyph and its empty slot), not on titles.
 - A negative margin (`.mr(-4.0)`) works for the caret slot. `focus_ring(2.0, -2.0, ..)` takes a negative offset for
   Fleet's inset outline; not yet looked at with the keyboard.
+
+## Session list, piece E (panel states and the filter)
+
+- **`TextEdit::focused` is kept by the runtime** for a `text_input` bound with `on_edit`, so a view can read `s.filter.focused` to
+  change the fill and border while it has the caret (CSS `:focus`). `focus_within_ring` draws a ring over the border instead,
+  which isn't Fleet's look. There is no transition, so Fleet's 150 ms ease is instant.
+- **No hover border colour**: `.hover(c)` changes the fill only. A button whose hover is a border (Fleet's "Try again", the New
+  session button) can't show it.
+- **Centred wrapped text**: `.wrap().w_full().align(Align::Center)` inside a column with `.items_center()` gives the empty
+  state's two lines. (used)

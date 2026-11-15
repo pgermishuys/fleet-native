@@ -105,6 +105,21 @@ Pictures, native beside Fleet's own client (one scratch Fleet v0.72.0 with a pat
 ![chips, progress and badges, dark](../../shots/parity/06-session-list/piece-d/native-row-chips.png)
 ![chips, progress and badges, light](../../shots/parity/06-session-list/piece-d/native-row-chips-light.png)
 
+## Piece E, built (15 November 2026)
+
+The panel's states and the filter box, in `src/view/sessions.rs` with the pure rules in `src/fleet/panel.rs` (`feedback`, `empty_words`, `error_message`, `banner_copy`) and `State::list_error`, `list_is_loading`, `retry_list` (which calls `Link::refetch_list`, the sessions and the projects read together). Tests in `src/tests_panel.rs`; Fleet has no unit test for these states (`SessionsPanel.test.ts` is machines), so the names say what the template does.
+
+Done: **1.21** New project wording (tooltip and label), **1.28** filter focus (the sheet's fill and a 1 px border of the accent at 55 %, transparent at rest, so the text sits where Fleet's does), **1.65** loading block (first load only; also while the window waits for the hub's first list), **1.66** error block with "Try again" (square, 30 high), **1.67** banner over the rows (28 high button, the literal red at 20 %/8 % in both themes, `Theme::feedback_red`), **1.68** error text is the sessions' error, else the projects', **1.69** Try again reads both, **1.70** the three empty wordings (compact, centred, no icon), **1.71** no empty state while any group is drawn, **1.72** a failed refresh keeps the rows and shows the banner; the status-bar line it used to make is gone (Fleet has none), **1.73** a refresh shows nothing, **1.74-1.76** checked unchanged. **1.14-1.20, 1.25-1.27, 1.29** were already as Fleet has them.
+
+Open, with reasons: **1.68** "Can't reach `<machine>`" (component 17, machines). **1.16** New session hover still washes the fill where Fleet only changes the border (Rune has no hover border; `docs/RUNE.md`); the same stops "Try again" showing its hover border. **1.28** no 150 ms ease on the focus change. **1.17, 1.18, 1.22, 1.23** unchanged (new-session page, shortcut, dialog are other components and pieces). **1.33** (folded projects while a filter is typed) is drawn open while filtering, as Fleet does; looked at in the filter picture. The empty state in the pictures is centred (Fleet's `main` `EmptyState` is); the v0.72.0 client's is left-aligned and its button says "Retry", where `main` says "Try again": both are differences between the released server's client and `main`, native follows `main`. Fleet's filter box is `type=search` and shows a clear (x) button when it has text; native's doesn't (a new row, not in the list above). The banner can't be made live in v0.72.0's client (nothing refetches on demand), so it is from a scene only. Server not reachable at start: the panel keeps saying "Loading sessions" while the hub tries to connect, as nothing has been asked yet; the status bar says the connection is down.
+
+Pictures, Fleet's own client (left) beside native (right), the same state, 1280x760 cropped to the left 380x280 css px, one scratch Fleet v0.72.0 (loading and error by holding or failing the list requests, empty by answering them with nothing): loading, error, empty, no result, filter focused.
+
+![Fleet beside native (dark)](../../shots/parity/06-session-list/piece-e/fleet-beside-native-dark.png)
+![Fleet beside native (light)](../../shots/parity/06-session-list/piece-e/fleet-beside-native-light.png)
+![native banner (dark)](../../shots/parity/06-session-list/piece-e/native-banner-dark.png)
+![native banner (light)](../../shots/parity/06-session-list/piece-e/native-banner-light.png)
+
 ## What "done" means
 
 1. The list is Fleet's: projects from `GET /api/projects` in their own order (Pinned first,
