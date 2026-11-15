@@ -28,6 +28,9 @@ pub struct Theme {
     /// `--idle-text`: amber ink that reads on the page (the same as `--idle` in the dark theme).
     pub idle_text: Color,
     pub error: Color,
+    /// `--running-text` and `--error-text`: green and red ink that read on the page (the `+N −N` counts).
+    pub running_text: Color,
+    pub error_text: Color,
     /// `--primary-foreground`: ink on a solid accent fill.
     pub primary_fg: Color,
     /// `--destructive` (and `--destructive-foreground`, white in both themes).
@@ -56,6 +59,8 @@ impl Theme {
                 idle: c("#f59e0b"),
                 idle_text: c("#f59e0b"),
                 error: c("#ef4444"),
+                running_text: c("#22c55e"),
+                error_text: c("#EF5E5F"),
                 primary_fg: c("#ffffff"),
                 destructive: c("#dc2626"),
                 accent_dim: c("#6366f1").alpha(0.15),
@@ -77,6 +82,8 @@ impl Theme {
                 idle: c("#d97706"),
                 idle_text: c("#975304"),
                 error: c("#dc2626"),
+                running_text: c("#107435"),
+                error_text: c("#B92323"),
                 primary_fg: c("#ffffff"),
                 destructive: c("#dc2626"),
                 accent_dim: c("#5B6EC7").alpha(0.12),

@@ -1,5 +1,6 @@
 //! Boils the reducer's messages down to what the conversation draws (`view::conversation`).
 use super::model::{Msg, PartData};
+use crate::conv::tools::{ToolStatus, get_tool, is_shell_row, is_write_call, tool_duration_ms};
 use crate::view::conversation::{Message, Part, ToolState};
 use serde_json::Value;
 
@@ -45,51 +46,36 @@ fn part(p: &PartData) -> Part {
         }
         PartData::Tool { id, tool, call_id, state } => Part::Tool {
             id: id.clone(),
-            tool: display_name(tool),
+            tool: tool.clone(),
             call_id: call_id.clone(),
-            detail: detail(state),
+            detail: title(tool, state),
+            status: ToolStatus::from_word(state.get("status").and_then(Value::as_str)),
             state: tool_state(tool, state),
         },
     }
 }
 
-/// `bash` as "Bash", the way the summary row names it.
-fn display_name(tool: &str) -> String {
-    let mut chars = tool.chars();
-    chars.next().map(|c| c.to_uppercase().chain(chars).collect()).unwrap_or_default()
+/// The call's title (`toToolCardItem`): Fleet's own answer for its own tools, else the registry's one-line label of the
+/// input, else the tool's name. One line, as the row clips it.
+fn title(tool: &str, state: &Value) -> String {
+    let known = get_tool(tool);
+    let answer = if known.titled_from_answer { state.get("title").and_then(Value::as_str).filter(|t| !t.is_empty()) } else { None };
+    let label = answer.map(str::to_string).unwrap_or_else(|| known.label(state.get("input").unwrap_or(&Value::Null)));
+    let one_line = label.split_whitespace().collect::<Vec<_>>().join(" ");
+    if one_line.is_empty() { tool.to_string() } else { one_line }
 }
 
-/// What the call ran or touched: the command, the file, the pattern.
-fn detail(state: &Value) -> String {
-    let input = state.get("input");
-    ["command", "filePath", "path", "pattern", "url", "query", "description"]
-        .iter()
-        .find_map(|k| input.and_then(|i| i.get(*k)).and_then(Value::as_str))
-        .or_else(|| state.get("title").and_then(Value::as_str))
-        .unwrap_or("")
-        .lines()
-        .next()
-        .unwrap_or("")
-        .to_string()
-}
-
+/// What a finished call shows on the right of its row: lines changed for a file write, how long a shell command took.
 fn tool_state(tool: &str, state: &Value) -> ToolState {
-    match state.get("status").and_then(Value::as_str) {
-        Some("pending" | "running") => ToolState::Running,
-        Some("completed") => {
-            let count = |k: &str| state.pointer(&format!("/metadata/filediff/{k}")).and_then(Value::as_u64).map(|n| n as u32);
-            let took = || {
-                let (start, end) = (state.pointer("/time/start")?.as_f64()?, state.pointer("/time/end")?.as_f64()?);
-                Some(((end - start) / 1000.0) as f32)
-            };
-            match tool {
-                "edit" | "write" | "patch" => {
-                    count("additions").zip(count("deletions")).map_or(ToolState::Plain, |(a, d)| ToolState::Diff(a, d))
-                }
-                "bash" => took().map_or(ToolState::Plain, ToolState::Took),
-                _ => ToolState::Plain,
-            }
-        }
-        _ => ToolState::Plain,
+    if state.get("status").and_then(Value::as_str) != Some("completed") {
+        return ToolState::Plain;
+    }
+    let count = |k: &str| state.pointer(&format!("/metadata/filediff/{k}")).and_then(Value::as_u64).map(|n| n as u32);
+    if is_write_call(tool) {
+        count("additions").zip(count("deletions")).map_or(ToolState::Plain, |(a, d)| ToolState::Diff(a, d))
+    } else if is_shell_row(tool) {
+        tool_duration_ms(state).map_or(ToolState::Plain, |ms| ToolState::Took((ms / 1000.0) as f32))
+    } else {
+        ToolState::Plain
     }
 }

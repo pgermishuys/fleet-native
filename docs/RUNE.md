@@ -306,3 +306,10 @@ Nothing in Rune was needed. Learned:
 - A `Link` waiting out a reconnect delay is woken by the same command channel that carries `window_focus`, so "come back now" needs
   no extra thread: end the `recv_timeout` loop when focus arrives.
 - Under Xvfb, `ffmpeg -f x11grab` needs `-frames:v 1` to write a single picture; without it the muxer fails ("Invalid argument").
+
+## Component 3, piece A (tool rows)
+
+- **No letter-spacing helper, but the text style has it**: `TextStyle::tracking(px)` (0.02em at 11px is `0.22`).
+- **A filled triangle**: `canvas(Shape::new().fill(points, color)).size(8.0, 8.0)` draws Fleet's error glyph; no icon file needed.
+- **A memoised row that depends on a set in `State`** (the open "Read N files" groups) must put that set's effect in the memo key (`open_mask`), or a click changes the state and the row doesn't redraw.
+- Lucide renamed `message-circle-question` to `message-circle-question-mark`; the generator takes the file name, so the constant is `MESSAGE_CIRCLE_QUESTION_MARK`.

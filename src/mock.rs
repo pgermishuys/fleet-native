@@ -2,6 +2,7 @@
 use crate::view::conversation::{Message, Part, ToolState};
 
 pub mod long;
+pub mod tools;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Status {
@@ -98,10 +99,7 @@ pub fn projects() -> Vec<Project> {
                             ],
                         ),
                         Message::user("u2", "Also make sure a half-written file can't be served after a crash."),
-                        Message::assistant(
-                            "a2",
-                            vec![Part::tool("a2-b1", "Bash", "bun test src/cache --rerun-each 20", ToolState::Running)],
-                        ),
+                        Message::assistant("a2", vec![Part::running_tool("a2-b1", "Bash", "bun test src/cache --rerun-each 20")]),
                     ],
                 ),
                 session(

@@ -399,7 +399,7 @@ fn the_snapshot_of_a_finished_turn_reads_as_text_and_a_tool_row() {
         .collect();
     assert_eq!(tools.len(), 2, "two bash calls in the capture: it ran the tests twice");
     for (tool, detail, state) in tools {
-        assert_eq!((tool, detail), ("Bash", "ls -la && echo tests passed"));
+        assert_eq!((tool, detail), ("bash", "Run the tests"));
         // The server's snapshot leaves out the call's timestamps, so a snapshot has no duration to show.
         assert!(state == ToolState::Plain);
     }
