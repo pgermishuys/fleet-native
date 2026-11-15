@@ -274,11 +274,17 @@ fn read_groups(msg: &Message) -> Vec<String> {
     ids
 }
 
-/// Which of a message's read groups and tool cards the user opened or widened: part of the row's memo key. Nothing
+/// Which of a message's read groups and tool cards the user opened, widened or showed all of the diff of: part of the row's memo key. Nothing
 /// opened (the common case) costs two empty checks.
 fn open_mask(msg: &Message, s: &State) -> u64 {
     use std::hash::{Hash, Hasher};
-    if s.open_reads.is_empty() && s.tool_open.is_empty() && s.tool_wide.is_empty() {
+    if s.open_reads.is_empty()
+        && s.tool_open.is_empty()
+        && s.tool_wide.is_empty()
+        && s.diff_all.is_empty()
+        && s.diff_open.is_empty()
+        && !s.inline_diffs
+    {
         return 0;
     }
     let mut hash = std::collections::hash_map::DefaultHasher::new();
@@ -289,6 +295,13 @@ fn open_mask(msg: &Message, s: &State) -> u64 {
         if let Part::Tool { id, .. } = part {
             s.tool_open.get(id.as_str()).hash(&mut hash);
             s.tool_wide.contains(id.as_str()).hash(&mut hash);
+            s.diff_all.contains(id.as_str()).hash(&mut hash);
+            s.inline_diffs.hash(&mut hash);
+            // The collapsed runs opened in this card's diff (`tool-<id>-diff#<lines>:<run>`).
+            let prefix = format!("tool-{id}-diff#");
+            let mut runs: Vec<&String> = s.diff_open.iter().filter(|k| k.starts_with(&prefix)).collect();
+            runs.sort();
+            runs.hash(&mut hash);
         }
     }
     hash.finish()

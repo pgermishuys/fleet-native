@@ -45,15 +45,18 @@ fn part(p: &PartData) -> Part {
         PartData::Compaction { id, tokens_before, tokens_after, .. } => {
             Part::Compaction { id: id.clone(), tokens_before: *tokens_before, tokens_after: *tokens_after }
         }
-        PartData::Tool { id, tool, call_id, state } => Part::Tool {
-            id: id.clone(),
-            tool: tool.clone(),
-            call_id: call_id.clone(),
-            detail: title(tool, state),
-            status: ToolStatus::from_word(state.get("status").and_then(Value::as_str)),
-            state: tool_state(tool, state),
-            body: Box::new(tool_body(tool, &title(tool, state), state)),
-        },
+        PartData::Tool { id, tool, call_id, state } => {
+            let body = tool_body(tool, &title(tool, state), state);
+            Part::Tool {
+                id: id.clone(),
+                tool: tool.clone(),
+                call_id: call_id.clone(),
+                detail: title(tool, state),
+                status: ToolStatus::from_word(state.get("status").and_then(Value::as_str)),
+                state: tool_state(tool, state, &body.diff),
+                body: Box::new(body),
+            }
+        }
     }
 }
 
@@ -68,13 +71,19 @@ fn title(tool: &str, state: &Value) -> String {
 }
 
 /// What a finished call shows on the right of its row: lines changed for a file write, how long a shell command took.
-fn tool_state(tool: &str, state: &Value) -> ToolState {
+fn tool_state(tool: &str, state: &Value, diff: &[crate::conv::diff::DiffLine]) -> ToolState {
     if state.get("status").and_then(Value::as_str) != Some("completed") {
         return ToolState::Plain;
     }
     let count = |k: &str| state.pointer(&format!("/metadata/filediff/{k}")).and_then(Value::as_u64).map(|n| n as u32);
     if is_write_call(tool) {
-        count("additions").zip(count("deletions")).map_or(ToolState::Plain, |(a, d)| ToolState::Diff(a, d))
+        // The session's own count when Fleet kept one, else the lines the card draws (`diffStats`).
+        let counted = || (!diff.is_empty()).then(|| crate::conv::diff::count_changes(diff));
+        count("additions")
+            .zip(count("deletions"))
+            .filter(|&(a, d)| a + d > 0)
+            .or_else(counted)
+            .map_or(ToolState::Plain, |(a, d)| ToolState::Diff(a, d))
     } else if is_shell_row(tool) {
         tool_duration_ms(state).map_or(ToolState::Plain, |ms| ToolState::Took((ms / 1000.0) as f32))
     } else {

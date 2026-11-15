@@ -1,8 +1,9 @@
 //! What opens under a tool call's row. Ports the body of `components/session/ToolCard.vue` (`.tool-preview`,
 //! `.tool-body`, `.tool-summary`, the empty state) and `ToolOutputBody.vue` (the bar, the box, the toggles).
 //!
-//! The diff in a body is the next piece (`has_diff` says one is there); Copy waits on Rune (no clipboard write from a
+//! The diff in a body is `diff.rs`; Copy waits on Rune (no clipboard write from a
 //! handler), so the button is drawn and says why it does nothing.
+use super::diff::diff_view;
 use crate::State;
 use crate::conv::card::{ToolBody, shows_diff};
 use crate::conv::output::{Ink, Look, OutputSpan, ParsedOutput, Window, count, parse_tool_output_cached, thousands};
@@ -13,14 +14,14 @@ use rune::color::{srgb_decode, srgb_encode};
 use rune::{Color, Cursor, El, ScrollSpec, Span, Tx, col, el, icon, rich, row, text};
 use std::rc::Rc;
 
-/// The "inline tool diffs" setting (Settings owns it; off until that component is built).
-pub const INLINE_TOOL_DIFFS: bool = false;
+/// A write shows this many lines of its diff until asked for the rest (`DIFF_PREVIEW_LINES`).
+const DIFF_PREVIEW_LINES: usize = 12;
 
 /// The box's height when expanded (`.tool-output--expanded`).
 const EXPANDED_MAX_H: f32 = 340.0;
 
 /// `color-mix(in srgb, a, b p%)`: Fleet mixes in sRGB, Rune in linear light.
-fn mix(a: Color, b: Color, from_b: f32) -> Color {
+pub(super) fn mix(a: Color, b: Color, from_b: f32) -> Color {
     let m = |x: f32, y: f32| srgb_decode(srgb_encode(x) + (srgb_encode(y) - srgb_encode(x)) * from_b);
     Color { r: m(a.r, b.r), g: m(a.g, b.g), b: m(a.b, b.b), a: a.a + (b.a - a.a) * from_b }
 }
@@ -221,13 +222,16 @@ pub fn preview(t: &Theme, id: &str, line: &str) -> El {
 
 /// `.tool-body`: summary, output, or the empty state.
 pub fn body(t: &Theme, s: &State, id: &str, tool: &str, b: &ToolBody) -> El {
-    let diff = shows_diff(tool, b, INLINE_TOOL_DIFFS);
+    let diff = shows_diff(tool, b, s.inline_diffs);
     let mut inner = col().key(format!("tool-{id}-body")).w_full().pl(31.0).pr(8.0).pt(2.0).pb(8.0);
     if !b.summary.is_empty() {
         inner = inner
             .child(text(b.summary.clone()).key(format!("tool-{id}-summary")).font(sans(12.0, 400.0, 1.6)).color(t.muted).wrap().mb(8.0));
     }
-    // A write that has its diff shows that instead of what it printed (the diff piece draws it).
+    if diff {
+        inner = inner.child(diff_body(t, s, id, tool, b));
+    }
+    // A write that has its diff shows that instead of what it printed.
     if !b.output.is_empty() && !(is_write_call(tool) && diff) {
         inner = inner.child(output_body(t, s, id, b));
     }
@@ -235,4 +239,28 @@ pub fn body(t: &Theme, s: &State, id: &str, tool: &str, b: &ToolBody) -> El {
         inner = inner.child(text("No output captured").key(format!("tool-{id}-empty")).font(sans(14.0, 400.0, 1.4)).color(t.muted).py(7.0));
     }
     inner
+}
+
+/// The card's diff; a write shows its first 12 lines and "Show all N lines" (`.tool-diff-more`).
+fn diff_body(t: &Theme, s: &State, id: &str, tool: &str, b: &ToolBody) -> El {
+    let key = format!("tool-{id}-diff");
+    let cut = is_write_call(tool) && !s.diff_all.contains(id) && b.diff.len() > DIFF_PREVIEW_LINES;
+    let shown = if cut { &b.diff[..DIFF_PREVIEW_LINES] } else { &b.diff[..] };
+    let mut out = col().w_full().child(diff_view(t, s, &key, shown));
+    if cut {
+        let all = id.to_string();
+        let label = format!("Show all {} lines", b.diff.len());
+        out = out.child(
+            row()
+                .key(format!("{key}-more"))
+                .mt(4.0)
+                .cursor(Cursor::Pointer)
+                .label(label.clone())
+                .on_press(move |s: &mut State| {
+                    s.diff_all.insert(all.clone());
+                })
+                .child(text(label).font(sans(12.0, 400.0, 1.3)).color(t.muted)),
+        );
+    }
+    out.mb(if cut { 4.0 } else { 0.0 })
 }

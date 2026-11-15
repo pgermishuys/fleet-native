@@ -325,3 +325,20 @@ Nothing in Rune was needed. Learned:
 - **`on_press_tx` + `tx.scroll_to_bottom_instant(key)`** moves a scroll box that doesn't exist yet this frame: the box
   opens on its last lines. `ScrollSpec { stick_bottom }` alone didn't (it showed the top in a picture).
 - **No clipboard write from a handler** (still): the output's Copy button is drawn and says so.
+
+## Component 3, piece C (diffs)
+
+- **`rune_kit::diff::DiffView` is not used.** It is a review tool (file headers, unified and split, word marks, comments, a
+  virtual list over many files); Fleet's `DiffView.vue` is one flat grid with a 2px stripe, two number columns, a marker and
+  an expander row, so the rows are drawn here (`view/diff.rs`) from `conv::diff`.
+- **Sticky line numbers:** two columns of rows of the same fixed height. The numbers are a plain column on the left, the code a
+  `scroll_x` box on the right, so the numbers stay put while the code scrolls sideways. A tint must reach the end of the longest
+  line, so every code row gets `min_w` from the longest line (characters x 7.2, the 12px monospace advance): an estimate, not a
+  measure.
+- **`scroll_x()` turns its box into a row**: children of `el().scroll_x()` lay out side by side. Put one `col()` inside it.
+- **`El::clip` doesn't exist**; `clip_rounded(radius)` clips a box to its rounded corners.
+- **Another memoised row (`open_mask`):** a set in `State` that changes what a card draws (`diff_all`, `diff_open`, `inline_diffs`)
+  must be hashed into it too, or a click changes state and nothing redraws (a test showed it: the toggle's handler ran).
+- **Under `virtual_rows` a card taller than the view isn't all built**: a headless test of its last rows scrolls first
+  (`rt.wheel`) or checks the state instead.
+- Not done: the hover underline on "Show N unchanged lines" (a `Span` underline needs the hover state in the view).
