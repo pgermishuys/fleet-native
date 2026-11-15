@@ -136,17 +136,49 @@ jobs:
           export FLEET_NATIVE_BUILD="${{ github.run_number }}" FLEET_NATIVE_COMMIT="${{ github.sha }}"
           cargo build --release --locked
 
-      # Zip loses the "can run" bit, so macOS and Linux get a tar; Windows gets the zip it expects.
+      # Windows gets the zip it expects (the exe carries its icon and version information, see build.rs).
+      # macOS gets a .dmg holding a signed "Fleet Native.app" (scripts/make-mac-app.sh). Linux gets a tar,
+      # which keeps the "can run" bit, with a desktop file and icon beside the program.
       # The file names are the release's asset names.
       - name: Collect
         run: |
           mkdir dist
           if [ "$RUNNER_OS" = "Windows" ]; then
             powershell -NoProfile -Command "Compress-Archive -Path target/release/fleet-native.exe,README.md -DestinationPath dist/fleet-native-windows-x64.zip"
+          elif [ "$RUNNER_OS" = "macOS" ]; then
+            bash scripts/make-mac-app.sh target/release/fleet-native "${{ github.run_number }}" dist/fleet-native-macos-arm64.dmg
           else
-            tar -czf "dist/fleet-native-${{ matrix.name }}.tar.gz" -C target/release fleet-native -C "$PWD" README.md
+            cp packaging/fleet-native.desktop packaging/fleet-native.png target/release/
+            tar -czf "dist/fleet-native-${{ matrix.name }}.tar.gz" -C target/release fleet-native fleet-native.desktop fleet-native.png -C "$PWD" README.md
           fi
           ls -la dist
+
+      # Prove the package before it can be published.
+      - name: Check the package (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          hdiutil attach dist/fleet-native-macos-arm64.dmg -mountpoint "$RUNNER_TEMP/dmg" -nobrowse -readonly
+          app="$RUNNER_TEMP/dmg/Fleet Native.app"
+          test -L "$RUNNER_TEMP/dmg/Applications"
+          plutil -lint "$app/Contents/Info.plist"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          plutil -p "$app/Contents/Info.plist"
+          hdiutil detach "$RUNNER_TEMP/dmg"
+      - name: Check the package (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          powershell -NoProfile -Command "
+            \$f = Get-Item target/release/fleet-native.exe
+            \$v = \$f.VersionInfo
+            \$v | Format-List ProductName,FileDescription,CompanyName,FileVersion,ProductVersion
+            if (\$v.CompanyName -ne 'Weave' -or \$v.ProductName -ne 'Fleet Native') { throw 'version information missing' }
+            Add-Type -AssemblyName System.Drawing
+            \$i = [System.Drawing.Icon]::ExtractAssociatedIcon(\$f.FullName)
+            # The generic exe icon has no dark tile; ours does (18,20,28) with a blue mark.
+            \$b = \$i.ToBitmap()
+            \$c = \$b.GetPixel(\$b.Width / 2, 3)
+            'icon ' + \$b.Width + 'x' + \$b.Height + ' top-middle pixel ' + \$c
+            if (\$c.R -gt 60 -or \$c.B -gt 70 -or \$c.A -lt 200) { throw 'the Weave icon is not in the exe' }"
 
       - uses: actions/upload-artifact@v4
         with:

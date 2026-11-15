@@ -42,10 +42,11 @@ No Rust needed. Every merge to `main` replaces one public pre-release,
 [`latest`](https://github.com/pgermishuys/fleet-native/releases/tag/latest), with fresh builds. The links never change:
 
 - Windows: [`fleet-native-windows-x64.zip`](https://github.com/pgermishuys/fleet-native/releases/download/latest/fleet-native-windows-x64.zip)
-- macOS (Apple silicon): [`fleet-native-macos-arm64.tar.gz`](https://github.com/pgermishuys/fleet-native/releases/download/latest/fleet-native-macos-arm64.tar.gz)
+- macOS (Apple silicon): [`fleet-native-macos-arm64.dmg`](https://github.com/pgermishuys/fleet-native/releases/download/latest/fleet-native-macos-arm64.dmg)
 - Linux: [`fleet-native-linux-x64.tar.gz`](https://github.com/pgermishuys/fleet-native/releases/download/latest/fleet-native-linux-x64.tar.gz)
 
-Each holds the app and this README. `latest.json` beside them gives the commit, the build number and each file's
+Each holds the app (macOS: `Fleet Native.app` to drag to Applications; Windows: the exe, with its icon) and, except the
+`.dmg`, this README. `latest.json` beside them gives the commit, the build number and each file's
 SHA-256; `fleet-native --version` prints the build you have.
 
 **What works** is the table below, and what is still missing is under "What isn't built" and in
@@ -55,9 +56,20 @@ Sending a message makes that Fleet's agent act.
 
 These builds are **unsigned**:
 
-- **Windows:** SmartScreen says "Windows protected your PC". Click **More info**, then **Run anyway**.
-- **macOS:** unpack, then `xattr -d com.apple.quarantine fleet-native` and run `./fleet-native`.
-- **Linux:** unpack and run `./fleet-native`; it needs `libxkbcommon-x11-0` on X11.
+- **Windows:** unzip and run `fleet-native.exe`. SmartScreen says "Windows protected your PC": click **More info**,
+  then **Run anyway**.
+- **macOS:** open the `.dmg` and drag **Fleet Native** onto Applications. The first time, right-click it in
+  Applications and choose **Open** (then **Open** again), or run
+  `xattr -dr com.apple.quarantine "/Applications/Fleet Native.app"` once. The app is ad hoc signed so Apple
+  silicon runs it, but not notarised.
+- **Linux:** unpack and run `./fleet-native`; it needs `libxkbcommon-x11-0` on X11. For a launcher entry with an
+  icon, copy the two files beside the program:
+
+  ```sh
+  install -Dm755 fleet-native ~/.local/bin/fleet-native
+  install -Dm644 fleet-native.png ~/.local/share/icons/hicolor/512x512/apps/fleet-native.png
+  install -Dm644 fleet-native.desktop ~/.local/share/applications/fleet-native.desktop
+  ```
 
 ### Against a Fleet server
 
@@ -182,4 +194,8 @@ This repository has no licence yet (`docs/PORT.md`, "Open decisions"). What it b
 - Inter (`assets/fonts/InterVariable.ttf`): SIL Open Font License, `assets/fonts/Inter-LICENSE.txt`.
 - JetBrains Mono (`assets/fonts/JetBrainsMono-Variable.ttf`): SIL Open Font License,
   `assets/fonts/JetBrainsMono-OFL.txt`.
+- The app icon (`assets/icon/`) is made from `assets/weave_logo.png` by `tools/gen-app-icon.py`.
+- `winresource` (MIT or Apache-2.0, build time only on Windows, nothing of it ships in the exe) writes the exe's icon
+  and version information. It is the small, maintained fork of `winres`, and needs no tool beyond the Windows SDK
+  the runner has.
 - Lucide icons (`src/icons.rs`): ISC, `tools/lucide-LICENSE.txt`.

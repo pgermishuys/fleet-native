@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Fleet Native
+Comment=Weave Fleet as a native desktop app (experiment)
+Exec=fleet-native
+Icon=fleet-native
+Terminal=false
+Categories=Development;
