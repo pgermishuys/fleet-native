@@ -16,6 +16,7 @@ pub mod model;
 pub mod prefs;
 pub mod presence;
 pub mod prompts;
+pub mod queue;
 pub mod reducer;
 pub mod refresh;
 pub mod retry;

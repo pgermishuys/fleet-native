@@ -525,3 +525,12 @@ Nothing in Rune was needed: this piece is plain Rust. Two things for whoever bui
 - **Meters don't animate here.** Fleet's `transition: width 300ms` on the size meter and the limits' fills is not ported: the
   bars are drawn at their final width. (`live_trim` moves only a canvas stroke.)
 - **A spinner doesn't turn** (no looping rotation): it fades, as in the older-messages row.
+
+## Component 5, piece I (queue and steer)
+
+- **A text field's own keys are `on_input_key`, on the field.** `El::on_key` on the field or on a parent never sees a key the
+  field handles, and Ctrl/Cmd+Enter reaches the field's `on_submit` (the same call as Enter) first. To tell the two apart, put
+  `on_input_key` on the field and return `true` for Ctrl/Cmd+Enter; an `on_key` on the frame silently does nothing there.
+- **`on_submit` can't see the modifiers** (`Tx` has none), so "Enter does one thing, Ctrl+Enter the other" needs the above.
+- **A list the hub also replaces needs one number per load**: a `session.queue` event and a `GET` race, so every load takes a
+  generation and is dropped if an event bumped it meanwhile (`fleet::queue::Queues`).

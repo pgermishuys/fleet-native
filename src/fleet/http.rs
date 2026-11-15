@@ -52,6 +52,8 @@ pub struct Pick {
     pub model: Option<(String, String)>,
     pub effort: Option<String>,
     pub user_message_id: Option<String>,
+    /// Into the running turn now (`delivery: "steer"`); left out otherwise, which the server reads as a plain send.
+    pub steer: bool,
 }
 
 /// The body of `POST /api/sessions/{id}/prompt`.
@@ -68,6 +70,9 @@ pub fn prompt_body(text: &str, correlation_id: &str, pick: &Pick) -> Value {
     }
     if let Some(id) = &pick.user_message_id {
         body["userMessageId"] = json!(id);
+    }
+    if pick.steer {
+        body["delivery"] = json!("steer");
     }
     body
 }
@@ -144,20 +149,24 @@ pub fn negotiate(base: &str) -> Result<String, String> {
 }
 
 /// A call whose status the caller reads itself: a 404 or a 500 is an answer here, not an error. Only a request that
-/// never got an answer is `Err`.
-fn status_of(method: &str, base: &str, path: &str) -> Result<(u16, Value), String> {
+/// never got an answer is `Err`. `body` is sent as JSON (`{}` when a POST has none).
+fn status_with(method: &str, base: &str, path: &str, body: Option<&Value>) -> Result<(u16, Value), String> {
     let agent: ureq::Agent =
         ureq::Agent::config_builder().timeout_global(Some(Duration::from_secs(15))).http_status_as_error(false).build().into();
     let target = url(base, path);
     let response = match method {
         "GET" => agent.get(target).call(),
         "DELETE" => agent.delete(target).call(),
-        _ => agent.post(target).header("content-type", "application/json").send("{}"),
+        _ => agent.post(target).header("content-type", "application/json").send(body.map_or("{}".to_string(), Value::to_string)),
     };
     let mut response = response.map_err(|e| e.to_string())?;
     let status = response.status().as_u16();
-    let body = response.body_mut().read_to_string().unwrap_or_default();
-    Ok((status, serde_json::from_str(&body).unwrap_or(Value::Null)))
+    let text = response.body_mut().read_to_string().unwrap_or_default();
+    Ok((status, serde_json::from_str(&text).unwrap_or(Value::Null)))
+}
+
+fn status_of(method: &str, base: &str, path: &str) -> Result<(u16, Value), String> {
+    status_with(method, base, path, None)
 }
 
 /// `GET /api/sessions/{id}/retry`: the scheduled retry, or 204 for none (`use-session-retry.ts` `load`).
@@ -204,4 +213,24 @@ pub fn work_output(base: &str, session: &str, item: &str, offset: u64) -> Result
 /// (409 during a turn, a harness that can't) is an answer with a status, not an error.
 pub fn compact(base: &str, session: &str) -> Result<(u16, Value), String> {
     status_of("POST", base, &format!("/api/sessions/{session}/compact"))
+}
+
+/// `GET /api/sessions/{id}/queue`: what Fleet holds for the turn's end (`use-session-queue.ts` `load`).
+pub fn queue_load(base: &str, session: &str) -> Result<(u16, Value), String> {
+    status_of("GET", base, &format!("/api/sessions/{session}/queue"))
+}
+
+/// `POST /api/sessions/{id}/queue`: queue an item (201 with the item).
+pub fn queue_add(base: &str, session: &str, body: &Value) -> Result<(u16, Value), String> {
+    status_with("POST", base, &format!("/api/sessions/{session}/queue"), Some(body))
+}
+
+/// `DELETE /api/sessions/{id}/queue/{item}`: take an item back (204; a 404 is as good).
+pub fn queue_remove(base: &str, session: &str, item: &str) -> Result<(u16, Value), String> {
+    status_of("DELETE", base, &format!("/api/sessions/{session}/queue/{item}"))
+}
+
+/// `POST /api/sessions/{id}/queue/{item}/send`: Send now (202).
+pub fn queue_send(base: &str, session: &str, item: &str) -> Result<(u16, Value), String> {
+    status_of("POST", base, &format!("/api/sessions/{session}/queue/{item}/send"))
 }

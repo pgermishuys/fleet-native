@@ -148,8 +148,21 @@ pub fn mode_of(text: &str, caps: &Caps, side_open: bool) -> Mode {
     }
 }
 
-/// Send's label and title (row 2.7), except the busy ones (piece I): "Send", "Run command" in shell mode and
-/// "Ask in the side conversation" in side mode.
+/// Send's accessible label and its title while a turn runs (row 2.7): a prompt says what Enter does now. Shell and side
+/// mode keep their own words; idle is "Send".
+pub fn send_words(mode: Mode, busy: bool, steers_by_default: bool) -> (&'static str, &'static str) {
+    match (mode, busy, steers_by_default) {
+        (Mode::Prompt, true, true) => ("Send now", "Send now (Enter): the agent reads it at its next step"),
+        (Mode::Prompt, true, false) => ("Queue", "Queue (Enter): sent when the agent finishes"),
+        _ => {
+            let label = send_label(mode);
+            (label, label)
+        }
+    }
+}
+
+/// Send's label and title when idle (row 2.7): "Send", "Run command" in shell mode and "Ask in the side
+/// conversation" in side mode.
 pub fn send_label(mode: Mode) -> &'static str {
     match mode {
         Mode::Prompt => "Send",

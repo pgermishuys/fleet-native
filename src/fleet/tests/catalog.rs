@@ -282,7 +282,9 @@ fn the_prompt_body_carries_only_what_is_picked() {
         model: Some(("anthropic".into(), "opus-5-5".into())),
         effort: Some("high".into()),
         user_message_id: Some("user-abc".into()),
+        steer: false,
     };
+    assert!(prompt_body("hi", "prompt-1", &picked).get("delivery").is_none(), "a plain send leaves delivery out");
     let body = prompt_body("hi", "prompt-1", &picked);
     assert_eq!(body["agent"], "plan");
     assert_eq!(body["model"], json!({"providerID": "anthropic", "modelID": "opus-5-5"}));

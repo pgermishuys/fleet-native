@@ -591,6 +591,9 @@ fn user_messages(rt: &Runtime<State>) -> usize {
 #[test]
 fn enter_sends_the_draft_and_the_text_area_keeps_focus() {
     let mut rt = app();
+    // An idle session: while a turn runs, Enter queues (piece I).
+    rt.update(|s, _| s.open = (0, 2));
+    rt.frame(FRAME);
     let before = user_messages(&rt);
     typed(&mut rt, "Ship it");
     assert_eq!(rt.state.draft.text, "Ship it");
@@ -629,6 +632,8 @@ fn ctrl_enter_is_the_other_choice_and_on_an_idle_harness_it_sends() {
 #[test]
 fn send_is_off_with_nothing_to_send_and_on_with_text() {
     let mut rt = app();
+    rt.update(|s, _| s.open = (0, 2));
+    rt.frame(FRAME);
     assert!(rt.state.draft.text.is_empty());
     let before = user_messages(&rt);
     click(&mut rt, "prompt-send-button");
