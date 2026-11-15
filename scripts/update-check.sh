@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Proves the updater's replace step on this system with no window and no GitHub: copies a binary (built with
-# FLEET_NATIVE_BUILD=1, so it knows it is old) to a temp folder, serves a fake "latest" release from loopback whose
+# Proves the updater's replace step on this system with no window and no GitHub: copies a debug binary to a temp folder and
+# runs it with FLEET_NATIVE_TEST_BUILD=1 (a debug build reads it), so it believes it is build 1; serves a fake "latest" release from loopback whose
 # build 2 asset holds a slightly different program, runs `fleet-native --update-now --no-restart` on the copy, and
 # checks the copy became the new program (by SHA-256). Linux and Windows; macOS is proved by a test with a real .dmg.
 #
-#   FLEET_NATIVE_BUILD=1 cargo build && bash scripts/update-check.sh target/debug/fleet-native
+#   cargo build && bash scripts/update-check.sh target/debug/fleet-native
 set -euo pipefail
-src="${1:?path of a binary built with FLEET_NATIVE_BUILD=1}"
+src="${1:?path of a debug build}"
 tmp="$(mktemp -d)"
 trap 'kill "${server:-0}" 2>/dev/null || true; rm -rf "$tmp"' EXIT
 case "$(uname -s)" in
@@ -18,7 +18,6 @@ py=python3; command -v python3 >/dev/null || py=python
 mkdir -p "$tmp/app" "$tmp/release"
 cp "$src" "$tmp/app/$exe"
 "$tmp/app/$exe" --version
-case "$("$tmp/app/$exe" --version)" in *"build 1 "*) ;; *) echo "build this with FLEET_NATIVE_BUILD=1" >&2; exit 1 ;; esac
 # The "new build": the same program with a few bytes after the end, which neither ELF nor PE minds.
 "$py" - "$src" "$tmp/release" "$name" "$exe" "$key" <<'P'
 import sys, hashlib, json, tarfile, zipfile, os
@@ -42,7 +41,7 @@ port=$((20000 + RANDOM % 20000))
 (cd "$tmp/release" && exec "$py" -m http.server "$port" --bind 127.0.0.1 >/dev/null 2>&1) &
 server=$!
 for _ in $(seq 1 50); do curl -fs "http://127.0.0.1:$port/latest.json" >/dev/null && break; sleep 0.2; done
-FLEET_NATIVE_UPDATE_URL="http://127.0.0.1:$port" "$tmp/app/$exe" --update-now --no-restart
+FLEET_NATIVE_TEST_BUILD=1 FLEET_NATIVE_UPDATE_URL="http://127.0.0.1:$port" "$tmp/app/$exe" --update-now --no-restart
 got="$("$py" -c "import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())" "$tmp/app/$exe")"
 want="$(cat "$tmp/release/want.sha256")"
 if [ "$got" != "$want" ]; then echo "the program was not replaced ($got, wanted $want)" >&2; exit 1; fi

@@ -54,7 +54,14 @@ pub fn parse(json: &str) -> Result<Manifest, String> {
 }
 
 /// The build number this binary was made as (`FLEET_NATIVE_BUILD`, baked in by CI), `None` for a local `dev` build.
+///
+/// A debug build can be told another number with `FLEET_NATIVE_TEST_BUILD` (scripts/update-check.sh: CI proves the replace step
+/// on a build that believes it is old, without a second build of everything). A release build ignores it.
 pub fn running_build() -> Option<u64> {
+    #[cfg(debug_assertions)]
+    if let Ok(v) = std::env::var("FLEET_NATIVE_TEST_BUILD") {
+        return v.parse().ok();
+    }
     option_env!("FLEET_NATIVE_BUILD").and_then(|b| b.parse().ok())
 }
 
