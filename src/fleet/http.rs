@@ -234,3 +234,8 @@ pub fn queue_remove(base: &str, session: &str, item: &str) -> Result<(u16, Value
 pub fn queue_send(base: &str, session: &str, item: &str) -> Result<(u16, Value), String> {
     status_of("POST", base, &format!("/api/sessions/{session}/queue/{item}/send"))
 }
+
+/// `GET /api/sessions/{id}/work?all=true`: all of the session's work, including what ended long ago.
+pub fn work_all(base: &str, session: &str) -> Result<(u16, Value), String> {
+    status_of("GET", base, &format!("/api/sessions/{session}/work?all=true"))
+}

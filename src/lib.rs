@@ -916,6 +916,27 @@ pub fn spec() -> AppSpec<State> {
             }),
             ("failure-action-failed", |s| s.show_failure(mock::failure::Case::ActionFailed, false)),
             ("failure-earlier", |s| s.show_failure(mock::failure::Case::Earlier, false)),
+            ("agent-done", |s| s.show_agents(mock::agents::Case::Done)),
+            ("agent-done-light", |s| {
+                s.dark = Some(false);
+                s.show_agents(mock::agents::Case::Done)
+            }),
+            ("agent-background", |s| s.show_agents(mock::agents::Case::Background)),
+            ("agent-background-light", |s| {
+                s.dark = Some(false);
+                s.show_agents(mock::agents::Case::Background)
+            }),
+            ("agent-asks", |s| s.show_agents(mock::agents::Case::Asks)),
+            ("agent-asks-light", |s| {
+                s.dark = Some(false);
+                s.show_agents(mock::agents::Case::Asks)
+            }),
+            ("agent-every-state", |s| s.show_agents(mock::agents::Case::Every)),
+            ("background-notices", |s| s.show_agents(mock::agents::Case::Notices)),
+            ("background-notices-light", |s| {
+                s.dark = Some(false);
+                s.show_agents(mock::agents::Case::Notices)
+            }),
             ("work-running", |s| s.show_work(mock::work::Case::Running)),
             ("work-running-light", |s| {
                 s.dark = Some(false);

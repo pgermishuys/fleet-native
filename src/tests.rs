@@ -786,7 +786,7 @@ fn a_finished_turn_folds_to_one_row_and_opens_on_click() {
     rt.frame(FRAME);
     assert!(rt.find("turn-fold-u1").is_some(), "the finished turn has its fold row");
     assert!(rt.find("tool-t1").is_none(), "its command is folded away");
-    assert!(rt.find("tool-t5").is_some(), "the sub-agent call stays");
+    assert!(rt.find("agent-t5").is_some(), "the sub-agent call stays, as its own row");
     assert!(rt.find("tool-t6").is_some(), "the failed call stays");
     assert!(rt.find("tool-t7").is_some(), "the running turn stays open");
     assert!(rt.find("turn-fold-u2").is_none(), "the running turn has no fold row");
@@ -1470,4 +1470,192 @@ fn the_popover_draws_the_harness_limits_only_when_it_reports_some() {
     rt.frame(FRAME);
     rt.frame(FRAME);
     assert!(rt.find("context-limits").is_some() && rt.find("context-limit2").is_some());
+}
+
+// ── Sub-agent rows and background notices (component 3, piece M) ────────────────────────────────────────────────────
+
+fn agents_app(case: crate::mock::agents::Case) -> Runtime<State> {
+    let mut rt = app();
+    rt.update(|s, _| s.show_agents(case));
+    rt.frame(FRAME);
+    rt.frame(FRAME);
+    rt
+}
+
+fn notices(rt: &Runtime<State>) -> Vec<crate::conv::background::BackgroundNotice> {
+    rt.state.session().messages.iter().filter_map(|m| m.meta.background.clone()).collect()
+}
+
+#[test]
+fn a_sub_agent_call_with_a_session_is_one_row_of_its_own_and_one_without_stays_a_tool_row() {
+    let mut rt = agents_app(crate::mock::agents::Case::Done);
+    assert!(rt.find("agent-c1").is_some() && rt.find("tool-c1").is_none());
+    // The harness hasn't made the child session yet: the ordinary row, with the call's own words.
+    rt.update(|s, _| {
+        s.stream.as_mut().unwrap().delegations[0].child_session_id = None;
+        // The row's memo reads the message, not the delegation list: a changed message redraws it.
+        s.session_mut().unwrap().messages[1].meta.created_at = Some(1);
+    });
+    rt.frame(FRAME);
+    assert!(rt.find("agent-c1").is_none() && rt.find("tool-c1").is_some());
+}
+
+#[test]
+fn the_row_redraws_when_the_delegation_changes_with_no_change_to_the_message() {
+    use crate::fleet::delegations::DelegationStatus;
+    let mut rt = agents_app(crate::mock::agents::Case::Background);
+    let key = |rt: &Runtime<State>| crate::view::agent_row::key(&rt.state, &rt.state.session().messages[1]);
+    let before = key(&rt);
+    rt.update(|s, _| s.stream.as_mut().unwrap().delegations[0].status = DelegationStatus::Completed);
+    assert_ne!(before, key(&rt));
+    rt.frame(FRAME);
+    assert!(rt.find("agent-c1").is_some());
+}
+
+#[test]
+fn every_state_of_the_row_draws_and_a_press_opens_the_child() {
+    let mut rt = agents_app(crate::mock::agents::Case::Every);
+    for id in ["c1", "c2", "c3", "c4", "c5", "c6"] {
+        assert!(rt.find(&format!("agent-{id}")).is_some(), "row {id}");
+        assert!(rt.find(&format!("agent-{id}-status")).is_some());
+    }
+    // Pressing opens the child as `open_child` does; one the list doesn't hold shows nothing yet (component 6).
+    click(&mut rt, "agent-c2");
+    assert!(rt.state.work.opened_from.is_none());
+    rt.update(|s, tx| {
+        s.projects[0].sessions[1].id = "child-1".into();
+        assert!(s.open_child("scene", "child-1", tx));
+    });
+    assert_eq!(rt.state.session().id, "child-1");
+}
+
+#[test]
+fn a_notice_is_a_chip_with_its_own_state_and_not_a_user_bubble() {
+    use crate::conv::background::{BackgroundKind, BackgroundState};
+    let mut rt = agents_app(crate::mock::agents::Case::Notices);
+    assert!(rt.find("background-note").is_some());
+    let all = notices(&rt);
+    let states: Vec<_> = all.iter().map(|n| (n.kind, n.state)).collect();
+    assert_eq!(
+        states,
+        vec![
+            (BackgroundKind::Shell, BackgroundState::Completed),
+            (BackgroundKind::Subagent, BackgroundState::Completed),
+            (BackgroundKind::Subagent, BackgroundState::Error),
+            (BackgroundKind::Subagent, BackgroundState::Cancelled),
+        ]
+    );
+    // The words are the notice's text, not the raw tags.
+    let m = &rt.state.session().messages[2];
+    assert_eq!(m.text(), "12 passed\n\nCommand exited with code 0.");
+    // And the call that started the shell stopped saying Background once its notice arrived.
+    let call = rt.state.session().messages[1].parts.iter().find_map(|p| match p {
+        Part::Tool { status, .. } => Some(*status),
+        _ => None,
+    });
+    assert_eq!(call, Some(crate::conv::tools::ToolStatus::Completed));
+    rt.frame(FRAME);
+}
+
+// ActivityStream.background-work.test.ts
+fn stopped_shell(sh: &str) -> (serde_json::Value, serde_json::Value) {
+    use serde_json::json;
+    let messages = json!([
+        {"info": {"id": "m1", "role": "assistant", "sessionID": "s1", "time": {"created": 1}}, "parts": [
+            {"type": "tool", "id": "p1", "tool": "shell", "callID": "call_dev", "state": {"status": "running", "background": true,
+                "input": {"command": "sh scripts/dev.sh"}, "metadata": {"shellID": sh}}}]},
+        {"info": {"id": "m2", "role": "user", "sessionID": "s1", "time": {"created": 2}}, "parts": [
+            {"type": "text", "id": "p2", "text": format!("<shell id=\"{sh}\" state=\"error\" command=\"sh scripts/dev.sh\">\nShell.NotFoundError\n</shell>")}]},
+    ]);
+    let work = json!({"id": "w1", "sessionId": "s1", "workId": sh, "kind": "shell", "title": "shell", "label": "sh scripts/dev.sh",
+        "status": "cancelled", "background": true, "toolCallId": "call_dev", "canStop": true, "startedAt": "2026-10-04T10:00:00Z",
+        "endedAt": "2026-10-04T10:05:00Z", "endedReason": "cancelled", "detail": "stopped"});
+    (messages, work)
+}
+
+fn open_stream(messages: serde_json::Value, work: Vec<serde_json::Value>) -> Runtime<State> {
+    let mut rt = app();
+    rt.update(move |s, _| {
+        let mut stream = crate::fleet::reducer::create_state(
+            &serde_json::json!({"session": {}, "messages": messages, "delegations": [], "activityStatus": "idle"}),
+        );
+        stream.running_work = crate::fleet::work::to_items(Some(&serde_json::Value::Array(work)));
+        s.stream = Some(stream);
+        s.stream_of = None;
+        s.sync_open();
+    });
+    rt.frame(FRAME);
+    rt
+}
+
+#[test]
+fn activity_stream_and_work_fleet_stopped_says_stopped_not_error_for_a_shell_fleet_stopped() {
+    use crate::conv::background::BackgroundState;
+    let (messages, work) = stopped_shell("sh_dev");
+    let rt = open_stream(messages, vec![work]);
+    let note = notices(&rt).remove(0);
+    assert_eq!((note.state, note.state.word()), (BackgroundState::Cancelled, "stopped"));
+    // The raw error body is not shown.
+    assert!(!rt.state.session().messages.iter().any(|m| m.text().contains("Shell.NotFoundError")));
+    assert!(rt.find("background-note").is_some());
+}
+
+#[test]
+fn activity_stream_and_work_fleet_stopped_asks_fleet_for_older_work_when_the_stream_no_longer_has_it() {
+    use crate::conv::background::BackgroundState;
+    use std::io::{Read, Write};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
+    let (log, stopped) = (seen.clone(), stopped_shell("sh_dev").1);
+    std::thread::spawn(move || {
+        for mut stream in listener.incoming().flatten() {
+            let mut buf = [0u8; 2048];
+            let n = stream.read(&mut buf).unwrap_or(0);
+            log.lock().unwrap().push(String::from_utf8_lossy(&buf[..n]).lines().next().unwrap_or("").to_string());
+            let body = serde_json::json!([stopped]).to_string();
+            let _ = write!(
+                stream,
+                "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
+                body.len()
+            );
+        }
+    });
+    let (messages, _) = stopped_shell("sh_dev");
+    let mut rt = app();
+    rt.update(move |s, _| {
+        s.projects[0].sessions[0].id = "s1".into();
+        s.link = Some(crate::fleet::link::Link::start(base, crate::fleet::link::Post::new(|_| {})));
+        let stream = crate::fleet::reducer::create_state(
+            &serde_json::json!({"session": {}, "messages": messages, "delegations": [], "activityStatus": "idle"}),
+        );
+        s.stream = Some(stream);
+        s.stream_of = None;
+        s.sync_open();
+    });
+    // While the answer is out the notice says what the harness said: a failure.
+    assert_eq!(notices(&rt).remove(0).state, BackgroundState::Error);
+    let id = rt.state.open_id().unwrap();
+    assert_eq!(rt.state.work.older_for.as_deref(), Some(id.as_str()));
+    let started = std::time::Instant::now();
+    while seen.lock().unwrap().is_empty() && started.elapsed().as_secs() < 5 {
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    let line = seen.lock().unwrap()[0].clone();
+    assert!(line.starts_with(&format!("GET /api/sessions/{id}/work?all=true ")), "{line}");
+    // Its answer (delivered here by hand: the test's `Post` drops the app's own delivery) turns the notice to stopped.
+    let (_, work) = stopped_shell("sh_dev");
+    rt.update(move |s, _| s.on_older_work(&id, Ok((200, serde_json::json!([work])))));
+    assert_eq!(notices(&rt).remove(0).state, BackgroundState::Cancelled);
+}
+
+#[test]
+fn activity_stream_and_work_fleet_stopped_keeps_a_real_failure_a_failure() {
+    use crate::conv::background::BackgroundState;
+    let (messages, mut work) = stopped_shell("sh_dev");
+    work["status"] = serde_json::json!("error");
+    work["endedReason"] = serde_json::json!("error");
+    let rt = open_stream(messages, vec![work]);
+    assert_eq!(notices(&rt).remove(0).state, BackgroundState::Error);
+    assert!(rt.state.session().messages.iter().any(|m| m.text().contains("Shell.NotFoundError")));
 }

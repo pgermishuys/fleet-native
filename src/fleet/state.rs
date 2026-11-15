@@ -2,6 +2,7 @@
 //! an `AppHandle::update` closure, and does no I/O.
 use super::events::{Event, Kind};
 use super::history::{self, Page};
+use super::http;
 use super::link::Connection;
 use super::model::{Msg, StreamState};
 use super::prompts::{self, Confirm, PromptStatus};
@@ -9,7 +10,9 @@ use super::reducer;
 use super::rows::RowPatch;
 use super::sessions;
 use super::view;
+use super::work::to_items;
 use crate::State;
+use crate::conv::background;
 use crate::conv::compaction::fold_compaction_summaries;
 use crate::conv::fold::FoldOptions;
 use crate::conv::fold_plan::FoldPlan;
@@ -326,6 +329,11 @@ impl State {
             self.fold_plan = Default::default();
             return;
         };
+        // Which background work ended and how: a notice arriving later changes the cards of calls long since drawn.
+        let finished = background::finished_of(&stream.messages, &stream.running_work, &self.work.older);
+        let finished_changed = finished != self.work.finished;
+        self.work.finished = finished;
+        let finished = &self.work.finished;
         let folded = fold_compaction_summaries(&stream.messages);
         let shown: Vec<&Msg> = stream.messages.iter().filter(|m| !folded.hidden.contains(&m.id)).collect();
         let summary_of = |m: &Msg| folded.summaries.get(&m.id).map(String::as_str);
@@ -346,14 +354,15 @@ impl State {
         // Not `session_mut()`: that would borrow all of `self` while `stream` is still read.
         let Some(session) = self.projects.get_mut(p).and_then(|p| p.sessions.get_mut(i)) else { return };
         let n = shown.len();
-        let same_shape = session.messages.len() == n + optimistic.len()
+        let same_shape = !finished_changed
+            && session.messages.len() == n + optimistic.len()
             && session.messages.iter().zip(&shown).all(|(a, b)| a.id == b.id)
             && session.messages[n..].iter().zip(&optimistic).all(|(a, b)| a.id == b.id);
         if same_shape {
             let last = n.saturating_sub(1);
             for (i, (old, new)) in session.messages.iter_mut().zip(&shown).enumerate() {
                 if i == last || old.version() != view::version(new, summary_of(new)) {
-                    *old = view::message(new, summary_of(new));
+                    *old = view::message(new, summary_of(new), finished);
                 }
             }
             // A few rows at most, and one may have just turned to needing a retry.
@@ -361,7 +370,7 @@ impl State {
             session.messages.extend(optimistic);
         } else {
             session.messages =
-                prompts::merge_by_timestamp(shown.into_iter().map(|m| view::message(m, summary_of(m))).collect(), optimistic);
+                prompts::merge_by_timestamp(shown.into_iter().map(|m| view::message(m, summary_of(m), finished)).collect(), optimistic);
         }
         // The row shows the derived status: a sub-agent's question is the amber diamond, every other
         // kind of work the working glyph.
@@ -379,6 +388,34 @@ impl State {
             session.age = "now".into();
         }
         self.refold();
+        self.load_older_work();
+    }
+
+    /// Asks the server for all of the session's work, once, when a notice says work failed and the stream holds no item
+    /// for its call: work Fleet stopped reads stopped, not failed (`use-background-work.ts`).
+    fn load_older_work(&mut self) {
+        let (Some(stream), Some(link), Some(id)) = (&self.stream, &self.link, self.open_id()) else { return };
+        if self.work.older_for.as_deref() == Some(id.as_str())
+            || !background::needs_older_work(&stream.messages, &stream.running_work, &self.work.older)
+        {
+            return;
+        }
+        self.work.older_for = Some(id.clone());
+        let asked = id.clone();
+        link.off_thread(move |base| http::work_all(base, &asked), move |s, _, result| s.on_older_work(&id, result));
+    }
+
+    /// The answer of `load_older_work`; one for a session no longer open is dropped.
+    pub fn on_older_work(&mut self, id: &str, result: Result<(u16, serde_json::Value), String>) {
+        if self.open_id().as_deref() != Some(id) {
+            return;
+        }
+        if let Ok((status, body)) = result
+            && (200..300).contains(&status)
+        {
+            self.work.older = to_items(Some(&body));
+            self.sync_open();
+        }
     }
 
     /// Works out which messages the stream draws and which fold (`foldTurns`), from the reducer's messages. Runs when the
@@ -395,7 +432,7 @@ impl State {
         let running = stream.session_status.working();
         self.watched.on_working(running);
         let sent = self.prompts.of(&self.open_id().unwrap_or_default());
-        let context = ListContext { delegations: &stream.delegations, models: &[], thinking: self.thinking };
+        let context = ListContext { delegations: &stream.delegations, finished: &self.work.finished, models: &[], thinking: self.thinking };
         let options = FoldOptions { running, keep_last: self.watched.watched(), directory: None, open: &self.turns_open };
         let mut plan = FoldPlan::build(&stream.messages, sent, &context, &options);
         plan.place(self.session().messages.iter().map(|m| m.id.as_str()));

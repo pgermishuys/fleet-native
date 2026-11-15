@@ -29,6 +29,11 @@ pub struct WorkStrip {
     /// The session Open left, for the back link of a sub-agent's own session (row 4.31).
     pub opened_from: Option<String>,
     pub next_epoch: u64,
+    /// How the background work in the open conversation ended, by handle (`finishedBackground`).
+    pub finished: super::background::Finished,
+    /// Work the stream no longer holds, asked of the server once when a notice needs it, and the session it was asked for.
+    pub older: Vec<crate::fleet::work::RunningWorkItem>,
+    pub older_for: Option<String>,
     seen_running: HashSet<String>,
     ended_seen_at: HashMap<String, i64>,
     /// What the last frame showed, so the poll knows when a redraw is due.

@@ -4,6 +4,7 @@
 //! This file also holds the message type it draws. It follows weave-fleet's `AccumulatedMessage`
 //! (`client/src/lib/client-types.ts`) so the reducer in `src/fleet/` can fill it later: a message
 //! has a role and ordered parts, and every part has an id.
+use super::agent_row;
 use super::compaction;
 use super::failure;
 use super::fold;
@@ -16,6 +17,7 @@ use super::shell;
 use super::toolrow;
 use super::working;
 use crate::State;
+use crate::conv::background::{AgentCall, BackgroundNotice};
 use crate::conv::bubble::{cluster_position, show_meta};
 use crate::conv::card::ToolBody;
 use crate::conv::compaction::CompactionView;
@@ -61,6 +63,8 @@ pub struct Meta {
     pub steered: bool,
     /// The failure that ended the turn, drawn as a card under the message (`turnError`).
     pub failure: Option<Failure>,
+    /// This message is the notice that background work finished: drawn as a chip, its text as the helper's words.
+    pub background: Option<BackgroundNotice>,
 }
 
 /// A turn's failure (`TurnError`): the harness's name for it, its message, and the limit that caused it, if any.
@@ -94,6 +98,8 @@ pub enum Part {
         state: ToolState,
         /// What opens under the row: output, summary, preview.
         body: Box<ToolBody>,
+        /// For a sub-agent call: the kind and task its input names (`subagentKind`, `subagentTask`).
+        agent: AgentCall,
     },
     File {
         id: String,
@@ -156,14 +162,15 @@ impl Part {
             status: ToolStatus::Completed,
             state,
             body: Box::default(),
+            agent: AgentCall::default(),
         }
     }
 
     /// A call that is still running.
     pub fn running_tool(id: impl Into<String>, tool: &str, detail: &str) -> Self {
         match Part::tool(id, tool, detail, ToolState::Plain) {
-            Part::Tool { id, tool, call_id, detail, state, body, .. } => {
-                Part::Tool { id, tool, call_id, detail, status: ToolStatus::Running, state, body }
+            Part::Tool { id, tool, call_id, detail, state, body, agent, .. } => {
+                Part::Tool { id, tool, call_id, detail, status: ToolStatus::Running, state, body, agent }
             }
             other => other,
         }
@@ -180,13 +187,13 @@ impl Part {
     pub fn weight(&self) -> usize {
         match self {
             Part::Text { text, .. } | Part::Reasoning { text, .. } => text.len(),
-            Part::Tool { state, status, detail, body, .. } => {
+            Part::Tool { state, status, detail, body, agent, .. } => {
                 let shown = match *state {
                     ToolState::Diff(a, r) => 2 + a as usize + r as usize,
                     ToolState::Took(secs) => 3 + secs.to_bits() as usize,
                     ToolState::Plain => 4,
                 };
-                shown + (*status as usize) * 7 + detail.len() + body.output.len() + body.summary.len()
+                shown + (*status as usize) * 7 + detail.len() + body.output.len() + body.summary.len() + agent.kind.len() + agent.task.len()
             }
             Part::Compaction { summary, .. } => 5 + summary.as_ref().map_or(0, String::len),
             Part::Shell(c) => 6 + c.output.len() + (c.state as usize) * 3 + c.exit.map_or(0, |e| e as usize),
@@ -208,7 +215,9 @@ impl Message {
         let failure = self.meta.failure.as_ref();
         (
             self.parts.len() + usize::from(failure.is_some()),
-            self.parts.iter().map(Part::weight).sum::<usize>() + failure.map_or(0, |f| f.message.len()),
+            self.parts.iter().map(Part::weight).sum::<usize>()
+                + failure.map_or(0, |f| f.message.len())
+                + self.meta.background.as_ref().map_or(0, |b| 1 + b.state as usize + b.label.len()),
         )
     }
 }
@@ -278,7 +287,7 @@ pub fn stream(t: &Theme, session: &Session, plan: &FoldPlan, partial: bool, olde
                     frame,
                     s.lists().models.len(),
                     fold_key(kept),
-                    failure,
+                    (failure, agent_row::key(s, msg)),
                     s.is_shown(&msg.id),
                 ),
                 || message_row(&theme, &md, msg, (kept, after_tool), streaming, s, (frame.0, frame.1)),
@@ -524,6 +533,11 @@ fn message_row(
     let marks = message::marks(t, msg, lead);
     let mut lead_spent = marks.is_some();
     column = column.children(marks);
+    // The chip of a notice that background work finished, above its words.
+    if let Some(note) = &msg.meta.background {
+        column = column.child(el().w_full().mt(if lead_spent { 0.0 } else { lead }).child(agent_row::background_note(t, note)));
+        lead_spent = true;
+    }
     let mut k = 0;
     let mut copy_pinned = false;
     while k < parts.len() {
@@ -596,6 +610,8 @@ fn message_row(
 
 fn part_view(t: &Theme, s: &State, md: &Styles, msg: &Message, part: &Part, live: bool) -> El {
     match (part, msg.role) {
+        // The notice's own words are the helper's: no bubble, an assistant-side message under its chip.
+        (Part::Text { id, text: body }, Role::User) if msg.meta.background.is_some() => prose::prose(&md.prose, id, body, false),
         (Part::Text { id, text: body }, Role::User) => message::user_bubble(t, s, md, msg, id, body),
         (Part::Text { id, text: body }, Role::Shell) => message::user_bubble(t, s, md, msg, id, body),
         (Part::Text { id, text: body }, Role::Assistant) => prose::prose(&md.prose, id, body, live),
