@@ -480,6 +480,7 @@ fn the_list_leaves_out_sub_agents_and_dims_old_sessions() {
 
 mod asks;
 mod attach;
+mod auth;
 mod autocomplete;
 mod cards;
 mod catalog;

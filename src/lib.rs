@@ -1948,7 +1948,10 @@ pub fn start_desktop() {
     if std::env::args().any(|a| a == "--bench-conversation") {
         return bench::conversation();
     }
-    let (server, rest) = split_args(std::env::args().skip(1));
+    // The token comes out of the arguments before anything else sees them, and is kept in `fleet::auth` only.
+    let (token, args) = fleet::auth::split_token(std::env::args().skip(1));
+    fleet::auth::set(fleet::auth::explicit_token(token, &|k| std::env::var(k).ok()));
+    let (server, rest) = split_args(args.into_iter());
     // `--demo`: the invented data on purpose, for a look by hand. It is Fleet Native's own, not Rune's.
     let demo = rest.iter().any(|a| a == "--demo");
     let rest: Vec<String> = rest.into_iter().filter(|a| a != "--demo").collect();

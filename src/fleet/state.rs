@@ -198,7 +198,7 @@ impl State {
     /// The first load is still going: nothing held and no answer yet. Before the hub has connected nothing has been asked,
     /// and the window is still waiting for its first list, so that counts too.
     pub fn list_is_loading(&self) -> bool {
-        let waiting = self.link.is_some() && !self.store.list_loaded && self.store.error.is_none();
+        let waiting = self.link.is_some() && !self.store.list_loaded && self.store.error.is_none() && !self.is_refused();
         self.store.is_loading || self.project_load.is_loading || waiting || self.searching
     }
 
@@ -648,6 +648,11 @@ impl State {
         }
     }
 
+    /// The Fleet turned the connection away for want of a token.
+    pub fn is_refused(&self) -> bool {
+        self.connection == Connection::Refused
+    }
+
     /// What the status bar says about the connection; `None` when all is well or there's no server.
     pub fn connection_note(&self) -> Option<String> {
         match (&self.link, &self.connection) {
@@ -655,6 +660,7 @@ impl State {
             // Name the address, in Fleet's own wording for a server it can't reach ("Can't reach …. Trying again…",
             // `UnreachableBanner.vue`). The reason (`why`) is for the log: "Connection refused (os error 61)" helps no one.
             (Some(link), Connection::Connecting) => Some(format!("Connecting to {}…", link.base)),
+            (Some(link), Connection::Refused) => Some(super::auth::refused_note(&link.base)),
             (Some(link), Connection::Down(_)) => Some(format!("Can't reach Fleet at {}. Trying again…", link.base)),
         }
     }

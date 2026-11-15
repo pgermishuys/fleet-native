@@ -79,6 +79,8 @@ pub enum Connection {
     Online,
     /// Lost, and trying again.
     Down(String),
+    /// The Fleet answered 401 or 403: it needs a token, or this one is wrong. No retry would help.
+    Refused,
 }
 
 impl Link {
@@ -214,6 +216,11 @@ fn run(base: String, rx: Receiver<Cmd>, post: Post) {
                 post.update(|s, _| s.on_reconnected());
                 serve(ws, &base, &rx, &mut topics, &mut pending, &mut presence, &post)
             }
+            Err(e) if super::auth::is_refusal(&e) => {
+                // A reconnect loop would only knock again: say what is needed and stop.
+                connection(&post, Connection::Refused);
+                return;
+            }
             Err(e) => e,
         };
         // A page asked for on the connection that just ended will never be answered.
@@ -280,7 +287,7 @@ fn history_failed(post: &Post, session: String, cursor: String, why: &str) {
 }
 
 pub(crate) fn host_of(base: &str) -> Result<String, String> {
-    let rest = base.strip_prefix("http://").ok_or("only http:// servers on this machine are supported so far")?;
+    let rest = base.strip_prefix("http://").ok_or("only http:// servers are supported so far (no TLS)")?;
     let host = rest.trim_end_matches('/');
     // `http://127.0.0.1` has no port to connect to: it is 80, as for any browser.
     let has_port = host.rsplit_once(':').is_some_and(|(_, p)| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit()));
@@ -292,7 +299,9 @@ fn connect(base: &str) -> Result<WebSocket<TcpStream>, String> {
     let token = http::negotiate(base)?;
     let stream = TcpStream::connect(&host).map_err(|e| e.to_string())?;
     let _ = stream.set_nodelay(true);
-    let (mut ws, _) = tungstenite::client(format!("ws://{host}/hubs/session-events?id={token}"), stream).map_err(|e| e.to_string())?;
+    let (mut ws, _) =
+        tungstenite::client(format!("ws://{host}/hubs/session-events?id={token}{}", super::auth::current_hub_query()), stream)
+            .map_err(|e| e.to_string())?;
     ws.send(Message::text(signalr::handshake())).map_err(|e| e.to_string())?;
     // The handshake's answer is the first frame; read it blocking, then switch to short reads.
     loop {
