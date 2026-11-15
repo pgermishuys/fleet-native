@@ -353,7 +353,7 @@ the retry line in `view/conversation.rs`). Gaps, with reasons:
   that at once, with the session list's current status (`withActivityStatus`), while the fresh snapshot is on its
   way, which then replaces it keeping unchanged messages. Native sets `self.stream = None` when opening, so
   switching back and forth waits on the server every time.
-- [x] **5.5 Connection state on screen.** "Connecting…" and "Reconnecting: <why>" appear in the status bar (they do).
+- [x] **5.5 Connection state on screen.** "Connecting to <url>…" and, in Fleet's own wording for an unreachable server, "Can't reach Fleet at <url>. Trying again…" appear in the status bar (the raw error is no longer shown); discovery looks in every place a Fleet records itself (`fleet::discover`, README "Try it").
   Fleet's own client has no banner of this kind for the desktop hub (only phone's "Can't reach"); keep ours small.
   With a server given, **no invented value may show**: header, model line, token total, and the list stay empty or
   blank until the Fleet answers (seen in `native-server-down-dark.png`).

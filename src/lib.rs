@@ -1066,6 +1066,8 @@ pub fn spec() -> AppSpec<State> {
             ("light", |s| s.dark = Some(false)),
             ("dark", |s| s.dark = Some(true)),
             ("sidebar-closed", |s| s.sidebar_open = false),
+            // Discovery found no Fleet: the status bar says where it looked and how to name one.
+            ("no-fleet-found", |s| s.notice = Some(fleet::discover::sample_not_found())),
             ("content-open", |s| s.content_open = true),
             ("project-headers", |s| s.sample_headers = true),
             ("project-headers-light", |s| {
@@ -1909,6 +1911,8 @@ pub fn start_desktop() {
         return bench::conversation();
     }
     let (server, rest) = split_args(std::env::args().skip(1));
+    // `--server` wins; Finder can't pass arguments, so `FLEET_NATIVE_SERVER` names the address as well.
+    let server = fleet::discover::explicit_server(server, &|k| std::env::var(k).ok());
     // Pictures, scripted runs and scenes never go looking for a Fleet: they must come out the same every time.
     let headless =
         rest.iter().any(|a| matches!(a.as_str(), "--snap" | "--script" | "--scene" | "--video" | "--frames" | "--tree" | "--trace"));
@@ -1950,18 +1954,22 @@ pub fn start_desktop() {
         // No `--server`: look for the Fleet running on this machine, as Fleet's desktop app does
         // (`fleet::instance`), off the UI thread because it reads a file and asks the server.
         let handle = handle.clone();
-        std::thread::spawn(move || match fleet::instance::discover(|k| std::env::var(k).ok()) {
-            Some(found) => connect_to(&handle, found.url),
-            None => handle.update(|s, _| s.notice = Some(NO_FLEET.to_string())),
+        std::thread::spawn(move || match fleet::discover::discover(&|k| std::env::var(k).ok()) {
+            Ok(found) => {
+                eprintln!("fleet-native: found a Fleet at {} ({})", found.url, found.place.describe());
+                connect_to(&handle, found.url)
+            }
+            Err(looked) => {
+                let notice = fleet::discover::not_found(&looked);
+                eprintln!("fleet-native: {notice}");
+                handle.update(move |s, _| s.notice = Some(notice))
+            }
         });
     }
     app.run();
 }
 
-/// What the window says when discovery finds no Fleet; the mock data stays, so it is still a window to look at.
-pub const NO_FLEET: &str = "No Fleet is running on this machine.";
-
-/// Starts the connection to the Fleet at `url`.
+/// Starts the connection to the Fleet at `url`. Until discovery finds one, the invented data stays so there is a window to look at.
 fn connect_to(handle: &rune::AppHandle<State>, url: String) {
     let link = Link::start(url, Post::from_handle(handle.clone()));
     handle.update(move |s, _| {
