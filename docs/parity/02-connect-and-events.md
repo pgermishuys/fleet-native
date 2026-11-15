@@ -330,33 +330,54 @@ the retry line in `view/conversation.rs`). Gaps, with reasons:
 
 ### 5. Connection, reconnect and the open session (`composables/use-signalr-socket.ts`, `use-session-stream.ts`)
 
-- [ ] **5.1 Reconnect schedule.** Two layers in Vue: SignalR's own `withAutomaticReconnect([1000, 2000, 5000, 10000])`,
+- [x] **5.1 Reconnect schedule.** Two layers in Vue: SignalR's own `withAutomaticReconnect([1000, 2000, 5000, 10000])`,
   and after it gives up (or the first start fails) `RECONNECT_DELAYS_MS = [2000, 5000, 10000, 30000]` while anything
   still listens, the attempt counter reset by a good start. Native has one loop on 1, 2, 5, 10 s. Keep one loop, use the
   longer tail (30 s), say in a comment why: native has no in-socket retry to hide behind.
-- [ ] **5.2 Fresh snapshot after every reconnect**, for every open topic, with the events that arrived before it applied
+- [x] **5.2 Fresh snapshot after every reconnect**, for every open topic, with the events that arrived before it applied
   after it. Native resubscribes only the open session; the Files/Progress canvases (components 10-12) will add
   topics, so the subscription set must be a set, not one `Option`.
-- [ ] **5.3 Snapshot cache per topic** (`lastSnapshotsV2`, `eventCount`): a second listener on a topic reuses the last
+- [x] **5.3 Snapshot cache per topic** (`lastSnapshotsV2`, `eventCount`): a second listener on a topic reuses the last
   snapshot only if no event arrived since it was asked for, else asks again.
-- [ ] **5.4 Kept streams** (`keptStreams`, `KEPT_SESSIONS = 8`): leaving a session keeps its state; opening it again shows
+- [x] **5.4 Kept streams** (`keptStreams`, `KEPT_SESSIONS = 8`): leaving a session keeps its state; opening it again shows
   that at once, with the session list's current status (`withActivityStatus`), while the fresh snapshot is on its
   way, which then replaces it keeping unchanged messages. Native sets `self.stream = None` when opening, so
   switching back and forth waits on the server every time.
-- [ ] **5.5 Connection state on screen.** "Connecting…" and "Reconnecting: <why>" appear in the status bar (they do).
+- [x] **5.5 Connection state on screen.** "Connecting…" and "Reconnecting: <why>" appear in the status bar (they do).
   Fleet's own client has no banner of this kind for the desktop hub (only phone's "Can't reach"); keep ours small.
   With a server given, **no invented value may show**: header, model line, token total, and the list stay empty or
   blank until the Fleet answers (seen in `native-server-down-dark.png`).
-- [ ] **5.6 Partial snapshot.** `isPartial` (the harness is unavailable): banner "Connection to live session is
+- [x] **5.6 Partial snapshot.** `isPartial` (the harness is unavailable): banner "Connection to live session is
   temporarily unavailable. Showing cached data." (`ActivityStream.vue`, `partial-snapshot-banner`). The state lives here;
   the banner is a one-line row in the conversation.
-- [ ] **5.7 Frame batching.** Vue applies live events once per animation frame with a 100 ms fallback
+- [x] **5.7 Frame batching.** Vue applies live events once per animation frame with a 100 ms fallback
   (`FRAME_FALLBACK_MS`); native batches per 16 ms. Same effect; keep it.
 - [ ] **5.8 Back on the network / the app regains focus** (`window` `online`, `visibilitychange`): reconnect now, skip the
   backoff (`reconnectIfClosed`). Native: on window focus, reconnect if down. Rune must report window focus; check.
 - [ ] **5.9 The hub's address and `https`** are component 17.
 - Tests: a scratch hub that drops the socket, the app reconnects and takes a new snapshot; a kept stream shows at once;
   `src/fleet/tests/wire.rs` is the pattern (a fake server on a thread).
+
+- **Done in piece E** (`src/fleet/topics.rs`, `link.rs`, `state.rs`, `model.rs`, `view/conversation.rs`, `tests/reconnect.rs`).
+  Notes: **5.1** one loop on 1, 2, 5, 10, 30 s (`topics::reconnect_delay`), reset by a good connect; the list is fetched
+  after a connect, not before (a list asked for while the server is down failed and left its notice up). **5.2** `Topics` is
+  a set (the open session plus watched ones, `Link::watch`/`unwatch`); every topic is subscribed again on each connect and
+  watched topics' events go to `State::subscribe` listeners (4.2's last sentence, now built). **5.3** `Topics::fresh_snapshot`
+  reuses a snapshot only while no event arrived since; used when the open session was already watched. Nothing consumes a
+  watched topic's snapshot yet (component 11). **5.4** `Kept` (8, evicting the one left longest ago; only conversations with
+  messages) is shown at once on return with the list's current status (`with_activity_status`, so 2.5 is now called); the
+  snapshot replaces it, and `State::loading` says it is still on the way. **5.5** with `--server`, the list starts empty and
+  the header's agent/model and the status bar's agent/token total are hidden until a session is open. **5.6**
+  `StreamState::is_partial` and the banner (`partial-banner`), text glyph instead of the emoji. **5.7** unchanged, 16 ms.
+  **Tests:** the main-group reconnect case under Fleet's name; a hub that hangs up after the first snapshot, the app
+  returns with the conversation a fresh open shows and no message twice; kept stream before its snapshot; ninth evicts
+  first; status taken from the list; snapshot cache; schedule; partial banner on and off.
+  **Gaps:** the snapshot's `isPartial` is never retried (neither does Fleet); the header's agent and model (Fleet shows
+  "OpenCode · Fake") are left out on a server until the session row carries them (component 6); `theme.rs`'s light `idle`
+  is `#d97706` but weave-fleet `main` has `#D27306` (`idle_text` is added from `main`); 5.8 (reconnect now on focus) is piece J's.
+  **Pictures:** `shots/parity/02e-reconnect/`: native up, down (killed server: refused at once; SIGSTOP would hold requests
+  open and show nothing), back, both themes, beside Fleet's own client for the up state; the partial banner as a scene (Fleet
+  can't be made to send a partial snapshot).
 
 ### 6. Older history, presence and focus
 

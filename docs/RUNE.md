@@ -235,3 +235,13 @@ Nothing in Rune was needed. Two things learned about driving it:
   there is no window manager to do it); a click alone puts the caret in the composer but the keys go nowhere.
 - The 15 s timeout is the state's clock, not a thread: `poll` gets the time, so `Tx::wake_after` at the send is what
   makes the frame that turns a prompt to `needs_retry` happen when nothing else is going on.
+
+## Component 2, piece E (reconnect, kept streams, partial)
+
+Nothing in Rune was needed. Learned about driving it:
+
+- A real window under Xvfb opens larger than a small screen, and with no window manager nothing resizes it: give Xvfb a
+  big screen, then `xdotool windowmove <w> 0 0 windowsize <w> 1280 760` (find `<w>` with `search --pid`), and grab
+  1280x760. The theme toggle (Ctrl+Shift+L) needs `windowfocus` first, as typing does.
+- The Rune window draws no colour emoji, so Fleet's partial banner mark (a "warning sign" emoji) is the text glyph U+26A0 in
+  the banner's amber.

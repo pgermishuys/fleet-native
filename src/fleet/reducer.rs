@@ -29,6 +29,7 @@ pub fn create_state(snapshot: &Value) -> StreamState {
         context: snapshot.get("context").and_then(to_context_usage),
         explicit_status,
         last_event_id: snapshot.get("lastEventId").or_else(|| snapshot.get("lastSequenceNumber")).and_then(Value::as_i64),
+        is_partial: snapshot.get("isPartial").and_then(Value::as_bool).unwrap_or(false),
     };
     for message in snapshot.get("messages").and_then(Value::as_array).into_iter().flatten() {
         if let Some(info) = message.get("info") {

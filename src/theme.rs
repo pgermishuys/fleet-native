@@ -23,6 +23,8 @@ pub struct Theme {
     pub accent: Color,
     pub running: Color,
     pub idle: Color,
+    /// `--idle-text`: amber ink that reads on the page (the same as `--idle` in the dark theme).
+    pub idle_text: Color,
     pub error: Color,
     /// `--primary-foreground`: ink on a solid accent fill.
     pub primary_fg: Color,
@@ -49,6 +51,7 @@ impl Theme {
                 accent: c("#6366f1"),
                 running: c("#22c55e"),
                 idle: c("#f59e0b"),
+                idle_text: c("#f59e0b"),
                 error: c("#ef4444"),
                 primary_fg: c("#ffffff"),
                 destructive: c("#dc2626"),
@@ -68,6 +71,7 @@ impl Theme {
                 accent: c("#5B6EC7"),
                 running: c("#16a34a"),
                 idle: c("#d97706"),
+                idle_text: c("#975304"),
                 error: c("#dc2626"),
                 primary_fg: c("#ffffff"),
                 destructive: c("#dc2626"),

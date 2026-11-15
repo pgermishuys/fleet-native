@@ -61,6 +61,7 @@ pub fn long_from_events(rt: &mut Runtime<State>) -> &'static str {
         explicit_status: Explicit::Busy,
         session_status: StreamStatus::Busy,
         last_event_id: None,
+        is_partial: false,
     };
     rt.update(move |s, tx| {
         let at = s.long_session().expect("the long conversation is in the list");
