@@ -6,6 +6,7 @@ pub mod fold;
 pub mod frame;
 pub mod long;
 pub mod parts;
+pub mod ring;
 pub mod tools;
 pub mod work;
 pub mod working;

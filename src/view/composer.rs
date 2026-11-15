@@ -148,6 +148,7 @@ fn toolbar(s: &State, t: &Theme, disabled: bool, mode: Mode) -> El {
         .children(if mode == Mode::Shell || disabled { None } else { s.effort_view().map(|v| effort_toggle(t, &v)) })
         .child(interrupt_button(t, s.can_interrupt()))
         .child(spacer())
+        .children(crate::view::ring::button(s, t))
         .child(send)
 }
 

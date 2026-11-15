@@ -486,3 +486,18 @@ Nothing in Rune was needed: this piece is plain Rust. Two things for whoever bui
 - **A container query** (`@container (max-width: 440px)`) is the element's own measured width kept in `State` by `on_layout`, read one frame later.
 - **No hover border colour** again: the ghost button gets a hover fill only.
 - **`text(...).tracking(0.04 * size)` with `.to_uppercase()`** is the way to draw `uppercase; letter-spacing: 0.04em`.
+
+## Component 5, piece G (the context ring)
+
+- **`stroke_path` has no arc.** A ring is a closed polyline of 96 points on the circle (`view/ring.rs`); at 18 px it
+  draws as a smooth circle, so the 48-point fallback was not needed.
+- **A partial ring: `live_trim` on a closed stroke.** Draw the whole circle with a round cap and bind
+  `live_trim(Live<[f32; 2]>.smooth(Spring::new(0.3, 0.0)))` to `[0, fill]`: the arc starts at the polyline's first point
+  and the round caps follow the cut. Publish the end with `Live::set` while the same session shows and `Live::snap` when
+  another one does, or a switch of session sweeps. `Live::set` takes `&self`, so a view may do it.
+- **A dashed stroke is several strokes.** There is no dash pattern; draw each dash as its own open stroke with
+  `LineCap::Butt`.
+- **Translucent ink is brighter than CSS's.** Rune blends in linear light, so `--text` at 62% over a dark card is much
+  paler than the browser's. Where a solid colour sits under it (the ring on the composer card), mix the two in sRGB
+  numbers yourself and draw the result opaque. A faded closed polyline also blends twice where its joints overlap.
+
