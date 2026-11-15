@@ -2000,16 +2000,22 @@ pub fn start_desktop() {
         // No `--server`: look for the Fleet running on this machine, as Fleet's desktop app does
         // (`fleet::instance`), off the UI thread because it reads a file and asks the server.
         let handle = handle.clone();
-        std::thread::spawn(move || match fleet::discover::discover(&|k| std::env::var(k).ok()) {
-            Ok(found) => {
-                eprintln!("fleet-native: found a Fleet at {} ({})", found.url, found.place.describe());
-                connect_to(&handle, found.url)
-            }
-            Err(looked) => {
-                let notice = fleet::discover::not_found(&looked);
-                eprintln!("fleet-native: {notice}");
-                handle.update(move |s, _| s.on_no_fleet(notice))
-            }
+        // It keeps looking: Fleet's desktop app may still be starting its server, or be started after this window.
+        std::thread::spawn(move || {
+            let mut told = false;
+            let found = fleet::discover::search(
+                || fleet::discover::all_places(fleet::discover::Os::current(), &|k| std::env::var(k).ok()),
+                fleet::discover::LOOK_AGAIN,
+                |looked| {
+                    if !std::mem::replace(&mut told, true) {
+                        let notice = fleet::discover::not_found(looked);
+                        eprintln!("fleet-native: {notice}");
+                        handle.update(move |s, _| s.on_no_fleet(notice));
+                    }
+                },
+            );
+            eprintln!("fleet-native: found a Fleet at {} ({})", found.url, found.place.describe());
+            connect_to(&handle, found.url)
         });
     }
     app.run();
