@@ -39,6 +39,42 @@ pub fn diamond(color: Color) -> El {
     el().size(8.0, 8.0).center().child(el().size(5.6, 5.6).fill(color).rotate(std::f32::consts::FRAC_PI_4))
 }
 
+/// `completed` (`StatusGlyph.vue`): a check, stroke 1.5, in an 8px slot.
+pub fn check(color: Color) -> El {
+    canvas(Shape::new().stroke(vec![[1.0, 4.5], [3.2, 6.5], [7.0, 1.5]], 1.5, color)).size(8.0, 8.0)
+}
+
+/// `idle` (`StatusGlyph.vue`): a ring of radius 3, stroke 1.5.
+pub fn ring(color: Color) -> El {
+    el().size(8.0, 8.0).center().child(el().size(6.75, 6.75).radius(3.375).border(1.5, color))
+}
+
+/// `stopped`, `disconnected` and anything else (`StatusGlyph.vue`): a filled 6px square.
+pub fn square(color: Color) -> El {
+    el().size(8.0, 8.0).center().child(el().size(6.0, 6.0).fill(color))
+}
+
+/// `StatusGlyph.vue`: the 8px glyph of a session status. Colour is kept for what needs the user: working is plain
+/// `--text`, retrying amber, waiting an amber diamond, an error a red triangle, completed a blue check, idle a ring,
+/// stopped and disconnected a muted square, and a running tool call a pulsing green dot.
+pub fn status_glyph(t: &Theme, status: &str, retrying: bool) -> El {
+    match status {
+        "active" if retrying => quad(t.idle),
+        "active" => quad(t.text),
+        "running" => pulse(t.running),
+        "idle" => ring(t.muted),
+        "error" => triangle(t.error),
+        "waiting_input" => diamond(t.idle),
+        "completed" => check(t.complete),
+        _ => square(t.muted),
+    }
+}
+
+/// A row's idle slot after a restart cut its turn off: the empty 8px slot as a filled disc (`session-glyph-slot--cut`).
+pub fn cut_dot(color: Color) -> El {
+    el().size(8.0, 8.0).radius(4.0).fill(color)
+}
+
 /// Fleet's `toolbar-icon` button: 24.5px square (Tailwind `size-7` at a 14px root), muted icon,
 /// a 6% wash and the text colour on hover.
 pub fn tool_button(t: &Theme, key: &str, glyph: &'static Icon, size: f32, tip: &str) -> El {

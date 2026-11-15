@@ -61,7 +61,8 @@ fn an_activity_event_sets_the_glyph_and_the_status() {
     apply(&mut list, activity("a", "waiting_input"));
     assert_eq!((find(&list, "a").status, find(&list, "a").row.lifecycle.as_str()), (Status::NeedsInput, "waiting_input"));
     apply(&mut list, activity("a", "idle"));
-    assert_eq!((find(&list, "a").status, find(&list, "a").age.as_str()), (Status::Idle, "now"));
+    assert_eq!(find(&list, "a").status, Status::Idle);
+    assert!(find(&list, "a").row.updated > 0, "the row was just used");
 }
 
 #[test]

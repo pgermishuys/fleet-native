@@ -15,6 +15,8 @@ mod tests;
 mod tests_browser;
 #[cfg(test)]
 mod tests_images;
+#[cfg(test)]
+mod tests_rows;
 mod theme;
 pub mod ui;
 pub mod view;
@@ -160,6 +162,8 @@ pub struct State {
     pub copied: Option<(String, f64)>,
     /// The wall clock in unix milliseconds when a scene fixes it; `None` reads the real one (the time pills).
     pub now_ms: Option<i64>,
+    /// When the list last re-read the clock for its ages (`use-relative-time.ts`), on `clock`; `None` before the first.
+    pub row_tick: Option<f64>,
     /// The agent and model lists, the harness list, the preferences and the effort memory (`fleet::catalog`).
     pub pickers: fleet::catalog::Pickers,
     /// The last thing that went wrong, shown in the status bar.
@@ -247,6 +251,7 @@ impl Default for State {
             prompt_open: Default::default(),
             copied: None,
             now_ms: None,
+            row_tick: None,
             stream: None,
             prompts: Default::default(),
             subscribers: Default::default(),
@@ -582,6 +587,14 @@ impl State {
         }];
     }
 
+    /// A list with a row for every status, over a fixed clock (docs/parity/06-session-list.md, rows 3.20-3.48).
+    fn show_row_statuses(&mut self, dark: bool) {
+        self.dark = Some(dark);
+        self.now_ms = Some(mock::rows::NOW);
+        self.projects = vec![mock::rows::statuses()];
+        self.set_open((0, 5));
+    }
+
     /// The queue scenes: the working session, its harness and what it waits for.
     fn show_queue(&mut self, harness: &str, steers: bool, by_default: bool) {
         use composer::status::{HarnessInfo, SteerDelivery};
@@ -815,12 +828,12 @@ fn send_text(s: &mut State, tx: &mut Tx, text: String, typed: &str, steer: bool,
         s.held.clear_terminals(&owner);
     }
     let (p, i) = s.open_at();
+    let now = view::message::now_ms(s);
     let session = &mut s.projects[p].sessions[i];
     let id = format!("u{}", session.messages.len() + 1);
     session.messages.push(Message::user(id, text));
     session.status = Status::Working;
-    session.age = "now".into();
-    session.dim = 1.0;
+    session.touch(now);
     s.working_since = s.clock;
     s.reply = Some((p, i, s.clock + 2.5));
     s.follow_end(tx);
@@ -882,6 +895,20 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
 }
 
 impl State {
+    /// The list re-reads the clock every 30 s so "12m" becomes "13m" (`TICK_INTERVAL_MS`); true when it is time to
+    /// redraw the rows. The first call only starts the wait.
+    pub(crate) fn keep_row_ages(&mut self, now: f64, tx: &mut Tx) -> bool {
+        let every = fleet::row_status::TICK_SECS;
+        match self.row_tick {
+            Some(at) if now - at < every => false,
+            last => {
+                self.row_tick = Some(now);
+                tx.wake_after(std::time::Duration::from_secs_f64(every));
+                last.is_some()
+            }
+        }
+    }
+
     /// The composer's guesses end with the session's own word: true when one did and the buttons must redraw.
     fn keep_composer_state(&mut self, now: f64) -> bool {
         let busy = self.session().status == Status::Working;
@@ -904,6 +931,7 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     // Whole seconds only, so the "Working · 18s" label redraws once a second.
     let ticked = now.floor() != s.clock.floor();
     s.clock = now;
+    let aged = s.keep_row_ages(now, tx);
     s.keep_drafts(now, tx);
     if s.prompts.expire(now) {
         s.sync_open();
@@ -935,7 +963,9 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
             s.follow_end(tx);
             true
         }
-        _ => s.tick_script() || (ticked && s.session().status == Status::Working) || s.keep_retry_clock(tx) || s.keep_work_clock(tx),
+        _ => {
+            s.tick_script() || (ticked && s.session().status == Status::Working) || s.keep_retry_clock(tx) || s.keep_work_clock(tx) || aged
+        }
     }
 }
 
@@ -982,6 +1012,9 @@ pub fn spec() -> AppSpec<State> {
             ("sidebar-closed", |s| s.sidebar_open = false),
             ("content-open", |s| s.content_open = true),
             ("needs-input", |s| s.set_open((0, 1))),
+            // Piece C of the session list: a row for every status, in both themes.
+            ("row-statuses", |s| s.show_row_statuses(true)),
+            ("row-statuses-light", |s| s.show_row_statuses(false)),
             // The row's status as the reducer derives it from a snapshot with a sub-agent.
             ("delegating", |s| s.show_sub_agent(false)),
             ("delegating-light", |s| {

@@ -33,8 +33,7 @@ impl State {
         session.messages.push(Message::user(format!("u{n}"), "Where would you start on the search index?"));
         session.messages.push(Message::assistant(format!("a{n}"), vec![Part::text(format!("a{n}-p0"), "")]));
         session.status = Status::Working;
-        session.age = "now".into();
-        session.dim = 1.0;
+        session.touch(crate::fleet::link::now_ms());
         self.working_since = self.clock;
         self.script = Some(Script { at, started: self.clock, shown: 0 });
     }

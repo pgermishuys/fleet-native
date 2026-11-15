@@ -475,10 +475,7 @@ fn the_list_leaves_out_sub_agents_and_dims_old_sessions() {
     let projects = sessions::parse_list(&rows, 3 * day);
     let sessions: Vec<&str> = projects[0].sessions.iter().map(|s| s.id.as_str()).collect();
     assert_eq!(sessions, ["recent", "busy"]);
-    assert_eq!(projects[0].sessions[0].age, "now");
-    assert_eq!(sessions::age(3 * day, 0), ("3d".to_string(), 0.4));
-    assert_eq!(sessions::age(2 * day, 0), ("2d".to_string(), 0.55));
-    assert_eq!(sessions::age(3_600_000 * 5, 0), ("5h".to_string(), 1.0));
+    assert_eq!(projects[0].sessions[0].row.updated, 3 * day - 5000);
 }
 
 mod attach;
@@ -504,6 +501,7 @@ mod queue;
 mod reconnect;
 mod references;
 mod refresh;
+mod row_status;
 mod rows;
 mod scroll;
 mod selector;

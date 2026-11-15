@@ -14,6 +14,7 @@ pub mod images;
 pub mod long;
 pub mod parts;
 pub mod ring;
+pub mod rows;
 pub mod tools;
 pub mod work;
 pub mod working;
@@ -33,9 +34,8 @@ pub struct Session {
     pub id: String,
     pub title: String,
     pub status: Status,
-    /// Compact age ("2m", "3h", "4d") and how far Fleet dims the row for it (1.0, 0.55 or 0.40).
-    pub age: String,
-    pub dim: f32,
+    /// How long ago an invented session was last used, in seconds (the server's sessions carry `row.updated`).
+    pub ago_secs: Option<i64>,
     pub branch: String,
     pub messages: Vec<Message>,
     pub tokens: u32,
@@ -43,6 +43,14 @@ pub struct Session {
     pub row: crate::fleet::rows::Row,
     /// Where the row belongs: its project, pin and lineage ids.
     pub listing: crate::fleet::groups::Listing,
+}
+
+impl Session {
+    /// The session was just used: its age starts again (and an invented session stops being N seconds old).
+    pub fn touch(&mut self, now_ms: i64) {
+        self.row.updated = now_ms;
+        self.ago_secs = None;
+    }
 }
 
 impl crate::fleet::groups::Listed for Session {
@@ -78,14 +86,13 @@ pub struct Project {
     pub sessions: Vec<Session>,
 }
 
-fn session(title: &'static str, status: Status, age: &'static str, dim: f32, branch: &'static str, messages: Vec<Message>) -> Session {
+fn session(title: &'static str, status: Status, age: &'static str, branch: &'static str, messages: Vec<Message>) -> Session {
     let tokens = 1_840 + 3_217 * messages.len() as u32;
     Session {
         id: String::new(),
         title: title.into(),
         status,
-        age: age.into(),
-        dim,
+        ago_secs: ago_secs(age),
         branch: branch.into(),
         messages,
         tokens,
@@ -94,9 +101,20 @@ fn session(title: &'static str, status: Status, age: &'static str, dim: f32, bra
     }
 }
 
+/// "now", "12m", "3h", "2d" as seconds ago; an empty word is a session with no time.
+fn ago_secs(age: &str) -> Option<i64> {
+    let n = age.trim_end_matches(|c: char| c.is_alphabetic()).parse::<i64>().unwrap_or(0);
+    match age.chars().last()? {
+        'm' => Some(n * 60),
+        'h' => Some(n * 3600),
+        'd' => Some(n * 86_400),
+        _ => Some(0),
+    }
+}
+
 /// What the session slot shows when there is nothing to open (a server with no sessions yet).
 pub fn blank_session() -> Session {
-    session("No session open", Status::Idle, "", 1.0, "", Vec::new())
+    session("No session open", Status::Idle, "", "", Vec::new())
 }
 
 /// A short stand-in conversation for the sessions that aren't written out in full.
@@ -118,7 +136,6 @@ pub fn projects() -> Vec<Project> {
                     "Move the image cache to disk",
                     Status::Working,
                     "now",
-                    1.0,
                     "cache-on-disk",
                     vec![
                         Message::user(
@@ -152,7 +169,6 @@ pub fn projects() -> Vec<Project> {
                     "Which plan does the checkout page show?",
                     Status::NeedsInput,
                     "",
-                    1.0,
                     "main",
                     vec![
                         Message::user("u1", "The checkout page shows the yearly plan first. Should it?"),
@@ -175,7 +191,6 @@ pub fn projects() -> Vec<Project> {
                     "Fix the flaky checkout test",
                     Status::Idle,
                     "12m",
-                    1.0,
                     "fix-checkout-flake",
                     brief(
                         "checkout.spec fails about one run in ten. Find out why.",
@@ -186,7 +201,6 @@ pub fn projects() -> Vec<Project> {
                     "Upgrade the date picker",
                     Status::Idle,
                     "3h",
-                    1.0,
                     "date-picker-4",
                     brief(
                         "Move us to version 4 of the date picker.",
@@ -197,7 +211,6 @@ pub fn projects() -> Vec<Project> {
                     "Tidy the release notes",
                     Status::Idle,
                     "2d",
-                    0.55,
                     "main",
                     brief(
                         "Group the release notes by area and drop the internal items.",
@@ -218,7 +231,6 @@ pub fn projects() -> Vec<Project> {
                     "Why is the build slow on Windows?",
                     Status::Idle,
                     "1h",
-                    1.0,
                     "main",
                     brief(
                         "The Windows build takes 14 minutes and Linux takes 5. Why?",
@@ -229,7 +241,6 @@ pub fn projects() -> Vec<Project> {
                     "Sketch the onboarding copy",
                     Status::Idle,
                     "5h",
-                    1.0,
                     "onboarding",
                     brief(
                         "Write three short screens of onboarding copy.",
@@ -240,7 +251,6 @@ pub fn projects() -> Vec<Project> {
                     "Add a dark map style",
                     Status::Idle,
                     "4d",
-                    0.4,
                     "dark-map",
                     brief(
                         "The map is blinding at night. Add a dark style.",
@@ -260,7 +270,6 @@ pub fn projects() -> Vec<Project> {
                 "Summarise last week's notes",
                 Status::Idle,
                 "6d",
-                0.4,
                 "main",
                 brief("Summarise last week's notes in five lines.", "Five lines, one per day you wrote."),
             )],
@@ -273,7 +282,7 @@ pub fn projects() -> Vec<Project> {
             name: "Benchmarks".into(),
             path: "~/code/benchmarks".into(),
             open: false,
-            sessions: vec![session(long::TITLE, Status::Idle, "1d", 0.55, "main", long::conversation())],
+            sessions: vec![session(long::TITLE, Status::Idle, "1d", "main", long::conversation())],
         },
     ];
     // Each invented session knows its project the way a server row does, so the filter matches on it.

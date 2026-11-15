@@ -47,6 +47,17 @@ pub struct Theme {
     /// `--complete-text` and `--queued-text`: blue and violet ink that read on the page (terminal colours).
     pub complete_text: Color,
     pub queued_text: Color,
+    /// How much of `--text` a quiet session row keeps after a day (`--row-dim-1`) and after three (`--row-dim-2`).
+    pub row_dim: [f32; 2],
+    /// `--row-meta`: the share of `--text` a row's age and labels take.
+    pub row_meta: f32,
+    /// `--row-error`, `--row-waiting`, `--row-accent`, `--row-running`, `--row-queued`: how much of itself a status
+    /// colour keeps as row text; the rest comes from `--text`.
+    pub row_error: f32,
+    pub row_waiting: f32,
+    pub row_accent: f32,
+    pub row_running: f32,
+    pub row_queued: f32,
 }
 
 impl Theme {
@@ -77,6 +88,13 @@ impl Theme {
                 queued: c("#8b5cf6"),
                 complete_text: c("#4F8FF7"),
                 queued_text: c("#9F78F8"),
+                row_dim: [0.66, 0.51],
+                row_meta: 0.53,
+                row_error: 0.71,
+                row_waiting: 1.0,
+                row_accent: 0.67,
+                row_running: 1.0,
+                row_queued: 0.69,
             }
         } else {
             Theme {
@@ -104,6 +122,13 @@ impl Theme {
                 queued: c("#7c3aed"),
                 complete_text: c("#2159D4"),
                 queued_text: c("#7537DF"),
+                row_dim: [0.77, 0.62],
+                row_meta: 0.63,
+                row_error: 0.71,
+                row_waiting: 0.55,
+                row_accent: 0.69,
+                row_running: 0.56,
+                row_queued: 0.80,
             }
         }
     }
@@ -111,6 +136,19 @@ impl Theme {
     /// `color-mix(in srgb, var(--text) N%, transparent)`: Fleet's hover and selection washes.
     pub fn wash(&self, percent: f32) -> Color {
         self.text.alpha(percent / 100.0)
+    }
+
+    /// `color-mix(in srgb, <color> share, var(--text))`: a status colour as a row's text (`--row-error` and the rest).
+    pub fn text_mix(&self, color: Color, share: f32) -> Color {
+        // CSS mixes the sRGB numbers; Rune's colours are linear, so decode, mix and encode back.
+        let mix =
+            |a: f32, b: f32| rune::color::srgb_decode(share * rune::color::srgb_encode(a) + (1.0 - share) * rune::color::srgb_encode(b));
+        Color { r: mix(color.r, self.text.r), g: mix(color.g, self.text.g), b: mix(color.b, self.text.b), a: 1.0 }
+    }
+
+    /// The row text `--row-meta` of `--text`: a session's age, labels and progress count.
+    pub fn row_meta_ink(&self) -> Color {
+        self.text.alpha(self.row_meta)
     }
 
     /// `color-mix(in srgb, var(--accent) P%, var(--border))`: the frame's border while it has focus (55) or is in

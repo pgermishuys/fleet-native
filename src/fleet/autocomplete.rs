@@ -7,7 +7,6 @@ use crate::State;
 use crate::composer::refs::{Picks, SessionItem, skill_list_hint};
 use crate::composer::status::{Mode, mode_of};
 use crate::composer::triggers::{Autocomplete, Ctx, Edit, Item, Key, Lists};
-use crate::fleet::sessions::age;
 use rune::{KeyEvent, Tx};
 use std::collections::HashMap;
 
@@ -108,7 +107,7 @@ impl State {
                     updated: if session.row.updated > 0 {
                         session.row.updated as f64
                     } else {
-                        known.map_or_else(|| self.mock_updated(&session.age), |k| k.updated)
+                        known.map_or_else(|| self.mock_updated(session.ago_secs), |k| k.updated)
                     },
                 });
             }
@@ -117,16 +116,10 @@ impl State {
         out
     }
 
-    /// An invented session's `updated`, from the compact age its row shows ("now", "2m", "3h", "4d").
-    fn mock_updated(&self, age: &str) -> f64 {
+    /// An invented session's `updated`, from how long ago it was last used.
+    fn mock_updated(&self, ago_secs: Option<i64>) -> f64 {
         let now = self.now_ms.unwrap_or_else(super::link::now_ms);
-        let secs = match age.split_at(age.len().saturating_sub(1)) {
-            (n, "m") => n.parse::<i64>().unwrap_or(0) * 60,
-            (n, "h") => n.parse::<i64>().unwrap_or(0) * 3600,
-            (n, "d") => n.parse::<i64>().unwrap_or(0) * 86_400,
-            _ => 0,
-        };
-        (now - secs * 1000) as f64
+        (now - ago_secs.unwrap_or(0) * 1000) as f64
     }
 
     /// What the popup lists from, as the finder has it now. Files are the one list that follows the query, so they are
@@ -401,6 +394,10 @@ impl State {
 
     /// The text of the age on a session's row in the popup.
     pub fn mention_age(&self, updated: f64) -> String {
-        age(self.now_ms.unwrap_or_else(super::link::now_ms), updated as i64).0
+        super::row_status::format_relative(
+            updated as i64,
+            self.now_ms.unwrap_or_else(super::link::now_ms),
+            crate::conv::time::local_offset_secs(),
+        )
     }
 }
