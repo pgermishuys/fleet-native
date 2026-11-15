@@ -1,6 +1,7 @@
 //! The session list from `GET /api/sessions`: rows grouped under their projects, in the shapes the
 //! session list draws (`mock::Project`, `mock::Session`).
 use super::model::StreamStatus;
+use super::rows::{Row, glyph_of};
 use crate::mock::{Project, Session, Status};
 use serde_json::Value;
 
@@ -75,7 +76,8 @@ pub fn parse_list(rows: &Value, now_ms: i64) -> Vec<Project> {
         };
         let updated = row.pointer("/session/time/updated").and_then(Value::as_i64).unwrap_or(0);
         let (age, dim) = age(now_ms, updated);
-        let status = status_of(text("activityStatus").or(text("sessionStatus")).unwrap_or("idle"));
+        let info = Row::from_list_item(row);
+        let status = glyph_of(&info.lifecycle, &info.activity);
         listed.push((
             updated,
             at,
@@ -88,6 +90,7 @@ pub fn parse_list(rows: &Value, now_ms: i64) -> Vec<Project> {
                 branch: text("branch").unwrap_or("").to_string(),
                 messages: Vec::new(),
                 tokens: row.get("totalTokens").and_then(Value::as_u64).unwrap_or(0).min(u32::MAX as u64) as u32,
+                row: info,
             },
         ));
     }

@@ -24,6 +24,8 @@ pub struct Session {
     pub branch: String,
     pub messages: Vec<Message>,
     pub tokens: u32,
+    /// What the server's list row carries beyond the glyph; empty for the invented sessions.
+    pub row: crate::fleet::rows::Row,
 }
 
 pub struct Project {
@@ -35,7 +37,17 @@ pub struct Project {
 
 fn session(title: &'static str, status: Status, age: &'static str, dim: f32, branch: &'static str, messages: Vec<Message>) -> Session {
     let tokens = 1_840 + 3_217 * messages.len() as u32;
-    Session { id: String::new(), title: title.into(), status, age: age.into(), dim, branch: branch.into(), messages, tokens }
+    Session {
+        id: String::new(),
+        title: title.into(),
+        status,
+        age: age.into(),
+        dim,
+        branch: branch.into(),
+        messages,
+        tokens,
+        row: Default::default(),
+    }
 }
 
 /// What the session slot shows when there is nothing to open (a server with no sessions yet).
