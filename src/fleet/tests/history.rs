@@ -440,9 +440,9 @@ fn an_older_page_is_asked_for_over_the_hub_a_refusal_is_retried_and_the_page_joi
             std::thread::sleep(Duration::from_millis(10));
         }
     };
-    step(&mut rt, &|s| !s.loading && s.older() == Some(Older::Ask), "the snapshot with older history");
-    // Pressing the button, by its key.
-    click(&mut rt, "load-older");
+    // A conversation that fits the window is at its top, so Fleet asks for the page by itself (`updatePinnedState`); the
+    // first ask is the one the server refuses.
+    step(&mut rt, &|s| !s.loading && s.older().is_some(), "the snapshot with older history");
     step(&mut rt, &|s| s.older() == Some(Older::Failed), "the refusal");
     rt.frame(1.0 / 60.0);
     click(&mut rt, "load-older");

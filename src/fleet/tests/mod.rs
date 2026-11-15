@@ -491,6 +491,7 @@ mod prompts;
 mod reconnect;
 mod refresh;
 mod rows;
+mod scroll;
 mod selector;
 mod state;
 mod usage;

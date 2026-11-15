@@ -11,6 +11,7 @@ use super::interrupted;
 use super::message::{self, copy_text};
 use super::prose;
 use super::reasoning;
+use super::scroll;
 use super::shell;
 use super::toolrow;
 use super::working;
@@ -214,7 +215,7 @@ impl Message {
 
 /// The scrolling column of messages and, while a turn runs, the "Working" line. Only the rows on
 /// screen are built (`virtual_rows`), and a row whose message hasn't changed is reused (`memo`).
-pub fn stream(t: &Theme, session: &Session, plan: &FoldPlan, partial: bool, older: Option<Older>) -> El {
+pub fn stream(t: &Theme, session: &Session, plan: &FoldPlan, partial: bool, older: Option<Older>, scroll: Scroll) -> El {
     let theme = *t;
     let md = Styles { prose: prose::style(t), reasoning: reasoning::style(t), summary: compaction::style(t) };
     // After the messages: the card a restart left, then the line that says what the turn is doing. Fleet's line shows
@@ -278,22 +279,41 @@ pub fn stream(t: &Theme, session: &Session, plan: &FoldPlan, partial: bool, olde
                     s.lists().models.len(),
                     fold_key(kept),
                     failure,
+                    s.is_shown(&msg.id),
                 ),
                 || message_row(&theme, &md, msg, (kept, after_tool), streaming, s, (frame.0, frame.1)),
             )
         },
     );
-    col().key("stream").w_full().grow(1.0).shrink().min_h(0.0).scroll(ScrollSpec { stick_bottom: true }).child(
-        col()
-            .w_full()
-            .pt(24.0)
-            .px(32.0)
-            .pb(30.0)
-            .items_center()
-            .children(partial.then(|| partial_banner(&theme)))
-            .children(older.map(|o| older_row(&theme, o)))
-            .child(rows),
-    )
+    // The box and, when it isn't following the end, the lane under it with Jump to latest. `on_scroll_offset` may not
+    // change state, so it leaves where the box is for `poll` (`State::keep_scroll`).
+    let probe = scroll.probe;
+    let stream = col()
+        .key("stream")
+        .w_full()
+        .grow(1.0)
+        .shrink()
+        .min_h(0.0)
+        .scroll(ScrollSpec { stick_bottom: true })
+        .on_scroll_offset(move |at| probe.set(Some(at)))
+        .child(
+            col()
+                .w_full()
+                .pt(24.0)
+                .px(32.0)
+                .pb(30.0)
+                .items_center()
+                .children(partial.then(|| partial_banner(&theme)))
+                .children(older.map(|o| older_row(&theme, o)))
+                .child(rows),
+        );
+    col().key("stream-shell").w_full().grow(1.0).shrink().min_h(0.0).child(stream).children(scroll.jump.then(|| scroll::jump_lane(&theme)))
+}
+
+/// What the stream needs of `State`'s scroll: whether Jump to latest shows, and where the box reports itself.
+pub struct Scroll {
+    pub jump: bool,
+    pub probe: std::rc::Rc<std::cell::Cell<Option<rune::ScrollPos>>>,
 }
 
 /// The Markdown looks a message draws with: its text, its reasoning, and a compaction's summary.
@@ -478,6 +498,10 @@ fn message_row(
     (grouped_with_prev, grouped_with_next): (bool, bool),
 ) -> El {
     let mut column = col().key(format!("msg-{}", msg.id)).w_full().hover_group();
+    if s.is_shown(&msg.id) {
+        let (width, offset, color) = scroll::shown_ring(t);
+        column = column.outline(width, offset, color).radius(crate::theme::RADIUS_CARD);
+    }
     let mut after_tool = after_tool;
     // 20px after a message or text, none between tool rows, 12px before the text that follows a run of them.
     let above = |after: Option<bool>, is_tool: bool| match (after, is_tool) {

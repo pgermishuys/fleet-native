@@ -135,6 +135,12 @@ pub struct State {
     pub ui: ui::Ui,
     /// Shows the kit gallery in place of the sessions view (a scene, `--scene kit`).
     pub gallery: bool,
+    /// The conversation's scroll: whether it follows the end, where Rune last said the box was (`on_scroll_offset` may not
+    /// change state, so it leaves it in the probe and `poll` reads it), and the message just jumped to.
+    pub pin: conv::pin::Pin,
+    pub scroll_probe: std::rc::Rc<std::cell::Cell<Option<rune::ScrollPos>>>,
+    pub(crate) scroll_seen: Option<rune::ScrollPos>,
+    pub shown: Option<conv::pin::Shown>,
     /// Stands in for the open session while the list is empty.
     blank: Project,
 }
@@ -203,6 +209,10 @@ impl Default for State {
             side_open: false,
             ui: ui::Ui::default(),
             gallery: false,
+            pin: Default::default(),
+            scroll_probe: Default::default(),
+            scroll_seen: None,
+            shown: None,
             blank: Project { name: "Sessions".into(), path: String::new(), open: true, sessions: vec![mock::blank_session()] },
         }
     }
@@ -490,7 +500,7 @@ fn send_text(s: &mut State, tx: &mut Tx, text: String) {
     if let (Some(_), Some(id)) = (&s.link, s.open_id()) {
         s.send_to_server(&id, &text);
         s.notice = None;
-        tx.scroll_to_bottom("stream");
+        s.follow_end(tx);
         tx.wake_after(std::time::Duration::from_secs_f64(composer::status::Optimistic::GIVE_UP + 0.1));
         // `poll` turns what is still unconfirmed by then into "retry".
         tx.wake_after(std::time::Duration::from_secs_f64(fleet::prompts::CONFIRMATION_TIMEOUT + 0.1));
@@ -505,7 +515,7 @@ fn send_text(s: &mut State, tx: &mut Tx, text: String) {
     session.dim = 1.0;
     s.working_since = s.clock;
     s.reply = Some((p, i, s.clock + 2.5));
-    tx.scroll_to_bottom("stream");
+    s.follow_end(tx);
     tx.wake_after(std::time::Duration::from_millis(2600));
 }
 
@@ -544,6 +554,7 @@ fn end_tools(session: &mut Session) {
 
 fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     let composer_changed = s.keep_composer_state(now);
+    let scrolled = s.keep_scroll(tx);
     // "Copied" on a message's button ends by itself.
     let copied = match &s.copied {
         Some((_, until)) if now >= *until => {
@@ -556,7 +567,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         }
         None => false,
     };
-    poll_rest(s, now, tx) || composer_changed || copied
+    poll_rest(s, now, tx) || composer_changed || copied || scrolled
 }
 
 impl State {
@@ -610,7 +621,7 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
             session.messages.push(Message::assistant(id, vec![reply]));
             session.status = Status::Idle;
             s.reply = None;
-            tx.scroll_to_bottom("stream");
+            s.follow_end(tx);
             true
         }
         _ => s.tick_script() || (ticked && s.session().status == Status::Working) || s.keep_retry_clock(tx),
@@ -876,6 +887,12 @@ pub fn spec() -> AppSpec<State> {
             ("composer-error-light", |s| {
                 s.dark = Some(false);
                 s.show_composer("error")
+            }),
+            // A message the conversation was told to show: the ring it wears for 1.6 s, held for the picture.
+            ("message-shown", |s| s.show_ring()),
+            ("message-shown-light", |s| {
+                s.dark = Some(false);
+                s.show_ring()
             }),
             ("composer-long", |s| s.show_composer("long")),
             ("composer-long-light", |s| {

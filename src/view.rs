@@ -13,6 +13,7 @@ mod prose;
 mod rail;
 mod reasoning;
 mod recap;
+pub mod scroll;
 pub mod selector;
 mod sessions;
 mod sheet;
