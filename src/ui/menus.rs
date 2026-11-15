@@ -1,19 +1,23 @@
 //! The menus the shell opens: the composer's agent and model pickers, the header's "More
 //! actions", and a session row's right-click menu. Entries and wording are Fleet's where
-//! Fleet's are known; the lists of agents and models are invented, as the rest of the mock.
-use super::menu::{Entry, Item, Mark, context, dropdown as drop, item};
+//! Fleet's are known; the agent and model lists are the session's own (`State::lists`).
+use super::menu::{Entry, Item, Mark, context, dropdown as drop, dropdown_capped, item};
 use crate::icons::*;
 use crate::theme::Theme;
 use crate::{State, Tx};
 use rune::{Align, El, Side};
 
-pub const AGENTS: [&str; 3] = ["Default (build)", "plan", "general"];
-pub const MODELS: [&str; 4] = ["Default (Sonnet 5.5)", "Sonnet 5.5", "Opus 5.5", "Haiku 5.5"];
+/// `max-height: min(320px, 60vh)` of Fleet's selector menu; the viewport's height isn't known here, so 320.
+const MENU_MAX_H: f32 = 320.0;
 
-fn radio(list: &[&str], current: usize, set: fn(&mut State, usize)) -> Vec<Entry> {
-    list.iter()
-        .enumerate()
-        .map(|(i, name)| Entry::Item(Item::new(*name).mark(Mark::Radio(i == current)).on(move |s, _| set(s, i))))
+/// A picker's rows: Default first (empty id), then the list, the current pick marked.
+fn rows(current: &str, default: String, listed: Vec<(String, String)>, pick: fn(&mut State, &str, &mut Tx)) -> Vec<Entry> {
+    std::iter::once((String::new(), default))
+        .chain(listed)
+        .map(|(id, label)| {
+            let on = id == current;
+            Entry::Item(Item::new(label).mark(Mark::Radio(on)).on(move |s, tx| pick(s, &id, tx)))
+        })
         .collect()
 }
 
@@ -25,8 +29,16 @@ fn waiting(label: &'static str, icon: &'static rune::Icon, n: u8) -> Entry {
 
 pub fn dropdown(s: &State, t: &Theme, name: &'static str) -> Vec<El> {
     match name {
-        "agent" => drop(t, "agent-pop", "agent", radio(&AGENTS, s.ui.agent, |s, i| s.ui.agent = i), Side::Top, Align::Start),
-        "model" => drop(t, "model-pop", "model", radio(&MODELS, s.ui.model, |s, i| s.ui.model = i), Side::Top, Align::Start),
+        "agent" => {
+            let listed = s.lists().agents.iter().map(|a| (a.id.clone(), a.name.clone())).collect();
+            let entries = rows(&s.choice().agent, s.default_labels().agent_label, listed, State::pick_agent);
+            dropdown_capped(t, "agent-pop", "agent", entries, Side::Top, Align::Start, Some(MENU_MAX_H))
+        }
+        "model" => {
+            let listed = s.lists().models.iter().map(|m| (m.selection_key.clone(), m.name.clone())).collect();
+            let entries = rows(&s.choice().model, s.default_labels().model_label, listed, State::pick_model);
+            dropdown_capped(t, "model-pop", "model", entries, Side::Top, Align::Start, Some(MENU_MAX_H))
+        }
         "more" => drop(t, "more-pop", "more", more(), Side::Bottom, Align::End),
         _ => drop(t, "gallery-pop", "g-menu", gallery(s), Side::Bottom, Align::Start),
     }

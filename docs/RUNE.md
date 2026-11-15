@@ -409,3 +409,13 @@ Nothing in Rune was needed: this piece is plain Rust. Two things for whoever bui
 - **`memo` re-keys a row by its id**, so an element key set on the row's root (`msg-<id>`) is replaced by the id itself: scripts and tests find the row as `<id>`.
 - **A script's first frames have no layout yet**: a `move` at 0.3s found no element; at 1.0s it did.
 - **No inline chips or clickable inline code in `Markdown`**: the `@`, `$` and file-link chips of rows 2.25-2.29 need a pre-pass that splits the text into runs; not done.
+
+## Component 5, piece D (the pickers on the session's lists)
+
+- **A kit menu scrolls only if its list column does.** `menu::panel_capped` puts `.scroll(..).max_h(..)` on the rows column, not on
+  the panel; a `max_h` on the padded panel overflows instead. A scrolling column also shrinks to its widest child's width, so the
+  capped menus take a fixed 380 px (Fleet's selector width). A list of 20 models shows 10 rows and scrolls.
+- **Measure a width with `on_layout` on the element, store it in `State`.** The narrow rule (composer under 640 px) reads
+  `State.pickers.composer_w`, set from the frame's `on_layout`; it is 0 on the first frame, which counts as roomy.
+- **`Event::Other(Kind, props)` is how an event nobody types yet arrives.** `harness.catalog_changed` is read in `State::dispatch`
+  (no `tx` there), so it can only start a thread, not touch Rune state.

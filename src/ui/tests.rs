@@ -137,8 +137,8 @@ fn the_composer_chip_opens_a_menu_and_a_choice_closes_it() {
     let mut rt = app();
     click(&mut rt, "agent");
     assert_eq!(rt.state.ui.open, Some(Open::Menu("agent")));
-    click(&mut rt, "agent-pop-item1");
-    assert_eq!(rt.state.ui.agent, 1);
+    click(&mut rt, "agent-pop-item2");
+    assert_eq!(rt.state.choice().agent, "plan");
     assert_eq!(rt.state.ui.open, None);
 }
 
@@ -159,7 +159,7 @@ fn menu_arrows_move_focus_and_enter_chooses() {
     key(&mut rt, Key::Down);
     key(&mut rt, Key::Enter);
     assert_eq!(rt.state.ui.open, None, "Enter chose an item");
-    assert_eq!(rt.state.ui.model, 1);
+    assert_eq!(rt.state.choice().model, rt.state.lists().models[0].selection_key);
 }
 
 #[test]

@@ -51,9 +51,6 @@ pub struct Ui {
     pub palette: palette::Palette,
     pub dir: directory_picker::Picker,
     pub toast: Option<toast::Toast>,
-    /// The composer's agent and model pickers.
-    pub agent: usize,
-    pub model: usize,
     /// The gallery's own controls.
     pub g_switch: bool,
     pub g_tab: usize,
@@ -73,8 +70,6 @@ impl Default for Ui {
             palette: palette::Palette::default(),
             dir: directory_picker::Picker::default(),
             toast: None,
-            agent: 0,
-            model: 0,
             g_switch: true,
             g_tab: 0,
             g_tab2: 0,

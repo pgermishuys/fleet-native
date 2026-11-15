@@ -120,12 +120,26 @@ impl Link {
 
     /// Sends a prompt already shown as pending under `correlation_id`; the receipt confirms it and a
     /// refusal takes it back (`State::on_prompt_receipt`, `on_prompt_refused`).
-    pub fn send_prompt(&self, session: &str, correlation_id: &str, text: &str) {
+    pub fn send_prompt(&self, session: &str, correlation_id: &str, text: &str, pick: http::Pick) {
         let (base, session, correlation, text) = (self.base.clone(), session.to_string(), correlation_id.to_string(), text.to_string());
         let post = self.post.clone();
-        std::thread::spawn(move || match http::prompt(&base, &session, &correlation, &text) {
+        std::thread::spawn(move || match http::prompt(&base, &session, &correlation, &text, &pick) {
             Ok(receipt) => post.update(move |s, tx| s.on_prompt_receipt(&session, &correlation, &receipt, tx)),
             Err(why) => post.update(move |s, tx| s.on_prompt_refused(&session, &correlation, why, tx)),
+        });
+    }
+
+    /// Runs `call` (a blocking request, given the server's address) on a thread and hands its result to `done` on the
+    /// UI thread: how the pickers' lists and the preferences load.
+    pub fn off_thread<T: Send + 'static>(
+        &self,
+        call: impl FnOnce(&str) -> T + Send + 'static,
+        done: impl FnOnce(&mut State, &mut Tx, T) + Send + 'static,
+    ) {
+        let (base, post) = (self.base.clone(), self.post.clone());
+        std::thread::spawn(move || {
+            let result = call(&base);
+            post.update(move |s, tx| done(s, tx, result));
         });
     }
 

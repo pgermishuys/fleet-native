@@ -228,3 +228,36 @@ pub fn projects() -> Vec<Project> {
 /// What the agent in this prototype answers to anything you send.
 pub const CANNED_REPLY: &str =
     "This is a layout prototype, so no agent is listening. The message you sent is drawn by Rune the same way Fleet's client draws it.";
+
+/// The agents and models the invented sessions offer (the pickers' lists when no server is given): two providers, one
+/// model with no effort levels, and three with levels so the toggle can be shown.
+pub fn catalog() -> crate::fleet::catalog::SessionCatalog {
+    use crate::composer::choice::{AgentOption, ModelOption, ModelReference};
+    let agent = |name: &str, description: &str, model: Option<(&str, &str)>| AgentOption {
+        id: name.into(),
+        name: name.into(),
+        description: description.into(),
+        model: model.map(|(p, m)| ModelReference::new(p, m)),
+    };
+    let model = |provider: (&str, &str), id: &str, name: &str, variants: &[&str]| {
+        let mut m = ModelOption::new(provider.0, provider.1, id, name);
+        m.variants = variants.iter().map(|v| v.to_string()).collect();
+        m
+    };
+    let anthropic = ("anthropic", "Anthropic");
+    let orchard = ("orchard", "Orchard");
+    crate::fleet::catalog::SessionCatalog::loaded(
+        vec![
+            agent("build", "Edits files and runs commands", Some(("anthropic", "sonnet-5-5"))),
+            agent("plan", "Reads the code and proposes a plan", Some(("anthropic", "opus-5-5"))),
+            agent("general", "Answers questions about the project", None),
+        ],
+        vec![
+            model(anthropic, "sonnet-5-5", "Sonnet 5.5", &["low", "medium", "high"]),
+            model(anthropic, "opus-5-5", "Opus 5.5", &["low", "medium", "high", "xhigh"]),
+            model(anthropic, "haiku-5-5", "Haiku 5.5", &[]),
+            model(orchard, "pear-2", "Pear 2", &["low", "high"]),
+            model(orchard, "quince-1", "Quince 1", &[]),
+        ],
+    )
+}

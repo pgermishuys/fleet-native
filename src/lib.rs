@@ -111,6 +111,8 @@ pub struct State {
     pub copied: Option<(String, f64)>,
     /// The wall clock in unix milliseconds when a scene fixes it; `None` reads the real one (the time pills).
     pub now_ms: Option<i64>,
+    /// The agent and model lists, the harness list, the preferences and the effort memory (`fleet::catalog`).
+    pub pickers: fleet::catalog::Pickers,
     /// The last thing that went wrong, shown in the status bar.
     pub notice: Option<String>,
     /// The kit's overlays, the palette and the gallery's own controls (`src/ui/`).
@@ -169,6 +171,7 @@ impl Default for State {
             loading: false,
             kept: Default::default(),
             notice: None,
+            pickers: fleet::catalog::Pickers::new(SERVER.get().is_none()),
             composer_error: None,
             optimistic: None,
             aborting: None,
@@ -223,7 +226,7 @@ impl State {
 impl State {
     /// The session the composer's text belongs to: the open session's id, or a stand-in for the mock data's
     /// sessions, which have none. `None` while a server's list hasn't arrived, so text typed then waits for it.
-    fn draft_owner(&self) -> Option<String> {
+    pub(crate) fn draft_owner(&self) -> Option<String> {
         match self.open_id() {
             Some(id) => Some(id),
             None if self.link.is_none() => Some(format!("mock.{}.{}", self.open.0, self.open.1)),
@@ -294,6 +297,26 @@ impl State {
             "side" => {
                 self.open = (0, 2);
                 self.side_open = true;
+            }
+            // The effort toggle (a model with levels, the third picked) and the pickers' menus.
+            "effort" => {
+                self.open = (0, 2);
+                let owner = self.draft_owner().unwrap_or_default();
+                let model = composer::choice::create_model_selection_key("anthropic", "opus-5-5");
+                self.drafts.set_choice(&owner, composer::drafts::Choice { model, effort: "high".into(), ..Default::default() });
+            }
+            "agent-menu" => {
+                self.open = (0, 2);
+                self.ui.open = Some(ui::Open::Menu("agent"));
+            }
+            "model-menu" => {
+                self.open = (0, 2);
+                self.ui.open = Some(ui::Open::Menu("model"));
+            }
+            "models-long" => {
+                self.open = (0, 2);
+                self.pickers.add_mock_models(15);
+                self.ui.open = Some(ui::Open::Menu("model"));
             }
             _ => {}
         }
@@ -731,6 +754,22 @@ pub fn spec() -> AppSpec<State> {
                 s.dark = Some(false);
                 s.show_composer("side")
             }),
+            ("composer-effort", |s| s.show_composer("effort")),
+            ("composer-effort-light", |s| {
+                s.dark = Some(false);
+                s.show_composer("effort")
+            }),
+            ("composer-agent-menu", |s| s.show_composer("agent-menu")),
+            ("composer-agent-menu-light", |s| {
+                s.dark = Some(false);
+                s.show_composer("agent-menu")
+            }),
+            ("composer-model-menu", |s| s.show_composer("model-menu")),
+            ("composer-model-menu-light", |s| {
+                s.dark = Some(false);
+                s.show_composer("model-menu")
+            }),
+            ("composer-models-long", |s| s.show_composer("models-long")),
             ("automations", |s| s.rail = Rail::Automations),
             ("kit", |s| ui::scenes::set(s, "kit", true)),
             ("kit-light", |s| ui::scenes::set(s, "kit", false)),
@@ -842,6 +881,7 @@ fn connect_to(handle: &rune::AppHandle<State>, url: String) {
         s.projects.clear();
         s.notice = None;
         s.link = Some(link);
+        s.load_pickers();
     });
 }
 

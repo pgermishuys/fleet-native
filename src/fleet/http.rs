@@ -42,20 +42,80 @@ pub fn sessions(base: &str) -> Result<Value, String> {
     get(base, "/api/sessions?limit=200")
 }
 
-/// Send a message to the agent (`SendPromptApiRequest`: the text and the correlation id the
+/// What a prompt carries besides its text: the agent, model and effort picked in the composer, and the id the
+/// message will have (`SendPromptApiRequest`). Each is left out of the body when nothing is picked, so the server
+/// uses the session's own.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Pick {
+    pub agent: Option<String>,
+    /// Provider id and model id.
+    pub model: Option<(String, String)>,
+    pub effort: Option<String>,
+    pub user_message_id: Option<String>,
+}
+
+/// The body of `POST /api/sessions/{id}/prompt`.
+pub fn prompt_body(text: &str, correlation_id: &str, pick: &Pick) -> Value {
+    let mut body = json!({ "text": text, "correlationId": correlation_id });
+    if let Some(agent) = &pick.agent {
+        body["agent"] = json!(agent);
+    }
+    if let Some((provider, model)) = &pick.model {
+        body["model"] = json!({ "providerID": provider, "modelID": model });
+    }
+    if let Some(effort) = &pick.effort {
+        body["effort"] = json!(effort);
+    }
+    if let Some(id) = &pick.user_message_id {
+        body["userMessageId"] = json!(id);
+    }
+    body
+}
+
+/// Send a message to the agent (`SendPromptApiRequest`: the text, the pick and the correlation id the
 /// optimistic prompt waits on). The receipt is `{eventId, correlationId}`.
 ///
 /// It waits a minute, where every other call waits 15 s: Fleet's client waits as long as the server
 /// takes, and the prompt is shown as needing a retry at 15 s (`prompts::CONFIRMATION_TIMEOUT`), which
 /// a request that gave up first would turn into a refusal.
-pub fn prompt(base: &str, session: &str, correlation_id: &str, text: &str) -> Result<Value, String> {
-    let body = json!({ "text": text, "correlationId": correlation_id });
+pub fn prompt(base: &str, session: &str, correlation_id: &str, text: &str, pick: &Pick) -> Result<Value, String> {
+    let body = prompt_body(text, correlation_id, pick);
     read(
         agent_for(60)
             .post(url(base, &format!("/api/sessions/{session}/prompt")))
             .header("content-type", "application/json")
             .send(body.to_string()),
     )
+}
+
+/// `GET /api/sessions/{id}/agents`.
+pub fn agents(base: &str, session: &str) -> Result<Value, String> {
+    get(base, &format!("/api/sessions/{session}/agents"))
+}
+
+/// `GET /api/sessions/{id}/models`.
+pub fn models(base: &str, session: &str) -> Result<Value, String> {
+    get(base, &format!("/api/sessions/{session}/models"))
+}
+
+/// `GET /api/harnesses`.
+pub fn harnesses(base: &str) -> Result<Value, String> {
+    get(base, "/api/harnesses")
+}
+
+/// `GET /api/preferences`.
+pub fn preferences(base: &str) -> Result<Value, String> {
+    get(base, "/api/preferences")
+}
+
+/// `PUT /api/preferences/{key}` with `{value}`. The key is one URL segment, so it is escaped.
+pub fn put_preference(base: &str, key: &str, value: &str) -> Result<(), String> {
+    let escaped: String = key
+        .bytes()
+        .map(|b| if b.is_ascii_alphanumeric() || b"-._~".contains(&b) { (b as char).to_string() } else { format!("%{b:02X}") })
+        .collect();
+    let body = json!({ "value": value }).to_string();
+    read(agent().put(url(base, &format!("/api/preferences/{escaped}"))).header("content-type", "application/json").send(body)).map(drop)
 }
 
 pub fn abort(base: &str, session: &str) -> Result<(), String> {
