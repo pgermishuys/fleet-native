@@ -481,6 +481,7 @@ fn the_list_leaves_out_sub_agents_and_dims_old_sessions() {
 
 mod delegations;
 mod events;
+mod history;
 mod prompts;
 mod reconnect;
 mod state;

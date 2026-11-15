@@ -245,3 +245,16 @@ Nothing in Rune was needed. Learned about driving it:
   1280x760. The theme toggle (Ctrl+Shift+L) needs `windowfocus` first, as typing does.
 - The Rune window draws no colour emoji, so Fleet's partial banner mark (a "warning sign" emoji) is the text glyph U+26A0 in
   the banner's amber.
+
+## Component 2, piece F (older history)
+
+Nothing in Rune was needed. Learned:
+
+- No looping rotation: `rotate` takes an angle that springs, and `Cycle` animates opacity only. The loading line's
+  spinner (Fleet's turns) fades slowly, which is what Fleet's own spinner does under reduced motion.
+- Prepending rows to a `virtual_rows` list keeps the view where it was: the messages that were on screen stay put and the
+  older ones appear above. No scroll fix-up was needed.
+- A test that clicks something at the top of a stick-to-bottom stream has to scroll up first (`rt.wheel(x, y, 600.0)` a few
+  times, one frame each): `find` still reports the element, but under the header, where the press lands on the header.
+- To show a request in flight in a picture, `kill -STOP` the scratch Fleet's server (by the PID listening on its port),
+  take the picture, `kill -CONT` it. Held 30 s it also shows the timeout wording. Always `CONT` it, in a `finally`.

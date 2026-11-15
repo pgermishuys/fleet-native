@@ -17,7 +17,7 @@ use fleet::link::{Connection, Link, Post};
 use fleet::model::StreamState;
 use mock::{Project, Session, Status};
 use rune::{App, AppSpec, Image, ImageCache, Key, KeyEvent, TextEdit, Tx};
-use view::conversation::{Message, Part, ToolState};
+use view::conversation::{Message, Older, Part, ToolState};
 
 /// The rail entries, in Fleet's order. Only Sessions is rebuilt; the others show a notice.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -315,6 +315,17 @@ pub fn spec() -> AppSpec<State> {
             ("partial-snapshot-light", |s| {
                 s.dark = Some(false);
                 s.show_partial()
+            }),
+            ("older-ask", |s| s.show_older(Older::Ask)),
+            ("older-loading", |s| s.show_older(Older::Loading)),
+            ("older-failed", |s| s.show_older(Older::Failed)),
+            ("older-ask-light", |s| {
+                s.dark = Some(false);
+                s.show_older(Older::Ask)
+            }),
+            ("older-loading-light", |s| {
+                s.dark = Some(false);
+                s.show_older(Older::Loading)
             }),
             ("long-conversation", |s| s.open_long()),
             // The reply streams in on the app's clock: the scene the scripts in scripts/bench/ measure.

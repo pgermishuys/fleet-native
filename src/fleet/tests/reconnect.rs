@@ -101,7 +101,7 @@ fn the_ninth_session_left_evicts_the_first() {
     assert!(kept.get("empty").is_none());
 }
 
-fn two_sessions() -> Vec<crate::mock::Project> {
+pub(super) fn two_sessions() -> Vec<crate::mock::Project> {
     let mut rows: Value = serde_json::from_str(&fixture("api-sessions.json")).unwrap();
     let mut second = rows[0].clone();
     second["session"]["id"] = json!("second-session");
@@ -110,7 +110,7 @@ fn two_sessions() -> Vec<crate::mock::Project> {
     sessions::parse_list(&rows, 1_794_674_800_000)
 }
 
-fn app() -> Runtime<State> {
+pub(super) fn app() -> Runtime<State> {
     let mut rt = App::new(spec()).headless_runtime((1280.0, 760.0), Env::new(true, 1.0));
     rt.frame(0.0);
     rt.frame(1.0 / 60.0);

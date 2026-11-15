@@ -30,6 +30,10 @@ pub fn create_state(snapshot: &Value) -> StreamState {
         explicit_status,
         last_event_id: snapshot.get("lastEventId").or_else(|| snapshot.get("lastSequenceNumber")).and_then(Value::as_i64),
         is_partial: snapshot.get("isPartial").and_then(Value::as_bool).unwrap_or(false),
+        has_more: snapshot.get("hasMore").and_then(Value::as_bool).unwrap_or(false),
+        cursor: snapshot.get("cursor").and_then(Value::as_str).map(str::to_string),
+        is_loading_older: false,
+        load_older_failed: false,
     };
     for message in snapshot.get("messages").and_then(Value::as_array).into_iter().flatten() {
         if let Some(info) = message.get("info") {
@@ -111,7 +115,7 @@ pub fn with_activity_status(state: &mut StreamState, activity: &str) {
     set_explicit(state, to_explicit(activity));
 }
 
-fn to_role(role: &Value) -> Role {
+pub(super) fn to_role(role: &Value) -> Role {
     match role.as_str() {
         Some("user") => Role::User,
         Some("shell") => Role::Shell,
@@ -168,7 +172,7 @@ fn insert_sorted(messages: &mut Vec<Msg>, new: Msg) {
 
 // ─── messages ───────────────────────────────────────────────────────────────
 
-fn str_of(v: &Value, k: &str) -> Option<String> {
+pub(super) fn str_of(v: &Value, k: &str) -> Option<String> {
     v.get(k).and_then(Value::as_str).map(str::to_string)
 }
 
@@ -192,7 +196,7 @@ fn ensure_message(messages: &mut Vec<Msg>, info: &Value) {
 }
 
 /// `readCommand`: the slash command on a message info. Empty arguments are dropped.
-fn read_command(info: &Value) -> Option<SlashCommand> {
+pub(super) fn read_command(info: &Value) -> Option<SlashCommand> {
     let command = info.get("command").filter(|c| c.is_object())?;
     let name = command.get("name")?.as_str().filter(|n| !n.is_empty())?.to_string();
     let arguments = command.get("arguments").and_then(Value::as_str).filter(|a| !a.is_empty()).map(str::to_string);
@@ -200,7 +204,7 @@ fn read_command(info: &Value) -> Option<SlashCommand> {
 }
 
 /// `readMod`: which mod sent or rewrote a prompt.
-fn read_mod(info: &Value) -> Option<ModMark> {
+pub(super) fn read_mod(info: &Value) -> Option<ModMark> {
     let mark = info.get("mod").filter(|m| m.is_object())?;
     let kind = match mark.get("kind")?.as_str()? {
         "sent" => ModKind::Sent,
@@ -214,7 +218,7 @@ fn is_turn_error(v: &Value) -> bool {
     v.get("message").and_then(Value::as_str).is_some_and(|m| !m.is_empty())
 }
 
-fn tokens_of(v: &Value) -> Option<Tokens> {
+pub(super) fn tokens_of(v: &Value) -> Option<Tokens> {
     v.is_object().then(|| Tokens {
         input: v.get("input").and_then(Value::as_i64).unwrap_or(0),
         output: v.get("output").and_then(Value::as_i64).unwrap_or(0),
@@ -283,7 +287,7 @@ fn merge_update(messages: &mut [Msg], info: &Value, parts: Option<&[Value]>) {
     }
 }
 
-fn committed_part(message_id: &str, part: &Value, index: usize) -> Option<PartData> {
+pub(super) fn committed_part(message_id: &str, part: &Value, index: usize) -> Option<PartData> {
     let id = |kind: &str| str_of(part, "id").unwrap_or_else(|| format!("{message_id}-{kind}-{index}"));
     let s = |k: &str| str_of(part, k);
     Some(match part.get("type")?.as_str()? {

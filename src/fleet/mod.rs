@@ -5,6 +5,7 @@
 pub mod context;
 pub mod delegations;
 pub mod events;
+pub mod history;
 pub mod http;
 pub mod link;
 pub mod model;
