@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Replaces the rolling `latest` pre-release with the builds in $1. CI runs this (the `publish` job).
+# Updates the rolling `latest` pre-release in place with the builds in $1. CI runs this (the `publish` job).
 # Needs: GH_TOKEN, BUILD (a number that only goes up), COMMIT, and gh, jq in the PATH.
 set -euo pipefail
 dist="${1:?folder with the three assets}"
 repo="${GITHUB_REPOSITORY:-pgermishuys/fleet-native}"
 tag=latest
-assets=(fleet-native-windows-x64.zip fleet-native-macos-arm64.tar.gz fleet-native-linux-x64.tar.gz)
+assets=(fleet-native-windows-x64.zip fleet-native-macos-arm64.dmg fleet-native-linux-x64.tar.gz)
 for a in "${assets[@]}"; do [ -f "$dist/$a" ] || { echo "missing $a" >&2; exit 1; }; done
 
 # A slower, older run must not replace a newer release.
@@ -41,8 +41,19 @@ Merged since the previous build:
 ${prs:-- (nothing new with a pull request number)}
 N
 
-# Replace the release: the new one is created with all its assets in one call.
-gh release delete "$tag" -R "$repo" --cleanup-tag --yes 2>/dev/null || true
-gh release create "$tag" -R "$repo" --target "$COMMIT" --prerelease --latest=false \
-  --title "Latest build ($BUILD)" --notes-file "$dist/notes.md" \
-  "${assets[@]/#/$dist/}" "$dist/latest.json"
+# Update in place, so the download links never 404: the release is not deleted, assets are replaced one by one
+# (--clobber), and latest.json goes last because it says what the assets are. CI allows one publish at a time.
+if gh release view "$tag" -R "$repo" >/dev/null 2>&1; then
+  # Move the tag to this commit (a release's tag is its source link).
+  gh api -X PATCH "repos/$repo/git/refs/tags/$tag" -f sha="$COMMIT" -F force=true >/dev/null
+  gh release upload "$tag" -R "$repo" --clobber "${assets[@]/#/$dist/}" "$dist/latest.json"
+  gh release edit "$tag" -R "$repo" --title "Latest build ($BUILD)" --notes-file "$dist/notes.md" --prerelease --latest=false
+  # An asset from an older layout (the macOS .tar.gz) that is no longer built.
+  for old in $(gh release view "$tag" -R "$repo" --json assets -q '.assets[].name'); do
+    case " ${assets[*]} latest.json " in *" $old "*) ;; *) gh release delete-asset "$tag" -R "$repo" "$old" --yes ;; esac
+  done
+else
+  gh release create "$tag" -R "$repo" --target "$COMMIT" --prerelease --latest=false \
+    --title "Latest build ($BUILD)" --notes-file "$dist/notes.md" \
+    "${assets[@]/#/$dist/}" "$dist/latest.json"
+fi

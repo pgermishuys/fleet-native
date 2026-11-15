@@ -26,6 +26,10 @@ tungstenite = { version = "0.28", default-features = false, features = ["handsha
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 
+# Windows icon and version information (build.rs). Build time only: nothing of it is in the exe.
+[target.'cfg(windows)'.build-dependencies]
+winresource = "0.1"
+
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2"
 

@@ -1,0 +1,84 @@
+name: Verify release
+
+# Downloads the published `latest` assets from their public links with no sign-in, and checks them against
+# latest.json. Run by hand after a publish.
+on: workflow_dispatch
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  BASE: https://github.com/pgermishuys/fleet-native/releases/download/latest
+
+jobs:
+  verify:
+    name: Verify (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: linux, os: ubuntu-latest, asset: fleet-native-linux-x64.tar.gz }
+          - { name: windows, os: windows-latest, asset: fleet-native-windows-x64.zip }
+          - { name: macos, os: macos-15, asset: fleet-native-macos-arm64.dmg }
+    steps:
+      - name: Download without a token
+        run: |
+          mkdir dl && cd dl
+          curl -fsSL -O "$BASE/latest.json" -O "$BASE/${{ matrix.asset }}"
+          cat latest.json
+          want=$(python3 -c "import json;print([a['sha256'] for a in json.load(open('latest.json'))['assets'].values() if a['name']=='${{ matrix.asset }}'][0])")
+          if command -v sha256sum >/dev/null; then got=$(sha256sum "${{ matrix.asset }}" | cut -d' ' -f1); else got=$(shasum -a 256 "${{ matrix.asset }}" | cut -d' ' -f1); fi
+          echo "want $want"; echo "got  $got"
+          test "$want" = "$got"
+
+      - name: Linux packages
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libxkbcommon-x11-0 mesa-vulkan-drivers
+
+      - name: Linux, run it
+        if: runner.os == 'Linux'
+        run: |
+          mkdir x && tar -xzf dl/${{ matrix.asset }} -C x && ls -la x
+          test -f x/fleet-native.desktop && test -f x/fleet-native.png
+          x/fleet-native --version
+          export VK_ICD_FILENAMES=$(ls /usr/share/vulkan/icd.d/lvp_icd*.json | head -1)
+          x/fleet-native --snap x/scene.png --scene dark --size 1280x760 --at 0.3 || x/fleet-native --help
+          ls -la x/scene.png
+
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Linux'
+        with: { name: verify-linux-scene, path: x/scene.png }
+
+      - name: macOS, mount and check
+        if: runner.os == 'macOS'
+        run: |
+          hdiutil attach "dl/${{ matrix.asset }}" -mountpoint "$RUNNER_TEMP/dmg" -nobrowse -readonly
+          app="$RUNNER_TEMP/dmg/Fleet Native.app"
+          ls -la "$RUNNER_TEMP/dmg"
+          test -L "$RUNNER_TEMP/dmg/Applications"
+          plutil -lint "$app/Contents/Info.plist"
+          plutil -p "$app/Contents/Info.plist"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          codesign -dv "$app" 2>&1 | head
+          "$app/Contents/MacOS/fleet-native" --version
+          hdiutil detach "$RUNNER_TEMP/dmg"
+
+      - name: Windows, icon and version information
+        if: runner.os == 'Windows'
+        run: |
+          powershell -NoProfile -Command "Expand-Archive dl/${{ matrix.asset }} -DestinationPath x"
+          powershell -NoProfile -Command "
+            \$f = Get-Item x/fleet-native.exe
+            \$f.VersionInfo | Format-List ProductName,FileDescription,CompanyName,FileVersion,ProductVersion
+            Add-Type -AssemblyName System.Drawing
+            \$i = [System.Drawing.Icon]::ExtractAssociatedIcon(\$f.FullName)
+            \$i.ToBitmap().Save('x/icon.png')"
+          x/fleet-native.exe --version
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Windows'
+        with: { name: verify-windows-icon, path: x/icon.png }
