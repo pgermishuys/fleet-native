@@ -6,9 +6,9 @@ use crate::view::conversation::{Part, Role};
 use crate::{Rail, State, send, spec, submit};
 use rune::{App, Env, Key, KeyEvent, Mods, Runtime, TextEdit};
 
-const FRAME: f64 = 1.0 / 60.0;
+pub(crate) const FRAME: f64 = 1.0 / 60.0;
 
-fn app() -> Runtime<State> {
+pub(crate) fn app() -> Runtime<State> {
     let mut rt = App::new(spec()).headless_runtime((1280.0, 760.0), Env::new(true, 1.0));
     // Two frames: the sheet measures itself on the first and lays out to it on the second.
     rt.frame(0.0);
@@ -16,7 +16,7 @@ fn app() -> Runtime<State> {
     rt
 }
 
-fn click(rt: &mut Runtime<State>, key: &str) {
+pub(crate) fn click(rt: &mut Runtime<State>, key: &str) {
     let (x, y) = rt.find(key).unwrap_or_else(|| panic!("no element keyed {key:?}"));
     rt.pointer_move(x, y);
     rt.pointer_down(x, y);
@@ -1374,7 +1374,7 @@ fn events_press_is_taken_by_a_monitor_with_a_call() {
 
 /// Ends a fake server's answer the way a real server does: stop sending, then wait for the client to close, so
 /// Windows doesn't reset the connection under an answer the client hasn't read yet.
-fn finish(stream: &mut std::net::TcpStream) {
+pub(crate) fn finish(stream: &mut std::net::TcpStream) {
     use std::io::Read;
     let _ = stream.shutdown(std::net::Shutdown::Write);
     let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(2)));
@@ -1384,7 +1384,7 @@ fn finish(stream: &mut std::net::TcpStream) {
 
 /// A fake server's read of one request, whole: answering before the client's headers are in makes Windows reset the
 /// connection under the client.
-fn read_request(stream: &mut std::net::TcpStream) -> String {
+pub(crate) fn read_request(stream: &mut std::net::TcpStream) -> String {
     use std::io::Read;
     let mut got = Vec::new();
     let mut buf = [0u8; 1024];

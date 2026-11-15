@@ -11,6 +11,8 @@ mod mock;
 mod script;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_images;
 mod theme;
 pub mod ui;
 pub mod view;
@@ -152,6 +154,8 @@ pub struct State {
     pub shown: Option<conv::pin::Shown>,
     /// The background strip: collapsed or not, when each item was seen to end, what is being stopped (`conv::work_clock`).
     pub work: conv::work_clock::WorkStrip,
+    /// The pictures the conversation shows (a call's screenshot, a user's images) and the lightbox over them.
+    pub images: fleet::images::Images,
     /// Stands in for the open session while the list is empty.
     blank: Project,
 }
@@ -230,6 +234,7 @@ impl Default for State {
             scroll_seen: None,
             shown: None,
             work: Default::default(),
+            images: Default::default(),
             blank: Project { name: "Sessions".into(), path: String::new(), open: true, sessions: vec![mock::blank_session()] },
         }
     }
@@ -663,6 +668,7 @@ fn end_tools(session: &mut Session) {
 fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     let composer_changed = s.keep_composer_state(now) | s.keep_autocomplete(now, tx);
     let scrolled = s.keep_scroll(tx);
+    let pictures = s.keep_images(tx);
     // "Copied" on a message's button ends by itself.
     let copied = match &s.copied {
         Some((_, until)) if now >= *until => {
@@ -675,7 +681,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         }
         None => false,
     };
-    poll_rest(s, now, tx) || composer_changed || copied || scrolled
+    poll_rest(s, now, tx) || composer_changed || copied || scrolled || pictures
 }
 
 impl State {
@@ -940,6 +946,22 @@ pub fn spec() -> AppSpec<State> {
             }),
             ("failure-action-failed", |s| s.show_failure(mock::failure::Case::ActionFailed, false)),
             ("failure-earlier", |s| s.show_failure(mock::failure::Case::Earlier, false)),
+            ("screenshot", |s| s.show_images(mock::images::Case::Shot)),
+            ("screenshot-light", |s| {
+                s.dark = Some(false);
+                s.show_images(mock::images::Case::Shot)
+            }),
+            ("screenshot-lightbox", |s| s.show_images(mock::images::Case::Lightbox)),
+            ("screenshot-lightbox-light", |s| {
+                s.dark = Some(false);
+                s.show_images(mock::images::Case::Lightbox)
+            }),
+            ("screenshot-lost", |s| s.show_images(mock::images::Case::Lost)),
+            ("image-attachments", |s| s.show_images(mock::images::Case::Attachments)),
+            ("image-attachments-light", |s| {
+                s.dark = Some(false);
+                s.show_images(mock::images::Case::Attachments)
+            }),
             ("agent-done", |s| s.show_agents(mock::agents::Case::Done)),
             ("agent-done-light", |s| {
                 s.dark = Some(false);

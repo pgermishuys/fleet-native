@@ -4,7 +4,7 @@
 //!
 //! Not drawn here yet: image thumbnails (piece N), `@` session and `$` skill chips and file links in running text (Rune's
 //! `Markdown` has no inline-chip hook; `docs/RUNE.md`), the workflow and peer marks (other components), `message--shown`.
-use super::conversation::{Message, Role, Styles};
+use super::conversation::{Message, Part, Role, Styles};
 use super::prose;
 use super::toolcard::mix;
 use crate::State;
@@ -251,6 +251,14 @@ pub fn user_bubble(t: &Theme, s: &State, md: &Styles, msg: &Message, id: &str, b
     }
     if !files.is_empty() {
         content = content.child(attachments(t, &files));
+    }
+    // The images ride in the bubble of the first words (or of nothing, when there are none).
+    let first_words = msg.parts.iter().find_map(|p| if let Part::Text { id, .. } = p { Some(id.as_str()) } else { None });
+    if first_words.unwrap_or("") == id {
+        let images: Vec<&Part> = msg.parts.iter().filter(|p| super::conversation::is_image(p)).collect();
+        if !images.is_empty() {
+            content = content.child(super::image::user_images(t, s, &images));
+        }
     }
     let bubble = col()
         .key(format!("bubble-{}", msg.id))

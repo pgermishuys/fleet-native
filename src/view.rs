@@ -8,6 +8,7 @@ pub mod conversation;
 pub mod diff;
 pub mod failure;
 mod fold;
+pub mod image;
 pub mod interrupted;
 pub mod message;
 mod parts;

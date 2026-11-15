@@ -27,6 +27,13 @@ pub fn get(base: &str, path: &str) -> Result<Value, String> {
     read(agent().get(url(base, path)).call())
 }
 
+/// A picture Fleet serves at `path` (a call's screenshot): the bytes of a 2xx answer, at most 25 MB. Any other answer,
+/// or none, is an error, which the caller turns into "show nothing".
+pub fn get_bytes(base: &str, path: &str) -> Result<Vec<u8>, String> {
+    let mut response = agent_for(30).get(url(base, path)).call().map_err(|e| e.to_string())?;
+    response.body_mut().with_config().limit(25 * 1024 * 1024).read_to_vec().map_err(|e| e.to_string())
+}
+
 pub fn post(base: &str, path: &str, body: &Value) -> Result<Value, String> {
     read(agent().post(url(base, path)).header("content-type", "application/json").send(body.to_string()))
 }

@@ -12,6 +12,7 @@ pub mod events;
 pub mod finder;
 pub mod history;
 pub mod http;
+pub mod images;
 pub mod instance;
 pub mod interrupted;
 pub mod link;
