@@ -15,7 +15,10 @@ const FRAME: f64 = 1.0 / 60.0;
 
 /// A file of `bytes` in a folder of its own under the temp folder.
 fn scratch(name: &str, bytes: &[u8]) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("fleet-native-attach-{}-{name}", std::process::id()));
+    // Tests run side by side: a folder per call, or one test's `forget` removes another's file.
+    static SERIAL: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let n = SERIAL.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let dir = std::env::temp_dir().join(format!("fleet-native-attach-{}-{n}-{name}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join(name);
     std::fs::write(&path, bytes).unwrap();
@@ -171,18 +174,15 @@ fn a_harness_that_cannot_take_images_refuses_without_reading() {
 
 // use-image-attachments.test.ts: "refuses other types and big images"
 #[test]
-fn other_types_and_big_files_are_refused() {
+fn other_types_and_big_pictures_are_refused() {
     let mut rt = mock_app(false, "opencode", false, false);
     images_on(&mut rt);
-    let notes = scratch("notes.txt", b"x");
-    attach(&mut rt, &notes);
-    assert_eq!(rt.state.attach_error(), Some("Unsupported image type: text/plain"));
+    // A file that is no picture is held as a file now (piece O); only a picture is checked as one.
     let big = scratch("big.png", &vec![0u8; 5 * 1024 * 1024 + 1]);
     attach(&mut rt, &big);
     settle(&mut rt, |s| s.attach_error().is_some_and(|e| e.contains("exceeds")), "the size refusal");
     assert_eq!(rt.state.attach_error(), Some("Image exceeds the 5 MB limit (5.0 MB)"));
     assert!(held(&rt).is_empty());
-    forget(&notes);
     forget(&big);
 }
 

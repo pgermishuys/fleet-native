@@ -605,3 +605,10 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 - **There is no `search` field type with a clear button**: Chromium draws one in Fleet's field; here it is plain.
 - **A row keeping its width is `.shrink().min_w(0.0)` with `.wrap()` on the text**: without it a long status line ran out of the card.
 
+## Files, pastes and terminal lines in the composer (component 5, piece O)
+
+- `on_input_key` runs before the field's own handling and may change the same `State::draft` the field then edits: pasting the offered text there and returning false makes a typed key land after it (`TextEdit::set_selection` + `insert`, then the caret is after the text).
+- `on_input_paste` gets `content.text()` too: return true after taking a big paste so the field doesn't also paste it.
+- **A new element fades in**, so a `Runtime` click in the first frames after it appears misses it (`presented` shows an opacity under 1): run about 30 frames before clicking a bar that was just drawn.
+- Tests that write files must not share a folder by name: tests run side by side in one process, so two tests writing `build-output.log` under the same folder delete each other's file. A counter in the folder name fixes it.
+- A body that isn't JSON needs `ureq`'s `send(Vec<u8>)` with the `content-type` set by hand, and `http_status_as_error(false)` to read the server's reason from a 4xx.

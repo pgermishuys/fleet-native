@@ -123,6 +123,10 @@ pub struct State {
     /// files are being dragged over the composer.
     pub attach: composer::attach::Attached,
     pub reads: fleet::attach::Reads,
+    /// Files, terminal lines and the paste offer (`fleet::uploads`), and whether the held files are going up.
+    pub held: composer::attached::Held,
+    pub offer: Option<fleet::uploads::Offer>,
+    pub uploading: bool,
     pub dragging: bool,
     /// Each session's queue as Fleet last said it (`fleet::queue`).
     pub queue: fleet::queue::Queues,
@@ -242,6 +246,9 @@ impl Default for State {
             composer_error: None,
             attach: Default::default(),
             reads: Default::default(),
+            held: Default::default(),
+            offer: None,
+            uploading: false,
             dragging: false,
             optimistic: None,
             aborting: None,
@@ -421,6 +428,7 @@ impl State {
                 self.show_draft("Run the cache tests again.");
                 self.composer_error = Some("HTTP 500".into());
             }
+            "files" | "file-error" | "uploading" | "paste-offer" | "pasted-file" | "terminal-lines" => self.show_files(state),
             "images" | "images-many" | "image-error" | "image-queue" | "image-drag" | "image-lightbox" => self.show_images_held(state),
             "long" => {
                 self.open = (0, 2);
@@ -614,9 +622,11 @@ impl State {
 /// prompt, a slash command or a `!` command into the queue (or a prompt into the turn, when the harness steers); a command
 /// or a shell command runs at once.
 pub fn submit(s: &mut State, tx: &mut Tx, modifier: bool) {
-    if s.composer_disabled() || s.shell_support_pending() {
+    // The files are going up: Send waits for them (`isUploading`).
+    if s.composer_disabled() || s.shell_support_pending() || s.uploading {
         return;
     }
+    s.offer = None;
     let caps = s.caps();
     let cx = composer::route::DraftContext {
         status: s.composer_status(),
@@ -625,10 +635,15 @@ pub fn submit(s: &mut State, tx: &mut Tx, modifier: bool) {
         side_open: s.side_open,
     };
     let mut route = composer::route::route_draft(&s.draft.text, &cx);
-    // Pictures alone are a prompt (`submit` lets an empty draft through when it has attachments).
-    if route == composer::route::Route::Empty && !s.held_images().is_empty() && !s.side_open {
+    // Pictures, files or terminal lines alone are a prompt (`submit` lets an empty draft through when it has them).
+    if route == composer::route::Route::Empty && s.extras() > 0 && !s.side_open {
         let steer = cx.steer && cx.status == composer::status::ComposerStatus::Busy && cx.caps.can_steer;
         route = composer::route::Route::Prompt { queue: cx.status == composer::status::ComposerStatus::Busy && !steer, steer };
+    }
+    // Files go up first, in order; the send carries on once the note is in the text. A command, a shell command and a side
+    // question have no use for them.
+    if matches!(route, composer::route::Route::Prompt { .. }) && !s.held_files().is_empty() && s.start_upload(modifier, tx) {
+        return;
     }
     // Fleet's queue holds text only: with pictures pending, a prompt that would wait keeps both and says why.
     if matches!(route, composer::route::Route::Prompt { queue: true, .. }) && !s.held_images().is_empty() {
@@ -667,13 +682,21 @@ pub fn submit(s: &mut State, tx: &mut Tx, modifier: bool) {
 /// refuses it and nothing new was typed. The pick (agent, model, effort) goes with it.
 fn queue_draft(s: &mut State, tx: &mut Tx, kind: fleet::queue::ItemKind, command: Option<(String, String)>) {
     let typed = s.draft.text.clone();
-    let text = typed.trim().to_string();
+    let mut text = typed.trim().to_string();
     let Some(owner) = s.draft_owner() else { return };
-    if text.is_empty() {
+    let lines = kind == fleet::queue::ItemKind::Prompt && !s.terminal_lines().is_empty();
+    if text.is_empty() && !lines {
         return;
     }
     let now = s.clock;
-    s.drafts.push_history(&owner, &text, now);
+    if !text.is_empty() {
+        s.drafts.push_history(&owner, &text, now);
+    }
+    // Terminal lines wait in the queue with the text, as blocks in front of it, and leave the draft.
+    if lines {
+        text = composer::attached::format_terminal_context(s.terminal_lines(), &text);
+        s.held.clear_terminals(&owner);
+    }
     let mut pick = s.prompt_pick(None);
     if kind == fleet::queue::ItemKind::Prompt {
         s.add_references(&mut pick, &text);
@@ -691,19 +714,21 @@ pub fn send(s: &mut State, tx: &mut Tx) {
 
 /// Send, into the running turn when `steer`.
 pub fn send_as(s: &mut State, tx: &mut Tx, steer: bool) {
-    let text = s.draft.text.trim().to_string();
+    let typed = s.draft.text.trim().to_string();
     let images = !s.held_images().is_empty();
-    if text.is_empty() && !images {
+    if typed.is_empty() && !images && s.terminal_lines().is_empty() {
         return;
     }
+    // Terminal lines go in front of what was typed, as fenced blocks (`formatTerminalContext`).
+    let text = composer::attached::format_terminal_context(s.terminal_lines(), &typed);
     // Row 8.1: what is sent is remembered for ArrowUp, before it goes anywhere.
     if let Some(owner) = s.draft_owner() {
         let now = s.clock;
-        if !text.is_empty() {
-            s.drafts.push_history(&owner, &text, now);
+        if !typed.is_empty() {
+            s.drafts.push_history(&owner, &typed, now);
         }
     }
-    send_text(s, tx, text, steer, images);
+    send_text(s, tx, text, &typed, steer, images);
     s.draft.clear();
 }
 
@@ -713,18 +738,18 @@ pub fn retry_turn(s: &mut State, tx: &mut Tx) {
         return;
     }
     if let Some(text) = view::failure::last_prompt(&s.session().messages) {
-        send_text(s, tx, text, false, false);
+        send_text(s, tx, text.clone(), &text, false, false);
     }
 }
 
 /// Sends `text` to the open session. On a server the message goes to the agent, and the conversation shows it at once,
 /// as sent but not yet confirmed; without one, a canned reply follows.
-fn send_text(s: &mut State, tx: &mut Tx, text: String, steer: bool, with_images: bool) {
+fn send_text(s: &mut State, tx: &mut Tx, text: String, typed: &str, steer: bool, with_images: bool) {
     s.composer_error = None;
     s.optimistic = Some(composer::status::Optimistic::new(s.clock));
     tx.wake_after(std::time::Duration::from_secs_f64(composer::status::Optimistic::GIVE_UP + 0.1));
     if let (Some(_), Some(id)) = (&s.link, s.open_id()) {
-        s.send_prompt_with(&id, &text, steer, with_images);
+        s.send_prompt_with(&id, &text, typed, steer, with_images);
         s.notice = None;
         s.follow_end(tx);
         tx.wake_after(std::time::Duration::from_secs_f64(composer::status::Optimistic::GIVE_UP + 0.1));
@@ -733,9 +758,10 @@ fn send_text(s: &mut State, tx: &mut Tx, text: String, steer: bool, with_images:
         return;
     }
     // Without a server the pictures leave the draft with the words, as they do when a Fleet takes the prompt.
-    if with_images && let Some(owner) = s.draft_owner() {
+    if let Some(owner) = s.draft_owner() {
         let gone = s.attach.clear(&owner);
         s.forget_previews(&gone);
+        s.held.clear_terminals(&owner);
     }
     let (p, i) = s.open;
     let session = &mut s.projects[p].sessions[i];
@@ -1295,6 +1321,36 @@ pub fn spec() -> AppSpec<State> {
             ("composer-image-drag-light", |s| {
                 s.dark = Some(false);
                 s.show_composer("image-drag")
+            }),
+            ("composer-files", |s| s.show_composer("files")),
+            ("composer-files-light", |s| {
+                s.dark = Some(false);
+                s.show_composer("files")
+            }),
+            ("composer-file-error", |s| s.show_composer("file-error")),
+            ("composer-file-error-light", |s| {
+                s.dark = Some(false);
+                s.show_composer("file-error")
+            }),
+            ("composer-uploading", |s| s.show_composer("uploading")),
+            ("composer-uploading-light", |s| {
+                s.dark = Some(false);
+                s.show_composer("uploading")
+            }),
+            ("composer-paste-offer", |s| s.show_composer("paste-offer")),
+            ("composer-paste-offer-light", |s| {
+                s.dark = Some(false);
+                s.show_composer("paste-offer")
+            }),
+            ("composer-pasted-file", |s| s.show_composer("pasted-file")),
+            ("composer-pasted-file-light", |s| {
+                s.dark = Some(false);
+                s.show_composer("pasted-file")
+            }),
+            ("composer-terminal-lines", |s| s.show_composer("terminal-lines")),
+            ("composer-terminal-lines-light", |s| {
+                s.dark = Some(false);
+                s.show_composer("terminal-lines")
             }),
             ("composer-image-lightbox", |s| s.show_composer("image-lightbox")),
             ("composer-image-lightbox-light", |s| {

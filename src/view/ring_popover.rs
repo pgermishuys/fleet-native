@@ -129,7 +129,7 @@ fn head(_s: &State, t: &Theme, d: &Details, tone: Color) -> El {
 }
 
 /// The small spinner turns; Rune has no looping rotation, so it fades, as Fleet's does under reduced motion.
-fn spinner() -> rune::Cycle {
+pub(crate) fn spinner() -> rune::Cycle {
     static FADE: [(f32, f32); 3] = [(0.0, 1.0), (0.5, 0.35), (1.0, 1.0)];
     rune::Cycle { period: 1.2, phase: 0.0, stops: &FADE, still: 1.0, fps: 30.0 }
 }

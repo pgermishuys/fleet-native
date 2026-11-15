@@ -405,11 +405,15 @@ struct Seen {
     /// What `POST …/queue` answers instead of 201.
     refuse: Option<(u16, Value)>,
     gets: usize,
+    /// Every `POST …/attachments`: the path, the type and the raw body (piece O).
+    uploads: Vec<(String, String, Vec<u8>)>,
+    /// What an upload answers instead of 200 (a status and the body).
+    refuse_uploads: Option<(u16, Value)>,
 }
 
 fn serve(mut stream: TcpStream, seen: Arc<Mutex<Seen>>) {
     let mut reader = BufReader::new(stream.try_clone().unwrap());
-    let (mut head, mut length) = (String::new(), 0usize);
+    let (mut head, mut length, mut content_type) = (String::new(), 0usize, String::new());
     loop {
         let mut line = String::new();
         if reader.read_line(&mut line).unwrap_or(0) == 0 {
@@ -420,6 +424,9 @@ fn serve(mut stream: TcpStream, seen: Arc<Mutex<Seen>>) {
         }
         if let Some(n) = line.to_ascii_lowercase().strip_prefix("content-length:") {
             length = n.trim().parse().unwrap_or(0);
+        }
+        if line.to_ascii_lowercase().starts_with("content-type:") {
+            content_type = line["content-type:".len()..].trim().to_string();
         }
         head.push_str(&line);
     }
@@ -445,6 +452,18 @@ fn serve(mut stream: TcpStream, seen: Arc<Mutex<Seen>>) {
         reply(&mut stream, "200 OK", "{\"negotiateVersion\":1,\"connectionToken\":\"tok\"}");
     } else if path.starts_with("/api/sessions?") || path == "/api/sessions" {
         reply(&mut stream, "200 OK", &fixture("api-sessions.json"));
+    } else if method == "POST" && path.contains("/attachments") {
+        seen.uploads.push((path.clone(), content_type, raw.clone()));
+        match seen.refuse_uploads.clone() {
+            Some((code, answer)) => reply(&mut stream, &format!("{code} Refused"), &answer.to_string()),
+            None => {
+                let name = path.split("name=").nth(1).unwrap_or("file").to_string();
+                let text = String::from_utf8(raw.clone()).ok();
+                let lines = text.map(|t| crate::composer::attached::count_lines(&t));
+                let answer = json!({"path": format!(".weave/attachments/3f9a2c1d/{name}"), "name": name, "size": raw.len(), "lines": lines, "mime": "text/plain"});
+                reply(&mut stream, "200 OK", &answer.to_string());
+            }
+        }
     } else if method == "GET" && path.ends_with("/queue") {
         seen.gets += 1;
         let answer = seen.queue.to_string();
@@ -550,6 +569,15 @@ impl Live {
             self.rt.frame(FRAME);
             std::thread::sleep(Duration::from_millis(10));
         }
+    }
+
+    /// Every upload the server saw: its path, its type and its body.
+    pub(super) fn uploads(&self) -> Vec<(String, String, Vec<u8>)> {
+        self.seen.lock().unwrap().uploads.clone()
+    }
+
+    pub(super) fn refuse_uploads(&self, status: u16, answer: Value) {
+        self.seen.lock().unwrap().refuse_uploads = Some((status, answer));
     }
 
     pub(super) fn calls(&self) -> Vec<(String, String, Value)> {
