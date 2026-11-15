@@ -978,6 +978,18 @@ pub fn spec() -> AppSpec<State> {
                 s.show_conversation(mock::tools::of_output_only(&["t1", "t2"]));
                 s.show_find("error", conv::find::Scope::Tools, 1, None)
             }),
+            // The current match is in a turn that was folded: finding opened it, as a jump does.
+            ("find-marks-folded", |s| s.show_find_marks(0, true)),
+            ("find-marks-folded-light", |s| {
+                s.dark = Some(false);
+                s.show_find_marks(0, true)
+            }),
+            ("find-marks-code", |s| s.show_find_marks(2, true)),
+            ("find-marks-code-light", |s| {
+                s.dark = Some(false);
+                s.show_find_marks(2, true)
+            }),
+            ("find-marks-closed-turn", |s| s.show_find_marks(0, false)),
             ("tool-rows", |s| s.show_conversation(mock::tools::of_each_kind())),
             ("tool-rows-light", |s| {
                 s.dark = Some(false);

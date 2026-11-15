@@ -14,6 +14,7 @@ mod fold;
 pub mod history;
 pub mod image;
 pub mod interrupted;
+mod marks;
 pub mod message;
 mod parts;
 mod prose;

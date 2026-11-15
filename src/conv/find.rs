@@ -3,6 +3,7 @@
 //! what is drawn, so it covers turns that are folded and rows that aren't built. No Rune in here but the field's text; the
 //! bar is `view::find` and what the state does with it (paging, keys, the jump) is `fleet::find`.
 use rune::{KeyEvent, TextEdit};
+use std::ops::Range;
 
 /// What the bar searches. Thinking text is never searched.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -73,6 +74,48 @@ pub fn find_hits(units: &[FindUnit], query: &str, scope: Scope) -> Vec<FindHit> 
         }
     }
     hits
+}
+
+/// Where `needle` is in `text`, as byte ranges of `text`: ignoring case, without overlapping. What the marks draw over text
+/// that isn't markdown (tool output, a user's plain words).
+pub fn plain_ranges(text: &str, needle: &str) -> Vec<Range<usize>> {
+    if needle.is_empty() || text.is_empty() {
+        return Vec::new();
+    }
+    let target = needle.to_lowercase();
+    // The lowered text, and for each of its bytes the letter it came from.
+    let mut lower = String::with_capacity(text.len());
+    let mut from: Vec<(usize, usize)> = Vec::with_capacity(text.len());
+    for (i, ch) in text.char_indices() {
+        for lc in ch.to_lowercase() {
+            let before = lower.len();
+            lower.push(lc);
+            from.extend((before..lower.len()).map(|_| (i, i + ch.len_utf8())));
+        }
+    }
+    lower.match_indices(target.as_str()).map(|(at, m)| from[at].0..from[at + m.len() - 1].1).collect()
+}
+
+/// What one drawn block of a message marks: every match of the query, and which of them is the current one.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Marks {
+    pub query: String,
+    pub current: Option<usize>,
+}
+
+/// Which block holds the `ordinal`-th match of a message and which of that block's matches it is. `blocks` are the matches
+/// each drawn block holds, text first and then tool output, as the hits number them. An ordinal past the last mark lands on
+/// the last (Fleet's `ranges[min(ordinal, len - 1)]`): the count reads the source, the marks the drawn text.
+pub fn locate(blocks: &[usize], ordinal: usize) -> Option<(usize, usize)> {
+    let total: usize = blocks.iter().sum();
+    let mut left = ordinal.min(total.checked_sub(1)?);
+    for (block, &n) in blocks.iter().enumerate() {
+        if left < n {
+            return Some((block, left));
+        }
+        left -= n;
+    }
+    None
 }
 
 // ─── focus ──────────────────────────────────────────────────────────────────
@@ -209,6 +252,8 @@ pub struct Find {
     pub seen: Option<Seen>,
     /// A message to bring into view on the next frame, once its turn is drawn (`jump`'s wait).
     pub jump: Option<String>,
+    /// When to bring the current mark to the middle: once the jump's own scroll has built the message's row.
+    pub settle: Option<f64>,
     /// The session the bar was opened on: it closes when another opens (Fleet keys the stream by session).
     pub at: (usize, usize),
 }
@@ -255,6 +300,7 @@ impl Find {
         self.hits.clear();
         self.seen = None;
         self.jump = None;
+        self.settle = None;
     }
 
     /// `step`: the next or previous match, wrapping both ways. Nothing at no matches.

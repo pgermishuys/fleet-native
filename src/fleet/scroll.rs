@@ -11,7 +11,7 @@ use std::time::Duration;
 pub const STREAM: &str = "stream";
 
 impl State {
-    fn now_ms(&self) -> f64 {
+    pub(crate) fn now_ms(&self) -> f64 {
         self.clock * 1000.0
     }
 

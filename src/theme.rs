@@ -29,6 +29,8 @@ pub struct Theme {
     pub idle_text: Color,
     /// `--status-waiting-text` (`var(--idle-text)`): the usage bars from 80%.
     pub status_waiting_text: Color,
+    /// `#1a1400`, the ink on the current find match (a literal in `main.css`, beside `--status-waiting`).
+    pub find_ink: Color,
     pub error: Color,
     /// `--running-text` and `--error-text`: green and red ink that read on the page (the `+N −N` counts).
     pub running_text: Color,
@@ -64,6 +66,7 @@ impl Theme {
                 idle: c("#f59e0b"),
                 idle_text: c("#f59e0b"),
                 status_waiting_text: c("#f59e0b"),
+                find_ink: c("#1a1400"),
                 error: c("#ef4444"),
                 running_text: c("#22c55e"),
                 error_text: c("#EF5E5F"),
@@ -90,6 +93,7 @@ impl Theme {
                 idle: c("#d97706"),
                 idle_text: c("#975304"),
                 status_waiting_text: c("#975304"),
+                find_ink: c("#1a1400"),
                 error: c("#dc2626"),
                 running_text: c("#107435"),
                 error_text: c("#B92323"),

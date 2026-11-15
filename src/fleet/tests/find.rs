@@ -367,3 +367,37 @@ fn counts_what_the_bar_says_and_disables_the_arrows_without_matches() {
     step(&mut rt, 1);
     assert_eq!(rt.state.find.count_label(), "2 of 3");
 }
+
+#[test]
+fn marks_follow_the_hits_text_first_then_the_output_of_calls_and_only_with_the_chip() {
+    let mut rt = opened(false);
+    rt.update(|s, tx| s.find_open(tx));
+    type_query(&mut rt, "retry");
+    // Typing found u1's prompt first: its block holds the current mark, the others only the query.
+    let m = rt.state.find_marks("u1-text", false).unwrap();
+    assert_eq!((m.query.as_str(), m.current), ("retry", Some(0)));
+    assert_eq!(rt.state.find_marks("u2-text", false).unwrap().current, None);
+    assert!(rt.state.find_marks("a1-tool", true).is_none(), "call output is marked only with the chip, as it is only counted then");
+    rt.update(|s, tx| s.find_set_scope(Scope::Tools, tx));
+    step(&mut rt, 1);
+    assert_eq!(rt.state.find_marks("a1-tool", true).unwrap().current, Some(0));
+    assert_eq!(rt.state.find_marks("u1-text", false).unwrap().current, None);
+    // The last two are both in u2's words: the second of them is its second mark.
+    step(&mut rt, 1);
+    step(&mut rt, 1);
+    assert_eq!(rt.state.find_marks("u2-text", false).unwrap().current, Some(1));
+}
+
+#[test]
+fn a_match_in_a_closed_call_opens_its_card_and_no_bar_means_no_marks() {
+    let mut rt = opened(false);
+    assert!(rt.state.find_marks("u1-text", false).is_none());
+    rt.update(|s, tx| s.find_open(tx));
+    rt.update(|s, tx| s.find_set_scope(Scope::Tools, tx));
+    assert!(!rt.state.tool_open.contains_key("a1-tool"), "the card starts as the call left it: closed");
+    type_query(&mut rt, "retry in tool");
+    assert_eq!(rt.state.find.current_hit().map(|h| h.kind), Some(crate::conv::find::HitKind::Tool));
+    assert!(rt.state.tool_open.get("a1-tool").is_some_and(|t| t.open), "the match is in it, so it opens");
+    rt.update(|s, tx| s.find_close(tx));
+    assert!(rt.state.find_marks("a1-tool", true).is_none());
+}

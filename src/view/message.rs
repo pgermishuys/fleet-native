@@ -244,9 +244,12 @@ pub fn user_bubble(t: &Theme, s: &State, md: &Styles, msg: &Message, id: &str, b
             }
         }
         None if typed.trim().is_empty() => {}
-        None if looks_like_markdown(&typed) => content = content.child(prose::prose(&md.prose, id, &typed, false)),
+        None if looks_like_markdown(&typed) => {
+            content = content.child(prose::prose_marked(&md.prose, id, &typed, false, s.find_marks(id, false).as_ref()))
+        }
         None => {
-            content = content.child(text(typed).font(sans(15.0, 400.0, 1.55)).color(t.text).wrap().selectable(true));
+            let marks = s.find_marks(id, false).map(|m| super::marks::over(t, &typed, &m)).unwrap_or_default();
+            content = content.child(text(typed).font(sans(15.0, 400.0, 1.55)).color(t.text).wrap().selectable(true).text_highlights(marks));
         }
     }
     if !files.is_empty() {
