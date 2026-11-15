@@ -8,6 +8,7 @@ mod compaction;
 pub mod composer;
 pub mod conversation;
 pub mod diff;
+mod export_text;
 pub mod failure;
 pub mod find;
 mod fold;
@@ -51,6 +52,7 @@ pub fn root(s: &State, cx: &mut Cx<State>) -> El {
     cx.help_look(crate::ui::help_look(&t));
     let mut main = row().w_full().grow(1.0).min_h(0.0).padding(8.0).child(rail::rail(s, &t));
     main = match s.rail {
+        _ if s.export_text.is_some() => main.child(export_text::view(&t, s.export_text.as_deref().unwrap_or_default()).ml(8.0)),
         _ if s.gallery => main.child(crate::ui::gallery::view(s, &t).ml(8.0)),
         Rail::Sessions if s.sidebar_open => main.child(sessions::panel(s, &t).ml(8.0)).child(gutter(&t)).child(sheet::sheet(s, &t)),
         Rail::Sessions => main.child(sheet::sheet(s, &t).ml(8.0)),

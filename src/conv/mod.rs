@@ -8,6 +8,7 @@ pub mod bubble;
 pub mod card;
 pub mod compaction;
 pub mod diff;
+pub mod export;
 pub mod find;
 pub mod fold;
 pub mod fold_plan;
