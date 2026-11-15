@@ -466,6 +466,10 @@ fn serve(mut stream: TcpStream, seen: Arc<Mutex<Seen>>) {
                 reply(&mut stream, "201 Created", &created.to_string());
             }
         }
+    } else if method == "POST" && path.ends_with("/prompt") && seen.refuse.is_some() {
+        let (code, answer) = seen.refuse.clone().unwrap();
+        seen.calls.push((method, path, body));
+        reply(&mut stream, &format!("{code} Refused"), &answer.to_string());
     } else if path.contains("/queue/") || path.ends_with("/prompt") {
         let code = if method == "DELETE" {
             "204 No Content"

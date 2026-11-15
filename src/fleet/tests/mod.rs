@@ -481,6 +481,7 @@ fn the_list_leaves_out_sub_agents_and_dims_old_sessions() {
     assert_eq!(sessions::age(3_600_000 * 5, 0), ("5h".to_string(), 1.0));
 }
 
+mod attach;
 mod autocomplete;
 mod catalog;
 mod delegations;

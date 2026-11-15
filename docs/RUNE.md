@@ -587,3 +587,11 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 - **A row's memo key has to include everything that arrives later for it**: a step's picture decoding after the row was built left a black box until its state was part of the key (`browser_steps::key`), just as in piece N.
 - **A headless test can't read a drawn text**: `Runtime` finds elements by key and position only, so wording is tested in the plain logic (`conv::browser::heading`) and the test checks the element exists.
 - **`El` has `px` and `py` but no `p`.**
+
+## Pictures in the composer (component 5, piece N)
+
+- `tx.open_file` picks **one** file; Fleet's picker is multiple. Several come from a paste or a drop.
+- `on_input_paste` hears a clipboard with `content.files()` and `content.image()` (PNG bytes); `Runtime::paste_content` feeds them in a test. Returning false lets the field paste the text, which is how a spreadsheet's picture is left for its text.
+- `on_drop_files` on the frame plus `on_drop_hover` is the whole drop; `Runtime::drag_files(paths, at)` and `drop_files` drive it. No drops on Wayland.
+- A hover group follows keyboard focus too, so a control shown with `group_opacity(0, 1)` shows when Tab reaches it; the hidden button still takes a click, so a test can press it without hovering.
+- A file read, a 5 MB base64 encode and a decode belong on a thread: a thread answers through an `mpsc` channel that `poll` drains, with `tx.wake_after(30 ms)` while one is out (the picture cache's own loads work like this).

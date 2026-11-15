@@ -119,6 +119,11 @@ pub struct State {
     pub quiet_machine: Option<String>,
     /// What the error box above the composer says (`sendError`, row 1.10): a refused prompt, for now.
     pub composer_error: Option<String>,
+    /// The pictures held for each draft and the pasted-file error (`fleet::attach`), the threads reading them, and whether
+    /// files are being dragged over the composer.
+    pub attach: composer::attach::Attached,
+    pub reads: fleet::attach::Reads,
+    pub dragging: bool,
     /// Each session's queue as Fleet last said it (`fleet::queue`).
     pub queue: fleet::queue::Queues,
     /// What the `/`, `@` and `$` lists are made from, and the popup they open (`fleet::finder`, `fleet::autocomplete`).
@@ -233,6 +238,9 @@ impl Default for State {
             notice: None,
             pickers: fleet::catalog::Pickers::new(SERVER.get().is_none()),
             composer_error: None,
+            attach: Default::default(),
+            reads: Default::default(),
+            dragging: false,
             optimistic: None,
             aborting: None,
             side_open: false,
@@ -351,6 +359,39 @@ impl State {
         }
     }
 
+    /// Scenes for the pictures waiting in the composer (piece N): invented pictures, handed over as if a thread had read them.
+    fn show_images_held(&mut self, state: &str) {
+        self.open = (0, 2);
+        let owner = self.draft_owner().unwrap_or_default();
+        let wide = [("checkout.png", mock::images::PAGE), ("logo.png", &include_bytes!("../assets/weave_logo.png")[..])];
+        let names: &[(&str, &[u8])] = if state == "images" || state == "image-lightbox" { &wide[..1] } else { &wide };
+        let long = ("a-screenshot-with-a-very-long-name.png", mock::images::PAGE);
+        for (i, (name, bytes)) in names.iter().chain(if state == "images-many" { Some(&long) } else { None }).enumerate() {
+            let image = composer::attach::HeldImage {
+                id: format!("scene{i}"),
+                mime: "image/png".into(),
+                filename: (*name).into(),
+                data: std::sync::Arc::from(composer::attach::encode_base64(bytes)),
+            };
+            self.supply_image(&image.preview_key(), bytes);
+            self.attach.add(&owner, image);
+        }
+        match state {
+            "image-error" => {
+                self.show_draft("What is wrong with this?");
+                self.attach.set_error("notes.txt isn't a PNG, JPEG, GIF or WebP picture.", 0.0);
+            }
+            "image-queue" => {
+                self.open = (0, 0);
+                self.show_draft("Also keep the 200 MB limit.");
+                self.composer_error = Some(composer::attach::QUEUE_REFUSAL.into());
+            }
+            "image-drag" => self.dragging = true,
+            "image-lightbox" => self.open_lightbox("attach-scene0", "checkout.png", "attachment-thumb-scene0"),
+            _ => self.show_draft("What is wrong with this page?"),
+        }
+    }
+
     /// Scenes for the composer's states (docs/parity/05-composer.md, piece B).
     pub fn show_composer(&mut self, state: &str) {
         match state {
@@ -377,6 +418,7 @@ impl State {
                 self.show_draft("Run the cache tests again.");
                 self.composer_error = Some("HTTP 500".into());
             }
+            "images" | "images-many" | "image-error" | "image-queue" | "image-drag" | "image-lightbox" => self.show_images_held(state),
             "long" => {
                 self.open = (0, 2);
                 let lines: Vec<String> = (1..=12).map(|n| format!("Step {n}: read the file and say what it does.")).collect();
@@ -579,7 +621,18 @@ pub fn submit(s: &mut State, tx: &mut Tx, modifier: bool) {
         caps,
         side_open: s.side_open,
     };
-    match composer::route::route_draft(&s.draft.text, &cx) {
+    let mut route = composer::route::route_draft(&s.draft.text, &cx);
+    // Pictures alone are a prompt (`submit` lets an empty draft through when it has attachments).
+    if route == composer::route::Route::Empty && !s.held_images().is_empty() && !s.side_open {
+        let steer = cx.steer && cx.status == composer::status::ComposerStatus::Busy && cx.caps.can_steer;
+        route = composer::route::Route::Prompt { queue: cx.status == composer::status::ComposerStatus::Busy && !steer, steer };
+    }
+    // Fleet's queue holds text only: with pictures pending, a prompt that would wait keeps both and says why.
+    if matches!(route, composer::route::Route::Prompt { queue: true, .. }) && !s.held_images().is_empty() {
+        s.composer_error = Some(composer::attach::QUEUE_REFUSAL.into());
+        return;
+    }
+    match route {
         composer::route::Route::Empty => {}
         // The panel is component 15's: until it is built the draft stays, as the kit's `waiting()` entries do.
         composer::route::Route::Side { question } => s.ask_side_question(tx, question),
@@ -636,15 +689,18 @@ pub fn send(s: &mut State, tx: &mut Tx) {
 /// Send, into the running turn when `steer`.
 pub fn send_as(s: &mut State, tx: &mut Tx, steer: bool) {
     let text = s.draft.text.trim().to_string();
-    if text.is_empty() {
+    let images = !s.held_images().is_empty();
+    if text.is_empty() && !images {
         return;
     }
     // Row 8.1: what is sent is remembered for ArrowUp, before it goes anywhere.
     if let Some(owner) = s.draft_owner() {
         let now = s.clock;
-        s.drafts.push_history(&owner, &text, now);
+        if !text.is_empty() {
+            s.drafts.push_history(&owner, &text, now);
+        }
     }
-    send_text(s, tx, text, steer);
+    send_text(s, tx, text, steer, images);
     s.draft.clear();
 }
 
@@ -654,24 +710,29 @@ pub fn retry_turn(s: &mut State, tx: &mut Tx) {
         return;
     }
     if let Some(text) = view::failure::last_prompt(&s.session().messages) {
-        send_text(s, tx, text, false);
+        send_text(s, tx, text, false, false);
     }
 }
 
 /// Sends `text` to the open session. On a server the message goes to the agent, and the conversation shows it at once,
 /// as sent but not yet confirmed; without one, a canned reply follows.
-fn send_text(s: &mut State, tx: &mut Tx, text: String, steer: bool) {
+fn send_text(s: &mut State, tx: &mut Tx, text: String, steer: bool, with_images: bool) {
     s.composer_error = None;
     s.optimistic = Some(composer::status::Optimistic::new(s.clock));
     tx.wake_after(std::time::Duration::from_secs_f64(composer::status::Optimistic::GIVE_UP + 0.1));
     if let (Some(_), Some(id)) = (&s.link, s.open_id()) {
-        s.send_to_server_as(&id, &text, steer);
+        s.send_prompt_with(&id, &text, steer, with_images);
         s.notice = None;
         s.follow_end(tx);
         tx.wake_after(std::time::Duration::from_secs_f64(composer::status::Optimistic::GIVE_UP + 0.1));
         // `poll` turns what is still unconfirmed by then into "retry".
         tx.wake_after(std::time::Duration::from_secs_f64(fleet::prompts::CONFIRMATION_TIMEOUT + 0.1));
         return;
+    }
+    // Without a server the pictures leave the draft with the words, as they do when a Fleet takes the prompt.
+    if with_images && let Some(owner) = s.draft_owner() {
+        let gone = s.attach.clear(&owner);
+        s.forget_previews(&gone);
     }
     let (p, i) = s.open;
     let session = &mut s.projects[p].sessions[i];
@@ -720,7 +781,7 @@ fn end_tools(session: &mut Session) {
 }
 
 fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
-    let composer_changed = s.keep_composer_state(now) | s.keep_autocomplete(now, tx);
+    let composer_changed = s.keep_composer_state(now) | s.keep_autocomplete(now, tx) | s.keep_attachments(tx);
     let scrolled = s.keep_scroll(tx);
     let pictures = s.keep_images(tx);
     // "Copied" on a message's button ends by itself.
@@ -1181,6 +1242,36 @@ pub fn spec() -> AppSpec<State> {
             ("message-shown-light", |s| {
                 s.dark = Some(false);
                 s.show_ring()
+            }),
+            ("composer-images", |s| s.show_composer("images")),
+            ("composer-images-light", |s| {
+                s.dark = Some(false);
+                s.show_composer("images")
+            }),
+            ("composer-images-many", |s| s.show_composer("images-many")),
+            ("composer-images-many-light", |s| {
+                s.dark = Some(false);
+                s.show_composer("images-many")
+            }),
+            ("composer-image-error", |s| s.show_composer("image-error")),
+            ("composer-image-error-light", |s| {
+                s.dark = Some(false);
+                s.show_composer("image-error")
+            }),
+            ("composer-image-queue", |s| s.show_composer("image-queue")),
+            ("composer-image-queue-light", |s| {
+                s.dark = Some(false);
+                s.show_composer("image-queue")
+            }),
+            ("composer-image-drag", |s| s.show_composer("image-drag")),
+            ("composer-image-drag-light", |s| {
+                s.dark = Some(false);
+                s.show_composer("image-drag")
+            }),
+            ("composer-image-lightbox", |s| s.show_composer("image-lightbox")),
+            ("composer-image-lightbox-light", |s| {
+                s.dark = Some(false);
+                s.show_composer("image-lightbox")
             }),
             ("composer-long", |s| s.show_composer("long")),
             ("composer-long-light", |s| {

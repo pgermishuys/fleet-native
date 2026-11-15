@@ -125,6 +125,12 @@ impl Theme {
         Color { r: m(a.r, b.r), g: m(a.g, b.g), b: m(a.b, b.b), a: alpha }
     }
 
+    /// `color-mix(in srgb, <color> P%, var(--card-bg))`: the composer's frame while files are dragged over it.
+    pub fn card_mix(&self, color: Color, percent: f32) -> Color {
+        let (p, b) = (percent / 100.0, self.card_bg);
+        Color { r: p * color.r + (1.0 - p) * b.r, g: p * color.g + (1.0 - p) * b.g, b: p * color.b + (1.0 - p) * b.b, a: b.a }
+    }
+
     /// `--color-secondary`: `color-mix(in srgb, var(--text) 8%, transparent)`, the segmented tabs' track.
     pub fn secondary(&self) -> Color {
         self.wash(8.0)
@@ -139,6 +145,15 @@ impl Theme {
     /// `ImageLightbox.vue`: `rgba(0,0,0,.8)` over the whole window, a literal in Fleet too (the same in both themes).
     pub fn scrim(&self) -> Color {
         Color::BLACK.alpha(0.8)
+    }
+
+    /// `.attachment-chip__remove`: `rgba(0,0,0,.6)`, and `rgba(220,38,38,.8)` under the pointer (literals in Fleet too).
+    pub fn chip_remove(&self) -> Color {
+        Color::BLACK.alpha(0.6)
+    }
+
+    pub fn chip_remove_hover(&self) -> Color {
+        rune::color::hex("#DC2626").expect("a colour literal").alpha(0.8)
     }
 
     /// The lightbox picture's `0 8px 32px rgba(0,0,0,.5)`.
