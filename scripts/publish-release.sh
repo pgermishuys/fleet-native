@@ -43,17 +43,23 @@ N
 
 # Update in place, so the download links never 404: the release is not deleted, assets are replaced one by one
 # (--clobber), and latest.json goes last because it says what the assets are. CI allows one publish at a time.
+# The `latest` tag is never created or moved from here: GitHub refuses a workflow's GITHUB_TOKEN a ref change that
+# brings in edits to .github/workflows (HTTP 403, "Resource not accessible by integration"). Downloads and
+# latest.json (commit and build) don't depend on where the tag points.
+step() { echo "publish: $*"; }
+run() { step "$*"; "$@" || { echo "::error::publish step failed: $*" >&2; exit 1; }; }
+
 if gh release view "$tag" -R "$repo" >/dev/null 2>&1; then
-  # Move the tag to this commit (a release's tag is its source link).
-  gh api -X PATCH "repos/$repo/git/refs/tags/$tag" -f sha="$COMMIT" -F force=true >/dev/null
-  gh release upload "$tag" -R "$repo" --clobber "${assets[@]/#/$dist/}" "$dist/latest.json"
-  gh release edit "$tag" -R "$repo" --title "Latest build ($BUILD)" --notes-file "$dist/notes.md" --prerelease --latest=false
+  run gh release upload "$tag" -R "$repo" --clobber "${assets[@]/#/$dist/}" "$dist/latest.json"
+  run gh release edit "$tag" -R "$repo" --title "Latest build ($BUILD)" --notes-file "$dist/notes.md" --prerelease --latest=false
   # An asset from an older layout (the macOS .tar.gz) that is no longer built.
   for old in $(gh release view "$tag" -R "$repo" --json assets -q '.assets[].name'); do
-    case " ${assets[*]} latest.json " in *" $old "*) ;; *) gh release delete-asset "$tag" -R "$repo" "$old" --yes ;; esac
+    case " ${assets[*]} latest.json " in *" $old "*) ;; *) run gh release delete-asset "$tag" -R "$repo" "$old" --yes ;; esac
   done
 else
-  gh release create "$tag" -R "$repo" --target "$COMMIT" --prerelease --latest=false \
-    --title "Latest build ($BUILD)" --notes-file "$dist/notes.md" \
-    "${assets[@]/#/$dist/}" "$dist/latest.json"
+  # Creating the release creates its tag, which the workflow token may be refused. Don't try to work around it.
+  echo "::error::the release '$tag' does not exist. Create it once as the repository owner (a workflow token may not create the tag):" >&2
+  echo "  gh release create $tag -R $repo --prerelease --latest=false --title 'Latest build' --notes 'placeholder'" >&2
+  echo "then re-run this job." >&2
+  exit 1
 fi
