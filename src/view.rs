@@ -14,6 +14,7 @@ mod rail;
 mod reasoning;
 mod recap;
 pub mod ring;
+pub mod ring_popover;
 pub mod scroll;
 pub mod selector;
 mod sessions;

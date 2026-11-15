@@ -10,7 +10,7 @@ pub mod directory_picker;
 pub mod gallery;
 pub mod menu;
 pub mod menus;
-mod overlay;
+pub(crate) mod overlay;
 pub mod palette;
 pub mod scenes;
 pub mod select;
@@ -106,6 +106,7 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
         Some(Open::Menu(name)) => menus::dropdown(s, t, name),
         Some(Open::Context(p, i)) => menus::session_context(s, t, p, i),
         Some(Open::Select(name)) => gallery::select_content(s, t, name),
+        Some(Open::Popover("context")) => crate::view::ring_popover::overlay(s, t),
         Some(Open::Popover(name)) => gallery::popover_content(s, t, name),
         Some(Open::Directory) => directory_picker::view(s, t, "g-dir"),
         Some(Open::Dialog) => gallery::dialog(s, t),

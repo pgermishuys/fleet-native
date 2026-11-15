@@ -199,3 +199,9 @@ pub fn work_stop(base: &str, session: &str, item: &str) -> Result<(u16, Value), 
 pub fn work_output(base: &str, session: &str, item: &str, offset: u64) -> Result<(u16, Value), String> {
     status_of("GET", base, &format!("/api/sessions/{session}/work/{item}/output?offset={offset}"))
 }
+
+/// `POST /api/sessions/{id}/compact`: Compact now. Fleet answers once the harness has taken the request; a refusal
+/// (409 during a turn, a harness that can't) is an answer with a status, not an error.
+pub fn compact(base: &str, session: &str) -> Result<(u16, Value), String> {
+    status_of("POST", base, &format!("/api/sessions/{session}/compact"))
+}

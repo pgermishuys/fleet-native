@@ -2,6 +2,7 @@
 //! amber rule tells apart. Invented numbers and an invented model name.
 use crate::State;
 use crate::fleet::context::{ContextCall, ContextTurn, ContextUsage};
+use crate::fleet::usage::{HarnessUsage, Status, Window};
 
 /// Which context a scene shows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -53,12 +54,66 @@ pub fn context(case: Case) -> ContextUsage {
         compacting: case == Case::Compacting,
         compacted_at: (case == Case::Compacted).then(|| "2026-10-06T10:05:00Z".into()),
         compaction_error: None,
-        turns: used.map(|u| vec![turn(u / 2, false), turn(u, false)]).unwrap_or_default(),
+        turns: turns(case, used, &turn),
         updated_at: "2026-10-06T10:05:00Z".into(),
     }
 }
 
+/// The chart's turns: a climb with one compaction in it, so the bars show the dot and the dashed line something to cross.
+/// A context with no size yet keeps the turns it had before the compaction.
+fn turns(case: Case, used: Option<u64>, turn: &dyn Fn(u64, bool) -> ContextTurn) -> Vec<ContextTurn> {
+    let Some(used) = used else {
+        return [60_000, 90_000, 120_000, 150_000].iter().map(|u| turn(*u, false)).collect();
+    };
+    let steps: [(f64, bool); 8] =
+        [(0.24, false), (0.40, false), (0.58, false), (0.41, true), (0.63, false), (0.78, false), (0.88, false), (1.0, false)];
+    let mut out: Vec<ContextTurn> = steps.iter().map(|(f, after)| turn((used as f64 * f) as u64, *after)).collect();
+    if case == Case::NoWindow {
+        for t in &mut out {
+            t.limit = None;
+        }
+    }
+    out
+}
+
 impl State {
+    /// A scene: the ring's popover is open on `case`; `extra` adds what the popover shows beyond the context: "limits"
+    /// (the harness reports its windows), "error" (Fleet refused Compact now) or "disabled" (the session can't compact).
+    pub fn show_context_popover(&mut self, case: Case, extra: &str) {
+        self.show_context(case);
+        let now = 20_000 * 86_400_000 + (12 * 3600 - crate::conv::time::local_offset_secs()) * 1000;
+        self.now_ms = Some(now);
+        let row = &mut self.projects[0].sessions[2].row;
+        row.cost = 1.42;
+        match extra {
+            "limits" => {
+                row.harness_type = Some("claude-code".into());
+                let window = |name: &str, utilization: f64, minutes: i64, status| Window {
+                    window: name.into(),
+                    utilization: Some(utilization),
+                    resets_at: Some(now + minutes * 60_000),
+                    window_seconds: None,
+                    status,
+                };
+                let windows = vec![
+                    window("seven_day", 0.63, 4 * 1440, Status::Allowed),
+                    window("five_hour", 0.82, 125, Status::Warning),
+                    window("seven_day_opus", 1.0, 2 * 1440, Status::Rejected),
+                ];
+                self.pickers.usage.harnesses.insert("claude-code".into(), HarnessUsage { harness_type: "claude-code".into(), windows });
+            }
+            "error" => {
+                self.compact.errors.insert(String::new(), "Wait for the agent to finish its turn, then compact.".into());
+            }
+            "disabled" => {
+                row.can_compact = Some(false);
+                row.compact_disabled_reason = Some("Wait for the agent to finish its turn.".into());
+            }
+            _ => {}
+        }
+        self.ui.open = Some(crate::ui::Open::Popover("context"));
+    }
+
     /// A scene: the open session (the invented one, idle) has reported `case`.
     pub fn show_context(&mut self, case: Case) {
         self.open = (0, 2);
