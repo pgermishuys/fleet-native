@@ -710,6 +710,13 @@ pub fn spec() -> AppSpec<State> {
                 s.dark = Some(false);
                 s.show_compaction_open()
             }),
+            // Turn folding (piece 3F), as plain rows with a text line where the fold row will go.
+            ("fold-logic", |s| s.show_conversation(mock::fold::of_folded_turns(false))),
+            ("fold-logic-light", |s| {
+                s.dark = Some(false);
+                s.show_conversation(mock::fold::of_folded_turns(false))
+            }),
+            ("fold-logic-opened", |s| s.show_conversation(mock::fold::of_folded_turns(true))),
             ("recap", |s| s.show_recap()),
             ("recap-light", |s| {
                 s.dark = Some(false);

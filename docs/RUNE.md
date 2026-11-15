@@ -419,3 +419,10 @@ Nothing in Rune was needed: this piece is plain Rust. Two things for whoever bui
   `State.pickers.composer_w`, set from the frame's `on_layout`; it is 0 on the first frame, which counts as roomy.
 - **`Event::Other(Kind, props)` is how an event nobody types yet arrives.** `harness.catalog_changed` is read in `State::dispatch`
   (no `tx` there), so it can only start a thread, not touch Rune state.
+
+## Component 3, piece F (turn folding, logic)
+
+- **Nothing new about Rune: this piece has no view.** A scene can still show logic: `mock::fold` builds a conversation, runs
+  `build_list` and `fold_turns`, then keeps or drops the drawn `Part`s by id, so the picture is what the logic decided.
+- **The fold-row glyph `▸` is missing from the text font** (it draws as a box); the scene says the line in plain words, and the
+  row in piece G uses an icon.
