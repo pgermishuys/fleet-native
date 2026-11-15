@@ -144,7 +144,7 @@ fn counts_how_long_it_has_run_from_its_start_to_its_end_or_to_now() {
 }
 
 #[test]
-fn starts_from_the_snapshots_running_work() {
+fn starts_from_the_snapshots_runningwork() {
     let state = snapshot_with_work(Some(vec![subagent_started(), shell_ended()]));
     let seen: Vec<_> = state.running_work.iter().map(|w| (w.kind.wire(), w.status)).collect();
     assert_eq!(seen, [("shell", WorkStatus::Completed), ("subagent", WorkStatus::Running)]);

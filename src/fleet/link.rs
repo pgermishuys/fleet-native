@@ -205,7 +205,15 @@ fn run(base: String, rx: Receiver<Cmd>, post: Post) {
                 }
                 Ok(Cmd::Refresh) => {}
                 // Said again once connected (`connected`), so only what the window is like now is kept.
-                Ok(Cmd::WindowFocus(focused)) => presence.focus_changed(focused, Instant::now()),
+                Ok(Cmd::WindowFocus(focused)) => {
+                    presence.focus_changed(focused, Instant::now());
+                    // Back at the window while the hub is down: try now instead of waiting out the delay
+                    // (`reconnectIfClosed`, on `online` and `visibilitychange`).
+                    if focused {
+                        attempt = 0;
+                        break;
+                    }
+                }
                 Ok(Cmd::WindowVisible(visible)) => {
                     presence.visibility_changed(visible, Instant::now());
                 }

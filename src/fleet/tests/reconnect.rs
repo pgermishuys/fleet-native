@@ -337,3 +337,43 @@ fn a_dropped_connection_comes_back_with_the_conversation_a_fresh_open_shows() {
     assert!(shown.messages.iter().all(|m| seen.insert(m.id.clone())), "no message shown twice");
     assert!(!rt.state.loading);
 }
+
+#[test]
+fn coming_back_to_the_window_while_the_hub_is_down_reconnects_at_once() {
+    // A port nothing listens on yet: the first attempt is refused, and the next one is a second away.
+    let held = TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = held.local_addr().unwrap();
+    drop(held);
+    let (jobs, queue) = channel::<Job>();
+    let jobs = std::sync::Mutex::new(jobs);
+    let post = Post::new(move |job| {
+        let _ = jobs.lock().unwrap().send(job);
+    });
+    let mut rt = app();
+    let link = Link::start(format!("http://{addr}"), post);
+    let wake = |rt: &mut Runtime<State>, until: &dyn Fn(&State) -> bool, secs: f32| {
+        let end = Instant::now() + Duration::from_secs_f32(secs);
+        while Instant::now() < end {
+            while let Ok(job) = queue.try_recv() {
+                rt.update(job);
+            }
+            if until(&rt.state) {
+                return true;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        false
+    };
+    assert!(wake(&mut rt, &|s| matches!(s.connection, Connection::Down(_)), 5.0), "never saw it down");
+    let listener = TcpListener::bind(addr).unwrap();
+    let hubs = Arc::new(AtomicUsize::new(0));
+    std::thread::spawn(move || {
+        for stream in listener.incoming().flatten() {
+            let hubs = hubs.clone();
+            std::thread::spawn(move || serve(stream, hubs));
+        }
+    });
+    link.window_focus(true);
+    // Well inside the one-second delay the schedule would have waited out.
+    assert!(wake(&mut rt, &|s| s.connection == Connection::Online, 0.7), "didn't reconnect when the window came back");
+}
