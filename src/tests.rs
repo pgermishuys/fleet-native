@@ -1400,3 +1400,69 @@ fn stop_and_output_calls_go_to_fleets_item_id_and_read_the_answer_as_the_server_
     assert!(seen[0].starts_with("POST /api/sessions/sess/work/a91d/stop "), "{}", seen[0]);
     assert!(seen[1].starts_with("GET /api/sessions/sess/work/a91d/output?offset=12 "), "{}", seen[1]);
 }
+
+// ContextRing.test.ts: "opens the details: the size, each turn, the last call and what the session cost"
+#[test]
+fn clicking_the_ring_opens_the_details_above_it_and_a_press_outside_closes_them() {
+    let mut rt = app();
+    rt.update(|s, _| s.show_context(crate::mock::ring::Case::Quiet));
+    rt.frame(FRAME);
+    assert!(rt.find("context-popover").is_none());
+    click(&mut rt, "context-ring");
+    rt.frame(FRAME);
+    rt.frame(FRAME);
+    let (_, ring_y) = rt.find("context-ring").unwrap();
+    let (_, card_y) = rt.find("context-popover").expect("the details open");
+    assert!(card_y < ring_y, "above the ring");
+    assert!(rt.find("context-bar0").is_some() && rt.find("context-bar7").is_some());
+    assert!(rt.find("context-compact").is_some());
+    click(&mut rt, "context-scrim");
+    rt.frame(FRAME);
+    assert!(rt.find("context-popover").is_none());
+}
+
+// ContextRing.test.ts: "compacts now, and says why when Fleet refuses"
+#[test]
+fn compact_now_waits_for_fleets_answer_and_shows_why_it_refused() {
+    let mut rt = app();
+    rt.update(|s, _| {
+        s.projects[0].sessions[2].id = "s1".into();
+        s.show_context_popover(crate::mock::ring::Case::Quiet, "");
+    });
+    rt.frame(FRAME);
+    rt.frame(FRAME);
+    assert!(rt.find("context-error").is_none());
+    click(&mut rt, "context-compact");
+    rt.frame(FRAME);
+    assert!(rt.state.compact.requesting.contains("s1"), "in flight");
+    rt.update(|s, _| s.compact.finish("s1", Err("Wait for the agent to finish its turn, then compact.".into())));
+    rt.frame(FRAME);
+    rt.frame(FRAME);
+    assert!(rt.find("context-error").is_some());
+}
+
+// ContextRing.test.ts: "can't compact when the session says it can't, with its reason"
+#[test]
+fn compact_now_is_off_when_the_session_cant_compact() {
+    let mut rt = app();
+    rt.update(|s, _| s.show_context_popover(crate::mock::ring::Case::Quiet, "disabled"));
+    rt.frame(FRAME);
+    rt.frame(FRAME);
+    click(&mut rt, "context-compact");
+    rt.frame(FRAME);
+    assert!(rt.state.compact.requesting.is_empty());
+}
+
+// ContextRing.test.ts: "shows the harness's usage limits under the context, when it reports them"
+#[test]
+fn the_popover_draws_the_harness_limits_only_when_it_reports_some() {
+    let mut rt = app();
+    rt.update(|s, _| s.show_context_popover(crate::mock::ring::Case::Quiet, ""));
+    rt.frame(FRAME);
+    rt.frame(FRAME);
+    assert!(rt.find("context-limits").is_none());
+    rt.update(|s, _| s.show_context_popover(crate::mock::ring::Case::Quiet, "limits"));
+    rt.frame(FRAME);
+    rt.frame(FRAME);
+    assert!(rt.find("context-limits").is_some() && rt.find("context-limit2").is_some());
+}

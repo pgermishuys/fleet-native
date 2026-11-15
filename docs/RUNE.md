@@ -508,3 +508,20 @@ Nothing in Rune was needed: this piece is plain Rust. Two things for whoever bui
 - **`gen` is a reserved word in this edition**; a field or argument called `gen` doesn't compile.
 - **No `shrink0` and no `max_w` that subtracts a margin**: a panel indented by `ml` takes the column's width without `w_full`.
 
+
+
+## Component 5, piece H (the ring's popover)
+
+- **A popover is `ui::overlay::anchored(card, key, Side::Top, Align::End, 8.0)` over a `scrim`**, opened by `Open::Popover("context")`;
+  the card's `.modal(true, close)` gives Escape and focus return. The anchor's `key` ("context-ring") is the button's, so the
+  button stays on screen under it and can keep its open look (the wash and the ink) from the same state.
+- **A CSS border takes room; Rune's doesn't unless asked.** `.border(1.0, c)` draws over the box: add `.border_layout()` or the
+  padding is measured from the outer edge. A `border-top` only is `.border_sides([1.0, 0.0, 0.0, 0.0], c)`.
+- **No percent widths from a measured parent.** The popover is a fixed 340 wide, so the meters, the tick, the dashed line and
+  the bars use the inner width (310) as a constant. A popover whose width followed `100vw - 16` would need `on_layout`.
+- **`on_hover_change(|s, inside, tx|)` is not a hit target**: it is the "mouse left the chart" the caption needs. The bar's own
+  `on_hover` (once on entry) sets the hovered turn; the chart's `on_hover_change(false)` clears it.
+- **Tabular figures are a font feature**: `sans(..).features("'tnum' 1")`, not an element method.
+- **Meters don't animate here.** Fleet's `transition: width 300ms` on the size meter and the limits' fills is not ported: the
+  bars are drawn at their final width. (`live_trim` moves only a canvas stroke.)
+- **A spinner doesn't turn** (no looping rotation): it fades, as in the older-messages row.

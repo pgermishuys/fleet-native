@@ -123,6 +123,8 @@ pub struct State {
     pub side_open: bool,
     /// The context ring's arc and, for scenes, a context to draw (`view::ring`).
     pub ring: view::ring::Ring,
+    /// Compact now: the requests in flight and why the last one was refused (per session).
+    pub compact: fleet::compact::Compact,
     /// The messages whose command shows its expanded prompt ("Show prompt"), and the one just copied with the second its
     /// "Copied" ends at (`view::message`).
     pub prompt_open: std::collections::HashSet<String>,
@@ -212,6 +214,7 @@ impl Default for State {
             aborting: None,
             side_open: false,
             ring: Default::default(),
+            compact: Default::default(),
             ui: ui::Ui::default(),
             gallery: false,
             pin: Default::default(),
@@ -1003,6 +1006,46 @@ pub fn spec() -> AppSpec<State> {
             ("composer-ring-compacting-light", |s| {
                 s.dark = Some(false);
                 s.show_context(mock::ring::Case::Compacting)
+            }),
+            ("composer-popover-ok", |s| s.show_context_popover(mock::ring::Case::Quiet, "")),
+            ("composer-popover-ok-light", |s| {
+                s.dark = Some(false);
+                s.show_context_popover(mock::ring::Case::Quiet, "")
+            }),
+            ("composer-popover-warn", |s| s.show_context_popover(mock::ring::Case::Warm, "")),
+            ("composer-popover-warn-light", |s| {
+                s.dark = Some(false);
+                s.show_context_popover(mock::ring::Case::Warm, "")
+            }),
+            ("composer-popover-danger", |s| s.show_context_popover(mock::ring::Case::Danger, "error")),
+            ("composer-popover-danger-light", |s| {
+                s.dark = Some(false);
+                s.show_context_popover(mock::ring::Case::Danger, "error")
+            }),
+            ("composer-popover-nowindow", |s| s.show_context_popover(mock::ring::Case::NoWindow, "")),
+            ("composer-popover-nowindow-light", |s| {
+                s.dark = Some(false);
+                s.show_context_popover(mock::ring::Case::NoWindow, "")
+            }),
+            ("composer-popover-compacting", |s| s.show_context_popover(mock::ring::Case::Compacting, "")),
+            ("composer-popover-compacting-light", |s| {
+                s.dark = Some(false);
+                s.show_context_popover(mock::ring::Case::Compacting, "")
+            }),
+            ("composer-popover-compacted", |s| s.show_context_popover(mock::ring::Case::Compacted, "")),
+            ("composer-popover-compacted-light", |s| {
+                s.dark = Some(false);
+                s.show_context_popover(mock::ring::Case::Compacted, "")
+            }),
+            ("composer-popover-limits", |s| s.show_context_popover(mock::ring::Case::Amber, "limits")),
+            ("composer-popover-limits-light", |s| {
+                s.dark = Some(false);
+                s.show_context_popover(mock::ring::Case::Amber, "limits")
+            }),
+            ("composer-popover-disabled", |s| s.show_context_popover(mock::ring::Case::Quiet, "disabled")),
+            ("composer-popover-disabled-light", |s| {
+                s.dark = Some(false);
+                s.show_context_popover(mock::ring::Case::Quiet, "disabled")
             }),
             ("composer-model-nomatch", |s| s.show_composer("model-nomatch")),
             ("composer-model-starred", |s| s.show_composer("model-starred")),

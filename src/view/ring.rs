@@ -5,6 +5,7 @@ use crate::State;
 use crate::composer::ring::{self, Tone};
 use crate::fleet::context::ContextUsage;
 use crate::theme::{RADIUS_BTN, Theme, sans};
+use crate::ui::Open;
 use rune::{Color, Cursor, El, LineCap, Live, Shape, Spring, canvas, el, row, text};
 use std::cell::RefCell;
 use std::f32::consts::{FRAC_PI_2, TAU};
@@ -17,11 +18,13 @@ pub struct Ring {
     drawn_for: RefCell<Option<String>>,
     /// A context a scene shows when there is no stream.
     pub mock: Option<ContextUsage>,
+    /// The chart's bar the pointer is over (the popover's caption names it).
+    pub hovered: Option<usize>,
 }
 
 impl Default for Ring {
     fn default() -> Self {
-        Ring { trim: Live::new([0.0, 0.0]), drawn_for: RefCell::new(None), mock: None }
+        Ring { trim: Live::new([0.0, 0.0]), drawn_for: RefCell::new(None), mock: None, hovered: None }
     }
 }
 
@@ -77,7 +80,7 @@ fn dashes(color: Color) -> Shape {
 
 /// `color-mix(in srgb, <ink> P%, <under>)` as an opaque colour. Rune blends in linear light, which draws a translucent
 /// ink brighter than a browser does; a solid card sits under the ring, so the mix is done in sRGB numbers here.
-fn srgb_mix(ink: Color, under: Color, p: f32) -> Color {
+pub(crate) fn srgb_mix(ink: Color, under: Color, p: f32) -> Color {
     let to = |x: f32| if x <= 0.003_130_8 { x * 12.92 } else { 1.055 * x.powf(1.0 / 2.4) - 0.055 };
     let from = |x: f32| if x <= 0.040_45 { x / 12.92 } else { ((x + 0.055) / 1.055).powf(2.4) };
     let m = |a: f32, b: f32| from(to(a) * p + to(b) * (1.0 - p));
@@ -87,7 +90,8 @@ fn srgb_mix(ink: Color, under: Color, p: f32) -> Color {
 /// The ring and, once the percent is known, "38%". `None` until the harness has reported a call.
 pub fn button(s: &State, t: &Theme) -> Option<El> {
     let context = s.context()?;
-    let compacting = false;
+    let compacting = s.compact_requesting();
+    let open = s.ui.open == Some(Open::Popover("context"));
     let percent = ring::percent(context);
     let tone = ring::tone(percent);
     let amber = ring::amber(percent) && tone != Tone::Danger;
@@ -119,7 +123,6 @@ pub fn button(s: &State, t: &Theme) -> Option<El> {
         .key("context-ring")
         .role("button")
         .label(ring::label(context, compacting))
-        .help(ring::title(context, compacting))
         .h(28.0)
         .min_w(28.0)
         .gap(5.0)
@@ -129,13 +132,23 @@ pub fn button(s: &State, t: &Theme) -> Option<El> {
         .hover_group()
         .cursor(Cursor::Pointer)
         .focus_ring(2.0, 2.0, t.accent)
-        .on_press(|_: &mut State| {}) // the popover is piece H
+        .on_press(|s: &mut State| {
+            s.ring.hovered = None;
+            s.ui.open = Some(Open::Popover("context"));
+        })
         .child(face);
+    // The tooltip is off while the details are open; the button keeps the hover wash and the ink then.
+    if open {
+        b = b.fill(t.wash(6.0));
+    } else {
+        b = b.help(ring::title(context, compacting));
+    }
     if let Some(p) = percent {
         b = b.pl(6.0).pr(7.0);
         let label = text(format!("{p}%")).font(sans(11.5, 500.0, 1.2));
         b = b.child(match ink {
             Some((_, ink)) => label.color(ink),
+            None if open => label.color(t.text),
             None => label.color(t.muted).group_color(t.text),
         });
     }

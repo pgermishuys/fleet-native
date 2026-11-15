@@ -64,6 +64,10 @@ pub struct Row {
     pub archived: bool,
     /// `capabilities.canPrompt`, when the row has capabilities.
     pub can_prompt: Option<bool>,
+    /// `capabilities.canCompact`: only an explicit `false` turns Compact now off.
+    pub can_compact: Option<bool>,
+    /// `capabilities.compactDisabledReason`: what the Compact now button says when it can't.
+    pub compact_disabled_reason: Option<String>,
     /// `selectedAgent`: the agent a prompt that names none goes to; `None` is the harness's default.
     pub selected_agent: Option<String>,
     /// `selectedModel`: the model a prompt that names none gets.
@@ -183,6 +187,13 @@ impl Row {
             checkout_restoring: false,
             archived: text(item, "retentionStatus").as_deref() == Some("archived"),
             can_prompt: item.get("capabilities").and_then(|c| c.get("canPrompt")).and_then(Value::as_bool),
+            can_compact: item.get("capabilities").and_then(|c| c.get("canCompact")).and_then(Value::as_bool),
+            compact_disabled_reason: item
+                .get("capabilities")
+                .and_then(|c| c.get("compactDisabledReason"))
+                .and_then(Value::as_str)
+                .filter(|r| !r.is_empty())
+                .map(str::to_string),
             selected_agent: text(item, "selectedAgent").filter(|a| !a.is_empty()),
             selected_model: item.get("selectedModel").and_then(crate::fleet::catalog::model_reference),
             harness_type: text(item, "harnessType").filter(|h| !h.is_empty()),
