@@ -15,7 +15,10 @@ const FRAME: f64 = 1.0 / 60.0;
 
 /// A file of `bytes` in a folder of its own under the temp folder.
 fn scratch(name: &str, bytes: &[u8]) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("fleet-native-attach-{}-{name}", std::process::id()));
+    // Tests run side by side: a folder per call, or one test's `forget` removes another's file.
+    static SERIAL: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let n = SERIAL.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let dir = std::env::temp_dir().join(format!("fleet-native-attach-{}-{n}-{name}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join(name);
     std::fs::write(&path, bytes).unwrap();
