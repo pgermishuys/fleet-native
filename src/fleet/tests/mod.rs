@@ -489,6 +489,7 @@ mod finder;
 mod history;
 mod instance;
 mod live;
+mod modes;
 mod ordering;
 mod presence;
 mod prompts;

@@ -8,7 +8,7 @@ use crate::composer::draftrefs::RefKind;
 use crate::composer::status::{ComposerStatus, Mode, has_content, mode_of, send_words};
 use crate::icons::*;
 use crate::mock::Session;
-use crate::theme::{Theme, sans};
+use crate::theme::{Theme, mono, sans};
 use crate::{State, interrupt, submit};
 use rune::{Color, Cursor, El, Key, Shadow, TextHighlight, auto_grow, col, el, icon, row, spacer, text, text_input};
 
@@ -54,7 +54,9 @@ fn frame(s: &State, t: &Theme, disabled: bool, mode: Mode) -> El {
     let edge = if mode == Mode::Prompt { t.border } else { t.accent_border(70.0) };
     let placeholder = if mode == Mode::Side { "Ask a follow-up in the side conversation…" } else { "Type a message…" };
     // 14 + one 21px line + 25 is the 60px the empty field measures in Fleet; seven lines is about its 180px maximum.
-    let field = text_input(&s.draft, sans(14.0, 400.0, 1.5))
+    // Shell mode sets the draft in the terminal's type, 13px (row 9.2).
+    let font = if mode == Mode::Shell { mono(13.0, 400.0, 1.5) } else { sans(14.0, 400.0, 1.5) };
+    let field = text_input(&s.draft, font)
         .key("composer")
         .label("Message")
         .placeholder(placeholder, t.muted)
@@ -71,6 +73,10 @@ fn frame(s: &State, t: &Theme, disabled: bool, mode: Mode) -> El {
         // Return is the field's own submit; Ctrl/Cmd+Return is its other choice (steer where Enter queues, queue where
         // it steers). The field takes the key before the frame does, so it is asked here.
         .on_input_key(|s: &mut State, ev: &rune::KeyEvent, tx| {
+            // The history list (ArrowUp in an empty draft) and Esc in shell mode come before the rest (rows 8.2, 8.4, 9.4).
+            if s.history_key(ev, tx) {
+                return true;
+            }
             // The popup, when it is open, takes the arrows, Enter, Tab and Esc first (row 5.13).
             if s.autocomplete_key(ev, tx) {
                 return true;
@@ -149,7 +155,7 @@ fn toolbar(s: &State, t: &Theme, disabled: bool, mode: Mode) -> El {
         }
         b
     };
-    let inactive = disabled || !has_content(&s.draft.text, mode == Mode::Shell, false, 0);
+    let inactive = disabled || !has_content(&s.draft.text, mode == Mode::Shell, s.shell_support_pending(), 0);
     let busy = s.composer_status() == ComposerStatus::Busy;
     let caps = s.caps();
     let (label, title) = send_words(mode, busy, caps.steers_by_default);
@@ -174,22 +180,55 @@ fn toolbar(s: &State, t: &Theme, disabled: bool, mode: Mode) -> El {
     } else {
         send.hover(Color::BLACK.alpha(0.1)).cursor(Cursor::Pointer).on_press_tx(|s: &mut State, tx| submit(s, tx, false))
     };
+    // Shell mode shows its own chip instead of the buttons up to Interrupt; side mode a pill in place of the paperclip.
+    let mut bar = row().w_full().center_y().gap(2.0).pt(4.0).px(8.0).pb(8.0);
+    bar = match mode {
+        Mode::Shell => bar.child(shell_mode(t)),
+        _ => bar
+            .child(if mode == Mode::Side { side_mode(t) } else { attach(t, disabled) })
+            .child(chip("agent", s.agent_chip()))
+            .child(chip("model", s.model_chip()))
+            .children(if disabled { None } else { s.effort_view().map(|v| effort_toggle(t, &v)) }),
+    };
+    bar.child(interrupt_button(t, s.can_interrupt())).child(spacer()).children(crate::view::ring::button(s, t)).children(other).child(send)
+}
+
+/// `.composer-shell-mode`: what a `!` draft does, in place of the pickers.
+fn shell_mode(t: &Theme) -> El {
     row()
-        .w_full()
+        .key("composer-shell-mode")
+        .label("Shell command")
+        .gap(6.0)
+        .px(6.0)
         .center_y()
-        .gap(2.0)
-        .pt(4.0)
+        .shrink()
+        .min_w(0.0)
+        .child(icon(&SQUARE_TERMINAL, 14.0).color(t.accent))
+        .child(text("Shell command").font(sans(12.0, 500.0, 1.5)).color(t.text))
+        .child(
+            text("Runs in the session's folder, no model turn · Esc for a prompt")
+                .font(sans(12.0, 400.0, 1.5))
+                .color(t.muted)
+                .truncate()
+                .shrink()
+                .min_w(0.0),
+        )
+}
+
+/// `.composer-side-mode`: the pill that says the draft goes to the side conversation, not the session.
+fn side_mode(t: &Theme) -> El {
+    row()
+        .key("composer-side-mode")
+        .label("btw")
+        .help("Goes to the side conversation above, not the session. Close it to talk to the session again.")
+        .h(24.0)
         .px(8.0)
-        .pb(8.0)
-        .child(attach(t, disabled))
-        .child(chip("agent", s.agent_chip()))
-        .child(chip("model", s.model_chip()))
-        .children(if mode == Mode::Shell || disabled { None } else { s.effort_view().map(|v| effort_toggle(t, &v)) })
-        .child(interrupt_button(t, s.can_interrupt()))
-        .child(spacer())
-        .children(crate::view::ring::button(s, t))
-        .children(other)
-        .child(send)
+        .gap(5.0)
+        .center_y()
+        .radius(crate::theme::RADIUS_BTN)
+        .fill(t.accent_dim)
+        .child(icon(&MESSAGE_CIRCLE_QUESTION_MARK, 13.0).color(t.accent_text))
+        .child(text("btw").font(sans(12.0, 600.0, 1.5)).color(t.accent_text))
 }
 
 /// A `/btw` question never waits for the turn, so it is offered no Send now (`offerSendNowButton`).

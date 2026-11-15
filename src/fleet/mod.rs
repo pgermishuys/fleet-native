@@ -17,6 +17,7 @@ pub mod instance;
 pub mod interrupted;
 pub mod link;
 pub mod model;
+pub mod modes;
 pub mod prefs;
 pub mod presence;
 pub mod prompts;

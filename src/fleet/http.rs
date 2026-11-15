@@ -299,3 +299,9 @@ pub fn sessions_for_mentions(base: &str) -> Result<Value, String> {
 pub fn command(base: &str, session: &str, body: &Value) -> Result<(u16, Value), String> {
     status_with("POST", base, &format!("/api/sessions/{session}/command"), Some(body))
 }
+
+/// `POST /api/sessions/{id}/shell` `{command}`: run a shell command in the session's folder (202). A refusal is an
+/// answer with a status.
+pub fn shell(base: &str, session: &str, command: &str) -> Result<(u16, Value), String> {
+    status_with("POST", base, &format!("/api/sessions/{session}/shell"), Some(&json!({ "command": command })))
+}
