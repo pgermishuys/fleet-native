@@ -158,7 +158,7 @@ fn the_queue_body_carries_the_kind_the_command_and_the_pick() {
 
 // ─── the list ───────────────────────────────────────────────────────────────
 
-fn click(rt: &mut Runtime<State>, key: &str) {
+pub(super) fn click(rt: &mut Runtime<State>, key: &str) {
     let (x, y) = rt.find(key).unwrap_or_else(|| panic!("no element keyed {key:?}"));
     rt.pointer_move(x, y);
     rt.pointer_down(x, y);
@@ -166,23 +166,23 @@ fn click(rt: &mut Runtime<State>, key: &str) {
     rt.frame(FRAME);
 }
 
-fn press(rt: &mut Runtime<State>, key: Key, mods: Mods) {
+pub(super) fn press(rt: &mut Runtime<State>, key: Key, mods: Mods) {
     rt.key(KeyEvent { key, mods });
     rt.frame(FRAME);
     rt.frame(FRAME);
 }
 
-fn ctrl() -> Mods {
+pub(super) fn ctrl() -> Mods {
     Mods { ctrl: true, ..Mods::default() }
 }
 
-fn typed(rt: &mut Runtime<State>, text: &str) {
+pub(super) fn typed(rt: &mut Runtime<State>, text: &str) {
     click(rt, "composer");
     press(rt, Key::Text(text.into()), Mods::default());
 }
 
 /// The invented demo's open session, with harness `kind` able or not able to steer, working or idle.
-fn mock_app(working: bool, kind: &str, steering: bool, by_default: bool) -> Runtime<State> {
+pub(super) fn mock_app(working: bool, kind: &str, steering: bool, by_default: bool) -> Runtime<State> {
     let mut rt = app();
     let kind = kind.to_string();
     rt.update(move |s, _| {
@@ -449,6 +449,13 @@ fn serve(mut stream: TcpStream, seen: Arc<Mutex<Seen>>) {
         seen.gets += 1;
         let answer = seen.queue.to_string();
         reply(&mut stream, "200 OK", &answer);
+    } else if method == "POST" && path.ends_with("/shell") {
+        let refused = seen.refuse.clone();
+        seen.calls.push((method, path, body));
+        match refused {
+            Some((code, answer)) => reply(&mut stream, &format!("{code} Refused"), &answer.to_string()),
+            None => reply(&mut stream, "202 Accepted", "{}"),
+        }
     } else if method == "POST" && path.ends_with("/queue") {
         let refused = seen.refuse.clone();
         seen.calls.push((method, path, body.clone()));
@@ -488,9 +495,9 @@ fn server(queue: Value, refuse: Option<(u16, Value)>) -> (String, Arc<Mutex<Seen
     (base, seen)
 }
 
-struct Live {
-    rt: Runtime<State>,
-    id: String,
+pub(super) struct Live {
+    pub(super) rt: Runtime<State>,
+    pub(super) id: String,
     jobs: std::sync::mpsc::Receiver<Job>,
     seen: Arc<Mutex<Seen>>,
     kind: String,
@@ -498,7 +505,7 @@ struct Live {
 
 impl Live {
     /// The fixture's first session open on a server, working, on a harness that can steer (`steers_by_default` or not).
-    fn start(queue: Value, refuse: Option<(u16, Value)>, kind: &str, by_default: bool) -> Live {
+    pub(super) fn start(queue: Value, refuse: Option<(u16, Value)>, kind: &str, by_default: bool) -> Live {
         let (base, seen) = server(queue, refuse);
         let (tx, jobs) = channel::<Job>();
         let tx = Mutex::new(tx);
@@ -529,7 +536,7 @@ impl Live {
     }
 
     /// Runs the app until `until` holds.
-    fn wait(&mut self, until: &dyn Fn(&Live) -> bool, what: &str) {
+    pub(super) fn wait(&mut self, until: &dyn Fn(&Live) -> bool, what: &str) {
         let deadline = Instant::now() + Duration::from_secs(20);
         while !until(self) {
             assert!(Instant::now() < deadline, "{what}");
@@ -541,12 +548,12 @@ impl Live {
         }
     }
 
-    fn calls(&self) -> Vec<(String, String, Value)> {
+    pub(super) fn calls(&self) -> Vec<(String, String, Value)> {
         self.seen.lock().unwrap().calls.clone()
     }
 
     /// The list is fetched again behind our back and puts back what the fixture says: say it again.
-    fn working(&mut self) {
+    pub(super) fn working(&mut self) {
         let kind = self.kind.clone();
         self.rt.update(move |s, _| {
             s.projects[0].sessions[0].status = Status::Working;

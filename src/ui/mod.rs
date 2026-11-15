@@ -124,6 +124,13 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
     if let Some(lightbox) = &s.images.lightbox {
         layer.extend(crate::view::image::lightbox(s, t, lightbox));
     }
+    // The message history list sits on the frame's top edge, as wide as it (row 8.3).
+    if s.ui.open.is_none()
+        && s.pickers.composer_w > 0.0
+        && let Some(list) = crate::view::history::list(s, t, s.pickers.composer_w)
+    {
+        layer.push(list.anchored_fit("composer-frame", rune::Side::Top, rune::Align::Start, 0.0));
+    }
     if let Some(toast) = &s.ui.toast {
         layer.push(
             rune::col()

@@ -120,6 +120,8 @@ impl SessionCatalog {
 pub struct Pickers {
     catalogs: HashMap<String, SessionCatalog>,
     pub harnesses: Vec<HarnessInfo>,
+    /// The harness list has arrived: until then a `!` draft is held, not sent as a prompt (`shellSupportPending`).
+    pub harnesses_loaded: bool,
     pub prefs: Prefs,
     /// Usage limits: the providers' and each harness's (`fleet::usage`).
     pub usage: super::usage::Usage,
@@ -446,6 +448,7 @@ impl State {
         link.off_thread(http::harnesses, |s, tx, result| {
             if let Ok(body) = result {
                 s.pickers.harnesses = parse_harnesses(&body);
+                s.pickers.harnesses_loaded = true;
                 s.settle_pickers(tx);
             }
         });

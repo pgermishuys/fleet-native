@@ -128,6 +128,13 @@ pub struct State {
     pub aborting: Option<String>,
     /// The side conversation is open (component 15 sets it; only a scene does now): rows 1.5 and 2.7.
     pub side_open: bool,
+    /// The side conversation of the open session, if it has one, and what the last frame saw of it (its id, and whether it was
+    /// open): when it opens or minimizes the text area and the put-away draft swap (row 9.6). Component 15 sets these.
+    pub side_id: Option<String>,
+    pub side_seen: Option<(String, bool)>,
+    /// What takes a side question until component 15's panel does (row 9.5), and the questions it was given.
+    pub side_panel: fleet::modes::SidePanel,
+    pub side_asked: Vec<fleet::modes::SideAsk>,
     /// The context ring's arc and, for scenes, a context to draw (`view::ring`).
     pub ring: view::ring::Ring,
     /// Compact now: the requests in flight and why the last one was refused (per session).
@@ -225,6 +232,10 @@ impl Default for State {
             optimistic: None,
             aborting: None,
             side_open: false,
+            side_id: None,
+            side_seen: None,
+            side_panel: Default::default(),
+            side_asked: Vec::new(),
             ring: Default::default(),
             compact: Default::default(),
             ui: ui::Ui::default(),
@@ -370,6 +381,30 @@ impl State {
                 self.open = (0, 2);
                 self.side_open = true;
             }
+            // The side mode with a question typed, and shell mode on a harness that runs commands (row 9.1).
+            "side-typed" => {
+                self.show_composer("side");
+                self.show_draft("Which file sets the cache limit?");
+            }
+            "shell" => {
+                self.show_shell_harness();
+                self.show_draft("!ls src");
+            }
+            // The last five messages sent, the newest highlighted (row 8.3).
+            "history" => {
+                self.open = (0, 2);
+                let owner = self.draft_owner().unwrap_or_default();
+                for text in [
+                    "Add a test for the rename step too.",
+                    "Run the cache tests again.",
+                    "Summarise what changed in a short list.",
+                    "Why does the pager skip the last page when the count divides evenly?",
+                    "Keep the 200 MB limit.",
+                ] {
+                    self.drafts.push_history(&owner, text, 0.0);
+                }
+                self.drafts.history_mut(&owner).open();
+            }
             // The effort toggle (a model with levels, the third picked) and the pickers' menus.
             "effort" => {
                 self.open = (0, 2);
@@ -425,6 +460,18 @@ impl State {
             }
             _ => {}
         }
+    }
+
+    /// A session whose harness runs shell commands (`supportsShellCommands`).
+    fn show_shell_harness(&mut self) {
+        self.open = (0, 2);
+        self.projects[0].sessions[2].row.harness_type = Some("opencode".into());
+        self.pickers.harnesses = vec![composer::status::HarnessInfo {
+            kind: "opencode".into(),
+            supports_shell_commands: true,
+            supports_side_conversations: true,
+            ..Default::default()
+        }];
     }
 
     /// The queue scenes: the working session, its harness and what it waits for.
@@ -499,6 +546,7 @@ impl State {
         } else if self.drafts.text_of(&owner) != self.draft.text {
             self.drafts.write(&composer::drafts::session_draft_key(&owner), &self.draft.text, now);
         }
+        self.keep_side_drafts(&owner, now);
         self.keep_caret_outside_references();
         self.keep_picks(&owner, now);
         if self.drafts.save_due(now) {
@@ -513,10 +561,10 @@ impl State {
 
 /// Enter, Ctrl/Cmd+Enter and the Send button (`handleSend`, row 2.10): the draft goes where `route_draft` says.
 /// `modifier` is the other choice of Enter: steer where Enter queues, queue where it steers. A turn that runs takes a
-/// prompt, a slash command or a `!` command into the queue (or a prompt into the turn, when the harness steers); what
-/// runs a command or a shell command at once is built in pieces K and M, so until then those go as the text they are.
+/// prompt, a slash command or a `!` command into the queue (or a prompt into the turn, when the harness steers); a command
+/// or a shell command runs at once.
 pub fn submit(s: &mut State, tx: &mut Tx, modifier: bool) {
-    if s.composer_disabled() {
+    if s.composer_disabled() || s.shell_support_pending() {
         return;
     }
     let caps = s.caps();
@@ -528,15 +576,16 @@ pub fn submit(s: &mut State, tx: &mut Tx, modifier: bool) {
     };
     match composer::route::route_draft(&s.draft.text, &cx) {
         composer::route::Route::Empty => {}
-        // Component 15 fills this in; the draft stays, as the kit's `waiting()` entries do.
-        composer::route::Route::Side { .. } => {
-            s.toast("The side conversation isn't in the native app yet (component 15 of the port).".into(), None, 4.0, tx)
-        }
+        // The panel is component 15's: until it is built the draft stays, as the kit's `waiting()` entries do.
+        composer::route::Route::Side { question } => s.ask_side_question(tx, question),
         composer::route::Route::Prompt { queue: true, .. } => queue_draft(s, tx, fleet::queue::ItemKind::Prompt, None),
         composer::route::Route::Command { command, args, queue: true } => {
             queue_draft(s, tx, fleet::queue::ItemKind::Command, Some((command, args)))
         }
+        // An empty command (`!` and spaces) does nothing (row 9.3).
+        composer::route::Route::Shell { command, .. } if command.is_empty() => {}
         composer::route::Route::Shell { queue: true, .. } => queue_draft(s, tx, fleet::queue::ItemKind::Shell, None),
+        composer::route::Route::Shell { command, queue: false } => s.run_shell(tx, command),
         // A slash command runs as a command (piece K). Without a server the canned reply stands in, as for a prompt.
         composer::route::Route::Command { command, args, queue: false } if s.link.is_some() && s.open_id().is_some() => {
             s.send_command(tx, command, args);
@@ -1124,6 +1173,21 @@ pub fn spec() -> AppSpec<State> {
                 s.show_composer("long")
             }),
             ("composer-side", |s| s.show_composer("side")),
+            ("composer-history", |s| s.show_composer("history")),
+            ("composer-history-light", |s| {
+                s.dark = Some(false);
+                s.show_composer("history")
+            }),
+            ("composer-shell", |s| s.show_composer("shell")),
+            ("composer-shell-light", |s| {
+                s.dark = Some(false);
+                s.show_composer("shell")
+            }),
+            ("composer-side-typed", |s| s.show_composer("side-typed")),
+            ("composer-side-typed-light", |s| {
+                s.dark = Some(false);
+                s.show_composer("side-typed")
+            }),
             ("composer-side-light", |s| {
                 s.dark = Some(false);
                 s.show_composer("side")
