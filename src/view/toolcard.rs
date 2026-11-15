@@ -6,6 +6,7 @@
 use super::diff::diff_view;
 use crate::State;
 use crate::conv::card::{ToolBody, shows_diff};
+use crate::conv::find::{Marks, plain_ranges};
 use crate::conv::output::{Ink, Look, OutputSpan, ParsedOutput, Window, count, parse_tool_output_cached, thousands};
 use crate::conv::tools::is_write_call;
 use crate::icons::*;
@@ -98,7 +99,7 @@ fn span_of(t: &Theme, run: &OutputSpan, start: usize, end: usize) -> Option<Span
 }
 
 /// The last `window.shown` lines as one text with a span per styled run.
-fn box_text(t: &Theme, parsed: &ParsedOutput, window: Window) -> El {
+fn box_text(t: &Theme, parsed: &ParsedOutput, window: Window, marks: Option<&Marks>) -> El {
     let from = window.total - window.shown;
     let mut content = String::new();
     let mut spans = Vec::new();
@@ -112,7 +113,15 @@ fn box_text(t: &Theme, parsed: &ParsedOutput, window: Window) -> El {
             spans.extend(span_of(t, run, start, content.len()));
         }
     }
-    rich(content, spans).font(mono(12.0, 400.0, 1.55)).color(t.muted).selectable(true)
+    // Find's marks over what the box draws. The current match counts from the top of the whole output, so those in the
+    // lines above the box are left out of the numbering.
+    let washes = marks.map_or_else(Vec::new, |m| {
+        let above =
+            parsed.lines[..from].iter().map(|l| l.iter().map(|r| r.text.as_str()).collect::<String>()).collect::<Vec<_>>().join("\n");
+        let before = plain_ranges(&above, &m.query).len();
+        super::marks::highlights(t, &plain_ranges(&content, &m.query), m.current.and_then(|c| c.checked_sub(before)))
+    });
+    rich(content, spans).font(mono(12.0, 400.0, 1.55)).color(t.muted).selectable(true).text_highlights(washes)
 }
 
 /// The grey text button above and below the box ("Show 188 earlier lines").
@@ -186,7 +195,7 @@ pub fn output_body(t: &Theme, s: &State, id: &str, body: &ToolBody) -> El {
         .border(1.0, t.border)
         .border_layout()
         .fill(t.main_bg.alpha(0.6));
-    inner = inner.child(box_text(t, &parsed, window));
+    inner = inner.child(box_text(t, &parsed, window, s.find_marks(id, true).as_ref()));
     if expanded {
         inner = inner.max_h(EXPANDED_MAX_H).scroll(ScrollSpec { stick_bottom: true });
     }

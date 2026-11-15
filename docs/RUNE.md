@@ -612,3 +612,12 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 - **A new element fades in**, so a `Runtime` click in the first frames after it appears misses it (`presented` shows an opacity under 1): run about 30 frames before clicking a bar that was just drawn.
 - Tests that write files must not share a folder by name: tests run side by side in one process, so two tests writing `build-output.log` under the same folder delete each other's file. A counter in the folder name fixes it.
 - A body that isn't JSON needs `ureq`'s `send(Vec<u8>)` with the `content-type` set by hand, and `http_status_as_error(false)` to read the server's reason from a 4xx.
+
+
+## Component 3, piece Q (find marks)
+
+- **`Markdown::highlights(markdown::find(src, query, Case::Insensitive))` marks the drawn text** across bold, code, lists, tables and code blocks with no layout change; the colours are `MarkdownStyle::highlight_*` and `highlight_current_*` (set the ring to `None` for Fleet's look), and `Highlight::current().key(k)` makes the current mark reachable by `tx.scroll_center(k)`.
+- **`El::text_highlights([TextHighlight::new(bytes, bg).color(fg).key(k)])` works on a `rich` text with its own colour spans**, so tool output keeps its terminal colours under the washes. The corner radius isn't settable.
+- **A scroll to a mark must wait for its row**: `scroll_center(message)` first builds a virtual row; the mark's key exists only after, so the second scroll is timed (250 ms) from `poll`.
+- **`memo` keys are tuples of at most 12 elements** (`Hash`): nest the extras.
+- **Markdown's find counts per rendered block and ignores markup**, so it can disagree with a count of the source; use it for what is drawn, and `locate` clamps.

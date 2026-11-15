@@ -297,7 +297,7 @@ pub fn stream(t: &Theme, session: &Session, plan: &FoldPlan, partial: bool, olde
                     s.lists().models.len(),
                     fold_key(kept),
                     (failure, agent_row::key(s, msg), image::key(s, &msg.parts), browser_steps::key(s, &msg.parts)),
-                    s.is_shown(&msg.id),
+                    (s.is_shown(&msg.id), s.find_row_key(&msg.id)),
                 ),
                 || message_row(&theme, &md, msg, (kept, after_tool), streaming, s, (frame.0, frame.1)),
             )
@@ -647,10 +647,14 @@ pub fn is_image(part: &Part) -> bool {
 fn part_view(t: &Theme, s: &State, md: &Styles, msg: &Message, part: &Part, live: bool) -> El {
     match (part, msg.role) {
         // The notice's own words are the helper's: no bubble, an assistant-side message under its chip.
-        (Part::Text { id, text: body }, Role::User) if msg.meta.background.is_some() => prose::prose(&md.prose, id, body, false),
+        (Part::Text { id, text: body }, Role::User) if msg.meta.background.is_some() => {
+            prose::prose_marked(&md.prose, id, body, false, s.find_marks(id, false).as_ref())
+        }
         (Part::Text { id, text: body }, Role::User) => message::user_bubble(t, s, md, msg, id, body),
         (Part::Text { id, text: body }, Role::Shell) => message::user_bubble(t, s, md, msg, id, body),
-        (Part::Text { id, text: body }, Role::Assistant) => prose::prose(&md.prose, id, body, live),
+        (Part::Text { id, text: body }, Role::Assistant) => {
+            prose::prose_marked(&md.prose, id, body, live, s.find_marks(id, false).as_ref())
+        }
         (Part::Tool { .. }, _) => toolrow::tool_entry(t, s, part),
         (Part::Reasoning { id, text: body, summary }, _) => {
             reasoning::reasoning_row(t, s, &md.reasoning, id, body, summary.as_deref(), live)

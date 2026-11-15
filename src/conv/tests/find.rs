@@ -179,3 +179,27 @@ fn closing_keeps_the_query_and_scope_and_drops_the_hits() {
     assert!(!find.open && find.hits.is_empty());
     assert_eq!((find.query.text.as_str(), find.scope), ("retry", Scope::Tools));
 }
+
+#[test]
+fn plain_ranges_ignore_case_do_not_overlap_and_stay_on_letters() {
+    use crate::conv::find::plain_ranges;
+    assert_eq!(plain_ranges("Retry, retry RETRY", "retry"), vec![0..5, 7..12, 13..18]);
+    assert_eq!(plain_ranges("aaaa", "aa"), vec![0..2, 2..4]);
+    // A capital whose lowercase is longer (İ) still ends on a letter of the text.
+    let text = "İx";
+    let r = plain_ranges(text, "x");
+    assert_eq!(&text[r[0].clone()], "x");
+    assert!(plain_ranges("abc", "").is_empty() && plain_ranges("", "a").is_empty());
+}
+
+#[test]
+fn locate_numbers_the_marks_across_blocks_and_clamps_to_the_last() {
+    use crate::conv::find::locate;
+    assert_eq!(locate(&[2, 0, 3], 0), Some((0, 0)));
+    assert_eq!(locate(&[2, 0, 3], 2), Some((2, 0)));
+    assert_eq!(locate(&[2, 0, 3], 4), Some((2, 2)));
+    // The count read the source and the marks the drawn text: more hits than marks lands on the last mark.
+    assert_eq!(locate(&[2, 0, 3], 9), Some((2, 2)));
+    assert_eq!(locate(&[], 0), None);
+    assert_eq!(locate(&[0], 0), None);
+}
