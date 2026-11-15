@@ -47,7 +47,7 @@ pub enum Case {
 
 impl State {
     pub fn show_failure(&mut self, case: Case, details_open: bool) {
-        self.open = (0, 0);
+        self.set_open((0, 0));
         let error = |name: &str, message: &str, kind: Option<&str>| json!({"name": name, "message": message, "isRetryable": kind.is_some(), "kind": kind});
         let ask = user("u1", 1_000, "Add cursor paging to the order list.");
         let messages = match case {

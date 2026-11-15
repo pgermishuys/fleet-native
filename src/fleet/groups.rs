@@ -60,6 +60,8 @@ pub struct Listing {
     pub parent: Option<String>,
     /// `lineageDetachedAt` is set: the user moved the session out of its parent.
     pub detached: bool,
+    /// `workflowRunId`: the steps of one run move between projects together.
+    pub workflow_run_id: Option<String>,
 }
 
 impl Listing {
@@ -75,6 +77,7 @@ impl Listing {
             spawn_kind: text("spawnKind"),
             parent: text("parentSessionId"),
             detached: row.get("lineageDetachedAt").is_some_and(|v| !v.is_null()),
+            workflow_run_id: text("workflowRunId"),
         }
     }
 }

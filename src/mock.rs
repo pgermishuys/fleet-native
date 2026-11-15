@@ -277,8 +277,11 @@ pub fn projects() -> Vec<Project> {
         },
     ];
     // Each invented session knows its project the way a server row does, so the filter matches on it.
-    for project in &mut projects {
-        for session in &mut project.sessions {
+    for (p, project) in projects.iter_mut().enumerate() {
+        for (i, session) in project.sessions.iter_mut().enumerate() {
+            // The invented sessions get ids of their own so the open one is chosen by id like a server's; the prefix
+            // keeps them from ever being sent to a server (`store::is_invented`).
+            session.id = crate::fleet::store::invented_id(p, i);
             session.listing.project_id = Some(project.id.clone());
             session.listing.project_name = Some(project.name.clone());
         }

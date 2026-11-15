@@ -412,7 +412,7 @@ fn session_level(s: &State) -> Vec<Command> {
                     s.open_session(p, i, tx);
                 }),
             );
-            cmd.disabled = s.open == (p, i);
+            cmd.disabled = s.open_at() == (p, i);
             out.push(cmd);
         }
     }

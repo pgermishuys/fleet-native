@@ -50,7 +50,10 @@ impl State {
         let title = if session.title.trim().is_empty() { "Untitled session".to_string() } else { session.title.clone() };
         let harness = session.row.harness_type.clone().filter(|h| !h.is_empty());
         let directory = Some(self.project().path.clone()).filter(|p| !p.is_empty());
-        let id = self.open_id().unwrap_or_else(|| format!("mock.{}.{}", self.open.0, self.open.1));
+        let id = self.open_id().unwrap_or_else(|| match &self.route {
+            super::store::Route::Session(id) => id.clone(),
+            super::store::Route::None => String::new(),
+        });
         self.export.generation += 1;
         self.export.dialog = Some(ExportDialog::new(id, title, harness, directory, self.export.generation));
         self.export_load();

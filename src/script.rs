@@ -43,7 +43,7 @@ impl State {
     pub fn tick_script(&mut self) -> bool {
         let Some(at) = self.long_session() else { return false };
         // Only while a person is looking at it, and not on a server's sessions.
-        if self.link.is_some() || self.open != at {
+        if self.link.is_some() || self.open_at() != at {
             return false;
         }
         let Some(script) = &mut self.script else {
@@ -74,7 +74,7 @@ impl State {
     /// Opens the long conversation with its reply held back, so a picture shows it at rest.
     pub fn open_long(&mut self) {
         if let Some(at) = self.long_session() {
-            self.open = at;
+            self.set_open(at);
             self.projects[at.0].open = true;
             self.script_next = f64::INFINITY;
         }
@@ -90,7 +90,7 @@ impl State {
     /// text is fixed, not read off the clock, so the picture is the same on every run.
     pub fn show_streaming(&mut self, shown: usize) {
         let Some(at) = self.long_session() else { return };
-        self.open = at;
+        self.set_open(at);
         self.projects[at.0].open = true;
         self.start_script(at);
         self.script = None;

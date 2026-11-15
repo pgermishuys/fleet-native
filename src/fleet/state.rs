@@ -9,6 +9,7 @@ use super::prompts::{self, Confirm, PromptStatus};
 use super::reducer;
 use super::rows::RowPatch;
 use super::sessions;
+use super::store;
 use super::view;
 use super::work::to_items;
 use crate::State;
@@ -63,12 +64,15 @@ impl State {
 
     /// The id of the open session on the server; `None` for the invented ones.
     pub fn open_id(&self) -> Option<String> {
-        Some(self.projects.get(self.open.0)?.sessions.get(self.open.1)?.id.clone()).filter(|id| !id.is_empty())
+        match &self.route {
+            super::store::Route::Session(id) if !id.is_empty() && !super::store::is_invented(id) => Some(id.clone()),
+            _ => None,
+        }
     }
 
     /// Opens a session in the list and, on a server, asks it for the conversation.
     pub fn open_session(&mut self, project: usize, session: usize, tx: &mut Tx) {
-        self.open = (project, session);
+        self.set_open((project, session));
         // The text area shows the new session's draft at once, not a frame later.
         self.keep_drafts(self.clock, tx);
         if let Some(p) = self.projects.get_mut(project) {
@@ -129,17 +133,48 @@ impl State {
         }
     }
 
+    /// Whether the list holds any row.
+    pub fn has_rows(&self) -> bool {
+        self.projects.iter().any(|p| !p.sessions.is_empty())
+    }
+
+    /// A list request failed. Only the newest request's failure counts; the rows stay (`useSessions`).
+    pub fn on_list_failed(&mut self, request: u64, why: String) {
+        if self.store.finish(request, Err(why.clone())) {
+            self.notice = Some(format!("Couldn't load the session list: {why}"));
+        }
+    }
+
     /// The sessions arrived with the projects read beside them: groups them under the projects (the last good answer when
-    /// the read failed) and shows the result.
+    /// the read failed) and shows the result, unless a newer request has overtaken this one or nothing changed.
     pub fn on_sessions(
         &mut self,
+        request: u64,
         listed: Vec<crate::mock::Session>,
         projects: Result<Vec<super::groups::ProjectInfo>, String>,
         tx: &mut Tx,
     ) {
+        if !self.store.finish(request, Ok(())) {
+            return;
+        }
+        if self.notice.as_deref().is_some_and(|n| n.starts_with("Couldn't load the session list")) {
+            self.notice = None;
+        }
+        let before = self.project_load.projects.clone();
         if let Some(request) = self.project_load.begin() {
             self.project_load.finish(request, projects);
         }
+        let same = !store::changed(&self.projects, &self.store.shown, &listed) && before == self.project_load.projects;
+        if same {
+            // Nothing the list draws changed, so nothing is rebuilt; the ages still move on.
+            for s in self.projects.iter_mut().flat_map(|p| p.sessions.iter_mut()) {
+                if let Some(n) = listed.iter().find(|n| n.id == s.id) {
+                    (s.age, s.dim) = (n.age.clone(), n.dim);
+                }
+            }
+            return;
+        }
+        self.store.shown = listed.iter().map(|s| s.id.clone()).collect();
         let grouped = sessions::group_sessions(listed, &self.project_load.projects);
         self.on_list(grouped, tx);
     }
@@ -149,7 +184,6 @@ impl State {
         if self.notice.as_deref().is_some_and(|n| n.starts_with("Couldn't load the session list")) {
             self.notice = None;
         }
-        let open_id = self.open_id();
         for project in &mut projects {
             let same = |p: &&Project| if project.id.is_empty() { p.name == project.name } else { p.id == project.id };
             if let Some(old) = self.projects.iter().find(same) {
@@ -159,18 +193,11 @@ impl State {
         // The open session's conversation isn't in the list; carry it over.
         let old_messages = self.session_mut().map(|s| std::mem::take(&mut s.messages)).unwrap_or_default();
         self.projects = projects;
-        let found = open_id.as_ref().and_then(|id| {
-            self.projects.iter().enumerate().find_map(|(p, project)| project.sessions.iter().position(|s| &s.id == id).map(|i| (p, i)))
-        });
-        match found {
-            Some(at) => {
-                self.open = at;
-                if let Some(session) = self.session_mut() {
-                    session.messages = old_messages;
-                }
-            }
+        // The route names the session, so a reorder, a filter or a pin leaves it open wherever it went.
+        match self.session_mut() {
+            Some(session) => session.messages = old_messages,
             None => {
-                self.open = (0, 0);
+                self.route = store::Route::None;
                 self.stream = None;
                 self.stream_of = None;
                 if !self.projects.is_empty() {
@@ -387,7 +414,7 @@ impl State {
         let folded = fold_compaction_summaries(&stream.messages);
         let shown: Vec<&Msg> = stream.messages.iter().filter(|m| !folded.hidden.contains(&m.id)).collect();
         let summary_of = |m: &Msg| folded.summaries.get(&m.id).map(String::as_str);
-        let (p, i) = self.open;
+        let (p, i) = self.open_at();
         let sent = self.projects.get(p).and_then(|p| p.sessions.get(i)).map(|s| s.id.clone()).unwrap_or_default();
         // The prompts the conversation doesn't hold yet, after the delivered messages (`mergeMessagesByTimestamp`).
         let optimistic: Vec<Message> = self
@@ -516,12 +543,12 @@ impl State {
     /// A scene: the harness was unavailable, so the snapshot is the cached one (`isPartial`).
     pub fn show_partial(&mut self) {
         // No conversation yet, so the banner at the top of the scroll is in view.
-        self.open = (usize::MAX, 0);
+        self.set_open((usize::MAX, 0));
         self.stream = Some(reducer::create_state(&serde_json::json!({"messages": [], "isPartial": true})));
     }
 
     pub(crate) fn session_mut(&mut self) -> Option<&mut crate::mock::Session> {
-        let (p, i) = self.open;
+        let (p, i) = self.open_at();
         self.projects.get_mut(p)?.sessions.get_mut(i)
     }
 
@@ -548,7 +575,7 @@ impl State {
     /// A scene: a long conversation whose snapshot says there is more before it (`hasMore`), in the state asked for.
     pub fn show_older(&mut self, older: Older) {
         // No conversation under it, so the line at the top of the scroll is in view.
-        self.open = (usize::MAX, 0);
+        self.set_open((usize::MAX, 0));
         let stream = self.stream.get_or_insert_with(|| reducer::create_state(&serde_json::json!({"messages": []})));
         {
             stream.has_more = true;

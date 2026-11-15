@@ -167,17 +167,24 @@ pub fn now_ms() -> i64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_millis() as i64)
 }
 
+/// Asks for the session list. The request is numbered on the UI thread, so an answer that a newer fetch has overtaken is
+/// dropped when it arrives (`useSessions`' request id).
 fn fetch_list(base: &str, post: &Post) {
     let (base, post) = (base.to_string(), post.clone());
-    std::thread::spawn(move || match http::sessions(&base) {
-        Ok(rows) => {
-            let listed = sessions::parse_sessions(&rows, now_ms());
-            // Read with every list so a project's rename, move or delete shows; a failure keeps the last good answer
-            // (`useProjects`).
-            let projects = http::projects(&base).map(|body| groups::parse_projects(&body));
-            post.update(move |s, tx| s.on_sessions(listed, projects, tx));
-        }
-        Err(e) => post.update(move |s, _| s.notice = Some(format!("Couldn't load the session list: {e}"))),
+    let again = post.clone();
+    again.update(move |s, _| {
+        let retention = s.store.retention;
+        let request = s.store.begin(s.has_rows());
+        std::thread::spawn(move || match http::sessions(&base, retention) {
+            Ok(rows) => {
+                let listed = sessions::parse_sessions(&rows, now_ms());
+                // Read with every list so a project's rename, move or delete shows; a failure keeps the last good answer
+                // (`useProjects`).
+                let projects = http::projects(&base).map(|body| groups::parse_projects(&body));
+                post.update(move |s, tx| s.on_sessions(request, listed, projects, tx));
+            }
+            Err(e) => post.update(move |s, _| s.on_list_failed(request, e)),
+        });
     });
 }
 

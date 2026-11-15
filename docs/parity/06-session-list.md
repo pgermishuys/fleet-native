@@ -58,6 +58,19 @@ Open or different, on purpose: 1.33 (folded projects while filtering) is unchang
 ![Fleet's own client, the list (dark)](../../shots/parity/06-session-list/piece-a/fleet-dark.png)
 ![Native, same Fleet (dark)](../../shots/parity/06-session-list/piece-a/native-dark.png)
 
+## Piece B, built (15 November 2026)
+
+The sessions store and the open session by id, in `src/fleet/store.rs` (pure) with tests in `src/fleet/tests/store.rs`. Done (rows in `### 6.`): **6.1** the list request is `limit=100&offset=0` with `retentionStatus` for archived and all (`list_path`); **6.3** a poll that says the same thing rebuilds nothing (`store::changed`; only the ages move on); **6.4** a request numbered on the UI thread, a stale answer or failure is dropped (`SessionStore::begin/finish`); **6.5** `is_loading` (first fetch, nothing held) and `is_refreshing`, `error`; **6.9** `error_text` (`error`, `detail`, `title`, the body, `HTTP <status>`), used by `http::sessions`; **6.11** `upsert` (new at the top, known updated in place, conversation kept) and `remove` (clears the route); **6.13** `list_loaded`, `session_by_id`, `elsewhere` (20 newest); **6.14** `patch` (kept entry first, unknown id does nothing), `patch_project` (a workflow run's steps move together, the caller groups again).
+
+Selection: `State.open: (usize, usize)` is gone. `State.route: Route` names the open session by id; `State::open_at()` finds where it is now, `set_open((p, i))` / `set_session_id` set it. The invented sessions have ids `mock.<p>.<i>` (`store::invented_id`), which are never sent to a server (`open_id()` is `None` for them). A refetch, a reorder or a project move leaves the same session open (pictures below).
+
+Open or different: `changed` compares what the row holds; `archivedAt`, `runningWorkCount` and `progress` join it when pieces D and I add them. 6.12 (state overrides) is piece I's with the archive queue. `elsewhere` has no caller until component 17. The store lives in `store.rs`, not `sessions.rs`, to keep parsing apart from state. `Listing` gained `workflow_run_id`. Fleet's `useSessions` page and poll timer are not ported: the list never pages (6.1) and `refresh::Refresh` already polls.
+
+Pictures, one scratch Fleet v0.72.0: "Add invoice export" open in Docs site; the session is moved to Billing API on the server and the list refetches by itself; the same session stays open.
+
+![before (dark)](../../shots/parity/06-session-list/piece-b/native-before-dark.png)
+![after (dark)](../../shots/parity/06-session-list/piece-b/native-after-dark.png)
+
 ## What "done" means
 
 1. The list is Fleet's: projects from `GET /api/projects` in their own order (Pinned first,

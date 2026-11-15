@@ -125,7 +125,7 @@ fn a_snapshot_after_a_reconnect_rebuilds_only_what_changed() {
         _ => panic!("not text"),
     };
     for at in 0..4 {
-        let (p, i) = rt.state.open;
+        let (p, i) = rt.state.open_at();
         if let Part::Text { id, .. } = &mut rt.state.projects[p].sessions[i].messages[at].parts[0] {
             *id = "kept".into();
         }

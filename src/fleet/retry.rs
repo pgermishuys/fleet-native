@@ -97,7 +97,7 @@ impl State {
         self.retry_acts.insert(id.clone(), Act { busy: true, error: None });
         let Some(link) = &self.link else {
             // No server (a scene or the mock data): the retry is simply taken from the row.
-            let (p, i) = self.open;
+            let (p, i) = self.open_at();
             if let Some(session) = self.projects.get_mut(p).and_then(|p| p.sessions.get_mut(i)) {
                 session.row.scheduled_retry = None;
             }

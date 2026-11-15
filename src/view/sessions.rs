@@ -133,7 +133,7 @@ fn project_header(t: &Theme, p: usize, project: &Project, count: usize) -> El {
 }
 
 fn session_row(s: &State, t: &Theme, p: usize, i: usize, session: &Session) -> El {
-    let active = s.open == (p, i);
+    let active = s.open_at() == (p, i);
     // Fleet dims a row that has sat idle for a day (55%) or three (40%); the open one never dims.
     let ink = if active { t.text } else { t.text.alpha(0.86 * session.dim) };
     let glyph = match session.status {

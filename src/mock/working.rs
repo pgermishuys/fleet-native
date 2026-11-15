@@ -46,7 +46,7 @@ fn minutes(n: i64) -> i64 {
 
 impl State {
     fn show_stream(&mut self, messages: Vec<Value>, status: Status, activity: &str) {
-        self.open = (0, 0);
+        self.set_open((0, 0));
         let state = reducer::create_state(&json!({"session": {}, "messages": messages, "delegations": [], "activityStatus": activity}));
         if let Some(session) = self.projects.first_mut().and_then(|p| p.sessions.first_mut()) {
             session.status = status;
