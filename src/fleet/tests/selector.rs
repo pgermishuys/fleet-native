@@ -268,3 +268,23 @@ fn a_long_list_says_how_many_rows_run_on_below() {
     rt.frame(FRAME);
     assert!(rt.state.ui.sel.more_below(row_count(&rt, "model")) < first);
 }
+
+// use-session-queue: "lists a model queued with as recent" (and the same for a prompt sent with one, `recordRecent`)
+#[test]
+fn a_model_sent_with_is_listed_as_recent_once() {
+    use crate::fleet::http::Pick;
+    let mut rt = app();
+    let pick = Pick { model: Some(("anthropic".into(), "opus-5-5".into())), ..Pick::default() };
+    rt.update(move |s, _| {
+        s.record_recent_model(&pick);
+        // A second send with the same model at the front changes nothing.
+        s.record_recent_model(&pick);
+        let none = Pick::default();
+        s.record_recent_model(&none);
+    });
+    let picker = ModelPicker::parse(rt.state.pickers.prefs.get(PREFERENCE_KEY).unwrap());
+    assert_eq!(picker.recent, [model_picker_key("opencode", "anthropic", "opus-5-5")]);
+    rt.frame(FRAME);
+    click(&mut rt, "model");
+    assert_eq!(titles(&rt, "model"), ["Recent", "All models"]);
+}

@@ -252,6 +252,12 @@ impl State {
         if let Some(edit) = out.edit {
             self.apply_autocomplete(edit, tx);
         }
+        // `scrollIntoView({block: "nearest"})` on the highlighted row (row 5.11).
+        if matches!(key, Key::Down | Key::Up)
+            && let Some(i) = self.with_autocomplete(|engine, ctx| engine.selected_index(ctx))
+        {
+            tx.scroll_into_view_in("autocomplete-scroll", format!("autocomplete-row-{i}"));
+        }
         if out.consumed || out.swallowed {
             return true;
         }

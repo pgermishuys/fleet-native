@@ -298,6 +298,7 @@ impl State {
         }
         self.add_references(&mut pick, text);
         self.note_pick_on_row(&pick);
+        self.record_recent_model(&pick);
         if let Some(link) = &self.link {
             link.send_prompt(session, &correlation_id, text.trim(), pick);
         }

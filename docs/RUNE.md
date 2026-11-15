@@ -626,3 +626,8 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 
 - Nothing new about Rune: the builder is plain logic. Its scene (`export-markdown`) is one `text` in a scroll box, set in `mono(10.5, 400, 14/10.5)` to match the dialog's Source tab. A `text` keeps `\n` and blank lines as written, so the file draws as it is written.
 - The standard library can't read the machine's time zone; `conv::time::local_offset_secs` (Unix only) is what the export dialog (piece S) should pass as `offset_secs`.
+## The composer's sweep (component 5, piece P)
+
+- `Tx::scroll_into_view_in(scroller, row)` needs the row's key from the previous frame; keying every popup row by index (`autocomplete-row-{i}`) is enough, also when the arrows wrap.
+- A headless `Runtime` can drive a live server: give the `Link` a `Post` that sends each job down a channel, and `rt.update(job)` them between frames (`fleet::tests::live::live_composer`). Type with `Key::Text`, send with `Key::Enter`, Ctrl+Enter with `Mods { ctrl: true, .. }`.
+- A menu with more than eight models from several providers is grouped, so `model-pop-item{N}` is the Nth displayed row, not the Nth model: pick through the filter (type, Enter) in tests that must not depend on order.

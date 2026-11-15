@@ -196,3 +196,27 @@ fn counts_the_rows_that_run_on_below_the_visible_part() {
     assert_eq!(more_below(&rows, 160.0), 0);
     assert_eq!(more_below(&rows, 60.0), 2);
 }
+
+// AgentModelSelectors.test.ts: "tell HydraFusion's cost note under its entry and under a Default that is HydraFusion"
+#[test]
+fn tell_hydrafusions_cost_note_under_its_entry_and_under_a_default_that_is_hydrafusion() {
+    use super::choice::HYDRAFUSION_NOTE;
+    let mut all = models();
+    all.push(ModelOption::new("copilot", "Copilot", "hydrafusion", "HydraFusion"));
+    let (items, _) = model_items(default(), &all, None, &ModelPicker::default(), true);
+    let noted = items.iter().filter(|i| i.description == HYDRAFUSION_NOTE).count();
+    assert_eq!(noted, 1, "under its own entry once, and not under the others");
+    assert_eq!(default_item("Default (HydraFusion)", "d", true).description, HYDRAFUSION_NOTE);
+    assert_ne!(default_item("Default (One)", "d", true).description, HYDRAFUSION_NOTE);
+}
+
+// Composer.test.ts: "preserves the selected provider when providers share a model id"
+#[test]
+fn preserves_the_selected_provider_when_providers_share_a_model_id() {
+    use super::choice::{ModelReference, key_for_model, model_from_key};
+    let a = ModelOption::new("anthropic", "Anthropic", "shared", "Shared");
+    let b = ModelOption::new("openrouter", "OpenRouter", "shared", "Shared");
+    assert_ne!(a.selection_key, b.selection_key);
+    assert_eq!(model_from_key(&b.selection_key), Some(ModelReference::new("openrouter", "shared")));
+    assert_eq!(key_for_model(&ModelReference::new("anthropic", "shared")), a.selection_key);
+}

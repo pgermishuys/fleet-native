@@ -682,6 +682,19 @@ fn a_session_whose_row_says_it_cannot_prompt_is_disabled() {
     assert!(rt.state.composer_disabled());
 }
 
+// Composer.test.ts: "enables composer for a stopped session when capabilities canPrompt is true"
+#[test]
+fn a_stopped_session_whose_row_can_prompt_takes_a_prompt() {
+    let mut rt = app();
+    rt.update(|s, _| {
+        s.projects[0].sessions[0].status = Status::Idle;
+        s.projects[0].sessions[0].row.can_prompt = Some(true);
+    });
+    assert!(!rt.state.composer_disabled());
+    rt.update(|s, _| s.projects[0].sessions[0].row.can_prompt = Some(false));
+    assert!(rt.state.composer_disabled());
+}
+
 #[test]
 fn interrupt_is_live_while_a_turn_runs_and_while_the_session_waits_and_off_when_idle() {
     let mut rt = app();

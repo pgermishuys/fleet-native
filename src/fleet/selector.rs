@@ -128,6 +128,22 @@ impl State {
         }
     }
 
+    /// A prompt or queued item sent with a model picked lists that model first under Recent (`recordRecent`, row 3.16).
+    /// Nothing is written for Default, for a model the list doesn't have, or when it already leads the harness's list.
+    pub fn record_recent_model(&mut self, pick: &super::http::Pick) {
+        let Some((provider, model)) = &pick.model else { return };
+        let Some(harness) = self.harness_key() else { return };
+        let selection_key = crate::composer::choice::key_for_model(&crate::composer::choice::ModelReference::new(provider, model));
+        let Some(key) = rules::star_key(&self.lists().models, &harness, &selection_key) else { return };
+        let before = self.pickers.prefs.get(PREFERENCE_KEY).map(str::to_string);
+        let current = self.model_picker();
+        let next = current.record_recent(&key);
+        if next == current {
+            return;
+        }
+        self.put_preference(PREFERENCE_KEY, &next.to_json(), before);
+    }
+
     /// The star: adds the model to the favourites or takes it out, and writes the `modelPicker` preference. It neither
     /// picks the row nor closes the menu.
     pub fn toggle_star(&mut self, selection_key: &str) {
