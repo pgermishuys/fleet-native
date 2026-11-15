@@ -88,6 +88,23 @@ Pictures, native beside Fleet's own client (one scratch Fleet v0.72.0: a working
 ![every status, dark](../../shots/parity/06-session-list/piece-c/native-row-statuses.png)
 ![every status, light](../../shots/parity/06-session-list/piece-c/native-row-statuses-light.png)
 
+## Piece D, built (15 November 2026)
+
+Running chip, progress ring and count, pull request badge, step-note and kind-label slots, in `src/view/session_row.rs` and `src/view/progress_ring.rs` (a `canvas` arc, eased by a live trim). Pure parts in `src/fleet/row_chips.rs` (`parseProgressSummary`, `sameProgressSummary`, the progress rules, `runningChipLabel`, `PrBadge`); `Row` gained `running_work`, `progress` and `pr`; the `session_progress` event patches the row (`RowPatch::Progress`) and the poll's change check compares both. Tests: the Part C progress cases in `src/tests_rows.rs`, `session-progress` cases and the chip's words in `src/fleet/tests/row_status.rs`.
+
+Done: **3.14** order (title, running chip, badge, progress, then one of step note, kind label, word), **3.49** running chip (18 px pill, 14 % green, 11 px count, tooltip), **3.50** badge layout, icons per state, colours per state, checks dot (data from mock only), **3.53** progress (ring beside the count for a working row, ring beside the age for a quiet unfinished one, none for a finished quiet one or an empty list, tooltip `3 of 7 done. Now: ...`), **3.54** event and parse and compare (`runningWorkCount` as a number or a string), **3.55** step note colour and **3.124** kind label style, as slots nothing fills yet, **3.42** (the word hides behind the count), **2.170-2.174** ring (14 px, 2 px stroke, round cap from twelve o'clock, track 14 % of `--text`, green when complete, 150 ms ease).
+
+Open, with reasons: **3.51** PR state and words (`lib/pr-state.ts`): the data is the header component's smart links; the badge takes its state and tooltip from the row, and only mock rows have one. **3.50** needs the live smart-links store for a real badge. **3.56** hover swapping the right edge for the actions: piece I adds the buttons. **3.55** and **3.124** get their text from workflows and lineage (piece M). The running chip's loader icon is 2 px stroke, Fleet's is 2.25 (no way to set it, see `docs/RUNE.md`). The detail form of progress (`parseProgressDetail`, plan, subagents) and the `progress.updated` event belong to the right panel. A working-row with an open sub-agent shows no child row yet (piece M).
+
+Pictures, native beside Fleet's own client (one scratch Fleet v0.72.0 with a patched copy of the scripted model that calls the todo tool: a working row on 3/7, a sub-agent's chip `1`, quiet rows with an unfinished list; Fleet's child row under Weekly tasks and the open row are pieces M and E), and every case from a scene (the scratch Fleet has no pull requests):
+
+![Fleet (dark)](../../shots/parity/06-session-list/piece-d/fleet-dark.png)
+![native, same Fleet (dark)](../../shots/parity/06-session-list/piece-d/live-native-dark.png)
+![Fleet (light)](../../shots/parity/06-session-list/piece-d/fleet-light.png)
+![native, same Fleet (light)](../../shots/parity/06-session-list/piece-d/live-native-light.png)
+![chips, progress and badges, dark](../../shots/parity/06-session-list/piece-d/native-row-chips.png)
+![chips, progress and badges, light](../../shots/parity/06-session-list/piece-d/native-row-chips-light.png)
+
 ## What "done" means
 
 1. The list is Fleet's: projects from `GET /api/projects` in their own order (Pinned first,

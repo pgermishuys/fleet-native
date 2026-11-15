@@ -649,6 +649,18 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 - A scene or test that gives the open session another id must also move the route: `State::set_session_id`.
 
 
+## Session list, piece D (chips, progress, the ring)
+
+- A ring that eases (`transition: stroke-dashoffset`) is a `canvas` of the full circle with `.live_trim(binding)`: the
+  arc is cut by a `Live<[f32; 2]>` smoothed with `Spring::new(0.15, 0.0)`. A view runs every frame and has no place for
+  per-row state, so the live values sit in a `RefCell<HashMap<owner, Live>>` on `State` (`view::progress_ring::Trims`);
+  the first draw of an owner `snap`s, later ones `set`. Aim it even at zero, or the first item ticked lands instead of
+  sweeping.
+- A translucent track (`--text` at 14%) blends in linear light and draws brighter than a browser's; mix it in sRGB
+  against the panel colour (`view::ring::srgb_mix`) as the context ring does.
+- `icon(..)` draws at its file's stroke (2): Fleet's running chip uses 2.25 on an 11 px icon and there is no way to ask
+  for it, so the chip's loader is a touch lighter.
+
 ## Component 3, piece T (the sweep)
 
 - **`MarkdownStyle::muted` is the list marker colour** (bullets and numbers) and the colour of h4 and deeper headings, nothing else; set it to the marker tint to get Fleet's accent-coloured markers. Number markers draw in the body weight (Fleet's are 600 and tabular).

@@ -382,3 +382,79 @@ fn the_glyph_is_drawn_only_for_a_live_status_and_a_cut_off_idle_row_gets_the_dot
         assert_eq!(glyph(&i.row()), want, "{status}");
     }
 }
+
+// ─── `lib/__tests__/session-progress.test.ts` (the row's parts) and the chip's words ───────────────────────────────
+
+mod progress {
+    use crate::fleet::row_chips::*;
+    use crate::fleet::row_status::Tone;
+    use serde_json::json;
+
+    #[test]
+    fn session_progress_reads_a_row_summary() {
+        let (id, p) = parse_summary(&json!({"sessionId": "s1", "kind": "todos", "done": 1, "total": 3, "current": "Next"})).unwrap();
+        assert_eq!((id.as_str(), p.done, p.total, p.current.as_deref()), ("s1", 1, 3, Some("Next")));
+        let (_, p) = parse_summary(&json!({"sessionId": "s1", "kind": "todos", "done": 0, "total": 0})).unwrap();
+        assert_eq!(p.current, None);
+    }
+
+    #[test]
+    fn session_progress_rejects_a_malformed_summary() {
+        for v in [
+            json!(null),
+            json!("nope"),
+            json!({"kind": "todos", "done": 1, "total": 3}),
+            json!({"sessionId": "", "kind": "todos", "done": 1, "total": 3}),
+            json!({"sessionId": "s1", "done": 1, "total": 3}),
+            json!({"sessionId": "s1", "kind": "todos", "done": -1, "total": 3}),
+            json!({"sessionId": "s1", "kind": "todos", "done": 1.5, "total": 3}),
+        ] {
+            assert!(parse_summary(&v).is_none(), "{v}");
+        }
+    }
+
+    #[test]
+    fn session_progress_compares_summaries_by_what_the_row_draws() {
+        let a = Progress { kind: "todos".into(), done: 1, total: 3, current: Some("Next".into()) };
+        assert!(same_progress(Some(&a), Some(&a.clone())));
+        assert!(same_progress(None, None));
+        assert!(!same_progress(Some(&a), None));
+        for b in [
+            Progress { done: 2, ..a.clone() },
+            Progress { total: 4, ..a.clone() },
+            Progress { current: None, ..a.clone() },
+            Progress { kind: "plan".into(), ..a.clone() },
+        ] {
+            assert!(!same_progress(Some(&a), Some(&b)));
+        }
+    }
+
+    #[test]
+    fn the_ring_and_its_words() {
+        assert_eq!(ring_state(1, 4), (0.25, false));
+        assert_eq!(ring_state(5, 4), (1.0, true));
+        assert_eq!(ring_state(0, 0), (0.0, false));
+        let p = Progress { kind: "todos".into(), done: 3, total: 7, current: Some("Write it".into()) };
+        assert_eq!(progress_description(&p), "3 of 7 done. Now: Write it");
+        assert_eq!(progress_description(&Progress { current: None, ..p.clone() }), "3 of 7 done");
+        assert_eq!(running_label(1), "1 thing running in the background");
+        assert_eq!(running_label(3), "3 things running in the background");
+        assert!(progress_view(Some(&Progress { done: 7, total: 7, ..p.clone() }), Tone::Quiet).is_none());
+        assert!(progress_view(Some(&Progress { done: 7, total: 7, ..p }), Tone::Working).unwrap().count);
+    }
+
+    #[test]
+    fn a_progress_event_changes_the_row() {
+        use crate::fleet::rows::RowPatch;
+        let patch = RowPatch::from_wire(
+            &json!({"type": "session_progress", "properties": {"sessionId": "a", "kind": "todos", "done": 2, "total": 5, "current": null}}),
+        )
+        .unwrap();
+        let mut project = crate::mock::rows::chips();
+        project.sessions[0].id = "a".into();
+        let mut projects = [project];
+        patch.apply(&mut projects);
+        assert_eq!(projects[0].sessions[0].row.progress.as_ref().map(|p| p.done), Some(2));
+        assert!(RowPatch::from_wire(&json!({"type": "session_progress", "properties": {"sessionId": "a", "done": "many"}})).is_none());
+    }
+}

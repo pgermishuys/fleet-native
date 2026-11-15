@@ -2,6 +2,7 @@
 //! tests of the row). Nothing here comes from a real Fleet.
 use super::{Project, Session, Status, long};
 use crate::fleet::groups::ProjectKind;
+use crate::fleet::row_chips::{Checks, PrBadge, PrState, Progress};
 use crate::fleet::rows::{Failure, Interruption, Retrying, ScheduledRetry};
 
 /// The wall clock the scene fixes: noon UTC on 4 October 2024 (day 20 000 of the epoch).
@@ -33,6 +34,14 @@ fn row(title: &str, status: Status, lifecycle: &str, activity: &str, updated_ago
     s.row.updated = ago(updated_ago);
     edit(&mut s);
     s
+}
+
+fn todos(done: u32, total: u32, current: Option<&str>) -> Option<Progress> {
+    Some(Progress { kind: "todos".into(), done, total, current: current.map(str::to_string) })
+}
+
+fn pr(number: u32, state: PrState, checks: Checks, words: &str) -> Option<PrBadge> {
+    Some(PrBadge { number, state, checks, description: format!("Pull request #{number} · {words}") })
 }
 
 /// A project with a row for each status: live ones, the words, every age and each fade.
@@ -80,12 +89,64 @@ pub fn statuses() -> Project {
         row(long::TITLE, Status::Idle, "idle", "idle", hour + 5, |_| {}),
         row("   ", Status::Idle, "idle", "idle", 2 * hour, |_| {}),
     ];
+    finish("mock-statuses", "Statuses", rows)
+}
+
+/// A project of rows with a running chip, progress and a pull request badge: every case of piece D, over the same clock.
+pub fn chips() -> Project {
+    let min = 60;
+    let hour = 3600;
+    let day = 86_400;
+    let rows = vec![
+        row("Move the image cache to disk", Status::Working, "active", "busy", 5, |s| {
+            s.row.progress = todos(3, 7, Some("Write the migration"))
+        }),
+        row("Rebuild the search index", Status::Working, "active", "busy", 5, |s| {
+            s.row.progress = todos(6, 7, Some("Run the checks"));
+            s.row.running_work = 2;
+        }),
+        row("Last item of the list", Status::Working, "active", "busy", 5, |s| s.row.progress = todos(7, 7, None)),
+        row("Which plan does the checkout show?", Status::NeedsInput, "waiting_input", "waiting_input", 5, |s| {
+            s.row.progress = todos(2, 5, Some("Pick the plan"))
+        }),
+        row("Fix the flaky checkout test", Status::Idle, "idle", "idle", 12 * min, |s| s.row.progress = todos(2, 5, Some("Fix the retry"))),
+        row("Upgrade the date picker", Status::Idle, "idle", "idle", 3 * hour, |s| s.row.progress = todos(5, 5, None)),
+        row("An empty list", Status::Idle, "idle", "idle", 20 * min, |s| s.row.progress = todos(0, 0, None)),
+        row("Fan out the migration checks", Status::Working, "active", "delegating", 5, |s| s.row.running_work = 1),
+        row("Watch the build", Status::Idle, "idle", "idle", 9 * min, |s| s.row.running_work = 3),
+        row("Add the export button", Status::Working, "active", "busy", 5, |s| {
+            s.row.pr = pr(187, PrState::Open, Checks::Pending, "2 of 3 checks done");
+            s.row.running_work = 1;
+        }),
+        row("Tidy the release notes", Status::Idle, "idle", "idle", 2 * hour, |s| {
+            s.row.pr = pr(184, PrState::Open, Checks::Passing, "Ready to merge")
+        }),
+        row("Port the importer", Status::Idle, "idle", "idle", 4 * hour, |s| {
+            s.row.pr = pr(181, PrState::Blocked, Checks::Failing, "Checks failing")
+        }),
+        row("Draft the onboarding copy", Status::Idle, "idle", "idle", 6 * hour, |s| {
+            s.row.pr = pr(179, PrState::Draft, Checks::Pending, "Draft")
+        }),
+        row("Ship the invoice export", Status::Idle, "completed", "idle", 2 * day, |s| {
+            s.row.pr = pr(170, PrState::Merged, Checks::None, "Merged")
+        }),
+        row("Try the older parser", Status::Idle, "idle", "idle", 5 * day, |s| s.row.pr = pr(166, PrState::Closed, Checks::None, "Closed")),
+        row(long::TITLE, Status::Working, "active", "busy", 5, |s| {
+            s.row.running_work = 2;
+            s.row.pr = pr(201, PrState::Open, Checks::Passing, "Ready to merge");
+            s.row.progress = todos(4, 9, Some("Wire the settings page"));
+        }),
+    ];
+    finish("mock-chips", "Chips", rows)
+}
+
+fn finish(id: &str, name: &str, rows: Vec<Session>) -> Project {
     let mut project = Project {
-        id: "mock-statuses".into(),
+        id: id.into(),
         kind: ProjectKind::User,
         position: 1,
-        name: "Statuses".into(),
-        path: "~/code/statuses".into(),
+        name: name.into(),
+        path: format!("~/code/{}", name.to_lowercase()),
         open: true,
         sessions: rows,
     };
