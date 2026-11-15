@@ -121,6 +121,8 @@ pub struct State {
     pub aborting: Option<String>,
     /// The side conversation is open (component 15 sets it; only a scene does now): rows 1.5 and 2.7.
     pub side_open: bool,
+    /// The context ring's arc and, for scenes, a context to draw (`view::ring`).
+    pub ring: view::ring::Ring,
     /// The messages whose command shows its expanded prompt ("Show prompt"), and the one just copied with the second its
     /// "Copied" ends at (`view::message`).
     pub prompt_open: std::collections::HashSet<String>,
@@ -209,6 +211,7 @@ impl Default for State {
             optimistic: None,
             aborting: None,
             side_open: false,
+            ring: Default::default(),
             ui: ui::Ui::default(),
             gallery: false,
             pin: Default::default(),
@@ -291,6 +294,11 @@ impl State {
         let row = &self.session().row;
         let gate = composer::status::SessionGate { archived: row.archived, can_prompt: row.can_prompt, lifecycle: "running" };
         !composer::status::can_send(Some(gate))
+    }
+
+    /// How full the open session's window is, once the harness has reported a call (`context` of the snapshot).
+    pub fn context(&self) -> Option<&fleet::context::ContextUsage> {
+        self.stream.as_ref().and_then(|st| st.context.as_ref()).or(self.ring.mock.as_ref())
     }
 
     /// Interrupt is live (row 2.4): while a turn runs or the session waits, and no abort is on its way.
@@ -948,6 +956,41 @@ pub fn spec() -> AppSpec<State> {
             ("composer-models-usage-light", |s| {
                 s.dark = Some(false);
                 s.show_composer("models-usage")
+            }),
+            ("composer-ring-quiet", |s| s.show_context(mock::ring::Case::Quiet)),
+            ("composer-ring-quiet-light", |s| {
+                s.dark = Some(false);
+                s.show_context(mock::ring::Case::Quiet)
+            }),
+            ("composer-ring-warm", |s| s.show_context(mock::ring::Case::Warm)),
+            ("composer-ring-warm-light", |s| {
+                s.dark = Some(false);
+                s.show_context(mock::ring::Case::Warm)
+            }),
+            ("composer-ring-amber", |s| s.show_context(mock::ring::Case::Amber)),
+            ("composer-ring-amber-light", |s| {
+                s.dark = Some(false);
+                s.show_context(mock::ring::Case::Amber)
+            }),
+            ("composer-ring-danger", |s| s.show_context(mock::ring::Case::Danger)),
+            ("composer-ring-danger-light", |s| {
+                s.dark = Some(false);
+                s.show_context(mock::ring::Case::Danger)
+            }),
+            ("composer-ring-nowindow", |s| s.show_context(mock::ring::Case::NoWindow)),
+            ("composer-ring-nowindow-light", |s| {
+                s.dark = Some(false);
+                s.show_context(mock::ring::Case::NoWindow)
+            }),
+            ("composer-ring-compacted", |s| s.show_context(mock::ring::Case::Compacted)),
+            ("composer-ring-compacted-light", |s| {
+                s.dark = Some(false);
+                s.show_context(mock::ring::Case::Compacted)
+            }),
+            ("composer-ring-compacting", |s| s.show_context(mock::ring::Case::Compacting)),
+            ("composer-ring-compacting-light", |s| {
+                s.dark = Some(false);
+                s.show_context(mock::ring::Case::Compacting)
             }),
             ("composer-model-nomatch", |s| s.show_composer("model-nomatch")),
             ("composer-model-starred", |s| s.show_composer("model-starred")),

@@ -1118,3 +1118,67 @@ fn the_clock_redraws_when_a_time_changes_and_rests_with_nothing_shown() {
     assert!(rt.state.work.changed(&items, now), "a second on, the first minute's counter reads differently");
     assert_eq!(WorkStrip::default().next_change_ms(&[], now), None);
 }
+
+// ContextRing.test.ts: "shows nothing until the session's harness has reported a call"
+#[test]
+fn the_ring_shows_nothing_until_the_harness_has_reported_a_call() {
+    let mut rt = app();
+    rt.update(|s, _| s.open = (0, 2));
+    rt.frame(FRAME);
+    assert!(rt.find("composer-frame").is_some());
+    assert!(rt.find("context-ring").is_none());
+}
+
+// ContextRing.test.ts: "is a quiet ring under three-quarters, and says how full on hover"
+#[test]
+fn the_ring_is_quiet_under_three_quarters_and_says_how_full_on_hover() {
+    let mut rt = app();
+    rt.update(|s, _| s.show_context(crate::mock::ring::Case::Quiet));
+    rt.frame(FRAME);
+    assert!(rt.find("context-ring").is_some());
+    let ctx = rt.state.context().unwrap();
+    assert_eq!(crate::composer::ring::title(ctx, false), "Context: 38% of 200k tokens");
+    assert_eq!(crate::composer::ring::tone(crate::composer::ring::percent(ctx)), crate::composer::ring::Tone::Ok);
+}
+
+// ContextRing.test.ts: "shows the percentage once it's getting full, in the tone that says so"
+#[test]
+fn the_ring_shows_the_percentage_once_its_getting_full_in_the_tone_that_says_so() {
+    use crate::composer::ring::{Tone, amber, percent, tone};
+    for (case, p, t, a) in [(crate::mock::ring::Case::Warm, 78, Tone::Warn, false), (crate::mock::ring::Case::Amber, 84, Tone::Warn, true)]
+    {
+        let mut rt = app();
+        rt.update(|s, _| s.show_context(case));
+        rt.frame(FRAME);
+        let ctx = rt.state.context().unwrap();
+        assert_eq!((percent(ctx), tone(percent(ctx)), amber(percent(ctx))), (Some(p), t, a));
+        assert!(rt.find("context-ring").is_some());
+    }
+}
+
+// ContextRing.test.ts: "after a compaction, says so until the next call measures it"
+#[test]
+fn the_ring_after_a_compaction_says_so_until_the_next_call_measures_it() {
+    use crate::composer::ring::{label, state_label};
+    let mut rt = app();
+    rt.update(|s, _| s.show_context(crate::mock::ring::Case::Compacted));
+    rt.frame(FRAME);
+    let ctx = rt.state.context().unwrap().clone();
+    assert_eq!(state_label(&ctx, false), "Compacted");
+    assert_eq!(label(&ctx, false), "Context compacted. Its size shows after the next reply.. Details");
+    assert!(rt.find("context-ring").is_some());
+    // The next call measures it.
+    rt.update(|s, _| s.show_context(crate::mock::ring::Case::Quiet));
+    rt.frame(FRAME);
+    assert_eq!(crate::composer::ring::state_label(rt.state.context().unwrap(), false), "Plenty of room");
+}
+
+// Native: the ring sits by Send, after the buttons before it, and the toolbar still fits at the narrow rule.
+#[test]
+fn the_ring_sits_between_interrupt_and_send() {
+    let mut rt = app();
+    rt.update(|s, _| s.show_context(crate::mock::ring::Case::Quiet));
+    rt.frame(FRAME);
+    let x = |k: &str| rt.find(k).unwrap_or_else(|| panic!("no {k}")).0;
+    assert!(x("interrupt") < x("context-ring") && x("context-ring") < x("prompt-send-button"));
+}
