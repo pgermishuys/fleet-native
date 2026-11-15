@@ -1,0 +1,282 @@
+# Component 17: Machines (checklist and pieces)
+
+Planned on 15 November 2026, from weave-fleet `main` at commit `d39cb75ddcc79edb5f7089062915756b2bddc0a3` (read in a shallow clone).
+The released server the checks run against is v0.72.0; it has every route in this file (checked live: `GET /api/machines`,
+`GET /api/machine`, `GET /api/machine/access`, `GET /api/machines/candidates`, `POST /api/machines`, `POST /api/machines/{id}/check`,
+`POST /api/machines/pair/preview`, `POST /api/machine/pairing/code`).
+
+**Why it is next.** The owner's native app connects to the Fleet the desktop app runs on the same computer. That Fleet has no sessions:
+the owner's sessions live on another machine that the Fleet knows as a *machine* (its address and token are in this Fleet's own list).
+Until the native app can read that list and talk to those machines, it can't be used for real work. So this component goes **right after
+component 6's piece H**, ahead of 6's remaining pieces, and builds the owner's case first (read, show, open, send), the rest after.
+
+Sources (weave-fleet `client/src/`): `lib/machines.ts` (LM), `lib/machine-target.ts` (MT), `lib/machine-routes.ts` (MR), `lib/machine-store.ts`,
+`lib/machine-feed.ts` (MF), `lib/machine-diagnosis.ts` (MD), `lib/pairing.ts`, `lib/pairing-link.ts` (PL), `stores/machines.ts` (M),
+`composables/use-machine-choice.ts` (UMC), `components/sessions/MachineHeader.vue` (MH), `MachineSessionsGroup.vue` (MG),
+`SessionsPanel.vue` (SP), `components/layout/MachineSwitch.vue` (MSW), `MachineScope.vue`, `components/settings/MachinesSection.vue` (MS),
+`MachineAddressList.vue` (MAL), `MachineSetupCard.vue` (MSC), `MachineDiagnosisPanel.vue` (MDP), `MachineAddNote.vue`;
+server: `src/WeaveFleet.Api/Endpoints/MachinesEndpoints.cs`, `docs/machines.md` ("The client contract").
+
+## What the native app has today (looked at on 15 November 2026)
+
+- **One Fleet.** `--server`, discovery (`instance.json`, the 6262 fallback, a retry every few seconds), `--token` / `FLEET_NATIVE_TOKEN`
+  (PR #85). `src/fleet/link.rs` `Link { base, .. }` is one hub thread plus the calls for that one `base`; every call in `src/fleet/http.rs`
+  takes `base: &str`, so a call can already go to any address.
+- **One token, global.** `src/fleet/auth.rs` holds a single process-wide token that `http.rs`' agent middleware puts on every request and the hub
+  URL adds as `access_token`. Another machine needs its own token. This is the one design change the component needs (piece A).
+- **No machine anywhere.** `grep -i machine src/fleet src/view` finds only: the settings key `machine:<key>`/`project:<machine>:<id>` with
+  the fixed machine key `home` (`fleet/settings.rs`, `state.rs:669`), the store's `elsewhere` list for sessions opened from other machines
+  (`fleet/store.rs`, ported with its tests, never filled), `row_status`'s `machine_answering` parameter (always `true`), and the palette's
+  "Add a machine" command (`ui/commands.rs:131`, does nothing). No machine type, no heading, no group, no coral colour in `theme.rs`.
+- **No TLS.** `Cargo.toml`: `ureq` with `default-features = false`, `tungstenite` with only `handshake`. `http.rs` says "Plain `http://` only".
+  A machine behind `tailscale serve` (`https://<name>.<tailnet>.ts.net`) can't be reached.
+- **No Settings screen**: the Settings rail draws a notice (component 16 owns Settings).
+- The pictures `shots/parity/17-machines/` show the gap: Fleet's own client (two scratch Fleets, one connected to the other, names invented)
+  has a heading per machine, the other machine's sessions under its heading and an "Add a machine" row; the native app, pointed at the same
+  home Fleet, shows only home's two sessions.
+
+## Decisions (the owner can overturn)
+
+1. **Home is the Fleet the app connects to, and it stays the live machine.** Native has no page reload, so there is no "switch the live
+   machine". Fleet itself (since the "open in place" change) never switches either: another machine's sessions open in place; only forgetting
+   the live machine reloads (not a case here: the app's own Fleet can't be forgotten). This drops 5.73 and 5.25's "live machine not home".
+   Machine key of home stays `home` (`settings::HOME_MACHINE_KEY`); another machine's key is its `id`.
+2. **The machine list is never kept by the app.** It is read from home with `GET /api/machines` at start, on a thread, and again every 15 s
+   with the other reads (and on focus). Home hands an *owner* every machine's token (`token` non-null); the app never asks the owner to copy
+   one. The app is an owner when it talks to home over loopback or with home's own token. If the tokens come back `null` (the app signed in
+   with a phone's token) it says so on the heading: "This sign-in can't reach other machines" (new wording, flagged as ours). No `weave:machines`
+   storage, no import (`POST /api/machines/import` is never called: 5.54 dropped).
+3. **Tokens live in memory only**, in `auth.rs`, keyed by the machine's base address (authority), never printed, never written to disk, never in a
+   `Debug`. Home's token (if the app was given one) is stored under home's base the same way. One middleware picks the token by the URL it is
+   about to call. This keeps `http.rs`'s signatures as they are.
+4. **Last-known sessions are cached** in a file in the app's data folder (`machine-sessions.json`, beside `settings.json`; format ours) so a
+   machine that is away still shows rows after a restart (M `SESSIONS_CACHE_KEY`, 5.64). Only the trimmed fields Fleet keeps (`trimForCache`). No
+   tokens in it.
+5. **Polling, not feeds.** Other machines are read every 15 s (M `POLL_INTERVAL_MS`) and an event hub is opened to a machine only when one of its
+   sessions is opened (Fleet holds every machine's hub idle so a click doesn't wait; native holds it after the first open and drops it when the
+   machine is forgotten). "Keep every machine live" (Labs, `LiveMachines`) is out until Labs exists (component 16); the feed rule is listed
+   (3.12, 3.13) and left open. Reason: a hub per machine on every start is the owner's choice to make with Labs.
+6. **Component 17 absorbs component 6's piece R** (machine heading and another machine's group from mock data). Piece R is struck from
+   `docs/parity/06-session-list.md`'s list; its rows (5.x of that file) are built here from real data, and the scenes use a mock machine set.
+   Both files say so. Rows of 06 that stay there: 5.1 (done by omission; needs its test, which piece C adds), 5.6, 5.35, 5.39, 5.40.
+7. **Settings → Machines is built here** as a view of its own (`src/view/machines_page.rs`), because the owner needs to add a machine and
+   component 16's Settings shell does not exist. Until 16 lands the Settings rail shows this page alone; when 16 lands, its slice 4 mounts the
+   same view as its Machines page (and "Phones", "Updates" and "Labs" stay 16's). "Add a machine" in the list and the palette open it.
+8. **TLS is a piece of its own** (piece I). It adds a crate feature on three systems; it is needed only when the owner's machine is reached over
+   `https`. Piece B prints the scheme of each address the first time it reads the list, so the question "are the owner's machines https?" has an
+   answer before piece I starts; if yes, I moves up to just after B.
+9. **Phone pairing** (QR code, Phones list, device grants) is not this component: it lives in Settings → Machines in Fleet but needs the phone,
+   which the port leaves out. Listed as out of reach (section "Out of reach"); the desktop's own part of it (the device list) is 16's.
+
+## Rows
+
+Owner: `17` = built by this component; `6` = the session list's file already has the row (numbers 5.x are *that* file's); `16`, `7`, `9` etc. = another component.
+"Native" says what exists on 15 November 2026. Row numbers here are `17.<n>`.
+
+### 1. Transport: how a call reaches another machine (LM, MR, MT)
+
+| # | Row | Source | Native today | Owner |
+|---|---|---|---|---|
+| 17.1 | A machine is `{id, name, baseUrl, addresses[], token, os, addedAt, sshDestination, tunnelUp, diagnosis}`; the list holds the others, never home | LM `MachineConnection` | None | 17 A |
+| 17.2 | HTTP to another machine: `Authorization: Bearer <token>`, no cookies, no CSRF header; home: as today (cookie or loopback trust, plus `--token`) | LM `machineRequestInit` | Partial: one global token | 17 A |
+| 17.3 | The hub on another machine: `?access_token=<token>` on `/hubs/session-events` (a native client may send the header instead; the query keeps `link.rs`'s one code path) | LM `machineSocketUrl`; `docs/machines.md` "Authentication" | Partial: `auth::hub_query` for one token | 17 A |
+| 17.4 | A wrong token is a `401` and never falls back; the app says "<name> didn't accept the token." | `docs/machines.md`; M `readMachine` | Partial: `Connection::Refused` for the one Fleet | 17 A, B |
+| 17.5 | The base URL of a machine is the address *this app* picked from its `addresses` (starts with `baseUrl`); an address is `{url, kind, learned, lastResult, lastTriedAt}` | MR `baseUrlOf`, `MachineAddress` | None | 17 A |
+| 17.6 | `kindOf(url)`: `tailnet` (`*.ts.net`), `tailnet-ip` (100.64.0.0/10, `fd7a:115c:a1e0:` v6), `lan` (10/8, 172.16/12, 192.168/16, `fc`/`fd` v6), `hostname` (no dot, `.local`, `.lan`, `.home.arpa`), else `other`; labels Tailscale, Tailscale IP, Local network, Host name, Address | MR `kindOf`, `KIND_LABELS`, `isTailscale` | None | 17 A |
+| 17.7 | Order to try: the list's order (home keeps it, Tailscale first); `moveAddress(list, from, to)` clamps | MR `moveAddress` | None | 17 A |
+| 17.8 | Repick: a read that cannot connect is tried again at another address; each address is probed with `GET /api/machine/id` (no token), 3000 ms timeout, the next probe starts 750 ms later or at once when the one above failed; only an address where the machine's own id answers is used (the token never goes to another Fleet); a Fleet too old for the probe is trusted at home's address; one address means no probing; a pick lasts for the session, and a lower pick looks for a better one every 60 s | MR `probe`, `repickAddress`, `PROBE_TIMEOUT_MS`, `PROBE_GAP_MS`, `RECHECK_MS`, `ProbeOutcome` | None | 17 H |
+| 17.9 | Only reads (`GET`, `HEAD`) are retried at another address; a write is never repeated | LM `isRead`, `fetchOnMachine` | None | 17 H |
+| 17.10 | `normalizeBaseUrl`: adds `http://` when no scheme, keeps scheme, host, port and path, drops trailing slashes; a bad address is "That isn't an address. Try something like http://100.64.90.72:2113." | LM; M `addMachine` | None | 17 A |
+| 17.11 | `https` and `wss` addresses work (a machine behind `tailscale serve`); a native app has no mixed-content rule, so `https-page` (MD `mixedContentDiagnosis`) is never produced | `docs/machines.md` "Behind tailscale serve"; MD | None: no TLS in the build | 17 I |
+| 17.12 | A target is `{key, connection, isLive, api}`: home is `home`, another is its id; every action on a session goes to that session's target; the session's machine is remembered by id (`rememberSessionMachines`, ids only, never dropped) so a session id found later (a link, an `elsewhere` row) opens on its machine | MT `targetFor`; LM `rememberSessionMachines`, `HOME_MACHINE_KEY`; M `sessionTarget` | Partial: `store.machine_of` (never filled) | 17 A, D |
+
+### 2. Reading the machines (M, MF)
+
+| # | Row | Source | Native today | Owner |
+|---|---|---|---|---|
+| 17.13 | `GET /api/machines` on home → `{machines: [{id, name, baseUrl, addresses, os, status, addedAt, lastSeenAt, token, agentWork, sshDestination, tunnelUp, diagnosis}]}`; `status` is `unknown`, `online`, `unreachable` or `unauthorized`. Every `token` non-null = owner; any `null` = a device (decision 2). A 404, an error or a body that is not that shape = "this Fleet can't list machines" (no machines, no error shown) | M `syncFromServer` (:369), `fromServer` | None | 17 B |
+| 17.14 | Read at start, then with every poll, and again when a change was made (add, forget, rename, token, agent work) | M `syncFromServer`, `onMounted` of MS | None | 17 B |
+| 17.15 | `GET /api/machine` on home: `{id, name, hostName, os, version, apiVersion, authMode, remoteReachable, requiresToken, webApp, publicUrl, capabilities{harnesses[], sessions{working, needsYou}, peerMessages, permissionLevel}, update{...}}`; home's heading says "This machine" until it answers, then its `name` | M `loadHome`, `MachineInfo` | None | 17 B |
+| 17.16 | Another machine is read with three calls in one go: `GET /api/sessions?limit=100&offset=0`, `GET /api/projects`, `GET /api/machine`; projects and identity may fail without failing the read | M `readMachine` | None | 17 B |
+| 17.17 | A failed read keeps the last list and sets the machine's error; a good read clears the error, sets `loadedAt`, clears the diagnosis, saves the cache, and remembers which machine each session is on; coming back from an error has that machine's open sessions connect at once | M `applyRead`, `markUnreachable` | None | 17 B |
+| 17.18 | Error words: 401 → "<name> didn't accept the token."; other non-ok → the body's `error` or `message`, else "<name> answered <status>."; no answer → "Can't reach <name>." | M `readMachine`, `describeFailure`, `readError` | None | 17 B |
+| 17.19 | Poll every 15 s while the window is on screen; stops when the window goes off screen; one poll at a time per machine; a poll reads every non-home machine (`refreshOthers`) | M `startPolling`, `POLL_INTERVAL_MS`, `refreshOthers` | None | 17 B |
+| 17.20 | Home is polled too (`loadHome` every 15 s) so its name and capabilities stay current | M `startPolling` | None | 17 B |
+| 17.21 | `isAnswering(key)`: home always; another while its state has no error | M `isAnswering` | `row_status` takes the flag, passed `true` | 17 B |
+| 17.22 | The cache (`machine-sessions.json`, decision 4): per machine the last list with only `title`, time, status, project, pin, lineage, run count, workflow id per session and `{id, name, type, position}` per project; read at start so rows show before the first read; a corrupt file reads as empty | M `trimForCache`, `loadCachedSessions`, `SESSIONS_CACHE_KEY` | None | 17 B |
+| 17.23 | `patchSession(key, id, patch)` edits one listed session at once; `upsertSession(key, row)` adds a just-started session on top of that machine's list | M `patchSession`, `upsertSession` | None | 17 B (used by F) |
+| 17.24 | Forgetting a machine (done on home, then listed again): its group, cache, session rows and held hub go at once; its sessions are asked of home again | M `forgetMachine`; test `machines-open-in-place` | None | 17 B, K |
+| 17.25 | Live feeds (Labs "Keep every machine live"): one feed per machine instead of polling, 300 ms fold of event bursts, 60 s safety read, 15 s poll while the hub is down, close after 5 min off screen | MF, M `syncFeeds`, `onVisibility`, `HIDDEN_CLOSE_MS` | None | Open: waits for Labs (decision 5) |
+| 17.26 | Held hubs: with feeds off, every other machine's hub is held idle so an open finds a ready connection | M `syncHolds`, `holdsWanted` | None | Open: native opens on first use (decision 5) |
+
+### 3. In the session list (rows are 06's 5.x; this table says who builds each and the piece)
+
+06's file describes each row's look and source in full. Numbers below are its row numbers.
+
+| # | 06 rows | What | Piece |
+|---|---|---|---|
+| 17.27 | 5.1, 5.6 | no heading with one machine; none outside Sessions (test that names it) | C |
+| 17.28 | 5.2, 5.3, 5.4, 5.5 | heading per machine (home first, then in list order), the other machines' groups under the live tree, none in the Archived view | C |
+| 17.29 | 5.7 | "Add a machine" row at the foot, only with machines; opens the Machines page with the add form open | C (row), K (form) |
+| 17.30 | 5.8–5.15, 5.17, 5.18, 5.20–5.24 | heading box, chevron, green dot, coral name (new tokens `coral`, `coral_text`, `running`, `error_text`), note (count, "…", "unreachable", "unreachable · cached"), hover, long name, count of the filtered tree | C |
+| 17.31 | 5.16 | home's name | B (data), C |
+| 17.32 | 5.34, 5.36, 5.38 | the group's tree (Pinned, projects in the machine's own order, lineage), folding under `machine:<id>` and `project:<id>:<projectId>`, empty "No sessions yet" / "No sessions found" | C |
+| 17.33 | 5.43–5.46 | loading note, error note, error line under the heading, dimmed rows (opacity 0.6) | C (and H for diagnosis) |
+| 17.34 | 5.42 | a row of another machine opens in place and the open mark sits on its machine only | E |
+| 17.35 | 5.47, 5.48, 5.49, 5.51, 5.52 | read-only rows while not answering ("Open on <name>", "Not answering" word), full actions while answering (pin, archive, rename, delete, move, pick), Copy path not Open in, drag stays on its machine, every call goes to the machine's target and the machine's list is read again after each change | F |
+| 17.36 | 5.26–5.33 | the heading's right-click menu: New session / New project (on the live machine; "on <name>" elsewhere), Work here; disabled when unreachable | G |
+| 17.37 | 5.25, 5.50, 5.65 | red dot and "unreachable" for a machine that stopped answering; home's diagnosis as a tooltip; `POST /api/machines/{id}/check` | H |
+| 17.38 | 5.53–5.76 | the data rows (list, identity, request rule, polling, cache, forget, sessions-to-machine map): the numbers 17.1–17.26 above say which piece | A, B |
+| 17.39 | 5.54, 5.55, 5.62, 5.70, 5.71, 5.73 | browser-only or replaced: no import (5.54), no `weave:machines` (5.55), no feed close timer without feeds (5.62), no Pinia per-machine stores (5.70: one state struct per machine key instead), no reload switch (5.73) | n/a, decisions 1, 2, 5 |
+
+### 4. Opening, sending and the current machine (M, SP, MT)
+
+| # | Row | Source | Native today | Owner |
+|---|---|---|---|---|
+| 17.40 | A conversation of a session on another machine: history, stream, find, export, images and every other call go to that machine's base with its token; the hub is that machine's (a second `Link`, opened on first use, kept) | MT `provideMachineTarget`; M `sessionTarget`; `use-signalr-socket.ts` ("one connection per machine") | None: `Link.base` is the one Fleet | 17 D |
+| 17.41 | Sending a message, aborting, answering a question or a permission, queue, retry, compact, uploads and every other action on that session ask its machine | MT; `MachineScope` | None | 17 D, E |
+| 17.42 | Opening: `rememberSessions(machineKey, [id])`; the session is kept in `elsewhere` (newest 20); the open mark sits on its machine's row only (`openSessionMachineKey`) | SP `handleSessionSelect`; M `rememberSessions`; `stores/sessions.ts` | Partial: store ported | 17 E |
+| 17.43 | A session on another machine that is not answering: the conversation says "Not answering" instead of Working; sending is refused with the machine's name | `docs/machines.md` "Adding a machine to a client"; MG tests | None | 17 E, H |
+| 17.44 | The session header's machine chip names the machine the open session is on (every machine's chip looks the same) | `docs/machines.md` "Switching machines" | None | 9 (header) reads 17's `State::machine_name` |
+| 17.45 | `currentKey` = the machine of the open (or last open) session, else the one last chosen with Work here, else home; kept for the run only (Fleet: per tab); an unlisted key is ignored | M `currentKey`, `setCurrent`, `loadCurrentMachineKey` | None | 17 E (state), G (Work here) |
+| 17.46 | "Work here": makes that machine "the one you're on" and goes to the first page (`/`, the Sessions rail with nothing open) | M `setCurrent`; SP:185-188 | None | 17 G |
+| 17.47 | Copy path on a row of another machine (the folder is on that machine); no "Open in" | MG test "offers Copy path" | None | 17 F |
+| 17.48 | The new-session page's machine picker and "New session on <name>" start a session on that machine through its own API, then it is listed there at once (`upsertSession`) | `NewSessionComposer.vue`, `MachinePicker.vue`; MH | None | 7 (K), 17 G wires the heading |
+| 17.49 | Automations, Workflows, Analytics, Jobs, the Fleet (mission control) view, the dashboard and Settings pages follow the machine you're on, each with its own machine switch where Fleet has one | `docs/machines.md` "Switching machines"; `MachineSwitch.vue`; `createMachineChoice` | None | 18–23, 16 each own their view; 17 N builds the model and the widget they share |
+
+### 5. The machine switch (MSW, UMC)
+
+| # | Row | Source | Native today | Owner |
+|---|---|---|---|---|
+| 17.50 | `createMachineChoice()`: `enabled` = any other machine listed; `key` = the pick (if still listed) else the current machine; `isOther = key != live`; `reset()` forgets the pick; each view has its own choice and opens on the machine you're on each time it is visited | UMC | None | 17 N |
+| 17.51 | The trigger: a bordered chip, `padding 3px 7px 3px 8px`, radius 6, 1 px `--border`, gap 6, hover/open `text` 6%, focus ring 2 px accent offset 2; a 7 px green dot, the name in mono 11.5 px `coral_text`, a 12 px chevron `muted`; `aria-label="<Label> for machine"` | MSW template and CSS | None | 17 N |
+| 17.52 | The menu (popover, align start, min width 240, padding 4): label "<Label> for" (10 px, uppercase, 0.06em, `muted`), one row per machine (home first): dot, name, "N session(s)" in `muted` 11 px (home's from the list, another's from its last read; "1 session" singular), a check (12 px, `accent_text`) on the one shown; choosing closes it; row hover `text` 7% | MSW | None | 17 N |
+| 17.53 | Hidden when there is only home | UMC `enabled` | None | 17 N |
+
+### 6. Settings → Machines (MS, MAL, MSC, MDP) — the page this component builds (decision 7)
+
+The page is one scrolling column inside a Settings detail pane (`SettingGroup` "Machines"). Component 16's shell (settings menu, row style) is not
+built; the page uses the kit's rows until it exists and is re-mounted there.
+
+| # | Row | Source | Native today | Owner |
+|---|---|---|---|---|
+| 17.54 | Row "Add a machine" with the explanation "Every machine runs its own Fleet and keeps its own sessions, repositories and sign-ins. A session stays on the machine it started on. The sessions list shows them all; the one you're working in is live." and the primary button "Add a machine" (plus 16) hidden while the form is open | MS template :445-462 | None | 17 K |
+| 17.55 | One card per machine (`data-testid machine-card`), in list order: name, state line, capability line, OS, how it is reached, actions | MS :674- | None | 17 J |
+| 17.56 | State line: `ok` / `bad` / `muted` tone, from the machine's state: answering → "Connected", error → the error text, loading → "Checking…"; plus the note "N sessions" (singular for 1) when reachable | MS `stateLine` (:271) | None | 17 J |
+| 17.57 | Capability line: the machine's ready harnesses (available and enabled) with versions in a tooltip, and "N working, N need you" from `capabilities.sessions`; nothing for a Fleet too old to say, and nothing for one not answering | MS `capabilityLine`, `readyHarnesses`, `harnessVersions`; tests "shows each machine's ready harnesses", "shows nothing extra" | None | 17 J |
+| 17.58 | Rename: inline field "New name for <name>", Enter saves with `PUT /api/machines/{id}` `{name}` (Fleet's own: the machine renames itself, `PUT /api/machine` on that machine, then home keeps it), Esc cancels | MS `startRename`, `saveRename`; M `renameMachine` | None | 17 J |
+| 17.59 | Update token: inline field "Paste the new token" / "New token for <name>", saved with `PUT /api/machines/{id}` `{token}` (checked first by home) | MS `startToken`, `saveToken`; M `updateToken` | None | 17 J |
+| 17.60 | Agent work: "Agents here can send it work": Ask (default), Always, Never; `PUT /api/machines/{id}` `{agentWork}`; the card says its level; "unknown" for a Fleet too old to say | MS `setAgentWork`, `showsAgentWork`; tests "asks by default…", "says the level is unknown…"; `docs/machines.md` "Agents hand work" | None | 17 J |
+| 17.61 | Forget: confirm dialog (cancel keeps it), then `DELETE /api/machines/{id}`; the machine's group leaves the list at once | MS `forget`; M `forgetMachine`; test "forgetting a machine, and keeps it when cancelled" | None | 17 J |
+| 17.62 | Work here on a card: same as 17.46 | MS `workHere`; test "makes the machine the one you're on…" | None | 17 J |
+| 17.63 | "How it is reached": the address in use, its kind label, "Connected over Tailscale / on your network" and why not Tailscale ("Tailscale isn't answering" only when it was tried and didn't); SSH machines: `user@host` and "tunnel down" | MS `routeLine`, `location`, `machine-ssh-line`; tests "says Connected on your network…", "says how an SSH machine is reached" | None | 17 M |
+| 17.64 | Address list (MAL): rows with URL, kind label, "in use" mark, last result; copy button ("Copy <url>"); reorder by drag or Alt+Up/Down; saving `PUT /api/machines/{id}` `{addresses}` with every address; a failed save puts the order back and shows the error; "a list that changed meanwhile" → 400 | MAL; MS `saveAddresses`, `reorderAddresses`; tests "lists the addresses in order…", "moves an address up with Alt+ArrowUp…", "puts the order back…" | None | 17 M |
+| 17.65 | A down machine's diagnosis panel: headline, the six steps (Name found, Machine answers, Port answers, It's Fleet, Version fits, Key accepted) as ok / failed / not checked with the detail, "Try …" line, a copy-as-text button (`diagnosisText`), "Try again now" (reads the machine again and clears the headline once it answers) | MDP; MD; M `diagnose`, `retryMachine`; tests "names the step that broke on the card…", "Try again now reads the machine…" | None | 17 H (data, tooltip), J (panel) |
+| 17.66 | "This machine": home's name, the access token (hidden, show/hide "Show token"/"Hide token", "Copy token"), "Replace token" with a confirm (locks out every device with the old one; `POST /api/machine/access/token`; `409` when the environment fixes it), the addresses other devices can use (`GET /api/machine/access` → `addresses`, "Copy <url>"), a note that loopback needs no token, and the public URL field (`PUT /api/machine` `{publicUrl}`) | MS `loadAccess`, `replaceToken`, `copy`, `onPublicUrlSaved` (:353-405); test "replacing this machine's token…" | None | 17 J |
+| 17.67 | A machine on an older home that can't list machines: the section says so and offers nothing to add (home's source is not "server") | M `source`, `pairMachine` | None | 17 K |
+| 17.68 | Version, update rule and Restart live in "Updates & about", not on the card | MS test "shows no version, update rule or Restart…"; `MachineUpdatesGroup.vue`, `MachineVersionLine.vue`, `MachineUpdatesStrip.vue` | None | 16 (slice 4) |
+| 17.69 | Job seats (which machines a job's agents use) | `MachineJobSeats.vue` | None | 23 (Jobs) |
+| 17.70 | Phones: pairing a phone (QR, one-time code), the device list, `DELETE /api/machine/devices/{id}` | `docs/machines.md` "Pairing and devices"; the Phones part of Settings | None | 16 (slice 4; the phone itself is out of scope) |
+
+### 7. Add a machine (PL, `pairing.ts`, MS form, MSC)
+
+| # | Row | Source | Native today | Owner |
+|---|---|---|---|---|
+| 17.71 | The form opens when "Add a machine" is pressed, from the list's row or the palette, even before the page is shown; it opens on **Paste a pairing link** when Fleet sees no machines, else on **Set it up from here** (SSH) as the default card with the link as the other choice | MS `openAddForm`, `pickMode`, tests "opens the Add a machine form when something else asked for it", "…at once when it was asked for before Machines was shown", "opens on the pairing link when Fleet sees no machines…" | None | 17 K (link), L (SSH card) |
+| 17.72 | Pairing link field (placeholder `http://100.64.90.72:2113/add-machine#ABCD-EFGH`): `parsePairingInput` → `link` (address + code), `address` (code still to type: a Code field appears, placeholder `ABCD-EFGH`), `invalid` ("That isn't a pairing link or an address. A link looks like http://100.64.90.72:2113/add-machine#ABCD-EFGH." or "That link has no valid code. Run fleet node pair on the other machine for a new one."), nothing while empty | PL `parsePairingInput`; tests `pairing-link.test.ts` | None | 17 A (logic), K |
+| 17.73 | `normalizeManualCode`: upper-case, spaces dropped, Crockford base32 (no I, L, O, U), `XXXX-XXXX` | `pairing.ts` `normalizeManualCode`; test "normalizes typed codes" | None | 17 A |
+| 17.74 | Preview: once the link or address+code is there, `POST /api/machines/pair/preview {baseUrl, code}` (does not use the code up) → `{machineId, name, os, version, baseUrl}`; the form shows "Looking…", then the found machine ("<name> · <OS> · Fleet <version>"), "Reached over Tailscale at <host>" (`describeReach`: tailnet, "on your network", "on this machine", "at") and a note on what adding it means: sessions started there run there; this Fleet can run agents, change files and open terminals on it; it keeps a key of its own for this Fleet | MS `found`, `foundLine`, `foundReach`; PL `describeReach`; `docs/machines.md` "Add a node with a pairing link" | None | 17 K |
+| 17.75 | The button reads "Add <name>" (found by link) or "Add machine" (token); `POST /api/machines/pair {baseUrl, code}` redeems it as a machine and home saves the token it got (the master token never leaves the node); the form closes, the machine is read at once, "added" is said | MS `addLabel`, `canAdd`, `addMachine`; M `pairMachine` | None | 17 K |
+| 17.76 | **Advanced**: with an address typed, paste the machine's token instead of a code: `POST /api/machines {baseUrl, token}` (home asks the machine who it is with that token); placeholder "Paste the machine's token" | MS `machines-add-advanced`, `usesToken`; M `addMachine`, `identifyMachine` | None | 17 K |
+| 17.77 | Errors, in Fleet's words: "Couldn't reach <address>. Check the address, that Fleet is running there, and that it listens beyond 127.0.0.1."; "That token wasn't accepted."; "That Fleet is too old to add as a machine. Update it first."; "The machine answered <status>."; "That Fleet speaks machine contract <n>; this one speaks 1. Update the older one."; "That Fleet signs people in with an identity provider, which machines don't support yet."; "That's this machine."; "Paste the machine's access token."; "This Fleet can't pair a machine from here. Add it by address with its token instead."; "Couldn't pair the machine."; "That code has expired or was already used. Run fleet node pair on the other machine for a new one." with the diagnosis behind it (`DiagnosedError`); adding the same machine twice updates it | M `addMachine`, `identifyMachine`, `pairMachine`, `previewPairing`, `readFailure`; MS tests "says why a link can't be used…", `machines.test.ts` "adding a machine" cases | None | 17 K |
+| 17.78 | Set it up from here (SSH): `GET /api/machines/candidates` → `{candidates[], commands[]}` (hosts in `~/.ssh/config` and online Tailscale peers, minus machines already added); the search box, the first eight rows each probed once (`POST /api/machines/candidates/probe`, three at a time): "SSH works · no Fleet yet", "Fleet <version>", "can't log in over SSH"; a typed `user@host[:port]` is offered as a row; a Windows peer is not probed; **Set up** (no Fleet yet) / **Add** (Fleet there) → `POST /api/machines/setup`, poll `GET /api/machines/setup/{id}`: four live steps (Log in over SSH, Install Fleet, Start it in the background, Pair and add the machine) with **Show the commands**; a broken step names itself and offers the pairing link and a retry | MSC; MS tests "is the default card when Fleet sees machines…", "does not look at a Windows peer…", "sets a machine up with live steps…", "names the step that broke and offers the link and a retry", "sends a machine it can't log in to to the pairing link", "says why a machine it can't log in to…", "offers a typed user@host as a row"; M `loadCandidates`, `probeCandidate`, `setUpMachine`, `sendSetup` | None | 17 L |
+| 17.79 | Cancel closes the form and clears it; Escape closes it | MS `machines-add-cancel`, `clearAddForm` | None | 17 K |
+
+### 8. States and both themes
+
+| # | Row | Source | Native today | Owner |
+|---|---|---|---|---|
+| 17.80 | One machine: nothing of this component is drawn in the list; the Machines page shows "This machine" and "Add a machine" | SP:143-147 | Done by omission | 17 C (test), J |
+| 17.81 | Node and app on one machine: home is the app's own Fleet on loopback, the node a second Fleet on another port added by pairing link; both are listed and open | `docs/machines.md` "Run a node without the web UI" | None | 17 O (live check) |
+| 17.82 | Several machines: headings in order, each with its note; a long name cut with an ellipsis with the count visible; empty group; loading; error with and without a cache; filter applies to every group | 06 5.23, 5.38, 5.43–5.46 | None | 17 C, O |
+| 17.83 | Colours: `running` (dot), `error`, `error_text`, `coral`, `coral_text` per theme, with the CSS variable's name beside each in `theme.rs` | MH/MG CSS; 06 5.12, 5.13, 5.15, 5.18 | None: not in `theme.rs` | 17 C |
+| 17.84 | The status bar says the Fleet is unreachable for home only; a machine's trouble shows on its heading, not the status bar | SP | Partial | 17 H |
+
+## Tests to port, by Fleet's name
+
+Each piece lists the ones it owns (below). Fleet's test files, with the case names as they are in weave-fleet (all read at the commit above): `lib/__tests__/machines.test.ts` (request rules, 21 cases), `machine-routes.test.ts` (kind, order, pick, probe: 27), `machine-feed.test.ts` (6; only the read and error cases, no hub), `machine-store.test.ts` (2, not ported: Pinia), `machine-diagnosis.test.ts` (3), `pairing-link.test.ts` (7+), `pairing.test.ts` (normalizeManualCode and base64url cases only; QR and phone cases are out), `stores/__tests__/machines.test.ts` (adding, listing, non-live reading, cache, ~30), `machines-open-in-place.test.ts` (8), `machines-switch.test.ts` (10: current key, targets; the hub-holding cases are open, decision 5), `machines-live-feeds.test.ts` (10: open, decision 5), `components/sessions/__tests__/MachineHeader.test.ts` (6), `MachineSessionsGroup.test.ts` (12), `SessionsPanel.test.ts` (the machine cases, 18), `components/settings/__tests__/MachinesSection.test.ts` (~35), `composables/__tests__/use-machine-choice` (via the views that use it). Names are in each piece's list.
+
+## Out of reach, and why
+
+- **Reload switch, `localStorage`, cookies, CSRF, mixed content** (`https` page calling `http`): browser mechanics (decisions 1, 2; 17.11).
+- **Phones**: pairing a phone, the Phones list, device grants (`use-machine-grants`, `use-machine-web-app`, `PhoneStack` and `/phone/s/<machine>/...` routes, 17.70): the phone and the browser UI are out of scope.
+- **Live feeds** and held hubs on every start: wait for Labs (decision 5; 17.25, 17.26).
+- **Drag** between projects on another machine's list: the list's own drag (06 piece S, optional).
+- **Updates & about** (versions, restart, rollout): 16 (17.68). **Job seats**: 23.
+
+## Pieces, in build order
+
+Each piece is one pull request, a fresh session from this file alone, a few hundred lines of Rust (at most about 800). Pictures go under
+`shots/parity/17-machines/<piece>/`, native beside Fleet's own client, same state and size, both themes (the scratch setup: two Fleets, the second
+added to the first with `POST /api/machines`, see "Checking" below). Every piece updates this file's rows, `docs/PORT.md`'s row 17 and `docs/RUNE.md`.
+
+**A. Machine addresses and per-machine tokens** (plain Rust). Rows 17.1–17.3, 17.5–17.7, 17.10, 17.12 (the key and the target), 17.72–17.73 (the pure parts).
+Files: `src/fleet/machine.rs` (`Machine`, `Address`, `Kind`, `kind_of`, `move_address`, `normalize_base_url`, `Target { key, base }`, the pairing input parser, `normalize_manual_code`),
+`src/fleet/auth.rs` (tokens keyed by base: `set_for(base, token)`, `token_for(base)`; the middleware picks by the request's authority; `set(None)` clears home's; the hub URL takes the
+token of its own base), `src/fleet/mod.rs`. Touches `http.rs`, `link.rs` only where they read `auth::current_*`. Depends on: nothing.
+Ports: `machines.test.ts` "sends another machine's requests to it with its token and no cookies", "keeps a request's body when it goes to another machine", "puts the token in a socket's query…", "drops a CSRF header and cookies for another machine even when the caller set them" (as: a token is sent only to its own base, never to another), `machine-routes.test.ts` "kind" table (`it.each`), "moves an address up and down the list", `pairing-link.test.ts` all, `pairing.test.ts` "normalizes typed codes", plus ours: the token never appears in a `Debug`, an error text or a URL shown; two machines with two tokens. Pictures: the app against the two scratch Fleets draws exactly as today (a refactor check), and the PR body carries the test list.
+
+**B. Reading the machines** (plain Rust and a thread). Rows 17.13–17.24 (not 17.25, 17.26), 17.4, 17.31 data.
+Files: `src/fleet/machines.rs` (the `MachineEntry` list, `read_machines` on a thread, `read_machine` with the three calls, error words, `is_answering`, the 15 s poll hooked to `refresh.rs`'s timer, `patch_session`, `upsert_session`, `forget`), `src/fleet/machine_cache.rs` (the cache file, read at start on a thread, written after a read), `State` gains `machines`, the first read prints each address's scheme to the log once. Depends on: A.
+Ports: `stores/__tests__/machines.test.ts` "takes home's list over the cached one" (the cache), "lists another machine's sessions with its token and remembers where they live", "shows a session just started on it in its list at once, before its next list says so", "keeps the last list and says why when a machine goes away", "still lists a machine's sessions after a reload while it's away", "keeps each session's project, pin and lineage, and the machine's projects, across a reload", "still lists the sessions when the machine's projects don't answer", "keeps what each machine says it can run, and nothing for a Fleet too old to say", "forgets a machine without touching its sessions", "finds a machine by its id: home, a listed one, or none"; `machine-feed.test.ts` "holds what the caller's read returns…", "gives the read a request with the machine's key and no cookies", "marks the machine unreachable when the read fails, keeping the last read"; `machines-open-in-place.test.ts` "says a machine its feed can't read isn't answering". Live check: against the two scratch Fleets, the list shows both machines' sessions in a log line; a wrong token says "didn't accept". Pictures: a text transcript, and the app unchanged (heading rows come in C, straight after).
+
+**C. The heading and the other machines' groups, drawn** (absorbs 06's piece R). Rows 17.27–17.33, 17.80, 17.82, 17.83, 06's 5.1–5.5, 5.7–5.24, 5.34, 5.36, 5.38, 5.43–5.46.
+Files: `src/view/machine_header.rs` (`MachineHeader.vue`), `src/view/machine_group.rs` (`MachineSessionsGroup.vue`: the tree of one machine, read-only rows opening nothing yet), `src/view/sessions.rs` (panel order, Add a machine row), `src/theme.rs` (tokens), `src/lib.rs` (scenes: `machines`, `machines-light`, `machine-down`, `machine-loading`, `machine-long-name`; mock set `src/mock/machines.rs`), the group builder in `src/fleet/groups.rs` takes a machine key. Depends on: B (and 06's pieces A, F).
+Ports: `MachineHeader.test.ts` none (menu is G); `MachineSessionsGroup.test.ts` "groups its sessions like the live machine: Pinned first, then its projects in their order", "puts forks and started sessions under the top-level session they came from, and counts what runs", "filters by the search box, keeping a project whose name matches", "folds its projects under its own keys", "has no draft row for a draft on another machine, and says when it has no sessions" (the "says" half); `SessionsPanel.test.ts` "lists home first and the other machines in the order they were added, with the live one tagged" (without the tag: see 5.14), "keeps that order when another machine is live…" (n/a, decision 1), "shows no machine headings, and its rows act on this machine as before", "shows no machine headings and marks the open session's row, as it always has", "ends the machine groups with an Add a machine row…" (the row; the page opens in K). Ours: a test that names 5.1. Pictures: native beside Fleet's own, same state (home 2 sessions, `falcon`-style machine with 3, one down, one loading), dark and light, 1280x760; also the long-name and the unreachable-with-cache states from scenes.
+
+**D. A link per machine** (plumbing, live-checked). Rows 17.12, 17.40, 17.41 (the routing; not the UI).
+Files: `src/fleet/link.rs` (a `Link` per machine, started on first use, kept; `State::link_for(session)` and `State::target_of(session)` replace "the" link in every action; the session→machine map), `src/fleet/state.rs`, `src/lib.rs` (the call sites that use `s.link`), `docs/RUNE.md` if a new rule is learned. Depends on: A, B.
+Ports: `machines-open-in-place.test.ts` "asks the machine a session is on; the live machine for its own and unknown ones", "knows the machine of a session started or forked there in place before any list has it", "asks the live machine again for the sessions of a machine that's forgotten, and drops their rows", "archives and stops a session opened in place on its own machine, from outside its views" (as: the action goes to that machine's base), `machines-switch.test.ts` "gives a target for any listed machine, the live one for one that isn't", "is the live machine for a machine that's gone". Pictures: none new (the app against home still draws the same); the PR body has a live transcript: an action on a session of the second scratch Fleet reached that Fleet with its token (the scratch Fleet's request log).
+
+**E. Open a session on another machine, and message it.** Rows 17.34, 17.41–17.43, 17.45 (state), 06's 5.42, 6.17.
+Files: `src/view/machine_group.rs` (rows press → `open_session` with the machine), `src/view/session_row.rs` (the open mark on one machine), `src/fleet/store.rs` (`upsert_elsewhere` filled), `src/lib.rs`, `src/tests_machines.rs`. Depends on: C, D.
+Ports: `SessionsPanel.test.ts` "opens another machine's session in place, without a reload", "marks the open session's row on the machine it's on, and only that row, with no Live badge on any heading", "marks another machine's session open after a reload with it open" (n/a: no reload; the second half is `elsewhere` surviving a refresh), `machines-switch.test.ts` "starts on the machine this tab was last on, else the live one, and ignores one that's gone", "is on the live machine until a session on another machine is open, and stays on it afterwards". Live check: open the second scratch Fleet's session, see its history, send a message with the scripted model's keyword, see the reply stream. Pictures: the open conversation of another machine's session beside Fleet's own, both themes, plus the message sent.
+
+**F. Another machine's rows: actions and read-only.** Rows 17.35, 17.47, 06's 5.35, 5.39–5.41, 5.47–5.52.
+Files: `src/view/machine_group.rs`, `src/view/session_row.rs` (a `Row` is given a target and a read-only flag), `src/fleet/row_actions.rs` or wherever 06's actions live (take a target; list read again after each change), `src/tests_machines.rs`. Depends on: E and 06's pieces I, L (whatever of pin, archive, menu has merged; the rest is listed open here).
+Ports: `MachineSessionsGroup.test.ts` "gives its rows what the live machine's rows have: pin, archive, drag, rename and picking" (drag open), "says a working session's machine isn't answering, instead of working on", "only opens a session: no pin, archive, drag, rename or picking", "offers Copy path, not Open in, on another machine's row"; `SessionsPanel.test.ts` "offers every row and project action this machine's tree offers on another machine's tree", "sends another machine's row actions to that machine, and lists that machine again", "keeps a pick on one machine, and a bulk archive goes to that machine only" (if J merged), "offers no actions on a machine that isn't answering", "renames another machine's project on that machine, and lists that machine again", "gives another machine's projects their + and menu…" (+ waits for component 7). Pictures: a down machine's dimmed rows with "Not answering" beside Fleet's; a rename on another machine.
+
+**G. The heading's menu and Work here.** Rows 17.36, 17.45–17.46, 17.48 (the wiring), 06's 5.26–5.33.
+Files: `src/view/machine_header.rs` (context menu), `src/fleet/machines.rs` (`current`), `src/lib.rs`. Depends on: C, E; New session on a machine waits for component 7 (the menu item is drawn and calls the page when it exists; until then it is disabled with a tooltip, listed open).
+Ports: `MachineHeader.test.ts` all six ("offers a new project there, named for a machine that isn't live", "says just New project on the live machine, and can't be picked on one that's unreachable", "offers a new session there and Work here on a machine that isn't live", "offers only New session on the live machine", "can't start a session on a machine it can't reach, but can still work there", "has no menu unless asked for one"); `SessionsPanel.test.ts` "Work here makes that machine the one you're on and goes to its first page in place", "opens New Project on another machine from its heading, and shows the new project there at once" (needs 06 O). Pictures: the open menu on a machine and on home, both themes, beside Fleet's.
+
+**H. Unreachable, diagnosis and the other address.** Rows 17.8, 17.9, 17.37, 17.43 (conversation word), 17.65 (data and tooltip), 17.84, 06's 5.25 (the rest), 5.50, 5.65.
+Files: `src/fleet/machine_routes.rs` (probe with `GET /api/machine/id`, `repick`, the 750 ms gap, the 60 s recheck), `src/fleet/machines.rs` (`diagnose` via `POST /api/machines/{id}/check`, only while the error stands), `src/view/machine_header.rs` (red dot, the tooltip: 150 ms delay, max 224 px, headline medium, then `try`), the conversation's "Not answering" word. Depends on: C, E.
+Ports: `machine-routes.test.ts` "is home's until this tab picks one, and the pick is remembered" (as: kept for the run), "takes the first in order even when a later one answers sooner", "moves on as soon as the ones above have failed, without waiting out the gap", "starts the next before a slow one gives up, and waits for the slow one above it", "never takes another machine, or one that can't say who it is", "keeps the address in use when it answers, and asks nothing else", "falls back down the list when Tailscale doesn't answer, and starts there next time", "skips an address where another Fleet answers", "stays put when nothing answers, so the request after it says why", "trusts the address home uses when the Fleet there is too old to say who it is", "doesn't probe a machine with one address", "shares one pick between callers that ask at once", "finds a higher address that answers again, without moving to it", "has nothing to look for on the first address", "asks who answers without a token or cookies, and checks the id", "says no answer when the address doesn't answer in time", "says no probe for a Fleet too old to have one", "go again on the address that answers, and the token only goes where the machine answered", "aren't sent again when they change something", "repick says whether the address moved"; `machine-diagnosis.test.ts` the tunnel case and "writes the details as text to paste"; `MachineSessionsGroup.test.ts` "says why an unreachable machine isn't answering, from home's last look at it". Live check: stop the second scratch Fleet, see the red dot, "unreachable · cached", the tooltip; start it, it comes back. Pictures: the down state with tooltip, beside Fleet's, both themes.
+
+**I. https and wss.** Row 17.11. Files: `Cargo.toml` (ureq `rustls`, tungstenite `rustls-tls-native-roots` or what Rune's lock already brings; **say in the PR why a new crate is needed and the build time on the three systems**), `src/fleet/http.rs`, `src/fleet/link.rs` (the connect), `docs/FLEET.md`. Depends on: A. Moves up to right after B when the first read shows https addresses.
+Tests: a loopback TLS test with a generated certificate if the crate allows, else a documented live check against `tailscale serve`-style proxy; ours. Pictures: the Machines list with a machine reached over https (a local TLS proxy in front of the second scratch Fleet), and the build time per system.
+
+**J. Settings → Machines: this machine and the cards.** Rows 17.54–17.62, 17.66, 17.80. Files: `src/view/machines_page.rs` (the page, `This machine`, the cards, rename, update token, agent work, forget with `ui::dialog`), `src/view/machine_card.rs`, `src/fleet/machine_actions.rs` (`PUT`/`DELETE` on a thread, error words), the Settings rail opens it (decision 7), scene `machines-page`. Depends on: B; 5.7's row now opens it.
+Ports: `MachinesSection.test.ts` "forgetting a machine, and keeps it when cancelled", "replacing this machine's token, and replaces nothing when cancelled", "shows each machine's ready harnesses and how many sessions work there", "shows nothing extra for a machine on an older Fleet, or one not answering", "says '1 session' for a reachable machine with one session", "shows no version, update rule or Restart even though they exist: they are in Updates & about", "asks by default on each other machine's card, says its level, and saves Always or Never", "says the level is unknown for a machine on a Fleet too old to say", "makes the machine the one you're on and goes to its first page in place"; `machines.test.ts` (store) "renames a machine on the machine itself". Pictures: the page with two machines beside Fleet's own Settings → Machines, both themes; the token hidden and shown (a scratch token only).
+
+**K. Add a machine (pairing link, address and code, token).** Rows 17.67, 17.71–17.77, 17.79, 17.29 (the click). Files: `src/view/add_machine.rs` (the form), `src/fleet/pairing.rs` (the request flow: preview, pair, add by token, the error words), scene `add-machine*`. Depends on: J, A.
+Ports: `MachinesSection.test.ts` "opens the Add a machine form when something else asked for it", "opens the form at once when it was asked for before Machines was shown", "opens on the pairing link when Fleet sees no machines, with Set it up from here as the other choice" (the link half), "looks at the machine behind a pasted link and says what adding it means", "adds the machine from the link and says so", "takes a bare address, asks for the code, then looks", "keeps the master token under Advanced, for an address", "says why a link can't be used, and why the machine wasn't found"; `stores/__tests__/machines.test.ts` "pairs a machine with a code through home, which keeps the token it was given", "says what went wrong when home can't pair, and keeps nothing", "won't pair from a Fleet that doesn't keep the list", "checks the address and token with the machine, then keeps it", "says so when the token is wrong", "says so when nothing answers", "refuses a Fleet that speaks another machine contract", "refuses a Fleet too old to have an identity", "refuses this machine under another address", "updates a machine added twice instead of listing it twice", "writes adds and forgets through to home". Live check: `POST /api/machine/pairing/code` on the node gives a code; the form pairs it (the code is single-use: make a new one per run). Pictures: the form empty, with a found machine, with an error, both themes, beside Fleet's.
+
+**L. Set it up from here (SSH).** Rows 17.71 (default card), 17.78. Files: `src/view/machine_setup.rs`, `src/fleet/setup_job.rs`, scene. Depends on: K. Optional until the owner asks: the owner's own machines are added by link or already listed. Ports: the nine SSH cases of `MachinesSection.test.ts` and `machines.test.ts` "sets a machine up from here, reports each step and keeps how it is reached", "throws the step that broke when the set-up fails", "loads the machines it can see and the commands, and reads a failure as none". Live: the scratch Fleet has no `ssh` target; check only up to the candidates list and a failed probe, say so. Pictures: the card list and the steps (from a scene fed by a recorded job), beside Fleet's.
+
+**M. Addresses and how a machine is reached.** Rows 17.63, 17.64. Files: `src/view/machine_addresses.rs`, `src/fleet/machine_actions.rs` (`PUT {addresses}`). Depends on: J, H. Ports: `MachinesSection.test.ts` "lists the addresses in order and marks the one in use", "says Connected on your network for a local address, and why not Tailscale", "says Connected over Tailscale on its IP, without saying Tailscale isn't answering", "moves an address up with Alt+ArrowUp and saves the new order", "puts the order back and shows the error when saving fails", "says how an SSH machine is reached, and when its tunnel is down". Pictures: the list in both themes, beside Fleet's.
+
+**N. The machine switch.** Rows 17.49–17.53. Files: `src/fleet/machine_choice.rs` (UMC), `src/view/machine_switch.rs` (MSW), scene `machine-switch`. Depends on: B; used by 16, 18–20, 22, 23 when they land. Ports: `use-machine-choice` cases through MSW's own: shown only with another machine; the pick forgotten by `reset`; the pick dropped when its machine is forgotten; "N session(s)". Pictures: closed and open, both themes, beside Fleet's.
+
+**O. Sweep.** Every test of the component accounted for (ported or owned by another component, each named), the three setups run live and pictured (one machine: nothing drawn; a node and the app on one machine: ports and two data folders on this machine; several machines: three scratch Fleets), the rows' "open, with reasons" written, `docs/PORT.md` row 17 closed. Includes the closing pictures beside Fleet's.
+
+## Checking (for every piece)
+
+- Two scratch Fleets on this machine (see `MACHINE.md`: own ports, `WORK=/tmp/fleet-native-scratch-<piece>-<name>`, `systemd-run` cap; the second with `--require-token`, its token in `fleet.machine.json` beside its database), the first told about the second with `POST /api/machines {baseUrl, token}`. The home Fleet answers `GET /api/machines` with the token on loopback (checked 15 November 2026). Rename one with `PUT /api/machine {name}` (two scratch Fleets on one host both call themselves by the host's name). Invented names only.
+- Pictures with `--server <home> --scene dark|light --size 1280x760 --at 1.5`; Fleet's with Playwright at the same size, waiting 20 s (Fleet's list reads another machine on its 15 s poll, so a shot at 9 s shows "0").
+- Never the owner's Fleet, never port 6262, never a real machine's token.
+
+## Pictures in the planning pull request
+
+`shots/parity/17-machines/`: `fleet-dark.png`, `fleet-light.png` (Fleet's own client, home "atlas" with 2 sessions, a second machine with 3, and the Add a machine row), `native-dark.png`, `native-light.png` (the native app against the same home Fleet: only home's two sessions, no machine group). The native pictures come from an existing debug build of `main` from the same day (the planning change touches only documents).
