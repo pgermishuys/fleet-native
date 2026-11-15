@@ -103,6 +103,11 @@ pub struct State {
     pub watched: conv::fold::WatchedTurn,
     watched_of: Option<String>,
     pub fold_plan: conv::fold_plan::FoldPlan,
+    /// Failure cards whose Details are open, by message id; and each session's Try now / Don't retry in flight or failed
+    /// (`fleet::retry`), with the bucket of the countdown last drawn.
+    pub failure_open: std::collections::HashSet<String>,
+    pub retry_acts: std::collections::HashMap<String, fleet::retry::Act>,
+    pub(crate) retry_seen: i64,
     /// What the error box above the composer says (`sendError`, row 1.10): a refused prompt, for now.
     pub composer_error: Option<String>,
     /// A prompt was sent and the session hasn't said it is busy yet (`optimisticBusy`, row 2.11).
@@ -168,6 +173,9 @@ impl Default for State {
             watched: Default::default(),
             watched_of: None,
             fold_plan: Default::default(),
+            failure_open: Default::default(),
+            retry_acts: Default::default(),
+            retry_seen: 0,
             reasoning_open: Default::default(),
             summary_open: Default::default(),
             shell_wide: Default::default(),
@@ -269,6 +277,11 @@ impl State {
     pub fn can_interrupt(&self) -> bool {
         let aborting = self.aborting.is_some() && self.aborting == self.draft_owner();
         !self.composer_disabled() && composer::status::can_interrupt(self.composer_status(), aborting)
+    }
+
+    /// Report this: the problem-report dialog is not in the native app yet (component 17 of the port).
+    pub fn report_turn_failure(&mut self, _summary: &str, tx: &mut Tx) {
+        self.toast("The problem report isn't in the native app yet.".into(), None, 4.0, tx);
     }
 
     /// A scene: the open session's composer holds `text` (put in the drafts, which the first frame reads back).
@@ -432,19 +445,33 @@ pub fn send(s: &mut State, tx: &mut Tx) {
     if text.is_empty() {
         return;
     }
-    // On a server the message goes to the agent, and the conversation shows it at once, as sent but
-    // not yet confirmed.
     // Row 8.1: what is sent is remembered for ArrowUp, before it goes anywhere.
     if let Some(owner) = s.draft_owner() {
         let now = s.clock;
         s.drafts.push_history(&owner, &text, now);
     }
+    send_text(s, tx, text);
+    s.draft.clear();
+}
+
+/// "Try again" on a failure card: the last prompt goes again, as a new message (`retryPrompt`).
+pub fn retry_turn(s: &mut State, tx: &mut Tx) {
+    if s.composer_disabled() {
+        return;
+    }
+    if let Some(text) = view::failure::last_prompt(&s.session().messages) {
+        send_text(s, tx, text);
+    }
+}
+
+/// Sends `text` to the open session. On a server the message goes to the agent, and the conversation shows it at once,
+/// as sent but not yet confirmed; without one, a canned reply follows.
+fn send_text(s: &mut State, tx: &mut Tx, text: String) {
     s.composer_error = None;
     s.optimistic = Some(composer::status::Optimistic::new(s.clock));
     tx.wake_after(std::time::Duration::from_secs_f64(composer::status::Optimistic::GIVE_UP + 0.1));
     if let (Some(_), Some(id)) = (&s.link, s.open_id()) {
         s.send_to_server(&id, &text);
-        s.draft.clear();
         s.notice = None;
         tx.scroll_to_bottom("stream");
         tx.wake_after(std::time::Duration::from_secs_f64(composer::status::Optimistic::GIVE_UP + 0.1));
@@ -459,7 +486,6 @@ pub fn send(s: &mut State, tx: &mut Tx) {
     session.status = Status::Working;
     session.age = "now".into();
     session.dim = 1.0;
-    s.draft.clear();
     s.working_since = s.clock;
     s.reply = Some((p, i, s.clock + 2.5));
     tx.scroll_to_bottom("stream");
@@ -570,7 +596,7 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
             tx.scroll_to_bottom("stream");
             true
         }
-        _ => s.tick_script() || (ticked && s.session().status == Status::Working),
+        _ => s.tick_script() || (ticked && s.session().status == Status::Working) || s.keep_retry_clock(tx),
     }
 }
 
@@ -755,6 +781,29 @@ pub fn spec() -> AppSpec<State> {
                 s.show_folded(true, true)
             }),
             ("fold-done", |s| s.show_folded(false, false)),
+            ("failure", |s| s.show_failure(mock::failure::Case::Stopped, false)),
+            ("failure-light", |s| {
+                s.dark = Some(false);
+                s.show_failure(mock::failure::Case::Stopped, false)
+            }),
+            ("failure-plain", |s| s.show_failure(mock::failure::Case::Plain, false)),
+            ("failure-plain-light", |s| {
+                s.dark = Some(false);
+                s.show_failure(mock::failure::Case::Plain, false)
+            }),
+            ("failure-details", |s| s.show_failure(mock::failure::Case::Stopped, true)),
+            ("failure-limit", |s| s.show_failure(mock::failure::Case::Usage, false)),
+            ("failure-limit-light", |s| {
+                s.dark = Some(false);
+                s.show_failure(mock::failure::Case::Usage, false)
+            }),
+            ("failure-attempt", |s| s.show_failure(mock::failure::Case::RateLimited, false)),
+            ("failure-attempt-light", |s| {
+                s.dark = Some(false);
+                s.show_failure(mock::failure::Case::RateLimited, false)
+            }),
+            ("failure-action-failed", |s| s.show_failure(mock::failure::Case::ActionFailed, false)),
+            ("failure-earlier", |s| s.show_failure(mock::failure::Case::Earlier, false)),
             ("recap", |s| s.show_recap()),
             ("recap-light", |s| {
                 s.dark = Some(false);

@@ -88,6 +88,7 @@ impl State {
             }
             self.sync_open();
             self.load_catalog(&id);
+            self.load_retry(&id);
         }
         tx.scroll_to_bottom("stream");
     }
@@ -106,6 +107,9 @@ impl State {
     /// The connection came back: every conversation shown is out of date until its new snapshot.
     pub fn on_reconnected(&mut self) {
         self.load_pickers();
+        if let Some(id) = self.open_id() {
+            self.load_retry(&id);
+        }
         if self.stream.is_some() {
             self.loading = true;
         }

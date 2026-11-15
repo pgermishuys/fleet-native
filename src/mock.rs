@@ -1,6 +1,7 @@
 //! Invented projects, sessions and conversations. Nothing here comes from a real Fleet.
 use crate::view::conversation::{Message, Part, ToolState};
 
+pub mod failure;
 pub mod fold;
 pub mod frame;
 pub mod long;

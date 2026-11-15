@@ -4,7 +4,7 @@ use crate::conv::card::tool_body;
 use crate::conv::compaction::fold_compaction_summaries;
 use crate::conv::shell::shell_command_of;
 use crate::conv::tools::{ToolStatus, get_tool, is_shell_row, is_write_call, tool_duration_ms};
-use crate::view::conversation::{Message, Meta, Part, Role, ToolState};
+use crate::view::conversation::{Failure, Message, Meta, Part, Role, ToolState};
 use serde_json::Value;
 
 /// The conversation's messages: a compaction's summary message is folded into its divider (`foldCompactionSummaries`).
@@ -30,13 +30,16 @@ fn turn_failure(m: &Msg) -> Option<&str> {
     m.turn_error.as_ref()?.get("message")?.as_str()
 }
 
+/// The card under a message whose turn failed (`turnError`): its name and message, and the limit's kind when it is one.
+fn failure(m: &Msg) -> Option<Failure> {
+    let e = m.turn_error.as_ref()?;
+    let text = |k: &str| e.get(k).and_then(Value::as_str).map(str::to_string);
+    Some(Failure { name: text("name").unwrap_or_default(), message: text("message").unwrap_or_default(), kind: text("kind") })
+}
+
 /// `folded` is the summary a compaction's own message gave this one, when it is a divider without one of its own.
 pub fn message(m: &Msg, folded: Option<&str>) -> Message {
-    let mut parts: Vec<Part> = m.parts.iter().map(|p| part(p, m.role, folded)).collect();
-    // The conversation has no failure row yet (the parts lane draws one); until then say it in words.
-    if let Some(reason) = turn_failure(m) {
-        parts.push(Part::text(format!("{}-failed", m.id), format!("The turn failed: {reason}")));
-    }
+    let parts: Vec<Part> = m.parts.iter().map(|p| part(p, m.role, folded)).collect();
     let mut out = Message::new(m.id.clone(), m.role, parts);
     out.meta = Meta {
         created_at: m.created_at,
@@ -44,6 +47,7 @@ pub fn message(m: &Msg, folded: Option<&str>) -> Message {
         command: m.command.clone(),
         mod_mark: m.mod_mark.clone(),
         steered: m.steered,
+        failure: failure(m),
     };
     out
 }

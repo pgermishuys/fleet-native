@@ -832,3 +832,72 @@ fn a_session_opened_after_its_turns_ended_folds_all_of_them() {
     assert!(rt.find("turn-fold-u2").is_some(), "no turn was watched, so the last one folds too");
     assert!(rt.find("tool-t7").is_none());
 }
+
+// ── Turn failure card and retry bar (component 3, piece H) ──────────────────────────────────────────────────────────
+
+fn failure_app(case: crate::mock::failure::Case) -> Runtime<State> {
+    let mut rt = app();
+    rt.update(|s, _| s.show_failure(case, false));
+    rt.frame(FRAME);
+    rt
+}
+
+#[test]
+fn a_failed_turn_says_so_with_its_stack_behind_details() {
+    let mut rt = failure_app(crate::mock::failure::Case::Stopped);
+    assert!(rt.find("turn-failure-a1").is_some());
+    assert!(rt.find("turn-failure-a1-stack").is_none());
+    click(&mut rt, "turn-failure-a1-details");
+    assert!(rt.find("turn-failure-a1-stack").is_some());
+    // The newest message, with a prompt before it: Try again is there, and no retry bar.
+    assert!(rt.find("turn-failure-a1-retry").is_some());
+    assert!(rt.find("turn-retry").is_none());
+}
+
+#[test]
+fn a_limit_shows_the_bar_and_hides_try_again_until_it_is_taken_away() {
+    let mut rt = failure_app(crate::mock::failure::Case::Usage);
+    assert!(rt.find("turn-retry").is_some());
+    assert!(rt.find("turn-failure-a1-retry").is_none());
+    click(&mut rt, "turn-retry-cancel");
+    assert!(rt.find("turn-retry").is_none());
+    assert!(rt.find("turn-failure-a1-retry").is_some());
+}
+
+#[test]
+fn an_earlier_failure_cannot_be_tried_again() {
+    let rt = failure_app(crate::mock::failure::Case::Earlier);
+    assert!(rt.find("turn-failure-a1").is_some());
+    assert!(rt.find("turn-failure-a1-retry").is_none());
+    assert!(rt.find("turn-failure-a1-report").is_some());
+}
+
+#[test]
+fn try_again_sends_the_last_prompt_again() {
+    let mut rt = failure_app(crate::mock::failure::Case::Stopped);
+    let before = rt.state.session().messages.len();
+    click(&mut rt, "turn-failure-a1-retry");
+    let messages = &rt.state.session().messages;
+    assert_eq!(messages.len(), before + 1);
+    assert_eq!(messages.last().unwrap().text(), "Add cursor paging to the order list.");
+}
+
+#[test]
+fn a_failed_action_says_why_and_a_second_answer_clears_it() {
+    let mut rt = failure_app(crate::mock::failure::Case::ActionFailed);
+    assert!(rt.find("turn-retry-why").is_some());
+    rt.update(|s, _| {
+        s.on_retry_acted("mock.0.0", true, Ok((500, serde_json::Value::Null)));
+        assert_eq!(s.retry_act().error.as_deref(), Some("Fleet couldn't try again now (HTTP 500)."));
+        s.on_retry_acted("mock.0.0", true, Ok((404, serde_json::Value::Null)));
+        assert_eq!(s.retry_act().error, None);
+    });
+}
+
+#[test]
+fn the_countdown_redraws_by_the_second_in_the_last_minute() {
+    let mut rt = failure_app(crate::mock::failure::Case::RateLimited);
+    let first = rt.state.retry_bucket();
+    rt.update(|s, _| s.now_ms = s.now_ms.map(|n| n + 1_000));
+    assert_ne!(rt.state.retry_bucket(), first);
+}

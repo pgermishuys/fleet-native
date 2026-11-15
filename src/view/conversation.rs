@@ -5,6 +5,7 @@
 //! (`client/src/lib/client-types.ts`) so the reducer in `src/fleet/` can fill it later: a message
 //! has a role and ordered parts, and every part has an id.
 use super::compaction;
+use super::failure;
 use super::fold;
 use super::message::{self, copy_text};
 use super::parts::quad;
@@ -56,6 +57,16 @@ pub struct Meta {
     pub command: Option<SlashCommand>,
     pub mod_mark: Option<ModMark>,
     pub steered: bool,
+    /// The failure that ended the turn, drawn as a card under the message (`turnError`).
+    pub failure: Option<Failure>,
+}
+
+/// A turn's failure (`TurnError`): the harness's name for it, its message, and the limit that caused it, if any.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Failure {
+    pub name: String,
+    pub message: String,
+    pub kind: Option<String>,
 }
 
 pub enum Part {
@@ -192,7 +203,11 @@ impl Message {
 
     /// Changes whenever something the row draws changes, in a few integer reads.
     pub fn version(&self) -> (usize, usize) {
-        (self.parts.len(), self.parts.iter().map(Part::weight).sum())
+        let failure = self.meta.failure.as_ref();
+        (
+            self.parts.len() + usize::from(failure.is_some()),
+            self.parts.iter().map(Part::weight).sum::<usize>() + failure.map_or(0, |f| f.message.len()),
+        )
     }
 }
 
@@ -237,6 +252,8 @@ pub fn stream(t: &Theme, session: &Session, plan: &FoldPlan, partial: bool, olde
                 s.copied.as_ref().is_some_and(|(m, until)| *m == msg.id && s.clock < *until),
                 s.prompt_open.contains(&msg.id),
             );
+            // A failure card also follows the newest message, the retry's countdown and its buttons.
+            let failure = msg.meta.failure.as_ref().map(|_| s.failure_frame(msg, at + 1 == len));
             memo(
                 msg.id.clone(),
                 (
@@ -250,6 +267,7 @@ pub fn stream(t: &Theme, session: &Session, plan: &FoldPlan, partial: bool, olde
                     frame,
                     s.lists().models.len(),
                     fold_key(kept),
+                    failure,
                 ),
                 || message_row(&theme, &md, msg, (kept, after_tool), streaming, s, (frame.0, frame.1)),
             )
@@ -526,6 +544,12 @@ fn message_row(
     // A turn of only tool rows has no bubble, so no pill either.
     if !user && !fold_only && show_meta(false, cluster) && !copy_text(msg).trim().is_empty() {
         column = column.children(message::meta_pill(t, s, msg));
+    }
+    if let Some(f) = &msg.meta.failure {
+        let latest = s.session().messages.last().is_some_and(|m| m.id == msg.id);
+        let around =
+            failure::Around { latest, has_prompt: failure::last_prompt(&s.session().messages).is_some(), can_send: !s.composer_disabled() };
+        column = column.child(failure::card(t, s, msg, f, &around));
     }
     if msg.needs_retry {
         // `.optimistic-retry`: 12px in the idle colour, right-aligned under the user's bubble.
