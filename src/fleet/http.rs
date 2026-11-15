@@ -5,7 +5,11 @@ use serde_json::{Value, json};
 use std::time::Duration;
 
 fn agent() -> ureq::Agent {
-    ureq::Agent::config_builder().timeout_global(Some(Duration::from_secs(15))).build().into()
+    agent_for(15)
+}
+
+fn agent_for(seconds: u64) -> ureq::Agent {
+    ureq::Agent::config_builder().timeout_global(Some(Duration::from_secs(seconds))).build().into()
 }
 
 fn url(base: &str, path: &str) -> String {
@@ -32,9 +36,20 @@ pub fn sessions(base: &str) -> Result<Value, String> {
     get(base, "/api/sessions?limit=200")
 }
 
-/// Send a message to the agent (`SendPromptApiRequest`, only the text).
-pub fn prompt(base: &str, session: &str, text: &str) -> Result<(), String> {
-    post(base, &format!("/api/sessions/{session}/prompt"), &json!({ "text": text })).map(drop)
+/// Send a message to the agent (`SendPromptApiRequest`: the text and the correlation id the
+/// optimistic prompt waits on). The receipt is `{eventId, correlationId}`.
+///
+/// It waits a minute, where every other call waits 15 s: Fleet's client waits as long as the server
+/// takes, and the prompt is shown as needing a retry at 15 s (`prompts::CONFIRMATION_TIMEOUT`), which
+/// a request that gave up first would turn into a refusal.
+pub fn prompt(base: &str, session: &str, correlation_id: &str, text: &str) -> Result<Value, String> {
+    let body = json!({ "text": text, "correlationId": correlation_id });
+    read(
+        agent_for(60)
+            .post(url(base, &format!("/api/sessions/{session}/prompt")))
+            .header("content-type", "application/json")
+            .send(body.to_string()),
+    )
 }
 
 pub fn abort(base: &str, session: &str) -> Result<(), String> {

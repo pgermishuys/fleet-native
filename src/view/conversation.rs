@@ -29,6 +29,8 @@ pub struct Message {
     pub id: String,
     pub role: Role,
     pub parts: Vec<Part>,
+    /// A sent prompt the server hasn't confirmed in time: a line under it says so (`optimistic-retry`).
+    pub needs_retry: bool,
 }
 
 pub enum Part {
@@ -77,7 +79,7 @@ pub enum ToolState {
 
 impl Message {
     pub fn new(id: impl Into<String>, role: Role, parts: Vec<Part>) -> Self {
-        Message { id: id.into(), role, parts }
+        Message { id: id.into(), role, parts, needs_retry: false }
     }
 
     pub fn user(id: impl Into<String>, body: impl Into<String>) -> Self {
@@ -149,7 +151,7 @@ pub fn stream(t: &Theme, session: &Session) -> El {
             let Some(msg) = session.messages.get(i) else { return working_row(s, &theme) };
             let after_tool = i.checked_sub(1).map(|p| matches!(session.messages[p].parts.last(), Some(Part::Tool { .. })));
             let streaming = i + 1 == session.messages.len() && session.status == Status::Working && msg.role == Role::Assistant;
-            memo(msg.id.clone(), (msg.version(), theme.dark, after_tool, streaming), || {
+            memo(msg.id.clone(), (msg.version(), theme.dark, after_tool, streaming, msg.needs_retry), || {
                 message_row(&theme, &md, msg, after_tool, streaming)
             })
         },
@@ -181,6 +183,12 @@ fn message_row(t: &Theme, md: &MarkdownStyle, msg: &Message, after_tool: Option<
         let live = streaming && k + 1 == msg.parts.len();
         column = column.child(el().w_full().mt(above).py(2.0).child(part_view(t, md, msg.role, part, live)));
         after_tool = Some(is_tool);
+    }
+    if msg.needs_retry {
+        // `.optimistic-retry`: 12px in the idle colour, right-aligned under the user's bubble.
+        column = column.child(row().w_full().justify_end().mt(4.0).mb(8.0).child(
+            text("Not confirmed yet. Retry from the composer if this did not send.").font(sans(12.0, 400.0, 1.3)).color(t.idle).wrap(),
+        ));
     }
     column
 }

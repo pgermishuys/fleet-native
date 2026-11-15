@@ -226,3 +226,12 @@ state (here, the row status derived from a snapshot) calls a `State` method, and
 Nothing in Rune was needed. To check that a snapshot taken again rebuilds only what changed, a test writes a marker
 into a part id (not part of a row's `version()`) on the view rows and sees which survive; `State.projects` is public
 for that.
+
+## Component 2, piece D (optimistic prompts)
+
+Nothing in Rune was needed. Two things learned about driving it:
+
+- A real window under Xvfb takes `xdotool type` only after the window is given the X focus (`xdotool windowfocus`,
+  there is no window manager to do it); a click alone puts the caret in the composer but the keys go nowhere.
+- The 15 s timeout is the state's clock, not a thread: `poll` gets the time, so `Tx::wake_after` at the send is what
+  makes the frame that turns a prompt to `needs_retry` happen when nothing else is going on.

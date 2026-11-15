@@ -230,7 +230,7 @@ Each row: what Fleet does, its source, the native state. `[ ]` open, `[x]` done 
   replaced whole by each `context.updated`; a payload that isn't one is ignored (`toContextUsage`: needs a session,
   counts sent as strings accepted, missing window = unknown, `splitKnown` defaults true, a harness giving only the
   total marks it). The ring, percent, tone and "turns before compaction" are component 5; `formatTokens` is shared.
-- [ ] **3.3 Optimistic prompts** (`composables/use-send-prompt.ts`). A sent prompt is shown at once with a generated
+- [x] **3.3 Optimistic prompts** (`composables/use-send-prompt.ts`). A sent prompt is shown at once with a generated
   `prompt-<uuid>` correlation id, status `pending`; the server's `user.prompt.committed` carries `correlationId`,
   `info.id` and the event id and confirms it (`confirmSentPrompt`: matched by correlation id or server message id;
   idempotent when confirmed twice; adopts the server message id and event id). Not confirmed in 15 s
@@ -266,6 +266,31 @@ Piece C built 3.1, 3.2, 3.4 and 3.5 (`work.rs`, `context.rs`, `command`/`mod` ma
 - 3.5: native has no object identity to reuse as the Vue client does; the check is that a snapshot taken again keeps
   the view rows of unchanged messages (`a_snapshot_after_a_reconnect_rebuilds_only_what_changed`). The last message is
   always rebuilt, by design (`sync_open`).
+
+Piece D built 3.3 (`prompts.rs`; `PromptCommitted` event; `send_to_server`, `on_prompt_receipt`, `on_prompt_refused` in `state.rs`;
+the retry line in `view/conversation.rs`). Gaps, with reasons:
+
+- The send path is the composer's text only, as the piece says. Fleet's `userMessageId`, agent, model, attachments,
+  effort, `steer` and the `@`-session references are component 5's. So `reconcile` compares the trimmed body, without
+  `stripSessionReferences`, and a prompt has no images and no `steered` mark yet.
+- The pending and confirmed prompts look the same, as in Fleet (only `needs_retry` draws anything: the line
+  "Not confirmed yet. Retry from the composer if this did not send."). Fleet's "Send now" / queue and the retry button
+  of a failed turn are component 5's.
+- Fleet's `seedSentPrompt` (a new session's first message) and `showSentPrompt` (`/btw`) belong to the new-session and
+  side-conversation components; the registry's `add` is what they will call. Fleet's `getPromptTrackingState` is a
+  diagnostic and isn't ported.
+- A refused send removes the prompt and puts its text back in the composer if that is empty, and says why in the
+  status bar (Fleet shows `sendError` under the composer: the composer's component moves it). Fleet also puts back the
+  session's status from before the send; native's status comes from the stream, so there is nothing to put back.
+- The native send waits 60 s for the receipt (Fleet's fetch waits for as long as the server takes), so the 15 s
+  `needs_retry` is not pre-empted by the request giving up. Every other call keeps 15 s.
+- Under a software renderer (Xvfb, lavapipe), a picture taken 0.2 s after Enter, against a stopped server, showed the
+  new row clipped; 2 s later it was whole. The sheet measures one frame late, so this is likely that. Not looked into
+  further, and not looked at on a GPU.
+- Tests: `domain-event-reducer.test.ts` 2 of 2 and `merge-messages.test.ts` 7 of 7 under the same names (the reducer
+  two run through `State`, because the registry is not in the stream's state); the three pending-count cases and the
+  textless-copy case of `use-send-prompt.test.ts`. Not ported: the cases that need `useSendPrompt` itself (draft,
+  model, session references: component 5).
 - Neither the work state nor the context is drawn yet: the strip is component 9, the ring component 5. `command`
   and `mod` marks aren't drawn either (component 4's message rendering).
 - Check in a live Fleet not done: the scratch Fleet's scripted model starts no background work.
