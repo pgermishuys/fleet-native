@@ -2,9 +2,12 @@
 //! (`lib/tools/` in weave-fleet), a call's status and duration, and which rows fold together.
 //! Views under `src/view/` draw from these; tests under `tests/` are Fleet's, under the same names.
 pub mod card;
+pub mod compaction;
 pub mod diff;
+pub mod gist;
 pub mod merge_reads;
 pub mod output;
+pub mod shell;
 pub mod tools;
 
 #[cfg(test)]

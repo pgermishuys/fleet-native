@@ -2,6 +2,7 @@
 use crate::view::conversation::{Message, Part, ToolState};
 
 pub mod long;
+pub mod parts;
 pub mod tools;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

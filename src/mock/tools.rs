@@ -5,7 +5,7 @@ use crate::State;
 use crate::fleet::{reducer, view};
 use serde_json::{Value, json};
 
-fn call(id: &str, tool: &str, status: &str, input: Value, extra: Value) -> Value {
+pub(super) fn call(id: &str, tool: &str, status: &str, input: Value, extra: Value) -> Value {
     let mut state = json!({"status": status, "input": input});
     if let (Some(state), Some(extra)) = (state.as_object_mut(), extra.as_object()) {
         state.extend(extra.clone());
@@ -13,15 +13,15 @@ fn call(id: &str, tool: &str, status: &str, input: Value, extra: Value) -> Value
     json!({"type": "tool", "id": id, "tool": tool, "callID": format!("call-{id}"), "state": state})
 }
 
-fn message(id: &str, role: &str, created: i64, parts: Vec<Value>) -> Value {
+pub(super) fn message(id: &str, role: &str, created: i64, parts: Vec<Value>) -> Value {
     json!({"info": {"id": id, "role": role, "sessionID": "scene", "time": {"created": created}}, "parts": parts})
 }
 
-fn took(ms: i64) -> Value {
+pub(super) fn took(ms: i64) -> Value {
     json!({"time": {"start": 1_000, "end": 1_000 + ms}})
 }
 
-fn conversation(messages: Vec<Value>) -> Vec<crate::view::conversation::Message> {
+pub(super) fn conversation(messages: Vec<Value>) -> Vec<crate::view::conversation::Message> {
     let state = reducer::create_state(&json!({"session": {}, "messages": messages, "delegations": [], "activityStatus": "idle"}));
     view::messages(&state.messages)
 }

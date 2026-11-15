@@ -48,6 +48,8 @@ pub enum Event {
     },
     /// `context.updated`: the whole usage, as sent.
     Context(Value),
+    /// `session.recap`: what Fleet wrote for the session while nobody looked; `None` when the next prompt cleared it.
+    Recap(Option<String>),
     /// A session's activity on the `sessions` topic. The stream reads it for its sub-agents' sessions;
     /// the fields are empty when the frame lacks them, and the reducer then ignores it.
     ActivityStatus {
@@ -208,6 +210,7 @@ impl Event {
             }
             Kind::WorkStarted | Kind::WorkUpdated | Kind::WorkEnded => Event::Work { kind: known, item: props.clone() },
             Kind::ContextUpdated => Event::Context(props.clone()),
+            Kind::SessionRecap => Event::Recap(text("text").filter(|t| !t.is_empty())),
             Kind::ActivityStatus => Event::ActivityStatus {
                 session_id: props.get("sessionId").and_then(Value::as_str).unwrap_or_default().to_string(),
                 activity_status: props.get("activityStatus").and_then(Value::as_str).unwrap_or_default().to_string(),
@@ -231,6 +234,7 @@ impl Event {
             Event::Delegation { kind, .. } => *kind,
             Event::Work { kind, .. } => *kind,
             Event::Context(_) => Kind::ContextUpdated,
+            Event::Recap(_) => Kind::SessionRecap,
             Event::ActivityStatus { .. } => Kind::ActivityStatus,
             Event::Other(kind, _) => *kind,
             Event::Unknown { .. } | Event::Cursor(_) => return None,

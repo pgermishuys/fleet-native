@@ -10,6 +10,7 @@ use super::rows::RowPatch;
 use super::sessions;
 use super::view;
 use crate::State;
+use crate::conv::compaction::fold_compaction_summaries;
 use crate::mock::{Project, Status};
 use crate::view::conversation::{Message, Older};
 use rune::Tx;
@@ -286,7 +287,9 @@ impl State {
     /// (the reducer doesn't make those).
     pub(crate) fn sync_open(&mut self) {
         let Some(stream) = &self.stream else { return };
-        let shown: Vec<&Msg> = stream.messages.iter().filter(|m| !m.compaction_summary).collect();
+        let folded = fold_compaction_summaries(&stream.messages);
+        let shown: Vec<&Msg> = stream.messages.iter().filter(|m| !folded.hidden.contains(&m.id)).collect();
+        let summary_of = |m: &Msg| folded.summaries.get(&m.id).map(String::as_str);
         let (p, i) = self.open;
         let sent = self.projects.get(p).and_then(|p| p.sessions.get(i)).map(|s| s.id.clone()).unwrap_or_default();
         // The prompts the conversation doesn't hold yet, after the delivered messages (`mergeMessagesByTimestamp`).
@@ -310,15 +313,16 @@ impl State {
         if same_shape {
             let last = n.saturating_sub(1);
             for (i, (old, new)) in session.messages.iter_mut().zip(&shown).enumerate() {
-                if i == last || old.version() != view::version(new) {
-                    *old = view::message(new);
+                if i == last || old.version() != view::version(new, summary_of(new)) {
+                    *old = view::message(new, summary_of(new));
                 }
             }
             // A few rows at most, and one may have just turned to needing a retry.
             session.messages.truncate(n);
             session.messages.extend(optimistic);
         } else {
-            session.messages = prompts::merge_by_timestamp(shown.into_iter().map(view::message).collect(), optimistic);
+            session.messages =
+                prompts::merge_by_timestamp(shown.into_iter().map(|m| view::message(m, summary_of(m))).collect(), optimistic);
         }
         // The row shows the derived status: a sub-agent's question is the amber diamond, every other
         // kind of work the working glyph.
@@ -370,6 +374,11 @@ impl State {
     /// The open conversation is the harness's cached data, not live (`isPartial`).
     pub fn is_partial(&self) -> bool {
         self.stream.as_ref().is_some_and(|s| s.is_partial)
+    }
+
+    /// Fleet's recap of the open session, when it wrote one (`RecapLine.vue`).
+    pub fn recap(&self) -> Option<&str> {
+        self.stream.as_ref()?.recap.as_deref()
     }
 
     /// What the top of the conversation offers: nothing, or the button, its busy line, or its retry wording.

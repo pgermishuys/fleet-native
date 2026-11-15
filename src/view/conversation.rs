@@ -4,11 +4,16 @@
 //! This file also holds the message type it draws. It follows weave-fleet's `AccumulatedMessage`
 //! (`client/src/lib/client-types.ts`) so the reducer in `src/fleet/` can fill it later: a message
 //! has a role and ordered parts, and every part has an id.
+use super::compaction;
 use super::parts::quad;
 use super::prose;
+use super::reasoning;
+use super::shell;
 use super::toolrow;
 use crate::State;
 use crate::conv::card::ToolBody;
+use crate::conv::compaction::CompactionView;
+use crate::conv::shell::ShellCommand;
 use crate::conv::tools::{ToolRowEntry, ToolStatus, group_reads};
 use crate::icons::*;
 use crate::mock::{Session, Status};
@@ -69,9 +74,14 @@ pub enum Part {
     /// Where the harness compacted the conversation.
     Compaction {
         id: String,
+        trigger: Option<String>,
         tokens_before: Option<u32>,
         tokens_after: Option<u32>,
+        /// What the model goes on from: the divider's own, or the message a harness wrote it as.
+        summary: Option<String>,
     },
+    /// A command the user ran from the composer (a `shell` message's one tool part).
+    Shell(ShellCommand),
 }
 
 /// What a finished tool call has to show on the right of its row. Fleet keeps the whole state as JSON; the
@@ -148,7 +158,9 @@ impl Part {
                 };
                 shown + (*status as usize) * 7 + detail.len() + body.output.len() + body.summary.len()
             }
-            _ => 5,
+            Part::Compaction { summary, .. } => 5 + summary.as_ref().map_or(0, String::len),
+            Part::Shell(c) => 6 + c.output.len() + (c.state as usize) * 3 + c.exit.map_or(0, |e| e as usize),
+            Part::File { .. } => 5,
         }
     }
 }
@@ -164,7 +176,7 @@ impl Message {
 /// screen are built (`virtual_rows`), and a row whose message hasn't changed is reused (`memo`).
 pub fn stream(t: &Theme, session: &Session, partial: bool, older: Option<Older>) -> El {
     let theme = *t;
-    let md = prose::style(t);
+    let md = Styles { prose: prose::style(t), reasoning: reasoning::style(t), summary: compaction::style(t) };
     let working = session.status == Status::Working;
     let count = session.messages.len() + usize::from(working);
     let rows = col().key("timeline").w_full().max_w(COLUMN).growth(GrowthSpec::default()).virtual_rows(
@@ -177,10 +189,10 @@ pub fn stream(t: &Theme, session: &Session, partial: bool, older: Option<Older>)
         move |s: &State, i| {
             let session = s.session();
             let Some(msg) = session.messages.get(i) else { return working_row(s, &theme) };
-            let after_tool = i.checked_sub(1).map(|p| matches!(session.messages[p].parts.last(), Some(Part::Tool { .. })));
+            let after_tool = i.checked_sub(1).map(|p| matches!(session.messages[p].parts.last(), Some(Part::Tool { .. } | Part::Shell(_))));
             let streaming = i + 1 == session.messages.len() && session.status == Status::Working && msg.role == Role::Assistant;
             let opened = open_mask(msg, s);
-            memo(msg.id.clone(), (msg.version(), theme.dark, after_tool, streaming, msg.needs_retry, opened), || {
+            memo(msg.id.clone(), (msg.version(), theme.dark, after_tool, streaming, msg.needs_retry, opened, s.thinking), || {
                 message_row(&theme, &md, msg, after_tool, streaming, s)
             })
         },
@@ -196,6 +208,13 @@ pub fn stream(t: &Theme, session: &Session, partial: bool, older: Option<Older>)
             .children(older.map(|o| older_row(&theme, o)))
             .child(rows),
     )
+}
+
+/// The Markdown looks a message draws with: its text, its reasoning, and a compaction's summary.
+pub struct Styles {
+    prose: MarkdownStyle,
+    reasoning: MarkdownStyle,
+    summary: MarkdownStyle,
 }
 
 /// `.partial-snapshot-banner` (`ActivityStream.vue`): the harness was unavailable and this is cached data.
@@ -283,6 +302,9 @@ fn open_mask(msg: &Message, s: &State) -> u64 {
         && s.tool_wide.is_empty()
         && s.diff_all.is_empty()
         && s.diff_open.is_empty()
+        && s.reasoning_open.is_empty()
+        && s.summary_open.is_empty()
+        && s.shell_wide.is_empty()
         && !s.inline_diffs
     {
         return 0;
@@ -292,6 +314,12 @@ fn open_mask(msg: &Message, s: &State) -> u64 {
         s.open_reads.contains(&id).hash(&mut hash);
     }
     for part in &msg.parts {
+        match part {
+            Part::Reasoning { id, .. } => s.reasoning_open.contains(id).hash(&mut hash),
+            Part::Compaction { id, .. } => s.summary_open.contains(id).hash(&mut hash),
+            Part::Shell(c) => s.shell_wide.contains(&c.id).hash(&mut hash),
+            _ => {}
+        }
         if let Part::Tool { id, .. } = part {
             s.tool_open.get(id.as_str()).hash(&mut hash);
             s.tool_wide.contains(id.as_str()).hash(&mut hash);
@@ -325,7 +353,7 @@ fn tool_runs(parts: &[Part]) -> Vec<Vec<&Part>> {
 
 /// One message: its parts, spaced as Fleet spaces them. `after_tool` is how the message above
 /// ended (`None` for the first), so a run of tool rows reads as one block across messages.
-fn message_row(t: &Theme, md: &MarkdownStyle, msg: &Message, after_tool: Option<bool>, streaming: bool, s: &State) -> El {
+fn message_row(t: &Theme, md: &Styles, msg: &Message, after_tool: Option<bool>, streaming: bool, s: &State) -> El {
     let mut column = col().w_full();
     let mut after_tool = after_tool;
     // 20px after a message or text, none between tool rows, 12px before the text that follows a run of them.
@@ -336,6 +364,13 @@ fn message_row(t: &Theme, md: &MarkdownStyle, msg: &Message, after_tool: Option<
     };
     let mut k = 0;
     while k < msg.parts.len() {
+        // Thinking that is hidden, or has nothing to say, takes no room either.
+        if let Part::Reasoning { text, summary, .. } = &msg.parts[k]
+            && !reasoning::is_drawn(s.thinking, text, summary.as_deref())
+        {
+            k += 1;
+            continue;
+        }
         if matches!(msg.parts[k], Part::Tool { .. }) {
             let end = msg.parts[k..].iter().position(|p| !matches!(p, Part::Tool { .. })).map_or(msg.parts.len(), |n| k + n);
             // Two or more reads in a row fold into one "Read N files" row (`groupReads`).
@@ -351,8 +386,11 @@ fn message_row(t: &Theme, md: &MarkdownStyle, msg: &Message, after_tool: Option<
             continue;
         }
         let live = streaming && k + 1 == msg.parts.len();
-        column = column.child(el().w_full().mt(above(after_tool, false)).py(2.0).child(part_view(t, s, md, msg.role, &msg.parts[k], live)));
-        after_tool = Some(false);
+        // Commands the user ran sit close together, as tool rows do (Fleet stacks them 7px apart).
+        let is_shell = matches!(msg.parts[k], Part::Shell(_));
+        let gap = if is_shell && after_tool == Some(true) { 3.0 } else { above(after_tool, false) };
+        column = column.child(el().w_full().mt(gap).py(2.0).child(part_view(t, s, md, msg.role, &msg.parts[k], live)));
+        after_tool = Some(is_shell);
         k += 1;
     }
     if msg.needs_retry {
@@ -364,7 +402,7 @@ fn message_row(t: &Theme, md: &MarkdownStyle, msg: &Message, after_tool: Option<
     column
 }
 
-fn part_view(t: &Theme, s: &State, md: &MarkdownStyle, role: Role, part: &Part, live: bool) -> El {
+fn part_view(t: &Theme, s: &State, md: &Styles, role: Role, part: &Part, live: bool) -> El {
     match (part, role) {
         // Right-aligned with the small corner at bottom right. The empty 18% in front keeps the
         // bubble to Fleet's `max-width: 82%` of the column at any width.
@@ -381,17 +419,24 @@ fn part_view(t: &Theme, s: &State, md: &MarkdownStyle, role: Role, part: &Part, 
                 .border(1.0, t.border)
                 .fill(t.wash(5.0)),
         ),
-        (Part::Text { id, text: body }, Role::Assistant) => prose::prose(md, id, body, live),
+        (Part::Text { id, text: body }, Role::Assistant) => prose::prose(&md.prose, id, body, live),
         (Part::Tool { .. }, _) => toolrow::tool_entry(t, s, part),
-        // The remaining parts get their real look in the parts lane; for now they say what they are.
-        (Part::Reasoning { text: body, summary, .. }, _) => {
-            let shown = summary.as_deref().unwrap_or(body);
-            text(shown.to_string()).font(sans(13.0, 400.0, 1.5)).color(t.muted).wrap().w_full()
+        (Part::Reasoning { id, text: body, summary }, _) => {
+            reasoning::reasoning_row(t, s, &md.reasoning, id, body, summary.as_deref(), live)
         }
+        (Part::Shell(command), _) => shell::shell_block(t, s, command),
         (Part::File { filename, mime, .. }, _) => {
             text(filename.clone().unwrap_or_else(|| mime.clone())).font(mono(12.0, 400.0, 1.3)).color(t.muted).truncate().w_full()
         }
-        (Part::Compaction { .. }, _) => text("Conversation compacted").font(sans(12.0, 400.0, 1.3)).color(t.muted).w_full(),
+        (Part::Compaction { id, trigger, tokens_before, tokens_after, summary }, _) => {
+            let view = CompactionView {
+                trigger: trigger.clone(),
+                tokens_before: *tokens_before,
+                tokens_after: *tokens_after,
+                summary: summary.clone(),
+            };
+            compaction::divider(t, s, &md.summary, id, &view)
+        }
     }
 }
 

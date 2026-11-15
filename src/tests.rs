@@ -460,4 +460,111 @@ fn a_restart_brings_the_text_back_and_a_typed_one_wins_over_the_file() {
     rt.update(move |s, _| s.adopt_drafts(std::env::temp_dir().join("fleet-native-never-written"), stored));
     rt.frame(FRAME);
     assert_eq!(rt.state.draft.text, "typed first");
+
+/// Piece 3D: `ReasoningBlock.test.ts`, `ShellCommandBlock.test.ts`, `CompactionDivider.test.ts`, `RecapLine.test.ts`.
+fn scene_app(setup: impl FnOnce(&mut State) + 'static) -> Runtime<State> {
+    let mut rt = app();
+    rt.update(move |s, _| setup(s));
+    rt.frame(FRAME);
+    run(&mut rt, 0.3);
+    rt
+}
+
+#[test]
+fn reasoning_is_folded_to_one_line_by_default_and_opens_on_click() {
+    let mut rt = scene_app(|s| s.show_conversation(crate::mock::parts::of_thinking()));
+    assert!(rt.find("reasoning-th1-gist").is_some());
+    assert!(rt.find("reasoning-th1-label").is_none(), "a closed finished block has no label");
+    assert!(rt.find("reasoning-th1-body").is_none());
+    click(&mut rt, "reasoning-th1-fold");
+    run(&mut rt, 0.3);
+    assert!(rt.find("reasoning-th1-body").is_some());
+    assert!(rt.find("reasoning-th1-label").is_some());
+    assert!(rt.find("reasoning-th1-gist").is_none(), "the gist gives way to the whole block");
+    click(&mut rt, "reasoning-th1-fold");
+    run(&mut rt, 0.3);
+    assert!(rt.find("reasoning-th1-body").is_none());
+}
+
+#[test]
+fn reasoning_follows_the_newest_sentence_while_live() {
+    let rt = scene_app(|s| s.show_live_thinking());
+    assert!(rt.find("reasoning-th1-label").is_some(), "a live block says Thinking…");
+    assert!(rt.find("reasoning-th1-gist").is_some());
+}
+
+#[test]
+fn reasoning_shows_every_block_in_full_when_set_to_open_and_nothing_when_hidden() {
+    use crate::conv::gist::Thinking;
+    let rt = scene_app(|s| {
+        s.show_conversation(crate::mock::parts::of_thinking());
+        s.thinking = Thinking::Open;
+    });
+    assert!(rt.find("reasoning-th1-fold").is_none());
+    assert!(rt.find("reasoning-th1-body").is_some());
+    assert!(rt.find("reasoning-th2-summary").is_some());
+    let rt = scene_app(|s| {
+        s.show_conversation(crate::mock::parts::of_thinking());
+        s.thinking = Thinking::Hidden;
+    });
+    assert!(rt.find("reasoning-th1").is_none());
+    assert!(rt.find("reasoning-th2").is_none());
+}
+
+#[test]
+fn a_shell_command_is_the_users_block_with_its_state() {
+    let rt = scene_app(|s| s.show_conversation(crate::mock::parts::of_shell(&["s1", "s2", "s3", "s5"])));
+    for id in ["s1", "s2", "s3", "s5"] {
+        assert!(rt.find(&format!("shell-{id}-tool-command")).is_some(), "{id}");
+    }
+    assert!(rt.find("shell-s1-tool-state").is_some(), "exit 0");
+    assert!(rt.find("shell-s2-tool-state").is_some(), "Failed · exit 3");
+    assert!(rt.find("shell-s3-tool-state").is_some(), "Running…");
+    assert!(rt.find("shell-s3-tool-none").is_none(), "a running command hasn't printed nothing yet");
+    assert!(rt.find("shell-s3-tool-output").is_none());
+    assert!(rt.find("shell-s5-tool-state").is_none(), "no exit code to say");
+    assert!(rt.find("shell-s5-tool-none").is_some(), "a finished command that printed nothing says so");
+    assert!(rt.find("shell-s1-tool-output").is_some());
+}
+
+#[test]
+fn a_shell_commands_long_output_collapses_to_its_last_lines_until_asked() {
+    let mut rt = scene_app(|s| s.show_conversation(crate::mock::parts::of_shell(&["s4"])));
+    assert!(rt.find("shell-s4-tool-expand").is_some());
+    assert!(rt.find("shell-s4-tool-collapse").is_none());
+    click(&mut rt, "shell-s4-tool-expand");
+    run(&mut rt, 0.3);
+    assert!(rt.state.shell_wide.contains("s4-tool"));
+    assert!(rt.find("shell-s4-tool-expand").is_none());
+    assert!(rt.find("shell-s4-tool-collapse").is_some());
+    rt.update(|_, tx| tx.scroll_to_bottom_instant("stream"));
+    run(&mut rt, 0.3);
+    click(&mut rt, "shell-s4-tool-collapse");
+    run(&mut rt, 1.0);
+    assert!(rt.find("shell-s4-tool-expand").is_some());
+    // A timed out command that the harness cut short says so.
+    let rt = scene_app(|s| s.show_conversation(crate::mock::parts::of_shell(&["s6"])));
+    assert!(rt.find("shell-s6-tool-truncated").is_some());
+}
+
+#[test]
+fn a_compaction_divider_keeps_its_summary_behind_a_toggle() {
+    let mut rt = scene_app(|s| s.show_conversation(crate::mock::parts::of_compaction()));
+    assert!(rt.find("compaction-c1-label").is_some());
+    assert!(rt.find("compaction-c1-summary").is_none());
+    assert!(rt.find("compaction-c2-toggle").is_none(), "no summary, no toggle");
+    click(&mut rt, "compaction-c1-toggle");
+    run(&mut rt, 0.3);
+    assert!(rt.find("compaction-c1-summary").is_some());
+    click(&mut rt, "compaction-c1-toggle");
+    run(&mut rt, 0.3);
+    assert!(rt.find("compaction-c1-summary").is_none());
+}
+
+#[test]
+fn the_recap_sits_under_the_conversation_only_when_fleet_wrote_one() {
+    let rt = scene_app(|s| s.show_recap());
+    assert!(rt.find("recap-line").is_some());
+    let rt = scene_app(|s| s.show_conversation(crate::mock::parts::of_thinking()));
+    assert!(rt.find("recap-line").is_none());
 }

@@ -138,6 +138,9 @@ pub struct StreamState {
     pub running_work: Vec<RunningWorkItem>,
     /// How full the context window is: the snapshot's `context`, replaced whole by each `context.updated`.
     pub context: Option<ContextUsage>,
+    /// The line Fleet wrote for the session while nobody looked (`recap` of the snapshot, `session.recap`); it sits
+    /// between the conversation and the composer until the next prompt clears it.
+    pub recap: Option<String>,
     pub explicit_status: Explicit,
     pub session_status: StreamStatus,
     pub last_event_id: Option<i64>,

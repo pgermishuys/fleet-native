@@ -353,3 +353,17 @@ Nothing in Rune was needed. Learned:
   script that wants the file written ends a second after its last keystroke (the write waits 0.3 s).
 - **Pictures and scenes must not touch the data folder.** The drafts file is read and written only for a real
   window, or a headless run that sets `FLEET_NATIVE_DATA_DIR`.
+
+## Component 3, piece D (reasoning, shell block, compaction, recap)
+
+- **`TextStyle::italic()` works for a whole Markdown body**: `MarkdownStyle::body_font(sans(13.0, 400.0, 1.5).italic())` (and
+  the same on the heading fonts) gives Fleet's italic thinking text. Inter has no italic file here, so it is a synthetic oblique.
+- **No gradient text** (`background-clip: text`): the "Thinking…" shimmer is two stacked words, muted underneath and
+  text-coloured on top with a `Cycle` fading the top one. `still` is the reduced-motion value.
+- **No `mx_auto`**: a centred, max-width box is a `row().w_full().justify_center()` with the box (`w_full().max_w(..)`) in it.
+- **`El::rotate` takes radians, clockwise like CSS** (`FRAC_PI_2` turns a right chevron to point down).
+- **One `selectable` per text**: Fleet's "$ " before a command isn't selectable; here it is a muted `Span` in the same text.
+- **A `Hash` bound on `memo` keys**: a `State` setting that changes a row (`Thinking`) goes into the key as well as into `open_mask`.
+- **The shared `CARGO_TARGET_DIR` binary can be another session's build.** A live check that runs `target/debug/fleet-native` for
+  minutes should copy the binary out first; a script step failed with "no element with key" because the binary had been replaced
+  by a build without this piece.
