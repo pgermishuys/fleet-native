@@ -14,6 +14,7 @@ scale="${SNAP_SCALE:-1}"
 out="shots/out"
 
 cargo build --quiet
+echo "build done after ${SECONDS}s"
 bin="${CARGO_TARGET_DIR:-target}/debug/fleet-native"
 if [ -f "$bin.exe" ]; then bin="$bin.exe"; fi
 
@@ -45,3 +46,4 @@ export bin out size scale
 
 # xargs exits non-zero if any scene failed.
 printf '%s\n' $scenes | xargs -P "$jobs" -I{} bash -c 'snap_one {}'
+echo "drawn after ${SECONDS}s"
