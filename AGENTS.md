@@ -99,8 +99,12 @@ Rune apps can be driven and drawn with no window. Use that, in this order.
    `scripts/tour.json` is the example.
 5. **A live Fleet**, for anything that talks to the server: a scratch one, never a real one.
    `docs/FLEET.md` says how.
-6. **Three systems.** CI builds, tests and draws every scene on Linux, Windows and macOS, and
-   uploads the pictures. Download and look at them when your change could differ by platform.
+6. **Three systems.** CI builds, lints and tests on Linux, Windows and macOS for every pull
+   request, but draws the scenes on Linux only; Windows and macOS pictures come from the runs on
+   `main` (every push). Reason: Rune draws one scene per process start (`--script` can't switch scenes,
+   so there is no one-renderer way to draw them all), and a start costs about 3 s on Windows' software
+   renderer, which made the step 500 s there. To see Windows or macOS for a change that could differ,
+   run the scenes there yourself, or look at `main`'s run after the merge.
 
 Say in the pull request what you checked on which system, and what you couldn't. "Not checked on
 macOS" is a fine sentence; a claim you didn't test is not.
