@@ -1640,9 +1640,22 @@ pub fn start() {
     rune::run(spec());
 }
 
+/// What `--version` prints: the build number and commit CI baked in (`FLEET_NATIVE_BUILD`, `FLEET_NATIVE_COMMIT`),
+/// or `dev` for a local build. The updater compares the build number with the release's `latest.json`.
+pub fn version_line() -> String {
+    match (option_env!("FLEET_NATIVE_BUILD"), option_env!("FLEET_NATIVE_COMMIT")) {
+        (Some(build), Some(commit)) => format!("fleet-native build {build} ({})", &commit[..commit.len().min(7)]),
+        _ => "fleet-native dev".to_string(),
+    }
+}
+
 /// The desktop entry point: `--server <url>` shows that Fleet; every other argument is Rune's own
 /// (`--snap`, `--script`, ...).
 pub fn start_desktop() {
+    if std::env::args().skip(1).any(|a| a == "--version" || a == "-V") {
+        println!("{}", version_line());
+        return;
+    }
     if std::env::args().any(|a| a == "--bench-conversation") {
         return bench::conversation();
     }
