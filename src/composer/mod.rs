@@ -12,9 +12,12 @@ pub mod format;
 pub mod groups;
 pub mod history;
 pub mod route;
+pub mod selector;
 pub mod status;
 
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
 mod tests_choice;
+#[cfg(test)]
+mod tests_selector;

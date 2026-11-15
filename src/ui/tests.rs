@@ -154,12 +154,12 @@ fn escape_closes_a_menu() {
 fn menu_arrows_move_focus_and_enter_chooses() {
     let mut rt = app();
     click(&mut rt, "model");
-    // The first Down lands on the first row (reka's menus open with focus on the panel).
+    // The highlight opens on the selected row (Default); the filter keeps focus while the arrows move it.
     key(&mut rt, Key::Down);
     key(&mut rt, Key::Down);
     key(&mut rt, Key::Enter);
     assert_eq!(rt.state.ui.open, None, "Enter chose an item");
-    assert_eq!(rt.state.choice().model, rt.state.lists().models[0].selection_key);
+    assert_eq!(rt.state.choice().model, rt.state.lists().models[1].selection_key);
 }
 
 #[test]

@@ -32,13 +32,17 @@ def main():
         "",
     ]
     for name in names:
+        # "star:filled" is the icon with its inside painted, as a CSS `fill: currentColor` does.
+        name, _, variant = name.partition(":")
+        stroke = STROKE.replace('fill="none"', 'fill="currentColor"') if variant == "filled" else STROKE
         js = (lucide / f"{name}.js").read_text()
         body = "".join(
-            "<{} {} {}/>".format(tag, " ".join(f'{k}="{v}"' for k, v in attrs.items()), STROKE)
+            "<{} {} {}/>".format(tag, " ".join(f'{k}="{v}"' for k, v in attrs.items()), stroke)
             for tag, attrs in elements(js)
         )
-        const = name.upper().replace("-", "_")
-        out.append(f'pub static {const}: Icon = Icon {{ name: "lucide-{name}", view: 24.0, body: r#"{body}"# }};')
+        icon_name = "lucide-" + name + ("-" + variant if variant else "")
+        const = name.upper().replace("-", "_") + ("_" + variant.upper() if variant else "")
+        out.append(f'pub static {const}: Icon = Icon {{ name: "{icon_name}", view: 24.0, body: r#"{body}"# }};')
     target = pathlib.Path(__file__).resolve().parent.parent / "src" / "icons.rs"
     target.write_text("\n".join(out) + "\n")
     print(f"wrote {len(names)} icons to {target}")

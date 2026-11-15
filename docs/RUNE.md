@@ -434,3 +434,18 @@ Nothing in Rune was needed: this piece is plain Rust. Two things for whoever bui
   message id, and the memo key carries a hash of what folding did to that message (open state, calls kept).
 - **`focus_ring(width, offset, colour)` takes a negative offset** for an inset ring (`outline-offset: -2px`).
 - **`hover_group` plus `group_color` on children** gives CSS's "button hover turns its text and icon `--text`".
+## Component 5, piece E (the selector dropdown)
+
+- **Up and Down in a focused text field are the field's**, even on an ancestor's `on_key`. A list driven from a filter box
+  (the selector, the palette) needs `.on_input_key(..)` on the field itself; `on_key` only ever saw the typed characters.
+  `.on_input_change(..)` is where "typing moves the highlight to the first match" goes (no polling).
+- **`on_hover` fires on the element the pointer is over, not on its ancestors**: a row made of a button and a star put it on the
+  button. Scroll-under-a-still-pointer didn't fight the arrow keys in our runs.
+- **"N more" without a visible range:** each row's `on_layout` rect (window points, after scrolling) against the scroll viewport's
+  own `on_layout` bottom gives Fleet's `offsetTop + height/2 > bottom` rule exactly. Write the state only when it moved by more than half
+  a point, or the handler re-runs the view every frame.
+- **`anchored_fit` already keeps an overlay 8 px inside the window** and flips it, which is Fleet's `place()` for the up case; the
+  width cap (`100vw - 16`) still needs the window's size: measure it with `on_layout` on the root frame.
+- **A filled lucide icon** is the same paths with `fill="currentColor"`: `tools/gen-icons.py` takes `star:filled`.
+- **An overlay is mid-entrance for about 120 ms**: a headless test that reads a rect or an opacity, or hovers a row, right after
+  opening sees the 0.97 scale and the fade. Run 30 frames first.

@@ -17,6 +17,7 @@ pub mod prompts;
 pub mod reducer;
 pub mod refresh;
 pub mod rows;
+pub mod selector;
 pub mod sessions;
 pub mod signalr;
 pub mod state;
