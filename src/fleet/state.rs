@@ -54,6 +54,7 @@ impl State {
             self.on_catalog_event(event);
             self.on_usage_event(event);
             self.on_queue_event(event);
+            self.on_ask_event(topic, event);
             for (only, listener) in &mut self.subscribers.0 {
                 if only.is_none() || *only == kind {
                     listener(topic, event);
@@ -103,6 +104,7 @@ impl State {
             self.load_catalog(&id);
             self.load_commands(&id);
             self.load_queue(&id);
+            self.load_asks(&id);
             self.load_retry(&id);
             self.load_interruption(&id);
             self.load_browser(&id);
@@ -128,6 +130,7 @@ impl State {
         if let Some(id) = self.open_id() {
             self.load_commands(&id);
             self.load_queue(&id);
+            self.load_asks(&id);
             self.load_retry(&id);
             self.load_interruption(&id);
             self.load_browser(&id);
@@ -413,6 +416,7 @@ impl State {
             return;
         }
         self.dispatch(&Topic::Session(id.to_string()), &events);
+        self.focus_new_ask(tx);
         self.on_stream_events(id, events, tx);
     }
 

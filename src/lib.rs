@@ -71,9 +71,12 @@ pub struct State {
     pub store: fleet::store::SessionStore,
     pub filter: TextEdit,
     pub draft: TextEdit,
-    /// The permission asks that wait on the open session, drawn after its messages (component 4). Piece A only has
-    /// scenes put them here; piece B loads them from the server.
-    pub asks: Vec<asks::permission::PermissionAsk>,
+    /// Every session's waiting permission asks as Fleet last said (component 4); the open session's are drawn after its
+    /// messages (`open_asks`).
+    pub asks: fleet::asks::Asks,
+    /// An answer on its way, or why it failed, by ask id; and the asks whose card already took the keyboard.
+    pub ask_acts: std::collections::HashMap<String, fleet::retry::Act>,
+    pub ask_seen: std::collections::HashSet<String>,
     /// The words typed into the permission card's Deny field (row 3.10).
     pub deny: TextEdit,
     /// Which part of Settings the card's "Permission settings" / "Machine settings" asked for (row 3.13); Settings
@@ -238,7 +241,9 @@ impl Default for State {
             store: Default::default(),
             filter: TextEdit::new(""),
             draft: TextEdit::new(""),
-            asks: Vec::new(),
+            asks: Default::default(),
+            ask_acts: Default::default(),
+            ask_seen: Default::default(),
             deny: TextEdit::new(""),
             settings_section: None,
             drafts: Default::default(),
@@ -1005,7 +1010,7 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
 }
 
 fn on_key(s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool {
-    if s.find_key(ev, tx) {
+    if s.find_key(ev, tx) || view::permission::on_key(s, ev, tx) {
         return true;
     }
     if ev.is_command('k') {
@@ -1299,6 +1304,13 @@ pub fn spec() -> AppSpec<State> {
                 s.dark = Some(false);
                 s.show_ask(mock::asks::Case::Command)
             }),
+            // Piece B: an answer that Fleet refused (the card stays and says why) and one on its way (choices off).
+            ("ask-failed", |s| s.show_ask_act(false)),
+            ("ask-failed-light", |s| {
+                s.dark = Some(false);
+                s.show_ask_act(false)
+            }),
+            ("ask-answering", |s| s.show_ask_act(true)),
             ("ask-edit", |s| s.show_ask(mock::asks::Case::Edit)),
             ("ask-edit-light", |s| {
                 s.dark = Some(false);

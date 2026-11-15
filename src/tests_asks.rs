@@ -78,7 +78,7 @@ fn says_what_goes_there_and_under_whose_permission_level_with_always_and_not_for
 fn a_card_is_only_built_when_there_is_an_ask() {
     let mut rt = shown(Case::Command);
     assert!(has(&rt, "permission-card"));
-    rt.update(|s, _| s.asks.clear());
+    rt.update(|s, _| s.asks.set("mock.0.0", Vec::new()));
     rt.frame(FRAME);
     assert!(!has(&rt, "permission-card"));
 }
@@ -91,4 +91,41 @@ fn opens_permission_settings() {
     let mut rt = shown(Case::Handoff);
     click(&mut rt, "permission-settings");
     assert_eq!(rt.state.settings_section, Some("machines"));
+}
+
+#[test]
+fn the_choices_take_a_press_and_go_when_there_is_no_server() {
+    let mut rt = shown(Case::Command);
+    click(&mut rt, "permission-allow-once");
+    assert!(!has(&rt, "permission-card"), "with no server the card is simply taken away");
+}
+
+#[test]
+fn a_card_that_failed_to_answer_shows_its_error_line() {
+    let mut rt = shown(Case::Command);
+    rt.update(|s, _| {
+        s.ask_acts.insert("per_1".into(), crate::fleet::retry::Act { busy: false, error: Some("The harness is restarting.".into()) });
+    });
+    rt.frame(FRAME);
+    assert!(has(&rt, "permission-card") && has(&rt, "permission-error"));
+}
+
+#[test]
+fn the_arrow_rules_wrap_and_know_only_the_buttons() {
+    use crate::asks::focus::{next_choice, step_of, takes_focus};
+    use rune::Key;
+    let two = ["a", "b"];
+    assert_eq!(next_choice(&two, "a", 1), Some("b"));
+    assert_eq!(next_choice(&two, "b", 1), Some("a"));
+    assert_eq!(next_choice(&two, "a", -1), Some("b"));
+    assert_eq!(next_choice(&two, "deny", 1), None);
+    assert_eq!(
+        (step_of(&Key::Down), step_of(&Key::Right), step_of(&Key::Up), step_of(&Key::Left), step_of(&Key::Enter)),
+        (Some(1), Some(1), Some(-1), Some(-1), None)
+    );
+    // PermissionCard.test.ts "leaves focus alone while the user types in the composer", and QuestionCard's "still takes
+    // focus from an empty composer that autofocused".
+    assert!(!takes_focus(Some("composer"), "composer", 15));
+    assert!(takes_focus(Some("composer"), "composer", 0));
+    assert!(takes_focus(None, "composer", 0));
 }

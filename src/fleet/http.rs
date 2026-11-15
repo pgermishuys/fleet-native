@@ -283,6 +283,17 @@ pub fn interruption_dismiss(base: &str, session: &str) -> Result<(u16, Value), S
     status_of("DELETE", base, &format!("/api/sessions/{session}/interruption"))
 }
 
+/// `GET /api/sessions/{id}/permissions`: what waits on the user, oldest first (`use-session-permissions.ts` `load`).
+pub fn permissions(base: &str, session: &str) -> Result<(u16, Value), String> {
+    status_of("GET", base, &format!("/api/sessions/{session}/permissions"))
+}
+
+/// `POST /api/sessions/{id}/permissions/{ask}`: answers one ask; `message` is what Deny tells the agent.
+pub fn reply(base: &str, session: &str, ask: &str, reply: &str, message: Option<&str>) -> Result<(u16, Value), String> {
+    let body = json!({ "reply": reply, "message": message });
+    status_with("POST", base, &format!("/api/sessions/{session}/permissions/{ask}"), Some(&body))
+}
+
 /// `POST /api/sessions/{id}/work/{item}/stop`: Fleet's own item id, not the harness's `workId`. The answer is the ended item.
 pub fn work_stop(base: &str, session: &str, item: &str) -> Result<(u16, Value), String> {
     status_of("POST", base, &format!("/api/sessions/{session}/work/{item}/stop"))

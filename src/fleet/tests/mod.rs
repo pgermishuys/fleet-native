@@ -478,6 +478,7 @@ fn the_list_leaves_out_sub_agents_and_dims_old_sessions() {
     assert_eq!(projects[0].sessions[0].row.updated, 3 * day - 5000);
 }
 
+mod asks;
 mod attach;
 mod autocomplete;
 mod cards;

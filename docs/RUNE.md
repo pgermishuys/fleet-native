@@ -710,3 +710,11 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 - **`focus_ring(2.0, -2.0, accent)` on a pressable row** is the header's `:focus-visible`; Rune draws it for keyboard focus only.
   Not looked at with a real keyboard here (no window), only that the call builds and the headers draw the same.
 - Still no transition: the caret's 150 ms turn and the 150 ms height animation on folding are instant (as for every other ease).
+
+## Permission asks live (component 4, piece B)
+
+- **A window `on_key` sees a key from a focused button** (step 7 of "Key routing") with `tx.focused()` naming it, so a card's number keys, Esc and Enter are one handler that first checks the focused key is one of the card's. A focused text field's keys come to its `on_input_key` first, where `Key::Enter` and `Key::Escape` can answer.
+- **`tx.focus(key, ring)`**: `ring = false` for a card taking the keyboard as it appears (Fleet's script focus draws no ring), `true` for an arrow moving it. It needs the element on screen, so ask in the same handler that added the card and it lands next frame.
+- **A row with `on_press` needs `.focusable(true)`** to be reached by Tab or `tx.focus`; `.focusable(false)` on the deny row keeps the caret in its field.
+- **Two siblings with one key warn and rename the later**: a second card is keyed by its ask's id. Keys inside different cards still collide for `find` and `tx.focus`, so keys act on the first card.
+- **A headless test reads focus from `rt.elements()`' `focused` flag**; `rt.key(..)` after `tx.focus` needs a frame in between.
