@@ -61,6 +61,11 @@ fn uuid() -> String {
     format!("{:016x}{:016x}", hash(0), hash(1))
 }
 
+/// A correlation id for a prompt that has no text to show as pending (pictures only).
+pub fn new_correlation_id() -> String {
+    format!("prompt-{}", uuid())
+}
+
 impl Prompts {
     /// Shows a message as sent. `None` for text that is only space (nothing is sent).
     pub fn add(&mut self, session: &str, body: &str, created_at: i64, now: f64) -> Option<String> {

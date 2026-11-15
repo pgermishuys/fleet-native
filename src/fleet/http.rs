@@ -65,6 +65,8 @@ pub struct Pick {
     /// its `$` tokens name: both go with a prompt for the server to expand (`sessionReferences`, `skills`).
     pub session_references: Vec<(String, String)>,
     pub skills: Vec<String>,
+    /// The pictures that go with the prompt (`attachments`): their type, name and base64 text.
+    pub attachments: Vec<crate::composer::attach::HeldImage>,
 }
 
 impl Pick {
@@ -97,6 +99,10 @@ pub fn prompt_body(text: &str, correlation_id: &str, pick: &Pick) -> Value {
     }
     if pick.steer {
         body["delivery"] = json!("steer");
+    }
+    if !pick.attachments.is_empty() {
+        body["attachments"] =
+            pick.attachments.iter().map(|a| json!({ "mime": a.mime, "filename": a.filename, "data": &*a.data })).collect();
     }
     pick.add_references(&mut body);
     body

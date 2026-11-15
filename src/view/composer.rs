@@ -19,7 +19,8 @@ pub fn composer(s: &State, t: &Theme, _session: &Session) -> El {
     let disabled = s.composer_disabled();
     let mode = mode_of(&s.draft.text, &s.caps(), s.side_open);
     let mut outer = col().key("composer-section").label("Message composer").w_full().pt(4.0).px(24.0).pb(18.0).items_center();
-    if let Some(error) = &s.composer_error {
+    // The first of the send errors, then the pasted-file one (`sendError || pasteError`).
+    if let Some(error) = s.composer_error.as_deref().or(s.attach_error()) {
         outer = outer.child(error_box(t, error));
     }
     if let Some(strip) = super::work::strip(s, t) {
@@ -51,7 +52,13 @@ fn error_box(t: &Theme, message: &str) -> El {
 fn frame(s: &State, t: &Theme, disabled: bool, mode: Mode) -> El {
     // `color-mix(--accent 55%, --border)` while the frame has focus; 70% in shell and side mode, focused or not.
     let focus = t.accent_border(55.0);
-    let edge = if mode == Mode::Prompt { t.border } else { t.accent_border(70.0) };
+    let edge = if s.dragging && !disabled {
+        t.accent
+    } else if mode == Mode::Prompt {
+        t.border
+    } else {
+        t.accent_border(70.0)
+    };
     let placeholder = if mode == Mode::Side { "Ask a follow-up in the side conversation…" } else { "Type a message…" };
     // 14 + one 21px line + 25 is the 60px the empty field measures in Fleet; seven lines is about its 180px maximum.
     // Shell mode sets the draft in the terminal's type, 13px (row 9.2).
@@ -72,6 +79,8 @@ fn frame(s: &State, t: &Theme, disabled: bool, mode: Mode) -> El {
         .on_submit(|s: &mut State, tx| submit(s, tx, false))
         // Return is the field's own submit; Ctrl/Cmd+Return is its other choice (steer where Enter queues, queue where
         // it steers). The field takes the key before the frame does, so it is asked here.
+        // A picture on the clipboard is attached; anything else pastes as text (row 10.1).
+        .on_input_paste(|s: &mut State, content, tx| s.paste_files(content, tx))
         .on_input_key(|s: &mut State, ev: &rune::KeyEvent, tx| {
             // The history list (ArrowUp in an empty draft) and Esc in shell mode come before the rest (rows 8.2, 8.4, 9.4).
             if s.history_key(ev, tx) {
@@ -96,12 +105,19 @@ fn frame(s: &State, t: &Theme, disabled: bool, mode: Mode) -> El {
         .w_full()
         .max_w(COLUMN)
         .radius(14.0)
-        .fill(t.card_bg)
+        .fill(if s.dragging && !disabled { t.card_mix(t.accent, 5.0) } else { t.card_bg })
         .border(1.0, edge)
         .box_shadow(Shadow { x: 0.0, y: 10.0, blur: 28.0, spread: -18.0, color: Color::BLACK.alpha(0.5), inset: false })
         .on_layout(|s: &mut State, [_, _, w, _]| s.pickers.composer_w = w)
+        // A file dropped on the frame is attached (row 1.4): `--dragging` is the accent border over a 5% wash.
+        .on_drop_files(|s: &mut State, files, tx| {
+            s.dragging = false;
+            s.add_files(files, tx);
+        })
+        .on_drop_hover(|s: &mut State, over, _| s.dragging = over)
         .focus_within_ring(1.0, -1.0, if mode == Mode::Prompt { focus } else { edge });
-    frame = frame.child(auto_grow(field.text_highlights(reference_tints(s, t)), 1, 7)).child(toolbar(s, t, disabled, mode));
+    frame = frame.child(auto_grow(field.text_highlights(reference_tints(s, t)), 1, 7));
+    frame = frame.children(super::attachments::strip(s, t)).child(toolbar(s, t, disabled, mode));
     frame
 }
 
@@ -155,7 +171,7 @@ fn toolbar(s: &State, t: &Theme, disabled: bool, mode: Mode) -> El {
         }
         b
     };
-    let inactive = disabled || !has_content(&s.draft.text, mode == Mode::Shell, s.shell_support_pending(), 0);
+    let inactive = disabled || !has_content(&s.draft.text, mode == Mode::Shell, s.shell_support_pending(), s.held_images().len());
     let busy = s.composer_status() == ComposerStatus::Busy;
     let caps = s.caps();
     let (label, title) = send_words(mode, busy, caps.steers_by_default);
@@ -270,7 +286,7 @@ fn other_button(t: &Theme, steers_by_default: bool, inactive: bool) -> El {
     }
 }
 
-/// `toolbar-icon`: the paperclip. Opening the file picker is piece N.
+/// `toolbar-icon`: the paperclip, which opens the file picker.
 fn attach(t: &Theme, disabled: bool) -> El {
     let mut b = el().key("attach").size(24.5, 24.5).center().radius(8.0).help("Attach files").label("Attach files");
     b = if disabled {
@@ -280,7 +296,7 @@ fn attach(t: &Theme, disabled: bool) -> El {
             .press(t.wash(10.0))
             .hover_group()
             .cursor(Cursor::Pointer)
-            .on_press(|_: &mut State| {})
+            .on_press_tx(|s: &mut State, tx| s.pick_files(tx))
             .child(icon(&PAPERCLIP, 12.25).color(t.muted).group_color(t.text))
     };
     b

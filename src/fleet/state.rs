@@ -243,6 +243,7 @@ impl State {
             server_message_id: None,
         };
         self.prompts.confirm(session, &confirm);
+        self.attach.delivered(&confirm.correlation_id.clone().unwrap_or_default());
         self.composer_error = None;
         self.notice = None;
         self.sync_open();
@@ -250,7 +251,8 @@ impl State {
 
     /// The server refused a prompt, or it never got there: it leaves the conversation and its text goes
     /// back to the composer, unless something new was typed meanwhile.
-    pub fn on_prompt_refused(&mut self, session: &str, correlation_id: &str, why: String, _tx: &mut Tx) {
+    pub fn on_prompt_refused(&mut self, session: &str, correlation_id: &str, why: String, tx: &mut Tx) {
+        self.put_back_images(correlation_id, tx);
         if let Some(prompt) = self.prompts.remove(session, correlation_id)
             && self.draft.text.trim().is_empty()
             && self.open_id().as_deref() == Some(session)
@@ -270,13 +272,23 @@ impl State {
 
     /// The same, into the running turn when `steer` (`delivery: "steer"`).
     pub fn send_to_server_as(&mut self, session: &str, text: &str, steer: bool) {
+        self.send_prompt_with(session, text, steer, false);
+    }
+
+    /// The same; `with_images` takes the draft's pictures along. A prompt of pictures alone has no text to show as pending.
+    pub fn send_prompt_with(&mut self, session: &str, text: &str, steer: bool, with_images: bool) {
         if self.link.is_none() {
             return;
         }
-        let Some(correlation_id) = self.prompts.add(session, text, super::link::now_ms(), self.clock) else { return };
+        let shown = self.prompts.add(session, text, super::link::now_ms(), self.clock);
+        let Some(correlation_id) = shown.or_else(|| with_images.then(super::prompts::new_correlation_id)) else { return };
         let id = self.prompts.of(session).iter().find(|p| p.correlation_id == correlation_id).map(|p| p.id.clone());
         let mut pick = self.prompt_pick(id);
         pick.steer = steer;
+        if with_images {
+            pick.attachments = self.attach.take_for_send(session, &correlation_id);
+            self.forget_previews(&pick.attachments);
+        }
         self.add_references(&mut pick, text);
         self.note_pick_on_row(&pick);
         if let Some(link) = &self.link {

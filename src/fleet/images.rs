@@ -72,6 +72,11 @@ impl Images {
         }
     }
 
+    /// Lets a picture go (a thumbnail whose image left the draft).
+    pub fn forget(&mut self, key: &str) {
+        self.slots.remove(key);
+    }
+
     pub fn is_missing(&self, key: &str) -> bool {
         matches!(self.slots.get(key), Some(Slot::Missing))
     }

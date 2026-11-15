@@ -6,6 +6,7 @@
 //! `model-picker-groups.ts`, `use-autocomplete.ts` (the triggers, items, keys and picks), `session-references.ts`,
 //! `skill-mentions.ts`, `file-matches.ts`, `stores/model-picker.ts`, `lib/format/numbers.ts` and the context ring's maths (`context-usage.ts`). The views and the requests
 //! that use it come in the later pieces of component 5.
+pub mod attach;
 pub mod choice;
 pub mod details;
 pub mod draftrefs;
@@ -24,6 +25,8 @@ pub mod triggers;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_attach;
 #[cfg(test)]
 mod tests_autocomplete;
 #[cfg(test)]
