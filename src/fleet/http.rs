@@ -47,6 +47,14 @@ pub fn post(base: &str, path: &str, body: &Value) -> Result<Value, String> {
     read(agent().post(url(base, path)).header("content-type", "application/json").send(body.to_string()))
 }
 
+pub fn patch(base: &str, path: &str, body: &Value) -> Result<Value, String> {
+    read(agent().patch(url(base, path)).header("content-type", "application/json").send(body.to_string()))
+}
+
+pub fn delete(base: &str, path: &str) -> Result<Value, String> {
+    read(agent().delete(url(base, path)).call())
+}
+
 /// `GET /readyz` within `timeout`: whether the Fleet at `base` is up (any 2xx).
 pub fn ready(base: &str, timeout: Duration) -> bool {
     let agent: ureq::Agent = ureq::Agent::config_builder().timeout_global(Some(timeout)).build().into();

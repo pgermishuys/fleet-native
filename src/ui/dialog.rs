@@ -18,6 +18,7 @@ pub(crate) fn overlay(key: &str) -> El {
     el().key(format!("{key}-overlay")).role("none").absolute(0.0, 0.0).w_full().h_full().fill(Color::BLACK.alpha(0.8)).a11y_hidden()
 }
 
+#[derive(Default)]
 pub struct Dialog {
     pub key: &'static str,
     pub title: String,
@@ -28,13 +29,30 @@ pub struct Dialog {
     pub close_button: bool,
     /// Pressing the overlay closes a dialog, never an alert.
     pub click_outside: bool,
+    /// `AlertTriangle` before the title and its colour (`ConfirmDeleteProjectDialog`).
+    pub title_icon: Option<(&'static rune::Icon, Color)>,
+    /// A description with parts in other weights; used in place of `description`.
+    pub description_el: Option<El>,
+    /// What Escape does; `None` closes the open overlay (`Ui::open`). A dialog with a state of its own names it.
+    pub dismiss: Option<fn(&mut State)>,
 }
 
 /// `DialogContent`: `max-w-lg` (448), `p-6`, `gap-4`, a border and `shadow-lg`, no radius.
 pub fn dialog(t: &Theme, d: Dialog) -> Vec<El> {
-    let close = |s: &mut State| s.ui.open = None;
-    let mut head = col().gap(rem(0.5)).child(text(d.title.clone()).font(sans(rem(1.125), 600.0, 1.0)).color(t.text));
-    if let Some(desc) = d.description {
+    let dismiss = d.dismiss;
+    let close = move |s: &mut State| match dismiss {
+        Some(f) => f(s),
+        None => s.ui.open = None,
+    };
+    let title = text(d.title.clone()).font(sans(rem(1.125), 600.0, 1.0)).color(t.text);
+    let title = match d.title_icon {
+        Some((glyph, ink)) => row().gap(rem(0.5)).center_y().child(icon(glyph, rem(1.0)).color(ink)).child(title),
+        None => title,
+    };
+    let mut head = col().gap(rem(0.5)).child(title);
+    if let Some(desc) = d.description_el {
+        head = head.child(desc);
+    } else if let Some(desc) = d.description {
         head = head.child(text(desc).font(sans(rem(0.875), 400.0, 1.4)).color(t.muted));
     }
     let mut panel = col()

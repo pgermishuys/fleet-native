@@ -718,3 +718,17 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 - **A row with `on_press` needs `.focusable(true)`** to be reached by Tab or `tx.focus`; `.focusable(false)` on the deny row keeps the caret in its field.
 - **Two siblings with one key warn and rename the later**: a second card is keyed by its ask's id. Keys inside different cards still collide for `find` and `tx.focus`, so keys act on the first card.
 - **A headless test reads focus from `rt.elements()`' `focused` flag**; `rt.key(..)` after `tx.focus` needs a frame in between.
+
+## Session list, piece G (project menu, rename, delete)
+
+- **A pressable row is not focusable until you say so**: `Tab` never reached the project header and `tx.focus("project-1", true)`
+  did nothing. `.focusable(true)` fixes both, and `on_key` (F2) then fires on it. Fleet's header is a `<button>`, so it is focusable there.
+- **`El::grow` has no flex basis**: a field with `.w(193).grow(1)` beside a `grow(1)` spacer came out half as wide as CSS's
+  `flex: 1 1 auto` next to `flex: 1`. The width is worked out from the panel's own (`project_header::editing`) instead.
+- **A text field's blur isn't an event**: only its model (`TextEdit::focused`) says it lost focus. An edit that ends on blur
+  (`InlineEdit`) polls it (`keep_rename`, from `poll`), remembering that it had focus first, so the Enter that already ended the
+  edit isn't followed by a second commit.
+- **A dialog with state of its own needs its own Escape**: `ui::dialog::dialog` sent Escape to `Ui::open`; `Dialog::dismiss` names
+  what it does instead.
+- **`group_opacity(0.0, 1.0)` under a `hover_group`** is `opacity-0 group-hover:opacity-100`, and an invisible element still takes
+  the press, as in CSS; a headless script can `move` the pointer over a header to show it.

@@ -1,6 +1,6 @@
 //! The session list (`SessionsPanel.vue`, `ProjectGroup.vue`): New session, the filter, sessions grouped by project,
 //! and the Archived link. A row is `session_row.rs`.
-use super::project_header::{Header, project_header};
+use super::project_header::{Header, project_header, project_shell};
 use super::session_row::session_row;
 use crate::State;
 use crate::fleet::groups::{matching_sessions, session_matches_query};
@@ -77,7 +77,7 @@ pub fn panel(s: &State, t: &Theme) -> El {
             ("sample-project", Header::Project, "A project with a very long name that has to be cut short", 12, true),
         ];
         for (key, kind, name, count, open) in samples {
-            list = list.child(col().w_full().mb(10.0).child(project_header(t, key.into(), kind, name, count, open)));
+            list = list.child(col().w_full().mb(10.0).child(project_header(t, key.into(), kind, name, count, open, false)));
         }
     }
     let error = s.list_error();
@@ -92,8 +92,12 @@ pub fn panel(s: &State, t: &Theme) -> El {
         let Some(kept) = matching_sessions(&project.name, &project.sessions, &needle, matches) else { continue };
         let rows: Vec<(usize, &Session)> = kept.into_iter().map(|i| (i, &project.sessions[i])).collect();
         let kind = if project.id == crate::fleet::groups::UNGROUPED_ID { Header::Ungrouped } else { Header::Project };
-        let header = project_header(t, format!("project-{p}"), kind, &project.name, rows.len(), project.open)
-            .on_press(move |s: &mut State| s.toggle_project(p));
+        let header = if kind == Header::Project {
+            project_shell(s, t, p, rows.len())
+        } else {
+            project_header(t, format!("project-{p}"), kind, &project.name, rows.len(), project.open, false)
+                .on_press(move |s: &mut State| s.toggle_project(p))
+        };
         let mut group = col().w_full().mt(if first { 0.0 } else { 10.0 }).child(header);
         first = false;
         // A folded project stays folded while a filter is typed: Fleet's `expanded` doesn't know the query.
