@@ -496,6 +496,7 @@ mod groups;
 mod history;
 mod instance;
 mod live;
+mod machine;
 mod modes;
 mod ordering;
 mod presence;

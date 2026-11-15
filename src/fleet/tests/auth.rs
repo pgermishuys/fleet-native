@@ -85,6 +85,7 @@ fn start(base: &str) -> (rune::Runtime<crate::State>, std::sync::mpsc::Receiver<
         let _ = jobs.lock().unwrap().send(job);
     });
     let mut rt = app();
+    auth::bind_home(base);
     let link = Link::start(base.to_string(), post);
     rt.update(move |s, _| s.link = Some(link));
     (rt, queue)
@@ -153,4 +154,98 @@ fn a_fleet_that_needs_a_token_is_refused_once_and_then_reached_with_one() {
 
 fn seen_hub(seen: &Seen) -> bool {
     seen.lock().unwrap().iter().any(|(l, _)| l.starts_with("GET /hubs/session-events?id=abc"))
+}
+
+// ─── one token per machine (component 17, piece A) ──────────────────────────
+
+/// A server that records each request's head (lower case) and answers `{}`.
+fn recording_server() -> (String, Arc<Mutex<Vec<String>>>) {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let log = seen.clone();
+    std::thread::spawn(move || {
+        for mut stream in listener.incoming().flatten() {
+            let mut buf = [0u8; 4096];
+            let n = stream.read(&mut buf).unwrap_or(0);
+            log.lock().unwrap().push(String::from_utf8_lossy(&buf[..n]).to_lowercase());
+            let _ =
+                stream.write_all(b"HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: 2\r\nconnection: close\r\n\r\n{}");
+        }
+    });
+    (base, seen)
+}
+
+#[test]
+fn a_token_is_sent_only_to_its_own_base_never_to_another() {
+    let (falcon, falcon_seen) = recording_server();
+    let (studio, studio_seen) = recording_server();
+    let (other, other_seen) = recording_server();
+    auth::set_for(&falcon, Some("falcon-token-1"));
+    auth::set_for(&studio, Some("studio-token-2"));
+    for base in [&falcon, &studio, &other] {
+        crate::fleet::http::get(base, "/api/sessions").unwrap();
+    }
+    let head = |s: &Seen2| s.lock().unwrap().first().cloned().unwrap();
+    assert!(head(&falcon_seen).contains("authorization: bearer falcon-token-1"));
+    assert!(head(&studio_seen).contains("authorization: bearer studio-token-2"));
+    // Two machines, two tokens: neither reached the other, and a base with none sent no header at all.
+    assert!(!head(&falcon_seen).contains("studio-token-2") && !head(&studio_seen).contains("falcon-token-1"));
+    assert!(!head(&other_seen).contains("authorization"), "{}", head(&other_seen));
+    // No cookie or CSRF header goes along with a machine's token.
+    assert!(!head(&falcon_seen).contains("cookie") && !head(&falcon_seen).contains("x-csrf-token"));
+    // Forgetting a machine's token stops the header.
+    auth::set_for(&falcon, None);
+    crate::fleet::http::get(&falcon, "/api/sessions").unwrap();
+    assert!(!falcon_seen.lock().unwrap()[1].contains("authorization"));
+    auth::set_for(&studio, None);
+}
+
+type Seen2 = Arc<Mutex<Vec<String>>>;
+
+#[test]
+fn the_hub_url_takes_the_token_of_its_own_machine() {
+    let (a, b) = ("http://100.64.90.72:2113", "https://falcon.tail9c2e.ts.net");
+    auth::set_for(a, Some("a+b/c"));
+    auth::set_for(b, Some("second"));
+    assert_eq!(auth::hub_query_for(a), "&access_token=a%2Bb%2Fc");
+    assert_eq!(auth::hub_query_for(b), "&access_token=second");
+    assert_eq!(auth::hub_query_for("http://100.64.90.73:2113"), "");
+    // The same place is the same place: default port, case and path don't matter.
+    assert_eq!(auth::hub_query_for("HTTPS://Falcon.Tail9c2e.ts.net:443/fleet"), "&access_token=second");
+    // Not the same place: another port.
+    assert_eq!(auth::hub_query_for("http://100.64.90.72:2114"), "");
+    auth::set_for(a, None);
+    auth::set_for(b, Some("  "));
+    assert_eq!(auth::hub_query_for(a), "");
+    assert_eq!(auth::hub_query_for(b), "");
+}
+
+#[test]
+fn the_token_given_for_home_goes_to_home_alone() {
+    // Own addresses, so the process-wide home of the other test is left alone.
+    let machine = crate::fleet::machine::Machine::from_json(
+        &serde_json::json!({"id": "m1", "name": "falcon", "baseUrl": "http://10.9.8.7:2113", "token": "machine-secret"}),
+    )
+    .unwrap();
+    machine.hold_token();
+    assert_eq!(auth::token_for("http://10.9.8.7:2113/api/x").unwrap().expose(), "machine-secret");
+    assert!(auth::token_for("http://10.9.8.8:2113").is_none());
+    auth::set_for(machine.base(), None);
+}
+
+#[test]
+fn a_token_never_appears_in_a_debug_an_error_or_a_shown_address() {
+    let machine = crate::fleet::machine::Machine::from_json(
+        &serde_json::json!({"id": "m2", "name": "studio", "baseUrl": "http://10.9.8.9:2113", "token": SECRET}),
+    )
+    .unwrap();
+    assert!(!format!("{machine:?}").contains(SECRET), "{machine:?}");
+    assert!(!format!("{:?}", machine.target()).contains(SECRET));
+    assert!(!machine.base().contains(SECRET));
+    assert!(!auth::refused_note(machine.base()).contains(SECRET));
+    machine.hold_token();
+    let err = crate::fleet::http::get("http://10.9.8.9:1", "/x").unwrap_err();
+    assert!(!err.contains(SECRET), "{err}");
+    auth::set_for(machine.base(), None);
 }
