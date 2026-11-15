@@ -58,6 +58,7 @@ pub fn long_from_events(rt: &mut Runtime<State>) -> &'static str {
         delegations: Vec::new(),
         running_work: Vec::new(),
         context: None,
+        recap: None,
         explicit_status: Explicit::Busy,
         session_status: StreamStatus::Busy,
         last_event_id: None,

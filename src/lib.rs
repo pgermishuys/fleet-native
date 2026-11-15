@@ -91,6 +91,12 @@ pub struct State {
     /// The "inline tool diffs" setting (`inlineToolDiffs`, off by default): other edit rows show their diff too. Settings
     /// and the palette own the switch; until they are built only a scene turns it on.
     pub inline_diffs: bool,
+    /// How thinking is drawn (`weave:thinking`), and the reasoning blocks, compaction summaries and shell commands the user
+    /// opened, by part id. Settings owns the choice; until it is built only a scene changes it.
+    pub thinking: conv::gist::Thinking,
+    pub reasoning_open: std::collections::HashSet<String>,
+    pub summary_open: std::collections::HashSet<String>,
+    pub shell_wide: std::collections::HashSet<String>,
     /// The last thing that went wrong, shown in the status bar.
     pub notice: Option<String>,
     /// The kit's overlays, the palette and the gallery's own controls (`src/ui/`).
@@ -135,6 +141,10 @@ impl Default for State {
             diff_open: Default::default(),
             diff_all: Default::default(),
             inline_diffs: false,
+            thinking: Default::default(),
+            reasoning_open: Default::default(),
+            summary_open: Default::default(),
+            shell_wide: Default::default(),
             stream: None,
             prompts: Default::default(),
             subscribers: Default::default(),
@@ -472,6 +482,38 @@ pub fn spec() -> AppSpec<State> {
             ("tool-states-light", |s| {
                 s.dark = Some(false);
                 s.show_conversation(mock::tools::of_each_status())
+            }),
+            ("thinking", |s| s.show_conversation(mock::parts::of_thinking())),
+            ("thinking-light", |s| {
+                s.dark = Some(false);
+                s.show_conversation(mock::parts::of_thinking())
+            }),
+            ("thinking-open", |s| s.show_thinking_open()),
+            ("thinking-open-light", |s| {
+                s.dark = Some(false);
+                s.show_thinking_open()
+            }),
+            ("thinking-live", |s| s.show_live_thinking()),
+            ("shell-commands", |s| s.show_conversation(mock::parts::of_shell(&["s1", "s2", "s3"]))),
+            ("shell-commands-light", |s| {
+                s.dark = Some(false);
+                s.show_conversation(mock::parts::of_shell(&["s1", "s2", "s3"]))
+            }),
+            ("shell-long", |s| s.show_conversation(mock::parts::of_shell(&["s4", "s5", "s6"]))),
+            ("compaction", |s| s.show_conversation(mock::parts::of_compaction())),
+            ("compaction-light", |s| {
+                s.dark = Some(false);
+                s.show_conversation(mock::parts::of_compaction())
+            }),
+            ("compaction-open", |s| s.show_compaction_open()),
+            ("compaction-open-light", |s| {
+                s.dark = Some(false);
+                s.show_compaction_open()
+            }),
+            ("recap", |s| s.show_recap()),
+            ("recap-light", |s| {
+                s.dark = Some(false);
+                s.show_recap()
             }),
             ("long-conversation", |s| s.open_long()),
             // The reply streams in on the app's clock: the scene the scripts in scripts/bench/ measure.

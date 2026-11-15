@@ -493,3 +493,17 @@ mod rows;
 mod state;
 mod wire;
 mod work;
+
+#[test]
+fn a_recap_comes_with_the_snapshot_and_is_replaced_or_cleared_by_session_recap() {
+    let mut state = create_state(&json!({"messages": [], "recap": {"text": "Paging the list."}}));
+    assert_eq!(state.recap.as_deref(), Some("Paging the list."));
+    apply(
+        &mut state,
+        &Event::from_wire(&json!({"type": "session.recap", "properties": {"sessionId": "s", "text": "Next, ship it."}})).unwrap(),
+    );
+    assert_eq!(state.recap.as_deref(), Some("Next, ship it."));
+    apply(&mut state, &Event::from_wire(&json!({"type": "session.recap", "properties": {"sessionId": "s", "text": null}})).unwrap());
+    assert_eq!(state.recap, None);
+    assert_eq!(create_state(&json!({"messages": []})).recap, None);
+}

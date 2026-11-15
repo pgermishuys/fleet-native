@@ -1,20 +1,24 @@
 //! Boils the reducer's messages down to what the conversation draws (`view::conversation`).
 use super::model::{Msg, PartData};
 use crate::conv::card::tool_body;
+use crate::conv::compaction::fold_compaction_summaries;
+use crate::conv::shell::shell_command_of;
 use crate::conv::tools::{ToolStatus, get_tool, is_shell_row, is_write_call, tool_duration_ms};
-use crate::view::conversation::{Message, Part, ToolState};
+use crate::view::conversation::{Message, Part, Role, ToolState};
 use serde_json::Value;
 
+/// The conversation's messages: a compaction's summary message is folded into its divider (`foldCompactionSummaries`).
 pub fn messages(from: &[Msg]) -> Vec<Message> {
-    from.iter().filter(|m| !m.compaction_summary).map(message).collect()
+    let folded = fold_compaction_summaries(from);
+    from.iter().filter(|m| !folded.hidden.contains(&m.id)).map(|m| message(m, folded.summaries.get(&m.id).map(String::as_str))).collect()
 }
 
 /// What `Message::version` would say of `m` once boiled down, without copying its text: the way to
 /// tell which of two thousand messages an event batch touched.
-pub fn version(m: &Msg) -> (usize, usize) {
+pub fn version(m: &Msg, folded: Option<&str>) -> (usize, usize) {
     let weight = |p: &PartData| match p {
         PartData::Text { text, .. } | PartData::Reasoning { text, .. } => text.len(),
-        other => part(other).weight(),
+        other => part(other, m.role, folded).weight(),
     };
     (
         m.parts.len() + usize::from(turn_failure(m).is_some()),
@@ -26,8 +30,9 @@ fn turn_failure(m: &Msg) -> Option<&str> {
     m.turn_error.as_ref()?.get("message")?.as_str()
 }
 
-pub fn message(m: &Msg) -> Message {
-    let mut parts: Vec<Part> = m.parts.iter().map(part).collect();
+/// `folded` is the summary a compaction's own message gave this one, when it is a divider without one of its own.
+pub fn message(m: &Msg, folded: Option<&str>) -> Message {
+    let mut parts: Vec<Part> = m.parts.iter().map(|p| part(p, m.role, folded)).collect();
     // The conversation has no failure row yet (the parts lane draws one); until then say it in words.
     if let Some(reason) = turn_failure(m) {
         parts.push(Part::text(format!("{}-failed", m.id), format!("The turn failed: {reason}")));
@@ -35,16 +40,22 @@ pub fn message(m: &Msg) -> Message {
     Message::new(m.id.clone(), m.role, parts)
 }
 
-fn part(p: &PartData) -> Part {
+fn part(p: &PartData, role: Role, folded: Option<&str>) -> Part {
     match p {
+        // A command the user ran is its own block, not a tool row.
+        PartData::Tool { id, state, .. } if role == Role::Shell => Part::Shell(shell_command_of(id, state)),
         PartData::Text { id, text } => Part::Text { id: id.clone(), text: text.clone() },
         PartData::Reasoning { id, text, summary } => Part::Reasoning { id: id.clone(), text: text.clone(), summary: summary.clone() },
         PartData::File { id, mime, filename, url } => {
             Part::File { id: id.clone(), mime: mime.clone(), filename: filename.clone(), url: url.clone() }
         }
-        PartData::Compaction { id, tokens_before, tokens_after, .. } => {
-            Part::Compaction { id: id.clone(), tokens_before: *tokens_before, tokens_after: *tokens_after }
-        }
+        PartData::Compaction { id, trigger, tokens_before, tokens_after, summary } => Part::Compaction {
+            id: id.clone(),
+            trigger: trigger.clone(),
+            tokens_before: *tokens_before,
+            tokens_after: *tokens_after,
+            summary: summary.clone().or_else(|| folded.map(str::to_string)),
+        },
         PartData::Tool { id, tool, call_id, state } => {
             let body = tool_body(tool, &title(tool, state), state);
             Part::Tool {

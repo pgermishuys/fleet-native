@@ -27,6 +27,7 @@ pub fn create_state(snapshot: &Value) -> StreamState {
         delegations,
         running_work: work::to_items(snapshot.get("runningWork")),
         context: snapshot.get("context").and_then(to_context_usage),
+        recap: snapshot.pointer("/recap/text").and_then(Value::as_str).filter(|t| !t.is_empty()).map(str::to_string),
         explicit_status,
         last_event_id: snapshot.get("lastEventId").or_else(|| snapshot.get("lastSequenceNumber")).and_then(Value::as_i64),
         is_partial: snapshot.get("isPartial").and_then(Value::as_bool).unwrap_or(false),
@@ -80,6 +81,7 @@ pub fn apply(state: &mut StreamState, event: &Event) {
                 state.context = Some(usage);
             }
         }
+        Event::Recap(text) => state.recap = text.clone(),
         Event::Cursor(id) => state.last_event_id = Some(*id),
         // Read, and handed to whoever owns them (`State::subscribe`); nothing for the stream to change.
         Event::Other(..) | Event::Unknown { .. } => {}
@@ -115,7 +117,7 @@ pub fn with_activity_status(state: &mut StreamState, activity: &str) {
     set_explicit(state, to_explicit(activity));
 }
 
-pub(super) fn to_role(role: &Value) -> Role {
+pub fn to_role(role: &Value) -> Role {
     match role.as_str() {
         Some("user") => Role::User,
         Some("shell") => Role::Shell,
