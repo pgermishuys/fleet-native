@@ -323,7 +323,8 @@ pub fn stream(t: &Theme, session: &Session, plan: &FoldPlan, partial: bool, olde
                 .items_center()
                 .children(partial.then(|| partial_banner(&theme)))
                 .children(older.map(|o| older_row(&theme, o)))
-                .child(rows),
+                .child(rows)
+                .children((!scroll.asks.is_empty()).then(|| col().w_full().max_w(COLUMN).children(scroll.asks))),
         );
     col()
         .key("stream-shell")
@@ -341,6 +342,8 @@ pub struct Scroll {
     pub jump: bool,
     /// The find bar, floating over the top right of the box (`view::find`).
     pub find: Option<El>,
+    /// The cards of what the agent waits on, after the messages (component 4).
+    pub asks: Vec<El>,
     pub probe: std::rc::Rc<std::cell::Cell<Option<rune::ScrollPos>>>,
 }
 
