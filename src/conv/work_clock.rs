@@ -20,6 +20,15 @@ pub struct WorkStrip {
     pub width: f32,
     /// Items whose Stop is on its way, by Fleet's item id (`stopping`): shared by the strip and the status bar's list.
     pub stopping: HashSet<String>,
+    /// Why a Stop was refused, under the row, until the next press (`stopError`).
+    pub stop_errors: HashMap<String, String>,
+    /// Rows whose output is open, with what each has read (piece L).
+    pub outputs: HashMap<String, super::work_output::Reader>,
+    /// Rows whose Details are open.
+    pub details: HashSet<String>,
+    /// The session Open left, for the back link of a sub-agent's own session (row 4.31).
+    pub opened_from: Option<String>,
+    pub next_epoch: u64,
     seen_running: HashSet<String>,
     ended_seen_at: HashMap<String, i64>,
     /// What the last frame showed, so the poll knows when a redraw is due.

@@ -855,6 +855,18 @@ pub fn spec() -> AppSpec<State> {
                 s.show_work(mock::work::Case::Finished)
             }),
             ("work-collapsed", |s| s.show_work(mock::work::Case::Collapsed)),
+            ("work-output", |s| s.show_work(mock::work::Case::Output)),
+            ("work-output-light", |s| {
+                s.dark = Some(false);
+                s.show_work(mock::work::Case::Output)
+            }),
+            ("work-output-loading", |s| s.show_work(mock::work::Case::OutputLoading)),
+            ("work-stop-refused", |s| s.show_work(mock::work::Case::StopRefused)),
+            ("work-stop-refused-light", |s| {
+                s.dark = Some(false);
+                s.show_work(mock::work::Case::StopRefused)
+            }),
+            ("work-details", |s| s.show_work(mock::work::Case::Details)),
             ("working-tool", |s| s.show_working(mock::working::Case::Tool)),
             ("working-tool-light", |s| {
                 s.dark = Some(false);

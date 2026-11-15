@@ -1182,3 +1182,221 @@ fn the_ring_sits_between_interrupt_and_send() {
     let x = |k: &str| rt.find(k).unwrap_or_else(|| panic!("no {k}")).0;
     assert!(x("interrupt") < x("context-ring") && x("context-ring") < x("prompt-send-button"));
 }
+
+// ── Work actions (component 3, piece L) ─────────────────────────────────────────────────────────────────────────────
+
+fn a_server() -> rune::Runtime<State> {
+    let mut rt = work_app(crate::mock::work::Case::Mixed);
+    rt.update(|s, _| s.link = Some(crate::fleet::link::Link::start("http://127.0.0.1:9".into(), crate::fleet::link::Post::new(|_| {}))));
+    rt
+}
+
+#[test]
+fn output_opens_under_its_row_says_it_is_reading_and_closes_again() {
+    let mut rt = work_app(crate::mock::work::Case::Mixed);
+    assert!(rt.find("work-output-panel-s1").is_none());
+    click(&mut rt, "work-output-s1");
+    assert!(rt.find("work-output-loading-s1").is_some());
+    click(&mut rt, "work-output-s1");
+    assert!(rt.find("work-output-panel-s1").is_none());
+}
+
+#[test]
+fn the_output_box_shows_what_was_read_with_a_line_when_its_start_was_left_out() {
+    let mut rt = work_app(crate::mock::work::Case::Output);
+    assert!(rt.find("work-output-text-s1").is_some() && rt.find("work-output-clipped-s1").is_some());
+    assert!(rt.find("work-output-loading-s1").is_none());
+    rt.update(|s, _| s.work.outputs.get_mut("s1").unwrap().clipped = false);
+    rt.frame(FRAME);
+    assert!(rt.find("work-output-clipped-s1").is_none());
+}
+
+#[test]
+fn no_output_yet_and_a_read_error_are_notes_and_the_error_gives_way_to_text() {
+    use crate::conv::work_output::Reader;
+    let mut rt = work_app(crate::mock::work::Case::Mixed);
+    let mut quiet = Reader::new(1, true);
+    quiet.loading = false;
+    rt.update(move |s, _| {
+        s.work.outputs.insert("s1".into(), quiet);
+    });
+    rt.frame(FRAME);
+    assert!(rt.find("work-output-empty-s1").is_some());
+    rt.update(|s, _| s.work.outputs.get_mut("s1").unwrap().error = Some("The output couldn't be read (HTTP 404).".into()));
+    rt.frame(FRAME);
+    assert!(rt.find("work-output-error-s1").is_some() && rt.find("work-output-empty-s1").is_none());
+}
+
+#[test]
+fn an_answer_for_a_panel_closed_since_is_dropped_and_one_for_the_open_panel_is_read() {
+    use serde_json::json;
+    let mut rt = a_server();
+    rt.update(|s, _| s.toggle_work_output("s1"));
+    let epoch = rt.state.work.outputs["s1"].epoch;
+    let page = json!({"output": "✓ 12 tests passed\n", "nextOffset": 19, "size": 19, "truncated": false});
+    let stale = page.clone();
+    rt.update(move |s, tx| s.on_work_page("s1", epoch + 1, Ok((200, stale)), tx));
+    assert!(rt.state.work.outputs["s1"].text.is_empty());
+    rt.update(move |s, tx| s.on_work_page("s1", epoch, Ok((200, page)), tx));
+    assert_eq!(rt.state.work.outputs["s1"].text, "✓ 12 tests passed\n");
+    rt.frame(FRAME);
+    assert!(rt.find("work-output-text-s1").is_some());
+    // Closed: its answer finds nothing.
+    rt.update(|s, _| s.toggle_work_output("s1"));
+    rt.update(move |s, tx| s.on_work_page("s1", epoch, Ok((200, json!({"output": "x", "nextOffset": 1, "size": 1}))), tx));
+    assert!(rt.state.work.outputs.is_empty());
+}
+
+#[test]
+fn a_refused_read_says_why_and_a_page_without_its_offsets_is_an_error() {
+    use serde_json::json;
+    let mut rt = a_server();
+    rt.update(|s, _| s.toggle_work_output("s1"));
+    let epoch = rt.state.work.outputs["s1"].epoch;
+    rt.update(move |s, tx| s.on_work_page("s1", epoch, Ok((404, json!({"error": "That output is gone."}))), tx));
+    assert_eq!(rt.state.work.outputs["s1"].error.as_deref(), Some("That output is gone."));
+    rt.update(move |s, tx| s.on_work_page("s1", epoch, Ok((200, json!({"output": "x"}))), tx));
+    assert_eq!(rt.state.work.outputs["s1"].error.as_deref(), Some("The output couldn't be read (HTTP 200)."));
+}
+
+#[test]
+fn a_running_item_is_read_again_every_two_seconds_and_once_more_when_it_ends() {
+    use serde_json::json;
+    let mut rt = a_server();
+    rt.update(|s, _| s.toggle_work_output("s1"));
+    let epoch = rt.state.work.outputs["s1"].epoch;
+    let page = json!({"output": "a\n", "nextOffset": 2, "size": 2});
+    rt.update(move |s, tx| s.on_work_page("s1", epoch, Ok((200, page)), tx));
+    let now = crate::view::message::now_ms(&rt.state);
+    let reader = &rt.state.work.outputs["s1"];
+    assert!(!reader.in_flight);
+    assert_eq!(reader.next_at, Some(now + 2_000));
+    // Not due yet: nothing starts. Due: a read starts.
+    rt.update(|s, tx| s.poll_work_outputs(tx));
+    assert!(!rt.state.work.outputs["s1"].in_flight);
+    rt.update(|s, _| s.now_ms = s.now_ms.map(|n| n + 2_000));
+    rt.update(|s, tx| s.poll_work_outputs(tx));
+    assert!(rt.state.work.outputs["s1"].in_flight);
+    // It ends while a read is out: that read's answer comes, and then one last read starts at once.
+    let page = json!({"output": "b\n", "nextOffset": 4, "size": 4});
+    rt.update(move |s, tx| s.on_work_page("s1", epoch, Ok((200, page)), tx));
+    rt.update(|s, _| {
+        s.stream.as_mut().unwrap().running_work[0].status = crate::fleet::work::WorkStatus::Completed;
+        s.stream.as_mut().unwrap().running_work[0].ended_reason = Some(crate::fleet::work::EndedReason::Completed);
+    });
+    rt.update(|s, tx| s.poll_work_outputs(tx));
+    assert!(rt.state.work.outputs["s1"].in_flight, "the final read");
+    let page = json!({"output": "done\n", "nextOffset": 9, "size": 9});
+    rt.update(move |s, tx| s.on_work_page("s1", epoch, Ok((200, page)), tx));
+    rt.update(|s, tx| s.poll_work_outputs(tx));
+    assert!(!rt.state.work.outputs["s1"].in_flight, "an ended item is not read on");
+    assert_eq!(rt.state.work.outputs["s1"].text, "a\nb\ndone\n");
+}
+
+#[test]
+fn a_refused_stop_says_why_under_the_row_and_the_next_press_clears_it() {
+    use serde_json::json;
+    let mut rt = a_server();
+    rt.update(|s, _| s.work.stopping.insert("s1".into()).then_some(()).unwrap());
+    rt.update(|s, _| s.on_work_stopped("s1", Ok((409, json!({"error": "The session isn't running."})))));
+    rt.frame(FRAME);
+    assert!(!rt.state.work.stopping.contains("s1"));
+    assert!(rt.find("work-stop-error-s1").is_some());
+    click(&mut rt, "work-stop-s1");
+    assert!(rt.find("work-stop-error-s1").is_none(), "cleared on the next press");
+    assert!(rt.state.work.stopping.contains("s1"), "and a stop is on its way");
+    // No message in the body: the status says it.
+    rt.update(|s, _| s.on_work_stopped("s1", Ok((500, serde_json::Value::Null))));
+    assert_eq!(rt.state.work.stop_errors["s1"], "It couldn't be stopped (HTTP 500).");
+    rt.update(|s, _| s.on_work_stopped("s1", Err("It couldn't be stopped.".into())));
+    assert_eq!(rt.state.work.stop_errors["s1"], "It couldn't be stopped.");
+}
+
+#[test]
+fn a_second_stop_while_one_is_out_says_so_and_sends_nothing() {
+    let mut rt = a_server();
+    rt.update(|s, _| {
+        s.work.stopping.insert("s1".into());
+        s.stop_work("s1");
+    });
+    assert_eq!(rt.state.work.stop_errors["s1"], "Already stopping.");
+}
+
+#[test]
+fn a_stopped_item_is_applied_at_once_and_shows_stopped_without_stop() {
+    use serde_json::json;
+    let mut rt = a_server();
+    let ended = json!({"id": "s1", "sessionId": "scene", "workId": "w-s1", "kind": "shell", "title": "shell", "label": "bun run test:e2e",
+        "status": "cancelled", "background": true, "startedAt": "2026-10-04T10:00:00Z", "endedAt": "2026-10-04T10:03:12Z",
+        "endedReason": "cancelled", "detail": "stopped", "canReadOutput": true});
+    rt.update(move |s, _| s.on_work_stopped("s1", Ok((200, ended))));
+    rt.frame(FRAME);
+    assert!(rt.find("work-stop-s1").is_none());
+    assert!(rt.find("work-meta-s1").is_some());
+}
+
+#[test]
+fn details_open_and_close_and_say_what_the_agent_was_asked() {
+    let mut rt = work_app(crate::mock::work::Case::Mixed);
+    assert!(rt.find("work-details-panel-p1").is_none() && rt.find("work-details-p1").is_some());
+    click(&mut rt, "work-details-p1");
+    assert!(rt.state.work.details.contains("p1"));
+    assert!(rt.find("work-details-asked-p1").is_some() && rt.find("work-details-now-p1").is_some());
+    assert!(rt.find("work-details-note-p1").is_some(), "it can't be stopped on its own: the panel says why");
+    click(&mut rt, "work-details-p1");
+    assert!(rt.find("work-details-asked-p1").is_none());
+}
+
+#[test]
+fn open_shows_the_child_session_and_remembers_the_parent_but_only_one_the_list_holds() {
+    let mut rt = work_app(crate::mock::work::Case::Mixed);
+    click(&mut rt, "work-open-a1");
+    assert!(rt.state.work.opened_from.is_none(), "child-1 isn't in the list (component 6): nothing to show");
+    rt.update(|s, tx| {
+        s.projects[0].sessions[1].id = "child-1".into();
+        assert!(s.open_child("scene", "child-1", tx));
+    });
+    assert_eq!(rt.state.work.opened_from.as_deref(), Some("scene"));
+    assert_eq!(rt.state.session().id, "child-1");
+}
+
+#[test]
+fn events_press_is_taken_by_a_monitor_with_a_call() {
+    let mut rt = work_app(crate::mock::work::Case::Mixed);
+    click(&mut rt, "work-events-m1");
+    assert!(rt.find("work-row-m1").is_some());
+}
+
+#[test]
+fn stop_and_output_calls_go_to_fleets_item_id_and_read_the_answer_as_the_server_writes_it() {
+    use std::io::{Read, Write};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
+    let log = seen.clone();
+    std::thread::spawn(move || {
+        for mut stream in listener.incoming().flatten() {
+            let mut buf = [0u8; 2048];
+            let n = stream.read(&mut buf).unwrap_or(0);
+            let line = String::from_utf8_lossy(&buf[..n]).lines().next().unwrap_or("").to_string();
+            let (status, body) = if line.contains("/stop") {
+                ("409 Conflict", r#"{"error":"The session isn't running."}"#)
+            } else {
+                ("200 OK", r#"{"output":"hi\n","nextOffset":3,"size":3,"truncated":false}"#)
+            };
+            log.lock().unwrap().push(line);
+            let _ = write!(
+                stream,
+                "HTTP/1.1 {status}\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
+                body.len()
+            );
+        }
+    });
+    let (code, body) = crate::fleet::http::work_stop(&base, "sess", "a91d").unwrap();
+    assert_eq!((code, body["error"].as_str()), (409, Some("The session isn't running.")));
+    let (code, body) = crate::fleet::http::work_output(&base, "sess", "a91d", 12).unwrap();
+    assert_eq!((code, body["nextOffset"].as_u64()), (200, Some(3)));
+    let seen = seen.lock().unwrap();
+    assert!(seen[0].starts_with("POST /api/sessions/sess/work/a91d/stop "), "{}", seen[0]);
+    assert!(seen[1].starts_with("GET /api/sessions/sess/work/a91d/output?offset=12 "), "{}", seen[1]);
+}

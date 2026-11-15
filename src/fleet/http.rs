@@ -189,3 +189,13 @@ pub fn interruption_continue(base: &str, session: &str) -> Result<(u16, Value), 
 pub fn interruption_dismiss(base: &str, session: &str) -> Result<(u16, Value), String> {
     status_of("DELETE", base, &format!("/api/sessions/{session}/interruption"))
 }
+
+/// `POST /api/sessions/{id}/work/{item}/stop`: Fleet's own item id, not the harness's `workId`. The answer is the ended item.
+pub fn work_stop(base: &str, session: &str, item: &str) -> Result<(u16, Value), String> {
+    status_of("POST", base, &format!("/api/sessions/{session}/work/{item}/stop"))
+}
+
+/// `GET /api/sessions/{id}/work/{item}/output?offset=N`: a page of the output from byte `offset`.
+pub fn work_output(base: &str, session: &str, item: &str, offset: u64) -> Result<(u16, Value), String> {
+    status_of("GET", base, &format!("/api/sessions/{session}/work/{item}/output?offset={offset}"))
+}

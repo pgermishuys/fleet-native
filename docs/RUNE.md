@@ -501,3 +501,10 @@ Nothing in Rune was needed: this piece is plain Rust. Two things for whoever bui
   paler than the browser's. Where a solid colour sits under it (the ring on the composer card), mix the two in sRGB
   numbers yourself and draw the result opaque. A faded closed polyline also blends twice where its joints overlap.
 
+## Component 3, piece L (work actions)
+
+- **`stick_bottom` is Fleet's "follow unless you scrolled up" for the output box** (WorkOutput's 24 px test): a `col().max_h(220.0).scroll(ScrollSpec { stick_bottom: true })` holding one wrapped, selectable `text` needs nothing more.
+- **A request that comes back later is tied to the opening that asked** (`Reader::epoch`): close and open again, and the old answer finds a different epoch and is dropped. A timer is a `next_at` the strip's `poll` checks, with `tx.wake_after` to wake it; closing the panel removes the reader, which stops it.
+- **`gen` is a reserved word in this edition**; a field or argument called `gen` doesn't compile.
+- **No `shrink0` and no `max_w` that subtracts a margin**: a panel indented by `ml` takes the column's width without `w_full`.
+
