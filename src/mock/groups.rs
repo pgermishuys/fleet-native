@@ -23,3 +23,40 @@ impl State {
         self.filter = rune::TextEdit::new(filter);
     }
 }
+
+/// What the list shows besides rows (component 6, piece E).
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Panel {
+    /// The first read, still going.
+    Loading,
+    /// The first read failed and nothing is held.
+    Error,
+    /// A refresh failed over rows that are on screen.
+    Banner,
+    /// A server with no project and no session.
+    Empty,
+    /// A filter nothing matches.
+    NoMatch,
+    /// The filter has the caret.
+    Focused,
+}
+
+impl State {
+    pub fn show_panel(&mut self, case: Panel) {
+        if matches!(case, Panel::Loading | Panel::Error | Panel::Empty) {
+            self.projects.clear();
+            self.route = crate::fleet::store::Route::None;
+        }
+        match case {
+            Panel::Loading => self.store.is_loading = true,
+            Panel::Error => self.store.error = Some("Failed to fetch".into()),
+            Panel::Banner => self.store.error = Some("Failed to fetch".into()),
+            Panel::Empty => {}
+            Panel::NoMatch => self.filter = rune::TextEdit::new("zzz"),
+            Panel::Focused => {
+                self.filter = rune::TextEdit::new("orch");
+                self.filter.focused = true;
+            }
+        }
+    }
+}

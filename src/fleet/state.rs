@@ -138,11 +138,29 @@ impl State {
         self.projects.iter().any(|p| !p.sessions.is_empty())
     }
 
+    /// What the panel says went wrong: the sessions' failure, else the projects' (`errorMessage`).
+    pub fn list_error(&self) -> Option<String> {
+        super::panel::error_message(self.store.error.as_deref(), self.project_load.error.as_deref())
+    }
+
+    /// The first load is still going: nothing held and no answer yet. Before the hub has connected nothing has been asked,
+    /// and the window is still waiting for its first list, so that counts too.
+    pub fn list_is_loading(&self) -> bool {
+        let waiting = self.link.is_some() && !self.store.list_loaded && self.store.error.is_none();
+        self.store.is_loading || self.project_load.is_loading || waiting
+    }
+
+    /// "Try again": reads the sessions and the projects again, together.
+    pub fn retry_list(&mut self) {
+        if let Some(link) = &self.link {
+            link.refetch_list();
+        }
+    }
+
     /// A list request failed. Only the newest request's failure counts; the rows stay (`useSessions`).
     pub fn on_list_failed(&mut self, request: u64, why: String) {
-        if self.store.finish(request, Err(why.clone())) {
-            self.notice = Some(format!("Couldn't load the session list: {why}"));
-        }
+        // The panel shows the failure (a block or a banner); Fleet has no status-bar line for it.
+        self.store.finish(request, Err(why));
     }
 
     /// The sessions arrived with the projects read beside them: groups them under the projects (the last good answer when
@@ -156,9 +174,6 @@ impl State {
     ) {
         if !self.store.finish(request, Ok(())) {
             return;
-        }
-        if self.notice.as_deref().is_some_and(|n| n.starts_with("Couldn't load the session list")) {
-            self.notice = None;
         }
         let before = self.project_load.projects.clone();
         if let Some(request) = self.project_load.begin() {
@@ -181,9 +196,6 @@ impl State {
 
     /// The session list arrived, or changed. Keeps which projects are folded and which session is open.
     pub fn on_list(&mut self, mut projects: Vec<Project>, tx: &mut Tx) {
-        if self.notice.as_deref().is_some_and(|n| n.starts_with("Couldn't load the session list")) {
-            self.notice = None;
-        }
         for project in &mut projects {
             let same = |p: &&Project| if project.id.is_empty() { p.name == project.name } else { p.id == project.id };
             if let Some(old) = self.projects.iter().find(same) {

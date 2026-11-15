@@ -23,6 +23,7 @@ pub mod interrupted;
 pub mod link;
 pub mod model;
 pub mod modes;
+pub mod panel;
 pub mod prefs;
 pub mod presence;
 pub mod prompts;

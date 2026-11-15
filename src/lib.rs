@@ -16,6 +16,8 @@ mod tests_browser;
 #[cfg(test)]
 mod tests_images;
 #[cfg(test)]
+mod tests_panel;
+#[cfg(test)]
 mod tests_rows;
 mod theme;
 pub mod ui;
@@ -1059,6 +1061,36 @@ pub fn spec() -> AppSpec<State> {
             ("list-groups-light", |s| {
                 s.dark = Some(false);
                 s.show_groups("")
+            }),
+            ("list-loading", |s| s.show_panel(mock::groups::Panel::Loading)),
+            ("list-loading-light", |s| {
+                s.dark = Some(false);
+                s.show_panel(mock::groups::Panel::Loading)
+            }),
+            ("list-error", |s| s.show_panel(mock::groups::Panel::Error)),
+            ("list-error-light", |s| {
+                s.dark = Some(false);
+                s.show_panel(mock::groups::Panel::Error)
+            }),
+            ("list-banner", |s| s.show_panel(mock::groups::Panel::Banner)),
+            ("list-banner-light", |s| {
+                s.dark = Some(false);
+                s.show_panel(mock::groups::Panel::Banner)
+            }),
+            ("list-empty", |s| s.show_panel(mock::groups::Panel::Empty)),
+            ("list-empty-light", |s| {
+                s.dark = Some(false);
+                s.show_panel(mock::groups::Panel::Empty)
+            }),
+            ("list-no-match", |s| s.show_panel(mock::groups::Panel::NoMatch)),
+            ("list-no-match-light", |s| {
+                s.dark = Some(false);
+                s.show_panel(mock::groups::Panel::NoMatch)
+            }),
+            ("list-filter-focused", |s| s.show_panel(mock::groups::Panel::Focused)),
+            ("list-filter-focused-light", |s| {
+                s.dark = Some(false);
+                s.show_panel(mock::groups::Panel::Focused)
             }),
             ("list-filter-project", |s| s.show_groups("light")),
             ("list-filter-project-light", |s| {

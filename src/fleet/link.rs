@@ -90,6 +90,11 @@ impl Link {
         Link { base, cmds, post }
     }
 
+    /// "Try again" on the list: the sessions and the projects are read again (`SessionsPanel`'s `handleRetry`).
+    pub fn refetch_list(&self) {
+        fetch_list(&self.base, &self.post);
+    }
+
     pub fn open(&self, session: &str) {
         let _ = self.cmds.send(Cmd::Open(session.to_string()));
     }
