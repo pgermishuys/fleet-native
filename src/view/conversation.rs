@@ -5,16 +5,19 @@
 //! (`client/src/lib/client-types.ts`) so the reducer in `src/fleet/` can fill it later: a message
 //! has a role and ordered parts, and every part has an id.
 use super::compaction;
+use super::message::{self, copy_text};
 use super::parts::quad;
 use super::prose;
 use super::reasoning;
 use super::shell;
 use super::toolrow;
 use crate::State;
+use crate::conv::bubble::{cluster_position, show_meta};
 use crate::conv::card::ToolBody;
 use crate::conv::compaction::CompactionView;
 use crate::conv::shell::ShellCommand;
 use crate::conv::tools::{ToolRowEntry, ToolStatus, group_reads};
+use crate::fleet::model::{ModMark, SlashCommand};
 use crate::icons::*;
 use crate::mock::{Session, Status};
 use crate::theme::{RADIUS_CARD, Theme, mono, sans};
@@ -39,6 +42,18 @@ pub struct Message {
     pub parts: Vec<Part>,
     /// A sent prompt the server hasn't confirmed in time: a line under it says so (`optimistic-retry`).
     pub needs_retry: bool,
+    pub meta: Meta,
+}
+
+/// What a message's frame shows besides its parts (`MessageBubble.vue`): when it was made, by which model, the slash
+/// command a prompt came from, who sent it for the user, and whether it was sent mid-turn.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Meta {
+    pub created_at: Option<i64>,
+    pub model: Option<String>,
+    pub command: Option<SlashCommand>,
+    pub mod_mark: Option<ModMark>,
+    pub steered: bool,
 }
 
 pub enum Part {
@@ -97,7 +112,7 @@ pub enum ToolState {
 
 impl Message {
     pub fn new(id: impl Into<String>, role: Role, parts: Vec<Part>) -> Self {
-        Message { id: id.into(), role, parts, needs_retry: false }
+        Message { id: id.into(), role, parts, needs_retry: false, meta: Meta::default() }
     }
 
     pub fn user(id: impl Into<String>, body: impl Into<String>) -> Self {
@@ -166,6 +181,13 @@ impl Part {
 }
 
 impl Message {
+    /// The message's text parts, as the body Fleet copies and parses.
+    pub fn text(&self) -> String {
+        let texts: Vec<&str> =
+            self.parts.iter().filter_map(|p| if let Part::Text { text, .. } = p { Some(text.as_str()) } else { None }).collect();
+        texts.join("\n\n")
+    }
+
     /// Changes whenever something the row draws changes, in a few integer reads.
     pub fn version(&self) -> (usize, usize) {
         (self.parts.len(), self.parts.iter().map(Part::weight).sum())
@@ -192,8 +214,17 @@ pub fn stream(t: &Theme, session: &Session, partial: bool, older: Option<Older>)
             let after_tool = i.checked_sub(1).map(|p| matches!(session.messages[p].parts.last(), Some(Part::Tool { .. } | Part::Shell(_))));
             let streaming = i + 1 == session.messages.len() && session.status == Status::Working && msg.role == Role::Assistant;
             let opened = open_mask(msg, s);
-            memo(msg.id.clone(), (msg.version(), theme.dark, after_tool, streaming, msg.needs_retry, opened, s.thinking), || {
-                message_row(&theme, &md, msg, after_tool, streaming, s)
+            let same_as_prev = i.checked_sub(1).is_some_and(|p| session.messages[p].role == msg.role);
+            // The pill's relative time moves every 30s; "Copied" lasts a moment.
+            let frame = (
+                same_as_prev,
+                session.messages.get(i + 1).is_some_and(|n| n.role == msg.role),
+                msg.meta.created_at.map(|_| message::now_ms(s) / 30_000),
+                s.copied.as_ref().is_some_and(|(m, until)| *m == msg.id && s.clock < *until),
+                s.prompt_open.contains(&msg.id),
+            );
+            memo(msg.id.clone(), (msg.version(), theme.dark, after_tool, streaming, msg.needs_retry, opened, s.thinking, frame), || {
+                message_row(&theme, &md, msg, after_tool, streaming, s, (frame.0, frame.1))
             })
         },
     );
@@ -212,7 +243,7 @@ pub fn stream(t: &Theme, session: &Session, partial: bool, older: Option<Older>)
 
 /// The Markdown looks a message draws with: its text, its reasoning, and a compaction's summary.
 pub struct Styles {
-    prose: MarkdownStyle,
+    pub prose: MarkdownStyle,
     reasoning: MarkdownStyle,
     summary: MarkdownStyle,
 }
@@ -305,6 +336,7 @@ fn open_mask(msg: &Message, s: &State) -> u64 {
         && s.reasoning_open.is_empty()
         && s.summary_open.is_empty()
         && s.shell_wide.is_empty()
+        && s.prompt_open.is_empty()
         && !s.inline_diffs
     {
         return 0;
@@ -353,13 +385,25 @@ fn tool_runs(parts: &[Part]) -> Vec<Vec<&Part>> {
 
 /// One message: its parts, spaced as Fleet spaces them. `after_tool` is how the message above
 /// ended (`None` for the first), so a run of tool rows reads as one block across messages.
-fn message_row(t: &Theme, md: &Styles, msg: &Message, after_tool: Option<bool>, streaming: bool, s: &State) -> El {
-    let mut column = col().w_full();
+fn message_row(
+    t: &Theme,
+    md: &Styles,
+    msg: &Message,
+    after_tool: Option<bool>,
+    streaming: bool,
+    s: &State,
+    // Whether the message above and the one below are the same sender's.
+    (grouped_with_prev, grouped_with_next): (bool, bool),
+) -> El {
+    let mut column = col().key(format!("msg-{}", msg.id)).w_full().hover_group();
+    column = column.children(message::marks(t, msg));
     let mut after_tool = after_tool;
     // 20px after a message or text, none between tool rows, 12px before the text that follows a run of them.
     let above = |after: Option<bool>, is_tool: bool| match (after, is_tool) {
         (None, _) | (Some(true), true) => 0.0,
         (Some(true), false) => 12.0,
+        // Consecutive messages of one sender sit 6px apart (`first`/`middle` of a cluster); the rest 20px.
+        (Some(false), _) if grouped_with_prev => 6.0,
         (Some(false), _) => 20.0,
     };
     let mut k = 0;
@@ -389,9 +433,18 @@ fn message_row(t: &Theme, md: &Styles, msg: &Message, after_tool: Option<bool>, 
         // Commands the user ran sit close together, as tool rows do (Fleet stacks them 7px apart).
         let is_shell = matches!(msg.parts[k], Part::Shell(_));
         let gap = if is_shell && after_tool == Some(true) { 3.0 } else { above(after_tool, false) };
-        column = column.child(el().w_full().mt(gap).py(2.0).child(part_view(t, s, md, msg.role, &msg.parts[k], live)));
+        column = column.child(el().w_full().mt(gap).py(2.0).child(part_view(t, s, md, msg, &msg.parts[k], live)));
         after_tool = Some(is_shell);
         k += 1;
+    }
+    let user = msg.role == Role::User;
+    let cluster = cluster_position(grouped_with_prev, grouped_with_next);
+    // The copy button of an assistant message sits at its top right; a user's is inside its bubble.
+    if !user && !copy_text(msg).trim().is_empty() {
+        column = column.child(message::copy_button(t, s, msg).pin(None, Some(0.0), Some(0.0), None));
+    }
+    if !user && show_meta(false, cluster) {
+        column = column.children(message::meta_pill(t, s, msg));
     }
     if msg.needs_retry {
         // `.optimistic-retry`: 12px in the idle colour, right-aligned under the user's bubble.
@@ -402,23 +455,10 @@ fn message_row(t: &Theme, md: &Styles, msg: &Message, after_tool: Option<bool>, 
     column
 }
 
-fn part_view(t: &Theme, s: &State, md: &Styles, role: Role, part: &Part, live: bool) -> El {
-    match (part, role) {
-        // Right-aligned with the small corner at bottom right. The empty 18% in front keeps the
-        // bubble to Fleet's `max-width: 82%` of the column at any width.
-        (Part::Text { text: body, .. }, Role::User | Role::Shell) => row().w_full().justify_end().child(el().w_frac(0.18)).child(
-            text(body.clone())
-                .font(sans(15.0, 400.0, 1.55))
-                .color(t.text)
-                .wrap()
-                .selectable(true)
-                .shrink()
-                .px(14.0)
-                .py(10.0)
-                .corners([14.0, 14.0, 4.0, 14.0])
-                .border(1.0, t.border)
-                .fill(t.wash(5.0)),
-        ),
+fn part_view(t: &Theme, s: &State, md: &Styles, msg: &Message, part: &Part, live: bool) -> El {
+    match (part, msg.role) {
+        (Part::Text { id, text: body }, Role::User) => message::user_bubble(t, s, md, msg, id, body),
+        (Part::Text { id, text: body }, Role::Shell) => message::user_bubble(t, s, md, msg, id, body),
         (Part::Text { id, text: body }, Role::Assistant) => prose::prose(&md.prose, id, body, live),
         (Part::Tool { .. }, _) => toolrow::tool_entry(t, s, part),
         (Part::Reasoning { id, text: body, summary }, _) => {

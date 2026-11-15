@@ -105,6 +105,12 @@ pub struct State {
     pub aborting: Option<String>,
     /// The side conversation is open (component 15 sets it; only a scene does now): rows 1.5 and 2.7.
     pub side_open: bool,
+    /// The messages whose command shows its expanded prompt ("Show prompt"), and the one just copied with the second its
+    /// "Copied" ends at (`view::message`).
+    pub prompt_open: std::collections::HashSet<String>,
+    pub copied: Option<(String, f64)>,
+    /// The wall clock in unix milliseconds when a scene fixes it; `None` reads the real one (the time pills).
+    pub now_ms: Option<i64>,
     /// The last thing that went wrong, shown in the status bar.
     pub notice: Option<String>,
     /// The kit's overlays, the palette and the gallery's own controls (`src/ui/`).
@@ -153,6 +159,9 @@ impl Default for State {
             reasoning_open: Default::default(),
             summary_open: Default::default(),
             shell_wide: Default::default(),
+            prompt_open: Default::default(),
+            copied: None,
+            now_ms: None,
             stream: None,
             prompts: Default::default(),
             subscribers: Default::default(),
@@ -436,7 +445,19 @@ fn end_tools(session: &mut Session) {
 
 fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     let composer_changed = s.keep_composer_state(now);
-    poll_rest(s, now, tx) || composer_changed
+    // "Copied" on a message's button ends by itself.
+    let copied = match &s.copied {
+        Some((_, until)) if now >= *until => {
+            s.copied = None;
+            true
+        }
+        Some(_) => {
+            tx.wake_after(std::time::Duration::from_millis(100));
+            false
+        }
+        None => false,
+    };
+    poll_rest(s, now, tx) || composer_changed || copied
 }
 
 impl State {
@@ -629,6 +650,15 @@ pub fn spec() -> AppSpec<State> {
             ("tool-states-light", |s| {
                 s.dark = Some(false);
                 s.show_conversation(mock::tools::of_each_status())
+            }),
+            ("message-frame", |s| s.show_frame()),
+            ("message-frame-light", |s| {
+                s.dark = Some(false);
+                s.show_frame()
+            }),
+            ("message-prompt-open", |s| {
+                s.show_frame();
+                s.prompt_open.insert("u2".into());
             }),
             ("thinking", |s| s.show_conversation(mock::parts::of_thinking())),
             ("thinking-light", |s| {

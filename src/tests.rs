@@ -722,3 +722,52 @@ fn the_composer_reads_only_state_and_the_side_conversation_changes_the_frame_and
     });
     assert_eq!(rt.state.draft.text, "what is this?", "the draft stays until the side conversation exists");
 }
+
+/// Piece 3E: `MessageBubble.*.test.ts` (command, attached files, meta pill) as clicks and finds on the drawn frame.
+fn frame_app() -> Runtime<State> {
+    scene_app(|s| s.show_frame())
+}
+
+#[test]
+fn a_command_shows_as_typed_and_the_prompt_opens_behind_show_prompt() {
+    let mut rt = frame_app();
+    assert!(rt.find("message-command").is_some());
+    assert!(rt.find("message-command-prompt").is_none());
+    click(&mut rt, "message-command-toggle");
+    run(&mut rt, 0.3);
+    assert!(rt.find("message-command-prompt").is_some());
+    click(&mut rt, "message-command-toggle");
+    run(&mut rt, 0.3);
+    assert!(rt.find("message-command-prompt").is_none());
+}
+
+#[test]
+fn a_message_with_a_note_shows_a_chip_per_file_and_the_note() {
+    let rt = frame_app();
+    assert!(rt.find("attached-.weave/attachments/3f9a2c1d/build-output.log").is_some());
+    assert!(rt.find("attached-.weave/attachments/3f9a2c1d/incident-report.pdf").is_some());
+}
+
+#[test]
+fn a_steered_prompt_and_one_a_mod_sent_wear_their_marks() {
+    let rt = frame_app();
+    assert!(rt.find("steered-mark").is_some());
+    assert!(rt.find("mod-mark").is_some());
+}
+
+#[test]
+fn the_pill_is_on_an_assistant_message_that_has_a_time() {
+    let rt = frame_app();
+    assert!(rt.find("meta-a1").is_some());
+    assert!(rt.find("meta-u1").is_none(), "a user's time is plain text, not a pill");
+}
+
+#[test]
+fn the_copy_button_says_copied_after_a_press() {
+    let mut rt = frame_app();
+    assert!(rt.state.copied.is_none());
+    click(&mut rt, "copy-a1");
+    assert_eq!(rt.state.copied.as_ref().map(|c| c.0.as_str()), Some("a1"));
+    run(&mut rt, 2.0);
+    assert!(rt.state.copied.is_none(), "it goes back to the icon by itself");
+}
