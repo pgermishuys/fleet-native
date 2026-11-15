@@ -4,6 +4,7 @@
 //!
 //! What a call is called, drawn with and summarised as comes from the registry (`conv::tools`); this file only draws.
 use super::agent_row;
+use super::browser_steps;
 use super::conversation::{Part, ToolState};
 use super::image;
 use super::parts::{pulse, triangle};
@@ -81,6 +82,10 @@ pub fn tool_entry(t: &Theme, s: &State, part: &Part) -> El {
     // What the agent saw sits under the call, open or folded.
     if let Some(shot) = &body.screenshot {
         card = card.child(image::screenshot(t, s, id, shot, detail));
+    }
+    // And what it did in the agent's own browser (a call with a delegation never gets here).
+    if get_tool(tool).uses_browser {
+        card = card.child(browser_steps::steps(t, s, call_id, *status));
     }
     card
 }

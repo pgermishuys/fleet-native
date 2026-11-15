@@ -45,6 +45,11 @@ fn thumb(t: &Theme, key: String, label: String, fill: Option<Color>) -> El {
 /// What the agent saw, under its call (`.tool-screenshot`): lined up with the call's label, 120px tall, opening full size
 /// on a press. Shows even while the call's row is folded. A picture Fleet has lost draws nothing.
 pub fn screenshot(t: &Theme, s: &State, id: &str, shot: &Shot, title: &str) -> El {
+    screenshot_padded(t, s, id, shot, title, (2.0, 8.0, 8.0, 31.0))
+}
+
+/// The same with its own padding (top, right, bottom, left): a browser step's shot sits inside the step's grid.
+pub fn screenshot_padded(t: &Theme, s: &State, id: &str, shot: &Shot, title: &str, pad: (f32, f32, f32, f32)) -> El {
     s.images.want(&shot.path, Source::Path(shot.path.clone()));
     if s.images.is_missing(&shot.path) {
         return el();
@@ -60,7 +65,7 @@ pub fn screenshot(t: &Theme, s: &State, id: &str, shot: &Shot, title: &str) -> E
     let button = thumb(t, key, screenshot_label(title), Some(t.main_bg))
         .on_press(move |s: &mut State| s.open_lightbox(&path, &alt, &opener))
         .child(face);
-    col().key(format!("shot-box-{id}")).w_full().pt(2.0).pr(8.0).pb(8.0).pl(31.0).child(row().child(button))
+    col().key(format!("shot-box-{id}")).w_full().pt(pad.0).pr(pad.1).pb(pad.2).pl(pad.3).child(row().child(button))
 }
 
 /// The images a user sent, under their words (`.msg-images`: wrapping, 6px apart, 6px below the text).

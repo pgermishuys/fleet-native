@@ -3,6 +3,7 @@
 //! real server (`tests/fixtures/`). The impure parts (`http`, `link`) do the network work on their
 //! own threads and hand results to the state.
 pub mod autocomplete;
+pub mod browser;
 pub mod catalog;
 pub mod command;
 pub mod compact;

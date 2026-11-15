@@ -2,6 +2,7 @@
 //! 14px root (see `client/src/components/layout/AppShell.vue`).
 pub mod agent_row;
 pub mod autocomplete;
+pub mod browser_steps;
 mod compaction;
 pub mod composer;
 pub mod conversation;
