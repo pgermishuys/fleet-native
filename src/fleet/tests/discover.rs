@@ -1,9 +1,7 @@
 //! Finding a running Fleet in every place one writes itself down (`fleet::discover`): the folders on each
 //! system, the order they are tried in, the instance file that is missing, and the wording of what the
 //! window says. Temporary folders and a fake environment; nothing reads the real home folder.
-use crate::fleet::discover::{
-    self, Os, Place, desktop_user_data_dir, explicit_server, find_in, not_found, places, saved_port, server_data_dir,
-};
+use crate::fleet::discover::{self, Os, Place, desktop_user_data_dir, explicit_server, find_in, places, saved_port, server_data_dir};
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
@@ -213,6 +211,7 @@ fn the_instance_file_may_be_missing_while_a_fleet_runs() {
 #[cfg(unix)]
 #[test]
 fn the_notice_says_where_it_looked_and_how_to_name_a_fleet() {
+    use crate::fleet::discover::not_found;
     let looked = places(Os::Mac, &env(&[("HOME", "/Users/me")]));
     let notice = not_found(&[looked.clone(), vec![Place::Port(6262)]].concat());
     assert_eq!(
