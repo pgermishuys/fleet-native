@@ -105,8 +105,15 @@ fn the_places_are_tried_in_order_on_each_system() {
 
 #[test]
 fn the_overrides_come_first() {
-    let got =
-        places(Os::Linux, &env(&[("HOME", "/home/me"), ("FLEET_DESKTOP_DATA_DIR", "/desk"), ("Fleet__DatabasePath", "/db/my.fleet.db")]));
+    let got = places(
+        Os::Linux,
+        &env(&[
+            ("HOME", "/home/me"),
+            ("FLEET_DESKTOP_DATA_DIR", "/desk"),
+            ("Fleet__DatabasePath", "/db/my.fleet.db"),
+            ("WEAVE_FLEET_DATA_DIR", "/cmd"),
+        ]),
+    );
     // The server's own override, with the extension swapped as `FleetInstanceLock` does.
     assert_eq!(got[0], Place::InstanceFile("/db/my.fleet.instance.json".into()));
     assert_eq!(got[1], Place::InstanceFile("/cmd/fleet.instance.json".into()));
