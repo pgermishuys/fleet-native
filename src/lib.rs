@@ -141,6 +141,8 @@ pub struct State {
     pub scroll_probe: std::rc::Rc<std::cell::Cell<Option<rune::ScrollPos>>>,
     pub(crate) scroll_seen: Option<rune::ScrollPos>,
     pub shown: Option<conv::pin::Shown>,
+    /// The background strip: collapsed or not, when each item was seen to end, what is being stopped (`conv::work_clock`).
+    pub work: conv::work_clock::WorkStrip,
     /// Stands in for the open session while the list is empty.
     blank: Project,
 }
@@ -213,6 +215,7 @@ impl Default for State {
             scroll_probe: Default::default(),
             scroll_seen: None,
             shown: None,
+            work: Default::default(),
             blank: Project { name: "Sessions".into(), path: String::new(), open: true, sessions: vec![mock::blank_session()] },
         }
     }
@@ -624,7 +627,7 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
             s.follow_end(tx);
             true
         }
-        _ => s.tick_script() || (ticked && s.session().status == Status::Working) || s.keep_retry_clock(tx),
+        _ => s.tick_script() || (ticked && s.session().status == Status::Working) || s.keep_retry_clock(tx) || s.keep_work_clock(tx),
     }
 }
 
@@ -832,6 +835,18 @@ pub fn spec() -> AppSpec<State> {
             }),
             ("failure-action-failed", |s| s.show_failure(mock::failure::Case::ActionFailed, false)),
             ("failure-earlier", |s| s.show_failure(mock::failure::Case::Earlier, false)),
+            ("work-running", |s| s.show_work(mock::work::Case::Running)),
+            ("work-running-light", |s| {
+                s.dark = Some(false);
+                s.show_work(mock::work::Case::Running)
+            }),
+            ("work-mixed", |s| s.show_work(mock::work::Case::Mixed)),
+            ("work-finished", |s| s.show_work(mock::work::Case::Finished)),
+            ("work-finished-light", |s| {
+                s.dark = Some(false);
+                s.show_work(mock::work::Case::Finished)
+            }),
+            ("work-collapsed", |s| s.show_work(mock::work::Case::Collapsed)),
             ("working-tool", |s| s.show_working(mock::working::Case::Tool)),
             ("working-tool-light", |s| {
                 s.dark = Some(false);

@@ -1035,3 +1035,86 @@ fn both_buttons_wait_while_a_request_is_on_its_way() {
     click(&mut rt, "interrupted-dismiss");
     assert!(rt.state.interruption().is_some(), "a disabled button takes no press");
 }
+
+// ── Background strip (component 3, piece K) ─────────────────────────────────────────────────────────────────────────
+
+fn work_app(case: crate::mock::work::Case) -> Runtime<State> {
+    let mut rt = app();
+    rt.update(|s, _| s.show_work(case));
+    rt.frame(FRAME);
+    rt.frame(FRAME);
+    rt
+}
+
+#[test]
+fn the_strip_is_absent_when_nothing_runs() {
+    let mut rt = work_app(crate::mock::work::Case::Mixed);
+    assert!(rt.find("background-strip").is_some());
+    rt.update(|s, _| {
+        if let Some(stream) = &mut s.stream {
+            stream.running_work.clear();
+        }
+    });
+    rt.frame(FRAME);
+    assert!(rt.find("background-strip").is_none());
+}
+
+#[test]
+fn the_strip_lists_each_kind_and_offers_only_what_the_work_allows() {
+    let rt = work_app(crate::mock::work::Case::Mixed);
+    assert!(rt.find("background-strip-summary").is_some());
+    for id in ["s1", "a1", "m1", "p1"] {
+        assert!(rt.find(&format!("work-row-{id}")).is_some(), "row {id}");
+    }
+    // Shell: Output and Stop. Sub-agent with a session: Open and Stop. Monitor: Output and Events, no Stop. Pi's: Details.
+    assert!(rt.find("work-output-s1").is_some() && rt.find("work-stop-s1").is_some() && rt.find("work-open-s1").is_none());
+    assert!(rt.find("work-open-a1").is_some() && rt.find("work-stop-a1").is_some() && rt.find("work-output-a1").is_none());
+    assert!(rt.find("work-events-m1").is_some() && rt.find("work-output-m1").is_some() && rt.find("work-stop-m1").is_none());
+    assert!(rt.find("work-details-p1").is_some() && rt.find("work-stop-p1").is_none());
+    assert_eq!(rt.state.work.summary(rt.state.running_work(), crate::view::message::now_ms(&rt.state)), "4 running");
+}
+
+#[test]
+fn finished_work_shows_its_result_and_no_stop_and_then_drops() {
+    let mut rt = work_app(crate::mock::work::Case::Finished);
+    assert!(rt.find("work-meta-s2").is_some() && rt.find("work-stop-s2").is_none());
+    assert!(rt.find("work-stop-s1").is_some());
+    rt.update(|s, _| s.now_ms = s.now_ms.map(|n| n + 25_000));
+    rt.frame(FRAME);
+    assert!(rt.find("work-row-s2").is_none(), "ended 8 s before the scene's clock, 33 s on");
+    assert!(rt.find("work-row-s1").is_some());
+}
+
+#[test]
+fn the_header_collapses_the_list_and_keeps_the_summary() {
+    let mut rt = work_app(crate::mock::work::Case::Mixed);
+    click(&mut rt, "background-strip-toggle");
+    assert!(rt.find("work-row-s1").is_none());
+    assert!(rt.find("background-strip-summary").is_some());
+    // The flag is the app's, not the session's: it is kept for the run (row 4.4).
+    assert!(rt.state.work.collapsed);
+    click(&mut rt, "background-strip-toggle");
+    assert!(rt.find("work-row-s1").is_some());
+}
+
+#[test]
+fn a_stop_in_flight_disables_its_button() {
+    let mut rt = work_app(crate::mock::work::Case::Mixed);
+    rt.update(|s, _| {
+        s.work.stopping.insert("s1".into());
+    });
+    rt.frame(FRAME);
+    assert!(rt.find("work-stop-s1").is_some());
+}
+
+#[test]
+fn the_clock_redraws_when_a_time_changes_and_rests_with_nothing_shown() {
+    use crate::conv::work_clock::WorkStrip;
+    let mut rt = work_app(crate::mock::work::Case::Running);
+    let items = rt.state.running_work().to_vec();
+    rt.state.work.changed(&items, crate::view::message::now_ms(&rt.state));
+    rt.update(|s, _| s.now_ms = s.now_ms.map(|n| n + 1_000));
+    let now = crate::view::message::now_ms(&rt.state);
+    assert!(rt.state.work.changed(&items, now), "a second on, the first minute's counter reads differently");
+    assert_eq!(WorkStrip::default().next_change_ms(&[], now), None);
+}

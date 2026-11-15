@@ -1075,3 +1075,11 @@ fold view (G) is the largest visible change and unlocks H, I, J, P.
   Fleet's client through Playwright at 1280×760 and the native app with `--server`, the same
   session and keywords. Look at each; check for paths, user names and machine names.
 - Both themes. A picture on Linux only is fine; say what wasn't checked on macOS and Windows.
+
+
+#### Piece K, done (background strip and rows, read only)
+
+- **Done:** 4.1 (strip, hidden when empty, 760 px card in the composer column above the frame), 4.2 (header, fold chevron, tooltips), 4.3, 4.5-4.6 (order, the 30 s linger counted from when this window saw the end), 4.7 (the clock: a wake at the next change, a second in the first minute then the minute, the drop; it rests with nothing shown), 4.8-4.16 (row, icons by state, kind label, what, meta, result, time and its tooltip, ghost buttons drawn where the work allows them), 4.21 (Stop drawn when `running && canStop`, else the 58 px slot; disabled and "Stopping…" while its id is in `State::work.stopping`), 4.23 (narrow strip, 440 px, from the strip's measured width), 4.25-4.26. Row 4.24: `view::work::work_row` is the reusable row; the status bar's list isn't built.
+- **Open, with reasons:** 4.4 the fold is kept for the run, not across restarts (no local settings file yet). 4.12's model suffix (needs the child session's model and the model list). 4.21-4.22 what Stop does (the POST, the refusal line) and what Output, Open, Details and Events do: piece L; their buttons draw and take a press that does nothing. The ghost button's hover border (Rune has no hover border colour; the hover fill is drawn). Fleet truncates "what + meta" as one line; here the two are separate texts, so a very long command shows its own ellipsis and the result stays beside it.
+- **Differences from `main` that are the server's:** the time reads "20 s" and "4 minutes ago" as `main`'s `formatDuration` and `formatRelative` write them (rows 4.15's "58s / 4m ago" is the older `formatElapsed`); the released v0.72.0 client still draws "20s" and "just now". Tests are `src/conv/tests/work_clock.rs` (the display cases of `BackgroundStrip.test.ts`) and the `src/tests.rs` section "Background strip".
+- **Pictures:** `shots/parity/03-k-background-strip/`.
