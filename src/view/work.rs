@@ -1,9 +1,10 @@
 //! The background strip above the composer and its rows. Ports `components/session/BackgroundStrip.vue` and
 //! `BackgroundWorkRow.vue` (docs/parity/03-conversation-parts.md, piece K). `conv::work_clock` says what shows and when
-//! it changes. Read only for now: the buttons draw where Fleet puts them and what they do (Output, Open, Details,
-//! Events, Stop) is piece L's.
+//! it changes. What the buttons do (Output, Open, Details, Events, Stop) is `fleet::work_actions`; what opens under a row
+//! is `view::work_output`.
 use super::conversation::COLUMN;
 use super::message::now_ms;
+use super::work_output;
 use crate::State;
 use crate::conv::time::local_offset_secs;
 use crate::conv::work_clock::{time_text, time_title, what_text};
@@ -24,6 +25,7 @@ impl State {
     /// Notes what ended, and wakes the strip when a time on it changes or a finished row is due to drop (the shared clock,
     /// row 4.7: it rests while nothing shows). True when the strip must redraw.
     pub fn keep_work_clock(&mut self, tx: &mut rune::Tx) -> bool {
+        self.poll_work_outputs(tx);
         let Some(stream) = &self.stream else { return false };
         let now = now_ms(self);
         self.work.observe(&stream.running_work, now);
@@ -142,34 +144,58 @@ pub fn work_row(s: &State, t: &Theme, item: &RunningWorkItem, now: i64, narrow: 
             .color(t.muted)
             .help(time_title(item, now, local_offset_secs())),
     );
+    let id = item.id.clone();
+    let has_details = item.kind == WorkKind::Subagent && item.child_session_id.is_none();
+    let output_open = item.can_read_output && s.work.outputs.contains_key(&item.id);
+    let details_open = has_details && s.work.details.contains(&item.id);
     if item.can_read_output {
-        line = line.child(action(
-            t,
-            item,
-            "output",
-            Some(&SCROLL_TEXT),
-            "Output",
-            narrow,
-            if running { "Show the output so far" } else { "Show the output" },
+        let id = id.clone();
+        let tip = if running { "Show the output so far" } else { "Show the output" };
+        line = line.child(
+            action(t, item, "output", (&SCROLL_TEXT, 0.0), "Output", narrow, tip).on_press(move |s: &mut State| s.toggle_work_output(&id)),
+        );
+    }
+    if let Some(child) = &item.child_session_id {
+        let (parent, child) = (item.session_id.clone(), child.clone());
+        line = line.child(action(t, item, "open", (&ARROW_UP_RIGHT, 0.0), "Open", narrow, "Open its session").on_press_tx(
+            move |s: &mut State, tx: &mut rune::Tx| {
+                s.open_child(&parent, &child, tx);
+            },
         ));
     }
-    if item.child_session_id.is_some() {
-        line = line.child(action(t, item, "open", Some(&ARROW_UP_RIGHT), "Open", narrow, "Open its session"));
+    if has_details {
+        let id = id.clone();
+        let turn = if details_open { std::f32::consts::PI } else { 0.0 };
+        line = line.child(
+            action(t, item, "details", (&CHEVRON_DOWN, turn), "Details", narrow, "What it was asked, and how it is doing")
+                .on_press(move |s: &mut State| s.toggle_work_details(&id)),
+        );
     }
-    if item.kind == WorkKind::Subagent && item.child_session_id.is_none() {
-        line = line.child(action(t, item, "details", Some(&CHEVRON_DOWN), "Details", narrow, "What it was asked, and how it is doing"));
-    }
-    if item.kind == WorkKind::Monitor && item.tool_call_id.is_some() {
-        line = line.child(action(t, item, "events", Some(&ARROW_DOWN), "Events", narrow, "Jump to its events in the conversation"));
+    if let (WorkKind::Monitor, Some(call)) = (item.kind, &item.tool_call_id) {
+        let call = call.clone();
+        line = line.child(
+            action(t, item, "events", (&ARROW_DOWN, 0.0), "Events", narrow, "Jump to its events in the conversation")
+                .on_press_tx(move |s: &mut State, tx: &mut rune::Tx| s.show_work_events(&call, tx)),
+        );
     }
     // Stop, or an empty slot of its width so rows line up whether or not they offer it.
     let slot = if narrow { 28.0 } else { 58.0 };
     line = line.child(if running && item.can_stop { stop(s, t, item, narrow, slot) } else { el().w(slot).h(1.0) });
-    line
+    let mut block = col().w_full().child(line);
+    if let Some(why) = s.work.stop_errors.get(&item.id) {
+        block = block.child(work_output::stop_error(t, item, why));
+    }
+    if details_open {
+        block = block.child(work_output::details(t, item));
+    }
+    if output_open {
+        block = block.children(work_output::output(s, t, item));
+    }
+    block
 }
 
 /// A ghost button of the row (`.work-row__action`): 24px tall, 12px muted text that turns to the text colour on hover.
-fn action(t: &Theme, item: &RunningWorkItem, key: &str, glyph: Option<&'static Icon>, word: &'static str, narrow: bool, tip: &str) -> El {
+fn action(t: &Theme, item: &RunningWorkItem, key: &str, glyph: (&'static Icon, f32), word: &'static str, narrow: bool, tip: &str) -> El {
     let mut b = row()
         .key(format!("work-{key}-{}", item.id))
         .h(24.0)
@@ -181,16 +207,13 @@ fn action(t: &Theme, item: &RunningWorkItem, key: &str, glyph: Option<&'static I
         .hover_group()
         .cursor(Cursor::Pointer)
         .help(tip)
-        .label(word)
-        .on_press(|_: &mut State| {});
-    if let Some(glyph) = glyph {
-        b = b.child(icon(glyph, 14.0).color(t.muted).group_color(t.text));
-    }
+        .label(word);
+    b = b.child(icon(glyph.0, 14.0).color(t.muted).group_color(t.text).rotate(glyph.1));
     b.child(text(word).font(sans(12.0, 400.0, 1.3)).color(t.muted).group_color(t.text))
 }
 
 /// Stop (rows 4.21, 4.23): 58px wide with its word, 28px with only its icon in a narrow strip. Whether it is in flight is
-/// `State::work_stopping`; the press itself is piece L's.
+/// `State::work.stopping`.
 fn stop(s: &State, t: &Theme, item: &RunningWorkItem, narrow: bool, slot: f32) -> El {
     let stopping = s.work.stopping.contains(&item.id);
     let name = item.label.as_deref().unwrap_or(&item.title);
@@ -211,5 +234,6 @@ fn stop(s: &State, t: &Theme, item: &RunningWorkItem, narrow: bool, slot: f32) -
     if stopping {
         return b.opacity(0.5).disabled(true);
     }
-    b.hover(t.accent.alpha(0.10)).hover_group().cursor(Cursor::Pointer).on_press(|_: &mut State| {})
+    let id = item.id.clone();
+    b.hover(t.accent.alpha(0.10)).hover_group().cursor(Cursor::Pointer).on_press(move |s: &mut State| s.stop_work(&id))
 }

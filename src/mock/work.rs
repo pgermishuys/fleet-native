@@ -4,6 +4,7 @@
 use super::failure::{NOW, chrono_free_iso};
 use super::tools::message;
 use crate::State;
+use crate::conv::work_output::Reader;
 use crate::fleet::reducer;
 use crate::fleet::work::to_items;
 use crate::mock::Status;
@@ -20,6 +21,14 @@ pub enum Case {
     Finished,
     /// The same as `Mixed`, the header folded to one line.
     Collapsed,
+    /// The shell's output open under its row, the head of it dropped.
+    Output,
+    /// The same, before the first page came.
+    OutputLoading,
+    /// A Stop the server refused, in red under the row.
+    StopRefused,
+    /// A sub-agent that runs inside its call, its Details open.
+    Details,
 }
 
 fn ago(secs: i64) -> String {
@@ -67,7 +76,7 @@ impl State {
                 20,
                 json!({"childSessionId": "child-1", "toolCallId": "call-1", "canStop": true}),
             )],
-            Case::Mixed | Case::Collapsed => vec![
+            Case::Mixed | Case::Collapsed | Case::Output | Case::OutputLoading | Case::StopRefused | Case::Details => vec![
                 item(
                     "s1",
                     "shell",
@@ -102,6 +111,25 @@ impl State {
         }
         self.now_ms = Some(NOW);
         self.work.collapsed = matches!(case, Case::Collapsed);
+        self.work.outputs.clear();
+        self.work.details.clear();
+        self.work.stop_errors.clear();
+        match case {
+            Case::Output => {
+                let text = "  \u{2713} fleet.spec.ts:12 opens a session (412 ms)\n  \u{2713} fleet.spec.ts:31 sends a prompt (655 ms)\n  \u{2713} fleet.spec.ts:48 stops a turn (301 ms)\n  running fleet.spec.ts:66 reconnects after a drop\n";
+                self.work.outputs.insert("s1".into(), Reader::shown(1, text, true));
+            }
+            Case::OutputLoading => {
+                self.work.outputs.insert("s1".into(), Reader::new(1, true));
+            }
+            Case::StopRefused => {
+                self.work.stop_errors.insert("s1".into(), "The session isn't running.".into());
+            }
+            Case::Details => {
+                self.work.details.insert("p1".into());
+            }
+            _ => {}
+        }
         self.stream = Some(stream);
         self.stream_of = None;
         self.sync_open();

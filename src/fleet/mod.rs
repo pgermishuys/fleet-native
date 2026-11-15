@@ -28,6 +28,7 @@ pub mod topics;
 pub mod usage;
 pub mod view;
 pub mod work;
+pub mod work_actions;
 
 #[cfg(test)]
 mod tests;

@@ -21,4 +21,5 @@ mod time;
 mod tool_row;
 mod turn_error;
 mod work_clock;
+mod work_output;
 mod working;
