@@ -149,6 +149,49 @@ pub fn of_output_only(ids: &[&str]) -> Vec<crate::view::conversation::Message> {
     ])
 }
 
+/// A unified diff of `src/orders/total.ts` with a long unchanged stretch between its two changes.
+fn rounding_patch() -> String {
+    let body = |from: usize, to: usize| (from..=to).map(|n| format!(" const step{n} = items[{n}];")).collect::<Vec<_>>().join("\n");
+    format!(
+        "--- a/src/orders/total.ts\n+++ b/src/orders/total.ts\n@@ -10,29 +10,30 @@ export function total(items: Item[]) {{\n{}\n-  const sum = items.reduce(add, 0);\n+  const sum = items.reduce(add, 0);\n+  const rounded = roundHalfToEven(sum);\n{}\n-  return sum;\n+  return rounded;\n{}\n",
+        body(10, 12),
+        body(13, 30),
+        body(31, 33)
+    )
+}
+
+/// A file written whole: 30 lines, so the card shows 12 and "Show all 30 lines".
+fn new_test_file() -> String {
+    let mut lines =
+        vec!["import { expect, test } from \"bun:test\";".to_string(), "import { total } from \"./total\";".to_string(), String::new()];
+    for n in 1..=9 {
+        lines.push(format!("test(\"rounds case {n}\", () => {{"));
+        lines.push(format!("  expect(total([{n}.005])).toBe({n}.0);"));
+        lines.push("});".to_string());
+    }
+    lines.join("\n")
+}
+
+/// Calls with a diff: an edit whose harness kept a unified diff (`e1`), and a write of a new file (`w1`).
+pub fn of_diffs(ids: &[&str]) -> Vec<crate::view::conversation::Message> {
+    let calls = vec![
+        call("e1", "edit", "completed", json!({"filePath": "src/orders/total.ts"}), json!({"metadata": {"diff": rounding_patch()}})),
+        call(
+            "x1",
+            "frobnicate",
+            "completed",
+            json!({}),
+            json!({"diffLines": [{"type": "remove", "content": "a", "oldLineNumber": 1}, {"type": "add", "content": "b", "newLineNumber": 1}]}),
+        ),
+        call("w1", "write", "completed", json!({"filePath": "src/orders/total.test.ts", "content": new_test_file()}), json!({})),
+    ];
+    let calls = calls.into_iter().filter(|c| ids.contains(&c["id"].as_str().unwrap_or(""))).collect();
+    conversation(vec![
+        message("u1", "user", 1, vec![json!({"type": "text", "id": "u1-t", "text": "Round the order total half to even, with a test."})]),
+        message("a1", "assistant", 2, calls),
+    ])
+}
+
 impl State {
     /// Opens the cards of `of_output` the picture shows, and widens the long one when asked.
     pub fn open_cards(&mut self, ids: &[&str], wide: &[&str]) {

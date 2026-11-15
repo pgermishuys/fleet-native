@@ -79,6 +79,12 @@ pub struct State {
     pub tool_open: std::collections::HashMap<String, conv::card::Toggle>,
     /// Tool cards whose output box shows more than the last 12 lines (`expanded` in `ToolOutputBody.vue`).
     pub tool_wide: std::collections::HashSet<String>,
+    /// Collapsed context runs the user opened in a diff, and the write cards that show every line (`view::diff`).
+    pub diff_open: std::collections::HashSet<String>,
+    pub diff_all: std::collections::HashSet<String>,
+    /// The "inline tool diffs" setting (`inlineToolDiffs`, off by default): other edit rows show their diff too. Settings
+    /// and the palette own the switch; until they are built only a scene turns it on.
+    pub inline_diffs: bool,
     /// The last thing that went wrong, shown in the status bar.
     pub notice: Option<String>,
     /// The kit's overlays, the palette and the gallery's own controls (`src/ui/`).
@@ -118,6 +124,9 @@ impl Default for State {
             open_reads: Default::default(),
             tool_open: Default::default(),
             tool_wide: Default::default(),
+            diff_open: Default::default(),
+            diff_all: Default::default(),
+            inline_diffs: false,
             stream: None,
             prompts: Default::default(),
             subscribers: Default::default(),
@@ -369,6 +378,35 @@ pub fn spec() -> AppSpec<State> {
                 s.dark = Some(false);
                 s.show_conversation(mock::tools::of_output_only(&["t3"]));
                 s.open_cards(&["t3"], &["t3"])
+            }),
+            ("tool-diff-edit", |s| {
+                s.show_conversation(mock::tools::of_diffs(&["e1"]));
+                s.open_cards(&["e1"], &[]);
+                s.diff_all.insert("e1".into());
+            }),
+            ("tool-diff-edit-light", |s| {
+                s.dark = Some(false);
+                s.show_conversation(mock::tools::of_diffs(&["e1"]));
+                s.open_cards(&["e1"], &[]);
+                s.diff_all.insert("e1".into());
+            }),
+            ("tool-diff-write", |s| {
+                s.show_conversation(mock::tools::of_diffs(&["w1"]));
+                s.open_cards(&["w1"], &[]);
+            }),
+            ("tool-diff-write-light", |s| {
+                s.dark = Some(false);
+                s.show_conversation(mock::tools::of_diffs(&["w1"]));
+                s.open_cards(&["w1"], &[]);
+            }),
+            ("tool-diff-inline", |s| {
+                s.show_conversation(mock::tools::of_diffs(&["x1"]));
+                s.inline_diffs = true;
+            }),
+            ("tool-diff-inline-light", |s| {
+                s.dark = Some(false);
+                s.show_conversation(mock::tools::of_diffs(&["x1"]));
+                s.inline_diffs = true;
             }),
             ("tool-states", |s| s.show_conversation(mock::tools::of_each_status())),
             ("tool-states-light", |s| {

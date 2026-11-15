@@ -2,6 +2,7 @@
 //! `lib/__tests__/tool-labels.test.ts`, `tool-classification.test.ts`, `tool-row.test.ts`, `merge-reads.test.ts`,
 //! `components/session/__tests__/ToolCard.rows.test.ts`, `MessageToolList.test.ts`).
 mod card;
+mod diff;
 mod merge_reads;
 mod output;
 mod registry;

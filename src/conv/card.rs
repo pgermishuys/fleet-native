@@ -1,6 +1,7 @@
 //! What a tool card holds beyond its row: the output it prints, the one-line preview under a failed call, and whether
 //! the card is open. Ports `toToolCardItem` (`getToolOutput`, `buildPreview`) from `activity-stream-tool-card.ts` and
 //! the open/closed rules of `ToolCard.vue`. No Rune in here.
+use super::diff::{DiffLine, card_diff_lines, file_edits_of};
 use super::output::parse_tool_output;
 use super::tools::{is_shell_row, is_write_call, shell_header, tool_duration_ms};
 use serde_json::{Map, Value};
@@ -59,19 +60,21 @@ pub struct ToolBody {
     pub header: Option<String>,
     /// The line under a failed call's row.
     pub preview: Option<String>,
-    /// The harness attached a diff (drawn by the diff piece; this piece only knows it is there).
+    /// What the card shows as its diff (`diffLines` of the card item): what the harness attached, else for a write the
+    /// lines worked out from its input (`withFileEdit`).
+    pub diff: Vec<DiffLine>,
     pub has_diff: bool,
     /// Only a call that failed starts open.
     pub initially_collapsed: bool,
 }
 
-fn has_diff(state: &Value) -> bool {
-    let filled = |v: Option<&Value>| match v {
-        Some(Value::Array(a)) => !a.is_empty(),
-        Some(Value::String(s)) => !s.is_empty(),
-        _ => false,
-    };
-    ["diffLines", "diff", "patch"].iter().any(|k| filled(state.get(k))) || filled(state.pointer("/metadata/diff"))
+/// The card's diff lines (`cardDiffLines`, then `withFileEdit`'s fallback for write kinds).
+fn card_diff(tool: &str, state: &Value) -> Vec<DiffLine> {
+    let harness = card_diff_lines(state);
+    if !harness.is_empty() || !is_write_call(tool) {
+        return harness;
+    }
+    file_edits_of(tool, state).into_iter().next().map(|e| e.diff).unwrap_or_default()
 }
 
 pub fn tool_body(tool: &str, title: &str, state: &Value) -> ToolBody {
@@ -82,12 +85,14 @@ pub fn tool_body(tool: &str, title: &str, state: &Value) -> ToolBody {
         let input = state.get("input").unwrap_or(&Value::Null);
         shell_header(input, title, meta("exit").or_else(|| meta("exitCode")), tool_duration_ms(state))
     });
+    let diff = card_diff(tool, state);
     ToolBody {
+        has_diff: !diff.is_empty(),
+        diff,
         preview: build_preview(output.as_deref(), Some(&summary)),
         output: output.unwrap_or_default(),
         summary,
         header,
-        has_diff: has_diff(state),
         initially_collapsed: state.get("status").and_then(Value::as_str) != Some("error"),
     }
 }

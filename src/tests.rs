@@ -347,3 +347,65 @@ fn a_summary_shows_above_the_output() {
     assert!(rt.find("tool-t5-output").is_some());
     assert!(rt.find("tool-t5-empty").is_none());
 }
+
+/// `ToolCard.rows.test.ts` "a write opens on what it wrote even with inline diffs off, twelve lines then Show all", and
+/// `DiffView.test.ts` as the app runs it.
+fn diff_app(only: &'static [&'static str], inline: bool) -> Runtime<State> {
+    let mut rt = app();
+    rt.update(move |s, _| {
+        s.show_conversation(crate::mock::tools::of_diffs(only));
+        s.inline_diffs = inline;
+    });
+    rt.frame(FRAME);
+    run(&mut rt, 0.3);
+    rt
+}
+
+#[test]
+fn a_write_opens_on_its_diff_twelve_lines_then_show_all() {
+    let mut rt = diff_app(&["w1"], false);
+    assert!(rt.find("tool-w1-body").is_none(), "a write starts closed");
+    click(&mut rt, "tool-w1");
+    run(&mut rt, 0.3);
+    assert!(rt.find("tool-w1-diff").is_some(), "and opens on what it wrote, not what it printed");
+    assert!(rt.find("tool-w1-diff-line-11").is_some());
+    assert!(rt.find("tool-w1-diff-line-12").is_none());
+    // The card measures itself after it opens.
+    run(&mut rt, 1.0);
+    click(&mut rt, "tool-w1-diff-more");
+    run(&mut rt, 0.3);
+    assert!(rt.state.diff_all.contains("w1"));
+    // The longer card runs past the bottom of the view; the rows of a conversation are built as they come into it.
+    rt.wheel(640.0, 400.0, 300.0);
+    run(&mut rt, 0.3);
+    assert!(rt.find("tool-w1-diff-line-12").is_some(), "the rest shows");
+    assert!(rt.find("tool-w1-diff-more").is_none());
+}
+
+#[test]
+fn an_edit_is_a_write_too_and_expands_a_collapsed_run_once_all_its_lines_show() {
+    let mut rt = diff_app(&["e1"], false);
+    assert!(rt.find("tool-e1-body").is_none());
+    click(&mut rt, "tool-e1");
+    run(&mut rt, 0.3);
+    assert!(rt.find("tool-e1-diff").is_some());
+    // Twelve lines first: three kept lines, the change, then the run is cut by the preview, not collapsed.
+    assert!(rt.find("tool-e1-diff-expand-6-24").is_none());
+    run(&mut rt, 1.0);
+    click(&mut rt, "tool-e1-diff-more");
+    run(&mut rt, 0.3);
+    // 3 context lines, the change (3 lines), then 18 unchanged lines: 3 stay at each edge and 12 hide.
+    assert!(rt.find("tool-e1-diff-expand-6-24").is_some());
+    click(&mut rt, "tool-e1-diff-expand-6-24");
+    run(&mut rt, 0.3);
+    assert!(rt.find("tool-e1-diff-expand-6-24").is_none(), "the run is open");
+}
+
+#[test]
+fn a_row_that_is_not_a_write_shows_a_diff_only_with_inline_diffs_on() {
+    let rt = diff_app(&["x1"], false);
+    assert!(rt.find("tool-x1-body").is_none());
+    let rt = diff_app(&["x1"], true);
+    assert!(rt.find("tool-x1-diff").is_some(), "inline diffs open it by themselves");
+    assert!(rt.find("tool-x1-diff-more").is_none(), "only a write is cut to twelve lines");
+}

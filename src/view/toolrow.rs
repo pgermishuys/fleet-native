@@ -5,7 +5,7 @@
 //! What a call is called, drawn with and summarised as comes from the registry (`conv::tools`); this file only draws.
 use super::conversation::{Part, ToolState};
 use super::parts::{pulse, triangle};
-use super::toolcard::{self, INLINE_TOOL_DIFFS};
+use super::toolcard;
 use crate::State;
 use crate::conv::card::{Toggle, is_open};
 use crate::conv::tools::{Category, ToolIcon, ToolStatus, format_call_duration, get_tool, is_shell_row};
@@ -54,7 +54,7 @@ fn header(t: &Theme) -> El {
 /// The call's own part, as a row.
 pub fn tool_entry(t: &Theme, s: &State, part: &Part) -> El {
     let Part::Tool { id, tool, detail, status, state, body, .. } = part else { return el() };
-    let open = is_open(tool, body, INLINE_TOOL_DIFFS, s.tool_open.get(id.as_str()).copied());
+    let open = is_open(tool, body, s.inline_diffs, s.tool_open.get(id.as_str()).copied());
     let under = body.initially_collapsed;
     let key = id.clone();
     let header = tool_row(t, id, tool, detail, *status, *state).on_press(move |s: &mut State| {
