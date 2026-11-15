@@ -75,6 +75,10 @@ pub struct State {
     pub kept: fleet::topics::Kept,
     /// The "Read N files" groups that are open, by id (`openReads` in `MessageToolList.vue`): closed by default.
     pub open_reads: std::collections::HashSet<String>,
+    /// Tool cards the user opened or closed, by part id; a call that fails resets its own (`ToolCard.vue` `isCollapsed`).
+    pub tool_open: std::collections::HashMap<String, conv::card::Toggle>,
+    /// Tool cards whose output box shows more than the last 12 lines (`expanded` in `ToolOutputBody.vue`).
+    pub tool_wide: std::collections::HashSet<String>,
     /// The last thing that went wrong, shown in the status bar.
     pub notice: Option<String>,
     /// The kit's overlays, the palette and the gallery's own controls (`src/ui/`).
@@ -112,6 +116,8 @@ impl Default for State {
             link: None,
             connection: Connection::Connecting,
             open_reads: Default::default(),
+            tool_open: Default::default(),
+            tool_wide: Default::default(),
             stream: None,
             prompts: Default::default(),
             subscribers: Default::default(),
@@ -336,6 +342,33 @@ pub fn spec() -> AppSpec<State> {
             ("tool-rows-light", |s| {
                 s.dark = Some(false);
                 s.show_conversation(mock::tools::of_each_kind())
+            }),
+            ("tool-cards", |s| {
+                s.show_conversation(mock::tools::of_output_only(&["t1", "t2"]));
+                s.open_cards(&["t1"], &[])
+            }),
+            ("tool-cards-light", |s| {
+                s.dark = Some(false);
+                s.show_conversation(mock::tools::of_output_only(&["t1", "t2"]));
+                s.open_cards(&["t1"], &[])
+            }),
+            ("tool-long", |s| {
+                s.show_conversation(mock::tools::of_output_only(&["t3"]));
+                s.open_cards(&["t3"], &[])
+            }),
+            ("tool-long-light", |s| {
+                s.dark = Some(false);
+                s.show_conversation(mock::tools::of_output_only(&["t3"]));
+                s.open_cards(&["t3"], &[])
+            }),
+            ("tool-long-open", |s| {
+                s.show_conversation(mock::tools::of_output_only(&["t3"]));
+                s.open_cards(&["t3"], &["t3"])
+            }),
+            ("tool-long-open-light", |s| {
+                s.dark = Some(false);
+                s.show_conversation(mock::tools::of_output_only(&["t3"]));
+                s.open_cards(&["t3"], &["t3"])
             }),
             ("tool-states", |s| s.show_conversation(mock::tools::of_each_status())),
             ("tool-states-light", |s| {
