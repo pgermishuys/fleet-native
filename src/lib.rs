@@ -154,6 +154,8 @@ pub struct State {
     pub side_asked: Vec<fleet::modes::SideAsk>,
     /// The context ring's arc and, for scenes, a context to draw (`view::ring`).
     pub ring: view::ring::Ring,
+    /// The arcs of the progress rings in the session list, which ease to their new count.
+    pub row_rings: view::progress_ring::Trims,
     /// Compact now: the requests in flight and why the last one was refused (per session).
     pub compact: fleet::compact::Compact,
     /// The messages whose command shows its expanded prompt ("Show prompt"), and the one just copied with the second its
@@ -275,6 +277,7 @@ impl Default for State {
             side_panel: Default::default(),
             side_asked: Vec::new(),
             ring: Default::default(),
+            row_rings: Default::default(),
             compact: Default::default(),
             ui: ui::Ui::default(),
             gallery: false,
@@ -593,6 +596,14 @@ impl State {
         self.now_ms = Some(mock::rows::NOW);
         self.projects = vec![mock::rows::statuses()];
         self.set_open((0, 5));
+    }
+
+    /// A list of rows with a running chip, progress and a pull request badge (piece D, rows 3.49-3.54).
+    fn show_row_chips(&mut self, dark: bool) {
+        self.dark = Some(dark);
+        self.now_ms = Some(mock::rows::NOW);
+        self.projects = vec![mock::rows::chips()];
+        self.set_open((0, 4));
     }
 
     /// The queue scenes: the working session, its harness and what it waits for.
@@ -1015,6 +1026,8 @@ pub fn spec() -> AppSpec<State> {
             // Piece C of the session list: a row for every status, in both themes.
             ("row-statuses", |s| s.show_row_statuses(true)),
             ("row-statuses-light", |s| s.show_row_statuses(false)),
+            ("row-chips", |s| s.show_row_chips(true)),
+            ("row-chips-light", |s| s.show_row_chips(false)),
             // The row's status as the reducer derives it from a snapshot with a sub-agent.
             ("delegating", |s| s.show_sub_agent(false)),
             ("delegating-light", |s| {

@@ -1,13 +1,15 @@
 //! A session's row in the list (`SessionItem.vue`, `StatusGlyph.vue`): the caret's place, the status glyph, the title and
-//! the word on the right. Chips, progress and the ring are piece D; hover buttons, rename, the menu and lineage come
-//! after (docs/parity/06-session-list.md, rows 3.x).
+//! the word on the right, the running chip, the pull request badge and the progress ring (`ProgressRing.vue`, `PrBadge.vue`).
+//! Hover buttons, rename, the menu and lineage come after (docs/parity/06-session-list.md, rows 3.x).
 use super::parts::{cut_dot, status_glyph};
+use super::progress_ring::progress_ring;
+use crate::fleet::row_chips::{self, Checks, PrBadge, PrState};
 use crate::fleet::row_status::{self, Dim, Glyph, RowItem, RowStatus, Tone};
-use crate::icons::CHEVRON_RIGHT;
+use crate::icons::{CHEVRON_RIGHT, GIT_MERGE, GIT_PULL_REQUEST, GIT_PULL_REQUEST_CLOSED, GIT_PULL_REQUEST_DRAFT, LOADER_CIRCLE};
 use crate::mock::Session;
-use crate::theme::{RADIUS_BTN, Theme, sans};
+use crate::theme::{RADIUS_BTN, Theme, mono, sans};
 use crate::{State, Tx};
-use rune::{Color, Cursor, El, el, row, text};
+use rune::{Color, Cursor, El, el, icon, row, text};
 
 /// The clock a list is drawn by: read once for all rows, so they agree and the time zone is asked once.
 pub struct RowClock {
@@ -77,7 +79,67 @@ fn word(t: &Theme, id: &str, status: &RowStatus, dim: Dim) -> Option<El> {
     Some(label)
 }
 
+/// What a row's right edge shows in place of its status word: a workflow step the user finishes (`stepNote`) or how the
+/// session came from its parent (`kindLabel`). Nothing fills them yet: workflows and lineage are other pieces.
+#[derive(Clone, Copy, Default)]
+pub struct Slots<'a> {
+    pub step_note: Option<&'a str>,
+    pub kind_label: Option<&'a str>,
+}
+
+/// The chip counting what the agent has running (`.session-running-chip`): green on a 14% green pill.
+fn running_chip(t: &Theme, key: &str, count: u32) -> El {
+    let ink = t.text_mix(t.running, t.row_running);
+    row()
+        .key(format!("session-running-chip-{key}"))
+        .h(18.0)
+        .px(6.0)
+        .gap(3.0)
+        .center_y()
+        .radius(999.0)
+        .fill(t.running.alpha(0.14))
+        .help(row_chips::running_label(count))
+        .child(icon(&LOADER_CIRCLE, 11.0).color(ink))
+        .child(text(count.to_string()).font(sans(11.0, 600.0, 1.3).features("'tnum' 1")).color(ink))
+}
+
+/// The pull request badge (`PrBadge.vue`): the state's icon, `#<number>` in mono and a dot for the checks. The icon keeps
+/// the state's colour whole; the number takes as much of it as still reads on a row (`--row-*`).
+fn pr_badge(t: &Theme, key: &str, pr: &PrBadge) -> El {
+    // `--pr-open` is `--running`, `--pr-blocked` `--status-waiting`, `--pr-merged` `--queued`, `--pr-closed` `--error`,
+    // `--pr-draft` `--muted`.
+    let (glyph, color, ink) = match pr.state {
+        PrState::Open => (&GIT_PULL_REQUEST, t.running, t.text_mix(t.running, t.row_running)),
+        PrState::Draft => (&GIT_PULL_REQUEST_DRAFT, t.muted, t.row_meta_ink()),
+        PrState::Blocked => (&GIT_PULL_REQUEST, t.idle, t.text_mix(t.idle, t.row_waiting)),
+        PrState::Merged => (&GIT_MERGE, t.queued, t.text_mix(t.queued, t.row_queued)),
+        PrState::Closed => (&GIT_PULL_REQUEST_CLOSED, t.error, t.text_mix(t.error, t.row_error)),
+    };
+    let mut badge = row()
+        .key(format!("session-pr-{key}"))
+        .gap(3.0)
+        .pb(1.0)
+        .center_y()
+        .help(pr.description.clone())
+        .child(icon(glyph, 12.0).color(color))
+        .child(text(format!("#{}", pr.number)).font(mono(11.0, 400.0, 1.3).features("'tnum' 1")).color(ink));
+    if pr.shows_checks() {
+        // `--check-pass` is `--running`, `--check-fail` `--error`, `--check-pending` `--status-waiting`.
+        let dot = match pr.checks {
+            Checks::Passing => t.running,
+            Checks::Failing => t.error,
+            _ => t.idle,
+        };
+        badge = badge.child(el().size(6.0, 6.0).ml(2.0).radius(3.0).fill(dot));
+    }
+    badge
+}
+
 pub fn session_row(s: &State, t: &Theme, clock: &RowClock, p: usize, i: usize, session: &Session) -> El {
+    session_row_with(s, t, clock, p, i, session, Slots::default())
+}
+
+pub fn session_row_with(s: &State, t: &Theme, clock: &RowClock, p: usize, i: usize, session: &Session, slots: Slots) -> El {
     let active = s.open_at() == (p, i);
     let item = RowItem::of(session, clock.now);
     let status = row_status::row_status(&item, clock.now, clock.offset_secs, true);
@@ -123,7 +185,50 @@ pub fn session_row(s: &State, t: &Theme, clock: &RowClock, p: usize, i: usize, s
                 .truncate()
                 .grow(1.0),
         );
-    if let Some(word) = word(t, &key, &status, dim) {
+    if session.row.running_work > 0 {
+        line = line.child(running_chip(t, &key, session.row.running_work));
+    }
+    if let Some(pr) = &session.row.pr {
+        line = line.child(pr_badge(t, &key, pr));
+    }
+    let progress = row_chips::progress_view(session.row.progress.as_ref(), status.tone);
+    if let Some(view) = progress {
+        let owner = if session.id.is_empty() { key.clone() } else { session.id.clone() };
+        let mut group = row()
+            .key(format!("session-progress-{key}"))
+            .gap(6.0)
+            .center_y()
+            .help(row_chips::progress_description(view.progress))
+            .child(progress_ring(&s.row_rings, t, &owner, view.progress.done, view.progress.total, t.card_bg));
+        if view.count {
+            group = group.child(
+                text(format!("{}/{}", view.progress.done, view.progress.total))
+                    .key(format!("session-progress-count-{key}"))
+                    .font(sans(12.0, 400.0, 1.3).features("'tnum' 1"))
+                    .color(t.row_meta_ink()),
+            );
+        }
+        line = line.child(group);
+    }
+    // One of: the step note, the kind label, the status word (which the count replaces).
+    if let Some(note) = slots.step_note {
+        line = line.child(
+            text(note.to_string())
+                .key(format!("session-step-note-{key}"))
+                .font(sans(12.0, 400.0, 1.3).features("'tnum' 1"))
+                .color(t.text_mix(t.accent, t.row_accent)),
+        );
+    } else if let Some(kind) = slots.kind_label {
+        // Lineage stays muted in every state (decision of 17 October 2026): the row's meta colour, set on the label itself.
+        line = line.child(
+            text(kind.to_uppercase())
+                .key(format!("session-kind-{key}"))
+                .font(sans(10.5, 600.0, 1.2).tracking(0.04 * 10.5))
+                .color(t.row_meta_ink()),
+        );
+    } else if !progress.is_some_and(|v| v.count)
+        && let Some(word) = word(t, &key, &status, dim)
+    {
         line = line.child(word);
     }
     el().w_full().py(1.0).child(line)

@@ -2,6 +2,7 @@
 //! (`use-session-activity-updates.ts`, `use-session-token-updates.ts`, `use-session-branch-updates.ts`,
 //! `use-session-checkout-updates.ts`, `lib/session-status.ts`). Pure: no Rune, no I/O. How a row looks is
 //! component 6; this keeps the data it will draw.
+use super::row_chips::{self, PrBadge, Progress};
 use crate::mock::{Project, Session, Status};
 use serde_json::Value;
 
@@ -80,6 +81,12 @@ pub struct Row {
     pub updated: i64,
     /// `session.time.created` in milliseconds (0 when the row has none): the age falls back to it.
     pub created: i64,
+    /// `runningWorkCount`: what the session's agent has running (sub-agents, background shells, monitors).
+    pub running_work: u32,
+    /// `progress`: the todo list's counts.
+    pub progress: Option<Progress>,
+    /// The pull request the session opened. Only mock data fills it until the header component reads the smart links.
+    pub pr: Option<PrBadge>,
 }
 
 /// Whether the server's own lifecycle state is the session's status, whatever it is doing (`deriveSessionStatus`).
@@ -204,6 +211,14 @@ impl Row {
             last_model_id: text(item, "lastAssistantModelId").filter(|m| !m.is_empty()),
             updated: 0,
             created: 0,
+            // The server sends the count as a number or a string.
+            running_work: item
+                .get("runningWorkCount")
+                .and_then(|n| n.as_u64().or_else(|| n.as_str().and_then(|s| s.trim().parse().ok())))
+                .unwrap_or(0)
+                .min(u32::MAX as u64) as u32,
+            progress: item.get("progress").and_then(row_chips::parse_row_progress),
+            pr: None,
         }
     }
 }
@@ -217,6 +232,7 @@ pub enum RowPatch {
     Interrupted { session: String, interruption: Option<Interruption> },
     Failure { session: String, failure: Option<Failure> },
     Tokens { session: String, tokens: u32, cost: f64 },
+    Progress { session: String, progress: Progress },
     Branch { workspace: String, branch: String },
     Checkout { workspace: String, state: String, removed_at: Option<String> },
 }
@@ -259,6 +275,10 @@ impl RowPatch {
                 tokens: props.get("totalTokens")?.as_u64()?.min(u32::MAX as u64) as u32,
                 cost: props.get("totalCost")?.as_f64()?,
             },
+            "session_progress" => {
+                let (session, progress) = row_chips::parse_summary(props)?;
+                RowPatch::Progress { session, progress }
+            }
             "session_branch" => RowPatch::Branch { workspace: text(props, "workspaceId")?, branch: text(props, "branch")? },
             "session_checkout" => RowPatch::Checkout {
                 workspace: text(props, "workspaceId")?,
@@ -301,6 +321,9 @@ impl RowPatch {
                 s.tokens = *tokens;
                 s.row.cost = *cost;
             }),
+            RowPatch::Progress { session, progress } => {
+                rows.filter(|s| &s.id == session).for_each(|s| s.row.progress = Some(progress.clone()))
+            }
             RowPatch::Branch { workspace, branch } => rows.filter(|s| in_workspace(s, workspace)).for_each(|s| s.branch = branch.clone()),
             RowPatch::Checkout { workspace, state, removed_at } => {
                 rows.filter(|s| in_workspace(s, workspace)).for_each(|s| match state.as_str() {

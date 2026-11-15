@@ -141,3 +141,71 @@ fn the_list_re_reads_the_clock_every_30_seconds_so_ages_move_on() {
     });
     assert!(rt.state.row_tick > before);
 }
+
+// ─── piece D: progress, the running chip and the pull request badge (`rows` of `mock::rows::chips`) ───────────────
+
+fn chips() -> rune::Runtime<crate::State> {
+    let mut rt = app();
+    rt.update(|s, _| s.show_row_chips(true));
+    rt.frame(crate::tests::FRAME);
+    rt
+}
+
+#[test]
+fn sessionitem_shows_a_progress_ring_and_count_instead_of_the_status_word_while_working() {
+    let rt = chips();
+    assert!(has(&rt, "session-progress-0-0".into()));
+    assert!(has(&rt, "session-progress-count-0-0".into()));
+    assert!(!has(&rt, "session-status-0-0".into()));
+}
+
+#[test]
+fn sessionitem_keeps_words_the_user_has_to_act_on_next_to_the_ring() {
+    let rt = chips();
+    assert!(has(&rt, "session-progress-0-3".into()));
+    assert!(!has(&rt, "session-progress-count-0-3".into()));
+    assert!(has(&rt, "session-status-0-3".into()), "Needs input stays");
+}
+
+#[test]
+fn sessionitem_shows_no_ring_for_a_session_without_progress_or_with_an_empty_list() {
+    let rt = chips();
+    assert!(!has(&rt, "session-progress-0-7".into()), "no progress");
+    assert!(!has(&rt, "session-progress-0-6".into()), "an empty list");
+}
+
+#[test]
+fn sessionitem_keeps_the_ring_but_shows_the_age_instead_of_the_count_for_a_quiet_session_with_unfinished_items() {
+    let rt = chips();
+    assert!(has(&rt, "session-progress-0-4".into()));
+    assert!(!has(&rt, "session-progress-count-0-4".into()));
+    assert!(has(&rt, "session-status-0-4".into()), "the age");
+}
+
+#[test]
+fn sessionitem_shows_no_progress_once_a_quiet_session_has_finished_its_list_and_its_status_label_comes_back() {
+    let rt = chips();
+    assert!(!has(&rt, "session-progress-0-5".into()));
+    assert!(has(&rt, "session-status-0-5".into()));
+}
+
+#[test]
+fn sessionitem_still_shows_the_count_while_a_session_works_through_its_last_item() {
+    let rt = chips();
+    assert!(has(&rt, "session-progress-count-0-2".into()), "7/7 while still working");
+}
+
+#[test]
+fn sessionitem_shows_a_green_chip_counting_the_work_its_agent_has_running() {
+    let rt = chips();
+    assert!(has(&rt, "session-running-chip-0-1".into()));
+    assert!(has(&rt, "session-running-chip-0-8".into()));
+    assert!(!has(&rt, "session-running-chip-0-0".into()), "hidden at zero");
+}
+
+#[test]
+fn sessionitem_shows_the_pull_request_badge_only_when_the_session_has_one() {
+    let rt = chips();
+    assert!(has(&rt, "session-pr-0-9".into()));
+    assert!(!has(&rt, "session-pr-0-0".into()));
+}

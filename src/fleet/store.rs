@@ -231,8 +231,8 @@ pub fn upsert(projects: &mut Vec<Project>, session: Session) {
 /// Whether the list the server sent differs from the one shown, in anything the list draws (`sessionsChanged`). A poll
 /// that says the same thing causes no redraw. `shown` is the ids of the last list in the order it arrived (the shown
 /// groups reorder them). Compared: id and order, project, status words, title, lineage ids, pin order and the time
-/// last used. Not yet compared because the rows don't hold them: `archivedAt`, `runningWorkCount`, `progress`
-/// (component 6, pieces D and I add them to the row and to this).
+/// last used, the running count and the progress. Not yet compared because the row doesn't hold it: `archivedAt`
+/// (piece I adds it).
 pub fn changed(projects: &[Project], shown: &[String], next: &[Session]) -> bool {
     shown.len() != next.len()
         || shown.iter().zip(next).any(|(id, b)| id != &b.id || !rows(projects).find(|a| a.id == b.id).is_some_and(|a| same_row(a, b)))
@@ -246,6 +246,8 @@ fn same_row(a: &Session, b: &Session) -> bool {
         && a.row.activity == b.row.activity
         && a.row.archived == b.row.archived
         && a.row.updated == b.row.updated
+        && a.row.running_work == b.row.running_work
+        && super::row_chips::same_progress(a.row.progress.as_ref(), b.row.progress.as_ref())
         && a.listing == b.listing
 }
 
