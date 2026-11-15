@@ -1638,11 +1638,12 @@ fn activity_stream_and_work_fleet_stopped_asks_fleet_for_older_work_when_the_str
     let id = rt.state.open_id().unwrap();
     assert_eq!(rt.state.work.older_for.as_deref(), Some(id.as_str()));
     let started = std::time::Instant::now();
-    while seen.lock().unwrap().is_empty() && started.elapsed().as_secs() < 5 {
+    // The link's own hub negotiation arrives too: look for the one call this test is about.
+    let wanted = format!("GET /api/sessions/{id}/work?all=true ");
+    while !seen.lock().unwrap().iter().any(|l| l.starts_with(&wanted)) && started.elapsed().as_secs() < 5 {
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
-    let line = seen.lock().unwrap()[0].clone();
-    assert!(line.starts_with(&format!("GET /api/sessions/{id}/work?all=true ")), "{line}");
+    assert!(seen.lock().unwrap().iter().any(|l| l.starts_with(&wanted)), "{:?}", seen.lock().unwrap());
     // Its answer (delivered here by hand: the test's `Post` drops the app's own delivery) turns the notice to stopped.
     let (_, work) = stopped_shell("sh_dev");
     rt.update(move |s, _| s.on_older_work(&id, Ok((200, serde_json::json!([work])))));
