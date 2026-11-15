@@ -324,7 +324,8 @@ pub fn stream(t: &Theme, session: &Session, plan: &FoldPlan, partial: bool, olde
                 .children(partial.then(|| partial_banner(&theme)))
                 .children(older.map(|o| older_row(&theme, o)))
                 .child(rows)
-                .children((!scroll.asks.is_empty()).then(|| col().w_full().max_w(COLUMN).children(scroll.asks))),
+                // `.activity-permission`: as wide as a message, 16 below.
+                .children((!scroll.asks.is_empty()).then(|| col().w_full().max_w(COLUMN).mb(16.0).children(scroll.asks))),
         );
     col()
         .key("stream-shell")

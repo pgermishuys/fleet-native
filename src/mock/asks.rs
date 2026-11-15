@@ -89,10 +89,19 @@ impl State {
         if let Some(session) = self.projects.first_mut().and_then(|p| p.sessions.first_mut()) {
             session.status = Status::NeedsInput;
         }
-        self.asks = vec![read(case)];
+        self.asks.set("mock.0.0", vec![read(case)]);
         self.now_ms = Some(super::failure::NOW);
         self.stream = Some(state);
         self.stream_of = None;
         self.sync_open();
+    }
+}
+
+impl State {
+    /// The command ask after an answer that Fleet refused, or while one is on its way.
+    pub fn show_ask_act(&mut self, busy: bool) {
+        self.show_ask(Case::Command);
+        let error = (!busy).then(|| "The harness is restarting.".to_string());
+        self.ask_acts.insert("per_1".into(), crate::fleet::retry::Act { busy, error });
     }
 }
