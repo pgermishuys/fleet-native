@@ -162,6 +162,27 @@ pub fn prompt(base: &str, session: &str, correlation_id: &str, text: &str, pick:
     Err(super::queue::error_message(&answer, format!("HTTP {}", status.as_u16())))
 }
 
+/// `POST /api/sessions`: starts a session from the New session page's request (`NewSessionRequest::body`). The answer is a
+/// `CreateSessionResponse`; a refusal's words are the server's own (`store::error_text`: its `error`, `detail` or `title`,
+/// else the body, else "HTTP n"), which the page shows in its red box.
+///
+/// It waits two minutes where other calls wait 15 s: Fleet's client waits as long as the server takes, and a new worktree
+/// (a fetch, a checkout) can take a while.
+pub fn create_session(base: &str, body: &Value) -> Result<Value, String> {
+    let agent: ureq::Agent = builder().timeout_global(Some(Duration::from_secs(120))).http_status_as_error(false).build().into();
+    let mut response = agent
+        .post(url(base, "/api/sessions"))
+        .header("content-type", "application/json")
+        .send(body.to_string())
+        .map_err(|e| e.to_string())?;
+    let status = response.status().as_u16();
+    let text = response.body_mut().read_to_string().unwrap_or_default();
+    if (200..300).contains(&status) {
+        return serde_json::from_str(&text).map_err(|_| "No data returned".to_string());
+    }
+    Err(super::store::error_text(status, &text))
+}
+
 /// `GET /api/sessions/{id}/agents`.
 pub fn agents(base: &str, session: &str) -> Result<Value, String> {
     get(base, &format!("/api/sessions/{session}/agents"))
