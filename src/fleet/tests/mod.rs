@@ -488,6 +488,7 @@ mod live;
 mod ordering;
 mod presence;
 mod prompts;
+mod queue;
 mod reconnect;
 mod refresh;
 mod rows;

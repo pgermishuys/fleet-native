@@ -4,7 +4,7 @@
 //! them; they sit where Fleet puts them: agent chip, model chip, [effort], [Allowed], Interrupt, [ring],
 //! [Send now / Queue], Send.
 use super::conversation::COLUMN;
-use crate::composer::status::{Mode, has_content, mode_of, send_label};
+use crate::composer::status::{ComposerStatus, Mode, has_content, mode_of, send_words};
 use crate::icons::*;
 use crate::mock::Session;
 use crate::theme::{Theme, sans};
@@ -23,6 +23,9 @@ pub fn composer(s: &State, t: &Theme, _session: &Session) -> El {
     }
     if let Some(strip) = super::work::strip(s, t) {
         outer = outer.child(strip);
+    }
+    if let Some(queue) = super::queued::list(s, t) {
+        outer = outer.child(queue);
     }
     outer.child(frame(s, t, disabled, mode))
 }
@@ -63,7 +66,16 @@ fn frame(s: &State, t: &Theme, disabled: bool, mode: Mode) -> El {
         .opacity(if disabled { 0.5 } else { 1.0 })
         .disabled(disabled)
         .on_edit(|s: &mut State| &mut s.draft)
-        .on_submit(|s: &mut State, tx| submit(s, tx, false));
+        .on_submit(|s: &mut State, tx| submit(s, tx, false))
+        // Return is the field's own submit; Ctrl/Cmd+Return is its other choice (steer where Enter queues, queue where
+        // it steers). The field takes the key before the frame does, so it is asked here.
+        .on_input_key(|s: &mut State, ev: &rune::KeyEvent, tx| {
+            if ev.key == Key::Enter && (ev.mods.cmd || ev.mods.ctrl) {
+                submit(s, tx, true);
+                return true;
+            }
+            false
+        });
     let mut frame = col()
         .key("composer-frame")
         .w_full()
@@ -73,15 +85,7 @@ fn frame(s: &State, t: &Theme, disabled: bool, mode: Mode) -> El {
         .border(1.0, edge)
         .box_shadow(Shadow { x: 0.0, y: 10.0, blur: 28.0, spread: -18.0, color: Color::BLACK.alpha(0.5), inset: false })
         .on_layout(|s: &mut State, [_, _, w, _]| s.pickers.composer_w = w)
-        .focus_within_ring(1.0, -1.0, if mode == Mode::Prompt { focus } else { edge })
-        // Return is the field's, Ctrl/Cmd+Return its other choice (steer where Enter queues, queue where it steers).
-        .on_key(|s: &mut State, ev, tx| {
-            if ev.key == Key::Enter && (ev.mods.cmd || ev.mods.ctrl) {
-                submit(s, tx, true);
-                return true;
-            }
-            false
-        });
+        .focus_within_ring(1.0, -1.0, if mode == Mode::Prompt { focus } else { edge });
     frame = frame.child(auto_grow(field, 1, 7)).child(toolbar(s, t, disabled, mode));
     frame
 }
@@ -119,7 +123,9 @@ fn toolbar(s: &State, t: &Theme, disabled: bool, mode: Mode) -> El {
         b
     };
     let inactive = disabled || !has_content(&s.draft.text, mode == Mode::Shell, false, 0);
-    let label = send_label(mode);
+    let busy = s.composer_status() == ComposerStatus::Busy;
+    let caps = s.caps();
+    let (label, title) = send_words(mode, busy, caps.steers_by_default);
     let mut send = el()
         .key("prompt-send-button")
         .size(30.0, 30.0)
@@ -127,9 +133,15 @@ fn toolbar(s: &State, t: &Theme, disabled: bool, mode: Mode) -> El {
         .radius(15.0)
         .fill(t.accent)
         .opacity(if inactive { 0.5 } else { 1.0 })
-        .help(label)
+        .help(title)
         .label(label)
         .child(icon(&ARROW_UP, 14.0).color(t.primary_fg));
+    // While a turn runs and the harness can take a message into it, the other choice of Enter gets a button too.
+    let other = if busy && caps.can_steer && mode == Mode::Prompt && !is_side_draft(&s.draft.text) {
+        Some(other_button(t, caps.steers_by_default, inactive))
+    } else {
+        None
+    };
     send = if inactive {
         send.disabled(true)
     } else {
@@ -149,7 +161,47 @@ fn toolbar(s: &State, t: &Theme, disabled: bool, mode: Mode) -> El {
         .child(interrupt_button(t, s.can_interrupt()))
         .child(spacer())
         .children(crate::view::ring::button(s, t))
+        .children(other)
         .child(send)
+}
+
+/// A `/btw` question never waits for the turn, so it is offered no Send now (`offerSendNowButton`).
+fn is_side_draft(text: &str) -> bool {
+    crate::composer::route::parse_side_question(text.trim()).is_some()
+}
+
+/// `composer-send-now`: Ctrl+Enter's button. Where Enter steers it reads "Queue", elsewhere "Send now". Outline, 32 px tall.
+fn other_button(t: &Theme, steers_by_default: bool, inactive: bool) -> El {
+    let (key, name, title, glyph) = if steers_by_default {
+        ("prompt-queue-button", "Queue", "Queue (Ctrl+Enter): sent when the agent finishes", &LIST_END)
+    } else {
+        (
+            "prompt-send-now-button",
+            "Send now",
+            "Send now (Ctrl+Enter): the agent reads it at its next step, without waiting for the turn to end",
+            &CORNER_DOWN_RIGHT,
+        )
+    };
+    let b = row()
+        .key(key)
+        .role("button")
+        .label(name)
+        .help(title)
+        .h(32.0)
+        .px(10.0)
+        .gap(6.0)
+        .center_y()
+        .radius(crate::theme::RADIUS_BTN)
+        .border(1.0, t.border)
+        .fill(t.panel_bg)
+        .opacity(if inactive { 0.5 } else { 1.0 })
+        .child(icon(glyph, 12.25).color(t.text))
+        .child(text(name).font(sans(12.0, 500.0, 1.0)).color(t.text));
+    if inactive {
+        b.disabled(true)
+    } else {
+        b.hover(t.accent.alpha(0.1)).cursor(Cursor::Pointer).on_press_tx(|s: &mut State, tx| submit(s, tx, true))
+    }
 }
 
 /// `toolbar-icon`: the paperclip. Opening the file picker is piece N.

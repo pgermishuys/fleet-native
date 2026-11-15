@@ -420,6 +420,7 @@ impl State {
             model: model_from_key(&choice.model).map(|m| (m.provider_id, m.model_id)),
             effort: effort_to_send(&choice.effort, Some(&variants)),
             user_message_id,
+            steer: false,
         }
     }
 

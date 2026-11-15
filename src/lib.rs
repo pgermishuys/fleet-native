@@ -115,6 +115,8 @@ pub struct State {
     pub quiet_machine: Option<String>,
     /// What the error box above the composer says (`sendError`, row 1.10): a refused prompt, for now.
     pub composer_error: Option<String>,
+    /// Each session's queue as Fleet last said it (`fleet::queue`).
+    pub queue: fleet::queue::Queues,
     /// A prompt was sent and the session hasn't said it is busy yet (`optimisticBusy`, row 2.11).
     pub optimistic: Option<composer::status::Optimistic>,
     /// The session whose Interrupt is on its way (`aborting`): the button stays off until it is idle.
@@ -193,6 +195,7 @@ impl Default for State {
             failure_open: Default::default(),
             retry_acts: Default::default(),
             retry_seen: 0,
+            queue: Default::default(),
             interrupt_acts: Default::default(),
             quiet_machine: None,
             reasoning_open: Default::default(),
@@ -338,6 +341,11 @@ impl State {
                 self.open = (0, 2);
                 self.projects[0].sessions[2].row.archived = true;
             }
+            // A working session with two messages waiting and a third typed: on a harness that steers (Enter queues,
+            // Ctrl+Enter steers), on OpenCode 2 (Enter steers) and on one that can't steer.
+            "queue" => self.show_queue("opencode", true, false),
+            "queue-opencode2" => self.show_queue("opencode2", true, true),
+            "queue-no-steer" => self.show_queue("claude-code", false, false),
             "error" => {
                 self.open = (0, 2);
                 self.show_draft("Run the cache tests again.");
@@ -409,6 +417,37 @@ impl State {
         }
     }
 
+    /// The queue scenes: the working session, its harness and what it waits for.
+    fn show_queue(&mut self, harness: &str, steers: bool, by_default: bool) {
+        use composer::status::{HarnessInfo, SteerDelivery};
+        self.open = (0, 0);
+        self.projects[0].sessions[0].row.harness_type = Some(harness.into());
+        self.pickers.harnesses = vec![HarnessInfo {
+            kind: harness.into(),
+            supports_steering: steers,
+            steers_by_default: by_default,
+            steer_delivery: steers.then_some(SteerDelivery::NextStep),
+            ..Default::default()
+        }];
+        let owner = self.draft_owner().unwrap_or_default();
+        let item = |id: &str, text: &str, kind, from_mod: Option<&str>| fleet::queue::Item {
+            id: id.into(),
+            text: text.into(),
+            kind,
+            from_mod: from_mod.map(str::to_string),
+        };
+        use fleet::queue::ItemKind::{Command, Prompt};
+        self.queue.replace(
+            &owner,
+            vec![
+                item("a", "Then run the cache tests again.", Prompt, None),
+                item("b", "/review src/cache", Command, None),
+                item("c", "Summarise what changed in a short list.", Prompt, Some("digest")),
+            ],
+        );
+        self.show_draft("Also keep the 200 MB limit.");
+    }
+
     /// The drafts file was read: its text joins what is in memory, and the text area shows its session's if empty.
     pub fn adopt_drafts(&mut self, dir: std::path::PathBuf, stored: composer::drafts::Stored) {
         self.drafts.set_dir(Some(dir));
@@ -453,14 +492,14 @@ impl State {
 }
 
 /// Enter, Ctrl/Cmd+Enter and the Send button (`handleSend`, row 2.10): the draft goes where `route_draft` says.
-/// `modifier` is the other choice of Enter: steer where Enter queues, queue where it steers. Only prompts have a
-/// route yet; what the other routes need is built in pieces I (queue, steer), K and M (commands, shell, `/btw`),
-/// so a command or a `!` draft still goes as the text it is, as before.
+/// `modifier` is the other choice of Enter: steer where Enter queues, queue where it steers. A turn that runs takes a
+/// prompt, a slash command or a `!` command into the queue (or a prompt into the turn, when the harness steers); what
+/// runs a command or a shell command at once is built in pieces K and M, so until then those go as the text they are.
 pub fn submit(s: &mut State, tx: &mut Tx, modifier: bool) {
     if s.composer_disabled() {
         return;
     }
-    let caps = composer::status::Caps::default();
+    let caps = s.caps();
     let cx = composer::route::DraftContext {
         status: s.composer_status(),
         steer: composer::route::steer_for_key(&caps, modifier),
@@ -473,6 +512,15 @@ pub fn submit(s: &mut State, tx: &mut Tx, modifier: bool) {
         composer::route::Route::Side { .. } => {
             s.toast("The side conversation isn't in the native app yet (component 15 of the port).".into(), None, 4.0, tx)
         }
+        composer::route::Route::Prompt { queue: true, .. } => queue_draft(s, tx, fleet::queue::ItemKind::Prompt, None),
+        composer::route::Route::Command { command, args, queue: true } => {
+            queue_draft(s, tx, fleet::queue::ItemKind::Command, Some((command, args)))
+        }
+        composer::route::Route::Shell { queue: true, .. } => queue_draft(s, tx, fleet::queue::ItemKind::Shell, None),
+        composer::route::Route::Prompt { steer, .. } => {
+            send_as(s, tx, steer);
+            tx.focus("composer", false);
+        }
         _ => {
             send(s, tx);
             tx.focus("composer", false);
@@ -480,8 +528,30 @@ pub fn submit(s: &mut State, tx: &mut Tx, modifier: bool) {
     }
 }
 
+/// While a turn runs, the draft waits in Fleet's queue (`queueDraft`): it clears at once, and comes back if Fleet
+/// refuses it and nothing new was typed. The pick (agent, model, effort) goes with it.
+fn queue_draft(s: &mut State, tx: &mut Tx, kind: fleet::queue::ItemKind, command: Option<(String, String)>) {
+    let typed = s.draft.text.clone();
+    let text = typed.trim().to_string();
+    let Some(owner) = s.draft_owner() else { return };
+    if text.is_empty() {
+        return;
+    }
+    let now = s.clock;
+    s.drafts.push_history(&owner, &text, now);
+    let options = fleet::queue::Options { kind, command, pick: s.prompt_pick(None) };
+    s.draft.clear();
+    s.enqueue(&owner, typed, text, options);
+    tx.focus("composer", false);
+}
+
 /// The composer's Send: the message joins the conversation, and a canned reply follows.
 pub fn send(s: &mut State, tx: &mut Tx) {
+    send_as(s, tx, false);
+}
+
+/// Send, into the running turn when `steer`.
+pub fn send_as(s: &mut State, tx: &mut Tx, steer: bool) {
     let text = s.draft.text.trim().to_string();
     if text.is_empty() {
         return;
@@ -491,7 +561,7 @@ pub fn send(s: &mut State, tx: &mut Tx) {
         let now = s.clock;
         s.drafts.push_history(&owner, &text, now);
     }
-    send_text(s, tx, text);
+    send_text(s, tx, text, steer);
     s.draft.clear();
 }
 
@@ -501,18 +571,18 @@ pub fn retry_turn(s: &mut State, tx: &mut Tx) {
         return;
     }
     if let Some(text) = view::failure::last_prompt(&s.session().messages) {
-        send_text(s, tx, text);
+        send_text(s, tx, text, false);
     }
 }
 
 /// Sends `text` to the open session. On a server the message goes to the agent, and the conversation shows it at once,
 /// as sent but not yet confirmed; without one, a canned reply follows.
-fn send_text(s: &mut State, tx: &mut Tx, text: String) {
+fn send_text(s: &mut State, tx: &mut Tx, text: String, steer: bool) {
     s.composer_error = None;
     s.optimistic = Some(composer::status::Optimistic::new(s.clock));
     tx.wake_after(std::time::Duration::from_secs_f64(composer::status::Optimistic::GIVE_UP + 0.1));
     if let (Some(_), Some(id)) = (&s.link, s.open_id()) {
-        s.send_to_server(&id, &text);
+        s.send_to_server_as(&id, &text, steer);
         s.notice = None;
         s.follow_end(tx);
         tx.wake_after(std::time::Duration::from_secs_f64(composer::status::Optimistic::GIVE_UP + 0.1));
@@ -916,6 +986,13 @@ pub fn spec() -> AppSpec<State> {
                 s.dark = Some(false);
                 s.show_composer("busy")
             }),
+            ("composer-queue", |s| s.show_composer("queue")),
+            ("composer-queue-light", |s| {
+                s.dark = Some(false);
+                s.show_composer("queue")
+            }),
+            ("composer-queue-opencode2", |s| s.show_composer("queue-opencode2")),
+            ("composer-queue-no-steer", |s| s.show_composer("queue-no-steer")),
             ("composer-disabled", |s| s.show_composer("disabled")),
             ("composer-disabled-light", |s| {
                 s.dark = Some(false);

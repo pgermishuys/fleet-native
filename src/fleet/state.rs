@@ -49,6 +49,7 @@ impl State {
             let kind = event.kind();
             self.on_catalog_event(event);
             self.on_usage_event(event);
+            self.on_queue_event(event);
             for (only, listener) in &mut self.subscribers.0 {
                 if only.is_none() || *only == kind {
                     listener(topic, event);
@@ -89,6 +90,7 @@ impl State {
             }
             self.sync_open();
             self.load_catalog(&id);
+            self.load_queue(&id);
             self.load_retry(&id);
             self.load_interruption(&id);
         }
@@ -111,6 +113,7 @@ impl State {
     pub fn on_reconnected(&mut self) {
         self.load_pickers();
         if let Some(id) = self.open_id() {
+            self.load_queue(&id);
             self.load_retry(&id);
             self.load_interruption(&id);
         }
@@ -255,12 +258,18 @@ impl State {
 
     /// The composer's Send against a server: the prompt joins the conversation as pending, and goes.
     pub fn send_to_server(&mut self, session: &str, text: &str) {
+        self.send_to_server_as(session, text, false);
+    }
+
+    /// The same, into the running turn when `steer` (`delivery: "steer"`).
+    pub fn send_to_server_as(&mut self, session: &str, text: &str, steer: bool) {
         if self.link.is_none() {
             return;
         }
         let Some(correlation_id) = self.prompts.add(session, text, super::link::now_ms(), self.clock) else { return };
         let id = self.prompts.of(session).iter().find(|p| p.correlation_id == correlation_id).map(|p| p.id.clone());
-        let pick = self.prompt_pick(id);
+        let mut pick = self.prompt_pick(id);
+        pick.steer = steer;
         self.note_pick_on_row(&pick);
         if let Some(link) = &self.link {
             link.send_prompt(session, &correlation_id, text.trim(), pick);
