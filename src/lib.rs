@@ -108,6 +108,11 @@ pub struct State {
     pub failure_open: std::collections::HashSet<String>,
     pub retry_acts: std::collections::HashMap<String, fleet::retry::Act>,
     pub(crate) retry_seen: i64,
+    /// The interrupted card's Continue / Dismiss in flight or failed, by session (`fleet::interrupted`).
+    pub interrupt_acts: std::collections::HashMap<String, fleet::retry::Act>,
+    /// The open session's machine stopped answering: its name (`quietMachine`). The machines list is another
+    /// component's, so nothing sets it yet but a scene.
+    pub quiet_machine: Option<String>,
     /// What the error box above the composer says (`sendError`, row 1.10): a refused prompt, for now.
     pub composer_error: Option<String>,
     /// A prompt was sent and the session hasn't said it is busy yet (`optimisticBusy`, row 2.11).
@@ -176,6 +181,8 @@ impl Default for State {
             failure_open: Default::default(),
             retry_acts: Default::default(),
             retry_seen: 0,
+            interrupt_acts: Default::default(),
+            quiet_machine: None,
             reasoning_open: Default::default(),
             summary_open: Default::default(),
             shell_wide: Default::default(),
@@ -804,6 +811,28 @@ pub fn spec() -> AppSpec<State> {
             }),
             ("failure-action-failed", |s| s.show_failure(mock::failure::Case::ActionFailed, false)),
             ("failure-earlier", |s| s.show_failure(mock::failure::Case::Earlier, false)),
+            ("working-tool", |s| s.show_working(mock::working::Case::Tool)),
+            ("working-tool-light", |s| {
+                s.dark = Some(false);
+                s.show_working(mock::working::Case::Tool)
+            }),
+            ("working-fresh", |s| s.show_working(mock::working::Case::Fresh)),
+            ("working-held", |s| s.show_working(mock::working::Case::Held)),
+            ("working-waiting", |s| s.show_working(mock::working::Case::Waiting)),
+            ("working-retry", |s| s.show_working(mock::working::Case::Retry)),
+            ("working-retry-light", |s| {
+                s.dark = Some(false);
+                s.show_working(mock::working::Case::Retry)
+            }),
+            ("working-quiet", |s| s.show_working(mock::working::Case::Quiet)),
+            ("interrupted", |s| s.show_interrupted(mock::working::Cut::Working)),
+            ("interrupted-light", |s| {
+                s.dark = Some(false);
+                s.show_interrupted(mock::working::Cut::Working)
+            }),
+            ("interrupted-waiting", |s| s.show_interrupted(mock::working::Cut::Waiting)),
+            ("interrupted-auto", |s| s.show_interrupted(mock::working::Cut::Auto)),
+            ("interrupted-failed", |s| s.show_interrupted(mock::working::Cut::Failed)),
             ("recap", |s| s.show_recap()),
             ("recap-light", |s| {
                 s.dark = Some(false);

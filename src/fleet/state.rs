@@ -89,6 +89,7 @@ impl State {
             self.sync_open();
             self.load_catalog(&id);
             self.load_retry(&id);
+            self.load_interruption(&id);
         }
         tx.scroll_to_bottom("stream");
     }
@@ -109,6 +110,7 @@ impl State {
         self.load_pickers();
         if let Some(id) = self.open_id() {
             self.load_retry(&id);
+            self.load_interruption(&id);
         }
         if self.stream.is_some() {
             self.loading = true;

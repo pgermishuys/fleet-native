@@ -18,6 +18,7 @@ pub mod shell;
 pub mod time;
 pub mod tools;
 pub mod turn_error;
+pub mod working;
 
 #[cfg(test)]
 mod tests;

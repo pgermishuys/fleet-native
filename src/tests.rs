@@ -789,6 +789,9 @@ fn a_finished_turn_folds_to_one_row_and_opens_on_click() {
     assert!(rt.state.turns_open.contains("u1"));
     assert!(rt.find("tool-t1").is_some(), "a click opens the turn to its calls");
     assert!(rt.find("turn-fold-u1").is_some(), "the fold row stays above them");
+    // The conversation is pinned to its end, so the opened rows push the fold row up under the header: scroll back to it.
+    rt.wheel(640.0, 400.0, 200.0);
+    rt.frame(FRAME);
     click(&mut rt, "turn-fold-u1");
     assert!(rt.find("tool-t1").is_none(), "another click folds it again");
 }
@@ -900,4 +903,135 @@ fn the_countdown_redraws_by_the_second_in_the_last_minute() {
     let first = rt.state.retry_bucket();
     rt.update(|s, _| s.now_ms = s.now_ms.map(|n| n + 1_000));
     assert_ne!(rt.state.retry_bucket(), first);
+}
+
+// ── Working line and interrupted card (component 3, piece I) ────────────────────────────────────────────────────────
+
+fn working_app(case: crate::mock::working::Case) -> Runtime<State> {
+    let mut rt = app();
+    rt.update(|s, _| s.show_working(case));
+    rt.frame(FRAME);
+    rt
+}
+
+fn interrupted_app(cut: crate::mock::working::Cut) -> Runtime<State> {
+    let mut rt = app();
+    rt.update(|s, _| s.show_interrupted(cut));
+    rt.frame(FRAME);
+    rt
+}
+
+#[test]
+fn the_working_line_names_the_call_and_the_turns_time() {
+    use crate::conv::working::Working;
+    let rt = working_app(crate::mock::working::Case::Tool);
+    assert!(rt.find("working-indicator").is_some());
+    assert!(rt.find("working-word").is_some());
+    assert_eq!(rt.state.working_text(), Working::Busy { elapsed: Some("12 min".into()), tool: Some("Bash running 10 min".into()) });
+    assert!(rt.find("working-elapsed").is_some() && rt.find("working-tool").is_some());
+}
+
+#[test]
+fn a_held_message_is_said_on_the_line() {
+    use crate::conv::working::Working;
+    let rt = working_app(crate::mock::working::Case::Held);
+    let Working::Busy { tool: Some(tool), .. } = rt.state.working_text() else { panic!("busy") };
+    assert_eq!(tool, "Bash running 10 min +2 more. Your message goes to the agent when it finishes.");
+}
+
+#[test]
+fn a_turn_with_no_call_shows_only_the_time() {
+    let rt = working_app(crate::mock::working::Case::Fresh);
+    assert!(rt.find("working-elapsed").is_some());
+    assert!(rt.find("working-tool").is_none());
+}
+
+#[test]
+fn a_question_holding_the_turn_says_needs_input_not_working() {
+    let rt = working_app(crate::mock::working::Case::Waiting);
+    assert!(rt.find("working-waiting").is_some());
+    assert!(rt.find("working-word").is_none());
+}
+
+#[test]
+fn a_retry_counts_down_in_the_line() {
+    let mut rt = working_app(crate::mock::working::Case::Retry);
+    assert!(rt.find("working-retry").is_some());
+    assert!(rt.find("working-word").is_none());
+    rt.update(|s, _| s.now_ms = s.now_ms.map(|n| n + 5_000));
+    assert!(matches!(rt.state.working_text(), crate::conv::working::Working::Retry(t) if t.contains("in 7 s")));
+}
+
+#[test]
+fn a_machine_that_stopped_answering_replaces_the_working_line() {
+    let rt = working_app(crate::mock::working::Case::Quiet);
+    assert!(rt.find("working-not-answering").is_some());
+    assert!(rt.find("working-word").is_none());
+    assert!(rt.find("working-elapsed").is_none());
+}
+
+#[test]
+fn an_idle_session_has_no_working_line() {
+    let mut rt = working_app(crate::mock::working::Case::Tool);
+    rt.update(|s, _| {
+        if let Some(session) = s.session_mut() {
+            session.status = crate::mock::Status::Idle;
+        }
+    });
+    rt.frame(FRAME);
+    assert!(rt.find("working-indicator").is_none());
+}
+
+#[test]
+fn the_interrupted_card_offers_continue_and_dismiss_and_goes_when_dismissed() {
+    let mut rt = interrupted_app(crate::mock::working::Cut::Working);
+    assert!(rt.find("interrupted-card").is_some());
+    assert!(rt.find("interrupted-last-call").is_some() && rt.find("interrupted-files").is_some());
+    assert!(rt.find("interrupted-continue").is_some());
+    click(&mut rt, "interrupted-dismiss");
+    assert!(rt.find("interrupted-card").is_none());
+}
+
+#[test]
+fn a_lost_question_offers_ask_again_and_no_last_call() {
+    let rt = interrupted_app(crate::mock::working::Cut::Waiting);
+    assert!(rt.find("interrupted-text").is_some());
+    assert!(rt.find("interrupted-last-call").is_none());
+    assert_eq!(rt.state.interruption().map(|i| i.waiting), Some(true));
+}
+
+#[test]
+fn a_session_fleet_continues_by_itself_hides_continue() {
+    let rt = interrupted_app(crate::mock::working::Cut::Auto);
+    assert!(rt.find("interrupted-auto").is_some());
+    assert!(rt.find("interrupted-continue").is_none());
+    assert!(rt.find("interrupted-dismiss").is_some());
+}
+
+#[test]
+fn a_failed_continue_says_why_and_the_card_stays() {
+    let mut rt = interrupted_app(crate::mock::working::Cut::Working);
+    rt.update(|s, _| {
+        s.on_interruption_acted("mock.0.0", true, Ok((500, serde_json::Value::Null)));
+        assert_eq!(s.interruption_act().error.as_deref(), Some("Fleet couldn't continue the session (HTTP 500)."));
+        assert!(s.interruption().is_some());
+    });
+    rt.frame(FRAME);
+    assert!(rt.find("interrupted-error").is_some());
+    // A 404 means Fleet has already dropped it: nothing to say. (The invented session has no id for the patch to hit.)
+    rt.update(|s, _| {
+        s.on_interruption_acted("mock.0.0", true, Ok((404, serde_json::Value::Null)));
+        assert_eq!(s.interruption_act().error, None);
+    });
+}
+
+#[test]
+fn both_buttons_wait_while_a_request_is_on_its_way() {
+    let mut rt = interrupted_app(crate::mock::working::Cut::Working);
+    rt.update(|s, _| {
+        s.interrupt_acts.insert("mock.0.0".into(), crate::fleet::retry::Act { busy: true, error: None });
+    });
+    rt.frame(FRAME);
+    click(&mut rt, "interrupted-dismiss");
+    assert!(rt.state.interruption().is_some(), "a disabled button takes no press");
 }

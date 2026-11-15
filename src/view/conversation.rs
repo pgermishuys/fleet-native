@@ -7,12 +7,13 @@
 use super::compaction;
 use super::failure;
 use super::fold;
+use super::interrupted;
 use super::message::{self, copy_text};
-use super::parts::quad;
 use super::prose;
 use super::reasoning;
 use super::shell;
 use super::toolrow;
+use super::working;
 use crate::State;
 use crate::conv::bubble::{cluster_position, show_meta};
 use crate::conv::card::ToolBody;
@@ -216,9 +217,12 @@ impl Message {
 pub fn stream(t: &Theme, session: &Session, plan: &FoldPlan, partial: bool, older: Option<Older>) -> El {
     let theme = *t;
     let md = Styles { prose: prose::style(t), reasoning: reasoning::style(t), summary: compaction::style(t) };
-    let working = session.status == Status::Working;
+    // After the messages: the card a restart left, then the line that says what the turn is doing. Fleet's line shows
+    // while the turn isn't idle, so a question that holds it shows "Needs input" there.
+    let working = session.status != Status::Idle;
+    let interrupted = session.row.interrupted.is_some();
     let shown = plan.count(session.messages.len());
-    let count = shown + usize::from(working);
+    let count = shown + usize::from(interrupted) + usize::from(working);
     let rows = col().key("timeline").w_full().max_w(COLUMN).growth(GrowthSpec::default()).virtual_rows(
         count,
         ESTIMATED_ROW,
@@ -226,6 +230,7 @@ pub fn stream(t: &Theme, session: &Session, plan: &FoldPlan, partial: bool, olde
             let session = s.session();
             match s.fold_plan.index(i, session.messages.len()).and_then(|m| session.messages.get(m)) {
                 Some(m) => Cow::Borrowed(m.id.as_str()),
+                None if session.row.interrupted.is_some() && i == s.fold_plan.count(session.messages.len()) => Cow::Borrowed("interrupted"),
                 None => Cow::Borrowed("working"),
             }
         },
@@ -233,7 +238,12 @@ pub fn stream(t: &Theme, session: &Session, plan: &FoldPlan, partial: bool, olde
             let session = s.session();
             let plan = &s.fold_plan;
             let len = session.messages.len();
-            let Some(at) = plan.index(i, len) else { return working_row(s, &theme) };
+            let Some(at) = plan.index(i, len) else {
+                return match session.row.interrupted.as_ref() {
+                    Some(card) if i == plan.count(len) => col().w_full().child(interrupted::card(&theme, s, card)),
+                    _ => working::line(&theme, s),
+                };
+            };
             let msg = &session.messages[at];
             let kept = plan.kept.get(&msg.id);
             // The message above, as drawn: folding may have taken the ones between.
@@ -583,19 +593,4 @@ fn part_view(t: &Theme, s: &State, md: &Styles, msg: &Message, part: &Part, live
             compaction::divider(t, s, &md.summary, id, &view)
         }
     }
-}
-
-/// "Working · 18s" under the last message (`WorkingIndicator.vue`), without Fleet's shimmer.
-fn working_row(s: &State, t: &Theme) -> El {
-    let seconds = (s.clock - s.working_since).max(0.0) as u64;
-    let time = if seconds < 60 { format!("{seconds}s") } else { format!("{}m", seconds / 60) };
-    let font = sans(13.0, 400.0, 1.3).features("'tnum' 1");
-    row()
-        .w_full()
-        .h(24.0)
-        .my(4.0)
-        .center_y()
-        .gap(10.0)
-        .child(quad(t.text))
-        .child(row().gap(5.0).child(text("Working").font(font).color(t.muted)).child(text(format!("· {time}")).font(font).color(t.muted)))
 }
