@@ -59,6 +59,8 @@ impl State {
     /// Opens a session in the list and, on a server, asks it for the conversation.
     pub fn open_session(&mut self, project: usize, session: usize, tx: &mut Tx) {
         self.open = (project, session);
+        // The text area shows the new session's draft at once, not a frame later.
+        self.keep_drafts(self.clock, tx);
         if let Some(p) = self.projects.get_mut(project) {
             p.open = true;
         }

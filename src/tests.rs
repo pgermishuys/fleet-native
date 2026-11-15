@@ -409,3 +409,55 @@ fn a_row_that_is_not_a_write_shows_a_diff_only_with_inline_diffs_on() {
     assert!(rt.find("tool-x1-diff").is_some(), "inline diffs open it by themselves");
     assert!(rt.find("tool-x1-diff-more").is_none(), "only a write is cut to twelve lines");
 }
+
+// Component 5, piece A: a draft per session.
+#[test]
+fn the_draft_follows_the_session_when_another_is_opened_and_comes_back_on_return() {
+    let mut rt = app();
+    rt.update(|s, _| s.draft = TextEdit::new("first idea"));
+    rt.frame(FRAME);
+    click(&mut rt, "session-0-1");
+    assert_eq!(rt.state.open, (0, 1));
+    assert_eq!(rt.state.draft.text, "", "the other session starts empty");
+    rt.update(|s, _| s.draft = TextEdit::new("second idea"));
+    rt.frame(FRAME);
+    click(&mut rt, "session-0-0");
+    assert_eq!(rt.state.draft.text, "first idea");
+    click(&mut rt, "session-0-1");
+    assert_eq!(rt.state.draft.text, "second idea");
+}
+
+#[test]
+fn a_sent_text_is_remembered_for_the_history_and_the_draft_is_gone() {
+    let mut rt = app();
+    rt.update(|s, tx| {
+        s.draft = TextEdit::new("  run the checks  ");
+        send(s, tx);
+    });
+    rt.frame(FRAME);
+    assert_eq!(rt.state.draft.text, "");
+    let history = rt.state.drafts.history("mock.0.0").expect("a history for the open session");
+    assert_eq!(history.entries, ["run the checks"]);
+}
+
+#[test]
+fn a_restart_brings_the_text_back_and_a_typed_one_wins_over_the_file() {
+    use crate::composer::drafts::{Drafts, Stored, session_draft_key};
+    let mut before = Drafts::default();
+    before.write(&session_draft_key("mock.0.0"), "kept over a restart", 0.0);
+    let json = before.take_save();
+    assert!(json.is_none(), "with no folder nothing is written");
+
+    let stored = Stored { drafts: [("session.mock.0.0".to_string(), "kept over a restart".to_string())].into(), ..Default::default() };
+    let mut rt = app();
+    rt.update(move |s, _| s.adopt_drafts(std::env::temp_dir().join("fleet-native-never-written"), stored));
+    rt.frame(FRAME);
+    assert_eq!(rt.state.draft.text, "kept over a restart");
+
+    let stored = Stored { drafts: [("session.mock.0.0".to_string(), "from the file".to_string())].into(), ..Default::default() };
+    let mut rt = app();
+    rt.update(|s, _| s.draft = TextEdit::new("typed first"));
+    rt.update(move |s, _| s.adopt_drafts(std::env::temp_dir().join("fleet-native-never-written"), stored));
+    rt.frame(FRAME);
+    assert_eq!(rt.state.draft.text, "typed first");
+}

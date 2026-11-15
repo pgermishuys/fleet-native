@@ -1,0 +1,13 @@
+{"events": [
+  {"t": 0.4, "type": "tap", "key": "composer"},
+  {"t": 0.6, "type": "type", "text": "Check the rename step for symlinks.", "every": 0.02},
+  {"t": 1.6, "type": "mark", "name": "typed-first"},
+  {"t": 1.8, "type": "tap", "key": "session-0-1"},
+  {"t": 2.2, "type": "mark", "name": "other-empty"},
+  {"t": 2.4, "type": "tap", "key": "composer"},
+  {"t": 2.6, "type": "type", "text": "Why does the build take so long?", "every": 0.02},
+  {"t": 3.6, "type": "mark", "name": "typed-second"},
+  {"t": 3.8, "type": "tap", "key": "session-0-0"},
+  {"t": 4.4, "type": "mark", "name": "back-first"},
+  {"t": 5.2, "type": "mark", "name": "saved"}
+]}
