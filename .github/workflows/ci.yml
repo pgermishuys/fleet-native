@@ -68,7 +68,9 @@ jobs:
         run: cargo test --locked
 
       - name: Draw every scene
-        run: SNAP_JOBS=8 bash scripts/snap-scenes.sh
+        run: bash scripts/snap-scenes.sh
+        env:
+          SNAP_JOBS: ${{ runner.os == 'Windows' && 2 || 4 }}
 
       - name: Upload the pictures
         if: always()
