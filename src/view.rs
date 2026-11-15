@@ -18,6 +18,7 @@ pub mod interrupted;
 mod marks;
 pub mod message;
 mod parts;
+pub mod permission;
 pub mod progress_ring;
 mod prose;
 pub mod queued;

@@ -5,6 +5,7 @@ The parity checklist for component 4 of `docs/PORT.md`, and the pieces it is bui
 - **weave-fleet commit read:** `bf34b7cbc57fb78ac561737456a5f8643507b7bb` (`main`, 15 November 2026).
   The server the live checks run against is v0.72.0; the routes below were read from `main`'s
   `SessionEndpoints.cs` and confirmed against v0.72.0 (a live `ask-me` and `ask-permission` run).
+- **Re-read for piece A (15 November 2026):** weave-fleet `main` is still `bf34b7c`; `PermissionCard.vue`, `permission-wording.ts` and `use-session-permissions.ts` are unchanged since this file was written. The scratch server's scripted model (that commit's `fakellm.py`) has `ask-permission` and `run-tests` but no `write-file` or `edit-file`, so an edit's card can't be had live yet.
 - **Native app read:** `main` at `4580109` (`src/view/conversation.rs`, `src/conv/tools.rs`, `src/fleet/`).
 - **Paths** are weave-fleet's under `client/src/` unless they start with `src/`, `docs/` or `server:`.
   Short names: QC `components/session/QuestionCard.vue`, PC `.../PermissionCard.vue`, ARL
@@ -135,23 +136,23 @@ One card per waiting ask, after the messages and before the page-pick card (`Act
 
 | # | Row | Source | Native today |
 |---|---|---|---|
-| 3.1 | Card: same box as 1.1; `aria-label` "The agent asks: <heading>"; rises in (opacity 0, translateY 4px, 180 ms ease-out; none under reduced motion) | PC `.pcard` | None |
+| 3.1 | Card: same box as 1.1; `aria-label` "The agent asks: <heading>"; rises in (opacity 0, translateY 4px, 180 ms ease-out; none under reduced motion) | PC `.pcard` | Done in piece A except the rise animation (opacity and 4 px, 180 ms): not drawn, a card appears at once. The card is `view::permission::card`; it is shown from `State.asks` after the messages (the real slot is piece B). |
 | 3.2 | Head: `ShieldAlert` 15px `--status-waiting`; heading (13px/600, ellipsis); a "Subagent" pill when a sub-agent asked (border 1px `--border`, 999px radius, padding 0 8, 11.5px `--muted`); right: diamond + "Needs you" (margin-left auto) | PC head | None (icon to add to the generator list) |
-| 3.3 | Heading by kind: shell "Run a command"; edit "Edit a file"; web "Go online"; read "Read a file", except for plan/subagent/skill/fleet/question tools which read "Use <tool>"; other "Use <tool>", and `external_directory` is "Work outside the folder"; a hand-off's own title or "Send work to <machine>" | PW `permissionHeading` | Partly: `PermissionKind` per tool exists |
-| 3.4 | Command block (kind shell with a title): padding 9 12, border 1px `--border`, `--radius-btn`, background `--panel-bg`, mono 12.5px, no wrap, scrolls sideways; the directory above it (11.5px `--muted`), then "$ " (`--muted`) and the command | PC `.pcard__cmd`, `__cwd`, `__prompt` | None |
-| 3.5 | File block (kind edit): box as 3.4 with a file line (padding 6 12, 11.5px `--muted`): the title or tool name (ellipsis), `+N` (`--diff-add-text`), `−N` (`--diff-del-text`, a real minus); lines in a scroller (max-height 240, border-top) when there are changes | PC `.pcard__diff` | None |
-| 3.6 | Diff lines: the file headers a unified diff starts with are dropped (`Index: `, `===…`, `--- `, `+++ `); `@@` lines are hunk (`--muted`), `+` add (background 10% `--diff-add`), `-` del (10% `--diff-del`), else context; mono 12px, padding 0 12, no wrap; an empty line draws a space | PC `diffLines` | None |
-| 3.7 | A write that changes nothing (headers only): the file line shows, no lines, no counts | PC `changes` | None |
-| 3.8 | Anything else with a title (an address, a folder): the plain block of 3.4 without prompt or directory | PC | None |
-| 3.9 | Choice 1: key chip "1", "Allow once". Choice 2: chip "2", `dontAskAgainWording`: "Don't ask again for" + code of the harness's patterns (joined ", ", `*` dropped), else per kind "…for file edits" / "…for commands" / "…for web access", else "…for" + the tool; scope text "this session" right-aligned (12px `--muted`; hidden under 520 px) | PC, PW `dontAskAgainWording` | None |
-| 3.10 | Choice 3 (deny): chip "3"; borderless input (13px, placeholder "Deny, and tell the agent what to do instead…", aria-label "Deny, with an optional message for the agent"); a "Deny" pill (height 24, padding 0 10, 12px `--muted`; hover `color-mix(--error 10%, transparent)` and `--error-text`). Clicking the row focuses the input; clicking Deny doesn't | PC `.pcard__choice--deny` | None |
-| 3.11 | Choice boxes as 1.7 (flex centre, `min-width: 0`); the `code` in a name: margin-left 4, padding 0 4, radius 4, background `color-mix(--text 6%, transparent)`, mono 12px | PC | None |
+| 3.3 | Heading by kind: shell "Run a command"; edit "Edit a file"; web "Go online"; read "Read a file", except for plan/subagent/skill/fleet/question tools which read "Use <tool>"; other "Use <tool>", and `external_directory` is "Work outside the folder"; a hand-off's own title or "Send work to <machine>" | PW `permissionHeading` | Done (piece A): `asks::wording::permission_heading`, tested under Fleet's names. |
+| 3.4 | Command block (kind shell with a title): padding 9 12, border 1px `--border`, `--radius-btn`, background `--panel-bg`, mono 12.5px, no wrap, scrolls sideways; the directory above it (11.5px `--muted`), then "$ " (`--muted`) and the command | PC `.pcard__cmd`, `__cwd`, `__prompt` | Done (piece A): scrolls sideways; the directory line only when the ask has one (the live shell ask sends none). |
+| 3.5 | File block (kind edit): box as 3.4 with a file line (padding 6 12, 11.5px `--muted`): the title or tool name (ellipsis), `+N` (`--diff-add-text`), `−N` (`--diff-del-text`, a real minus); lines in a scroller (max-height 240, border-top) when there are changes | PC `.pcard__diff` | Done (piece A). |
+| 3.6 | Diff lines: the file headers a unified diff starts with are dropped (`Index: `, `===…`, `--- `, `+++ `); `@@` lines are hunk (`--muted`), `+` add (background 10% `--diff-add`), `-` del (10% `--diff-del`), else context; mono 12px, padding 0 12, no wrap; an empty line draws a space | PC `diffLines` | Done (piece A) except one thing: a line's tint reaches only the width of the longest line, so in a box wider than every line the tint stops short (Rune has no "fill the scroller's width" inside `scroll_xy`; `docs/RUNE.md`). |
+| 3.7 | A write that changes nothing (headers only): the file line shows, no lines, no counts | PC `changes` | Done (piece A). |
+| 3.8 | Anything else with a title (an address, a folder): the plain block of 3.4 without prompt or directory | PC | Done (piece A). |
+| 3.9 | Choice 1: key chip "1", "Allow once". Choice 2: chip "2", `dontAskAgainWording`: "Don't ask again for" + code of the harness's patterns (joined ", ", `*` dropped), else per kind "…for file edits" / "…for commands" / "…for web access", else "…for" + the tool; scope text "this session" right-aligned (12px `--muted`; hidden under 520 px) | PC, PW `dontAskAgainWording` | Done (piece A) except: the scope text ("this session") is not hidden under 520 px, and the border does not tint to the accent on hover (Rune has no hover border colour). |
+| 3.10 | Choice 3 (deny): chip "3"; borderless input (13px, placeholder "Deny, and tell the agent what to do instead…", aria-label "Deny, with an optional message for the agent"); a "Deny" pill (height 24, padding 0 10, 12px `--muted`; hover `color-mix(--error 10%, transparent)` and `--error-text`). Clicking the row focuses the input; clicking Deny doesn't | PC `.pcard__choice--deny` | Partly (piece A): the field, placeholder, label and the Deny pill (with its hover wash and `--error-text`) are drawn and the typed words are kept in `State.deny`. Open for piece B: clicking the row focuses the field, Enter denies. |
+| 3.11 | Choice boxes as 1.7 (flex centre, `min-width: 0`); the `code` in a name: margin-left 4, padding 0 4, radius 4, background `color-mix(--text 6%, transparent)`, mono 12px | PC | Done (piece A). |
 | 3.12 | Answering sends `once`, `always` or `reject`; Deny sends the typed words (trimmed; none when empty) | PC `answer`, SP `answer` | None |
-| 3.13 | Footer: wrap, gap 8, 11px `--muted`: "1 or 2 answers · 3 then Enter denies · Esc denies"; "You can undo option 2 from Allowed in the composer."; "Permission settings" (11px `--accent-text`, margin-left auto, underline on hover). The two spans hide under 520 px | PC `.pcard__foot` | None |
+| 3.13 | Footer: wrap, gap 8, 11px `--muted`: "1 or 2 answers · 3 then Enter denies · Esc denies"; "You can undo option 2 from Allowed in the composer."; "Permission settings" (11px `--accent-text`, margin-left auto, underline on hover). The two spans hide under 520 px | PC `.pcard__foot` | Done (piece A) except: the two spans are not hidden under 520 px, and "Permission settings" does not underline on hover (colour only). It sets `State.settings_section` ("permissions" or "machines"); Settings (component 16) reads it. |
 | 3.14 | Keys: arrows move between the choice buttons (1.19); `1` allow once, `2` always, `3` focus the deny input; Esc anywhere in the card denies; Enter in the deny input denies with the words; modifiers ignored. Focus starts on "Allow once" unless the user is typing elsewhere | PC `handleCardKeydown`, FBC | None |
 | 3.15 | Failure: the card stays; the error line shows Fleet's own text (`error`, `detail` or `title` of the body) or "The answer didn't reach the agent (HTTP <status>)."; buttons usable again. While answering, all choices are disabled | SP `errorMessage`, PC | None |
-| 3.16 | Long text: the heading ellipsises, the command scrolls sideways, the diff scrolls at 240 px, "Don't ask again" names ellipsise | PC | None |
-| 3.17 | The ask's wire shape: `id, sessionId, kind, tool, title, detail, directory, always[], callId, subagent, askedAt, handoff`; unknown `kind` reads as "other"; an ask missing `id`, `sessionId` or `tool` is ignored; empty strings read as none | SP `toPermissionAsk` | None |
+| 3.16 | Long text: the heading ellipsises, the command scrolls sideways, the diff scrolls at 240 px, "Don't ask again" names ellipsise | PC | Done (piece A): the heading and the command ellipsise or scroll, the diff scrolls at 240, the pattern code ellipsises. |
+| 3.17 | The ask's wire shape: `id, sessionId, kind, tool, title, detail, directory, always[], callId, subagent, askedAt, handoff`; unknown `kind` reads as "other"; an ask missing `id`, `sessionId` or `tool` is ignored; empty strings read as none | SP `toPermissionAsk` | Done (piece A): `asks::permission::to_permission_ask`, tested ("ignores an ask it can't read"). |
 | 3.18 | Fleet's one-line preview of an ask, "Wants to run `git push`", is used by the phone inbox and mission control only | PW `askPreviewWording` | Out of this component; port it with the wording (piece A) so component 23 has it |
 
 ### 4. Fleet's own ask: work for another machine (`PC`)
@@ -160,12 +161,12 @@ An ask with `handoff` set (an agent wants to send work to a machine set to Ask).
 
 | # | Row | Source | Native today |
 |---|---|---|---|
-| 4.1 | Heading = the ask's title or "Send work to <machine>"; no command/diff/block; "Subagent" pill as 3.2 | PC, PW | None |
-| 4.2 | Detail list (grid `max-content / 1fr`, gap 4 14, padding 9 12, border and fill as 3.4, 12.5px; values mono, ellipsis): Machine ("<machine> · <OS>", OS = Linux / macOS / Windows or as sent), Session (if any), Folder (if any), Branch ("the folder as it is" when none), Harness ("its default" when none), Message (when a session) or Task | PC `handoffRows` | None |
-| 4.3 | Note: "It runs under <machine>'s permission level: **<Ask before changes / Allow edits / Allow everything>**." or "unknown (that Fleet doesn't say)" | PC `handoffLevel`, PL `PERMISSION_LEVEL_NAMES` | None |
-| 4.4 | Choices: "1 Allow once"; "2 Always for <machine>" with scope "sets <machine> to Always"; "3 Not <machine>" with scope "sets <machine> to Never" (no deny input, no message sent) | PC | None |
+| 4.1 | Heading = the ask's title or "Send work to <machine>"; no command/diff/block; "Subagent" pill as 3.2 | PC, PW | Done (piece A). |
+| 4.2 | Detail list (grid `max-content / 1fr`, gap 4 14, padding 9 12, border and fill as 3.4, 12.5px; values mono, ellipsis): Machine ("<machine> · <OS>", OS = Linux / macOS / Windows or as sent), Session (if any), Folder (if any), Branch ("the folder as it is" when none), Harness ("its default" when none), Message (when a session) or Task | PC `handoffRows` | Done (piece A): `handoff_rows`. |
+| 4.3 | Note: "It runs under <machine>'s permission level: **<Ask before changes / Allow edits / Allow everything>**." or "unknown (that Fleet doesn't say)" | PC `handoffLevel`, PL `PERMISSION_LEVEL_NAMES` | Done (piece A): `level_name`. |
+| 4.4 | Choices: "1 Allow once"; "2 Always for <machine>" with scope "sets <machine> to Always"; "3 Not <machine>" with scope "sets <machine> to Never" (no deny input, no message sent) | PC | Done (piece A). |
 | 4.5 | Keys: 1, 2, 3 answer once, always, reject; **Esc does nothing**; arrows still move | PC `handleCardKeydown` | None |
-| 4.6 | Footer: "1, 2 or 3 answers"; "You can change it on <machine>'s card."; "Machine settings" | PC | None |
+| 4.6 | Footer: "1, 2 or 3 answers"; "You can change it on <machine>'s card."; "Machine settings" | PC | Done (piece A). |
 
 ### 5. The Allowed chip and list (`ACH`, `ARP`, `ARL`, `SPR`)
 
@@ -262,7 +263,7 @@ the machine's. A piece adds a scene for each state it draws, ticks its rows here
 it, in `src/asks/` (a new folder: `wording.rs`, `question.rs`, `rules.rs`) and `src/fleet/asks.rs`
 for what talks to the server, with Fleet's tests ported under the same names.
 
-### A. Permission card: wording, parsing and the view (from mock data)
+### A. Permission card: wording, parsing and the view (from mock data) — done
 - **Rows:** 3.1-3.11, 3.13, 3.16-3.18, 4.1-4.4, 4.6 (the view and its wording; no sending yet).
 - **Files:** `src/asks/mod.rs`, `src/asks/wording.rs` (`permissionHeading`, `dontAskAgainWording`, `askPreviewWording`, `allowedRuleWording`, the diff-line splitter), `src/asks/permission.rs` (the `PermissionAsk` type and its reader), `src/view/permission.rs`, `src/theme.rs` (aliases), `tools/gen-icons.py` (`ShieldAlert`, `ShieldCheck`; regenerate `src/icons.rs`), `src/mock.rs` (an ask of each kind), `src/lib.rs` (scenes).
 - **Depends on:** nothing. ~650 lines with tests.

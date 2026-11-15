@@ -133,6 +133,29 @@ impl Theme {
         }
     }
 
+    /// `--status-waiting` (`var(--idle)`): what the cards that wait on you are tinted with.
+    pub fn status_waiting(&self) -> Color {
+        self.idle
+    }
+
+    /// `--diff-add` (`var(--running)`) and `--diff-del` (`var(--error)`): the fill of an added and a removed line.
+    pub fn diff_add(&self) -> Color {
+        self.running
+    }
+
+    pub fn diff_del(&self) -> Color {
+        self.error
+    }
+
+    /// `--diff-add-text` (`var(--running-text)`) and `--diff-del-text` (`var(--error-text)`): the `+N` and `−N` counts.
+    pub fn diff_add_text(&self) -> Color {
+        self.running_text
+    }
+
+    pub fn diff_del_text(&self) -> Color {
+        self.error_text
+    }
+
     /// `color-mix(in srgb, var(--text) N%, transparent)`: Fleet's hover and selection washes.
     pub fn wash(&self, percent: f32) -> Color {
         self.text.alpha(percent / 100.0)

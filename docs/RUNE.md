@@ -689,3 +689,13 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
   session button) can't show it.
 - **Centred wrapped text**: `.wrap().w_full().align(Align::Center)` inside a column with `.items_center()` gives the empty
   state's two lines. (used)
+## Permission card (component 4, piece A)
+
+- `scroll_xy()` on a box sizes its content to what is in it. A diff line's tint therefore ends at the longest line, not
+  at the box's right edge as Fleet's `display: block` lines do. Each line gets the longest line's width (7.2 px a
+  character at 12 px mono) so the tints at least agree; when every line is shorter than the box they stop short. Wanted:
+  a child that is "at least as wide as the scroller".
+- No border colour on hover: the choice rows keep Fleet's border where Fleet tints it toward the accent at 35%.
+- A `Span` can be underlined, but only for a whole run, not on hover, so "Permission settings" changes no more than colour.
+- A fake model that writes a path takes it from its own `HOME`: start the scripted model with an invented `HOME`, or
+  the picture of Fleet's card shows the machine's home folder.
