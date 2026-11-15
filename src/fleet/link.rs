@@ -300,7 +300,7 @@ fn connect(base: &str) -> Result<WebSocket<TcpStream>, String> {
     let stream = TcpStream::connect(&host).map_err(|e| e.to_string())?;
     let _ = stream.set_nodelay(true);
     let (mut ws, _) =
-        tungstenite::client(format!("ws://{host}/hubs/session-events?id={token}{}", super::auth::current_hub_query()), stream)
+        tungstenite::client(format!("ws://{host}/hubs/session-events?id={token}{}", super::auth::hub_query_for(base)), stream)
             .map_err(|e| e.to_string())?;
     ws.send(Message::text(signalr::handshake())).map_err(|e| e.to_string())?;
     // The handshake's answer is the first frame; read it blocking, then switch to short reads.

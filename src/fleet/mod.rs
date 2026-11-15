@@ -25,6 +25,7 @@ pub mod images;
 pub mod instance;
 pub mod interrupted;
 pub mod link;
+pub mod machine;
 pub mod model;
 pub mod modes;
 pub mod panel;

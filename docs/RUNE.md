@@ -755,3 +755,7 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 - **`on_double_press_tx` fires after the first press's handler too**: a row that opens on press and renames on double press opens twice
   first; two `click`s in a test with no pointer move between them are a double press.
 - **A text field starts scrolled to the selection's end**: select-all on a title longer than the field shows its end, a browser keeps the start.
+
+## Machines, piece A (per-machine tokens)
+
+- **ureq middleware sees the final URL**: `request.uri()` in `MiddlewareNext` is the address about to be called, so one agent middleware can pick a token per machine; nothing in Rune is involved. A `static` `RwLock<HashMap>` can't be built in a const, so hold it as `Option<HashMap>` and `get_or_insert_with`.

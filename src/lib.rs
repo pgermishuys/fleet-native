@@ -2058,6 +2058,7 @@ pub fn start_desktop() {
 
 /// Starts the connection to the Fleet at `url`. Until discovery finds one, the invented data stays so there is a window to look at.
 fn connect_to(handle: &rune::AppHandle<State>, url: String) {
+    fleet::auth::bind_home(&url);
     let link = Link::start(url, Post::from_handle(handle.clone()));
     handle.update(move |s, _| {
         // Nothing invented shows against a real server: the list and the conversation stay empty until it answers.
