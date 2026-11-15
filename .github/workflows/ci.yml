@@ -67,7 +67,11 @@ jobs:
       - name: Test
         run: cargo test --locked
 
+      # Pull requests draw on Linux only: on Windows and macOS the software renderer already uses every
+      # core for one picture, and Rune draws one scene per start, so this step took 500 s on Windows.
+      # Pushes to main draw on all three systems.
       - name: Draw every scene
+        if: runner.os == 'Linux' || github.event_name != 'pull_request'
         run: bash scripts/snap-scenes.sh
 
       - name: Upload the pictures
