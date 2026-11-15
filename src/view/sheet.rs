@@ -33,7 +33,14 @@ pub fn sheet(s: &State, t: &Theme) -> El {
                 jump: s.pin.show_jump(),
                 probe: s.scroll_probe.clone(),
                 find: super::find::bar(s, t),
-                asks: s.open_asks().iter().enumerate().map(|(n, ask)| super::permission::card(t, s, ask, n == 0)).collect(),
+                asks: s
+                    .questions
+                    .cards
+                    .iter()
+                    .enumerate()
+                    .map(|(n, card)| super::question::card(t, card, n == 0))
+                    .chain(s.open_asks().iter().enumerate().map(|(n, ask)| super::permission::card(t, s, ask, n == 0)))
+                    .collect(),
             },
         ))
         .children(super::recap::recap_line(t, s.recap()))

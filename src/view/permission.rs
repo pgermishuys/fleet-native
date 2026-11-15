@@ -2,15 +2,14 @@
 //! (rows 3.1-3.11, 3.13, 3.16 and 4.1-4.4, 4.6 of `docs/parity/04-questions-and-permissions.md`). `asks::wording` says
 //! what the words are and `asks::permission` what an ask holds; this file draws them. Piece B of the component wires
 //! them to the server (`fleet::asks`) and gives the card its keys (`on_key`, the deny field's `on_input_key`).
-use super::parts::diamond;
-use super::toolcard::mix;
+use super::ask_card;
 use crate::State;
 use crate::asks::permission::PermissionAsk;
 use crate::asks::wording::{DiffLine, LineKind, counts, diff_lines, dont_ask_again_wording, handoff_rows, level_name, permission_heading};
 use crate::conv::tools::PermissionKind;
 use crate::fleet::asks::Reply;
 use crate::icons::*;
-use crate::theme::{RADIUS_BTN, RADIUS_CARD, Theme, mono, sans};
+use crate::theme::{RADIUS_BTN, Theme, mono, sans};
 use rune::{Cursor, El, Key, KeyEvent, Tx, col, el, icon, row, text, text_input};
 
 /// `.pcard__lines`: the diff scrolls at 240px.
@@ -21,20 +20,10 @@ const CHAR_W: f32 = 7.2;
 /// `.pcard` and what is in it, for one waiting ask.
 pub fn card(t: &Theme, s: &State, ask: &PermissionAsk, first: bool) -> El {
     let heading = permission_heading(ask);
-    let mut card = col()
-        // Cards after the first are keyed by their ask, so two waiting at once don't share a key. Their buttons still do:
-        // the keys act on the first card (docs/parity/04, row 3.14).
-        .key(if first { "permission-card".to_string() } else { format!("permission-card-{}", ask.id) })
-        .label(format!("The agent asks: {heading}"))
-        .w_full()
-        .mt(10.0)
-        .padding(12.0)
-        .gap(12.0)
-        .radius(RADIUS_CARD)
-        .border(1.0, t.border_mix(t.status_waiting(), 40.0))
-        .border_layout()
-        .fill(mix(t.card_bg, t.status_waiting(), 0.05))
-        .child(head(t, ask, &heading));
+    // Cards after the first are keyed by their ask, so two waiting at once don't share a key. Their buttons still do:
+    // the keys act on the first card (docs/parity/04, row 3.14).
+    let key = if first { "permission-card".to_string() } else { format!("permission-card-{}", ask.id) };
+    let mut card = ask_card::frame(t, key).label(format!("The agent asks: {heading}")).child(head(t, ask, &heading));
     card = match &ask.handoff {
         Some(handoff) => card.child(handoff_block(t, handoff)),
         None => match body(t, ask) {
@@ -66,14 +55,7 @@ fn head(t: &Theme, ask: &PermissionAsk, heading: &str) -> El {
                 .child(text("Subagent").font(sans(11.5, 400.0, 1.4)).color(t.muted)),
         );
     }
-    head.child(el().grow(1.0)).child(
-        row()
-            .key("permission-needs-you")
-            .gap(6.0)
-            .center_y()
-            .child(diamond(t.status_waiting()))
-            .child(text("Needs you").font(sans(12.0, 600.0, 1.3)).color(t.status_waiting_text)),
-    )
+    head.child(el().grow(1.0)).child(ask_card::needs_you(t, "permission-needs-you"))
 }
 
 /// `.pcard__cmd`: the plain block, scrolling sideways.
@@ -191,16 +173,6 @@ fn handoff_block(t: &Theme, handoff: &crate::asks::permission::HandoffAsk) -> El
     col().w_full().gap(12.0).child(list).child(note)
 }
 
-/// `.pcard__key`: an 18px chip with the number that answers.
-fn chip(t: &Theme, number: &'static str) -> El {
-    el().size(18.0, 18.0)
-        .center()
-        .radius(5.0)
-        .border(1.0, t.border)
-        .border_layout()
-        .child(text(number).font(mono(11.0, 400.0, 1.0)).color(t.muted))
-}
-
 /// `.pcard__choice`: a button-shaped row with its number chip.
 fn choice_row(t: &Theme, busy: bool, ask: &PermissionAsk, key: &'static str, number: &'static str, reply: Reply) -> El {
     let ask = ask.clone();
@@ -220,7 +192,7 @@ fn choice_row(t: &Theme, busy: bool, ask: &PermissionAsk, key: &'static str, num
         .border_layout()
         .fill(t.panel_bg)
         .cursor(Cursor::Pointer)
-        .child(chip(t, number))
+        .child(ask_card::chip(t, number.to_string()))
 }
 
 fn name(t: &Theme, words: String) -> El {

@@ -732,3 +732,10 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
   what it does instead.
 - **`group_opacity(0.0, 1.0)` under a `hover_group`** is `opacity-0 group-hover:opacity-100`, and an invisible element still takes
   the press, as in CSS; a headless script can `move` the pointer over a header to show it.
+
+## Question card (component 4, piece C)
+
+- **A field has no change hook** (`on_edit` only hands back the `TextEdit`), so a rule that reacts to typing (typing drops a pick) runs from `poll` and shows one frame late.
+- **`rich` text keeps `\n` as a line break** and wraps inside a `w_full` column; a `Span` with `underline` plus a `Link` gives Fleet's underlined address that opens with `tx.open_url`.
+- **Negative margins work** (`.mt(-4.0)` for the "Pick any that apply." line).
+- **`focus_within_ring(1.0, -1.0, ..)`** on a row is `:focus-within` for a field inside it; `text_input` line height 1.7 matches a browser input's row height at 13px.
