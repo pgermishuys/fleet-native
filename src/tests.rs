@@ -460,6 +460,7 @@ fn a_restart_brings_the_text_back_and_a_typed_one_wins_over_the_file() {
     rt.update(move |s, _| s.adopt_drafts(std::env::temp_dir().join("fleet-native-never-written"), stored));
     rt.frame(FRAME);
     assert_eq!(rt.state.draft.text, "typed first");
+}
 
 /// Piece 3D: `ReasoningBlock.test.ts`, `ShellCommandBlock.test.ts`, `CompactionDivider.test.ts`, `RecapLine.test.ts`.
 fn scene_app(setup: impl FnOnce(&mut State) + 'static) -> Runtime<State> {
