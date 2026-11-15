@@ -1,6 +1,7 @@
 //! The session list (`SessionsPanel.vue`, `ProjectGroup.vue`, `SessionItem.vue`): New session,
 //! the filter, sessions grouped by project, and the Archived link.
 use super::parts::{diamond, quad};
+use crate::fleet::groups::{matching_sessions, session_matches_query};
 use crate::icons::*;
 use crate::mock::{Project, Session, Status};
 use crate::theme::{Theme, sans};
@@ -64,11 +65,10 @@ pub fn panel(s: &State, t: &Theme) -> El {
     let mut list = col().w_full().px(8.0).pb(12.0);
     let mut first = true;
     for (p, project) in s.projects.iter().enumerate() {
-        let rows: Vec<(usize, &Session)> =
-            project.sessions.iter().enumerate().filter(|(_, session)| session.title.to_lowercase().contains(&needle)).collect();
-        if rows.is_empty() {
-            continue;
-        }
+        // A project whose name matches keeps all its sessions; a group with no match and another name is dropped.
+        let matches = |session: &Session| session_matches_query(session, &needle, &s.project_load.projects);
+        let Some(kept) = matching_sessions(&project.name, &project.sessions, &needle, matches) else { continue };
+        let rows: Vec<(usize, &Session)> = kept.into_iter().map(|i| (i, &project.sessions[i])).collect();
         let mut group = col().w_full().mt(if first { 0.0 } else { 10.0 }).child(project_header(t, p, project, rows.len()));
         first = false;
         // A filter shows its matches even in a folded project.

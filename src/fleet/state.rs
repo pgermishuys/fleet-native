@@ -129,6 +129,21 @@ impl State {
         }
     }
 
+    /// The sessions arrived with the projects read beside them: groups them under the projects (the last good answer when
+    /// the read failed) and shows the result.
+    pub fn on_sessions(
+        &mut self,
+        listed: Vec<crate::mock::Session>,
+        projects: Result<Vec<super::groups::ProjectInfo>, String>,
+        tx: &mut Tx,
+    ) {
+        if let Some(request) = self.project_load.begin() {
+            self.project_load.finish(request, projects);
+        }
+        let grouped = sessions::group_sessions(listed, &self.project_load.projects);
+        self.on_list(grouped, tx);
+    }
+
     /// The session list arrived, or changed. Keeps which projects are folded and which session is open.
     pub fn on_list(&mut self, mut projects: Vec<Project>, tx: &mut Tx) {
         if self.notice.as_deref().is_some_and(|n| n.starts_with("Couldn't load the session list")) {
@@ -136,7 +151,8 @@ impl State {
         }
         let open_id = self.open_id();
         for project in &mut projects {
-            if let Some(old) = self.projects.iter().find(|p| p.name == project.name) {
+            let same = |p: &&Project| if project.id.is_empty() { p.name == project.name } else { p.id == project.id };
+            if let Some(old) = self.projects.iter().find(same) {
                 project.open = old.open;
             }
         }

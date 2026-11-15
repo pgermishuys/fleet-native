@@ -1698,3 +1698,30 @@ fn activity_stream_and_work_fleet_stopped_keeps_a_real_failure_a_failure() {
     assert_eq!(notices(&rt).remove(0).state, BackgroundState::Error);
     assert!(rt.state.session().messages.iter().any(|m| m.text().contains("Shell.NotFoundError")));
 }
+
+// Component 6, piece A: the list's groups (rows 1.31, 1.32, 1.39).
+#[test]
+fn a_project_with_no_sessions_still_shows_in_its_place() {
+    let rt = scene_app(|s| s.show_groups(""));
+    let names: Vec<&str> = rt.state.projects.iter().map(|p| p.name.as_str()).collect();
+    assert_eq!(names, ["Ledger", "Orchard", "Lighthouse", "Field notes", "Benchmarks", "Docs site"]);
+    assert!(rt.find("project-0").is_some(), "Ledger has no sessions and still has its header");
+    assert!(rt.find("project-5").is_some());
+}
+
+#[test]
+fn a_filter_that_matches_a_projects_name_keeps_all_its_sessions_and_drops_the_others() {
+    let rt = scene_app(|s| s.show_groups("light"));
+    assert!(rt.find("project-1").is_none(), "Orchard has no match and another name");
+    assert!(rt.find("project-0").is_none());
+    for i in 0..3 {
+        assert!(rt.find(&format!("session-2-{i}")).is_some(), "Lighthouse's session {i} stays");
+    }
+}
+
+#[test]
+fn a_filter_matches_a_sessions_status_word_not_only_its_title() {
+    let rt = scene_app(|s| s.show_groups("waiting_input"));
+    assert!(rt.find("session-1-1").is_some(), "the session that waits for input");
+    assert!(rt.find("session-1-0").is_none());
+}

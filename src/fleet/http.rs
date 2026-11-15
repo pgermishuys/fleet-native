@@ -58,6 +58,11 @@ pub fn sessions(base: &str) -> Result<Value, String> {
     get(base, "/api/sessions?limit=200")
 }
 
+/// The projects (`GET /api/projects`): the session list's groups and their order.
+pub fn projects(base: &str) -> Result<Value, String> {
+    get(base, "/api/projects")
+}
+
 /// What a prompt carries besides its text: the agent, model and effort picked in the composer, and the id the
 /// message will have (`SendPromptApiRequest`). Each is left out of the body when nothing is picked, so the server
 /// uses the session's own.
