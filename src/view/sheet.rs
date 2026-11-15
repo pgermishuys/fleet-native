@@ -172,7 +172,7 @@ fn content_rail(t: &Theme, session: &Session) -> El {
         .cursor(Cursor::Pointer)
         .help("Open the panel")
         .label("Open the panel")
-        .on_press(|s: &mut State| s.content_open = true)
+        .on_press(|s: &mut State| s.set_content_open(true))
         .child(icon(&LIST_TODO, 14.0).color(t.muted).group_color(t.text))
         .child(text(pending.to_string()).font(sans(10.0, 700.0, 1.3)).color(t.muted).mt(3.0))
 }
@@ -212,7 +212,9 @@ fn content(t: &Theme, session: &Session) -> El {
         .child(text("Plan").font(sans(14.0, 600.0, 1.3)).color(t.text))
         .child(text(format!("{pending} to do")).font(sans(12.0, 400.0, 1.4)).color(t.muted))
         .child(spacer())
-        .child(tool_button(t, "close-content", &CHEVRON_RIGHT, 14.0, "Close the panel").on_press(|s: &mut State| s.content_open = false));
+        .child(
+            tool_button(t, "close-content", &CHEVRON_RIGHT, 14.0, "Close the panel").on_press(|s: &mut State| s.set_content_open(false)),
+        );
     col().key("content").h_full().border_sides([0.0, 0.0, 0.0, 1.0], t.border).child(head).child(list)
 }
 
