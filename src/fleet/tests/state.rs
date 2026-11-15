@@ -3,14 +3,14 @@ use super::*;
 use crate::{State, spec};
 use rune::{App, Env, Runtime};
 
-fn app() -> Runtime<State> {
+pub(super) fn app() -> Runtime<State> {
     let mut rt = App::new(spec()).headless_runtime((1280.0, 760.0), Env::new(true, 1.0));
     rt.frame(0.0);
     rt.frame(1.0 / 60.0);
     rt
 }
 
-fn list() -> Vec<crate::mock::Project> {
+pub(super) fn list() -> Vec<crate::mock::Project> {
     let rows: Value = serde_json::from_str(&fixture("api-sessions.json")).unwrap();
     sessions::parse_list(&rows, 1_794_674_800_000)
 }
@@ -75,7 +75,7 @@ fn a_session_activity_event_updates_its_row() {
     let mut rt = app();
     rt.update(|s, tx| s.on_list(list(), tx));
     let id = rt.state.open_id().unwrap();
-    rt.update(move |s, _| s.on_activity(&id, Status::NeedsInput));
+    rt.update(move |s, _| s.on_row_patch(super::rows::activity(&id, "waiting_input")));
     assert_eq!(rt.state.session().status, Status::NeedsInput);
 }
 

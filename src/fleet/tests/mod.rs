@@ -485,6 +485,8 @@ mod history;
 mod presence;
 mod prompts;
 mod reconnect;
+mod refresh;
+mod rows;
 mod state;
 mod wire;
 mod work;

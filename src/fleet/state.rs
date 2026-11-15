@@ -6,6 +6,7 @@ use super::link::Connection;
 use super::model::{Msg, StreamState};
 use super::prompts::{self, Confirm, PromptStatus};
 use super::reducer;
+use super::rows::RowPatch;
 use super::sessions;
 use super::view;
 use crate::State;
@@ -137,16 +138,15 @@ impl State {
         self.sync_open();
     }
 
-    /// A session's activity changed on the sessions topic.
-    pub fn on_activity(&mut self, id: &str, status: Status) {
+    /// A `sessions` event that changes rows (`use-session-activity-updates.ts` and its siblings).
+    pub fn on_row_patch(&mut self, patch: RowPatch) {
         let open = self.open_id();
-        for session in self.projects.iter_mut().flat_map(|p| p.sessions.iter_mut()).filter(|s| s.id == id) {
-            if status == Status::Idle && session.status != Status::Idle {
-                session.age = "now".into();
-            }
-            session.status = status;
-        }
-        if open.as_deref() == Some(id) && status == Status::Working && self.working_since < 0.0 {
+        patch.apply(&mut self.projects);
+        if let RowPatch::Activity { session, .. } = &patch
+            && open.as_deref() == Some(session.as_str())
+            && self.session().status == Status::Working
+            && self.working_since < 0.0
+        {
             self.working_since = self.clock;
         }
     }

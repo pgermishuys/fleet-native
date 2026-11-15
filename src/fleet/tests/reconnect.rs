@@ -174,7 +174,7 @@ fn a_kept_stream_takes_the_status_the_list_has_now() {
     // While away, the sessions topic says the first one is working.
     rt.update({
         let first = first.clone();
-        move |s, _| s.on_activity(&first, Status::Working)
+        move |s, _| s.on_row_patch(super::rows::activity(&first, "busy"))
     });
     let at = rt.state.projects[0].sessions.iter().position(|s| s.id == first).unwrap();
     rt.update(move |s, tx| s.open_session(0, at, tx));

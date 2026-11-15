@@ -5,6 +5,8 @@ use super::events::Event;
 use super::history::{Page, Pending};
 use super::presence::{Call, Presence};
 use super::reducer::create_state;
+use super::refresh::Refresh;
+use super::rows::RowPatch;
 use super::signalr::{self, Frame};
 use super::state::Topic;
 use super::topics::{Topics, reconnect_delay};
@@ -289,7 +291,7 @@ fn serve(
     // Snapshots to hand over: the ones that arrived, and a cached one reused for a topic already listened to.
     let mut ready: Vec<(String, Value)> = Vec::new();
     let mut batch_since: Option<Instant> = None;
-    let mut dirty_list: Option<Instant> = None;
+    let mut refresh = Refresh::new(Instant::now());
     let mut last_ping = Instant::now();
 
     // Every topic again, so each gets a fresh snapshot (`topicListenersV2` after a reconnect).
@@ -353,9 +355,14 @@ fn serve(
                 }
                 Cmd::WindowFocus(focused) => {
                     presence.focus_changed(focused, Instant::now());
+                    // Coming back to the window: whatever changed while it was away (`visibilitychange`).
+                    if focused {
+                        refresh.window_back();
+                    }
                     Ok(())
                 }
                 Cmd::WindowVisible(visible) => {
+                    refresh.set_visible(visible, Instant::now());
                     presence.visibility_changed(visible, Instant::now()).into_iter().try_for_each(|c| send_call(&mut call, &mut ws, c))
                 }
                 Cmd::LoadOlder { session, cursor } => (|| {
@@ -398,16 +405,10 @@ fn serve(
                                 }
                                 post.update(move |s, _| s.dispatch(&Topic::Sessions, std::slice::from_ref(&event)));
                             }
-                            match data.get("type").and_then(Value::as_str) {
-                                Some("activity_status") => {
-                                    let id = data.pointer("/properties/sessionId").and_then(Value::as_str).unwrap_or("").to_string();
-                                    let status = sessions::status_of(
-                                        data.pointer("/properties/activityStatus").and_then(Value::as_str).unwrap_or("idle"),
-                                    );
-                                    post.update(move |s, _| s.on_activity(&id, status));
-                                }
+                            match RowPatch::from_wire(&data) {
+                                Some(patch) => post.update(move |s, _| s.on_row_patch(patch)),
                                 // A session was made, renamed, archived or removed: the list is the truth.
-                                _ => dirty_list = dirty_list.or(Some(Instant::now())),
+                                None => refresh.event(Instant::now()),
                             }
                         }
                         Frame::Event { topic, event_id, data } if topic.starts_with("session:") => {
@@ -493,10 +494,7 @@ fn serve(
         for (session, cursor) in pending.expired() {
             history_failed(post, session, cursor, "the server didn't answer in time");
         }
-        if let Some(since) = dirty_list
-            && since.elapsed() >= Duration::from_millis(400)
-        {
-            dirty_list = None;
+        if refresh.due(Instant::now()) {
             fetch_list(base, post);
         }
     }

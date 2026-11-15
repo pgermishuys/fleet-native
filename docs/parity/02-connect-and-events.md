@@ -434,21 +434,34 @@ the retry line in `view/conversation.rs`). Gaps, with reasons:
 
 ### 7. The session list follows the hub (state only)
 
-- [ ] **7.1 Row patches from `sessions` events:** `activity_status` (status, retry attempt / max / message / next while
+- [x] **7.1 Row patches from `sessions` events:** `activity_status` (status, retry attempt / max / message / next while
   `retry`, deriveSessionStatus with lifecycle states `stopped`/`completed`/`error`/`disconnected` kept), `session.retry`,
   `session.pages`, `session.interrupted`, `session.failure`, `session_tokens`, `session_branch` (all rows of the
   workspace), `session_checkout`. Native `mock::Session` has `status`, `age`, `branch` and `tokens` only; add the fields as
   data (`retry`, `interrupted`, `failed`, `page_count`), drawn by component 6.
-- [ ] **7.2 Create, archive, delete, rename.** Vue has no event handler for these: polling every 15 s and the in-page
+- [x] **7.2 Create, archive, delete, rename.** Vue has no event handler for these: polling every 15 s and the in-page
   actions keep the list true. Native refetches 400 ms after any non-`activity_status` event. Keep that (it is better than
   polling) and also poll every 15 s while the window is visible, and refetch when the window regains focus
   (`use-sessions.ts`: `visibilitychange`). A session that disappears while open: the open conversation falls back to the
   first one (native does) and the stream is dropped; Fleet shows a "Session not found" page (component 6/9).
-- [ ] **7.3 The feed's states.** Vue's machine feed (`lib/machine-feed.ts`) has `connecting`, `live`, `polling`,
+- [x] **7.3 The feed's states.** Vue's machine feed (`lib/machine-feed.ts`) has `connecting`, `live`, `polling`,
   `unreachable`; one machine here, so: Connecting, Online, Down(why), mapped to the status bar's note as now.
-- [ ] **7.4 Status mapping.** The list's glyph from `activityStatus`: busy, working, retry, delegating → working,
+- [x] **7.4 Status mapping.** The list's glyph from `activityStatus`: busy, working, retry, delegating → working,
   `waiting_input` → needs input, else idle (`sessions.rs::status_of`, matches `session-row-status.ts`; check that file
   when porting 2.4 so a delegating child shows the same on the row).
+  **Native (piece H):** `src/fleet/rows.rs` holds `Row` (the list item's fields beyond the glyph: `sessionStatus`, `activityStatus`,
+  workspace, retry wording, scheduled retry, interruption, failure, pages, cost, checkout) on `mock::Session::row`, and `RowPatch`
+  (one `sessions` frame read, then applied to the rows). `refresh.rs` is the fetch schedule. Gaps, each with its reason:
+  - `session_checkout` `restoring` only sets the flag (Vue's `checkoutRestoring` is client-only too); the removal time stays until `restored`.
+  - `toScheduledRetry`, `toSessionInterruption` and `toSessionFailure` check a time with `Date.parse`; here only the shape `YYYY-MM-DD…` is
+    checked (no date crate; component 6 parses what it draws).
+  - A lifecycle status (`error`, `completed`, `stopped`, `disconnected`) gives the idle glyph; the words ("Error", "Done", "Offline",
+    "Failed", "Cut off", "Retry 10:32") and tones are `session-row-status.ts`, drawn by component 6 from `Row`.
+  - Rename has no event in Fleet's union (read in `domain-events.ts`, not tested alone live): the title changes on the next fetch, which an
+    unexplained `sessions` event or the 15 s poll triggers. In the pictures it showed within 4 s, together with an archive.
+  - While the hub is down there is no 15 s poll (Vue polls then): a fetch would only fail; the list is fetched when the hub answers again.
+  - The open session that is archived or deleted falls back to the first row (as before); "Session not found" is component 6/9.
+  - `Cmd::Refresh` (an in-page action's refetch, `lib/session-sync.ts`) is still unused: nothing in the app creates or archives yet.
 - Tests: an event of each kind patches its row; a lifecycle status isn't clobbered by an activity one; an event for a
   session not in the list is ignored; the list refetch is debounced.
 

@@ -273,3 +273,15 @@ Rune has what is needed; nothing to work around. Learned:
 - To see the hub frames the app sends, a small TCP relay in front of the scratch Fleet that unmasks the client's WebSocket text
   frames is enough; the app's `--server` is pointed at the relay.
 
+
+## Component 2, piece H (the session list follows the hub)
+
+Nothing in Rune was needed. Learned:
+
+- A row changed from the link thread shows at the next frame with no extra call: `Post::update` marks the state changed, and the
+  list is read from `State` in the view, so a status glyph, a title or a removed row needs no handler of its own.
+- `on_focus(true)` is the "window came back" signal for refetching the list; the pointer crossing into a popup can fire it, so the
+  refetch is one GET per gain, never a loop.
+- Under Xvfb the scratch Fleet's rename and archive are `PATCH /api/sessions/{id}` (`{"title"}`) and `PATCH …/retention`
+  (`{"retentionStatus":"archived"}`); a session started with `initialPrompt` `slow-task` stays working for about 45 s, which is long
+  enough to take both themes' pictures of the working glyph.
