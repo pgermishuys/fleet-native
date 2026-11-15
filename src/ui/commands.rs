@@ -243,7 +243,7 @@ pub fn all(s: &State) -> Vec<Command> {
         Session,
         None,
         &[],
-        now(|_, tx| tx.scroll_to_y("stream", 0.0)),
+        now(|s, tx| s.scroll_top(tx)),
     );
     top.disabled = !open;
     list.push(top);
@@ -255,7 +255,7 @@ pub fn all(s: &State) -> Vec<Command> {
         Session,
         None,
         &[],
-        now(|_, tx| tx.scroll_to_bottom("stream")),
+        now(|s, tx| s.follow_end(tx)),
     );
     bottom.disabled = !open;
     list.push(bottom);

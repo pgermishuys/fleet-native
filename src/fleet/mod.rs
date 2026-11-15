@@ -19,6 +19,7 @@ pub mod reducer;
 pub mod refresh;
 pub mod retry;
 pub mod rows;
+pub mod scroll;
 pub mod selector;
 pub mod sessions;
 pub mod signalr;

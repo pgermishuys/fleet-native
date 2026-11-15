@@ -92,7 +92,8 @@ impl State {
             self.load_retry(&id);
             self.load_interruption(&id);
         }
-        tx.scroll_to_bottom("stream");
+        self.reset_scroll();
+        self.follow_end(tx);
     }
 
     /// Keeps the conversation being left, if it came from a snapshot (`keepCurrentStream`).
@@ -178,9 +179,12 @@ impl State {
         self.prompts.on_messages(id, &state.messages);
         self.stream = Some(state);
         self.stream_of = Some(id.to_string());
-        self.loading = false;
+        // A snapshot after a reconnect leaves a reader where they are; only the first one of a session starts at the end.
+        let first = std::mem::replace(&mut self.loading, false);
         self.sync_open();
-        tx.scroll_to_bottom("stream");
+        if first {
+            self.follow_end(tx);
+        }
     }
 
     /// "Load older messages" (`loadOlder`). Ignored while the snapshot is loading (a kept copy's cursor may be

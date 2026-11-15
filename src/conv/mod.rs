@@ -12,6 +12,7 @@ pub mod gist;
 pub mod merge_reads;
 pub mod message_list;
 pub mod output;
+pub mod pin;
 pub mod references;
 pub mod retry;
 pub mod shell;
