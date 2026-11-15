@@ -21,6 +21,7 @@ mod shell;
 mod status;
 pub mod toolcard;
 pub mod toolrow;
+pub mod work;
 pub mod working;
 
 use crate::theme::{Theme, sans};
