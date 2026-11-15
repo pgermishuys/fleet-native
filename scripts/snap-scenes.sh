@@ -14,6 +14,7 @@ scale="${SNAP_SCALE:-1}"
 out="shots/out"
 
 cargo build --quiet
+echo "build done after ${SECONDS}s"
 bin="${CARGO_TARGET_DIR:-target}/debug/fleet-native"
 if [ -f "$bin.exe" ]; then bin="$bin.exe"; fi
 
@@ -27,11 +28,22 @@ if [ -z "$scenes" ]; then
   exit 1
 fi
 
-for scene in $scenes; do
+# One process per scene (Rune's headless run is one picture per start), several at once. Software
+# renderers start slowly, so this is mostly waiting; SNAP_JOBS=1 draws them one by one.
+jobs="${SNAP_JOBS:-$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)}"
+
+snap_one() {
+  scene="$1"
   "$bin" --snap "$out/$scene.png" --scene "$scene" --size "$size" --scale "$scale" --at 0.3 < /dev/null
   if [ ! -s "$out/$scene.png" ]; then
     echo "scene $scene drew nothing" >&2
-    exit 1
+    return 1
   fi
   echo "$out/$scene.png"
-done
+}
+export -f snap_one
+export bin out size scale
+
+# xargs exits non-zero if any scene failed.
+printf '%s\n' $scenes | xargs -P "$jobs" -I{} bash -c 'snap_one {}'
+echo "drawn after ${SECONDS}s"
