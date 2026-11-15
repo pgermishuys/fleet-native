@@ -4,13 +4,15 @@
 //! This file also holds the message type it draws. It follows weave-fleet's `AccumulatedMessage`
 //! (`client/src/lib/client-types.ts`) so the reducer in `src/fleet/` can fill it later: a message
 //! has a role and ordered parts, and every part has an id.
-use super::parts::{pulse, quad};
+use super::parts::quad;
 use super::prose;
+use super::toolrow;
 use crate::State;
+use crate::conv::tools::{ToolRowEntry, ToolStatus, group_reads};
 use crate::icons::*;
 use crate::mock::{Session, Status};
 use crate::theme::{RADIUS_CARD, Theme, mono, sans};
-use rune::{Cursor, Cycle, El, GrowthSpec, Icon, ScrollSpec, col, el, icon, memo, row, text};
+use rune::{Cursor, Cycle, El, GrowthSpec, ScrollSpec, col, el, icon, memo, row, text};
 use rune_kit::markdown::MarkdownStyle;
 use std::borrow::Cow;
 
@@ -46,9 +48,13 @@ pub enum Part {
     },
     Tool {
         id: String,
+        /// The tool's name as the harness sent it (`bash`, `Read`, `mcp__fleet__fleet_page_show`): the registry
+        /// (`conv::tools`) says what it is called and drawn with.
         tool: String,
         call_id: String,
+        /// The call's title: what it ran or touched (`getToolLabel`), or Fleet's answer for its own tools.
         detail: String,
+        status: ToolStatus,
         state: ToolState,
     },
     File {
@@ -65,11 +71,10 @@ pub enum Part {
     },
 }
 
-/// How a tool call went, as its summary row shows it. Fleet keeps the whole state as JSON; the
-/// reducer boils it down to one of these.
+/// What a finished tool call has to show on the right of its row. Fleet keeps the whole state as JSON; the
+/// reducer boils it down to one of these. Whether the call is running or failed is its `status`.
 #[derive(Clone, Copy, PartialEq)]
 pub enum ToolState {
-    Running,
     /// Lines added and removed by an edit.
     Diff(u32, u32),
     /// How long a shell command took, in seconds.
@@ -100,7 +105,17 @@ impl Part {
 
     pub fn tool(id: impl Into<String>, tool: &str, detail: &str, state: ToolState) -> Self {
         let id = id.into();
-        Part::Tool { call_id: format!("call-{id}"), id, tool: tool.into(), detail: detail.into(), state }
+        Part::Tool { call_id: format!("call-{id}"), id, tool: tool.into(), detail: detail.into(), status: ToolStatus::Completed, state }
+    }
+
+    /// A call that is still running.
+    pub fn running_tool(id: impl Into<String>, tool: &str, detail: &str) -> Self {
+        match Part::tool(id, tool, detail, ToolState::Plain) {
+            Part::Tool { id, tool, call_id, detail, state, .. } => {
+                Part::Tool { id, tool, call_id, detail, status: ToolStatus::Running, state }
+            }
+            other => other,
+        }
     }
 }
 
@@ -114,12 +129,14 @@ impl Part {
     pub fn weight(&self) -> usize {
         match self {
             Part::Text { text, .. } | Part::Reasoning { text, .. } => text.len(),
-            Part::Tool { state, .. } => match *state {
-                ToolState::Running => 1,
-                ToolState::Diff(a, r) => 2 + a as usize + r as usize,
-                ToolState::Took(secs) => 3 + secs.to_bits() as usize,
-                ToolState::Plain => 4,
-            },
+            Part::Tool { state, status, detail, .. } => {
+                let shown = match *state {
+                    ToolState::Diff(a, r) => 2 + a as usize + r as usize,
+                    ToolState::Took(secs) => 3 + secs.to_bits() as usize,
+                    ToolState::Plain => 4,
+                };
+                shown + (*status as usize) * 7 + detail.len()
+            }
             _ => 5,
         }
     }
@@ -151,8 +168,9 @@ pub fn stream(t: &Theme, session: &Session, partial: bool, older: Option<Older>)
             let Some(msg) = session.messages.get(i) else { return working_row(s, &theme) };
             let after_tool = i.checked_sub(1).map(|p| matches!(session.messages[p].parts.last(), Some(Part::Tool { .. })));
             let streaming = i + 1 == session.messages.len() && session.status == Status::Working && msg.role == Role::Assistant;
-            memo(msg.id.clone(), (msg.version(), theme.dark, after_tool, streaming, msg.needs_retry), || {
-                message_row(&theme, &md, msg, after_tool, streaming)
+            let opened = open_mask(msg, &s.open_reads);
+            memo(msg.id.clone(), (msg.version(), theme.dark, after_tool, streaming, msg.needs_retry, opened), || {
+                message_row(&theme, &md, msg, after_tool, streaming, &s.open_reads)
             })
         },
     );
@@ -232,23 +250,81 @@ fn older_row(t: &Theme, older: Older) -> El {
     }
 }
 
+/// The ids of the "Read N files" groups a message draws, in order.
+fn read_groups(msg: &Message) -> Vec<String> {
+    let mut ids = Vec::new();
+    for run in tool_runs(&msg.parts) {
+        for entry in group_reads(run) {
+            if let ToolRowEntry::Reads { id, .. } = entry {
+                ids.push(id);
+            }
+        }
+    }
+    ids
+}
+
+/// Which of a message's read groups are open, one bit each: part of the row's memo key.
+fn open_mask(msg: &Message, open: &std::collections::HashSet<String>) -> u64 {
+    if open.is_empty() {
+        return 0;
+    }
+    read_groups(msg).iter().take(64).enumerate().filter(|(_, id)| open.contains(*id)).fold(0, |mask, (i, _)| mask | 1 << i)
+}
+
+/// The runs of consecutive tool calls among a message's parts.
+fn tool_runs(parts: &[Part]) -> Vec<Vec<&Part>> {
+    let mut runs: Vec<Vec<&Part>> = Vec::new();
+    let mut last_was_tool = false;
+    for part in parts {
+        let is_tool = matches!(part, Part::Tool { .. });
+        match (is_tool, last_was_tool, runs.last_mut()) {
+            (true, true, Some(run)) => run.push(part),
+            (true, _, _) => runs.push(vec![part]),
+            _ => {}
+        }
+        last_was_tool = is_tool;
+    }
+    runs
+}
+
 /// One message: its parts, spaced as Fleet spaces them. `after_tool` is how the message above
 /// ended (`None` for the first), so a run of tool rows reads as one block across messages.
-fn message_row(t: &Theme, md: &MarkdownStyle, msg: &Message, after_tool: Option<bool>, streaming: bool) -> El {
+fn message_row(
+    t: &Theme,
+    md: &MarkdownStyle,
+    msg: &Message,
+    after_tool: Option<bool>,
+    streaming: bool,
+    open_reads: &std::collections::HashSet<String>,
+) -> El {
     let mut column = col().w_full();
     let mut after_tool = after_tool;
-    for (k, part) in msg.parts.iter().enumerate() {
-        let is_tool = matches!(part, Part::Tool { .. });
-        // 20px after a message or text, none between tool rows, 12px before the text that follows a run of them.
-        let above = match (after_tool, is_tool) {
-            (None, _) => 0.0,
-            (Some(true), true) => 0.0,
-            (Some(true), false) => 12.0,
-            (Some(false), _) => 20.0,
-        };
+    // 20px after a message or text, none between tool rows, 12px before the text that follows a run of them.
+    let above = |after: Option<bool>, is_tool: bool| match (after, is_tool) {
+        (None, _) | (Some(true), true) => 0.0,
+        (Some(true), false) => 12.0,
+        (Some(false), _) => 20.0,
+    };
+    let mut k = 0;
+    while k < msg.parts.len() {
+        if matches!(msg.parts[k], Part::Tool { .. }) {
+            let end = msg.parts[k..].iter().position(|p| !matches!(p, Part::Tool { .. })).map_or(msg.parts.len(), |n| k + n);
+            // Two or more reads in a row fold into one "Read N files" row (`groupReads`).
+            for entry in group_reads(msg.parts[k..end].iter()) {
+                let row = match entry {
+                    ToolRowEntry::Tool(part) => toolrow::tool_entry(t, part),
+                    ToolRowEntry::Reads { tools, id } => toolrow::reads_entry(t, &id, &tools, open_reads.contains(&id)),
+                };
+                column = column.child(el().w_full().mt(above(after_tool, true)).py(2.0).child(row));
+                after_tool = Some(true);
+            }
+            k = end;
+            continue;
+        }
         let live = streaming && k + 1 == msg.parts.len();
-        column = column.child(el().w_full().mt(above).py(2.0).child(part_view(t, md, msg.role, part, live)));
-        after_tool = Some(is_tool);
+        column = column.child(el().w_full().mt(above(after_tool, false)).py(2.0).child(part_view(t, md, msg.role, &msg.parts[k], live)));
+        after_tool = Some(false);
+        k += 1;
     }
     if msg.needs_retry {
         // `.optimistic-retry`: 12px in the idle colour, right-aligned under the user's bubble.
@@ -277,7 +353,7 @@ fn part_view(t: &Theme, md: &MarkdownStyle, role: Role, part: &Part, live: bool)
                 .fill(t.wash(5.0)),
         ),
         (Part::Text { id, text: body }, Role::Assistant) => prose::prose(md, id, body, live),
-        (Part::Tool { tool, detail, state, .. }, _) => tool_row(t, tool, detail, *state),
+        (Part::Tool { .. }, _) => toolrow::tool_entry(t, part),
         // The remaining parts get their real look in the parts lane; for now they say what they are.
         (Part::Reasoning { text: body, summary, .. }, _) => {
             let shown = summary.as_deref().unwrap_or(body);
@@ -287,39 +363,6 @@ fn part_view(t: &Theme, md: &MarkdownStyle, role: Role, part: &Part, live: bool)
             text(filename.clone().unwrap_or_else(|| mime.clone())).font(mono(12.0, 400.0, 1.3)).color(t.muted).truncate().w_full()
         }
         (Part::Compaction { .. }, _) => text("Conversation compacted").font(sans(12.0, 400.0, 1.3)).color(t.muted).w_full(),
-    }
-}
-
-/// One tool call (`ToolCard.vue`'s summary row): icon, name, what it ran, and how it went.
-fn tool_row(t: &Theme, name: &str, detail: &str, state: ToolState) -> El {
-    let glyph: &'static Icon = match name {
-        "Bash" => &TERMINAL,
-        "Edit" => &PENCIL,
-        _ => &FILE_TEXT,
-    };
-    // Reads are quieter than commands and edits.
-    let (weight, ink) = if name == "Read" { (400.0, t.muted) } else { (500.0, t.text) };
-    let count = mono(12.0, 400.0, 1.3);
-    let line = row()
-        .w_full()
-        .min_h(30.0)
-        .center_y()
-        .gap(9.0)
-        .px(8.0)
-        .radius(6.0)
-        .hover(t.wash(5.0))
-        .cursor(Cursor::Pointer)
-        .on_press(|_: &mut State| {})
-        .child(icon(glyph, 14.0).color(t.muted.alpha(0.75)))
-        .child(text(name.to_string()).font(sans(13.0, weight, 1.3)).color(ink))
-        .child(text(detail.to_string()).font(mono(12.0, 400.0, 1.3)).color(t.muted).truncate().grow(1.0));
-    match state {
-        ToolState::Running => line.child(pulse(t.running)),
-        ToolState::Diff(added, removed) => line
-            .child(text(format!("+{added}")).font(count).color(t.running))
-            .child(text(format!("\u{2212}{removed}")).font(count).color(t.error)),
-        ToolState::Took(secs) => line.child(text(format!("{secs:.1}s")).font(count).color(t.muted)),
-        ToolState::Plain => line,
     }
 }
 

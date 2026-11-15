@@ -260,3 +260,15 @@ fn events_leave_a_person_who_scrolled_up_where_they_are() {
     rt.frame(FRAME);
     assert_eq!(rt.scroll_at_bottom("stream"), Some(false), "an event pulled the view back to the end");
 }
+
+#[test]
+fn clicking_the_reads_row_opens_and_closes_the_folded_reads() {
+    let mut rt = app();
+    rt.update(|s, _| s.show_conversation(crate::mock::tools::of_each_status()));
+    rt.frame(FRAME);
+    assert!(rt.find("tool-r1").is_none(), "reads are folded until asked");
+    click(&mut rt, "reads-reads-r1");
+    assert!(rt.find("tool-r1").is_some());
+    click(&mut rt, "reads-reads-r1");
+    assert!(rt.find("tool-r1").is_none());
+}

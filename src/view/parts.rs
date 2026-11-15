@@ -1,7 +1,7 @@
 //! Pieces more than one panel draws: the status glyphs and the small toolbar button.
 use crate::State;
 use crate::theme::Theme;
-use rune::{Color, Cursor, Cycle, El, Icon, el, icon};
+use rune::{Color, Cursor, Cycle, El, Icon, Shape, canvas, el, icon};
 
 /// Fleet's "working" glyph (`StatusGlyph.vue`, `status-quad`): four 3px dots in a 2×2 grid, one
 /// dim at a time, moving clockwise every 200ms. Holds still under reduced motion.
@@ -27,6 +27,11 @@ pub fn quad(color: Color) -> El {
 pub fn pulse(color: Color) -> El {
     static STOPS: [(f32, f32); 3] = [(0.0, 1.0), (0.5, 0.3), (1.0, 1.0)];
     el().size(8.0, 8.0).radius(4.0).fill(color).cycle(Cycle { period: 1.2, phase: 0.0, stops: &STOPS, still: 1.0, fps: 30.0 })
+}
+
+/// The error glyph (`StatusGlyph.vue`, `error`): a filled triangle in an 8px slot.
+pub fn triangle(color: Color) -> El {
+    canvas(Shape::new().fill(vec![[4.0, 0.5], [7.5, 7.5], [0.5, 7.5]], color)).size(8.0, 8.0)
 }
 
 /// The "waiting on you" glyph: a filled diamond in an 8px slot.
