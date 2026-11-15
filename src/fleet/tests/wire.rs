@@ -118,8 +118,11 @@ fn the_hub_thread_fills_the_state_from_a_server_and_sends_prompts() {
     let link = Link::start(base, post);
     rt.update(move |s, _| s.link = Some(link));
     let deadline = Instant::now() + Duration::from_secs(20);
+    // The server replays the turn's frames one by one; the reply text arrives before the closing
+    // status event, so wait for the status too instead of reading it mid-replay.
     let done = |s: &State| {
         s.connection == Connection::Online
+            && s.session().status == Status::Idle
             && s.session()
                 .messages
                 .iter()
