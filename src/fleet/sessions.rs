@@ -2,6 +2,7 @@
 //! session list draws (`mock::Project`, `mock::Session`).
 use super::groups::{Listing, ProjectInfo, ProjectKind, build_project_groups};
 use super::model::StreamStatus;
+use super::row_status;
 use super::rows::{Row, glyph_of};
 use crate::mock::{Project, Session, Status};
 use serde_json::Value;
@@ -25,31 +26,9 @@ pub fn stream_status_of(status: StreamStatus) -> Status {
     }
 }
 
-/// A compact age ("now", "2m", "3h", "4d") and how far Fleet dims a row for it: 55% after a day
-/// idle, 40% after three.
-pub fn age(now_ms: i64, then_ms: i64) -> (String, f32) {
-    let secs = ((now_ms - then_ms) / 1000).max(0);
-    let label = match secs {
-        0..60 => "now".to_string(),
-        60..3600 => format!("{}m", secs / 60),
-        3600..86_400 => format!("{}h", secs / 3600),
-        _ => format!("{}d", secs / 86_400),
-    };
-    (
-        label,
-        if secs >= 3 * 86_400 {
-            0.4
-        } else if secs >= 86_400 {
-            0.55
-        } else {
-            1.0
-        },
-    )
-}
-
 /// The sessions the list holds, newest first. Archived, hidden and sub-agent sessions aren't listed here (the session
 /// list lane shows lineage and the Archived view). Pure, so it can run on a thread.
-pub fn parse_sessions(rows: &Value, now_ms: i64) -> Vec<Session> {
+pub fn parse_sessions(rows: &Value, _now_ms: i64) -> Vec<Session> {
     let mut listed: Vec<(i64, Session)> = Vec::new();
     for row in rows.as_array().into_iter().flatten() {
         let text = |k: &str| row.get(k).and_then(Value::as_str);
@@ -61,18 +40,17 @@ pub fn parse_sessions(rows: &Value, now_ms: i64) -> Vec<Session> {
         }
         let Some(id) = row.pointer("/session/id").and_then(Value::as_str) else { continue };
         let updated = row.pointer("/session/time/updated").and_then(Value::as_i64).unwrap_or(0);
-        let (age, dim) = age(now_ms, updated);
         let mut info = Row::from_list_item(row);
         info.updated = updated;
+        info.created = row.pointer("/session/time/created").and_then(Value::as_i64).unwrap_or(0);
         let status = glyph_of(&info.lifecycle, &info.activity);
         listed.push((
             updated,
             Session {
                 id: id.to_string(),
-                title: row.pointer("/session/title").and_then(Value::as_str).unwrap_or("Untitled").to_string(),
+                title: row_status::display_title(None, row.pointer("/session/title").and_then(Value::as_str).unwrap_or("")),
                 status,
-                age: if status == Status::Idle { age } else { String::new() },
-                dim: if status == Status::Idle { dim } else { 1.0 },
+                ago_secs: None,
                 branch: text("branch").unwrap_or("").to_string(),
                 messages: Vec::new(),
                 tokens: row.get("totalTokens").and_then(Value::as_u64).unwrap_or(0).min(u32::MAX as u64) as u32,

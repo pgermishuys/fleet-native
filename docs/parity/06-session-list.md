@@ -71,6 +71,23 @@ Pictures, one scratch Fleet v0.72.0: "Add invoice export" open in Docs site; the
 ![before (dark)](../../shots/parity/06-session-list/piece-b/native-before-dark.png)
 ![after (dark)](../../shots/parity/06-session-list/piece-b/native-after-dark.png)
 
+## Piece C, built (15 November 2026)
+
+Row anatomy and status, in `src/view/session_row.rs` (the row, split from `sessions.rs`) and `src/fleet/row_status.rs` (pure: `sessionRowStatus`, `sessionRowDim`, `formatRelative`, `toTimestamp`, `formatDateTime`, the retry words), with the `row-*` tokens in `src/theme.rs`. Tests: `src/fleet/tests/row_status.rs` (Fleet's `session-row-status` and compact `time` cases under their names) and `src/tests_rows.rs` (the `SessionItem` cases the row can answer today).
+
+Done: **3.2, 3.3 (top-level padding; the 28px child row is piece M)**, **3.4-3.8** (86 % text; dim 66/51 dark and 77/62 light as absolute shares of `--text`, restored on hover, never on the open row or a live one; the age fades only at dim-2; hover wash and active 9 % with weight 500), **3.10** focus ring (2px accent, inset; set, not yet seen with the keyboard), **3.12** the row's `Double-click to rename` tooltip (the rename itself is piece H), **3.14, 3.15** order caret slot, glyph, title, word; **3.20** the 14x14 slot with `margin-right:-4px` (the chevron itself is drawn by piece M and exists as `session_row::caret`), **3.21-3.33** every glyph (`parts::status_glyph`: working quad, retry quad in amber, waiting diamond, error triangle, completed check, idle ring, stopped square, running pulse) and the quiet 8x8 slot, the cut-off dot, tooltips from the status description, **3.40-3.48** the title as Fleet derives it (`Untitled session`, trimmed), one line with an ellipsis, the words (Needs input, Error, Retry n/m, Done, Offline, Failed, Cut off, Retry <time>, Not answering) with their tones and colours (the `row-waiting` mix is 55 % in light), the compact age with weeks and dates, `toTimestamp`, the age's exact-time tooltip, and the list re-reading the clock every 30 s. The invented sessions now carry `ago_secs` instead of a stored age and a dim number; `Row` gained `created`.
+
+Open, with reasons: **3.1** (`data-session-id` and the drag role: no equivalent), **3.9, 3.34** the picked row and the checkbox (need the selection store, piece J), **3.11** the editing row's cursor (piece H), **3.13** keys stay `session-{p}-{i}` because tests, scripts and the bench use them; sub-element keys are `session-title-`, `-glyph-`, `-slot-`, `-caret-`, `-status-`; moving to ids is one change for the sweep, **3.40** `dir="auto"` (Rune's text shaping, not checked with an RTL title), the 150 ms colour transitions (Rune has none on hover, see `docs/RUNE.md`), **3.42** while a row has progress or a kind label (pieces D and M), and the "Not answering" word is only reachable with machines (component 17): `row_status` takes `machine_answering`, the row passes `true`. Fleet's `LIVE_STATUSES` makes a lifecycle `error` live (red triangle and `Error`); here `RowItem::of` keeps the server's lifecycle word over the stream's glyph.
+
+Pictures, native beside Fleet's own client (one scratch Fleet v0.72.0: a working row, one waiting for input, idle ones "now"; both themes), and every status from a scene (the scratch Fleet cannot make an error, a retry, a cut-off turn, a limit retry or ages of days):
+
+![Fleet (dark)](../../shots/parity/06-session-list/piece-c/fleet-dark.png)
+![native, same Fleet (dark)](../../shots/parity/06-session-list/piece-c/live-native-dark.png)
+![Fleet (light)](../../shots/parity/06-session-list/piece-c/fleet-light.png)
+![native, same Fleet (light)](../../shots/parity/06-session-list/piece-c/live-native-light.png)
+![every status, dark](../../shots/parity/06-session-list/piece-c/native-row-statuses.png)
+![every status, light](../../shots/parity/06-session-list/piece-c/native-row-statuses-light.png)
+
 ## What "done" means
 
 1. The list is Fleet's: projects from `GET /api/projects` in their own order (Pinned first,

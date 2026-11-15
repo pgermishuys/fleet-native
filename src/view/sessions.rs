@@ -1,12 +1,12 @@
-//! The session list (`SessionsPanel.vue`, `ProjectGroup.vue`, `SessionItem.vue`): New session,
-//! the filter, sessions grouped by project, and the Archived link.
-use super::parts::{diamond, quad};
+//! The session list (`SessionsPanel.vue`, `ProjectGroup.vue`): New session, the filter, sessions grouped by project,
+//! and the Archived link. A row is `session_row.rs`.
+use super::session_row::session_row;
+use crate::State;
 use crate::fleet::groups::{matching_sessions, session_matches_query};
 use crate::icons::*;
-use crate::mock::{Project, Session, Status};
+use crate::mock::{Project, Session};
 use crate::theme::{Theme, sans};
-use crate::{State, Tx};
-use rune::{Color, Cursor, El, ScrollSpec, col, el, icon, row, text, text_input};
+use rune::{Cursor, El, ScrollSpec, col, el, icon, row, text, text_input};
 
 pub fn panel(s: &State, t: &Theme) -> El {
     let new_session = row()
@@ -62,6 +62,7 @@ pub fn panel(s: &State, t: &Theme) -> El {
     );
 
     let needle = s.filter.text.trim().to_lowercase();
+    let clock = super::session_row::RowClock::now(s);
     let mut list = col().w_full().px(8.0).pb(12.0);
     let mut first = true;
     for (p, project) in s.projects.iter().enumerate() {
@@ -75,7 +76,7 @@ pub fn panel(s: &State, t: &Theme) -> El {
         if project.open || !needle.is_empty() {
             let mut body = col().w_full().pt(2.0);
             for (i, session) in rows {
-                body = body.child(session_row(s, t, p, i, session));
+                body = body.child(session_row(s, t, &clock, p, i, session));
             }
             group = group.child(body);
         }
@@ -130,46 +131,4 @@ fn project_header(t: &Theme, p: usize, project: &Project, count: usize) -> El {
         .child(icon(&CHEVRON_DOWN, 13.0).color(t.muted.alpha(0.7)).rotate(turn))
         .child(text(project.name.clone()).font(sans(12.0, 600.0, 1.3)).color(t.muted).group_color(t.text).truncate().grow(1.0))
         .child(text(count.to_string()).font(sans(12.0, 500.0, 1.3).features("'tnum' 1")).color(t.muted.alpha(0.7)))
-}
-
-fn session_row(s: &State, t: &Theme, p: usize, i: usize, session: &Session) -> El {
-    let active = s.open_at() == (p, i);
-    // Fleet dims a row that has sat idle for a day (55%) or three (40%); the open one never dims.
-    let ink = if active { t.text } else { t.text.alpha(0.86 * session.dim) };
-    let glyph = match session.status {
-        Status::Working => quad(t.text),
-        Status::NeedsInput => diamond(t.idle),
-        Status::Idle => el().size(8.0, 8.0),
-    };
-    let mut line = row()
-        .key(format!("session-{p}-{i}"))
-        .w_full()
-        .min_h(32.0)
-        .center_y()
-        .gap(9.0)
-        .pl(6.0)
-        .pr(10.0)
-        .radius(8.0)
-        .fill(if active { t.wash(9.0) } else { Color::TRANSPARENT })
-        .hover(if active { Color::TRANSPARENT } else { t.wash(5.0) })
-        .cursor(Cursor::Pointer)
-        .on_press_tx(move |s: &mut State, tx: &mut Tx| s.open_session(p, i, tx))
-        .on_secondary_press(move |s: &mut State, at, _: &mut Tx| {
-            s.ui.point = (at.x, at.y);
-            s.ui.open = Some(crate::ui::Open::Context(p, i));
-        })
-        // The slot a row with children puts its caret in.
-        .child(el().size(10.0, 14.0))
-        .child(glyph)
-        .child(text(session.title.clone()).font(sans(13.0, if active { 500.0 } else { 400.0 }, 1.3)).color(ink).truncate().grow(1.0));
-    line = match session.status {
-        Status::Working => line,
-        Status::NeedsInput => {
-            line.child(text("Needs input").font(sans(12.0, 500.0, 1.3)).color(t.idle).px(7.0).py(1.0).radius(8.0).fill(t.idle.alpha(0.14)))
-        }
-        Status::Idle => line.child(
-            text(session.age.clone()).font(sans(12.0, 400.0, 1.3).features("'tnum' 1")).color(t.muted.alpha(0.8 * session.dim.max(0.6))),
-        ),
-    };
-    el().w_full().py(1.0).child(line)
 }

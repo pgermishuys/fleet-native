@@ -656,3 +656,14 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 - **Code colours**: `MarkdownStyle::syntax(kind, colour)` per `Syntax` kind. hljs has eight colours; Rune's kinds map many-to-one (`Number` stands for hljs's `number` and `literal`; `Type` for `type`, `built_in`, `variable`; `Property` and `Attribute` for `attr`), and nothing sets italics for comments. Set `Punctuation`, `Operator` and `Parameter` to the text colour to match Fleet, which leaves them plain.
 - **A scripted run can scroll the stream**: `{"type":"scroll","key":"stream","dy":-700,"dur":0.3}`; `{"type":"key","name":"l","cmd":true,"shift":true}` flips the theme for a live picture. Rune draws a debug frame in 120-400 ms under load, so a live picture of a 45 s state needs a release build or a quiet machine.
 - **A headless test has no fonts**: `rune::text::measure` in a test measures a fallback face (a 100-character mono line came out 682 px at 12.5 px, not 750); only the running app has the bundled fonts.
+## Session list, piece C (row anatomy and status)
+
+- Rune's colours are linear and CSS mixes the sRGB numbers, so `color-mix(in srgb, var(--warning) 55%, var(--text))` is
+  `Theme::text_mix`, which decodes, mixes and encodes (`rune::color::srgb_decode/encode`). A straight `Color::mix` is a
+  little off.
+- A row's title goes from dimmed to full `--text` on hover with `hover_group()` on the row and `group_color(..)` on the
+  text; no extra state is needed. Hover has no transition, so Fleet's 150 ms colour ease is instant here.
+- `rt.find(key)` gives an element's centre, so two keyed elements of different widths don't share an x: test alignment
+  on elements of the same size (the glyph and its empty slot), not on titles.
+- A negative margin (`.mr(-4.0)`) works for the caret slot. `focus_ring(2.0, -2.0, ..)` takes a negative offset for
+  Fleet's inset outline; not yet looked at with the keyboard.

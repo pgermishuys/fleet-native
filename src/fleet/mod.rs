@@ -31,6 +31,7 @@ pub mod reducer;
 pub mod references;
 pub mod refresh;
 pub mod retry;
+pub mod row_status;
 pub mod rows;
 pub mod scroll;
 pub mod selector;

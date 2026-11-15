@@ -78,6 +78,8 @@ pub struct Row {
     pub last_model_id: Option<String>,
     /// `session.time.updated` in milliseconds (0 when the row has none): the `@` list orders sessions by it.
     pub updated: i64,
+    /// `session.time.created` in milliseconds (0 when the row has none): the age falls back to it.
+    pub created: i64,
 }
 
 /// Whether the server's own lifecycle state is the session's status, whatever it is doing (`deriveSessionStatus`).
@@ -201,6 +203,7 @@ impl Row {
             harness_type: text(item, "harnessType").filter(|h| !h.is_empty()),
             last_model_id: text(item, "lastAssistantModelId").filter(|m| !m.is_empty()),
             updated: 0,
+            created: 0,
         }
     }
 }
@@ -275,7 +278,7 @@ impl RowPatch {
                     let lifecycle = derive_session_status(activity, &s.row.lifecycle);
                     let status = glyph_of(&lifecycle, activity);
                     if status == Status::Idle && s.status != Status::Idle {
-                        s.age = "now".into();
+                        s.touch(super::link::now_ms());
                     }
                     s.status = status;
                     s.row.lifecycle = lifecycle;

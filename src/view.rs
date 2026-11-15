@@ -27,6 +27,7 @@ pub mod ring;
 pub mod ring_popover;
 pub mod scroll;
 pub mod selector;
+pub mod session_row;
 mod sessions;
 mod sheet;
 mod shell;

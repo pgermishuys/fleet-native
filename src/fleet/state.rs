@@ -169,7 +169,7 @@ impl State {
             // Nothing the list draws changed, so nothing is rebuilt; the ages still move on.
             for s in self.projects.iter_mut().flat_map(|p| p.sessions.iter_mut()) {
                 if let Some(n) = listed.iter().find(|n| n.id == s.id) {
-                    (s.age, s.dim) = (n.age.clone(), n.dim);
+                    (s.row.updated, s.row.created) = (n.row.updated, n.row.created);
                 }
             }
             return;
@@ -462,7 +462,7 @@ impl State {
         } else if session.status == Status::Working {
             // Not NeedsInput: that may be the session's own question, from the list.
             session.status = Status::Idle;
-            session.age = "now".into();
+            session.touch(super::link::now_ms());
         }
         self.refold();
         self.load_older_work();
