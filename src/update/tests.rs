@@ -1,5 +1,5 @@
 //! The updater against a fake release served from this machine: no test reaches GitHub.
-use super::install::{self, Progress, Relaunch};
+use super::install::{self, Progress};
 use super::manifest::{self, Asset};
 use super::{Phase, Update};
 use crate::State;
@@ -186,7 +186,7 @@ fn the_whole_apply_over_http_replaces_the_program() {
     std::fs::write(&exe, b"\x7fELF old build").unwrap();
     let work = dir.0.join("work");
     let done = install::apply(&base, &asset, &exe, &work, &mut |_| {}).unwrap();
-    assert!(matches!(done, install::Done::Relaunch(Relaunch::Exe(p)) if p == exe));
+    assert!(matches!(done, install::Done::Relaunch(install::Relaunch::Exe(p)) if p == exe));
     assert_eq!(std::fs::read(&exe).unwrap(), b"\x7fELF new build");
     assert!(!work.exists(), "the download is cleaned up");
 }
