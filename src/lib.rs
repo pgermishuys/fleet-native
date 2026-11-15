@@ -52,8 +52,10 @@ pub struct State {
     pub projects: Vec<Project>,
     /// `GET /api/projects`: what orders and names the groups, and whether the last read failed.
     pub project_load: fleet::groups::ProjectsLoad,
-    /// The open session: (project, session).
-    pub open: (usize, usize),
+    /// What the window shows: the open session by its id, so a refetch, a filter or a pin doesn't move it.
+    pub route: fleet::store::Route,
+    /// The list's own state beyond its rows: loading, error, the request in flight, sessions opened from other machines.
+    pub store: fleet::store::SessionStore,
     pub filter: TextEdit,
     pub draft: TextEdit,
     /// Every session's draft (the open one's text is `draft`; it is put here when another session opens) and the
@@ -201,7 +203,12 @@ impl Default for State {
             drawn_dark: std::cell::Cell::new(true),
             projects: if SERVER.get().is_some() { Vec::new() } else { mock::projects() },
             project_load: fleet::groups::ProjectsLoad::new(true),
-            open: (0, 0),
+            route: if SERVER.get().is_some() {
+                fleet::store::Route::None
+            } else {
+                fleet::store::Route::Session(fleet::store::invented_id(0, 0))
+            },
+            store: Default::default(),
             filter: TextEdit::new(""),
             draft: TextEdit::new(""),
             drafts: Default::default(),
@@ -290,11 +297,40 @@ impl Default for State {
 
 impl State {
     pub fn project(&self) -> &Project {
-        self.projects.get(self.open.0).filter(|p| self.open.1 < p.sessions.len()).unwrap_or(&self.blank)
+        self.projects.get(self.open_at().0).filter(|p| self.open_at().1 < p.sessions.len()).unwrap_or(&self.blank)
     }
 
     pub fn session(&self) -> &Session {
-        self.project().sessions.get(self.open.1).unwrap_or(&self.blank.sessions[0])
+        self.project().sessions.get(self.open_at().1).unwrap_or(&self.blank.sessions[0])
+    }
+
+    /// Where the open session is in the list now: (project, session), or `(usize::MAX, 0)` when none is open or it
+    /// isn't in the list. Derived from the route each time, never kept.
+    pub fn open_at(&self) -> (usize, usize) {
+        let fleet::store::Route::Session(id) = &self.route else { return (usize::MAX, 0) };
+        self.projects
+            .iter()
+            .enumerate()
+            .find_map(|(p, project)| project.sessions.iter().position(|s| &s.id == id).map(|i| (p, i)))
+            .unwrap_or((usize::MAX, 0))
+    }
+
+    /// Gives the session at (project, session) another id (a scene or a test standing in for a server's session); the
+    /// route follows when it was the open one.
+    pub fn set_session_id(&mut self, at: (usize, usize), id: &str) {
+        let was_open = self.open_at() == at;
+        self.projects[at.0].sessions[at.1].id = id.into();
+        if was_open {
+            self.route = fleet::store::Route::Session(id.into());
+        }
+    }
+
+    /// Makes the session at (project, session) the open one; a place with no session leaves none open.
+    pub fn set_open(&mut self, at: (usize, usize)) {
+        self.route = match self.projects.get(at.0).and_then(|p| p.sessions.get(at.1)) {
+            Some(s) => fleet::store::Route::Session(s.id.clone()),
+            None => fleet::store::Route::None,
+        };
     }
 
     /// Every session in list order, for the previous/next keys.
@@ -304,7 +340,7 @@ impl State {
 
     /// Whether a real or mock session is open (not the blank stand-in).
     pub fn has_session(&self) -> bool {
-        self.projects.get(self.open.0).is_some_and(|p| self.open.1 < p.sessions.len())
+        self.open_at().0 != usize::MAX
     }
 
     pub fn step_session(&mut self, by: isize, tx: &mut Tx) {
@@ -322,7 +358,7 @@ impl State {
         if order.is_empty() {
             return;
         }
-        let at = order.iter().position(|&id| id == self.open).unwrap_or(0) as isize;
+        let at = order.iter().position(|&id| id == self.open_at()).unwrap_or(0) as isize;
         let (p, i) = order[(at + by).rem_euclid(order.len() as isize) as usize];
         self.open_session(p, i, tx);
     }
@@ -332,10 +368,10 @@ impl State {
     /// The session the composer's text belongs to: the open session's id, or a stand-in for the mock data's
     /// sessions, which have none. `None` while a server's list hasn't arrived, so text typed then waits for it.
     pub(crate) fn draft_owner(&self) -> Option<String> {
-        match self.open_id() {
-            Some(id) => Some(id),
-            None if self.link.is_none() => Some(format!("mock.{}.{}", self.open.0, self.open.1)),
-            None => None,
+        match (&self.route, self.open_id()) {
+            (_, Some(id)) => Some(id),
+            (fleet::store::Route::Session(id), None) if self.link.is_none() && !id.is_empty() => Some(id.clone()),
+            _ => None,
         }
     }
 
@@ -385,7 +421,7 @@ impl State {
 
     /// Scenes for the pictures waiting in the composer (piece N): invented pictures, handed over as if a thread had read them.
     fn show_images_held(&mut self, state: &str) {
-        self.open = (0, 2);
+        self.set_open((0, 2));
         let owner = self.draft_owner().unwrap_or_default();
         let wide = [("checkout.png", mock::images::PAGE), ("logo.png", &include_bytes!("../assets/weave_logo.png")[..])];
         let names: &[(&str, &[u8])] = if state == "images" || state == "image-lightbox" { &wide[..1] } else { &wide };
@@ -406,7 +442,7 @@ impl State {
                 self.attach.set_error("notes.txt isn't a PNG, JPEG, GIF or WebP picture.", 0.0);
             }
             "image-queue" => {
-                self.open = (0, 0);
+                self.set_open((0, 0));
                 self.show_draft("Also keep the 200 MB limit.");
                 self.composer_error = Some(composer::attach::QUEUE_REFUSAL.into());
             }
@@ -419,17 +455,17 @@ impl State {
     /// Scenes for the composer's states (docs/parity/05-composer.md, piece B).
     pub fn show_composer(&mut self, state: &str) {
         match state {
-            "idle" => self.open = (0, 2),
+            "idle" => self.set_open((0, 2)),
             "typed" => {
-                self.open = (0, 2);
+                self.set_open((0, 2));
                 self.show_draft("Add a test for the rename step too.");
             }
             "busy" => {
-                self.open = (0, 0);
+                self.set_open((0, 0));
                 self.show_draft("Also keep the 200 MB limit.");
             }
             "disabled" => {
-                self.open = (0, 2);
+                self.set_open((0, 2));
                 self.projects[0].sessions[2].row.archived = true;
             }
             // A working session with two messages waiting and a third typed: on a harness that steers (Enter queues,
@@ -438,19 +474,19 @@ impl State {
             "queue-opencode2" => self.show_queue("opencode2", true, true),
             "queue-no-steer" => self.show_queue("claude-code", false, false),
             "error" => {
-                self.open = (0, 2);
+                self.set_open((0, 2));
                 self.show_draft("Run the cache tests again.");
                 self.composer_error = Some("HTTP 500".into());
             }
             "files" | "file-error" | "uploading" | "paste-offer" | "pasted-file" | "terminal-lines" => self.show_files(state),
             "images" | "images-many" | "image-error" | "image-queue" | "image-drag" | "image-lightbox" => self.show_images_held(state),
             "long" => {
-                self.open = (0, 2);
+                self.set_open((0, 2));
                 let lines: Vec<String> = (1..=12).map(|n| format!("Step {n}: read the file and say what it does.")).collect();
                 self.show_draft(&lines.join("\n"));
             }
             "side" => {
-                self.open = (0, 2);
+                self.set_open((0, 2));
                 self.side_open = true;
             }
             // The side mode with a question typed, and shell mode on a harness that runs commands (row 9.1).
@@ -464,7 +500,7 @@ impl State {
             }
             // The last five messages sent, the newest highlighted (row 8.3).
             "history" => {
-                self.open = (0, 2);
+                self.set_open((0, 2));
                 let owner = self.draft_owner().unwrap_or_default();
                 for text in [
                     "Add a test for the rename step too.",
@@ -479,36 +515,36 @@ impl State {
             }
             // The effort toggle (a model with levels, the third picked) and the pickers' menus.
             "effort" => {
-                self.open = (0, 2);
+                self.set_open((0, 2));
                 let owner = self.draft_owner().unwrap_or_default();
                 let model = composer::choice::create_model_selection_key("anthropic", "opus-5-5");
                 self.drafts.set_choice(&owner, composer::drafts::Choice { model, effort: "high".into(), ..Default::default() });
             }
             "agent-menu" => {
-                self.open = (0, 2);
+                self.set_open((0, 2));
                 self.open_selector("agent");
             }
             "model-menu" => {
-                self.open = (0, 2);
+                self.set_open((0, 2));
                 self.open_selector("model");
             }
             // Typed text keeps the rows that contain it; the highlight moves to the first match.
             "model-filtered" => {
-                self.open = (0, 2);
+                self.set_open((0, 2));
                 self.open_selector("model");
                 self.ui.sel.filter = rune::TextEdit::new("o");
                 self.keep_selector();
             }
             // Nothing matches: Default stays (it always does), so the list never goes empty.
             "model-nomatch" => {
-                self.open = (0, 2);
+                self.set_open((0, 2));
                 self.open_selector("model");
                 self.ui.sel.filter = rune::TextEdit::new("zzz");
                 self.keep_selector();
             }
             // A favourite on top of the list, and the pointer on a row that isn't starred.
             "model-starred" => {
-                self.open = (0, 2);
+                self.set_open((0, 2));
                 let key = composer::groups::model_picker_key("opencode", "anthropic", "opus-5-5");
                 let picker = composer::groups::ModelPicker { favourites: vec![key], ..Default::default() };
                 self.pickers.prefs.set(composer::groups::PREFERENCE_KEY, &picker.to_json());
@@ -516,13 +552,13 @@ impl State {
                 self.ui.sel.active = 3;
             }
             "models-long" => {
-                self.open = (0, 2);
+                self.set_open((0, 2));
                 self.pickers.add_mock_models(15);
                 self.open_selector("model");
             }
             // Usage bars on the provider headings: 60% (quiet), 97% (dimmed, with its reset time), used up.
             "models-usage" => {
-                self.open = (0, 2);
+                self.set_open((0, 2));
                 self.pickers.add_mock_provider_models(("openai", "OpenAI"), 3);
                 self.pickers.add_mock_provider_models(("github-copilot", "GitHub Copilot"), 2);
                 let now = 20_000 * 86_400_000 + (12 * 3600 - conv::time::local_offset_secs()) * 1000;
@@ -536,7 +572,7 @@ impl State {
 
     /// A session whose harness runs shell commands (`supportsShellCommands`).
     fn show_shell_harness(&mut self) {
-        self.open = (0, 2);
+        self.set_open((0, 2));
         self.projects[0].sessions[2].row.harness_type = Some("opencode".into());
         self.pickers.harnesses = vec![composer::status::HarnessInfo {
             kind: "opencode".into(),
@@ -549,7 +585,7 @@ impl State {
     /// The queue scenes: the working session, its harness and what it waits for.
     fn show_queue(&mut self, harness: &str, steers: bool, by_default: bool) {
         use composer::status::{HarnessInfo, SteerDelivery};
-        self.open = (0, 0);
+        self.set_open((0, 0));
         self.projects[0].sessions[0].row.harness_type = Some(harness.into());
         self.pickers.harnesses = vec![HarnessInfo {
             kind: harness.into(),
@@ -778,7 +814,7 @@ fn send_text(s: &mut State, tx: &mut Tx, text: String, typed: &str, steer: bool,
         s.forget_previews(&gone);
         s.held.clear_terminals(&owner);
     }
-    let (p, i) = s.open;
+    let (p, i) = s.open_at();
     let session = &mut s.projects[p].sessions[i];
     let id = format!("u{}", session.messages.len() + 1);
     session.messages.push(Message::user(id, text));
@@ -802,7 +838,7 @@ pub fn interrupt(s: &mut State) {
         link.abort(&id);
         return;
     }
-    let (p, i) = s.open;
+    let (p, i) = s.open_at();
     let session = &mut s.projects[p].sessions[i];
     if session.status != Status::Idle {
         session.status = Status::Idle;
@@ -945,7 +981,7 @@ pub fn spec() -> AppSpec<State> {
             ("dark", |s| s.dark = Some(true)),
             ("sidebar-closed", |s| s.sidebar_open = false),
             ("content-open", |s| s.content_open = true),
-            ("needs-input", |s| s.open = (0, 1)),
+            ("needs-input", |s| s.set_open((0, 1))),
             // The row's status as the reducer derives it from a snapshot with a sub-agent.
             ("delegating", |s| s.show_sub_agent(false)),
             ("delegating-light", |s| {

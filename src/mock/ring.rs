@@ -116,7 +116,7 @@ impl State {
 
     /// A scene: the open session (the invented one, idle) has reported `case`.
     pub fn show_context(&mut self, case: Case) {
-        self.open = (0, 2);
+        self.set_open((0, 2));
         self.ring.mock = Some(context(case));
     }
 }

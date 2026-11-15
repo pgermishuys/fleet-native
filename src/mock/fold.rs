@@ -52,7 +52,7 @@ impl State {
     /// A scene: the conversation a server would send, folded. `open` opens the first turn again; `running` leaves the
     /// second turn working (it stays open), else both turns are finished and fold.
     pub fn show_folded(&mut self, open: bool, running: bool) {
-        self.open = (0, 0);
+        self.set_open((0, 0));
         let state = reducer::create_state(&conversation(running));
         if let Some(session) = self.projects.first_mut().and_then(|p| p.sessions.first_mut()) {
             session.status = if running { Status::Working } else { Status::Idle };

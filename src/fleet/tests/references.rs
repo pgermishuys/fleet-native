@@ -12,7 +12,7 @@ const FRAME: f64 = 1.0 / 60.0;
 
 fn mock_app() -> Runtime<State> {
     let mut rt = app();
-    rt.update(|s, _| s.open = (0, 2));
+    rt.update(|s, _| s.set_open((0, 2)));
     rt.frame(FRAME);
     rt.frame(FRAME);
     rt

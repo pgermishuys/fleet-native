@@ -123,7 +123,7 @@ fn disabled_commands_do_not_run() {
     let mut rt = app();
     // No session is open on the blank state, so Interrupt is disabled.
     rt.update(|s, tx| {
-        s.open = (9, 9);
+        s.set_open((9, 9));
         super::palette::open(s, tx);
         s.ui.palette.query = TextEdit::new("interrupt session");
     });

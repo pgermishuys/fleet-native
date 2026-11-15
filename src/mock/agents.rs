@@ -40,7 +40,7 @@ fn delegation(call_id: &str, child: &str, title: &str, status: &str, extra: Valu
 
 impl State {
     pub fn show_agents(&mut self, case: Case) {
-        self.open = (0, 0);
+        self.set_open((0, 0));
         let mut messages = vec![message("u1", "user", NOW - 120_000, vec![text("u1-t", "Check the rounding rules in the background.")])];
         let mut delegations = vec![];
         match case {

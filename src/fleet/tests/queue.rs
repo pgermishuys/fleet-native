@@ -186,7 +186,7 @@ pub(super) fn mock_app(working: bool, kind: &str, steering: bool, by_default: bo
     let mut rt = app();
     let kind = kind.to_string();
     rt.update(move |s, _| {
-        s.open = (0, 2);
+        s.set_open((0, 2));
         s.projects[0].sessions[2].status = if working { Status::Working } else { Status::Idle };
         s.projects[0].sessions[2].row.harness_type = Some(kind.clone());
         s.pickers.harnesses = vec![HarnessInfo {

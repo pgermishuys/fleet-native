@@ -37,6 +37,7 @@ pub mod selector;
 pub mod sessions;
 pub mod signalr;
 pub mod state;
+pub mod store;
 pub mod topics;
 pub mod uploads;
 pub mod usage;

@@ -70,8 +70,8 @@ pub fn long_from_events(rt: &mut Runtime<State>) -> &'static str {
     };
     rt.update(move |s, tx| {
         let at = s.long_session().expect("the long conversation is in the list");
-        s.open = at;
-        s.projects[at.0].sessions[at.1].id = "bench".into();
+        s.set_open(at);
+        s.set_session_id((at.0, at.1), "bench");
         s.on_snapshot("bench", state, tx);
     });
     rt.frame(FRAME);

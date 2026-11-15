@@ -49,9 +49,9 @@ fn every_scene_draws_a_frame() {
 #[test]
 fn clicking_a_session_opens_it() {
     let mut rt = app();
-    assert_eq!(rt.state.open, (0, 0));
+    assert_eq!(rt.state.open_at(), (0, 0));
     click(&mut rt, "session-0-1");
-    assert_eq!(rt.state.open, (0, 1));
+    assert_eq!(rt.state.open_at(), (0, 1));
 }
 
 #[test]
@@ -79,9 +79,9 @@ fn next_and_previous_wrap_around_the_list() {
     let mut rt = app();
     command(&mut rt, '[');
     let last = rt.state.projects.len() - 1;
-    assert_eq!(rt.state.open, (last, rt.state.projects[last].sessions.len() - 1));
+    assert_eq!(rt.state.open_at(), (last, rt.state.projects[last].sessions.len() - 1));
     command(&mut rt, ']');
-    assert_eq!(rt.state.open, (0, 0));
+    assert_eq!(rt.state.open_at(), (0, 0));
 }
 
 #[test]
@@ -97,7 +97,7 @@ fn a_rail_entry_takes_the_whole_context_area() {
 fn a_sent_message_gets_its_canned_reply() {
     let mut rt = app();
     rt.update(|s, tx| {
-        s.open = (0, 1);
+        s.set_open((0, 1));
         s.draft = TextEdit::new("  Ship it  ");
         send(s, tx);
     });
@@ -417,7 +417,7 @@ fn the_draft_follows_the_session_when_another_is_opened_and_comes_back_on_return
     rt.update(|s, _| s.draft = TextEdit::new("first idea"));
     rt.frame(FRAME);
     click(&mut rt, "session-0-1");
-    assert_eq!(rt.state.open, (0, 1));
+    assert_eq!(rt.state.open_at(), (0, 1));
     assert_eq!(rt.state.draft.text, "", "the other session starts empty");
     rt.update(|s, _| s.draft = TextEdit::new("second idea"));
     rt.frame(FRAME);
@@ -592,7 +592,7 @@ fn user_messages(rt: &Runtime<State>) -> usize {
 fn enter_sends_the_draft_and_the_text_area_keeps_focus() {
     let mut rt = app();
     // An idle session: while a turn runs, Enter queues (piece I).
-    rt.update(|s, _| s.open = (0, 2));
+    rt.update(|s, _| s.set_open((0, 2)));
     rt.frame(FRAME);
     let before = user_messages(&rt);
     typed(&mut rt, "Ship it");
@@ -620,7 +620,7 @@ fn shift_enter_adds_a_line_and_sends_nothing() {
 #[test]
 fn ctrl_enter_is_the_other_choice_and_on_an_idle_harness_it_sends() {
     let mut rt = app();
-    rt.update(|s, _| s.open = (0, 2));
+    rt.update(|s, _| s.set_open((0, 2)));
     rt.frame(FRAME);
     let before = user_messages(&rt);
     typed(&mut rt, "Ship it");
@@ -632,7 +632,7 @@ fn ctrl_enter_is_the_other_choice_and_on_an_idle_harness_it_sends() {
 #[test]
 fn send_is_off_with_nothing_to_send_and_on_with_text() {
     let mut rt = app();
-    rt.update(|s, _| s.open = (0, 2));
+    rt.update(|s, _| s.set_open((0, 2)));
     rt.frame(FRAME);
     assert!(rt.state.draft.text.is_empty());
     let before = user_messages(&rt);
@@ -661,7 +661,7 @@ fn a_refused_message_puts_the_text_back_and_says_why_in_the_box_above_the_compos
 fn an_archived_session_takes_no_prompt() {
     let mut rt = app();
     rt.update(|s, _| {
-        s.open = (0, 1);
+        s.set_open((0, 1));
         s.projects[0].sessions[1].row.archived = true;
     });
     rt.frame(FRAME);
@@ -699,7 +699,7 @@ fn a_stopped_session_whose_row_can_prompt_takes_a_prompt() {
 fn interrupt_is_live_while_a_turn_runs_and_while_the_session_waits_and_off_when_idle() {
     let mut rt = app();
     assert!(rt.state.can_interrupt(), "the first session is working");
-    rt.update(|s, _| s.open = (0, 1));
+    rt.update(|s, _| s.set_open((0, 1)));
     assert!(rt.state.can_interrupt(), "the second waits on a question");
     rt.update(|s, _| s.projects[0].sessions[1].status = Status::Idle);
     assert!(!rt.state.can_interrupt());
@@ -715,7 +715,7 @@ fn an_abort_on_its_way_turns_interrupt_off_until_the_session_is_idle() {
 #[test]
 fn a_sent_prompt_reads_busy_at_once_and_the_guess_ends_with_the_turn() {
     let mut rt = app();
-    rt.update(|s, _| s.open = (0, 2));
+    rt.update(|s, _| s.set_open((0, 2)));
     rt.frame(FRAME);
     assert_eq!(rt.state.composer_status(), crate::composer::status::ComposerStatus::Idle);
     rt.update(|s, tx| {
@@ -1141,7 +1141,7 @@ fn the_clock_redraws_when_a_time_changes_and_rests_with_nothing_shown() {
 #[test]
 fn the_ring_shows_nothing_until_the_harness_has_reported_a_call() {
     let mut rt = app();
-    rt.update(|s, _| s.open = (0, 2));
+    rt.update(|s, _| s.set_open((0, 2)));
     rt.frame(FRAME);
     assert!(rt.find("composer-frame").is_some());
     assert!(rt.find("context-ring").is_none());
@@ -1371,7 +1371,7 @@ fn open_shows_the_child_session_and_remembers_the_parent_but_only_one_the_list_h
     click(&mut rt, "work-open-a1");
     assert!(rt.state.work.opened_from.is_none(), "child-1 isn't in the list (component 6): nothing to show");
     rt.update(|s, tx| {
-        s.projects[0].sessions[1].id = "child-1".into();
+        s.set_session_id((0, 1), "child-1");
         assert!(s.open_child("scene", "child-1", tx));
     });
     assert_eq!(rt.state.work.opened_from.as_deref(), Some("scene"));
@@ -1469,7 +1469,7 @@ fn clicking_the_ring_opens_the_details_above_it_and_a_press_outside_closes_them(
 fn compact_now_waits_for_fleets_answer_and_shows_why_it_refused() {
     let mut rt = app();
     rt.update(|s, _| {
-        s.projects[0].sessions[2].id = "s1".into();
+        s.set_session_id((0, 2), "s1");
         s.show_context_popover(crate::mock::ring::Case::Quiet, "");
     });
     rt.frame(FRAME);
@@ -1561,7 +1561,7 @@ fn every_state_of_the_row_draws_and_a_press_opens_the_child() {
     click(&mut rt, "agent-c2");
     assert!(rt.state.work.opened_from.is_none());
     rt.update(|s, tx| {
-        s.projects[0].sessions[1].id = "child-1".into();
+        s.set_session_id((0, 1), "child-1");
         assert!(s.open_child("scene", "child-1", tx));
     });
     assert_eq!(rt.state.session().id, "child-1");
@@ -1662,7 +1662,7 @@ fn activity_stream_and_work_fleet_stopped_asks_fleet_for_older_work_when_the_str
     let (messages, _) = stopped_shell("sh_dev");
     let mut rt = app();
     rt.update(move |s, _| {
-        s.projects[0].sessions[0].id = "s1".into();
+        s.set_session_id((0, 0), "s1");
         s.link = Some(crate::fleet::link::Link::start(base, crate::fleet::link::Post::new(|_| {})));
         let stream = crate::fleet::reducer::create_state(
             &serde_json::json!({"session": {}, "messages": messages, "delegations": [], "activityStatus": "idle"}),

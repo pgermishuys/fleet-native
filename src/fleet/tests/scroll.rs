@@ -169,8 +169,8 @@ fn with_older() -> Runtime<State> {
     let link = Link::start("http://127.0.0.1:9".into(), Post::new(|_| {}));
     rt.update(move |s, _| {
         s.link = Some(link);
-        let (p, i) = s.open;
-        s.projects[p].sessions[i].id = "older-session".into();
+        let (p, i) = s.open_at();
+        s.set_session_id((p, i), "older-session");
         let mut stream = create_state(&serde_json::json!({"messages": []}));
         stream.has_more = true;
         stream.cursor = Some("cursor-1".into());
@@ -216,7 +216,7 @@ fn keeps_the_reading_position_when_they_arrive_above() {
     };
     // Older messages are prepended: ten short questions, as a page of history joins.
     rt.update(|s, _| {
-        let (p, i) = s.open;
+        let (p, i) = s.open_at();
         for n in 0..10 {
             let older = crate::view::conversation::Message::user(format!("older-{n}"), "An older question that took a few words.");
             s.projects[p].sessions[i].messages.insert(0, older);

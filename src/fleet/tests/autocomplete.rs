@@ -34,7 +34,7 @@ pub(super) fn typed(rt: &mut Runtime<State>, text: &str) {
 fn mock_app(shell: bool, side: bool) -> Runtime<State> {
     let mut rt = app();
     rt.update(move |s, _| {
-        s.open = (0, 2);
+        s.set_open((0, 2));
         s.projects[0].sessions[2].row.harness_type = Some("opencode".into());
         s.pickers.harnesses = vec![HarnessInfo {
             kind: "opencode".into(),

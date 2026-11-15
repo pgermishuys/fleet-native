@@ -203,7 +203,7 @@ impl State {
     /// `open()`: the field takes focus with its text selected, and older history starts to load.
     pub fn find_open(&mut self, tx: &mut Tx) {
         self.find.open();
-        self.find.at = self.open;
+        self.find.at = self.open_at();
         self.find_sync();
         self.find_select_field();
         tx.focus(find::FIELD, false);
@@ -301,7 +301,7 @@ impl State {
         if !self.find.open {
             return false;
         }
-        if self.find.at != self.open {
+        if self.find.at != self.open_at() {
             self.find.close();
             return true;
         }
@@ -329,7 +329,7 @@ impl State {
     /// A scene: the bar open on the open session with a query, as typed (`case` says which of its states).
     pub fn show_find(&mut self, query: &str, scope: Scope, current: usize, older: Option<crate::view::conversation::Older>) {
         self.find.open();
-        self.find.at = self.open;
+        self.find.at = self.open_at();
         self.find.query = rune::TextEdit::new(query);
         self.find.scope = scope;
         self.find_sync();

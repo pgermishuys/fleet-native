@@ -97,7 +97,7 @@ impl crate::State {
     /// caret beside a picked file; or that file taken out whole.
     pub fn show_references(&mut self, state: &str) {
         use crate::composer::refs::SessionReference;
-        self.open = (0, 2);
+        self.set_open((0, 2));
         self.projects[0].sessions[2].row.harness_type = Some("claude-code".into());
         self.pickers.harnesses = vec![crate::composer::status::HarnessInfo {
             kind: "claude-code".into(),
@@ -130,7 +130,7 @@ impl crate::State {
     pub fn show_autocomplete(&mut self, state: &str) {
         use crate::composer::status::HarnessInfo;
         use crate::fleet::finder::Loaded;
-        self.open = (0, 2);
+        self.set_open((0, 2));
         let harness = if state.starts_with("skill-") { "claude-code" } else { "opencode" };
         self.projects[0].sessions[2].row.harness_type = Some(harness.into());
         self.pickers.harnesses = vec![HarnessInfo {

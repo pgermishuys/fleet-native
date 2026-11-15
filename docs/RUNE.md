@@ -642,3 +642,8 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 
 - Nothing new about Rune: the grouping, the filter and the pin split are plain Rust in `src/fleet/groups.rs`. One shape fits both the app's `Session` and the tests' own item: a `Listed` trait (id, title, status word, `Listing`), so the logic runs on whatever row a later piece adds.
 - A scene that must show an empty project builds it in `mock/groups.rs`; the invented list gets project ids and positions in `mock::projects()` so the filter's project-name match is tested without a server.
+
+## Session list, piece B (sessions store, selection by id)
+
+- Nothing new about Rune. A scripted run (`--script`) steps a virtual clock one frame at a time (about 0.4 s of wall time per frame on a software renderer), while the app's own threads and `Instant` timers run in wall time. To change the server in the middle of a run, work out the wall time of the mark first (here 24 s of script took about 240 s) and change the server about 60 % of the way.
+- A scene or test that gives the open session another id must also move the route: `State::set_session_id`.

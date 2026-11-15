@@ -314,7 +314,7 @@ impl State {
     /// Scenes for the files, the paste offer and the terminal lines (piece O): invented files, put in the draft as if a
     /// thread had read them.
     pub fn show_files(&mut self, state: &str) {
-        self.open = (0, 2);
+        self.set_open((0, 2));
         let owner = self.draft_owner().unwrap_or_default();
         let hold = |s: &mut State, name: &str, size: u64, lines: Option<usize>, pasted: bool| {
             let id = s.held.next_id();

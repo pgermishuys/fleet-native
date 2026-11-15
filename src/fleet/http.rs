@@ -53,9 +53,13 @@ pub fn ready(base: &str, timeout: Duration) -> bool {
     agent.get(url(base, "/readyz")).call().is_ok()
 }
 
-/// The session list's rows (`GET /api/sessions`).
-pub fn sessions(base: &str) -> Result<Value, String> {
-    get(base, "/api/sessions?limit=200")
+/// The session list's rows (`GET /api/sessions`, one page of 100). A refusal says what the server said (`error_text`).
+pub fn sessions(base: &str, retention: super::store::Retention) -> Result<Value, String> {
+    let (status, body) = get_page(base, &super::store::list_path(retention))?;
+    if !(200..300).contains(&status) {
+        return Err(super::store::error_text(status, &body));
+    }
+    serde_json::from_str(&body).map_err(|_| "No data returned".to_string())
 }
 
 /// The projects (`GET /api/projects`): the session list's groups and their order.

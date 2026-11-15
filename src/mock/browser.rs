@@ -36,7 +36,7 @@ fn step(seq: i64, summary: &str, detail: &str, error: Option<&str>, shot: bool) 
 
 impl State {
     pub fn show_browser(&mut self, case: Case) {
-        self.open = (0, 0);
+        self.set_open((0, 0));
         let running = case == Case::Running;
         let text = |id: &str, body: &str| json!({"type": "text", "id": id, "text": body});
         let code = "const tab = await browser.open('http://localhost:5173/');\nawait tab.click('Add to cart');\nawait tab.screenshot();\nawait tab.click('Checkout');";
@@ -52,8 +52,10 @@ impl State {
         let snapshot =
             json!({"session": {}, "messages": messages, "delegations": [], "activityStatus": if running { "busy" } else { "idle" }});
         self.stream = Some(crate::fleet::reducer::create_state(&snapshot));
+        if !self.projects.is_empty() {
+            self.set_session_id((0, 0), SESSION);
+        }
         if let Some(session) = self.projects.first_mut().and_then(|p| p.sessions.first_mut()) {
-            session.id = SESSION.into();
             session.status = if running { Status::Working } else { Status::Idle };
             session.row.activity = if running { "busy" } else { "idle" }.into();
         }

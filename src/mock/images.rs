@@ -41,7 +41,7 @@ fn file(id: &str, name: &str, bytes: &[u8]) -> Value {
 
 impl State {
     pub fn show_images(&mut self, case: Case) {
-        self.open = (0, 0);
+        self.set_open((0, 0));
         let text = |id: &str, body: &str| json!({"type": "text", "id": id, "text": body});
         let messages = if case == Case::Attachments {
             vec![

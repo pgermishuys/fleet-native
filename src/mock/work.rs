@@ -56,7 +56,7 @@ fn ended(mut v: Value, since: i64, status: &str, reason: &str, detail: Option<&s
 
 impl State {
     pub fn show_work(&mut self, case: Case) {
-        self.open = (0, 0);
+        self.set_open((0, 0));
         let text = |id: &str, body: &str| json!({"type": "text", "id": id, "text": body});
         let messages = vec![
             message("u1", "user", NOW - 120_000, vec![text("u1-t", "background-work")]),

@@ -506,6 +506,7 @@ mod rows;
 mod scroll;
 mod selector;
 mod state;
+mod store;
 mod usage;
 mod wire;
 mod work;

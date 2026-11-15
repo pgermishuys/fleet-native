@@ -19,7 +19,7 @@ impl State {
         self.projects.insert(0, project("mock-ledger", "Ledger", 0));
         self.projects.push(project("mock-docs", "Docs site", 5));
         self.projects.sort_by_key(|p| p.position);
-        self.open = (1, 1);
+        self.set_open((1, 1));
         self.filter = rune::TextEdit::new(filter);
     }
 }

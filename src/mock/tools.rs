@@ -204,7 +204,7 @@ impl State {
 
     /// A scene: the first session shows `messages` instead of its own.
     pub fn show_conversation(&mut self, messages: Vec<crate::view::conversation::Message>) {
-        self.open = (0, 0);
+        self.set_open((0, 0));
         if let Some(session) = self.projects.first_mut().and_then(|p| p.sessions.first_mut()) {
             session.status = crate::mock::Status::Idle;
             session.messages = messages;
