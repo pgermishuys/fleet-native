@@ -747,6 +747,11 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 - **Negative margins work** (`.mt(-4.0)` for the "Pick any that apply." line).
 - **`focus_within_ring(1.0, -1.0, ..)`** on a row is `:focus-within` for a field inside it; `text_input` line height 1.7 matches a browser input's row height at 13px.
 
+## Question card live (component 4, piece D)
+
+- **A text field inside a `memo`d row must have its own `TextEdit` in the memo key** (`(&card.typed, ..).hash(..)`), not just its text: the memo keeps the handlers of its first build, and a field built without its focus and selection in the key never took a click or a keystroke (the card looked right and typed nothing). It took a bisect to find; the memo docs say so in one line.
+- **`Runtime::elements()` shows focus** (`e.focused`, `e.key`): a headless test reads where the keyboard is without a window.
+
 ## Session list, piece H (row rename, confirm dialog)
 
 - **A headless modal focuses itself, not its `autofocus` child**: `rt.elements()` shows the dialog panel as focused whatever is marked

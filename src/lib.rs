@@ -984,7 +984,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     let scrolled = s.keep_scroll(tx);
     let pictures = s.keep_images(tx);
     let renamed = s.keep_rename(tx) | s.keep_row_rename(tx);
-    let found = s.find_poll(tx) | s.keep_questions();
+    let found = s.find_poll(tx) | s.keep_questions(tx);
     let exported = s.export_poll(tx);
     // "Copied" on a message's button ends by itself.
     let copied = match &s.copied {
@@ -1077,7 +1077,7 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
 }
 
 fn on_key(s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool {
-    if s.find_key(ev, tx) || view::permission::on_key(s, ev, tx) {
+    if s.find_key(ev, tx) || view::permission::on_key(s, ev, tx) || view::question::on_key(s, ev, tx) {
         return true;
     }
     if ev.is_command('k') {
@@ -1443,6 +1443,42 @@ pub fn spec() -> AppSpec<State> {
             ("question-no-custom-light", |s| {
                 s.dark = Some(false);
                 s.show_question(mock::questions::Case::NoCustom)
+            }),
+            // Piece D of component 4: the question card live, and what it shrinks to.
+            ("question-answered", |s| s.show_question(mock::questions::Case::Answered)),
+            ("question-answered-light", |s| {
+                s.dark = Some(false);
+                s.show_question(mock::questions::Case::Answered)
+            }),
+            ("question-answered-two", |s| s.show_question(mock::questions::Case::AnsweredTwo)),
+            ("question-answered-two-light", |s| {
+                s.dark = Some(false);
+                s.show_question(mock::questions::Case::AnsweredTwo)
+            }),
+            ("question-answered-long", |s| s.show_question(mock::questions::Case::AnsweredLong)),
+            ("question-answered-long-light", |s| {
+                s.dark = Some(false);
+                s.show_question(mock::questions::Case::AnsweredLong)
+            }),
+            ("question-skipped", |s| s.show_question(mock::questions::Case::Skipped)),
+            ("question-skipped-light", |s| {
+                s.dark = Some(false);
+                s.show_question(mock::questions::Case::Skipped)
+            }),
+            ("question-gone", |s| s.show_question(mock::questions::Case::Gone)),
+            ("question-gone-light", |s| {
+                s.dark = Some(false);
+                s.show_question(mock::questions::Case::Gone)
+            }),
+            ("question-failed", |s| s.show_question(mock::questions::Case::Failed)),
+            ("question-failed-light", |s| {
+                s.dark = Some(false);
+                s.show_question(mock::questions::Case::Failed)
+            }),
+            ("question-sending", |s| s.show_question(mock::questions::Case::Sending)),
+            ("question-sending-light", |s| {
+                s.dark = Some(false);
+                s.show_question(mock::questions::Case::Sending)
             }),
             ("ask-command", |s| s.show_ask(mock::asks::Case::Command)),
             ("ask-command-light", |s| {

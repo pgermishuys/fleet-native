@@ -1,5 +1,6 @@
 //! Boils the reducer's messages down to what the conversation draws (`view::conversation`).
 use super::model::{Msg, PartData};
+use crate::asks::question::QuestionPart;
 use crate::conv::background::{AgentCall, Finished, background_status, parse_background_notice, with_end};
 use crate::conv::card::tool_body;
 use crate::conv::compaction::fold_compaction_summaries;
@@ -98,6 +99,7 @@ fn part(p: &PartData, role: Role, folded: Option<&str>, finished: &Finished) -> 
                 state: tool_state(tool, state, &body.diff),
                 body: Box::new(body),
                 agent: if get_tool(tool).category == Category::Subagent { AgentCall::of(state) } else { AgentCall::default() },
+                question: QuestionPart::read(tool, state).map(Box::new),
             }
         }
     }

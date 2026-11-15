@@ -103,6 +103,32 @@ pub fn question_status(state: &Value) -> QuestionStatus {
     }
 }
 
+/// What the conversation keeps of a `question` call to draw its card or its row: the status, the questions and what a
+/// completed call recorded (`getQuestionStatus`, `getQuestionInput`, `getQuestionAnswers`).
+#[derive(Clone, Debug, PartialEq)]
+pub struct QuestionPart {
+    pub status: QuestionStatus,
+    pub input: Option<QuestionInput>,
+    pub answers: Option<Vec<Vec<String>>>,
+}
+
+impl QuestionPart {
+    /// `None` for a call of any other tool.
+    pub fn read(tool: &str, state: &Value) -> Option<QuestionPart> {
+        if get_tool(tool).category != Category::Question {
+            return None;
+        }
+        Some(QuestionPart { status: question_status(state), input: question_input(tool, state), answers: question_answers(tool, state) })
+    }
+
+    /// A number that moves when the card or row draws differently (the row's `Part::weight`).
+    pub fn weight(&self) -> usize {
+        let asked: usize = self.input.iter().flat_map(|i| &i.questions).map(|q| q.question.len() + q.options.len()).sum();
+        let answered: usize = self.answers.iter().flatten().flatten().map(String::len).sum();
+        1 + (self.status as usize) * 11 + asked + answered + usize::from(self.answers.is_some())
+    }
+}
+
 /// `answerText`: the answers joined by ", ", or "No answer" when there are none.
 pub fn answer_text(answers: Option<&Vec<String>>) -> String {
     match answers {

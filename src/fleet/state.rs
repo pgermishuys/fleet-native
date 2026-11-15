@@ -528,6 +528,7 @@ impl State {
             session.touch(super::link::now_ms());
         }
         self.refold();
+        self.sync_questions();
         self.load_older_work();
     }
 

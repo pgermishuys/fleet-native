@@ -331,6 +331,18 @@ pub fn reply(base: &str, session: &str, ask: &str, reply: &str, message: Option<
     status_with("POST", base, &format!("/api/sessions/{session}/permissions/{ask}"), Some(&body))
 }
 
+/// `POST /api/sessions/{id}/questions/{request}/answer`: what the user picked or typed, one list per question
+/// (`use-question-answer.ts` `answerQuestion`). The request id is the question call's `callId`.
+pub fn question_answer(base: &str, session: &str, request: &str, answers: &[Vec<String>]) -> Result<(u16, Value), String> {
+    let body = json!({ "answers": answers });
+    status_with("POST", base, &format!("/api/sessions/{session}/questions/{request}/answer"), Some(&body))
+}
+
+/// `POST /api/sessions/{id}/questions/{request}/reject`: Skip, no body (`rejectQuestion`).
+pub fn question_reject(base: &str, session: &str, request: &str) -> Result<(u16, Value), String> {
+    status_of("POST", base, &format!("/api/sessions/{session}/questions/{request}/reject"))
+}
+
 /// `POST /api/sessions/{id}/work/{item}/stop`: Fleet's own item id, not the harness's `workId`. The answer is the ended item.
 pub fn work_stop(base: &str, session: &str, item: &str) -> Result<(u16, Value), String> {
     status_of("POST", base, &format!("/api/sessions/{session}/work/{item}/stop"))

@@ -502,6 +502,7 @@ mod modes;
 mod ordering;
 mod presence;
 mod prompts;
+mod questions;
 mod queue;
 mod reconnect;
 mod references;
