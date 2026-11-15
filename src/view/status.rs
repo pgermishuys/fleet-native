@@ -44,7 +44,7 @@ pub fn bar(s: &State, t: &Theme) -> El {
         session = session.child(text(note).font(label).color(t.error).truncate()).child(text("|").font(label).color(t.border));
     }
     // On a server, nothing of the invented session shows: no agent and no token total until a session is open.
-    if s.link.is_some() && !s.has_session() {
+    if (s.link.is_some() || s.live) && !s.has_session() {
         return row()
             .key("status-bar")
             .w_full()

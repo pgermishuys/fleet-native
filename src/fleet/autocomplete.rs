@@ -372,7 +372,7 @@ impl State {
                     },
                 );
             }
-        } else if self.link.is_none() {
+        } else if self.is_mock() {
             let _ = self.finder.sessions.should_fetch(mention_open, now);
         }
     }

@@ -199,7 +199,7 @@ impl State {
     /// and the window is still waiting for its first list, so that counts too.
     pub fn list_is_loading(&self) -> bool {
         let waiting = self.link.is_some() && !self.store.list_loaded && self.store.error.is_none();
-        self.store.is_loading || self.project_load.is_loading || waiting
+        self.store.is_loading || self.project_load.is_loading || waiting || self.searching
     }
 
     /// "Try again": reads the sessions and the projects again, together.

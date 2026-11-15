@@ -22,7 +22,7 @@ pub fn sheet(s: &State, t: &Theme) -> El {
         .min_w(0.0)
         .h_full()
         .min_h(0.0)
-        .child(header(t, project, session, s.link.is_some()))
+        .child(header(t, project, session, !s.is_mock()))
         .child(stream(
             t,
             session,
