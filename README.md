@@ -54,6 +54,12 @@ SHA-256; `fleet-native --version` prints the build you have.
 It finds the Fleet running on the same machine by itself (see "Try it"); for another one, run `fleet-native --server <url>` or set `FLEET_NATIVE_SERVER`.
 Sending a message makes that Fleet's agent act.
 
+**The app updates itself.** A build you downloaded (not one from `cargo run`) looks at `latest.json` when it starts and every
+few hours. When a newer build is out, "Update available · build N" appears in the status bar; click it, then **Update and
+restart**. It downloads the file for your system, checks its SHA-256 against `latest.json`, replaces itself and starts again;
+your drafts are kept. If anything fails, the app you have keeps running, unchanged, and says why. On macOS, if the folder the app
+is in can't be written, the `.dmg` is opened for the usual drag instead. `fleet-native --update-now` does the same with no window.
+
 These builds are **unsigned**:
 
 - **Windows:** unzip and run `fleet-native.exe`. SmartScreen says "Windows protected your PC": click **More info**,

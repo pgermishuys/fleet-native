@@ -165,7 +165,7 @@ records that commit in its checklist, so the port tracks Fleet as it is, not as 
 | 23 | Labs views | Jobs, Fleet (mission control), the board. 2 slices. | `components/jobs`, `mission-control`, `board`, `dashboard` | 6,700 | |
 | | **Milestone 4: replaces Electron** | | | | |
 | 24 | Desktop shell | Starts its own server when none is running, one instance, tray, menus, notifications, deep links, window position, the shell environment. | weave-fleet's `desktop/src` | 1,200 (TS) | |
-| 25 | Packages and updates | Signed installers for Windows, macOS and Linux with the server inside, and self-update. | `.github/workflows/desktop-packages.yml` | | |
+| 25 | Packages and updates | Signed installers for Windows, macOS and Linux with the server inside, and self-update. **Self-update is built** (pulled forward from the rolling `latest` release: a status-bar item, one dialog, SHA-256 check, replace in place, restart; `src/update/`); signed installers and the server inside remain. | `.github/workflows/desktop-packages.yml` | | |
 | 26 | Parity audit | Every screen beside Fleet's once more; keyboard and screen reader pass; catch up with Fleet's latest release. Then replacing Electron is the owner's call. | | | |
 
 Between milestones, two sessions run on their own: one **catches the finished components up** with

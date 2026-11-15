@@ -74,6 +74,14 @@ jobs:
         if: runner.os == 'Linux' || github.event_name != 'pull_request'
         run: bash scripts/snap-scenes.sh
 
+      # The updater's replace step on a real system: a copy of this debug build that believes it is build 1 (FLEET_NATIVE_TEST_BUILD) updates itself from a
+      # fake release served from loopback (no GitHub). macOS is covered by a test that mounts a real .dmg (cargo test).
+      - name: Updater swaps the program (Linux, Windows)
+        if: runner.os != 'macOS'
+        run: |
+          cargo build --locked
+          bash scripts/update-check.sh target/debug/fleet-native
+
       - name: Upload the pictures
         if: always()
         uses: actions/upload-artifact@v4

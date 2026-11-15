@@ -73,6 +73,13 @@ needs.
 
 ## Things we learned
 
+- **Restarting the app (the updater).** Rune has no quit or relaunch call that waits for a save. The updater starts the new
+  process itself (`Command::spawn`, or `open -n` for a macOS bundle) and ends with `std::process::exit(0)` from an
+  `AppHandle::update` closure, after writing the drafts and settings synchronously (`save_now`, in the same order as the
+  threads that normally write them). A running Linux program can be replaced by a rename; Windows needs `self-replace`.
+- **`ureq` needs its `rustls` feature for https.** Plain `default-features = false` talks http only; GitHub's release downloads
+  are https and redirect to another host, which `ureq` follows by itself.
+
 - **A view isn't told the window's size.** `Cx` has none. To lay out by width (the content panel
   opens over the conversation in a narrow sheet), measure with `.on_layout` and store the width in
   the state. It arrives one frame late, which is why pictures are taken with `--at 0.3` and tests

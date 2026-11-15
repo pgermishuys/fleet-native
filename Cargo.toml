@@ -19,12 +19,24 @@ rune-kit = { git = "https://github.com/anomalyco/rune", rev = "f1f54ce8bf485ee3a
 # The server connection (src/fleet/). Blocking calls on plain threads, no async runtime, no TLS yet
 # (loopback only; the machines lane adds it).
 serde_json = "1"
-ureq = { version = "3", default-features = false }
+# `rustls` is for the updater: it fetches https://github.com/.../releases (src/update/). The server connection stays plain http.
+ureq = { version = "3", default-features = false, features = ["rustls"] }
+# The updater: the SHA-256 of a download, and the two archives (.tar.gz on Linux, .zip on Windows) it opens. `flate2` is
+# already in Cargo.lock through Rune's image crates; `zip` takes it for deflate, and `tar` is a few hundred lines.
+sha2 = "0.10"
+flate2 = "1"
+tar = { version = "0.4", default-features = false }
+zip = { version = "2", default-features = false, features = ["deflate"] }
 tungstenite = { version = "0.28", default-features = false, features = ["handshake"] }
 
 # The pid check of the instance file (`kill(pid, 0)`); already in Cargo.lock through Rune.
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
+
+# The updater on Windows: swap the running exe for the new one (rename it aside, put the new one in its place, delete the
+# old one after exit). The dance has traps (a locked file, a path that moves), so a small maintained crate does it.
+[target.'cfg(windows)'.dependencies]
+self-replace = "1"
 
 # Windows icon and version information (build.rs). Build time only: nothing of it is in the exe.
 [target.'cfg(windows)'.build-dependencies]
