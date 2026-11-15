@@ -258,3 +258,18 @@ Nothing in Rune was needed. Learned:
   times, one frame each): `find` still reports the element, but under the header, where the press lands on the header.
 - To show a request in flight in a picture, `kill -STOP` the scratch Fleet's server (by the PID listening on its port),
   take the picture, `kill -CONT` it. Held 30 s it also shows the timeout wording. Always `CONT` it, in a `finally`.
+
+## Component 2, piece G (presence and focus)
+
+Rune has what is needed; nothing to work around. Learned:
+
+- `App::on_focus(fn(&mut S, bool, &mut Tx))` fires once per focus change (also while hidden or covered); `App::on_visibility`
+  fires when the window goes off screen (minimised, hidden, covered whole where the system says so) and back. Both are on `App`,
+  not `AppSpec`, so they are set in `start_desktop` and never run in scenes or tests. Tests drive the link's commands directly.
+- Under Xvfb with no window manager `on_visibility` did not fire when the window was unmapped or covered by a larger one;
+  `on_focus` did (`xdotool windowfocus`). So visibility can't be shown on this machine; a real desktop is needed.
+- `xdotool windowfocus` between two windows of the app itself is the way to see focus change under Xvfb: no other
+  program (no tkinter, no WM) is needed.
+- To see the hub frames the app sends, a small TCP relay in front of the scratch Fleet that unmasks the client's WebSocket text
+  frames is enough; the app's `--server` is pointed at the relay.
+

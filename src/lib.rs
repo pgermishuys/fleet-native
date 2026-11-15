@@ -389,7 +389,19 @@ pub fn start_desktop() {
     if let Some(url) = &server {
         let _ = SERVER.set(url.clone());
     }
-    let app = App::new(spec()).args(rest);
+    // The server hears whether the window has the keyboard and is on screen (`fleet::presence`).
+    let app = App::new(spec())
+        .args(rest)
+        .on_focus(|s, focused, _| {
+            if let Some(link) = &s.link {
+                link.window_focus(focused);
+            }
+        })
+        .on_visibility(|s, visible, _| {
+            if let Some(link) = &s.link {
+                link.window_visible(visible);
+            }
+        });
     if let Some(url) = server {
         let handle = app.handle();
         let link = Link::start(url, Post::from_handle(handle.clone()));

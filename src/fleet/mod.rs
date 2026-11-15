@@ -9,6 +9,7 @@ pub mod history;
 pub mod http;
 pub mod link;
 pub mod model;
+pub mod presence;
 pub mod prompts;
 pub mod reducer;
 pub mod sessions;

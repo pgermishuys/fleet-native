@@ -1,0 +1,20 @@
+01:39:42.912  -> SubscribeToSessionsTopicAsync()
+01:39:42.912  -> SetPresenceAsync(true, "desktop")
+01:39:43.087  -> SubscribeToSessionAsync("<session>")
+01:39:43.112  -> SetSessionFocusAsync("<session>", true)
+01:39:44.686  -> SetSessionFocusAsync("<session>", false)
+01:39:58.967  ==== the Fleet window is focused
+01:39:59.262  -> SetSessionFocusAsync("<session>", true)
+01:40:02.330  ==== the other window takes the keyboard
+01:40:02.627  -> SetSessionFocusAsync("<session>", false)
+01:40:05.810  ==== the Fleet window is focused again
+01:40:06.093  -> SetSessionFocusAsync("<session>", true)
+01:40:09.446  ==== the other window is moved over the Fleet window
+01:40:09.743  -> SetSessionFocusAsync("<session>", false)
+01:40:12.507  ==== the other window is moved away, the Fleet window focused
+01:40:12.790  -> SetSessionFocusAsync("<session>", true)
+01:40:12.929  -> SetPresenceAsync(true, "desktop")
+01:40:15.550  ==== the Fleet window is unmapped
+01:40:15.847  -> SetSessionFocusAsync("<session>", false)
+01:40:18.600  ==== the Fleet window is mapped again
+01:40:18.992  -> SetSessionFocusAsync("<session>", true)
