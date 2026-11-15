@@ -224,7 +224,13 @@ fn pane(t: &Theme, d: &ExportDialog) -> El {
             (Load::Failed(why), _) => error_note(t, "export-error", why),
             (_, Some(built)) if d.pane == Pane::Source => source(t, &built.markdown),
             (_, Some(built)) => {
-                let style = super::prose::style(t);
+                // The renderer in Fleet's dialog draws smaller than the conversation's: 13px text, 16px and 14.5px headings.
+                let style = super::prose::style(t)
+                    .body_font(sans(13.0, 400.0, 1.6))
+                    .heading_font(1, sans(17.0, 600.0, 1.3))
+                    .heading_font(2, sans(15.0, 600.0, 1.3))
+                    .heading_font(3, sans(14.0, 600.0, 1.3))
+                    .heading_font(4, sans(13.0, 600.0, 1.3));
                 col().key("export-rendered").w_full().child(super::prose::prose(&style, "export-rendered-md", &built.markdown, false))
             }
             (load, None) => {
