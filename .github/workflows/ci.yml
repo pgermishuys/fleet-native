@@ -69,8 +69,6 @@ jobs:
 
       - name: Draw every scene
         run: bash scripts/snap-scenes.sh
-        env:
-          SNAP_JOBS: ${{ runner.os == 'Windows' && 2 || 4 }}
 
       - name: Upload the pictures
         if: always()
