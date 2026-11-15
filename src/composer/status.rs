@@ -104,3 +104,56 @@ pub fn has_content(text: &str, shell_mode: bool, shell_pending: bool, extras: us
     }
     !shell_pending && (!text.trim().is_empty() || extras > 0)
 }
+
+/// `optimisticBusy` (row 2.11): after a send the composer reads busy until the session says it is, so the
+/// buttons don't flicker back to idle in the gap before the server's first `busy`. It ends when the session
+/// has been busy and is not any more, or after `GIVE_UP` seconds (a prompt the server never turned into a turn).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Optimistic {
+    pub since: f64,
+    pub seen: bool,
+}
+
+impl Optimistic {
+    pub const GIVE_UP: f64 = 15.0;
+
+    pub fn new(now: f64) -> Optimistic {
+        Optimistic { since: now, seen: false }
+    }
+
+    /// One look at the session: whether the guess still holds.
+    pub fn keep(&mut self, busy: bool, now: f64) -> bool {
+        self.seen |= busy;
+        !(self.seen && !busy) && now - self.since < Self::GIVE_UP
+    }
+}
+
+/// What the draft is: a message for the agent, a shell command (`!`), or a question for the side conversation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Mode {
+    Prompt,
+    Shell,
+    Side,
+}
+
+/// `isShellMode` and `isSideMode`: the side conversation being open wins; a `!` draft is a command only where
+/// the harness runs commands.
+pub fn mode_of(text: &str, caps: &Caps, side_open: bool) -> Mode {
+    if side_open {
+        Mode::Side
+    } else if caps.supports_shell && super::route::is_shell_draft(text) {
+        Mode::Shell
+    } else {
+        Mode::Prompt
+    }
+}
+
+/// Send's label and title (row 2.7), except the busy ones (piece I): "Send", "Run command" in shell mode and
+/// "Ask in the side conversation" in side mode.
+pub fn send_label(mode: Mode) -> &'static str {
+    match mode {
+        Mode::Prompt => "Send",
+        Mode::Shell => "Run command",
+        Mode::Side => "Ask in the side conversation",
+    }
+}

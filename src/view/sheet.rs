@@ -1,12 +1,12 @@
 //! The workspace sheet: the session header, the conversation, the composer, and the content
 //! panel on the right (collapsed to a 48px rail by default).
-use super::conversation::{COLUMN, stream};
+use super::conversation::stream;
 use super::parts::tool_button;
 use crate::icons::*;
 use crate::mock::{Project, Session, Status};
 use crate::theme::{Theme, mono, sans};
-use crate::{State, interrupt, send};
-use rune::{Color, Cursor, El, Shadow, auto_grow, col, el, icon, row, spacer, text, text_input};
+use crate::{State, interrupt};
+use rune::{Color, Cursor, El, Shadow, col, el, icon, row, spacer, text};
 
 /// `AppShell.vue`: the content panel is a column only while the conversation keeps 480px beside
 /// the panel at its narrowest (280px). In a narrower sheet it opens over the conversation.
@@ -25,7 +25,7 @@ pub fn sheet(s: &State, t: &Theme) -> El {
         .child(header(t, project, session, s.link.is_some()))
         .child(stream(t, session, s.is_partial(), s.older()))
         .children(super::recap::recap_line(t, s.recap()))
-        .child(composer(s, t, session));
+        .child(super::composer::composer(s, t, session));
     let mut sheet = row()
         .key("workspace-sheet")
         .grow(1.0)
@@ -142,78 +142,6 @@ fn header(t: &Theme, project: &Project, session: &Session, on_server: bool) -> E
         .border_sides([0.0, 0.0, 1.0, 0.0], t.border)
         .child(main)
         .child(actions)
-}
-
-fn composer(s: &State, t: &Theme, session: &Session) -> El {
-    // 14 + one 21px line + 25 is the 60px the empty field measures in Fleet; seven lines is
-    // about its 180px maximum.
-    let field = text_input(&s.draft, sans(14.0, 400.0, 1.5))
-        .key("composer")
-        .label("Message")
-        .placeholder("Type a message…", t.muted)
-        .color(t.text)
-        .caret(t.text, t.accent.alpha(0.35))
-        .w_full()
-        .pt(14.0)
-        .px(16.0)
-        .pb(25.0)
-        .on_edit(|s: &mut State| &mut s.draft)
-        .on_submit(send);
-    let chip = |key: &'static str, label: &str| {
-        row()
-            .key(key)
-            .h(28.0)
-            .px(8.0)
-            .gap(5.0)
-            .center_y()
-            .radius(8.0)
-            .hover(t.wash(6.0))
-            .cursor(Cursor::Pointer)
-            .shrink()
-            .min_w(0.0)
-            .on_press(move |s: &mut State| s.ui.open = Some(crate::ui::Open::Menu(if key == "agent" { "agent" } else { "model" })))
-            .child(text(label).font(sans(12.0, 400.0, 1.2)).color(t.text.alpha(0.8)).truncate().shrink())
-            .child(icon(&CHEVRON_DOWN, 13.0).color(t.muted))
-    };
-    let working = session.status == Status::Working;
-    let empty = s.draft.text.trim().is_empty();
-    let toolbar = row()
-        .w_full()
-        .center_y()
-        .gap(2.0)
-        .pt(4.0)
-        .px(8.0)
-        .pb(8.0)
-        .child(tool_button(t, "attach", &PAPERCLIP, 12.25, "Attach a file"))
-        .child(chip("agent", crate::ui::menus::AGENTS[s.ui.agent]))
-        .child(chip("model", crate::ui::menus::MODELS[s.ui.model]))
-        .child(tool_button(t, "interrupt", &CIRCLE_X, 12.25, "Interrupt").opacity(if working { 1.0 } else { 0.5 }).on_press(interrupt))
-        .child(spacer())
-        .child(
-            el().key("send")
-                .size(30.0, 30.0)
-                .center()
-                .radius(15.0)
-                .fill(t.accent)
-                .opacity(if empty { 0.5 } else { 1.0 })
-                .hover(Color::BLACK.alpha(0.1))
-                .cursor(Cursor::Pointer)
-                .help("Send")
-                .label("Send")
-                .on_press_tx(send)
-                .child(icon(&ARROW_UP, 14.0).color(Color::WHITE)),
-        );
-    let frame = col()
-        .key("composer-frame")
-        .w_full()
-        .max_w(COLUMN)
-        .radius(14.0)
-        .fill(t.card_bg)
-        .border(1.0, t.border)
-        .box_shadow(Shadow { x: 0.0, y: 10.0, blur: 28.0, spread: -18.0, color: Color::BLACK.alpha(0.5), inset: false })
-        .child(auto_grow(field, 1, 7))
-        .child(toolbar);
-    col().w_full().pt(4.0).px(24.0).pb(18.0).items_center().child(frame)
 }
 
 /// The collapsed content panel (`CollapsedRightRail.vue`): the plan icon and how many steps

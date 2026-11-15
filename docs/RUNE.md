@@ -367,3 +367,21 @@ Nothing in Rune was needed. Learned:
 - **The shared `CARGO_TARGET_DIR` binary can be another session's build.** A live check that runs `target/debug/fleet-native` for
   minutes should copy the binary out first; a script step failed with "no element with key" because the binary had been replaced
   by a build without this piece.
+
+## Component 5, piece B (the frame and the toolbar)
+
+- **`focus_within_ring(1.0, -1.0, colour)`** is CSS `:focus-within` with a 1px ring just inside the border box: it draws over the
+  frame's own border whether the pointer or the keyboard put focus in the text field. It doesn't animate (Fleet's 150 ms
+  `border-color` transition is not drawn).
+- **`color-mix(accent 55%, border)` with a translucent border**: `Color::mix` is a straight blend in linear light, which turns a
+  white 7.5% border into a grey-white line. `Theme::accent_border` blends premultiplied instead; it is still a linear blend where
+  the browser mixes sRGB numbers, so the indigo is a little lighter than Fleet's.
+- **`.border(w, c)` without `.border_layout()` doesn't add the border to the box's size**: an error box with a 1px border and
+  `py(10)` measured 37px, 3px under Fleet's. Add `border_layout()` when the border is part of the size in CSS.
+- **`text_input` has no read-only or disabled state**: `.disabled(true)` only keeps it out of focus (so nothing can be typed); the
+  dimmed look is `.opacity(0.5)`.
+- **A scene can't set the draft directly**: the first `poll` replaces the text area with the open session's stored draft, so a
+  scene writes the text into `State.drafts` (`State::show_draft`). The same first look must not clear per-session state a scene sets.
+- **`El::on_key` on an ancestor** of the text field is where Ctrl/Cmd+Enter is read; plain Enter and Shift+Enter stay the
+  field's (`on_submit`, newline). A headless test can't tell which of the two sent a Ctrl+Enter on an idle session (both send), so
+  the steer-versus-queue difference is first testable in piece I.

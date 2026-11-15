@@ -60,6 +60,10 @@ pub struct Row {
     pub cost: f64,
     pub checkout_removed_at: Option<String>,
     pub checkout_restoring: bool,
+    /// `retentionStatus == "archived"`: the composer takes no prompt (row 1.9).
+    pub archived: bool,
+    /// `capabilities.canPrompt`, when the row has capabilities.
+    pub can_prompt: Option<bool>,
 }
 
 /// Whether the server's own lifecycle state is the session's status, whatever it is doing (`deriveSessionStatus`).
@@ -169,6 +173,8 @@ impl Row {
             cost: item.get("totalCost").and_then(Value::as_f64).unwrap_or(0.0),
             checkout_removed_at: text(item, "checkoutRemovedAt"),
             checkout_restoring: false,
+            archived: text(item, "retentionStatus").as_deref() == Some("archived"),
+            can_prompt: item.get("capabilities").and_then(|c| c.get("canPrompt")).and_then(Value::as_bool),
         }
     }
 }

@@ -97,6 +97,14 @@ pub struct State {
     pub reasoning_open: std::collections::HashSet<String>,
     pub summary_open: std::collections::HashSet<String>,
     pub shell_wide: std::collections::HashSet<String>,
+    /// What the error box above the composer says (`sendError`, row 1.10): a refused prompt, for now.
+    pub composer_error: Option<String>,
+    /// A prompt was sent and the session hasn't said it is busy yet (`optimisticBusy`, row 2.11).
+    pub optimistic: Option<composer::status::Optimistic>,
+    /// The session whose Interrupt is on its way (`aborting`): the button stays off until it is idle.
+    pub aborting: Option<String>,
+    /// The side conversation is open (component 15 sets it; only a scene does now): rows 1.5 and 2.7.
+    pub side_open: bool,
     /// The last thing that went wrong, shown in the status bar.
     pub notice: Option<String>,
     /// The kit's overlays, the palette and the gallery's own controls (`src/ui/`).
@@ -152,6 +160,10 @@ impl Default for State {
             loading: false,
             kept: Default::default(),
             notice: None,
+            composer_error: None,
+            optimistic: None,
+            aborting: None,
+            side_open: false,
             ui: ui::Ui::default(),
             gallery: false,
             blank: Project { name: "Sessions".into(), path: String::new(), open: true, sessions: vec![mock::blank_session()] },
@@ -210,6 +222,74 @@ impl State {
         }
     }
 
+    /// What the composer sees of the open session (`composerStatus`): busy while a turn runs or right after a send.
+    pub fn composer_status(&self) -> composer::status::ComposerStatus {
+        use composer::status::{ComposerStatus, composer_status};
+        let activity = match self.session().status {
+            Status::Working => "busy",
+            Status::NeedsInput => "waiting_input",
+            Status::Idle => "idle",
+        };
+        let status = composer_status(Some(activity), self.optimistic.is_some());
+        // A question or permission the session waits on is not a turn the optimistic guess can hide.
+        if activity == "waiting_input" { ComposerStatus::WaitingInput } else { status }
+    }
+
+    /// Whether the composer takes input at all (`isDisabled`, row 1.9). A session list row without `capabilities` is
+    /// taken as able: its `lifecycleStatus` isn't on the row yet, and "running" is what the rule would ask of it.
+    pub fn composer_disabled(&self) -> bool {
+        let row = &self.session().row;
+        let gate = composer::status::SessionGate { archived: row.archived, can_prompt: row.can_prompt, lifecycle: "running" };
+        !composer::status::can_send(Some(gate))
+    }
+
+    /// Interrupt is live (row 2.4): while a turn runs or the session waits, and no abort is on its way.
+    pub fn can_interrupt(&self) -> bool {
+        let aborting = self.aborting.is_some() && self.aborting == self.draft_owner();
+        !self.composer_disabled() && composer::status::can_interrupt(self.composer_status(), aborting)
+    }
+
+    /// A scene: the open session's composer holds `text` (put in the drafts, which the first frame reads back).
+    pub fn show_draft(&mut self, text: &str) {
+        if let Some(owner) = self.draft_owner() {
+            self.drafts.write(&composer::drafts::session_draft_key(&owner), text, 0.0);
+        }
+    }
+
+    /// Scenes for the composer's states (docs/parity/05-composer.md, piece B).
+    pub fn show_composer(&mut self, state: &str) {
+        match state {
+            "idle" => self.open = (0, 2),
+            "typed" => {
+                self.open = (0, 2);
+                self.show_draft("Add a test for the rename step too.");
+            }
+            "busy" => {
+                self.open = (0, 0);
+                self.show_draft("Also keep the 200 MB limit.");
+            }
+            "disabled" => {
+                self.open = (0, 2);
+                self.projects[0].sessions[2].row.archived = true;
+            }
+            "error" => {
+                self.open = (0, 2);
+                self.show_draft("Run the cache tests again.");
+                self.composer_error = Some("HTTP 500".into());
+            }
+            "long" => {
+                self.open = (0, 2);
+                let lines: Vec<String> = (1..=12).map(|n| format!("Step {n}: read the file and say what it does.")).collect();
+                self.show_draft(&lines.join("\n"));
+            }
+            "side" => {
+                self.open = (0, 2);
+                self.side_open = true;
+            }
+            _ => {}
+        }
+    }
+
     /// The drafts file was read: its text joins what is in memory, and the text area shows its session's if empty.
     pub fn adopt_drafts(&mut self, dir: std::path::PathBuf, stored: composer::drafts::Stored) {
         self.drafts.set_dir(Some(dir));
@@ -227,11 +307,19 @@ impl State {
     fn keep_drafts(&mut self, now: f64, tx: &mut Tx) {
         let Some(owner) = self.draft_owner() else { return };
         if self.draft_of.as_deref() != Some(owner.as_str()) {
+            let had_old = self.draft_of.is_some();
             if let Some(old) = self.draft_of.take() {
                 self.drafts.write(&composer::drafts::session_draft_key(&old), &self.draft.text, now);
             }
             self.draft = TextEdit::new(self.drafts.text_of(&owner));
             self.draft_of = Some(owner.clone());
+            // The error box, the optimistic busy and an abort on its way belong to the composer of one session
+            // (not cleared on the first look, so a scene can set them).
+            if had_old {
+                self.composer_error = None;
+                self.optimistic = None;
+                self.aborting = None;
+            }
         } else if self.drafts.text_of(&owner) != self.draft.text {
             self.drafts.write(&composer::drafts::session_draft_key(&owner), &self.draft.text, now);
         }
@@ -241,6 +329,34 @@ impl State {
             }
         } else if self.drafts.unsaved() {
             tx.wake_after(std::time::Duration::from_secs_f64(composer::drafts::SAVE_AFTER));
+        }
+    }
+}
+
+/// Enter, Ctrl/Cmd+Enter and the Send button (`handleSend`, row 2.10): the draft goes where `route_draft` says.
+/// `modifier` is the other choice of Enter: steer where Enter queues, queue where it steers. Only prompts have a
+/// route yet; what the other routes need is built in pieces I (queue, steer), K and M (commands, shell, `/btw`),
+/// so a command or a `!` draft still goes as the text it is, as before.
+pub fn submit(s: &mut State, tx: &mut Tx, modifier: bool) {
+    if s.composer_disabled() {
+        return;
+    }
+    let caps = composer::status::Caps::default();
+    let cx = composer::route::DraftContext {
+        status: s.composer_status(),
+        steer: composer::route::steer_for_key(&caps, modifier),
+        caps,
+        side_open: s.side_open,
+    };
+    match composer::route::route_draft(&s.draft.text, &cx) {
+        composer::route::Route::Empty => {}
+        // Component 15 fills this in; the draft stays, as the kit's `waiting()` entries do.
+        composer::route::Route::Side { .. } => {
+            s.toast("The side conversation isn't in the native app yet (component 15 of the port).".into(), None, 4.0, tx)
+        }
+        _ => {
+            send(s, tx);
+            tx.focus("composer", false);
         }
     }
 }
@@ -258,11 +374,15 @@ pub fn send(s: &mut State, tx: &mut Tx) {
         let now = s.clock;
         s.drafts.push_history(&owner, &text, now);
     }
+    s.composer_error = None;
+    s.optimistic = Some(composer::status::Optimistic::new(s.clock));
+    tx.wake_after(std::time::Duration::from_secs_f64(composer::status::Optimistic::GIVE_UP + 0.1));
     if let (Some(_), Some(id)) = (&s.link, s.open_id()) {
         s.send_to_server(&id, &text);
         s.draft.clear();
         s.notice = None;
         tx.scroll_to_bottom("stream");
+        tx.wake_after(std::time::Duration::from_secs_f64(composer::status::Optimistic::GIVE_UP + 0.1));
         // `poll` turns what is still unconfirmed by then into "retry".
         tx.wake_after(std::time::Duration::from_secs_f64(fleet::prompts::CONFIRMATION_TIMEOUT + 0.1));
         return;
@@ -283,15 +403,18 @@ pub fn send(s: &mut State, tx: &mut Tx) {
 
 /// Esc, and the composer's Interrupt button.
 pub fn interrupt(s: &mut State) {
+    if !s.can_interrupt() {
+        return;
+    }
+    s.aborting = s.draft_owner();
+    s.optimistic = None;
     if let (Some(link), Some(id)) = (&s.link, s.open_id()) {
-        if s.session().status == Status::Working {
-            link.abort(&id);
-        }
+        link.abort(&id);
         return;
     }
     let (p, i) = s.open;
     let session = &mut s.projects[p].sessions[i];
-    if session.status == Status::Working {
+    if session.status != Status::Idle {
         session.status = Status::Idle;
         end_tools(session);
         s.reply = None;
@@ -312,6 +435,30 @@ fn end_tools(session: &mut Session) {
 }
 
 fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
+    let composer_changed = s.keep_composer_state(now);
+    poll_rest(s, now, tx) || composer_changed
+}
+
+impl State {
+    /// The composer's guesses end with the session's own word: true when one did and the buttons must redraw.
+    fn keep_composer_state(&mut self, now: f64) -> bool {
+        let busy = self.session().status == Status::Working;
+        let mut changed = false;
+        if let Some(o) = &mut self.optimistic
+            && !o.keep(busy, now)
+        {
+            self.optimistic = None;
+            changed = true;
+        }
+        if self.aborting.is_some() && self.session().status == Status::Idle {
+            self.aborting = None;
+            changed = true;
+        }
+        changed
+    }
+}
+
+fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     // Whole seconds only, so the "Working · 18s" label redraws once a second.
     let ticked = now.floor() != s.clock.floor();
     s.clock = now;
@@ -519,6 +666,41 @@ pub fn spec() -> AppSpec<State> {
             // The reply streams in on the app's clock: the scene the scripts in scripts/bench/ measure.
             ("long-live", |s| s.open_long_live()),
             ("long-streaming", |s| s.show_streaming(900)),
+            ("composer-idle", |s| s.show_composer("idle")),
+            ("composer-idle-light", |s| {
+                s.dark = Some(false);
+                s.show_composer("idle")
+            }),
+            ("composer-typed", |s| s.show_composer("typed")),
+            ("composer-typed-light", |s| {
+                s.dark = Some(false);
+                s.show_composer("typed")
+            }),
+            ("composer-busy", |s| s.show_composer("busy")),
+            ("composer-busy-light", |s| {
+                s.dark = Some(false);
+                s.show_composer("busy")
+            }),
+            ("composer-disabled", |s| s.show_composer("disabled")),
+            ("composer-disabled-light", |s| {
+                s.dark = Some(false);
+                s.show_composer("disabled")
+            }),
+            ("composer-error", |s| s.show_composer("error")),
+            ("composer-error-light", |s| {
+                s.dark = Some(false);
+                s.show_composer("error")
+            }),
+            ("composer-long", |s| s.show_composer("long")),
+            ("composer-long-light", |s| {
+                s.dark = Some(false);
+                s.show_composer("long")
+            }),
+            ("composer-side", |s| s.show_composer("side")),
+            ("composer-side-light", |s| {
+                s.dark = Some(false);
+                s.show_composer("side")
+            }),
             ("automations", |s| s.rail = Rail::Automations),
             ("kit", |s| ui::scenes::set(s, "kit", true)),
             ("kit-light", |s| ui::scenes::set(s, "kit", false)),

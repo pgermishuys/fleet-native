@@ -3,7 +3,7 @@
 //! beside its module) before it gets a snapshot.
 use crate::mock::Status;
 use crate::view::conversation::{Part, Role};
-use crate::{Rail, State, send, spec};
+use crate::{Rail, State, send, spec, submit};
 use rune::{App, Env, Key, KeyEvent, Mods, Runtime, TextEdit};
 
 const FRAME: f64 = 1.0 / 60.0;
@@ -568,4 +568,157 @@ fn the_recap_sits_under_the_conversation_only_when_fleet_wrote_one() {
     assert!(rt.find("recap-line").is_some());
     let rt = scene_app(|s| s.show_conversation(crate::mock::parts::of_thinking()));
     assert!(rt.find("recap-line").is_none());
+}
+
+// Component 5, piece B: the frame and the toolbar (`Composer.test.ts`'s core).
+fn press_key(rt: &mut Runtime<State>, key: Key, mods: Mods) {
+    rt.key(KeyEvent { key, mods });
+    rt.frame(FRAME);
+    rt.frame(FRAME);
+}
+
+/// Types into the open session's text area.
+fn typed(rt: &mut Runtime<State>, text: &str) {
+    click(rt, "composer");
+    press_key(rt, Key::Text(text.into()), Mods::default());
+}
+
+fn user_messages(rt: &Runtime<State>) -> usize {
+    rt.state.session().messages.iter().filter(|m| m.role == Role::User).count()
+}
+
+// "sends on Enter when the popup is closed"
+#[test]
+fn enter_sends_the_draft_and_the_text_area_keeps_focus() {
+    let mut rt = app();
+    let before = user_messages(&rt);
+    typed(&mut rt, "Ship it");
+    assert_eq!(rt.state.draft.text, "Ship it");
+    press_key(&mut rt, Key::Enter, Mods::default());
+    assert_eq!(user_messages(&rt), before + 1);
+    assert_eq!(rt.state.draft.text, "");
+    // The caret stayed in the text area: what is typed next lands in it with no click.
+    press_key(&mut rt, Key::Text("more".into()), Mods::default());
+    assert_eq!(rt.state.draft.text, "more");
+}
+
+// "does not intercept Shift+Enter ..."
+#[test]
+fn shift_enter_adds_a_line_and_sends_nothing() {
+    let mut rt = app();
+    let before = user_messages(&rt);
+    typed(&mut rt, "one");
+    press_key(&mut rt, Key::Enter, Mods { shift: true, ..Mods::default() });
+    press_key(&mut rt, Key::Text("two".into()), Mods::default());
+    assert_eq!(rt.state.draft.text, "one\ntwo");
+    assert_eq!(user_messages(&rt), before);
+}
+
+#[test]
+fn ctrl_enter_is_the_other_choice_and_on_an_idle_harness_it_sends() {
+    let mut rt = app();
+    rt.update(|s, _| s.open = (0, 2));
+    rt.frame(FRAME);
+    let before = user_messages(&rt);
+    typed(&mut rt, "Ship it");
+    press_key(&mut rt, Key::Enter, Mods { cmd: true, ctrl: true, ..Mods::default() });
+    assert_eq!(user_messages(&rt), before + 1);
+    assert_eq!(rt.state.draft.text, "");
+}
+
+#[test]
+fn send_is_off_with_nothing_to_send_and_on_with_text() {
+    let mut rt = app();
+    assert!(rt.state.draft.text.is_empty());
+    let before = user_messages(&rt);
+    click(&mut rt, "prompt-send-button");
+    assert_eq!(user_messages(&rt), before, "a click on a dimmed Send sends nothing");
+    typed(&mut rt, "Go");
+    click(&mut rt, "prompt-send-button");
+    assert_eq!(user_messages(&rt), before + 1);
+}
+
+#[test]
+fn a_refused_message_puts_the_text_back_and_says_why_in_the_box_above_the_composer() {
+    let mut rt = app();
+    assert!(rt.find("send-prompt-error").is_none());
+    rt.update(|s, _| s.composer_error = Some("HTTP 500".into()));
+    rt.frame(FRAME);
+    assert!(rt.find("send-prompt-error").is_some());
+    // The next send clears it, as Fleet's does when a send begins.
+    typed(&mut rt, "again");
+    press_key(&mut rt, Key::Enter, Mods::default());
+    assert!(rt.find("send-prompt-error").is_none());
+}
+
+// "is disabled for errored and archived sessions"
+#[test]
+fn an_archived_session_takes_no_prompt() {
+    let mut rt = app();
+    rt.update(|s, _| {
+        s.open = (0, 1);
+        s.projects[0].sessions[1].row.archived = true;
+    });
+    rt.frame(FRAME);
+    assert!(rt.state.composer_disabled());
+    assert!(!rt.state.can_interrupt());
+    rt.update(|s, tx| {
+        s.draft = TextEdit::new("hello");
+        submit(s, tx, false);
+    });
+    assert_eq!(rt.state.draft.text, "hello", "nothing was sent");
+    assert_eq!(rt.state.session().messages.last().unwrap().role, Role::Assistant);
+}
+
+#[test]
+fn a_session_whose_row_says_it_cannot_prompt_is_disabled() {
+    let mut rt = app();
+    rt.update(|s, _| s.projects[0].sessions[0].row.can_prompt = Some(false));
+    assert!(rt.state.composer_disabled());
+}
+
+#[test]
+fn interrupt_is_live_while_a_turn_runs_and_while_the_session_waits_and_off_when_idle() {
+    let mut rt = app();
+    assert!(rt.state.can_interrupt(), "the first session is working");
+    rt.update(|s, _| s.open = (0, 1));
+    assert!(rt.state.can_interrupt(), "the second waits on a question");
+    rt.update(|s, _| s.projects[0].sessions[1].status = Status::Idle);
+    assert!(!rt.state.can_interrupt());
+}
+
+#[test]
+fn an_abort_on_its_way_turns_interrupt_off_until_the_session_is_idle() {
+    let mut rt = app();
+    rt.update(|s, _| s.aborting = s.draft_owner());
+    assert!(!rt.state.can_interrupt());
+}
+
+#[test]
+fn a_sent_prompt_reads_busy_at_once_and_the_guess_ends_with_the_turn() {
+    let mut rt = app();
+    rt.update(|s, _| s.open = (0, 2));
+    rt.frame(FRAME);
+    assert_eq!(rt.state.composer_status(), crate::composer::status::ComposerStatus::Idle);
+    rt.update(|s, tx| {
+        s.draft = TextEdit::new("Go");
+        send(s, tx);
+    });
+    assert_eq!(rt.state.composer_status(), crate::composer::status::ComposerStatus::Busy);
+    run(&mut rt, 4.0);
+    assert_eq!(rt.state.composer_status(), crate::composer::status::ComposerStatus::Idle);
+    assert!(rt.state.optimistic.is_none());
+}
+
+#[test]
+fn the_composer_reads_only_state_and_the_side_conversation_changes_the_frame_and_the_send_label() {
+    let mut rt = app();
+    rt.update(|s, _| s.side_open = true);
+    rt.frame(FRAME);
+    assert!(rt.find("prompt-send-button").is_some());
+    rt.update(|s, tx| {
+        s.draft = TextEdit::new("what is this?");
+        submit(s, tx, false);
+    });
+    assert_eq!(rt.state.draft.text, "what is this?", "the draft stays until the side conversation exists");
 }
