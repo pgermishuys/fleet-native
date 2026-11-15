@@ -1,0 +1,319 @@
+# Component 4: Questions and permissions
+
+The parity checklist for component 4 of `docs/PORT.md`, and the pieces it is built in.
+
+- **weave-fleet commit read:** `bf34b7cbc57fb78ac561737456a5f8643507b7bb` (`main`, 15 November 2026).
+  The server the live checks run against is v0.72.0; the routes below were read from `main`'s
+  `SessionEndpoints.cs` and confirmed against v0.72.0 (a live `ask-me` and `ask-permission` run).
+- **Native app read:** `main` at `4580109` (`src/view/conversation.rs`, `src/conv/tools.rs`, `src/fleet/`).
+- **Paths** are weave-fleet's under `client/src/` unless they start with `src/`, `docs/` or `server:`.
+  Short names: QC `components/session/QuestionCard.vue`, PC `.../PermissionCard.vue`, ARL
+  `.../AllowedRulesList.vue`, ACH `.../AllowedChip.vue`, ARP `.../AllowedRulesPanel.vue`, PPC
+  `.../PagePickCard.vue`, QA `composables/use-question-answer.ts`, SP `composables/use-session-permissions.ts`,
+  SPR `composables/use-session-permission-rules.ts`, PW `lib/tools/permission-wording.ts`, QT
+  `lib/question-types.ts`, FBC `lib/focus-blocking-card.ts`, PL `lib/permissions.ts`.
+- **Row numbers:** 1.x the question card waiting on you, 2.x answered and skipped rows, 3.x the
+  permission card, 4.x Fleet's own ask (work for another machine), 5.x the Allowed chip and list,
+  6.x the page-pick card, 7.x data, routes and events, 8.x where the cards sit and what else shows
+  "needs you".
+
+![Fleet's own client, a question waiting (dark)](../../shots/parity/04-questions-and-permissions/fleet-question-dark.png)
+![The native app today, same session (dark)](../../shots/parity/04-questions-and-permissions/native-question-dark.png)
+![Fleet's own client, a permission ask (dark)](../../shots/parity/04-questions-and-permissions/fleet-permission-dark.png)
+![The native app today, same session (dark)](../../shots/parity/04-questions-and-permissions/native-permission-dark.png)
+
+The gap, visible in the pictures (the light theme is in the same folder): both sessions are stopped
+on the user, and the list says "Needs input" in both apps. Fleet draws an amber card under the
+conversation: the question with its two choices and "Send answer / Skip", the ask with "Allow once /
+Don't ask again / Deny". The native app draws the tool's line (`Question  Which database…`,
+`Write  /home/dev/…`) and nothing to answer with: **the user can't unblock an agent from the native
+app today.** Taken in a real window on a virtual display (1360×880, the window's default size)
+against a scratch Fleet, so both pictures are the same size. The scripted model writes under its
+own `$HOME`; it was started with an invented one (`/home/dev`).
+
+## What "done" means
+
+1. A question the agent asks shows as Fleet's amber card under its message: header, text with links,
+   choices with their number keys and descriptions, "Something else…", "Pick any that apply.",
+   Send answer, Skip, the key hint. Picking, typing, number keys, arrows and Enter work as in Fleet.
+   Answered and skipped questions shrink to Fleet's one-line rows.
+2. A permission ask the session's level doesn't allow shows as Fleet's card (a command, a diff, a
+   path, a sub-agent's, a hand-off to another machine) with Allow once, Don't ask again, Deny with
+   words; keys 1, 2, 3, Esc and Enter; failure text; and the answer reaches the agent.
+3. "Allowed · N" in the composer lists what "Don't ask again" allowed, with Remove and Remove all,
+   dormant under "Allow everything", live across clients.
+4. The page-pick card shows while the agent waits on a page and opens it.
+5. The state is the server's: asks load on opening, reload after a reconnect, follow
+   `permission.asked` / `permission.replied` / `session.permission-rules`, and the answer routes are
+   Fleet's. Fleet's tests for all of it pass here under the same names.
+
+## What the native app already has
+
+| Part | State | Where |
+|---|---|---|
+| `question` tool call as one summary line ("Question  <first question>", `MessageCircleQuestion` icon, status dot) | Done (piece A of component 3) | `src/conv/tools.rs` `question_label`, `src/view/toolrow.rs` |
+| Tool classification (`PermissionKind` per tool: read/edit/shell/web/other) | Done | `src/conv/tools.rs` `PermissionKind`, `server_only_kind` |
+| Event types `permission.asked`, `permission.replied`, `session.permission-rules`, `session.pages` read into the typed union, handed to subscribers | Done, nothing keeps them | `src/fleet/events.rs` (component 2) |
+| Session row "Needs input" (`waiting_input`), diamond glyph, derived status of sub-agents | Done | `src/fleet/state.rs`, `src/view/parts.rs::diamond`, `src/view/sessions.rs` |
+| `Part::Tool { state: Value }` keeps the raw state of a stream part (`status`, `input`, `metadata`) | In the model | `src/fleet/model.rs`, `reducer.rs` |
+| Text input with caret, selection, clipboard, placeholder | Done | `src/ui/controls.rs::input`, `TextEdit` |
+| Popover and dropdown anchored to a key, scrim, centred dialogs; badges, switch, card, separator | Done (component 1) | `src/ui/overlay.rs`, `menu.rs`, `dialog.rs`, `controls.rs` |
+| Composer shell with its toolbar (attach, agent and model selects) | Shell only (component 5) | `src/view/sheet.rs::composer` |
+| HTTP: `post(base, path, body)` on the link thread, `Post` hand-back | Done | `src/fleet/http.rs`, `link.rs` |
+| Tokens: `idle`/`idle_text` are `--status-waiting`/`--status-waiting-text`; `running_text` is `--diff-add-text`; `error_text` is `--diff-del-text`; `accent`, `accent_dim`, `accent_text`, `primary_fg`, `RADIUS_CARD`, `RADIUS_BTN` | Done, but not named for these uses | `src/theme.rs` |
+| Anything else in this file: the cards, their state, the stores, the Allowed chip, the page-pick card | **None** | |
+
+No new colour tokens are needed: add the aliases `status_waiting`, `status_waiting_text`,
+`diff_add_text`, `diff_del_text` to `theme.rs` (with the CSS variable's name beside each) as
+methods or fields pointing at the existing colours, so views read the intent.
+
+## Decisions the pieces need (the owner can overturn)
+
+- **Links in the question text** (`linkifyText`, an `<a>` in a `v-html`): Rune's `text()` has no
+  underline and no inline link runs (`docs/RUNE.md`). Piece C splits the text into plain and
+  address runs (Fleet's rule, `http(s)` only) and draws addresses in `accent_text`, clicking one
+  opens it in the system browser if a run can take a click at the pin; if not, the address stays
+  coloured and the gap is listed. The test names are kept.
+- **The card's rise animation** (`pcard-rise`, 180 ms, 4 px, off under reduced motion): drawn as a
+  fade if Rune can fade an element in; otherwise absent and listed.
+- **Permission settings / Machine settings** buttons go to Settings (component 16). Until it
+  exists they set the active section in `State` and do nothing else visible; piece A of component 16
+  wires them. Same for **Open page** (component 14).
+- **Phone inbox and mission control** (`InboxAskRow`, `PermissionChoices`, `QuestionChoices`,
+  `NeedsYouColumn`) answer asks too. They are not this component: the phone is out of scope and
+  mission control is component 23. They reuse `QA` and `SP`'s routes, which piece B and D build as
+  plain Rust a later component can call.
+
+## Rows
+
+### 1. The question card waiting on you (`QC`)
+
+Shown when the tool part's status is `pending` or `running` and `getQuestionInput` found
+`input.questions`. One card per question tool part, drawn after the message's tool list (`MessageBubble`).
+
+| # | Row | Source | Native today |
+|---|---|---|---|
+| 1.1 | Card: grid, gap 12, margin-top 10, padding 12, border 1px `color-mix(--status-waiting 40%, --border)`, `--radius-card`, background `color-mix(--status-waiting 5%, --card-bg)` | QC `.qcard` | None |
+| 1.2 | Head: row, gap 8: `MessageCircleQuestion` 15px in `--status-waiting`; title (13px/600, ellipsis, flex 1) = `questions[0].header` or "Question"; right: waiting diamond + "Needs you" (12px/600, `--status-waiting-text`, gap 6) | QC head | None (icon exists, diamond exists) |
+| 1.3 | Sub-heading for question `qi > 0` with a header: 12px/600 `--muted`, margin-top 4 | QC `.qcard__subhead` | None |
+| 1.4 | Question text: 14px/1.5, `--text`, line breaks kept (`pre-line`), `text-wrap: pretty`; web addresses become links (`--accent-text`, underline, offset 2) | QC `.qcard__text`, `lib/linkify-text.ts` | None (see Decisions) |
+| 1.5 | "Pick any that apply." (12px `--muted`, margin -4 0 0) when `multiple` | QC `.qcard__hint` | None |
+| 1.6 | Choices group: grid gap 4; role `group` (multiple) or `radiogroup`; aria-label header or question | QC | None |
+| 1.7 | A choice: full width, row, gap 10, padding 8 10, border 1px `--border`, `--radius-btn`, background `--panel-bg`; hover border `color-mix(--accent 35%, --border)`; disabled opacity .55. Role `radio` or `checkbox`, `aria-checked` | QC `.qcard__choice` | None |
+| 1.8 | Key chip: 18×18, border 1px `--border`, radius 5, mono 11px `--muted`, margin-top 1; shows `oi + 1`; in a multiple question a picked option shows a 11px check (stroke 3) instead of the number | QC `.qcard__key` | None (Check icon exists) |
+| 1.9 | Picked state: border `--accent`, background `--accent-dim`; the key chip fills `--accent`, ink `--primary-foreground` | QC `[aria-checked=true]` | None |
+| 1.10 | Choice copy: name 13px/500; description 12px `--muted`, line-height 1.45, line breaks kept; grid gap 1 | QC | None |
+| 1.11 | "Something else…" row (only when `custom !== false`): same box, align centre, cursor text; key chip shows `options.length + 1`; borderless text input 13px, placeholder "Something else…" (`--muted`), aria-label "Type your own answer"; focus-within border `--accent`; typed text (non-blank) gives the picked look | QC `.qcard__choice--other` | None (input exists) |
+| 1.12 | Single-answer exclusivity: picking an option clears the typed text; typing (non-blank) clears the pick. Multiple: picks and typed text combine. Picking a picked option again unpicks it | QC `toggleOption`, `handleCustomInput` | None |
+| 1.13 | Error line: 12px `--error-text`, `role=alert` | QC `.qcard__error` | None |
+| 1.14 | Footer: row, wrap, gap 8. Send answer: pill, height 28, padding 0 14, 12px/600, background `--accent`, ink `--primary-foreground`; disabled (opacity .45) while loading or nothing answered; hover opacity .88; label "Sending…" while loading. Skip: pill, transparent, `--muted`, hover `--text` on `color-mix(--text 5%, transparent)`; label "Dismiss" once the question is known gone. Right: key hint 11px `--muted`, margin-left auto | QC `.qcard__foot`, `.qcard__btn` | None |
+| 1.15 | Key hint text: "Enter to send" when the first question has fewer than 2 choices (options + custom); else "1–N to pick · Enter to send", N = min(choice count, 9), en dash | QC `keyHint` | None |
+| 1.16 | Answer built: per question, the picked labels, plus the trimmed typed text appended when non-empty | QC `submit` | None |
+| 1.17 | `hasAnyAnswer`: any pick, or any non-blank typed text; Send and Enter need it | QC | None |
+| 1.18 | Focus: when the card appears with the status active, focus goes to the first choice (else the card), unless the user is typing in a text field elsewhere that has content (an empty composer that autofocused doesn't count) | QC `onMounted`, FBC `focusBlockingCard` | None |
+| 1.19 | Keys on the card: Arrow keys move between choices (up/left back, down/right forward, wrap; only when a choice button has focus); digits 1–9 pick that choice in the question holding focus (first otherwise) or focus the "Something else…" input at `options + 1`; Enter sends when something is answered and focus isn't on a button; in the input Enter sends; any modifier (Cmd/Ctrl/Alt) is ignored; ignored while loading | QC `handleCardKeydown`, FBC `moveChoiceFocus` | None |
+| 1.20 | Focus ring on the card/choice/buttons: 2px `--accent`, offset 2 (-1 on choices) | QC | None (Rune focus ring, see `docs/RUNE.md`) |
+| 1.21 | Skip sends the reject route; Dismiss (when gone) hides the card here and sends nothing | QC `dismiss` | None |
+| 1.22 | Fleet says it's gone (HTTP 404 or 409): error text "The agent isn't waiting for this question any more. It was answered somewhere else, or Fleet or the agent restarted.", the button reads "Dismiss", the card stays until dismissed | QC, QA `QuestionGoneError` | None |
+| 1.23 | Other failure: error line "Failed to answer question: <statusText>" or "Failed to reject question: <statusText>"; card stays, buttons enabled again | QA `failure` | None |
+| 1.24 | Long text: the title ellipsises; the text wraps; long choice names wrap (`min-width: 0`); many questions stack with their sub-headings | QC | None |
+
+### 2. Answered and skipped rows (`QC`)
+
+| # | Row | Source | Native today |
+|---|---|---|---|
+| 2.1 | Answered (status not active and `metadata.answers` present): a framed group (margin 10 0 4, padding 4, border 1px `--border`, `--radius-card`, background `color-mix(--text 3%, transparent)`), one row per question: height 30, padding 0 8, gap 9, 13px | QC `.qrow-group`, `.qrow` | None |
+| 2.2 | Row parts: `MessageCircleQuestion` 14px (`--muted` 75%); "Asked" (`--text`, 500); the question (`--muted`, ellipsis, takes the shrink); "→" (`--muted`); the answer (`--text`, 500, max-width 50%, ellipsis); `Check` 13px `--running-text` at the right. Tooltip = the question | QC | None |
+| 2.3 | Answer text: the answers joined by ", ", or "No answer" when empty | QC `answerText` | None |
+| 2.4 | Skipped (status `error`, or dismissed here): one row: icon, "Asked", the first question (or "Question"), "Skipped" (12px `--muted`) at the right | QC `qrow__skipped` | None |
+| 2.5 | A completed question with no `metadata.answers`, and an unknown status: nothing but the tool line (neither card nor row draws) | QC `v-if` chain, QT | None |
+| 2.6 | Status words: `getQuestionStatus` = pending / running / completed / error / unknown; `getQuestionInput` is null for a non-question tool or a malformed state | QT | None |
+
+### 3. The permission card (`PC`, `PW`)
+
+One card per waiting ask, after the messages and before the page-pick card (`ActivityStream`, 8.1).
+
+| # | Row | Source | Native today |
+|---|---|---|---|
+| 3.1 | Card: same box as 1.1; `aria-label` "The agent asks: <heading>"; rises in (opacity 0, translateY 4px, 180 ms ease-out; none under reduced motion) | PC `.pcard` | None |
+| 3.2 | Head: `ShieldAlert` 15px `--status-waiting`; heading (13px/600, ellipsis); a "Subagent" pill when a sub-agent asked (border 1px `--border`, 999px radius, padding 0 8, 11.5px `--muted`); right: diamond + "Needs you" (margin-left auto) | PC head | None (icon to add to the generator list) |
+| 3.3 | Heading by kind: shell "Run a command"; edit "Edit a file"; web "Go online"; read "Read a file", except for plan/subagent/skill/fleet/question tools which read "Use <tool>"; other "Use <tool>", and `external_directory` is "Work outside the folder"; a hand-off's own title or "Send work to <machine>" | PW `permissionHeading` | Partly: `PermissionKind` per tool exists |
+| 3.4 | Command block (kind shell with a title): padding 9 12, border 1px `--border`, `--radius-btn`, background `--panel-bg`, mono 12.5px, no wrap, scrolls sideways; the directory above it (11.5px `--muted`), then "$ " (`--muted`) and the command | PC `.pcard__cmd`, `__cwd`, `__prompt` | None |
+| 3.5 | File block (kind edit): box as 3.4 with a file line (padding 6 12, 11.5px `--muted`): the title or tool name (ellipsis), `+N` (`--diff-add-text`), `−N` (`--diff-del-text`, a real minus); lines in a scroller (max-height 240, border-top) when there are changes | PC `.pcard__diff` | None |
+| 3.6 | Diff lines: the file headers a unified diff starts with are dropped (`Index: `, `===…`, `--- `, `+++ `); `@@` lines are hunk (`--muted`), `+` add (background 10% `--diff-add`), `-` del (10% `--diff-del`), else context; mono 12px, padding 0 12, no wrap; an empty line draws a space | PC `diffLines` | None |
+| 3.7 | A write that changes nothing (headers only): the file line shows, no lines, no counts | PC `changes` | None |
+| 3.8 | Anything else with a title (an address, a folder): the plain block of 3.4 without prompt or directory | PC | None |
+| 3.9 | Choice 1: key chip "1", "Allow once". Choice 2: chip "2", `dontAskAgainWording`: "Don't ask again for" + code of the harness's patterns (joined ", ", `*` dropped), else per kind "…for file edits" / "…for commands" / "…for web access", else "…for" + the tool; scope text "this session" right-aligned (12px `--muted`; hidden under 520 px) | PC, PW `dontAskAgainWording` | None |
+| 3.10 | Choice 3 (deny): chip "3"; borderless input (13px, placeholder "Deny, and tell the agent what to do instead…", aria-label "Deny, with an optional message for the agent"); a "Deny" pill (height 24, padding 0 10, 12px `--muted`; hover `color-mix(--error 10%, transparent)` and `--error-text`). Clicking the row focuses the input; clicking Deny doesn't | PC `.pcard__choice--deny` | None |
+| 3.11 | Choice boxes as 1.7 (flex centre, `min-width: 0`); the `code` in a name: margin-left 4, padding 0 4, radius 4, background `color-mix(--text 6%, transparent)`, mono 12px | PC | None |
+| 3.12 | Answering sends `once`, `always` or `reject`; Deny sends the typed words (trimmed; none when empty) | PC `answer`, SP `answer` | None |
+| 3.13 | Footer: wrap, gap 8, 11px `--muted`: "1 or 2 answers · 3 then Enter denies · Esc denies"; "You can undo option 2 from Allowed in the composer."; "Permission settings" (11px `--accent-text`, margin-left auto, underline on hover). The two spans hide under 520 px | PC `.pcard__foot` | None |
+| 3.14 | Keys: arrows move between the choice buttons (1.19); `1` allow once, `2` always, `3` focus the deny input; Esc anywhere in the card denies; Enter in the deny input denies with the words; modifiers ignored. Focus starts on "Allow once" unless the user is typing elsewhere | PC `handleCardKeydown`, FBC | None |
+| 3.15 | Failure: the card stays; the error line shows Fleet's own text (`error`, `detail` or `title` of the body) or "The answer didn't reach the agent (HTTP <status>)."; buttons usable again. While answering, all choices are disabled | SP `errorMessage`, PC | None |
+| 3.16 | Long text: the heading ellipsises, the command scrolls sideways, the diff scrolls at 240 px, "Don't ask again" names ellipsise | PC | None |
+| 3.17 | The ask's wire shape: `id, sessionId, kind, tool, title, detail, directory, always[], callId, subagent, askedAt, handoff`; unknown `kind` reads as "other"; an ask missing `id`, `sessionId` or `tool` is ignored; empty strings read as none | SP `toPermissionAsk` | None |
+| 3.18 | Fleet's one-line preview of an ask, "Wants to run `git push`", is used by the phone inbox and mission control only | PW `askPreviewWording` | Out of this component; port it with the wording (piece A) so component 23 has it |
+
+### 4. Fleet's own ask: work for another machine (`PC`)
+
+An ask with `handoff` set (an agent wants to send work to a machine set to Ask).
+
+| # | Row | Source | Native today |
+|---|---|---|---|
+| 4.1 | Heading = the ask's title or "Send work to <machine>"; no command/diff/block; "Subagent" pill as 3.2 | PC, PW | None |
+| 4.2 | Detail list (grid `max-content / 1fr`, gap 4 14, padding 9 12, border and fill as 3.4, 12.5px; values mono, ellipsis): Machine ("<machine> · <OS>", OS = Linux / macOS / Windows or as sent), Session (if any), Folder (if any), Branch ("the folder as it is" when none), Harness ("its default" when none), Message (when a session) or Task | PC `handoffRows` | None |
+| 4.3 | Note: "It runs under <machine>'s permission level: **<Ask before changes / Allow edits / Allow everything>**." or "unknown (that Fleet doesn't say)" | PC `handoffLevel`, PL `PERMISSION_LEVEL_NAMES` | None |
+| 4.4 | Choices: "1 Allow once"; "2 Always for <machine>" with scope "sets <machine> to Always"; "3 Not <machine>" with scope "sets <machine> to Never" (no deny input, no message sent) | PC | None |
+| 4.5 | Keys: 1, 2, 3 answer once, always, reject; **Esc does nothing**; arrows still move | PC `handleCardKeydown` | None |
+| 4.6 | Footer: "1, 2 or 3 answers"; "You can change it on <machine>'s card."; "Machine settings" | PC | None |
+
+### 5. The Allowed chip and list (`ACH`, `ARP`, `ARL`, `SPR`)
+
+| # | Row | Source | Native today |
+|---|---|---|---|
+| 5.1 | Chip in the composer toolbar after the effort toggle, hidden in a side conversation and while the session has no rule: `ShieldCheck` 14px + "Allowed · N", toolbar-icon button, auto width, padding 0 8, 12px, no wrap; tooltip "What you told the agent not to ask about again" | ACH, `Composer.vue` | None |
+| 5.2 | Flashes once when a rule is added (background `color-mix(--primary 35%, transparent)` fading to none over 0.9 s; none under reduced motion); closes itself when the count reaches 0 | ACH `watch(count)` | None |
+| 5.3 | Popover: opens above, aligned start, offset 8, 22rem wide (308 px) | ACH | None (popover exists) |
+| 5.4 | The panel reads the level (`PermissionLevel.<harness>`, else `PermissionLevel`, else "all") from Fleet's preferences, only when opened | ARP, `use-permission-level.ts`, PL | None (no preferences read in native) |
+| 5.5 | One row per rule, oldest first, divided by 1px `--border`: padding 6 0; text 13px (wraps anywhere), code mono 12px; below it the age, compact (11px `--muted`); a ghost small "Remove" | ARL | None |
+| 5.6 | Rule wording: shell "Run any command" / "Run `<patterns>`"; edit "Edit files" / "Edit `<patterns>`"; web "Go online" / "Go online: `<patterns>`"; other "Use `<tool>`" or "Use `<tool> on <patterns>`"; all followed by " without asking"; `*` patterns dropped; a rule with no pattern is **broad** and its text is tinted `--warning` (`#b45309` fallback) | ARL, PW `allowedRuleWording` | None |
+| 5.7 | "Remove all" (ghost small, right-aligned, border-top, padding-top 4) only when there are 2 or more rules | ARL | None |
+| 5.8 | Dormant: with level "all", rows at opacity .55 and a note above: "Not needed now: this session allows everything. They count again if you turn asking back on." (12px/1.4 `--muted`) | ARL | None |
+| 5.9 | Remove: the rule leaves the list at once; `DELETE /api/sessions/{id}/permission-rules/{ruleId}`; if the status is not ok and not 404, or the call throws, the list is loaded again | SPR `remove` | None |
+| 5.10 | Remove all: list empties at once; `DELETE /api/sessions/{id}/permission-rules`; same recovery | SPR `removeAll` | None |
+| 5.11 | The list loads (`GET /api/sessions/{id}/permission-rules`) when the session opens and after a reconnect; `session.permission-rules` on `session:<id>` carries the whole list (`payload.sessionId`, `payload.items`) and wins over a load in flight; a rule is `{id, kind (default "other"), tool, patterns[], createdAt}`, one without `id` or `tool` is ignored | SPR | Event type read; list none |
+| 5.12 | Relative age, compact ("now", "5m", "2h", "3d" as `RelativeTime compact` does) | `components/ui/relative-time` | None (component 6 needs it too: build it once, in piece E, in `src/ui/`) |
+
+### 6. The page-pick card (`PPC`)
+
+| # | Row | Source | Native today |
+|---|---|---|---|
+| 6.1 | Shown (not in a side conversation) while the session's `activityStatus` is `waiting_input` and one of its page canvases has `page.choice.status === "waiting"` | PPC, `composables/use-waiting-page.ts` | None |
+| 6.2 | Card: row, gap 10, margin-top 10, padding 12, the amber border and fill of 1.1; `PanelsTopLeft` 16px `--status-waiting`; title "Pick on the page" (13px/600); line "<page title> · or type a message to answer instead" (12px `--muted`, ellipsis, margin-top 2); "Open page" button (padding 4 10, border 1px `--border`, `--radius-btn`, 12px; hover `--accent-dim`) | PPC | None |
+| 6.3 | Open page shows the page's canvas in the content panel (`server.canvasId` or the canvas id) | PPC, `ActivityStream.handleShowCanvas` | None; hand-off: pages are component 14 |
+| 6.4 | A waiting choice is live only while the session is in a turn (`isChoiceLive`: waiting and activity not idle); a Fleet restart leaves "waiting" behind | `lib/page-choice.ts` | None |
+| 6.5 | Where the page and its choice come from: the session's canvases (`GET` of its canvases and `session.pages`), component 14's store | `stores/canvases.ts`, `lib/server-canvas.ts` | Event type read; no canvas store |
+
+### 7. Data, routes and events
+
+| # | Row | Source | Native today |
+|---|---|---|---|
+| 7.1 | Answer a question: `POST /api/sessions/{id}/questions/{requestId}/answer`, body `{answers: string[][]}`; `requestId` is the tool part's `callId` | QA, `MessageBubble.makeSubmitHandler`, server: `SessionEndpoints.cs` | None |
+| 7.2 | Skip: `POST /api/sessions/{id}/questions/{requestId}/reject`, no body | QA | None |
+| 7.3 | 404 and 409 mean gone (1.22) | QA `failure` | None |
+| 7.4 | List waiting asks: `GET /api/sessions/{id}/permissions` (oldest first, a sub-agent's included); loads on session open and after a reconnect; a load that was overtaken by an event is dropped; a failed load is logged, not shown | SP `load` | None |
+| 7.5 | `permission.asked` on `session:<id>`: payload is an ask; added unless its id is held already; `permission.replied`: payload `{id}`; the ask is removed. An ask that can't be read is ignored | SP | Event types read |
+| 7.6 | Answer: `POST /api/sessions/{ask.sessionId}/permissions/{ask.id}`, body `{reply: "once"\|"always"\|"reject", message: string\|null}` (message trimmed, null when empty); ok or **404** removes the ask from every session's list; any other status throws with Fleet's text (3.15). Fleet's own hand-off asks use the same route (ids start with the hand-off prefix; the server saves the machine's setting) | SP `answer`, server | None |
+| 7.7 | Asks are kept per session, so switching back shows them at once; a sub-agent's ask shows on the session it works for (the ask's `sessionId` is the sub-agent's, `subagent` is set) | SP `asksBySession` | None |
+| 7.8 | The session's level and rules come from `GET /api/preferences` (`PermissionLevel`, `PermissionLevel.<harness>`) | `stores/preferences.ts`, PL | None |
+| 7.9 | **The server drops `question.asked` on purpose** (`DomainEventTranslator`). Question cards are built from the assistant message's `question` tool part (status pending/running, `state.input.questions`), and `waiting_input` marks the session. Never wait for `question.asked` | `docs/research` (later notes), QT | n/a |
+| 7.10 | Stream part shape: Fleet's reducer hands the card an accumulated tool part with `state: {status, input, metadata}`; the REST history gives `toolName`, `arguments`, a numeric `state` and `callId`-less ids (`toolCallId`), so history parts must go through the same normalising the stream does (component 2's `reducer.rs`). Check the card on an older message, loaded from history, in piece D | `lib/client-types.ts`, `docs/parity/02` | Stream path done; history path to check |
+| 7.11 | Agents can't answer: the routes refuse an agent caller (`RefuseAgent`); nothing for the client to do | server | n/a |
+
+### 8. Where the cards sit, and the rest of "needs you"
+
+| # | Row | Source | Native today |
+|---|---|---|---|
+| 8.1 | Order under the messages: load-older row, messages (with their question cards inside), **permission cards**, **page-pick card**, mod drafts, interrupted card, working line. The permission and page-pick cards take `margin 0 auto 16`, `max-width 760`, full width (class `activity-permission`) | `ActivityStream.vue` 880-896; `docs/parity/03` row 1.x | Slot named in component 3's list |
+| 8.2 | A question card sits inside its message after the tool list; `questionParts` are kept apart from tools and never folded away | `MessageBubble.vue` 328, `docs/parity/03` 2.30, 1.26 | The part is drawn as a tool line only |
+| 8.3 | While a question or ask waits, the working line reads "Needs input" with the diamond (component 3, 1.80), the session row shows "Needs input", the header says so | `WorkingIndicator`, `ActivityStream.isWaitingForInput` | Row done; line is component 3 |
+| 8.4 | The composer is not locked while a card waits: typing a message answers a page pick, and a message queues as usual | PPC text, Composer | Composer is component 5 |
+| 8.5 | After Fleet restarts the question is lost: "Fleet restarted while this was waiting for you…" (component 3, 1.84) | `SessionInterruptedCard` | Component 3 |
+| 8.6 | Session-level desktop notification when a session needs you | desktop shell | Component 24 |
+
+## Tests to port
+
+Names kept (`snake_case` in Rust, a comment with Fleet's sentence). All under `src/` in the same
+style as `src/fleet/tests/`.
+
+- `components/session/__tests__/QuestionCard.test.ts` (12): "takes keyboard focus on its first option, and the arrow keys move between options"; "leaves focus alone while the user types in the composer"; "asks for an answer and marks itself as needing you"; "sends the picked choice"; "picks a choice by its number key and sends on Enter"; "sends typed text instead of a choice"; "skips"; "shrinks to a row with the question and its answer once answered"; "says when a question was skipped"; "says the agent isn't waiting and lets the user dismiss the leftover card here, sending nothing"; "keeps the line breaks agents put in the question and option descriptions"; "still takes focus from an empty composer that autofocused".
+- `components/session/__tests__/PermissionCard.test.ts` (13): "says what goes there and under whose permission level, with Always and Not for that machine"; "answers 1, 2 and 3 as once, always and reject, and Esc doesn't answer"; "takes keyboard focus on its first choice and moves it with the arrow keys"; "leaves focus alone while the user types in the composer"; "shows the command and that the session needs you"; "shows an edit's diff without the file headers, with what it adds and removes"; "shows no lines for a write that changes nothing"; "says when a subagent asked"; "answers once, or for the rest of the session"; "answers by number key, and denies with Escape"; "denies with the words typed for the agent on Enter"; "keeps the card and says why when the answer fails"; "opens Permission settings".
+- `components/session/__tests__/AllowedRulesList.test.ts` (4): "reads each rule in plain words"; "removes one rule or all of them"; "greys the rows and says why when the level allows everything"; "says nothing about being dormant when asking is on".
+- `composables/__tests__/use-question-answer.test.ts` (2): the 404/409 case ("says the agent isn't waiting…") and "keeps the status for other failures".
+- `composables/__tests__/use-session-permissions.test.ts` (6): "loads what waits when the session opens, and again after a reconnect"; "adds an ask when one is asked and drops it when it's answered or gone"; "ignores an ask it can't read"; "answers on the session whose harness asked, and the card goes"; "keeps the card and says why when the answer didn't reach the agent"; "follows the session it's shown for".
+- `composables/__tests__/use-session-permission-rules.test.ts` (5): "loads the rules when the session opens"; "takes the whole list a session.permission-rules event carries, and only for its own session"; "removes a rule at once and tells Fleet"; "loads the list again when Fleet refuses a removal"; "removes every rule".
+- `lib/__tests__/permission-wording.test.ts` (5): "the desktop card's heading and 'Don't ask again' line, per kind"; "the card names the harness's patterns when it sent some"; "the phone's heading and 'Don't ask again', per kind" (the shared wording half only); "the phone inbox's one-line preview, per kind"; "is headed by what the agent wants there, and Always is for that machine, on the phone too".
+- `lib/__tests__/allowed-rule-wording.test.ts` (4): "says what a command pattern lets the agent run"; "lists every pattern one click allowed"; "marks a rule with no pattern as broad"; "names another tool".
+- `lib/__tests__/linkify-text.test.ts` (4): "links a bare web address and keeps the text around it"; "escapes markup in the text and in the address" (as runs: markup stays literal text); "reads no Markdown and links no scheme but http(s)"; "leaves text without an address as escaped text".
+- Not ported, with the reason: `phone-tool-sites.test.ts`, `PhoneAllowedSheet`, `InboxPageFirstLoad.test.ts` (phone, out of scope); `session-calls-machine.test.ts` (Vue composable wiring to a machine target; component 17); the Vue `RelativeTime` tests belong to whoever ports `RelativeTime` (piece E ports its compact formatting under Fleet's names if tests exist).
+- New for native: a test that a card only builds when its ask or part is present (the view is a plain function of `State`), and one that every card's choices have keys a test can click (`question-pill-<label>`, `permission-allow-once`, …, copied from Fleet's `data-testid`s).
+
+## What cannot be done, and why
+
+- **Clickable links in text**: see Decisions. Colour only if Rune has no inline click run.
+- **Underline** on `text()`: none at the pin (`docs/RUNE.md`); the "Permission settings" hover underline becomes a colour change.
+- **`pcard-rise`** and **`allowed-flash`** animations: only if Rune can animate opacity/background of an element in `view()`; Rune can't loop a rotation (component 2F) but fades work. List what is left.
+- **Copy to clipboard**: none needed here.
+- **Settings navigation** and **Open page**: need components 16 and 14. The buttons are drawn and set the target in `State`; the pieces say so.
+- **Screen readers**: the roles (`radiogroup`, `checkbox`, `alert`, `aria-label`) have no equivalent until Rune exposes an accessibility tree; listed for component 26.
+- **Phone inbox and mission control answering**: out of scope / component 23, which reuse the routes built here.
+
+## Pieces, in build order
+
+Each piece is one pull request of a few hundred lines of Rust (at most about 800), done by a fresh
+session from this file alone. A piece takes only its rows. Pictures are the native app beside
+Fleet's own client, same state, same size, both themes, under
+`shots/parity/04<letter>-<topic>/`; for a piece with no view they are the app showing the behaviour.
+Pictures come from the scratch Fleet and its scripted model (`ask-me`, `ask-permission`; the
+permission level preference set to "ask" with `PUT /api/preferences/PermissionLevel
+{"value":"ask"}`). Start the scripted model with an invented `HOME` so a path in a picture isn't
+the machine's. A piece adds a scene for each state it draws, ticks its rows here, updates
+`docs/PORT.md` and adds what it learned to `docs/RUNE.md`. Logic goes in plain Rust with no Rune in
+it, in `src/asks/` (a new folder: `wording.rs`, `question.rs`, `rules.rs`) and `src/fleet/asks.rs`
+for what talks to the server, with Fleet's tests ported under the same names.
+
+### A. Permission card: wording, parsing and the view (from mock data)
+- **Rows:** 3.1-3.11, 3.13, 3.16-3.18, 4.1-4.4, 4.6 (the view and its wording; no sending yet).
+- **Files:** `src/asks/mod.rs`, `src/asks/wording.rs` (`permissionHeading`, `dontAskAgainWording`, `askPreviewWording`, `allowedRuleWording`, the diff-line splitter), `src/asks/permission.rs` (the `PermissionAsk` type and its reader), `src/view/permission.rs`, `src/theme.rs` (aliases), `tools/gen-icons.py` (`ShieldAlert`, `ShieldCheck`; regenerate `src/icons.rs`), `src/mock.rs` (an ask of each kind), `src/lib.rs` (scenes).
+- **Depends on:** nothing. ~650 lines with tests.
+- **Tests to port:** `permission-wording.test.ts` (5), `allowed-rule-wording.test.ts` (4), PermissionCard's "shows the command and that the session needs you", "shows an edit's diff without the file headers…", "shows no lines for a write that changes nothing", "says when a subagent asked", the hand-off card's "says what goes there and under whose permission level…" (view half).
+- **Pictures:** scenes for a command, an edit with a diff, a path ask (`external_directory`), a sub-agent's, a hand-off, a write that changes nothing, long text. Fleet's own card can be had live for two of them: the path ask (`ask-permission`) and a command (`run-tests` while the level is "ask": the harness asks before the shell tool runs). For the others the scripted model has no keyword; say in the pull request "Fleet not shown" for that state and compare with the CSS in the rows. A model that raises more asks can be added to the scratch clone of weave-fleet's `fakellm.py` (never committed to either repository). Dark and light.
+
+### B. Permission asks live: load, events, answer, keys
+- **Rows:** 3.12, 3.14, 3.15, 4.5, 7.4-7.7, 7.11, 8.1 (the slot), 3.13's Settings button hand-off.
+- **Files:** `src/fleet/asks.rs` (store per session, `load`, event handling, `answer`), `src/fleet/http.rs` (`permissions`, `reply`), `src/fleet/state.rs`, `src/fleet/mod.rs`, `src/view/conversation.rs` (the cards after the messages), `src/view/permission.rs` (keys, focus, deny input, loading, error), `src/lib.rs`, `src/fleet/tests/asks.rs`.
+- **Depends on:** A. ~550 lines.
+- **Tests to port:** `use-session-permissions.test.ts` (6), PermissionCard's "answers once, or for the rest of the session", "answers by number key, and denies with Escape", "denies with the words typed for the agent on Enter", "keeps the card and says why when the answer fails", "takes keyboard focus on its first choice and moves it with the arrow keys", "leaves focus alone while the user types in the composer", "answers 1, 2 and 3 as once, always and reject, and Esc doesn't answer", "opens Permission settings".
+- **Pictures:** the live run: `ask-permission` shows the card in the native app; Allow once in the app and the next frame has no card and the agent's "Wrote the report" line; a second run with Deny and words; the error state against a scratch Fleet whose ask was answered elsewhere (404 removes it) and against a refused answer. Each beside Fleet's own client, dark and light. Check the HTTP calls in the scratch Fleet's log.
+
+### C. Question card: logic and the waiting view
+- **Rows:** 1.1-1.17, 1.20, 1.24, 2.3, 2.6 (state and drawing; no sending yet).
+- **Files:** `src/asks/question.rs` (`QuestionInput`, `getQuestionInput/Answers/Status`, selection state and its rules, answer builder, key hint, link runs), `src/view/question.rs`, `src/mock.rs`, `src/lib.rs` (scenes), `src/icons.rs` via the generator if `MessageCircleQuestion` at 15 px needs nothing new.
+- **Depends on:** A (the card's box and number-key chips are shared: put them in `src/view/ask_card.rs`, created by A or moved there by C). ~650 lines.
+- **Tests to port:** QuestionCard's "asks for an answer and marks itself as needing you", "keeps the line breaks agents put in the question and option descriptions", the selection half of "sends the picked choice" and "sends typed text instead of a choice", "picks a choice by its number key and sends on Enter" (the number-key half), `linkify-text.test.ts` (4), plus new tests for single and multiple exclusivity (1.12), `hasAnyAnswer`, the key hint.
+- **Pictures:** scenes: one question with two choices (Fleet's own card live from `ask-me`); a picked choice (click it in Fleet for the same state); a multiple question with "Pick any that apply."; typed text in "Something else…" (type it in Fleet); two questions with sub-headings; long text with a link; no custom answer. The scripted model raises only the one single-choice question, so the last four are "Fleet not shown": compare with the CSS in the rows, or extend the scratch clone of `fakellm.py` (never committed anywhere). Dark and light.
+
+### D. Question card live: answer, skip, answered and skipped rows
+- **Rows:** 1.18, 1.19, 1.21-1.23, 2.1, 2.2, 2.4, 2.5, 7.1-7.3, 7.9, 7.10, 8.2.
+- **Files:** `src/fleet/asks.rs` or `src/fleet/questions.rs` (`answer_question`, `reject_question`, gone/other failure), `src/fleet/http.rs`, `src/view/conversation.rs` (a question part draws the card or the row after its message's tool list; it is never folded), `src/view/question.rs` (keys, focus, loading, error, Dismiss), `src/fleet/tests/questions.rs`.
+- **Depends on:** C, and B for the shared focus and key helpers (`src/asks/focus.rs`: `focusBlockingCard` rule, `moveChoiceFocus`). ~600 lines.
+- **Tests to port:** `use-question-answer.test.ts` (2), QuestionCard's "takes keyboard focus on its first option, and the arrow keys move between options", "leaves focus alone while the user types in the composer", "still takes focus from an empty composer that autofocused", "sends the picked choice", "picks a choice by its number key and sends on Enter", "sends typed text instead of a choice", "skips", "shrinks to a row with the question and its answer once answered", "says when a question was skipped", "says the agent isn't waiting and lets the user dismiss the leftover card here, sending nothing".
+- **Pictures:** live: `ask-me`, the card; a click on "Redis" then Send answer; the answered row ("Asked  Which database should the cache use? → Redis ✓") and the agent's reply; a skipped one; the gone state (answer the same question from curl first, then in the app); an older question loaded from history (7.10). Beside Fleet's own client, dark and light.
+
+### E. Allowed rules: the store, the list, the chip
+- **Rows:** 5.1-5.12, 7.8.
+- **Files:** `src/asks/rules.rs` (`AllowedRule`, reader, level from preferences, `PermissionLevel` and its names from `lib/permissions.ts`), `src/fleet/rules.rs` (load, `session.permission-rules`, optimistic remove, reload on refusal), `src/fleet/prefs.rs` (a minimal `GET /api/preferences` read, shared later with Settings), `src/view/allowed.rs` (chip, popover, list), `src/ui/age.rs` (`RelativeTime` compact), `src/view/sheet.rs` (the chip in the composer toolbar after the effort slot), `src/fleet/tests/rules.rs`.
+- **Depends on:** A (wording). The popover is from component 1. ~650 lines. If component 5 has rebuilt the composer toolbar by then, put the chip in its slot instead.
+- **Tests to port:** `use-session-permission-rules.test.ts` (5), `AllowedRulesList.test.ts` (4), `allowed-rule-wording.test.ts` already in A (check it's there).
+- **Pictures:** live: a "Don't ask again" answered from the native app (needs B) makes "Allowed · 1" appear; the open popover with one rule, two rules with Remove all, a broad rule (tinted), the dormant note (level set to "all"); removing one. Beside Fleet's own client, dark and light.
+
+### F. Page-pick card
+- **Rows:** 6.1-6.5, 8.1 (its slot).
+- **Files:** `src/view/pagepick.rs`, `src/fleet/pages.rs` (the minimum of `session.pages` and the session's canvas list that says a choice is waiting and live; component 14 owns the rest), `src/fleet/tests/pages.rs`, `src/mock.rs`, `src/lib.rs`.
+- **Depends on:** A (box shared). Needs the page canvas data: if it isn't there, read the canvases from `GET /api/sessions/{id}/canvases` (check the route in weave-fleet at the time) and keep it behind one function component 14 replaces. ~350 lines. **Stop and ask the orchestrator** if reading canvases needs more than that.
+- **Tests to port:** none in Fleet for the card itself; port `isChoiceLive`'s cases from `lib/__tests__/page-choice.test.ts` (the live half) and add: card shows only while waiting and live, hides for a side conversation, "Open page" sets the target.
+- **Pictures:** `show-page` live: the card under the conversation in both apps, dark and light; the same session after a restart (stale "waiting", idle: no card).
+
+### G. Sweep
+- **Rows:** whatever is open: 1.20, 1.24, 3.16 long texts and sizes under 520 px, 4.x remaining, 8.3-8.4 once components 3 and 5 are in, and a pass over every row marked "None".
+- **Files:** only what a row needs; `docs/PORT.md` marks component 4 done.
+- **Depends on:** A-F. ~300 lines.
+- **Tests to port:** whatever of the lists above is not yet ported (count them against "Tests to port"); a live end-to-end test per card in `src/fleet/tests/live.rs` style.
+- **Pictures:** every state, native beside Fleet's, dark and light, in one folder; the live run of `ask-me`, `ask-permission` with Allow once, Always, Deny, and `show-page`.
+
+## Checks for every piece
+
+1. `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test`; `bash scripts/snap-scenes.sh`.
+2. A scene for each state drawn; the picture opened and compared with Fleet's at the same state and size, both themes.
+3. A live run against a scratch Fleet on its own ports and folder with an invented `HOME` for the scripted model (a path in a Fleet picture is the machine's otherwise). A real window on a virtual display (`xvfb-run`, the window's default is 1360×880) shows the app against it; `xdotool windowfocus` before sending keys.
+4. In the pull request: which rows are covered, which are open and why, what was checked on which system.
