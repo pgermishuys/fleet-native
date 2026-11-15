@@ -116,12 +116,21 @@ pub fn prompt_body(text: &str, correlation_id: &str, pick: &Pick) -> Value {
 /// a request that gave up first would turn into a refusal.
 pub fn prompt(base: &str, session: &str, correlation_id: &str, text: &str, pick: &Pick) -> Result<Value, String> {
     let body = prompt_body(text, correlation_id, pick);
-    read(
-        agent_for(60)
-            .post(url(base, &format!("/api/sessions/{session}/prompt")))
-            .header("content-type", "application/json")
-            .send(body.to_string()),
-    )
+    let agent: ureq::Agent =
+        ureq::Agent::config_builder().timeout_global(Some(Duration::from_secs(60))).http_status_as_error(false).build().into();
+    let mut response = agent
+        .post(url(base, &format!("/api/sessions/{session}/prompt")))
+        .header("content-type", "application/json")
+        .send(body.to_string())
+        .map_err(|e| e.to_string())?;
+    let status = response.status();
+    let text = response.body_mut().read_to_string().unwrap_or_default();
+    let answer: Value = serde_json::from_str(&text).unwrap_or(Value::Null);
+    if status.is_success() {
+        return Ok(answer);
+    }
+    // The server's own reason is what the error box says (`{error}`, or a problem's `detail` or `title`).
+    Err(super::queue::error_message(&answer, format!("HTTP {}", status.as_u16())))
 }
 
 /// `GET /api/sessions/{id}/agents`.
@@ -162,6 +171,32 @@ pub fn put_preference(base: &str, key: &str, value: &str) -> Result<(), String> 
         .collect();
     let body = json!({ "value": value }).to_string();
     read(agent().put(url(base, &format!("/api/preferences/{escaped}"))).header("content-type", "application/json").send(body)).map(drop)
+}
+
+/// One path segment or query value, escaped (`encodeURIComponent`).
+pub fn escape(text: &str) -> String {
+    text.bytes()
+        .map(|b| if b.is_ascii_alphanumeric() || b"-._~!*'()".contains(&b) { (b as char).to_string() } else { format!("%{b:02X}") })
+        .collect()
+}
+
+/// `POST /api/sessions/{id}/attachments?name=<name>`: the raw file in the body, with its own type. The answer is
+/// `{path, name, size, lines, mime}`; a refusal's reason is the server's own `{error}` text (`uploadSessionAttachment`).
+pub fn upload(base: &str, session: &str, name: &str, content_type: &str, body: Vec<u8>) -> Result<Value, String> {
+    let agent: ureq::Agent =
+        ureq::Agent::config_builder().timeout_global(Some(Duration::from_secs(300))).http_status_as_error(false).build().into();
+    let target = url(base, &format!("/api/sessions/{session}/attachments?name={}", escape(name)));
+    let mut response = agent.post(target).header("content-type", content_type).send(body).map_err(|e| e.to_string())?;
+    let status = response.status();
+    let text = response.body_mut().read_to_string().unwrap_or_default();
+    let answer: Value = serde_json::from_str(&text).unwrap_or(Value::Null);
+    if status.is_success() {
+        return Ok(answer);
+    }
+    match answer.get("error").and_then(Value::as_str) {
+        Some(reason) if !reason.is_empty() => Err(reason.to_string()),
+        _ => Err(format!("Failed to upload {name}: HTTP {}", status.as_u16())),
+    }
 }
 
 pub fn abort(base: &str, session: &str) -> Result<(), String> {

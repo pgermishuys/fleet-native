@@ -14,7 +14,7 @@ use rune::{Color, Cursor, El, Key, Shadow, TextHighlight, auto_grow, col, el, ic
 
 /// Fleet puts the composer's pieces in this order above the frame: the error box, the background strip
 /// (component 3, piece K, `view::work`), the mod band (component 22), the queue (piece I) and the paste offer (piece O).
-/// Only the error box and the strip exist; the others are drawn empty until their pieces arrive.
+/// The mod band is drawn empty until component 22.
 pub fn composer(s: &State, t: &Theme, _session: &Session) -> El {
     let disabled = s.composer_disabled();
     let mode = mode_of(&s.draft.text, &s.caps(), s.side_open);
@@ -29,7 +29,7 @@ pub fn composer(s: &State, t: &Theme, _session: &Session) -> El {
     if let Some(queue) = super::queued::list(s, t) {
         outer = outer.child(queue);
     }
-    outer.child(frame(s, t, disabled, mode))
+    outer.children(super::attachments::paste_offer(s, t)).child(frame(s, t, disabled, mode))
 }
 
 /// `.composer-error`: the first thing that went wrong, in a box above the frame (`role=alert`).
@@ -82,6 +82,10 @@ fn frame(s: &State, t: &Theme, disabled: bool, mode: Mode) -> El {
         // A picture on the clipboard is attached; anything else pastes as text (row 10.1).
         .on_input_paste(|s: &mut State, content, tx| s.paste_files(content, tx))
         .on_input_key(|s: &mut State, ev: &rune::KeyEvent, tx| {
+            // The large-paste bar's keys run before the text area's own (row 11.9).
+            if s.offer_key(ev, tx) {
+                return true;
+            }
             // The history list (ArrowUp in an empty draft) and Esc in shell mode come before the rest (rows 8.2, 8.4, 9.4).
             if s.history_key(ev, tx) {
                 return true;
@@ -117,7 +121,10 @@ fn frame(s: &State, t: &Theme, disabled: bool, mode: Mode) -> El {
         .on_drop_hover(|s: &mut State, over, _| s.dragging = over)
         .focus_within_ring(1.0, -1.0, if mode == Mode::Prompt { focus } else { edge });
     frame = frame.child(auto_grow(field.text_highlights(reference_tints(s, t)), 1, 7));
-    frame = frame.children(super::attachments::strip(s, t)).child(toolbar(s, t, disabled, mode));
+    frame = frame
+        .children(super::attachments::strip(s, t))
+        .children(super::attachments::terminal_strip(s, t))
+        .child(toolbar(s, t, disabled, mode));
     frame
 }
 
@@ -171,7 +178,7 @@ fn toolbar(s: &State, t: &Theme, disabled: bool, mode: Mode) -> El {
         }
         b
     };
-    let inactive = disabled || !has_content(&s.draft.text, mode == Mode::Shell, s.shell_support_pending(), s.held_images().len());
+    let inactive = disabled || s.uploading || !has_content(&s.draft.text, mode == Mode::Shell, s.shell_support_pending(), s.extras());
     let busy = s.composer_status() == ComposerStatus::Busy;
     let caps = s.caps();
     let (label, title) = send_words(mode, busy, caps.steers_by_default);
@@ -184,7 +191,11 @@ fn toolbar(s: &State, t: &Theme, disabled: bool, mode: Mode) -> El {
         .opacity(if inactive { 0.5 } else { 1.0 })
         .help(title)
         .label(label)
-        .child(icon(&ARROW_UP, 14.0).color(t.primary_fg));
+        .child(if s.uploading {
+            icon(&LOADER_CIRCLE, 14.0).color(t.primary_fg).cycle(super::ring_popover::spinner())
+        } else {
+            icon(&ARROW_UP, 14.0).color(t.primary_fg)
+        });
     // While a turn runs and the harness can take a message into it, the other choice of Enter gets a button too.
     let other = if busy && caps.can_steer && mode == Mode::Prompt && !is_side_draft(&s.draft.text) {
         Some(other_button(t, caps.steers_by_default, inactive))

@@ -133,7 +133,8 @@ fn a_name_gives_the_type_a_browser_would() {
     assert_eq!(mime_from_name("photo.jpeg"), "image/jpeg");
     assert_eq!(mime_from_name("anim.gif"), "image/gif");
     assert_eq!(mime_from_name("pic.webp"), "image/webp");
-    assert_eq!(mime_from_name("archive.zip"), "");
+    assert_eq!(mime_from_name("archive.zip"), "application/zip");
+    assert_eq!(mime_from_name("archive.bin"), "");
     assert_eq!(mime_from_name("noext"), "");
 }
 

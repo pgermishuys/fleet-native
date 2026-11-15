@@ -36,6 +36,7 @@ pub mod sessions;
 pub mod signalr;
 pub mod state;
 pub mod topics;
+pub mod uploads;
 pub mod usage;
 pub mod view;
 pub mod work;

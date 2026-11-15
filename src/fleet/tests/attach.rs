@@ -171,18 +171,15 @@ fn a_harness_that_cannot_take_images_refuses_without_reading() {
 
 // use-image-attachments.test.ts: "refuses other types and big images"
 #[test]
-fn other_types_and_big_files_are_refused() {
+fn other_types_and_big_pictures_are_refused() {
     let mut rt = mock_app(false, "opencode", false, false);
     images_on(&mut rt);
-    let notes = scratch("notes.txt", b"x");
-    attach(&mut rt, &notes);
-    assert_eq!(rt.state.attach_error(), Some("Unsupported image type: text/plain"));
+    // A file that is no picture is held as a file now (piece O); only a picture is checked as one.
     let big = scratch("big.png", &vec![0u8; 5 * 1024 * 1024 + 1]);
     attach(&mut rt, &big);
     settle(&mut rt, |s| s.attach_error().is_some_and(|e| e.contains("exceeds")), "the size refusal");
     assert_eq!(rt.state.attach_error(), Some("Image exceeds the 5 MB limit (5.0 MB)"));
     assert!(held(&rt).is_empty());
-    forget(&notes);
     forget(&big);
 }
 

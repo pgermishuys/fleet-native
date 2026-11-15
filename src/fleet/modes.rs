@@ -192,12 +192,15 @@ impl State {
             self.composer_error = Some(NO_QUESTION.into());
             return;
         }
-        // The pick is the composer's agent, model and effort; the terminal lines join it with piece O.
+        // The pick is the composer's agent, model and effort.
         let pick = self.prompt_pick(None);
         match self.side_panel {
             SidePanel::Missing => self.toast(SIDE_MISSING.into(), None, 4.0, tx),
             panel => {
                 self.draft.clear();
+                // Terminal lines go in front of the question, as blocks, and leave the draft.
+                let question = crate::composer::attached::format_terminal_context(self.terminal_lines(), &question);
+                self.held.clear_terminals(&owner);
                 self.side_asked.push(SideAsk { session: owner, question, pick });
                 if panel == SidePanel::Refuses {
                     if self.draft.text.is_empty() {

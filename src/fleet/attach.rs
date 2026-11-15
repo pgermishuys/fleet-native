@@ -17,11 +17,15 @@ pub enum Done {
     Refused { owner: String, message: String },
     /// A picture put back after a refusal: only its thumbnail is missing.
     Preview { id: String, bytes: Vec<u8> },
+    /// A file that is no picture, checked and measured (piece O): its chip can be drawn.
+    File { owner: String, file: crate::composer::attached::DraftFile },
+    /// The held files went up (or one failed): what goes into the text.
+    Uploaded { owner: String, modifier: bool, result: Result<(Vec<String>, Vec<crate::composer::attached::AttachedFile>), String> },
 }
 
 /// Where the threads leave their answers.
 pub struct Reads {
-    send: Sender<Done>,
+    pub(super) send: Sender<Done>,
     receive: Receiver<Done>,
 }
 
@@ -87,7 +91,18 @@ impl State {
 
     fn add_one(&mut self, name: String, mime: &'static str, source: Source, tx: &mut Tx) {
         let Some(owner) = self.draft_owner() else { return };
-        let held = self.attach.of(&owner).len() + self.attach.reading(&owner);
+        let held = self.attach.of(&owner).len() + self.held.files(&owner).len() + self.attach.reading(&owner);
+        // Anything but a picture is held as a file until Send (row 11.1).
+        if !attach::is_image_mime(mime) {
+            if held >= crate::conv::image_sniff::MAX_ATTACHMENTS_PER_PROMPT {
+                let max = crate::conv::image_sniff::MAX_ATTACHMENTS_PER_PROMPT;
+                self.attach.set_error(format!("{max} files at most per prompt."), self.clock);
+                tx.wake_after(Duration::from_secs_f64(attach::ERROR_SECONDS + 0.1));
+            } else if let Source::File(path) = source {
+                self.add_plain_file(owner, name, mime, path, tx);
+            }
+            return;
+        }
         let size = match &source {
             Source::Bytes(bytes) => bytes.len(),
             // A file's size is read on the thread, with the file.
@@ -119,7 +134,7 @@ impl State {
             mimes.push("image/png");
         }
         if !attach::paste_takes_files(self.caps().supports_images, &mimes, !content.text().is_empty()) {
-            return false;
+            return self.paste_text(content.text(), tx);
         }
         self.add_files(content.files(), tx);
         if let Some(image) = content.image() {
@@ -162,12 +177,14 @@ impl State {
                     tx.wake_after(Duration::from_secs_f64(attach::ERROR_SECONDS + 0.1));
                 }
                 Done::Preview { id, bytes } => self.on_image_bytes(&preview_key(&id), Ok(bytes)),
+                Done::File { owner, file } => self.on_file_read(&owner, file),
+                Done::Uploaded { owner, modifier, result } => self.on_uploaded(&owner, modifier, result, tx),
             }
         }
         if self.attach.expire(self.clock) {
             changed = true;
         }
-        if self.attach.has_reads() {
+        if self.attach.has_reads() || self.uploading {
             tx.wake_after(Duration::from_millis(30));
         } else if self.attach.error_pending() {
             tx.wake_after(Duration::from_millis(250));

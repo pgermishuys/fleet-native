@@ -244,6 +244,7 @@ impl State {
         };
         self.prompts.confirm(session, &confirm);
         self.attach.delivered(&confirm.correlation_id.clone().unwrap_or_default());
+        self.held.delivered(&confirm.correlation_id.clone().unwrap_or_default());
         self.composer_error = None;
         self.notice = None;
         self.sync_open();
@@ -253,11 +254,13 @@ impl State {
     /// back to the composer, unless something new was typed meanwhile.
     pub fn on_prompt_refused(&mut self, session: &str, correlation_id: &str, why: String, tx: &mut Tx) {
         self.put_back_images(correlation_id, tx);
+        let lines = self.held.refused(correlation_id);
         if let Some(prompt) = self.prompts.remove(session, correlation_id)
             && self.draft.text.trim().is_empty()
             && self.open_id().as_deref() == Some(session)
         {
-            self.draft = rune::TextEdit::new(prompt.body);
+            // What came back is what was typed: the terminal lines are chips again, not blocks in the text.
+            self.draft = rune::TextEdit::new(lines.map_or(prompt.body, |(_, typed)| typed));
         }
         // The error box above the composer (row 1.10), not the status bar.
         self.composer_error = Some(why);
@@ -272,11 +275,11 @@ impl State {
 
     /// The same, into the running turn when `steer` (`delivery: "steer"`).
     pub fn send_to_server_as(&mut self, session: &str, text: &str, steer: bool) {
-        self.send_prompt_with(session, text, steer, false);
+        self.send_prompt_with(session, text, text, steer, false);
     }
 
     /// The same; `with_images` takes the draft's pictures along. A prompt of pictures alone has no text to show as pending.
-    pub fn send_prompt_with(&mut self, session: &str, text: &str, steer: bool, with_images: bool) {
+    pub fn send_prompt_with(&mut self, session: &str, text: &str, typed: &str, steer: bool, with_images: bool) {
         if self.link.is_none() {
             return;
         }
@@ -288,6 +291,10 @@ impl State {
         if with_images {
             pick.attachments = self.attach.take_for_send(session, &correlation_id);
             self.forget_previews(&pick.attachments);
+        }
+        // The terminal lines are in the text already; they wait to come back if the server refuses it.
+        if text != typed {
+            self.held.take_terminals_for_send(session, &correlation_id, typed);
         }
         self.add_references(&mut pick, text);
         self.note_pick_on_row(&pick);
