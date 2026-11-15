@@ -62,7 +62,7 @@ Counted by exact name, with the apostrophe in "doesn't" dropped as `src/fleet/te
 | `reopened-session.test.ts` | 3 | 0 | 3 (see "Tests to port": two need component 3's tool card) |
 | `running-work.test.ts` | 11 | 11 (piece C) | 0 |
 | `late-tool-update.test.ts` | 2 | 2 (piece C) | 0 |
-| `history-merge.test.ts` | 7 | 0 | 7 |
+| `history-merge.test.ts` | 7 | 7 (piece F) | 0 |
 | `merge-messages.test.ts` | 7 | 0 | 7 |
 | `context-usage.test.ts` | 11 | 5 (piece C) | 0 here; 6 belong here (`toContextUsage`), 6 to component 5's ring |
 
@@ -381,19 +381,31 @@ the retry line in `view/conversation.rs`). Gaps, with reasons:
 
 ### 6. Older history, presence and focus
 
-- [ ] **6.1 State.** `has_more`, `cursor`, `is_loading_older`, `load_older_failed`, `is_loading` (before the first
-  snapshot) beside the messages, from the snapshot's `hasMore`, `cursor`, `isPartial`.
-- [ ] **6.2 `loadOlder`** (`use-session-stream.ts`): ignored while disabled, loading, no `hasMore`, a page in flight, or no
+- [x] **6.1 State.** `has_more`, `cursor`, `is_loading_older`, `load_older_failed` on `StreamState` (`model.rs`), from the
+  snapshot's `hasMore`, `cursor`; `is_partial` was piece E's; `is_loading` (before the first snapshot) is `State::loading`,
+  also piece E's. The two transient flags are cleared when a conversation is kept, as Fleet resets them on leaving.
+- [x] **6.2 `loadOlder`** (`use-session-stream.ts`): ignored while disabled, loading, no `hasMore`, a page in flight, or no
   cursor. Invokes `LoadHistoryAsync(sessionId, cursor)` with a 30 s timeout (`HISTORY_PAGE_TIMEOUT_MS`); a
   page for a cursor a newer snapshot replaced is dropped; a failure or timeout keeps the cursor and sets
   `loadOlderFailed` so the next try asks for the same page; leaving the session drops the answer.
-- [ ] **6.3 `prependHistoryPage`** (`lib/history-merge.ts`): older messages go before the current ones, in the page's
+  Native: `State::load_older`, `State::on_history_page`, `Link::load_older`, `history::Pending` (invocation id → session and
+  cursor, 30 s per request, all failed when the connection drops, failed at once while it is down). "Disabled" has no
+  native counterpart (a conversation is always enabled).
+- [x] **6.3 `prependHistoryPage`** (`lib/history-merge.ts`): older messages go before the current ones, in the page's
   order, deduplicated by id keeping the current copy, no repositioning, empty page and empty state handled; converts the
-  page's payloads (text, reasoning, tool, file, compaction, `step-*` parts) like a snapshot's.
-- [ ] **6.4 Control.** "Load older messages" (a button at the top of the stream), "Loading older messages…" with a
+  page's payloads (text, reasoning, tool, file, compaction, `step-*` parts) like a snapshot's. `src/fleet/history.rs`.
+  Like Fleet's conversion, a page's message doesn't read the `command` mark, the failure or the finish reason (a Fleet gap,
+  not fixed here: an older prompt that came from a slash command shows without its mark).
+- [x] **6.4 Control.** "Load older messages" (a button at the top of the stream), "Loading older messages…" with a
   spinner while it runs, "Couldn't load older messages · Try again" after a failure (`ActivityStream.vue` 645-665). The
   Turns canvas and phone use shorter labels; they are other components'. The button is drawn in
   `src/view/conversation.rs`, which component 3 owns afterwards; keep the change here to the row and its key.
+  Native: keys `load-older` (the button, and its retry wording) and `load-older-loading`; scenes `older-ask`, `older-loading`,
+  `older-failed` (+ light). New token `accent_text` (`--accent-text`) for the spinner. Gaps, both for component 3: (a) Fleet
+  also asks by itself when the stream is scrolled to within 100 px of the top (`use-stream-scroll.ts`, `SCROLL_TOP_THRESHOLD`),
+  so its button is mostly seen only in the failed state; native waits for the press, because reading the scroll offset
+  is component 3's scroll port. (b) Fleet's spinner turns; native's fades (Rune has no looping rotation, `RUNE.md`). The
+  v0.72.0 client words the failure "Couldn't load older messages · Retry"; `main` says "· Try again", which native follows.
 - [ ] **6.5 `SetPresenceAsync(visible, formFactor)`** (`use-desk-presence.ts`): `formFactor` is `"desktop"` here, always;
   sent at launch, on each connect and reconnect, every 30 s (`PRESENCE_INTERVAL_MS`; the server forgets a window after
   90 s), and whenever visibility changes. `visible` is whether the window is on screen (`document.visibilityState`):
@@ -619,7 +631,7 @@ as underscores, apostrophes dropped. A case marked "done" passes today.
 | `reopened-session.test.ts` | 3 | 0 | B (2), component 3 (1) | case 2 needs `toToolCardItem` |
 | `running-work.test.ts` | 11 | 11 | C | done |
 | `late-tool-update.test.ts` | 2 | 2 | C | done |
-| `history-merge.test.ts` | 7 | 0 | F | |
+| `history-merge.test.ts` | 7 | 7 | F | done |
 | `merge-messages.test.ts` | 7 | 0 | D | |
 | `context-usage.test.ts` | 11 | 5 | C (5), component 5 (6) | `toContextUsage` here; percent, tone, turns before compaction and `formatTokens` are the ring's |
 

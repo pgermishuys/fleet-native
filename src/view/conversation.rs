@@ -10,7 +10,7 @@ use crate::State;
 use crate::icons::*;
 use crate::mock::{Session, Status};
 use crate::theme::{RADIUS_CARD, Theme, mono, sans};
-use rune::{Cursor, El, GrowthSpec, Icon, ScrollSpec, col, el, icon, memo, row, text};
+use rune::{Cursor, Cycle, El, GrowthSpec, Icon, ScrollSpec, col, el, icon, memo, row, text};
 use rune_kit::markdown::MarkdownStyle;
 use std::borrow::Cow;
 
@@ -134,7 +134,7 @@ impl Message {
 
 /// The scrolling column of messages and, while a turn runs, the "Working" line. Only the rows on
 /// screen are built (`virtual_rows`), and a row whose message hasn't changed is reused (`memo`).
-pub fn stream(t: &Theme, session: &Session, partial: bool) -> El {
+pub fn stream(t: &Theme, session: &Session, partial: bool, older: Option<Older>) -> El {
     let theme = *t;
     let md = prose::style(t);
     let working = session.status == Status::Working;
@@ -156,14 +156,17 @@ pub fn stream(t: &Theme, session: &Session, partial: bool) -> El {
             })
         },
     );
-    col()
-        .key("stream")
-        .w_full()
-        .grow(1.0)
-        .shrink()
-        .min_h(0.0)
-        .scroll(ScrollSpec { stick_bottom: true })
-        .child(col().w_full().pt(24.0).px(32.0).pb(12.0).items_center().children(partial.then(|| partial_banner(&theme))).child(rows))
+    col().key("stream").w_full().grow(1.0).shrink().min_h(0.0).scroll(ScrollSpec { stick_bottom: true }).child(
+        col()
+            .w_full()
+            .pt(24.0)
+            .px(32.0)
+            .pb(12.0)
+            .items_center()
+            .children(partial.then(|| partial_banner(&theme)))
+            .children(older.map(|o| older_row(&theme, o)))
+            .child(rows),
+    )
 }
 
 /// `.partial-snapshot-banner` (`ActivityStream.vue`): the harness was unavailable and this is cached data.
@@ -185,6 +188,48 @@ fn partial_banner(t: &Theme) -> El {
         .radius(RADIUS_CARD)
         .child(text("⚠").font(sans(14.0, 400.0, 1.0)).color(t.idle_text))
         .child(text("Connection to live session is temporarily unavailable. Showing cached data.").font(font).color(t.idle_text))
+}
+
+/// What the top of the stream offers when the conversation has older messages (`hasMore`).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Older {
+    /// "Load older messages".
+    Ask,
+    /// "Loading older messages…" with a spinner.
+    Loading,
+    /// "Couldn't load older messages · Try again".
+    Failed,
+}
+
+/// `.load-older-indicator` and `.load-older-button` (`ActivityStream.vue`): 13px muted, centred, 8px above and below.
+/// Fleet's spinner turns; Rune has no looping rotation, so this one fades slowly, which is what Fleet itself does
+/// under reduced motion.
+fn older_row(t: &Theme, older: Older) -> El {
+    static FADE: [(f32, f32); 3] = [(0.0, 1.0), (0.5, 0.35), (1.0, 1.0)];
+    let font = sans(13.0, 400.0, 1.3);
+    let line = row().w_full().max_w(COLUMN).py(8.0).gap(8.0).center_y().justify_center();
+    match older {
+        Older::Loading => line
+            .key("load-older-loading")
+            .child(icon(&LOADER_CIRCLE, 14.0).color(t.accent_text).cycle(Cycle {
+                period: 1.2,
+                phase: 0.0,
+                stops: &FADE,
+                still: 1.0,
+                fps: 30.0,
+            }))
+            .child(text("Loading older messages\u{2026}").font(font).color(t.muted)),
+        Older::Ask | Older::Failed => {
+            let label = if older == Older::Failed { "Couldn't load older messages \u{b7} Try again" } else { "Load older messages" };
+            line.key("load-older")
+                .opacity(0.7)
+                .hover_group()
+                .cursor(Cursor::Pointer)
+                .label(label)
+                .on_press(|s: &mut State| s.load_older())
+                .child(text(label).font(font).color(t.muted).group_color(t.text))
+        }
+    }
 }
 
 /// One message: its parts, spaced as Fleet spaces them. `after_tool` is how the message above

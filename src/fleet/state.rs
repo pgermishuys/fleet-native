@@ -1,6 +1,7 @@
 //! How what the connection learns reaches the state. Every method here runs on the UI thread, from
 //! an `AppHandle::update` closure, and does no I/O.
 use super::events::{Event, Kind};
+use super::history::{self, Page};
 use super::link::Connection;
 use super::model::{Msg, StreamState};
 use super::prompts::{self, Confirm, PromptStatus};
@@ -9,7 +10,7 @@ use super::sessions;
 use super::view;
 use crate::State;
 use crate::mock::{Project, Status};
-use crate::view::conversation::Message;
+use crate::view::conversation::{Message, Older};
 use rune::Tx;
 
 /// Where an event came from, for `State::subscribe` (`onGlobalEvent` is `Sessions`, `onDomainEvent`
@@ -85,7 +86,10 @@ impl State {
     /// Keeps the conversation being left, if it came from a snapshot (`keepCurrentStream`).
     fn keep_current_stream(&mut self) {
         let (id, stream) = (self.stream_of.take(), self.stream.take());
-        if let (Some(id), Some(stream), false) = (id, stream, self.loading) {
+        if let (Some(id), Some(mut stream), false) = (id, stream, self.loading) {
+            // A page in flight is dropped when you leave; coming back starts from a plain button.
+            stream.is_loading_older = false;
+            stream.load_older_failed = false;
             self.kept.keep(&id, stream);
         }
     }
@@ -161,6 +165,44 @@ impl State {
         self.loading = false;
         self.sync_open();
         tx.scroll_to_bottom("stream");
+    }
+
+    /// "Load older messages" (`loadOlder`). Ignored while the snapshot is loading (a kept copy's cursor may be
+    /// stale), while a page is already on its way, or when there is nothing older to ask for.
+    pub fn load_older(&mut self) {
+        let (Some(link), Some(id)) = (&self.link, self.open_id()) else { return };
+        let Some(stream) = self.stream.as_mut() else { return };
+        let Some(cursor) = stream.cursor.clone() else { return };
+        if self.loading || !stream.has_more || stream.is_loading_older {
+            return;
+        }
+        stream.is_loading_older = true;
+        stream.load_older_failed = false;
+        link.load_older(&id, &cursor);
+    }
+
+    /// The answer to `load_older`, or why there is none. A page whose cursor a newer snapshot replaced no longer
+    /// fits and is dropped (the button comes back as it was); a failure keeps the cursor, so the next try asks
+    /// for the same page; an answer for a session no longer open is dropped.
+    pub fn on_history_page(&mut self, id: &str, cursor: &str, page: Result<Page, String>) {
+        if self.open_id().as_deref() != Some(id) {
+            return;
+        }
+        let Some(stream) = self.stream.as_mut() else { return };
+        match page {
+            Ok(page) if stream.cursor.as_deref() == Some(cursor) => {
+                stream.messages = history::prepend_page(std::mem::take(&mut stream.messages), &page.messages);
+                stream.cursor = page.cursor;
+                stream.has_more = page.has_more;
+                stream.is_loading_older = false;
+                stream.load_older_failed = false;
+                self.sync_open();
+            }
+            other => {
+                stream.load_older_failed = other.is_err();
+                stream.is_loading_older = false;
+            }
+        }
     }
 
     /// The server took a prompt: the receipt confirms it, as the committed event does (whichever is first).
@@ -321,6 +363,29 @@ impl State {
     /// The open conversation is the harness's cached data, not live (`isPartial`).
     pub fn is_partial(&self) -> bool {
         self.stream.as_ref().is_some_and(|s| s.is_partial)
+    }
+
+    /// What the top of the conversation offers: nothing, or the button, its busy line, or its retry wording.
+    pub fn older(&self) -> Option<Older> {
+        let stream = self.stream.as_ref().filter(|s| s.has_more)?;
+        Some(match (stream.is_loading_older, stream.load_older_failed) {
+            (true, _) => Older::Loading,
+            (false, true) => Older::Failed,
+            (false, false) => Older::Ask,
+        })
+    }
+
+    /// A scene: a long conversation whose snapshot says there is more before it (`hasMore`), in the state asked for.
+    pub fn show_older(&mut self, older: Older) {
+        // No conversation under it, so the line at the top of the scroll is in view.
+        self.open = (usize::MAX, 0);
+        let stream = self.stream.get_or_insert_with(|| reducer::create_state(&serde_json::json!({"messages": []})));
+        {
+            stream.has_more = true;
+            stream.cursor = Some("scene-cursor".into());
+            stream.is_loading_older = older == Older::Loading;
+            stream.load_older_failed = older == Older::Failed;
+        }
     }
 
     /// What the status bar says about the connection; `None` when all is well or there's no server.

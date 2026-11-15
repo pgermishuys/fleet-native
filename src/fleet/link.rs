@@ -2,6 +2,7 @@
 //! the HTTP calls, and every result reaches the state through `AppHandle::update`, so the UI
 //! thread does no network work. Events are batched to one hand-over per frame's worth.
 use super::events::Event;
+use super::history::{Page, Pending};
 use super::reducer::create_state;
 use super::signalr::{self, Frame};
 use super::state::Topic;
@@ -51,6 +52,11 @@ pub enum Cmd {
     /// Listen to another session's topic as well (its events go to `State::subscribe`).
     Watch(String),
     Unwatch(String),
+    /// Ask for the page of older messages before `cursor`.
+    LoadOlder {
+        session: String,
+        cursor: String,
+    },
 }
 
 /// What the UI keeps of the connection.
@@ -84,6 +90,11 @@ impl Link {
     /// Listens to a session that isn't open (the Files canvas keeps listening while you are on another).
     pub fn watch(&self, session: &str) {
         let _ = self.cmds.send(Cmd::Watch(session.to_string()));
+    }
+
+    /// Asks for the page before `cursor`; the answer, or why there is none, reaches `State::on_history_page`.
+    pub fn load_older(&self, session: &str, cursor: &str) {
+        let _ = self.cmds.send(Cmd::LoadOlder { session: session.to_string(), cursor: cursor.to_string() });
     }
 
     pub fn unwatch(&self, session: &str) {
@@ -138,6 +149,7 @@ fn connection(post: &Post, c: Connection) {
 /// The hub thread: connect, serve, and on loss wait and connect again.
 fn run(base: String, rx: Receiver<Cmd>, post: Post) {
     let mut topics = Topics::default();
+    let mut pending = Pending::default();
     let mut attempt = 0;
     loop {
         let why = match connect(&base) {
@@ -148,10 +160,14 @@ fn run(base: String, rx: Receiver<Cmd>, post: Post) {
                 fetch_list(&base, &post);
                 connection(&post, Connection::Online);
                 post.update(|s, _| s.on_reconnected());
-                serve(ws, &base, &rx, &mut topics, &post)
+                serve(ws, &base, &rx, &mut topics, &mut pending, &post)
             }
             Err(e) => e,
         };
+        // A page asked for on the connection that just ended will never be answered.
+        for (session, cursor) in pending.drain() {
+            history_failed(&post, session, cursor, &why);
+        }
         connection(&post, Connection::Down(why));
         topics.forget_snapshots();
         // Commands that come while waiting still count: the topics to subscribe on the next connection.
@@ -169,11 +185,18 @@ fn run(base: String, rx: Receiver<Cmd>, post: Post) {
                     topics.unwatch(&id);
                 }
                 Ok(Cmd::Refresh) => {}
+                // Not connected: no page can come (`loadSessionHistory` answers null).
+                Ok(Cmd::LoadOlder { session, cursor }) => history_failed(&post, session, cursor, "not connected"),
                 Err(RecvTimeoutError::Timeout) => break,
                 Err(RecvTimeoutError::Disconnected) => return,
             }
         }
     }
+}
+
+fn history_failed(post: &Post, session: String, cursor: String, why: &str) {
+    let why = why.to_string();
+    post.update(move |s, _| s.on_history_page(&session, &cursor, Err(why)));
 }
 
 fn host_of(base: &str) -> Result<String, String> {
@@ -205,7 +228,7 @@ fn connect(base: &str) -> Result<WebSocket<TcpStream>, String> {
 }
 
 /// Serves one connection until it fails; the error says why.
-fn serve(mut ws: WebSocket<TcpStream>, base: &str, rx: &Receiver<Cmd>, topics: &mut Topics, post: &Post) -> String {
+fn serve(mut ws: WebSocket<TcpStream>, base: &str, rx: &Receiver<Cmd>, topics: &mut Topics, pending: &mut Pending, post: &Post) -> String {
     let mut next_id = 0u32;
     let mut call = |ws: &mut WebSocket<TcpStream>, target: &str, args: Vec<Value>| -> Result<u32, String> {
         next_id += 1;
@@ -278,6 +301,11 @@ fn serve(mut ws: WebSocket<TcpStream>, base: &str, rx: &Receiver<Cmd>, topics: &
                     fetch_list(base, post);
                     Ok(())
                 }
+                Cmd::LoadOlder { session, cursor } => (|| {
+                    let n = call(&mut ws, "LoadHistoryAsync", vec![json!(session), json!(cursor)])?;
+                    pending.add(n.to_string(), session, cursor);
+                    Ok::<(), String>(())
+                })(),
             };
             if let Err(e) = result {
                 return e;
@@ -337,6 +365,16 @@ fn serve(mut ws: WebSocket<TcpStream>, base: &str, rx: &Receiver<Cmd>, topics: &
                             }
                         }
                         Frame::Completion { id, result, error } => {
+                            if let Some((session, cursor)) = pending.complete(&id) {
+                                match error {
+                                    Some(e) => history_failed(post, session, cursor, &e),
+                                    None => {
+                                        let page = Page::from_wire(&result);
+                                        post.update(move |s, _| s.on_history_page(&session, &cursor, Ok(page)));
+                                    }
+                                }
+                                continue;
+                            }
                             let Some(session) = asked.remove(&id) else { continue };
                             match error {
                                 Some(e) if topics.open() == Some(session.as_str()) => {
@@ -384,6 +422,9 @@ fn serve(mut ws: WebSocket<TcpStream>, base: &str, rx: &Receiver<Cmd>, topics: &
             let events = std::mem::take(&mut batch);
             batch_since = None;
             post.update(move |s, tx| s.on_events(&id, events, tx));
+        }
+        for (session, cursor) in pending.expired() {
+            history_failed(post, session, cursor, "the server didn't answer in time");
         }
         if let Some(since) = dirty_list
             && since.elapsed() >= Duration::from_millis(400)

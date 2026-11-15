@@ -143,4 +143,10 @@ pub struct StreamState {
     pub last_event_id: Option<i64>,
     /// The snapshot says the harness was unavailable and this is cached data (`isPartial`).
     pub is_partial: bool,
+    /// There are older messages than the ones held (`hasMore`), and the cursor to ask for the page before them.
+    pub has_more: bool,
+    pub cursor: Option<String>,
+    /// An older page is on its way, or the last one failed and the cursor was kept for another try.
+    pub is_loading_older: bool,
+    pub load_older_failed: bool,
 }

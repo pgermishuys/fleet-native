@@ -21,6 +21,8 @@ pub struct Theme {
     pub text: Color,
     pub muted: Color,
     pub accent: Color,
+    /// `--accent-text`: accent ink that reads on the page (the older-messages spinner).
+    pub accent_text: Color,
     pub running: Color,
     pub idle: Color,
     /// `--idle-text`: amber ink that reads on the page (the same as `--idle` in the dark theme).
@@ -49,6 +51,7 @@ impl Theme {
                 text: c("#e8e8ec"),
                 muted: c("#8e8e9a"),
                 accent: c("#6366f1"),
+                accent_text: c("#8284F4"),
                 running: c("#22c55e"),
                 idle: c("#f59e0b"),
                 idle_text: c("#f59e0b"),
@@ -69,6 +72,7 @@ impl Theme {
                 text: c("#1A1918"),
                 muted: c("#6E6A65"),
                 accent: c("#5B6EC7"),
+                accent_text: c("#4D5EA9"),
                 running: c("#16a34a"),
                 idle: c("#d97706"),
                 idle_text: c("#975304"),
