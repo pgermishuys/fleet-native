@@ -79,9 +79,15 @@ impl Link {
         let _ = self.cmds.send(Cmd::Open(session.to_string()));
     }
 
-    pub fn send_prompt(&self, session: &str, text: &str) {
-        let (base, session, text) = (self.base.clone(), session.to_string(), text.to_string());
-        self.in_background(move || http::prompt(&base, &session, &text), "Couldn't send the message");
+    /// Sends a prompt already shown as pending under `correlation_id`; the receipt confirms it and a
+    /// refusal takes it back (`State::on_prompt_receipt`, `on_prompt_refused`).
+    pub fn send_prompt(&self, session: &str, correlation_id: &str, text: &str) {
+        let (base, session, correlation, text) = (self.base.clone(), session.to_string(), correlation_id.to_string(), text.to_string());
+        let post = self.post.clone();
+        std::thread::spawn(move || match http::prompt(&base, &session, &correlation, &text) {
+            Ok(receipt) => post.update(move |s, tx| s.on_prompt_receipt(&session, &correlation, &receipt, tx)),
+            Err(why) => post.update(move |s, tx| s.on_prompt_refused(&session, &correlation, why, tx)),
+        });
     }
 
     pub fn abort(&self, session: &str) {
@@ -99,7 +105,7 @@ impl Link {
     }
 }
 
-fn now_ms() -> i64 {
+pub fn now_ms() -> i64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_millis() as i64)
 }
 

@@ -3,8 +3,9 @@
 //!
 //! The event type itself is `events.rs`. Done: messages and their parts, text deltas, turn start/end/failure, session idle,
 //! delegations and the status derived from them (`delegations.rs`), running work (`work.rs`), context
-//! usage (`context.rs`) and the `command` and `mod` marks on a prompt. Not yet: the optimistic-prompt
-//! confirmation.
+//! usage (`context.rs`) and the `command` and `mod` marks on a prompt. A committed prompt is applied as a
+//! message update; confirming the optimistic prompt it answers is `State::on_stream_events`'s, because the registry
+//! (`prompts.rs`) isn't part of the stream.
 use super::context::to_context_usage;
 use super::delegations::{self, Delegation};
 use super::model::{Explicit, ModKind, ModMark, Msg, PartData, SlashCommand, StreamState, Tokens};
@@ -41,7 +42,9 @@ pub fn create_state(snapshot: &Value) -> StreamState {
 /// `applyDomainEvent`, changing the state in place.
 pub fn apply(state: &mut StreamState, event: &Event) {
     match event {
-        Event::MessageCreated(life) | Event::MessageUpdated(life) => apply_lifecycle(&mut state.messages, life),
+        Event::MessageCreated(life) | Event::MessageUpdated(life) | Event::PromptCommitted { life, .. } => {
+            apply_lifecycle(&mut state.messages, life)
+        }
         Event::PartUpdated(part) => apply_part_update(&mut state.messages, part),
         Event::TextDelta { session_id, message_id, part_id, delta, offset } => {
             apply_text_delta(&mut state.messages, message_id, part_id, session_id, delta, *offset)

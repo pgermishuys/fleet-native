@@ -38,10 +38,7 @@ fn every_type_in_the_union_parses_into_its_own_variant() {
     for (_, _, data) in catalogue() {
         let name = data["type"].as_str().unwrap();
         let event = Event::from_wire(&data).unwrap_or_else(|| panic!("{name} didn't parse"));
-        // `user.prompt.committed` is still a plain message update until piece D (optimistic prompts)
-        // gives it a variant of its own.
-        let want = if name == "user.prompt.committed" { "message.updated" } else { name };
-        assert_eq!(event.kind().map(Kind::wire), Some(want), "{name} came out as {event:?}");
+        assert_eq!(event.kind().map(Kind::wire), Some(name), "{name} came out as {event:?}");
         // The reducer's nine have fields of their own; the others carry the payload untouched.
         match &event {
             Event::Other(_, props) => assert_eq!(props, &data["properties"], "{name}"),

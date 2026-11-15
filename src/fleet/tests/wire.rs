@@ -143,7 +143,10 @@ fn the_hub_thread_fills_the_state_from_a_server_and_sends_prompts() {
     assert_eq!(rt.state.session().title, "Fix pagination");
     assert_eq!(rt.state.session().status, Status::Idle);
 
-    rt.state.link.as_ref().unwrap().send_prompt(&rt.state.open_id().unwrap(), "run-tests");
+    let id = rt.state.open_id().unwrap();
+    rt.update(move |s, _| s.send_to_server(&id, "run-tests"));
     let body: Value = serde_json::from_str(&sent.recv_timeout(Duration::from_secs(10)).expect("the prompt reached the server")).unwrap();
-    assert_eq!(body, json!({"text": "run-tests"}));
+    assert_eq!(body["text"], "run-tests");
+    // The correlation id the optimistic prompt waits on goes with it.
+    assert!(body["correlationId"].as_str().unwrap().starts_with("prompt-"), "{body}");
 }

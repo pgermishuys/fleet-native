@@ -8,6 +8,7 @@ pub mod events;
 pub mod http;
 pub mod link;
 pub mod model;
+pub mod prompts;
 pub mod reducer;
 pub mod sessions;
 pub mod signalr;

@@ -12,6 +12,13 @@ use std::sync::Mutex;
 pub enum Event {
     MessageCreated(Lifecycle),
     MessageUpdated(Lifecycle),
+    /// `user.prompt.committed`: the server has the prompt. Applied as a message update; the correlation
+    /// id and the event's id confirm the prompt the person sent (`prompts.rs`).
+    PromptCommitted {
+        life: Lifecycle,
+        correlation_id: Option<String>,
+        event_id: Option<i64>,
+    },
     PartUpdated(Value),
     TextDelta {
         session_id: String,
@@ -172,7 +179,15 @@ impl Event {
         Some(match known {
             Kind::MessageCreated | Kind::MessageUpdated | Kind::UserPromptCommitted => {
                 let life = Lifecycle { info: props.get("info")?.clone(), parts: props.get("parts").and_then(Value::as_array).cloned() };
-                if known == Kind::MessageCreated { Event::MessageCreated(life) } else { Event::MessageUpdated(life) }
+                match known {
+                    Kind::MessageCreated => Event::MessageCreated(life),
+                    Kind::UserPromptCommitted => Event::PromptCommitted {
+                        life,
+                        correlation_id: text("correlationId").filter(|c| !c.is_empty()),
+                        event_id: data.get("eventId").and_then(Value::as_i64),
+                    },
+                    _ => Event::MessageUpdated(life),
+                }
             }
             Kind::MessagePartUpdated => Event::PartUpdated(props.get("part")?.clone()),
             Kind::MessagePartDeltaStreamed if text("field")? == "text" => Event::TextDelta {
@@ -206,6 +221,7 @@ impl Event {
         Some(match self {
             Event::MessageCreated(_) => Kind::MessageCreated,
             Event::MessageUpdated(_) => Kind::MessageUpdated,
+            Event::PromptCommitted { .. } => Kind::UserPromptCommitted,
             Event::PartUpdated(_) => Kind::MessagePartUpdated,
             Event::TextDelta { .. } => Kind::MessagePartDeltaStreamed,
             Event::TurnStarted => Kind::TurnStarted,

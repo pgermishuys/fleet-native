@@ -64,6 +64,7 @@ pub struct State {
     /// The open session's conversation as the reducer holds it.
     pub stream: Option<StreamState>,
     /// Components that read events the stream doesn't apply (`fleet::state::Subscribers`).
+    pub prompts: fleet::prompts::Prompts,
     pub subscribers: fleet::state::Subscribers,
     /// The last thing that went wrong, shown in the status bar.
     pub notice: Option<String>,
@@ -102,6 +103,7 @@ impl Default for State {
             link: None,
             connection: Connection::Connecting,
             stream: None,
+            prompts: Default::default(),
             subscribers: Default::default(),
             notice: None,
             ui: ui::Ui::default(),
@@ -157,13 +159,15 @@ pub fn send(s: &mut State, tx: &mut Tx) {
     if text.is_empty() {
         return;
     }
-    // On a server the message goes to the agent, and the conversation shows it when the server
-    // says it was received.
-    if let (Some(link), Some(id)) = (&s.link, s.open_id()) {
-        link.send_prompt(&id, &text);
+    // On a server the message goes to the agent, and the conversation shows it at once, as sent but
+    // not yet confirmed.
+    if let (Some(_), Some(id)) = (&s.link, s.open_id()) {
+        s.send_to_server(&id, &text);
         s.draft.clear();
         s.notice = None;
         tx.scroll_to_bottom("stream");
+        // `poll` turns what is still unconfirmed by then into "retry".
+        tx.wake_after(std::time::Duration::from_secs_f64(fleet::prompts::CONFIRMATION_TIMEOUT + 0.1));
         return;
     }
     let (p, i) = s.open;
@@ -214,6 +218,10 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     // Whole seconds only, so the "Working · 18s" label redraws once a second.
     let ticked = now.floor() != s.clock.floor();
     s.clock = now;
+    if s.prompts.expire(now) {
+        s.sync_open();
+        return true;
+    }
     let toast = match &s.ui.toast {
         Some(t) if now >= t.until => {
             s.ui.toast = None;
