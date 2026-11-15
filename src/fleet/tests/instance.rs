@@ -210,6 +210,7 @@ fn find_running_fleet_is_none_without_a_file() {
 #[cfg(unix)]
 #[test]
 fn find_running_fleet_is_none_for_a_dead_pid() {
+    use crate::fleet::instance::is_process_alive;
     let dir = temp("dead");
     // A child that has exited and been reaped: its pid is free.
     let mut child = std::process::Command::new("true").spawn().unwrap();
