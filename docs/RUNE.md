@@ -534,3 +534,11 @@ Nothing in Rune was needed: this piece is plain Rust. Two things for whoever bui
 - **`on_submit` can't see the modifiers** (`Tx` has none), so "Enter does one thing, Ctrl+Enter the other" needs the above.
 - **A list the hub also replaces needs one number per load**: a `session.queue` event and a `GET` race, so every load takes a
   generation and is dropped if an event bumped it meanwhile (`fleet::queue::Queues`).
+
+## Component 5, piece J (autocomplete logic)
+
+Nothing of Rune is used by this piece: it is plain Rust. What it settles for K and L:
+
+- **Positions are byte offsets on character boundaries**, as the text edit's caret is; Fleet's are UTF-16 indices. Slice with them only after the caret is known to be on a boundary.
+- **`Autocomplete::on_key` is a pure function of the text, caret and lists**; it returns an `Edit` and a `KeyOutcome` (`consumed`, `stop`, `swallowed`). The view applies the edit, sets the caret now and again on the next tick, and calls `poll` after the lists, text or caret change.
+
