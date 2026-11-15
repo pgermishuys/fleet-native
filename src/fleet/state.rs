@@ -321,7 +321,12 @@ impl State {
         // The row shows the derived status: a sub-agent's question is the amber diamond, every other
         // kind of work the working glyph.
         let status = sessions::stream_status_of(stream.session_status);
-        if status != Status::Idle {
+        // The session's own question reaches the list as `waiting_input` while its stream still says busy
+        // (the turn hasn't ended): the list is right, as it is in Fleet's rows.
+        let asked = super::rows::glyph_of(&session.row.lifecycle, &session.row.activity) == Status::NeedsInput;
+        if status == Status::Working && asked {
+            session.status = Status::NeedsInput;
+        } else if status != Status::Idle {
             session.status = status;
         } else if session.status == Status::Working {
             // Not NeedsInput: that may be the session's own question, from the list.

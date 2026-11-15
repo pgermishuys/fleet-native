@@ -150,24 +150,29 @@ fn compare_messages(a: &Msg, b: &Msg) -> std::cmp::Ordering {
     compare_message_ids(&a.id, &b.id)
 }
 
-/// Insert by message id, binary search. Ids without the `msg_` prefix go to the end.
+fn is_time(t: Option<i64>) -> Option<i64> {
+    t.filter(|t| *t > 0)
+}
+
+/// `comesAfter`: whether `existing` provably comes after `incoming`. Two `msg_` ids are compared with each other;
+/// any other pair (a harness's own ids, such as Pi's `pi-…`, or one of those next to the `msg_` id Fleet gives a
+/// prompt) only by when the messages were made, and with no time on either, not at all. Which kind of id a message
+/// has never decides its place.
+fn comes_after(existing: &Msg, incoming: &Msg) -> bool {
+    if existing.id.starts_with("msg_") && incoming.id.starts_with("msg_") {
+        return compare_messages(existing, incoming).is_gt();
+    }
+    matches!((is_time(existing.created_at), is_time(incoming.created_at)), (Some(a), Some(b)) if a > b)
+}
+
+/// `insertMessageSorted`: after the messages already there (the order they arrived in), moved back only past the
+/// ones it provably comes before. With every id a `msg_` one this is their sorted order; usually nothing moves.
 fn insert_sorted(messages: &mut Vec<Msg>, new: Msg) {
-    if !new.id.starts_with("msg_") {
-        messages.push(new);
-        return;
+    let mut at = messages.len();
+    while at > 0 && comes_after(&messages[at - 1], &new) {
+        at -= 1;
     }
-    let (mut left, mut right) = (0, messages.len());
-    while left < right {
-        let mid = (left + right) / 2;
-        if !messages[mid].id.starts_with("msg_") {
-            right = mid;
-        } else if compare_messages(&messages[mid], &new).is_lt() {
-            left = mid + 1;
-        } else {
-            right = mid;
-        }
-    }
-    messages.insert(left, new);
+    messages.insert(at, new);
 }
 
 // ─── messages ───────────────────────────────────────────────────────────────
@@ -176,7 +181,7 @@ pub(super) fn str_of(v: &Value, k: &str) -> Option<String> {
     v.get(k).and_then(Value::as_str).map(str::to_string)
 }
 
-fn ensure_message(messages: &mut Vec<Msg>, info: &Value) {
+pub(super) fn ensure_message(messages: &mut Vec<Msg>, info: &Value) {
     let id = str_of(info, "id").unwrap_or_default();
     if messages.iter().any(|m| m.id == id) {
         return;
@@ -233,7 +238,7 @@ fn apply_lifecycle(messages: &mut Vec<Msg>, life: &Lifecycle) {
 }
 
 /// `mergeMessageUpdate`.
-fn merge_update(messages: &mut [Msg], info: &Value, parts: Option<&[Value]>) {
+pub(super) fn merge_update(messages: &mut [Msg], info: &Value, parts: Option<&[Value]>) {
     let id = str_of(info, "id").unwrap_or_default();
     let Some(msg) = messages.iter_mut().find(|m| m.id == id) else { return };
     if let Some(created) = info.pointer("/time/created").and_then(Value::as_i64) {
@@ -355,7 +360,7 @@ fn to_compaction(part: &Value, fallback_id: &str) -> PartData {
 // ─── parts ──────────────────────────────────────────────────────────────────
 
 /// `applyPartUpdate`. A part can arrive before its message, which then starts out as the agent's.
-fn apply_part_update(messages: &mut Vec<Msg>, part: &Value) {
+pub(super) fn apply_part_update(messages: &mut Vec<Msg>, part: &Value) {
     let message_id = str_of(part, "messageID").unwrap_or_default();
     if !messages.iter().any(|m| m.id == message_id) {
         insert_sorted(messages, Msg::new(message_id.clone(), str_of(part, "sessionID").unwrap_or_default(), Role::Assistant));
@@ -420,7 +425,14 @@ fn apply_part_update(messages: &mut Vec<Msg>, part: &Value) {
 
 /// `applyTextDelta`. With its `offset` (where it starts in the part's text) only the text the part
 /// doesn't have yet is added: a snapshot taken mid-reply already has some of it.
-fn apply_text_delta(messages: &mut Vec<Msg>, message_id: &str, part_id: &str, session_id: &str, delta: &str, offset: Option<i64>) {
+pub(super) fn apply_text_delta(
+    messages: &mut Vec<Msg>,
+    message_id: &str,
+    part_id: &str,
+    session_id: &str,
+    delta: &str,
+    offset: Option<i64>,
+) {
     let Some(msg) = messages.iter_mut().find(|m| m.id == message_id) else {
         let mut msg = Msg::new(message_id, session_id, Role::Assistant);
         msg.parts.push(PartData::Text { id: part_id.to_string(), text: delta.to_string() });

@@ -356,7 +356,7 @@ fn ev(status: DelegationStatus) -> DelegationEvent {
         parent_tool_call_id: Some("tool-1".into()),
         child_session_id: Some("child-1".into()),
         title: Some("Delegate work".into()),
-        status,
+        status: Some(status),
         created_at: Some("2026-01-01T00:00:00Z".into()),
         background: false,
     }
@@ -431,4 +431,41 @@ fn every_derived_status_reads_as_a_glyph_in_the_session_list() {
         assert_eq!(glyph(working), Status::Working);
     }
     assert_eq!(glyph(StreamStatus::WaitingInput), Status::NeedsInput);
+}
+
+#[test]
+fn keeps_a_finished_delegation_as_it_was_when_an_update_that_changes_nothing_arrives_without_its_details() {
+    let finished = with(delegation(), |d| d.status = DelegationStatus::Completed);
+    let mut s = state(vec![finished.clone()]);
+    let bare = Event::from_wire(
+        &json!({"type": "delegation.updated", "properties": {"delegationId": "delegation-1", "parentSessionId": "session-1"}}),
+    )
+    .unwrap();
+    apply(&mut s, &bare);
+    assert_eq!(s.delegations, [finished]);
+}
+
+#[test]
+fn creates_a_delegation_from_an_update_only_when_it_doesnt_exist_yet() {
+    let mut s = new_state();
+    let new = json!({"delegationId": "delegation-9", "parentSessionId": "session-1", "title": "New", "status": "running", "createdAt": "2026-01-01T00:00:00Z"});
+    apply(&mut s, &Event::from_wire(&json!({"type": "delegation.updated", "properties": new})).unwrap());
+    let ids: Vec<_> = s.delegations.iter().map(|d| d.delegation_id.as_str()).collect();
+    assert_eq!(ids, ["delegation-9"]);
+}
+
+#[test]
+fn updates_a_tool_still_running_when_reopened_instead_of_adding_a_second_card() {
+    let mut snap = snapshot("busy", vec![]);
+    snap["messages"] = json!([{"info": {"id": "msg_1", "role": "assistant", "sessionID": "fleet-1", "time": {"created": 1000, "completed": null}},
+        "parts": [{"type": "tool", "id": "prt_run", "tool": "bash", "callID": "toolu_run", "state": {"status": "running", "input": {"command": "sleep 5"}}}]}]);
+    let mut s = create_state(&snap);
+    let done = json!({"sessionID": "fleet-1", "messageID": "msg_1", "type": "tool", "id": "prt_run", "tool": "bash", "callID": "toolu_run",
+        "state": {"status": "completed", "input": {"command": "sleep 5"}, "output": "done", "metadata": null}});
+    apply(&mut s, &Event::PartUpdated(done));
+    let bash: Vec<_> =
+        s.messages[0].parts.iter().filter(|p| matches!(p, super::super::model::PartData::Tool { tool, .. } if tool == "bash")).collect();
+    assert_eq!(bash.len(), 1);
+    let super::super::model::PartData::Tool { state, .. } = bash[0] else { unreachable!() };
+    assert_eq!(state["status"], "completed");
 }

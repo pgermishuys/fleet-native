@@ -55,7 +55,8 @@ pub struct DelegationEvent {
     pub parent_tool_call_id: Option<String>,
     pub child_session_id: Option<String>,
     pub title: Option<String>,
-    pub status: DelegationStatus,
+    /// `None` when the event leaves it out: an update then keeps the delegation's own.
+    pub status: Option<DelegationStatus>,
     pub created_at: Option<String>,
     pub background: bool,
 }
@@ -69,7 +70,7 @@ impl DelegationEvent {
             parent_tool_call_id: text("parentToolCallId"),
             child_session_id: text("childSessionId"),
             title: text("title"),
-            status: DelegationStatus::from_wire(props.get("status").and_then(Value::as_str)),
+            status: props.get("status").and_then(Value::as_str).map(|s| DelegationStatus::from_wire(Some(s))),
             created_at: text("createdAt"),
             background: props.get("background") == Some(&Value::Bool(true)),
         })
@@ -100,7 +101,7 @@ pub fn apply_created(list: &mut Vec<Delegation>, ev: &DelegationEvent) {
         parent_tool_call_id: ev.parent_tool_call_id.clone(),
         child_session_id: ev.child_session_id.clone(),
         title: ev.title.clone().unwrap_or_default(),
-        status: ev.status,
+        status: ev.status.unwrap_or(DelegationStatus::Pending),
         created_at: ev.created_at.clone(),
         // What the event doesn't carry stays, as with the object spread in Fleet.
         child_activity_status: old.and_then(|d| d.child_activity_status.clone()),
@@ -121,7 +122,7 @@ pub fn apply_updated(list: &mut [Delegation], ev: &DelegationEvent) -> bool {
         parent_tool_call_id: ev.parent_tool_call_id.clone().or_else(|| old.parent_tool_call_id.clone()),
         child_session_id: ev.child_session_id.clone().or_else(|| old.child_session_id.clone()),
         title: ev.title.clone().unwrap_or_else(|| old.title.clone()),
-        status: ev.status,
+        status: ev.status.unwrap_or(old.status),
         created_at: ev.created_at.clone().or_else(|| old.created_at.clone()),
         child_activity_status: old.child_activity_status.clone(),
         background: ev.background || old.background,

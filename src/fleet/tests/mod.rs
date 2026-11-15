@@ -483,6 +483,8 @@ mod delegations;
 mod events;
 mod history;
 mod instance;
+mod live;
+mod ordering;
 mod presence;
 mod prompts;
 mod reconnect;

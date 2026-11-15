@@ -4,7 +4,7 @@ The parity checklist for component 2 of `docs/PORT.md`, and the pieces it is bui
 
 - **weave-fleet commit read:** `82cb3ed1e01a17a6cb06071feeb297da5550a4b6` (`main`, 14 November 2026).
   The server the live checks run against is v0.72.0; where `main` has moved past it, a row says so.
-- **Native app read:** `main` at `de2dbc1`, `src/fleet/` (about 2,000 lines with tests).
+- **Native app read:** `main` at `de2dbc1`, `src/fleet/` (about 2,000 lines with tests). Piece J re-read weave-fleet `main` at `c74198a` (15 November 2026) for the tests and `event-state.ts`.
 - **Paths** below are weave-fleet's unless they start with `src/` or `docs/`. `client/src/` is
   shortened to `…/`.
 
@@ -362,9 +362,10 @@ the retry line in `view/conversation.rs`). Gaps, with reasons:
   the banner is a one-line row in the conversation.
 - [x] **5.7 Frame batching.** Vue applies live events once per animation frame with a 100 ms fallback
   (`FRAME_FALLBACK_MS`); native batches per 16 ms. Same effect; keep it.
-- [ ] **5.8 Back on the network / the app regains focus** (`window` `online`, `visibilitychange`): reconnect now, skip the
+- [x] **5.8 Back on the network / the app regains focus** (`window` `online`, `visibilitychange`): reconnect now, skip the
   backoff (`reconnectIfClosed`). Native: on window focus, reconnect if down. Rune must report window focus; check.
-- [ ] **5.9 The hub's address and `https`** are component 17.
+- [x] **5.9 The hub's address and `https`** are component 17's: nothing to do here (named owner).
+- **Done in piece J (5.8):** the hub thread's wait between attempts ends at once when the window gains focus and starts again from the first delay (`link.rs`, `run`); test `coming_back_to_the_window_while_the_hub_is_down_reconnects_at_once` (the port is empty, the first retry is a second away, a hub appears and focus comes: back in 0.12 s). Rune reports window focus but, as far as piece J found, no network change, so only focus counts; coming back to a network with the window already in front waits out its delay (30 s at most).
 - Tests: a scratch hub that drops the socket, the app reconnects and takes a new snapshot; a kept stream shows at once;
   `src/fleet/tests/wire.rs` is the pattern (a fake server on a thread).
 
@@ -655,6 +656,8 @@ wants a quick win. J is last.
 
 ## Tests to port, all of them
 
+Piece J's result is the table at the end of this file ("Every Fleet test case"): 135 cases, 128 pass here under Fleet's names, 7 belong to named later components. The counts below are from the day this plan was written.
+
 Counted from weave-fleet `82cb3ed1`. Names are the `it(...)` strings; Rust names are the same with spaces and punctuation
 as underscores, apostrophes dropped. A case marked "done" passes today.
 
@@ -679,3 +682,205 @@ merged key by key, a step-finish's tokens and cost, the SignalR frame round trip
 `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test`, the scenes, and a run against a scratch Fleet
 (`scripts/scratch-fleet.sh`, ports of your own: another session may hold 6411). Say in the pull request which of these ran on
 which system, and what wasn't checked.
+
+### Piece J, what it found and did
+
+- **Tests.** The 135 cases of the nine Fleet files are in the table at the end. Fleet's reducer file now has 58 cases (two new
+  ones about a delegation update without its details, added after the plan); `message-ordering.test.ts` 7 and `event-state.test.ts`
+  29 are all here (`src/fleet/tests/ordering.rs`, 27 tests, same names). **Two Fleet changes since the port was written were real
+  gaps, fixed here:** (1) Fleet's `insertMessageSorted` no longer binary-searches and sends non-`msg_` ids to the end: a message goes
+  after what is there and moves back only past messages it provably comes before (`comesAfter`: two `msg_` ids by id, any other pair
+  by creation time, no time = no move), which is what keeps a Pi session's own ids in order; native still had the old rule and
+  `reducer.rs` `insert_sorted` now has the new one. (2) A `delegation.updated` without a `status` keeps the delegation's status
+  (Fleet's `mapDelegationEvent`: a missing status stays missing); native read "no status" as `pending` and would have reopened a
+  finished sub-agent. `DelegationEvent.status` is an `Option`. Both would have failed the new tests.
+- **5.8** is done (see row 5.8). 5.9 is component 17's.
+- **The live check** (scratch Fleet v0.72.0, scripted model, fake model "Fake"; an ignored test, `src/fleet/tests/live.rs`, connects the
+  app's own link to the Fleet, subscribes to every event and prints the state each time it changes: `FLEET_LIVE_URL=… cargo test
+  live_watch -- --ignored --nocapture`). One session, prompted in turn through the API:
+  - `run-tests`: busy on `turn.started`, a permission asked (`permission.asked` reached the subscribers; the level was "ask"), allowed by the
+    API, `permission.replied`, idle on `session.idled`. Messages 2 → 5, none twice.
+  - `spawn-agent`: `delegation.created` (`Running`, child status unknown), then `activity_status` from the child gave `child=busy`, then
+    `delegation.updated`/`completed` (`Completed`, child `idle`); the stream stayed `Busy` while the parent's turn was open (the
+    derived status is `delegating` only with the parent idle, as in Fleet), and a running work item of kind sub-agent went to `Completed`.
+  - `background-work`: a second delegation and work item, `Running` then `Completed` (this server ended it in under 40 s, not at 30 s; the
+    parent's turn blocked on it, as `fakellm.py` says OpenCode 1 does, so `background` stayed false and the status was `Busy`: the
+    "stays in the background" rules are covered by the unit tests only).
+  - `ask-permission`: `permission.asked` arrived (`external_directory`; the harness named a folder outside the scratch one, which is
+    why no picture shows it).
+  - **Server restart in the middle of that permission**: `Down("IO error: Connection reset by peer")` at once, `Connection refused` next,
+    `Online` again about 18 s later (the 1, 2, 5, 10 s delays), a fresh snapshot: messages 17 before and after, no duplicates, the
+    two delegations and work items back, the status `Idle` (the turn did not survive the restart: the harness restarted), the permission
+    gone. A prompt sent afterwards (`hello`) ran: busy, idle, 17 → 19 messages.
+  - `ask-me`: the server (v0.72.0) drops the harness's `question.asked` ("Dropping unknown harness event type question.asked", in
+    its log), so nothing can answer it through the API and the session stops on it; `activity_status` and the row's `sessionStatus`
+    do go to `waiting_input`. **Bug found and fixed:** the open row stayed on the working glyph because `sync_open` let the stream's
+    `busy` (the turn has not ended) override the list's `waiting_input`; Fleet's rows follow the list. The row is now the amber
+    diamond ("Needs input" is the list row's text, drawn by an earlier slice); test
+    `a_session_stopped_on_its_own_question_stays_the_amber_diamond_while_its_turn_is_open`.
+  - **Not drawn yet, read from the state:** running work (strip, component 9), delegations (component 3's card), the events handed to
+    subscribers (permission, question, session.failure, …).
+- **Seen and left, with reasons.**
+  - Two event types the v0.72.0 server sends are not in `main`'s union: `session.idle` and `session.updated`. Each is logged once and
+    kept as `Unknown`, as designed (4.1). Nothing to do.
+  - `context.updated` never arrived (the scripted model reports no usage), so `context` stayed `None`: the ring is component 5, the
+    parsing is unit-tested.
+  - The live cursor (`Event::Cursor`) reads negative numbers and 0 from this server (`-15`, `-86`, `0`), because the hub's `eventId`
+    argument is not the domain event's id; nothing reads `last_event_id` yet, and Fleet's own `getDomainEventCursor` takes it the
+    same way. Whichever component first reads it to resume must not trust a live value; open.
+  - The `isPartial` snapshot and older history paging beyond one page were not reproducible against the scripted model (it never
+    sends a partial snapshot; one page holds more than it can write); they are shown as scenes (earlier pieces' pictures) and unit tests.
+    Aborting a turn did send `session.failure` and the conversation showed "The turn failed: Aborted" (the failure pinned on the turn's message).
+  - Fleet's client shows the open session's header as "Scratch · OpenCode · Fake · folder"; native leaves the agent and model out
+    (row 5.5, component 6). The tool cards ("Worked for 4s · ran 1 command", the sub-agent card with "Done") are components 3 and 4.
+- **Pictures** (`shots/parity/02j-sweep/`): `fleet-up-*` / `native-up-*` (after the whole run: tool call, sub-agent, plain reply),
+  `native-down-*` and `native-back-*` (Fleet stopped by its port and started again), `fleet-asking-*` / `native-asking-*` (the session
+  stopped on `ask-me`: the row is the amber diamond in both), both themes. Older history, the partial banner, the retry line and
+  "No Fleet is running" are in `shots/parity/02f-older-history/`, `02e-reconnect/`, `02d-optimistic-prompts/` and
+  `02-connect-and-events/i/`; every scene was drawn again with `scripts/snap-scenes.sh` for this piece (all of them drew; not compared pixel by pixel with the earlier pictures, which were taken in other states).
+- **Out of component 2, written down, not fixed:** the question card, the tool and sub-agent cards, the error card ("This turn stopped
+  early"), the header's agent and model, the strip (components 3, 4, 6, 9); the server dropping `question.asked` (Fleet itself, v0.72.0:
+  `main` may have it).
+
+## Every Fleet test case
+
+Generated from `weave-fleet` `c74198a`'s `it(...)` strings against the Rust test names (same words, apostrophes dropped, lower case).
+**128 of 135 pass here; 7 belong to later components** (1 to component 3, 6 to component 5).
+
+| Fleet file (`lib/__tests__/`) | Case | Rust test | Result |
+|---|---|---|---|
+| `domain-event-reducer` | keeps the mod mark on the prompt, live and from a snapshot, and leaves the others alone | `work.rs`: `keeps_the_mod_mark_on_the_prompt_live_and_from_a_snapshot_and_leaves_the_others_alone` | pass |
+| `domain-event-reducer` | keeps the mark on a prompt sent into a running turn, live and from a snapshot | `work.rs`: `keeps_the_mark_on_a_prompt_sent_into_a_running_turn_live_and_from_a_snapshot` | pass |
+| `domain-event-reducer` | marks a prompt the server says was steered after it was first shown without the mark | `work.rs`: `marks_a_prompt_the_server_says_was_steered_after_it_was_first_shown_without_the_mark` | pass |
+| `domain-event-reducer` | keeps_user_prompt_before_assistant_response_when_lifecycle_events_have_equal_timestamps | `mod.rs`: `keeps_user_prompt_before_assistant_response_when_lifecycle_events_have_equal_timestamps` | pass |
+| `domain-event-reducer` | does_not_duplicate_assistant_message_when_part_update_arrives_before_lifecycle_events | `mod.rs`: `does_not_duplicate_assistant_message_when_part_update_arrives_before_lifecycle_events` | pass |
+| `domain-event-reducer` | reconciles_text_delta_placeholder_with_lifecycle_without_duplicating_final_snapshot_text | `work.rs`: `reconciles_text_delta_placeholder_with_lifecycle_without_duplicating_final_snapshot_text` | pass |
+| `domain-event-reducer` | preserves_longer_streamed_text_when_shorter_final_lifecycle_snapshot_arrives | `mod.rs`: `preserves_longer_streamed_text_when_shorter_final_lifecycle_snapshot_arrives` | pass |
+| `domain-event-reducer` | keeps_live_stream_and_reconnect_snapshot_plus_pending_events_equivalent_without_duplicate_messages | `reconnect.rs`: `keeps_live_stream_and_reconnect_snapshot_plus_pending_events_equivalent_without_duplicate_messages` | pass |
+| `domain-event-reducer` | keeps_the_snapshot_when_a_pending_message_update_has_no_parts | `mod.rs`: `keeps_the_snapshot_when_a_pending_message_update_has_no_parts` | pass |
+| `domain-event-reducer` | reconciles_optimistic_prompt_when_committed_event_has_matching_correlation_id | `prompts.rs`: `reconciles_optimistic_prompt_when_committed_event_has_matching_correlation_id` | pass |
+| `domain-event-reducer` | confirming_same_correlation_id_twice_is_idempotent | `prompts.rs`: `confirming_same_correlation_id_twice_is_idempotent` | pass |
+| `domain-event-reducer` | derives delegating status from idle snapshots with active delegations | `delegations.rs`: `derives_delegating_status_from_idle_snapshots_with_active_delegations` | pass |
+| `domain-event-reducer` | hydrates a retrying snapshot as working | `mod.rs`: `hydrates_a_retrying_snapshot_as_working` | pass |
+| `domain-event-reducer` | shows work for every status but idle | `mod.rs`: `shows_work_for_every_status_but_idle` | pass |
+| `domain-event-reducer` | hydrates as delegating from busy snapshots with active delegations | `delegations.rs`: `hydrates_as_delegating_from_busy_snapshots_with_active_delegations` | pass |
+| `domain-event-reducer` | keeps busy status while turns are active even with delegations | `delegations.rs`: `keeps_busy_status_while_turns_are_active_even_with_delegations` | pass |
+| `domain-event-reducer` | enters delegating when an active delegation is created while explicitly idle | `delegations.rs`: `enters_delegating_when_an_active_delegation_is_created_while_explicitly_idle` | pass |
+| `domain-event-reducer` | keeps a session non-idle when a turn ends with an active delegation | `delegations.rs`: `keeps_a_session_non_idle_when_a_turn_ends_with_an_active_delegation` | pass |
+| `domain-event-reducer` | stays delegating after explicit idle until the final active delegation completes | `delegations.rs`: `stays_delegating_after_explicit_idle_until_the_final_active_delegation_completes` | pass |
+| `domain-event-reducer` | returns to idle when the final active delegation completes | `delegations.rs`: `returns_to_idle_when_the_final_active_delegation_completes` | pass |
+| `domain-event-reducer` | stays busy when the final active delegation completes before explicit idle | `delegations.rs`: `stays_busy_when_the_final_active_delegation_completes_before_explicit_idle` | pass |
+| `domain-event-reducer` | does not return to idle until all active delegations are terminal | `delegations.rs`: `does_not_return_to_idle_until_all_active_delegations_are_terminal` | pass |
+| `domain-event-reducer` | treats error and cancelled delegations as terminal states | `delegations.rs`: `treats_error_and_cancelled_delegations_as_terminal_states` | pass |
+| `domain-event-reducer` | becomes idle when a session idles with no delegations | `mod.rs`: `becomes_idle_when_a_session_idles_with_no_delegations` | pass |
+| `domain-event-reducer` | initializes as delegating from an idle snapshot when any delegation is active | `delegations.rs`: `initializes_as_delegating_from_an_idle_snapshot_when_any_delegation_is_active` | pass |
+| `domain-event-reducer` | does not oscillate to idle when the child idles before parent delegation completion | `delegations.rs`: `does_not_oscillate_to_idle_when_the_child_idles_before_parent_delegation_completion` | pass |
+| `domain-event-reducer` | transitions to idle when turn.ended arrives without a preceding session.idled and no active delegations | `mod.rs`: `transitions_to_idle_when_turn_ended_arrives_without_a_preceding_session_idled_and_no_active_delegations` | pass |
+| `domain-event-reducer` | stays delegating when turn.ended arrives with active delegations | `delegations.rs`: `stays_delegating_when_turn_ended_arrives_with_active_delegations` | pass |
+| `domain-event-reducer` | skips a delta the snapshot already has | `mod.rs`: `skips_a_delta_the_snapshot_already_has` | pass |
+| `domain-event-reducer` | adds only the part of a delta the snapshot doesn't have | `mod.rs`: `adds_only_the_part_of_a_delta_the_snapshot_doesnt_have` | pass |
+| `domain-event-reducer` | adds a delta that starts where the snapshot ends | `mod.rs`: `adds_a_delta_that_starts_where_the_snapshot_ends` | pass |
+| `domain-event-reducer` | adds a delta without an offset whole, as from a Fleet that doesn't send one | `mod.rs`: `adds_a_delta_without_an_offset_whole_as_from_a_fleet_that_doesnt_send_one` | pass |
+| `domain-event-reducer` | streams on from the snapshot with no text twice | `mod.rs`: `streams_on_from_the_snapshot_with_no_text_twice` | pass |
+| `domain-event-reducer` | pins the failure to the assistant message the turn produced | `mod.rs`: `pins_the_failure_to_the_assistant_message_the_turn_produced` | pass |
+| `domain-event-reducer` | falls back to the last assistant message when the failure names none | `mod.rs`: `falls_back_to_the_last_assistant_message_when_the_failure_names_none` | pass |
+| `domain-event-reducer` | gives the failure a message of its own when the turn produced none | `mod.rs`: `gives_the_failure_a_message_of_its_own_when_the_turn_produced_none` | pass |
+| `domain-event-reducer` | gives a failure before the reply its own message after the prompt, even when it names an earlier reply | `mod.rs`: `gives_a_failure_before_the_reply_its_own_message_after_the_prompt_even_when_it_names_an_earlier_reply` | pass |
+| `domain-event-reducer` | stops the session looking busy | `mod.rs`: `stops_the_session_looking_busy` | pass |
+| `domain-event-reducer` | keeps a failure that arrived on the message when it is rebuilt from a snapshot | `mod.rs`: `keeps_a_failure_that_arrived_on_the_message_when_it_is_rebuilt_from_a_snapshot` | pass |
+| `domain-event-reducer` | keeps the failure when a later message.updated carries nothing new | `mod.rs`: `keeps_the_failure_when_a_later_message_updated_carries_nothing_new` | pass |
+| `domain-event-reducer` | makes the parent wait on input, over its own busy turn | `delegations.rs`: `makes_the_parent_wait_on_input_over_its_own_busy_turn` | pass |
+| `domain-event-reducer` | goes back to working once answered, then idle as before | `delegations.rs`: `goes_back_to_working_once_answered_then_idle_as_before` | pass |
+| `domain-event-reducer` | keeps the child's status when its delegation is updated | `delegations.rs`: `keeps_the_childs_status_when_its_delegation_is_updated` | pass |
+| `domain-event-reducer` | keeps a finished delegation as it was when an update that changes nothing arrives without its details | `delegations.rs`: `keeps_a_finished_delegation_as_it_was_when_an_update_that_changes_nothing_arrives_without_its_details` | pass |
+| `domain-event-reducer` | creates a delegation from an update only when it doesn't exist yet | `delegations.rs`: `creates_a_delegation_from_an_update_only_when_it_doesnt_exist_yet` | pass |
+| `domain-event-reducer` | leaves the state alone for a session that isn't one of its sub-agents | `delegations.rs`: `leaves_the_state_alone_for_a_session_that_isnt_one_of_its_sub_agents` | pass |
+| `domain-event-reducer` | stops counting once the delegation has finished | `delegations.rs`: `stops_counting_once_the_delegation_has_finished` | pass |
+| `domain-event-reducer` | hydrates from a snapshot taken while the child waits | `delegations.rs`: `hydrates_from_a_snapshot_taken_while_the_child_waits` | pass |
+| `domain-event-reducer` | hydrates as delegating when the child is only working | `delegations.rs`: `hydrates_as_delegating_when_the_child_is_only_working` | pass |
+| `domain-event-reducer` | reads idle once its turn is over, while the sub-agent works | `delegations.rs`: `reads_idle_once_its_turn_is_over_while_the_sub_agent_works` | pass |
+| `domain-event-reducer` | stays in the background when a later update doesn't say so | `delegations.rs`: `stays_in_the_background_when_a_later_update_doesnt_say_so` | pass |
+| `domain-event-reducer` | still works through its own turn | `delegations.rs`: `still_works_through_its_own_turn` | pass |
+| `domain-event-reducer` | waits on input when the sub-agent asks | `delegations.rs`: `waits_on_input_when_the_sub_agent_asks` | pass |
+| `domain-event-reducer` | counts a foreground sub-agent beside it as work | `delegations.rs`: `counts_a_foreground_sub_agent_beside_it_as_work` | pass |
+| `domain-event-reducer` | hydrates as idle from a snapshot taken while the sub-agent works | `delegations.rs`: `hydrates_as_idle_from_a_snapshot_taken_while_the_sub_agent_works` | pass |
+| `domain-event-reducer` | hydrates as waiting on input from a snapshot taken while the sub-agent asks | `delegations.rs`: `hydrates_as_waiting_on_input_from_a_snapshot_taken_while_the_sub_agent_asks` | pass |
+| `domain-event-reducer` | starts from the snapshot's context and takes each update whole | `work.rs`: `starts_from_the_snapshots_context_and_takes_each_update_whole` | pass |
+| `domain-event-reducer` | is null until the harness reports, and ignores a payload that isn't one | `work.rs`: `is_null_until_the_harness_reports_and_ignores_a_payload_that_isnt_one` | pass |
+| `message-ordering` | sorts_messages_by_message_id | `ordering.rs`: `sorts_messages_by_message_id` | pass |
+| `message-ordering` | keeps_an_assistant_message_created_by_a_delta_where_it_arrived | `ordering.rs`: `keeps_an_assistant_message_created_by_a_delta_where_it_arrived` | pass |
+| `message-ordering` | sorts_snapshot_messages_by_message_id | `ordering.rs`: `sorts_snapshot_messages_by_message_id` | pass |
+| `message-ordering` | reorders_when_lifecycle_backfills_createdAt | `ordering.rs`: `reorders_when_lifecycle_backfills_createdat` | pass |
+| `message-ordering` | keeps_the_snapshots_order_after_a_reload | `ordering.rs`: `keeps_the_snapshots_order_after_a_reload` | pass |
+| `message-ordering` | keeps_the_order_the_messages_arrive_in_live | `ordering.rs`: `keeps_the_order_the_messages_arrive_in_live` | pass |
+| `message-ordering` | keeps_the_order_when_the_replies_have_no_time | `ordering.rs`: `keeps_the_order_when_the_replies_have_no_time` | pass |
+| `event-state` | creates_a_message_for_the_first_tool_part | `ordering.rs`: `creates_a_message_for_the_first_tool_part` | pass |
+| `event-state` | merges_sequential_tool_state_updates | `ordering.rs`: `merges_sequential_tool_state_updates` | pass |
+| `event-state` | overwrites_existing_tool_state_keys_with_latest_values | `ordering.rs`: `overwrites_existing_tool_state_keys_with_latest_values` | pass |
+| `event-state` | keeps_user_prompt_before_assistant_response_when_assistant_timestamp_arrives_late | `ordering.rs`: `keeps_user_prompt_before_assistant_response_when_assistant_timestamp_arrives_late` | pass |
+| `event-state` | does_not_duplicate_assistant_message_and_preserves_longer_part_when_lifecycle_arrives_after_part_update | `ordering.rs`: `does_not_duplicate_assistant_message_and_preserves_longer_part_when_lifecycle_arrives_after_part_update` | pass |
+| `event-state` | does_not_duplicate_assistant_message_and_replaces_shorter_part_when_lifecycle_arrives_after_part_update | `ordering.rs`: `does_not_duplicate_assistant_message_and_replaces_shorter_part_when_lifecycle_arrives_after_part_update` | pass |
+| `event-state` | reconciles_text_delta_placeholder_with_lifecycle_without_duplicating_final_snapshot_text | `work.rs`: `reconciles_text_delta_placeholder_with_lifecycle_without_duplicating_final_snapshot_text` | pass |
+| `event-state` | preserves_longer_streamed_text_when_shorter_final_lifecycle_snapshot_arrives | `mod.rs`: `preserves_longer_streamed_text_when_shorter_final_lifecycle_snapshot_arrives` | pass |
+| `event-state` | includes file parts from committed snapshot even when no prior file part existed | `work.rs`: `includes_file_parts_from_committed_snapshot_even_when_no_prior_file_part_existed` | pass |
+| `event-state` | preserves file parts already accumulated when snapshot arrives without them | `work.rs`: `preserves_file_parts_already_accumulated_when_snapshot_arrives_without_them` | pass |
+| `event-state` | orders_a_forks_copies_by_their_counter_not_as_text | `ordering.rs`: `orders_a_forks_copies_by_their_counter_not_as_text` | pass |
+| `event-state` | orders_other_ids_as_text | `ordering.rs`: `orders_other_ids_as_text` | pass |
+| `event-state` | puts_a_scheduled_prompt_where_it_happened_not_after_every_message | `ordering.rs`: `puts_a_scheduled_prompt_where_it_happened_not_after_every_message` | pass |
+| `event-state` | keeps_a_forks_conversation_in_order_as_it_arrives | `ordering.rs`: `keeps_a_forks_conversation_in_order_as_it_arrives` | pass |
+| `event-state` | inserts_messages_in_chronological_order_by_message_id | `ordering.rs`: `inserts_messages_in_chronological_order_by_message_id` | pass |
+| `event-state` | preserves_lexicographic_order_for_sequential_ids | `ordering.rs`: `preserves_lexicographic_order_for_sequential_ids` | pass |
+| `event-state` | orders_messages_with_same_millisecond_by_counter | `ordering.rs`: `orders_messages_with_same_millisecond_by_counter` | pass |
+| `event-state` | places_a_message_with_another_kind_of_id_by_its_time | `ordering.rs`: `places_a_message_with_another_kind_of_id_by_its_time` | pass |
+| `event-state` | handles_out_of_order_arrival_user_assistant_user_assistant | `ordering.rs`: `handles_out_of_order_arrival_user_assistant_user_assistant` | pass |
+| `event-state` | inserts_new_message_in_sorted_position_when_creating_from_part | `ordering.rs`: `inserts_new_message_in_sorted_position_when_creating_from_part` | pass |
+| `event-state` | inserts_new_message_in_sorted_position_when_creating_from_delta | `ordering.rs`: `inserts_new_message_in_sorted_position_when_creating_from_delta` | pass |
+| `event-state` | does_not_re_sort_when_createdAt_is_backfilled | `ordering.rs`: `does_not_re_sort_when_createdat_is_backfilled` | pass |
+| `event-state` | updates_message_metadata_without_changing_position | `ordering.rs`: `updates_message_metadata_without_changing_position` | pass |
+| `event-state` | maintains_id_based_order_regardless_of_timestamp | `ordering.rs`: `maintains_id_based_order_regardless_of_timestamp` | pass |
+| `event-state` | keeps_the_command_a_user_message_came_from | `work.rs`: `keeps_the_command_a_user_message_came_from` | pass |
+| `event-state` | drops_empty_arguments_and_ignores_a_command_on_an_agent_message | `work.rs`: `drops_empty_arguments_and_ignores_a_command_on_an_agent_message` | pass |
+| `event-state` | takes_the_command_from_a_later_update | `work.rs`: `takes_the_command_from_a_later_update` | pass |
+| `event-state` | adds a divider live, and its summary when it arrives | `work.rs`: `adds_a_divider_live_and_its_summary_when_it_arrives` | pass |
+| `event-state` | keeps a snapshot's divider, and marks OpenCode's summary message | `work.rs`: `keeps_a_snapshots_divider_and_marks_opencodes_summary_message` | pass |
+| `reopened-session` | links the sub-agent card to its delegation | `delegations.rs`: `links_the_sub_agent_card_to_its_delegation` | pass |
+| `reopened-session` | keeps a generic tool card and the canvas card | none here | belongs to component 3 (`toToolCardItem`, the tool card) |
+| `reopened-session` | updates a tool still running when reopened instead of adding a second card | `delegations.rs`: `updates_a_tool_still_running_when_reopened_instead_of_adding_a_second_card` | pass |
+| `running-work` | reads the server's item, filling in what it leaves out | `work.rs`: `reads_the_servers_item_filling_in_what_it_leaves_out` | pass |
+| `running-work` | drops what isn't an item and reads an unknown kind as a task | `work.rs`: `drops_what_isnt_an_item_and_reads_an_unknown_kind_as_a_task` | pass |
+| `running-work` | replaces an item by id, keeps ended work ended, and returns the same list when nothing changed | `work.rs`: `replaces_an_item_by_id_keeps_ended_work_ended_and_returns_the_same_list_when_nothing_changed` | pass |
+| `running-work` | keeps items oldest first | `work.rs`: `keeps_items_oldest_first` | pass |
+| `running-work` | says how long and how it ended in a few words | `work.rs`: `says_how_long_and_how_it_ended_in_a_few_words` | pass |
+| `running-work` | starts from the snapshot's runningWork | `work.rs`: `starts_from_the_snapshots_runningwork` | pass |
+| `running-work` | starts with no work when the snapshot has none | `work.rs`: `starts_with_no_work_when_the_snapshot_has_none` | pass |
+| `running-work` | adds work on work.started, changes it on work.updated and ends it on work.ended | `work.rs`: `adds_work_on_work_started_changes_it_on_work_updated_and_ends_it_on_work_ended` | pass |
+| `running-work` | doesn't count background work as the session's own | `work.rs`: `doesnt_count_background_work_as_the_sessions_own` | pass |
+| `running-work` | keeps the same state for an event it already has | `work.rs`: `keeps_the_same_state_for_an_event_it_already_has` | pass |
+| `running-work` | is the prompt that began the turn; a prompt sent mid-turn doesn't restart the clock | `work.rs`: `is_the_prompt_that_began_the_turn_a_prompt_sent_mid_turn_doesnt_restart_the_clock` | pass |
+| `late-tool-update` | updates the existing part of the older message, not appending | `work.rs`: `updates_the_existing_part_of_the_older_message_not_appending` | pass |
+| `late-tool-update` | same call id arriving under a different part id does not duplicate | `work.rs`: `same_call_id_arriving_under_a_different_part_id_does_not_duplicate` | pass |
+| `history-merge` | prepends_older_page_before_current_messages | `history.rs`: `prepends_older_page_before_current_messages` | pass |
+| `history-merge` | preserves_page_message_order_exactly | `history.rs`: `preserves_page_message_order_exactly` | pass |
+| `history-merge` | deduplicates_by_id_keeping_current_messages | `history.rs`: `deduplicates_by_id_keeping_current_messages` | pass |
+| `history-merge` | does_not_reposition_existing_messages | `history.rs`: `does_not_reposition_existing_messages` | pass |
+| `history-merge` | handles_empty_page | `history.rs`: `handles_empty_page` | pass |
+| `history-merge` | handles_empty_current_state | `history.rs`: `handles_empty_current_state` | pass |
+| `history-merge` | handles_complete_overlap | `history.rs`: `handles_complete_overlap` | pass |
+| `merge-messages` | should concatenate delivered then optimistic | `prompts.rs`: `should_concatenate_delivered_then_optimistic` | pass |
+| `merge-messages` | should preserve delivered order | `prompts.rs`: `should_preserve_delivered_order` | pass |
+| `merge-messages` | should preserve optimistic order | `prompts.rs`: `should_preserve_optimistic_order` | pass |
+| `merge-messages` | should place optimistic after delivered regardless of timestamp | `prompts.rs`: `should_place_optimistic_after_delivered_regardless_of_timestamp` | pass |
+| `merge-messages` | should handle empty delivered array | `prompts.rs`: `should_handle_empty_delivered_array` | pass |
+| `merge-messages` | should handle empty optimistic array | `prompts.rs`: `should_handle_empty_optimistic_array` | pass |
+| `merge-messages` | should handle both arrays empty | `prompts.rs`: `should_handle_both_arrays_empty` | pass |
+| `context-usage` | reads Fleet's payload, with what the server left out as null | `work.rs`: `reads_fleets_payload_with_what_the_server_left_out_as_null` | pass |
+| `context-usage` | marks a call whose harness gave only the total, with the total as its size | `work.rs`: `marks_a_call_whose_harness_gave_only_the_total_with_the_total_as_its_size` | pass |
+| `context-usage` | reads a call without the field as one with a known split | `work.rs`: `reads_a_call_without_the_field_as_one_with_a_known_split` | pass |
+| `context-usage` | isn't a context without a session | `work.rs`: `isnt_a_context_without_a_session` | pass |
+| `context-usage` | reads counts the API sends as strings, and a missing window as unknown | `work.rs`: `reads_counts_the_api_sends_as_strings_and_a_missing_window_as_unknown` | pass |
+| `context-usage` | is the size against the window, quiet until three-quarters full | none here | belongs to component 5 (the context ring: `contextPercent`, tone, turns before compaction, `formatTokens`) |
+| `context-usage` | is unknown without a size or a window, and never over 100 | none here | belongs to component 5 (the context ring: `contextPercent`, tone, turns before compaction, `formatTokens`) |
+| `context-usage` | is how many more turns fit at the recent pace | none here | belongs to component 5 (the context ring: `contextPercent`, tone, turns before compaction, `formatTokens`) |
+| `context-usage` | counts only the turns since the last compaction | none here | belongs to component 5 (the context ring: `contextPercent`, tone, turns before compaction, `formatTokens`) |
+| `context-usage` | can't tell without a compaction point, enough turns, or growth | none here | belongs to component 5 (the context ring: `contextPercent`, tone, turns before compaction, `formatTokens`) |
+| `context-usage` | writes counts the way the meter shows them | none here | belongs to component 5 (the context ring: `contextPercent`, tone, turns before compaction, `formatTokens`) |

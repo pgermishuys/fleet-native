@@ -154,3 +154,26 @@ fn the_server_argument_comes_out_before_rune_reads_the_rest() {
     assert_eq!(crate::split_args(args(&["--server=http://x:1"])).0.as_deref(), Some("http://x:1"));
     assert_eq!(crate::split_args(args(&["--snap", "a.png"])).0, None);
 }
+
+#[test]
+fn a_session_stopped_on_its_own_question_stays_the_amber_diamond_while_its_turn_is_open() {
+    let mut rt = app();
+    rt.update(|s, tx| s.on_list(list(), tx));
+    let id = rt.state.open_id().unwrap();
+    // The turn is busy: it hasn't ended, it is waiting on the question. The list hears `waiting_input`.
+    rt.update({
+        let id = id.clone();
+        move |s, tx| {
+            s.on_snapshot(&id, create_state(&snapshot("busy", vec![])), tx);
+            s.on_row_patch(super::rows::activity(&id, "waiting_input"));
+            s.sync_open();
+        }
+    });
+    assert_eq!(rt.state.session().status, Status::NeedsInput, "found live: the stream's busy turned the row to Working");
+    // Answered: the list says busy again and the row works.
+    rt.update(move |s, _| {
+        s.on_row_patch(super::rows::activity(&id, "busy"));
+        s.sync_open();
+    });
+    assert_eq!(rt.state.session().status, Status::Working);
+}

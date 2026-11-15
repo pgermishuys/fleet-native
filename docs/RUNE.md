@@ -295,3 +295,14 @@ Nothing in Rune was needed. Learned:
 - Under Xvfb a run for a picture needs a clean environment (`env -i`) to hold `HOME` and `FLEET_DESKTOP_DATA_DIR` to the scratch
   folder, and then `XAUTHORITY`, `DISPLAY`, `VK_ICD_FILENAMES` and the sysroot's `LD_LIBRARY_PATH` have to be passed back in by hand.
 
+
+## Component 2, piece J (the sweep)
+
+Nothing in Rune was needed. Learned:
+
+- A test can be a live watcher: build a headless runtime (`App::headless_runtime`), start the `Link` against a real server with a
+  `Post` that sends jobs down a channel, then loop `rt.update(job)` / `rt.frame(..)` and print the state each time it changes. It
+  needs no window and no GPU, and reads the parts of the state no view draws yet. Mark it `#[ignore]`.
+- A `Link` waiting out a reconnect delay is woken by the same command channel that carries `window_focus`, so "come back now" needs
+  no extra thread: end the `recv_timeout` loop when focus arrives.
+- Under Xvfb, `ffmpeg -f x11grab` needs `-frames:v 1` to write a single picture; without it the muxer fails ("Invalid argument").
