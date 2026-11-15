@@ -13,7 +13,7 @@ impl State {
     fn skill_names(&self) -> Vec<String> {
         let commands = match self.draft_owner().and_then(|o| self.finder.commands.get(&o)) {
             Some(loaded) => loaded.items.clone(),
-            None if self.link.is_none() => crate::mock::finder::commands(),
+            None if self.is_mock() => crate::mock::finder::commands(),
             None => Vec::new(),
         };
         skills_among(&commands).into_iter().map(|s| s.name).collect()

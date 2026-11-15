@@ -94,7 +94,7 @@ With neither, the app looks for the Fleet running on this machine, in this order
    `~/.config/Fleet`), since it takes any free port when 6262 is busy;
 4. port 6262.
 
-When none answers, the status bar says where it looked. With no Fleet found and no `--server`, the invented sessions are shown, which is what the tests and scenes use.
+When none answers, the status bar says where it looked. With no Fleet found the window is empty and says so; it never shows invented data in a normal run. The invented sessions are what the tests and scenes use, and `fleet-native --demo` shows them by hand.
 
 The window opens at the desktop app's size (1360 x 880, no smaller than 720 x 480) and follows the
 system's light or dark theme.

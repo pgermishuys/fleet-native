@@ -216,7 +216,7 @@ fn catalog_of(agents: &[AgentOption], models: &[ModelOption]) -> Catalog {
 impl State {
     /// The open session's lists: the invented ones with no server, the loaded ones (empty until they arrive) with one.
     pub fn lists(&self) -> &SessionCatalog {
-        if self.link.is_none() {
+        if self.is_mock() {
             return &self.pickers.mock;
         }
         self.draft_owner().and_then(|id| self.pickers.catalogs.get(&id)).unwrap_or(&self.pickers.empty)

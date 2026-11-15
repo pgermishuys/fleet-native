@@ -229,3 +229,26 @@ fn server_names_the_address_by_argument_then_by_environment() {
     assert_eq!(explicit_server(None, &env(&[("FLEET_NATIVE_SERVER", "")])), None);
     assert_eq!(explicit_server(None, &env(&[])), None);
 }
+
+// ─── A normal start holds nothing invented ──────────────────────────────────
+
+#[test]
+fn a_normal_start_with_no_fleet_holds_no_mock_data() {
+    use crate::tests::{FRAME, app};
+    let mut rt = app();
+    // The mock window a scene or `--demo` shows, to be sure the test starts from something invented.
+    assert!(rt.state.has_rows() && rt.state.session().tokens > 0);
+    // What `State::default` does on a normal start, then discovery's answer.
+    rt.state.go_live(true);
+    rt.frame(FRAME);
+    assert!(rt.state.list_is_loading(), "the list says loading while it looks");
+    rt.state.on_no_fleet("No Fleet found.".into());
+    rt.frame(FRAME);
+    let s = &rt.state;
+    assert!(s.projects.is_empty() && !s.has_rows() && !s.has_session());
+    assert!(s.session().messages.is_empty());
+    assert_eq!(s.session().title, "No session open");
+    assert!(s.lists().agents.is_empty() && s.lists().models.is_empty());
+    assert!(!s.list_is_loading() && s.no_fleet && s.live && !s.is_mock());
+    assert_eq!(s.connection_note().as_deref(), Some("No Fleet found."));
+}

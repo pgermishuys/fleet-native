@@ -226,14 +226,27 @@ pub struct State {
     pub find: conv::find::Find,
     /// Stands in for the open session while the list is empty.
     blank: Project,
+    /// Looking for a Fleet to connect to (a normal start with no `--server`): the list says it is loading.
+    pub searching: bool,
+    /// Discovery found no Fleet: the list says so, with nothing invented under it.
+    pub no_fleet: bool,
+    /// A normal run (`go_live`): nothing invented is shown anywhere, status bar included.
+    pub live: bool,
 }
 
 /// The `--server` address, read once at start so `State::default` can tell it has one.
 static SERVER: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+/// A normal start (not headless, not `--demo`): the window never shows invented data, found Fleet or not.
+static LIVE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Whether this run is about a real Fleet, so nothing invented may show.
+fn live() -> bool {
+    SERVER.get().is_some() || LIVE.load(std::sync::atomic::Ordering::Relaxed)
+}
 
 impl Default for State {
     fn default() -> Self {
-        State {
+        let mut state = State {
             dark: None,
             rail: Rail::Sessions,
             sidebar_open: true,
@@ -243,15 +256,11 @@ impl Default for State {
             sample_headers: false,
             sheet_w: 0.0,
             drawn_dark: std::cell::Cell::new(true),
-            projects: if SERVER.get().is_some() { Vec::new() } else { mock::projects() },
+            projects: mock::projects(),
             project_load: fleet::groups::ProjectsLoad::new(true),
             proj: Default::default(),
             act: Default::default(),
-            route: if SERVER.get().is_some() {
-                fleet::store::Route::None
-            } else {
-                fleet::store::Route::Session(fleet::store::invented_id(0, 0))
-            },
+            route: fleet::store::Route::Session(fleet::store::invented_id(0, 0)),
             store: Default::default(),
             filter: TextEdit::new(""),
             draft: TextEdit::new(""),
@@ -305,7 +314,7 @@ impl Default for State {
             loading: false,
             kept: Default::default(),
             notice: None,
-            pickers: fleet::catalog::Pickers::new(SERVER.get().is_none()),
+            pickers: fleet::catalog::Pickers::new(true),
             composer_error: None,
             attach: Default::default(),
             reads: Default::default(),
@@ -343,11 +352,40 @@ impl Default for State {
                 open: true,
                 sessions: vec![mock::blank_session()],
             },
+            searching: false,
+            no_fleet: false,
+            live: false,
+        };
+        if live() {
+            state.go_live(SERVER.get().is_none());
         }
+        state
     }
 }
 
 impl State {
+    /// A normal run: drops everything invented (the list, the open session, the picker lists). `discover` is
+    /// whether a Fleet is still to be looked for. Scenes, headless runs and `--demo` never call this.
+    pub fn go_live(&mut self, discover: bool) {
+        self.projects.clear();
+        self.route = fleet::store::Route::None;
+        self.pickers = fleet::catalog::Pickers::new(false);
+        self.searching = discover;
+        self.live = true;
+    }
+
+    /// Showing the invented data: a scene, a headless run or `--demo`. A normal run never does, with a Fleet or without.
+    pub fn is_mock(&self) -> bool {
+        self.link.is_none() && !self.live
+    }
+
+    /// Discovery found no Fleet: say so, and leave the window empty.
+    pub fn on_no_fleet(&mut self, notice: String) {
+        self.searching = false;
+        self.no_fleet = true;
+        self.notice = Some(notice);
+    }
+
     pub fn project(&self) -> &Project {
         self.projects.get(self.open_at().0).filter(|p| self.open_at().1 < p.sessions.len()).unwrap_or(&self.blank)
     }
@@ -422,7 +460,7 @@ impl State {
     pub(crate) fn draft_owner(&self) -> Option<String> {
         match (&self.route, self.open_id()) {
             (_, Some(id)) => Some(id),
-            (fleet::store::Route::Session(id), None) if self.link.is_none() && !id.is_empty() => Some(id.clone()),
+            (fleet::store::Route::Session(id), None) if self.is_mock() && !id.is_empty() => Some(id.clone()),
             _ => None,
         }
     }
@@ -1911,6 +1949,9 @@ pub fn start_desktop() {
         return bench::conversation();
     }
     let (server, rest) = split_args(std::env::args().skip(1));
+    // `--demo`: the invented data on purpose, for a look by hand. It is Fleet Native's own, not Rune's.
+    let demo = rest.iter().any(|a| a == "--demo");
+    let rest: Vec<String> = rest.into_iter().filter(|a| a != "--demo").collect();
     // `--server` wins; Finder can't pass arguments, so `FLEET_NATIVE_SERVER` names the address as well.
     let server = fleet::discover::explicit_server(server, &|k| std::env::var(k).ok());
     // Pictures, scripted runs and scenes never go looking for a Fleet: they must come out the same every time.
@@ -1918,6 +1959,8 @@ pub fn start_desktop() {
         rest.iter().any(|a| matches!(a.as_str(), "--snap" | "--script" | "--scene" | "--video" | "--frames" | "--tree" | "--trace"));
     if let Some(url) = &server {
         let _ = SERVER.set(url.clone());
+    } else if !headless && !demo {
+        LIVE.store(true, std::sync::atomic::Ordering::Relaxed);
     }
     // The server hears whether the window has the keyboard and is on screen (`fleet::presence`).
     let app = App::new(spec())
@@ -1950,7 +1993,7 @@ pub fn start_desktop() {
     }
     if let Some(url) = server {
         connect_to(&handle, url);
-    } else if !headless {
+    } else if !headless && !demo {
         // No `--server`: look for the Fleet running on this machine, as Fleet's desktop app does
         // (`fleet::instance`), off the UI thread because it reads a file and asks the server.
         let handle = handle.clone();
@@ -1962,7 +2005,7 @@ pub fn start_desktop() {
             Err(looked) => {
                 let notice = fleet::discover::not_found(&looked);
                 eprintln!("fleet-native: {notice}");
-                handle.update(move |s, _| s.notice = Some(notice))
+                handle.update(move |s, _| s.on_no_fleet(notice))
             }
         });
     }
@@ -1976,6 +2019,8 @@ fn connect_to(handle: &rune::AppHandle<State>, url: String) {
         // Nothing invented shows against a real server: the list and the conversation stay empty until it answers.
         s.projects.clear();
         s.notice = None;
+        s.searching = false;
+        s.no_fleet = false;
         s.link = Some(link);
         s.load_pickers();
     });

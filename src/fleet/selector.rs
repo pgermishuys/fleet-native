@@ -33,7 +33,7 @@ impl State {
     pub fn harness_key(&self) -> Option<String> {
         match self.session().row.harness_type.clone() {
             Some(h) => Some(h),
-            None if self.link.is_none() => Some("opencode".into()),
+            None if self.is_mock() => Some("opencode".into()),
             None => None,
         }
     }
