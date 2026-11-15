@@ -4,7 +4,7 @@
 //! them; they sit where Fleet puts them: agent chip, model chip, [effort], [Allowed], Interrupt, [ring],
 //! [Send now / Queue], Send.
 use super::conversation::COLUMN;
-use crate::composer::status::{Caps, Mode, has_content, mode_of, send_label};
+use crate::composer::status::{Mode, has_content, mode_of, send_label};
 use crate::icons::*;
 use crate::mock::Session;
 use crate::theme::{Theme, sans};
@@ -16,7 +16,7 @@ use rune::{Color, Cursor, El, Key, Shadow, auto_grow, col, el, icon, row, spacer
 /// Only the error box exists; the others are drawn empty until their pieces arrive.
 pub fn composer(s: &State, t: &Theme, _session: &Session) -> El {
     let disabled = s.composer_disabled();
-    let mode = mode_of(&s.draft.text, &Caps::default(), s.side_open);
+    let mode = mode_of(&s.draft.text, &s.caps(), s.side_open);
     let mut outer = col().key("composer-section").label("Message composer").w_full().pt(4.0).px(24.0).pb(18.0).items_center();
     if let Some(error) = &s.composer_error {
         outer = outer.child(error_box(t, error));
@@ -69,6 +69,7 @@ fn frame(s: &State, t: &Theme, disabled: bool, mode: Mode) -> El {
         .fill(t.card_bg)
         .border(1.0, edge)
         .box_shadow(Shadow { x: 0.0, y: 10.0, blur: 28.0, spread: -18.0, color: Color::BLACK.alpha(0.5), inset: false })
+        .on_layout(|s: &mut State, [_, _, w, _]| s.pickers.composer_w = w)
         .focus_within_ring(1.0, -1.0, if mode == Mode::Prompt { focus } else { edge })
         // Return is the field's, Ctrl/Cmd+Return its other choice (steer where Enter queues, queue where it steers).
         .on_key(|s: &mut State, ev, tx| {
@@ -83,8 +84,8 @@ fn frame(s: &State, t: &Theme, disabled: bool, mode: Mode) -> El {
 }
 
 fn toolbar(s: &State, t: &Theme, disabled: bool, mode: Mode) -> El {
-    let chip = |key: &'static str, label: &str| {
-        row()
+    let chip = |key: &'static str, chip: crate::fleet::catalog::Chip| {
+        let mut b = row()
             .key(key)
             .h(28.0)
             .px(8.0)
@@ -96,8 +97,13 @@ fn toolbar(s: &State, t: &Theme, disabled: bool, mode: Mode) -> El {
             .shrink()
             .min_w(0.0)
             .on_press(move |s: &mut State| s.ui.open = Some(crate::ui::Open::Menu(if key == "agent" { "agent" } else { "model" })))
-            .child(text(label).font(sans(12.0, 400.0, 1.2)).color(t.text.alpha(0.8)).truncate().shrink())
-            .child(icon(&CHEVRON_DOWN, 13.0).color(t.muted))
+            .child(text(chip.label).font(sans(12.0, 400.0, 1.2)).color(t.text.alpha(0.8)).truncate().shrink())
+            .child(icon(&CHEVRON_DOWN, 13.0).color(t.muted));
+        // The narrow rule shortened the label: the whole one is the tooltip (row 3.2).
+        if let Some(full) = chip.help {
+            b = b.help(full);
+        }
+        b
     };
     let inactive = disabled || !has_content(&s.draft.text, mode == Mode::Shell, false, 0);
     let label = send_label(mode);
@@ -124,8 +130,9 @@ fn toolbar(s: &State, t: &Theme, disabled: bool, mode: Mode) -> El {
         .px(8.0)
         .pb(8.0)
         .child(attach(t, disabled))
-        .child(chip("agent", crate::ui::menus::AGENTS[s.ui.agent]))
-        .child(chip("model", crate::ui::menus::MODELS[s.ui.model]))
+        .child(chip("agent", s.agent_chip()))
+        .child(chip("model", s.model_chip()))
+        .children(if mode == Mode::Shell || disabled { None } else { s.effort_view().map(|v| effort_toggle(t, &v)) })
         .child(interrupt_button(t, s.can_interrupt()))
         .child(spacer())
         .child(send)
@@ -161,4 +168,31 @@ fn interrupt_button(t: &Theme, live: bool) -> El {
         b.opacity(0.5).disabled(true).child(icon(&CIRCLE_X, 12.25).color(t.muted))
     };
     b
+}
+
+/// `EffortToggle.vue`: the level's name and one dot per level the model offers, filled up to the current one; a click
+/// goes to the next level (row 4.2). Not drawn in shell mode (row 4.7).
+fn effort_toggle(t: &Theme, view: &crate::fleet::catalog::EffortView) -> El {
+    let filled = view.variants.iter().position(|v| *v == view.level).map_or(0, |i| i + 1);
+    let mut dots = row().gap(2.0).center_y();
+    for i in 0..view.variants.len() {
+        dots = dots.child(el().size(7.0, 7.0).radius(3.5).fill(if i < filled { t.accent } else { t.muted.alpha(0.35) }));
+    }
+    let mut b = row()
+        .key("effort")
+        .h(28.0)
+        .px(8.0)
+        .gap(7.0)
+        .center_y()
+        .radius(8.0)
+        .hover(t.wash(6.0))
+        .cursor(Cursor::Pointer)
+        .shrink()
+        .help(view.help())
+        .label(format!("Reasoning effort: {}", crate::composer::effort::effort_label(&view.level)))
+        .on_press(|s: &mut State| s.cycle_effort());
+    if let Some(note) = &view.note {
+        b = b.child(text(note.clone()).font(sans(11.0, 400.0, 1.2)).color(t.accent_text));
+    }
+    b.child(text(crate::composer::effort::effort_label(&view.level)).font(sans(12.0, 400.0, 1.2)).color(t.text.alpha(0.8))).child(dots)
 }

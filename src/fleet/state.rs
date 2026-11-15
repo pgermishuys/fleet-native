@@ -44,6 +44,7 @@ impl State {
     pub fn dispatch(&mut self, topic: &Topic, events: &[Event]) {
         for event in events.iter().filter(|e| !matches!(e, Event::Cursor(_))) {
             let kind = event.kind();
+            self.on_catalog_event(event);
             for (only, listener) in &mut self.subscribers.0 {
                 if only.is_none() || *only == kind {
                     listener(topic, event);
@@ -83,6 +84,7 @@ impl State {
                 link.open(&id);
             }
             self.sync_open();
+            self.load_catalog(&id);
         }
         tx.scroll_to_bottom("stream");
     }
@@ -100,6 +102,7 @@ impl State {
 
     /// The connection came back: every conversation shown is out of date until its new snapshot.
     pub fn on_reconnected(&mut self) {
+        self.load_pickers();
         if self.stream.is_some() {
             self.loading = true;
         }
@@ -238,9 +241,16 @@ impl State {
 
     /// The composer's Send against a server: the prompt joins the conversation as pending, and goes.
     pub fn send_to_server(&mut self, session: &str, text: &str) {
-        let Some(link) = &self.link else { return };
+        if self.link.is_none() {
+            return;
+        }
         let Some(correlation_id) = self.prompts.add(session, text, super::link::now_ms(), self.clock) else { return };
-        link.send_prompt(session, &correlation_id, text.trim());
+        let id = self.prompts.of(session).iter().find(|p| p.correlation_id == correlation_id).map(|p| p.id.clone());
+        let pick = self.prompt_pick(id);
+        self.note_pick_on_row(&pick);
+        if let Some(link) = &self.link {
+            link.send_prompt(session, &correlation_id, text.trim(), pick);
+        }
         self.sync_open();
     }
 
@@ -369,7 +379,7 @@ impl State {
         self.stream = Some(reducer::create_state(&serde_json::json!({"messages": [], "isPartial": true})));
     }
 
-    fn session_mut(&mut self) -> Option<&mut crate::mock::Session> {
+    pub(crate) fn session_mut(&mut self) -> Option<&mut crate::mock::Session> {
         let (p, i) = self.open;
         self.projects.get_mut(p)?.sessions.get_mut(i)
     }

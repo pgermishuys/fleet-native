@@ -151,6 +151,11 @@ fn row_el(t: &Theme, key: String, it: Item, closes: bool) -> El {
 
 /// The panel: `rounded-card border bg-card-bg p-[5px] shadow-(--menu-shadow)`, min width 8rem.
 pub fn panel(t: &Theme, key: &str, entries: Vec<Entry>) -> El {
+    panel_capped(t, key, entries, None)
+}
+
+/// `panel`, its rows scrolling inside `max_h` (the panel's padding included).
+pub fn panel_capped(t: &Theme, key: &str, entries: Vec<Entry>, max_h: Option<f32>) -> El {
     let mut list = col().key("rows").items_stretch();
     for (i, entry) in entries.into_iter().enumerate() {
         list = list.child(match entry {
@@ -160,6 +165,9 @@ pub fn panel(t: &Theme, key: &str, entries: Vec<Entry>) -> El {
                 row().px(rem(0.5)).pt(7.0).pb(3.0).child(text(l.to_uppercase()).font(sans(11.0, 600.0, 1.2).tracking(0.55)).color(t.muted))
             }
         });
+    }
+    if let Some(h) = max_h {
+        list = list.w_full().scroll(rune::ScrollSpec { stick_bottom: false }).key(format!("{key}-rows")).max_h(h - 10.0);
     }
     let mut p = col()
         .key(format!("{key}-menu"))
@@ -172,6 +180,10 @@ pub fn panel(t: &Theme, key: &str, entries: Vec<Entry>) -> El {
         .border(1.0, t.border)
         .items_stretch()
         .child(list);
+    // A scrolling menu is Fleet's selector box: 380 wide (row 3.3), not as wide as its widest row.
+    if max_h.is_some() {
+        p = p.w(380.0);
+    }
     for s in t.menu_shadows() {
         p = p.box_shadow(s);
     }
@@ -181,7 +193,12 @@ pub fn panel(t: &Theme, key: &str, entries: Vec<Entry>) -> El {
 /// A dropdown anchored under (or over) the element keyed `anchor`: the scrim, the modal that
 /// closes it on Escape, and the panel. `side` is reka's `side`, `align` its `align`.
 pub fn dropdown(t: &Theme, key: &str, anchor: &str, entries: Vec<Entry>, side: Side, align: Align) -> Vec<El> {
-    let p = panel(t, key, entries).focus_return(anchor.to_string()).modal(true, |s: &mut State| s.ui.open = None);
+    dropdown_capped(t, key, anchor, entries, side, align, None)
+}
+
+/// A dropdown whose rows scroll once they pass `max_h` (the composer's pickers hold as many rows as the harness has models).
+pub fn dropdown_capped(t: &Theme, key: &str, anchor: &str, entries: Vec<Entry>, side: Side, align: Align, max_h: Option<f32>) -> Vec<El> {
+    let p = panel_capped(t, key, entries, max_h).focus_return(anchor.to_string()).modal(true, |s: &mut State| s.ui.open = None);
     vec![scrim(&format!("{key}-scrim"), |s: &mut State| s.ui.open = None), anchored(p, anchor, side, align, 4.0)]
 }
 

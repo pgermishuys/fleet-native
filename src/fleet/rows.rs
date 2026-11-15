@@ -64,6 +64,14 @@ pub struct Row {
     pub archived: bool,
     /// `capabilities.canPrompt`, when the row has capabilities.
     pub can_prompt: Option<bool>,
+    /// `selectedAgent`: the agent a prompt that names none goes to; `None` is the harness's default.
+    pub selected_agent: Option<String>,
+    /// `selectedModel`: the model a prompt that names none gets.
+    pub selected_model: Option<crate::composer::choice::ModelReference>,
+    /// `harnessType`: which entry of `GET /api/harnesses` is this session's.
+    pub harness_type: Option<String>,
+    /// `lastAssistantModelId`: the model that answered last, which "Default" names when nothing else does.
+    pub last_model_id: Option<String>,
 }
 
 /// Whether the server's own lifecycle state is the session's status, whatever it is doing (`deriveSessionStatus`).
@@ -175,6 +183,10 @@ impl Row {
             checkout_restoring: false,
             archived: text(item, "retentionStatus").as_deref() == Some("archived"),
             can_prompt: item.get("capabilities").and_then(|c| c.get("canPrompt")).and_then(Value::as_bool),
+            selected_agent: text(item, "selectedAgent").filter(|a| !a.is_empty()),
+            selected_model: item.get("selectedModel").and_then(crate::fleet::catalog::model_reference),
+            harness_type: text(item, "harnessType").filter(|h| !h.is_empty()),
+            last_model_id: text(item, "lastAssistantModelId").filter(|m| !m.is_empty()),
         }
     }
 }
