@@ -423,6 +423,7 @@ impl State {
             effort: effort_to_send(&choice.effort, Some(&variants)),
             user_message_id,
             steer: false,
+            ..Pick::default()
         }
     }
 

@@ -283,6 +283,7 @@ fn the_prompt_body_carries_only_what_is_picked() {
         effort: Some("high".into()),
         user_message_id: Some("user-abc".into()),
         steer: false,
+        ..Pick::default()
     };
     assert!(prompt_body("hi", "prompt-1", &picked).get("delivery").is_none(), "a plain send leaves delivery out");
     let body = prompt_body("hi", "prompt-1", &picked);

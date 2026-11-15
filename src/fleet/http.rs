@@ -54,6 +54,23 @@ pub struct Pick {
     pub user_message_id: Option<String>,
     /// Into the running turn now (`delivery: "steer"`); left out otherwise, which the server reads as a plain send.
     pub steer: bool,
+    /// The sessions picked from the `@` list whose tokens the text still holds, as (token, session id), and the skills
+    /// its `$` tokens name: both go with a prompt for the server to expand (`sessionReferences`, `skills`).
+    pub session_references: Vec<(String, String)>,
+    pub skills: Vec<String>,
+}
+
+impl Pick {
+    /// Adds `sessionReferences` and `skills` to a request body when there are any.
+    pub fn add_references(&self, body: &mut Value) {
+        if !self.session_references.is_empty() {
+            body["sessionReferences"] =
+                self.session_references.iter().map(|(token, id)| json!({ "token": token, "sessionId": id })).collect();
+        }
+        if !self.skills.is_empty() {
+            body["skills"] = json!(self.skills);
+        }
+    }
 }
 
 /// The body of `POST /api/sessions/{id}/prompt`.
@@ -74,6 +91,7 @@ pub fn prompt_body(text: &str, correlation_id: &str, pick: &Pick) -> Value {
     if pick.steer {
         body["delivery"] = json!("steer");
     }
+    pick.add_references(&mut body);
     body
 }
 

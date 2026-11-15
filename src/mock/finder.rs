@@ -92,6 +92,40 @@ pub fn other_sessions(now: i64) -> Vec<SessionItem> {
 }
 
 impl crate::State {
+    /// The reference scenes (component 5, piece L): the open (idle) session on Claude Code, whose first named skill goes with
+    /// the message and the rest as a note, with a draft that names a file, a folder, a session and two skills; or the
+    /// caret beside a picked file; or that file taken out whole.
+    pub fn show_references(&mut self, state: &str) {
+        use crate::composer::refs::SessionReference;
+        self.open = (0, 2);
+        self.projects[0].sessions[2].row.harness_type = Some("claude-code".into());
+        self.pickers.harnesses = vec![crate::composer::status::HarnessInfo {
+            kind: "claude-code".into(),
+            display_name: Some("Claude Code".into()),
+            ..Default::default()
+        }];
+        let owner = self.draft_owner().unwrap_or_default();
+        let draft = match state {
+            "all" => {
+                let picks = self.auto.picks_mut(&owner);
+                picks.remember_file("@src/cache.rs");
+                picks.remember_file("@docs/");
+                picks.remember_session(SessionReference {
+                    token: "@cache-notes".into(),
+                    session_id: "mock-notes".into(),
+                    title: "Cache notes".into(),
+                });
+                "Compare @src/cache.rs and @docs/ with @cache-notes, then run $tidy-docs and $release-notes. "
+            }
+            "beside" => {
+                self.auto.picks_mut(&owner).remember_file("@docs/guide.md");
+                "Read @docs/guide.md"
+            }
+            _ => "Read ",
+        };
+        self.show_draft(draft);
+    }
+
     /// The popup's scenes: the open (idle) session with a draft that opens a list, and the lists' own states.
     pub fn show_autocomplete(&mut self, state: &str) {
         use crate::composer::status::HarnessInfo;

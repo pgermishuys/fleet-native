@@ -494,6 +494,7 @@ mod presence;
 mod prompts;
 mod queue;
 mod reconnect;
+mod references;
 mod refresh;
 mod rows;
 mod scroll;

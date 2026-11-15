@@ -558,3 +558,9 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 - **Replacing the text as one undoable edit**: `set_selection(0, len)` then `insert(new)`; `replace_text` drops the undo history. Set the caret after, and once more on the next frame.
 - **`rich(..).truncate()` gives a one-line label with a marked range** (a `Span` colour and weight): the popup's match mark.
 - **A footer under a scroller is a sibling, not a sticky child**, which draws the same and needs no negative margins.
+
+## Component 5, piece L (references in the draft)
+
+- A `text_input` can be tinted without being rich text: `.text_highlights([TextHighlight::new(bytes, colour).pad(3.0)])` on the field's `El` paints a rounded fill behind each wrapped line of a byte range, never reshapes the text and leaves bold/italic shortcuts and HTML paste off. So Fleet's mirror element is not needed. The corner radius isn't settable (Fleet's is 4 px).
+- `on_input_key` runs before the field's own keys, so a handler can call `TextEdit::set_selection(start, end)` and return `false`: the field then deletes that selection as one undoable edit (Backspace takes a reference whole, and undo brings it back). Returning `true` consumes the key (the arrows).
+- There is no click or key-up hook on the field; the caret is moved out of a reference by checking `TextEdit::range()` each frame.

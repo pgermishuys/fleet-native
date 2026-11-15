@@ -275,6 +275,7 @@ impl State {
         let id = self.prompts.of(session).iter().find(|p| p.correlation_id == correlation_id).map(|p| p.id.clone());
         let mut pick = self.prompt_pick(id);
         pick.steer = steer;
+        self.add_references(&mut pick, text);
         self.note_pick_on_row(&pick);
         if let Some(link) = &self.link {
             link.send_prompt(session, &correlation_id, text.trim(), pick);

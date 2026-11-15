@@ -8,6 +8,7 @@
 //! that use it come in the later pieces of component 5.
 pub mod choice;
 pub mod details;
+pub mod draftrefs;
 pub mod drafts;
 pub mod effort;
 pub mod files;
@@ -29,6 +30,8 @@ mod tests_autocomplete;
 mod tests_choice;
 #[cfg(test)]
 mod tests_details;
+#[cfg(test)]
+mod tests_draftrefs;
 #[cfg(test)]
 mod tests_ring;
 #[cfg(test)]

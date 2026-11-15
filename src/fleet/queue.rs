@@ -92,7 +92,7 @@ pub fn enqueue_body(text: &str, options: &Options) -> Value {
         Some((name, args)) => (Some(name.as_str()), Some(args.as_str()).filter(|a| !a.is_empty())),
         None => (None, None),
     };
-    json!({
+    let mut body = json!({
         "text": text,
         "kind": options.kind.wire(),
         "command": command,
@@ -100,7 +100,12 @@ pub fn enqueue_body(text: &str, options: &Options) -> Value {
         "agent": options.pick.agent,
         "model": options.pick.model.as_ref().map(|(p, m)| json!({ "providerID": p, "modelID": m })),
         "effort": options.pick.effort,
-    })
+    });
+    // Only a message carries references; the server expands them when it sends the item.
+    if options.kind == ItemKind::Prompt {
+        options.pick.add_references(&mut body);
+    }
+    body
 }
 
 /// Each session's queue as Fleet last said it, so coming back to a session shows it at once, and the number of the
