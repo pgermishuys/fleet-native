@@ -281,6 +281,16 @@ command/filePath/path/pattern/url/query/description else `state.title`. The tool
 summary or full text as muted 13px plain text (conversation.rs `part_view`), File parts draw the file name, Compaction a line. No copy button, no meta pill, no command chip,
 no chips, no tool grouping, no diff, no output body, no shell block. `Msg.steered`, `Msg.command`, `Msg.mod_mark` exist in `src/fleet/model.rs` but nothing draws them.
 
+> **Live check of piece E (15 November 2026).** The plain states (user bubble plain and Markdown, assistant pill and copy
+> button, attached-file chips, a cluster, a steered prompt made with `delivery: "steer"` during `slow-task`) were set beside
+> Fleet's own client on one scratch Fleet, both themes (`shots/parity/03e-message-frame-live/`). Fixed: rows 2.8 (the
+> assistant's copy button sat 20px too high), 2.10 (the pill names the model as Fleet does, "Fake", not its id; no pill on a
+> turn of only tool rows; 20px of room under the last message so the pill isn't cut off), 2.8 user (button top 4px from the
+> bubble), 2.16 / 1.56 (chip 26px tall, border at 90% of `--border`, 8px to the bubble, the gap above a message goes above
+> its chips), 2.22 (chip height). Still different, other pieces: Markdown list markers and numbers are the accent colour in
+> Fleet, code blocks and syntax colours differ (prose), the "Worked briefly" fold row (component 1), mono text is about 5%
+> wider in Fleet (its bundled JetBrains Mono).
+
 #### A. Message frame (MessageBubble.vue + ActivityStream.vue wrapper)
 
 | # | What the user sees / does | Source | Native today |

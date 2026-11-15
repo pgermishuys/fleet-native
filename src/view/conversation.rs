@@ -223,9 +223,11 @@ pub fn stream(t: &Theme, session: &Session, partial: bool, older: Option<Older>)
                 s.copied.as_ref().is_some_and(|(m, until)| *m == msg.id && s.clock < *until),
                 s.prompt_open.contains(&msg.id),
             );
-            memo(msg.id.clone(), (msg.version(), theme.dark, after_tool, streaming, msg.needs_retry, opened, s.thinking, frame), || {
-                message_row(&theme, &md, msg, after_tool, streaming, s, (frame.0, frame.1))
-            })
+            memo(
+                msg.id.clone(),
+                (msg.version(), theme.dark, after_tool, streaming, msg.needs_retry, opened, s.thinking, frame, s.lists().models.len()),
+                || message_row(&theme, &md, msg, after_tool, streaming, s, (frame.0, frame.1)),
+            )
         },
     );
     col().key("stream").w_full().grow(1.0).shrink().min_h(0.0).scroll(ScrollSpec { stick_bottom: true }).child(
@@ -233,7 +235,7 @@ pub fn stream(t: &Theme, session: &Session, partial: bool, older: Option<Older>)
             .w_full()
             .pt(24.0)
             .px(32.0)
-            .pb(12.0)
+            .pb(30.0)
             .items_center()
             .children(partial.then(|| partial_banner(&theme)))
             .children(older.map(|o| older_row(&theme, o)))
@@ -396,7 +398,6 @@ fn message_row(
     (grouped_with_prev, grouped_with_next): (bool, bool),
 ) -> El {
     let mut column = col().key(format!("msg-{}", msg.id)).w_full().hover_group();
-    column = column.children(message::marks(t, msg));
     let mut after_tool = after_tool;
     // 20px after a message or text, none between tool rows, 12px before the text that follows a run of them.
     let above = |after: Option<bool>, is_tool: bool| match (after, is_tool) {
@@ -406,7 +407,12 @@ fn message_row(
         (Some(false), _) if grouped_with_prev => 6.0,
         (Some(false), _) => 20.0,
     };
+    // The gap above a message goes above its marks, not between them and the bubble.
+    let marks = message::marks(t, msg, above(after_tool, false));
+    let mut lead_spent = marks.is_some();
+    column = column.children(marks);
     let mut k = 0;
+    let mut copy_pinned = false;
     while k < msg.parts.len() {
         // Thinking that is hidden, or has nothing to say, takes no room either.
         if let Part::Reasoning { text, summary, .. } = &msg.parts[k]
@@ -433,17 +439,26 @@ fn message_row(
         // Commands the user ran sit close together, as tool rows do (Fleet stacks them 7px apart).
         let is_shell = matches!(msg.parts[k], Part::Shell(_));
         let gap = if is_shell && after_tool == Some(true) { 3.0 } else { above(after_tool, false) };
-        column = column.child(el().w_full().mt(gap).py(2.0).child(part_view(t, s, md, msg, &msg.parts[k], live)));
+        let gap = if std::mem::take(&mut lead_spent) { 0.0 } else { gap };
+        let mut part = el().w_full().mt(gap).py(2.0).child(part_view(t, s, md, msg, &msg.parts[k], live));
+        // The copy button of an assistant message sits at the top right of its text, below the gap above it (a user's
+        // is inside its bubble). It hangs on the first text part so the 20px gap isn't counted into its offset.
+        if !copy_pinned && msg.role != Role::User && matches!(msg.parts[k], Part::Text { .. }) && !copy_text(msg).trim().is_empty() {
+            part = part.child(message::copy_button(t, s, msg).pin(None, Some(0.0), Some(0.0), None));
+            copy_pinned = true;
+        }
+        column = column.child(part);
         after_tool = Some(is_shell);
         k += 1;
     }
     let user = msg.role == Role::User;
     let cluster = cluster_position(grouped_with_prev, grouped_with_next);
-    // The copy button of an assistant message sits at its top right; a user's is inside its bubble.
-    if !user && !copy_text(msg).trim().is_empty() {
+    // A message with no text part (tools only) still copies: the button goes on the column itself.
+    if !user && !copy_pinned && !copy_text(msg).trim().is_empty() {
         column = column.child(message::copy_button(t, s, msg).pin(None, Some(0.0), Some(0.0), None));
     }
-    if !user && show_meta(false, cluster) {
+    // A turn of only tool rows has no bubble, so no pill either.
+    if !user && show_meta(false, cluster) && !copy_text(msg).trim().is_empty() {
         column = column.children(message::meta_pill(t, s, msg));
     }
     if msg.needs_retry {
