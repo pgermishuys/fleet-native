@@ -759,3 +759,10 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 ## Machines, piece A (per-machine tokens)
 
 - **ureq middleware sees the final URL**: `request.uri()` in `MiddlewareNext` is the address about to be called, so one agent middleware can pick a token per machine; nothing in Rune is involved. A `static` `RwLock<HashMap>` can't be built in a const, so hold it as `Option<HashMap>` and `get_or_insert_with`.
+
+## New session, piece A (create request, plan line, naming; no Rune)
+
+- **Nothing here needed Rune**, by design: `src/fleet/new_session/` has no Rune import, so the pieces after it read plain types.
+- **Cargo.lock has no `regex` and no `unicode-normalization`** (Rune doesn't bring them). The naming preview needs both (a
+  `capture` pattern, NFKD for accents), so `pattern.rs` is a small matcher and the slug folds accents by table rather than
+  adding two crates to three systems' builds. Reach for these only if a later piece needs a full regex.

@@ -28,6 +28,7 @@ pub mod link;
 pub mod machine;
 pub mod model;
 pub mod modes;
+pub mod new_session;
 pub mod panel;
 pub mod prefs;
 pub mod presence;

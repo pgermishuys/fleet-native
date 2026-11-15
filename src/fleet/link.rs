@@ -150,6 +150,17 @@ impl Link {
         });
     }
 
+    /// Starts a session (`POST /api/sessions`) on a thread; `done` runs on the UI thread with the answer, or the server's
+    /// own words for a refusal. The page's choices are built into `request` first (`new_session::request`).
+    pub fn create_session(
+        &self,
+        request: &super::new_session::request::NewSessionRequest,
+        done: impl FnOnce(&mut State, &mut Tx, Result<serde_json::Value, String>) + Send + 'static,
+    ) {
+        let body = request.body();
+        self.off_thread(move |base| http::create_session(base, &body), done);
+    }
+
     /// The way back to the UI thread, for a thread that reports as it goes (an export's page count).
     pub fn post(&self) -> Post {
         self.post.clone()

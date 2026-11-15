@@ -1783,6 +1783,26 @@ leaves the places and a fake source.
 - **Pictures:** none (non-visual). Show `cargo test` output with the names and a request printed beside
   a scratch Fleet's accepted `POST /api/sessions` body.
 
+Done: **A12.5-A12.11** (the sentences and their `code`/`warn` runs; the machine prefix A12.2, the styling A12.1/12.3/12.4 and the
+"Start without a message" button A12.12 are views: piece D/L), **A13.2** (the red-box words), **A13.7**, **A13.10**, **A13.11**,
+**A17.2-A17.8** (the preview resolver, with the shared contract cases), **A20.1-A20.9** (`POST /api/sessions` and its response
+read as `Created`). Where: `src/fleet/new_session/{request,plan,naming,pattern}.rs`, `http::create_session`,
+`Link::create_session`. Every case of A21.110-A21.156 and A21.167-A21.169, and the create half of A21.205, is ported
+under their names as `src/fleet/new_session/tests.rs` (the 16 contract cases run in one test, `worktree_naming_conformance_one_test_per_case`,
+which names the case that fails). The create half of A21.205 is `http::create_session`'s error text: it reuses `store::error_text` (Fleet's
+`readErrorMessage`) and was checked live (below). The user in the contract cases is `robin`,
+not the one in Fleet's file. Checked against a scratch Fleet v0.72.0 (`live_create_session_against_a_scratch_fleet`, `--ignored`): the body
+of the page's request, the server's answer read into a list row that `sessions::parse_sessions` reads, and a refusal
+("Couldn't create the worktree: 'bad..name' is not a valid branch name") coming back as the server wrote it. Fleet's own client, driven
+with Playwright against the same Fleet, sent the same body for a repository, and its plan line read the same name and path as `resolve_worktree_name`.
+Differences from Fleet, on purpose: **no `regex` or `unicode-normalization` crate**, so `pattern.rs` is a small matcher for the slice of
+JavaScript regular expressions a `capture` uses (a pattern outside it is treated as one Settings would have refused: no capture), and
+`slug_for_branch` folds Latin-1 and Latin Extended-A accents, full-width letters and `ﬁ`-style ligatures by a table (other accents,
+as in Vietnamese, become word breaks); a title over 60 characters is cut by characters, Fleet's by UTF-16 units (differs only for emoji).
+`worktree_naming_conformance` was not run against the server's own resolver (`WorktreeNameResolverConformanceTests.cs` is .NET). Fleet
+source on `main` (d39cb75, 15 November 2026) has no change to these files since the commit this checklist read.
+Open: nothing in the piece. Pieces D-L read these types (`NewSessionState`, `PlanInput`, `Created`).
+
 ### B. Defaults, the draft, the harness choice (plain Rust)
 - **Creates/touches:** `src/fleet/new_session/{draft,defaults,harness_choice}.rs`, the settings file
   (`src/fleet/settings.rs` if 5A or 6F hasn't made one; else extend it; whichever comes first owns it),
