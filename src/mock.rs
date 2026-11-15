@@ -3,6 +3,7 @@ use crate::view::conversation::{Message, Part, ToolState};
 
 pub mod agents;
 pub mod failure;
+pub mod finder;
 pub mod fold;
 pub mod frame;
 pub mod long;

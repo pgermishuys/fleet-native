@@ -84,6 +84,11 @@ pub struct Lists {
 }
 
 impl Lists {
+    /// The lists of a draft written to `owner` (a session's id), with nothing loaded yet.
+    pub fn for_draft(owner: Option<String>) -> Lists {
+        Lists { session_id: owner.clone(), draft_key: owner, ..Default::default() }
+    }
+
     /// The session's commands arrived: they and the skills among them replace the old ones.
     pub fn set_commands(&mut self, commands: Vec<Command>) {
         self.skills = skills_among(&commands);

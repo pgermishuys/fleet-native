@@ -76,6 +76,8 @@ pub struct Row {
     pub harness_type: Option<String>,
     /// `lastAssistantModelId`: the model that answered last, which "Default" names when nothing else does.
     pub last_model_id: Option<String>,
+    /// `session.time.updated` in milliseconds (0 when the row has none): the `@` list orders sessions by it.
+    pub updated: i64,
 }
 
 /// Whether the server's own lifecycle state is the session's status, whatever it is doing (`deriveSessionStatus`).
@@ -198,6 +200,7 @@ impl Row {
             selected_model: item.get("selectedModel").and_then(crate::fleet::catalog::model_reference),
             harness_type: text(item, "harnessType").filter(|h| !h.is_empty()),
             last_model_id: text(item, "lastAssistantModelId").filter(|m| !m.is_empty()),
+            updated: 0,
         }
     }
 }

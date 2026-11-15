@@ -90,6 +90,8 @@ pub fn parse_harnesses(body: &Value) -> Vec<HarnessInfo> {
                 supports_shell_commands: flag("supportsShellCommands"),
                 supports_side_conversations: flag("supportsSideConversations"),
                 supports_image_attachments: flag("supportsImageAttachments"),
+                display_name: text(h, "displayName").filter(|n| !n.is_empty()),
+                supports_fleet_tools: flag("supportsFleetTools"),
             })
         })
         .collect()
@@ -471,9 +473,16 @@ impl State {
         let asked = id.clone();
         link.off_thread(
             move |base| http::agents(base, &asked),
-            move |s, tx, result| {
-                if let Ok(body) = result {
+            move |s, tx, result| match result {
+                Ok(body) => {
+                    // The `@` list shares this request (and lists the harness's hidden agents too).
+                    s.finder.on_agents(&id, Ok(&body));
+                    s.auto.changed();
                     s.on_agents(&id, parse_agents(&body), tx);
+                }
+                Err(why) => {
+                    s.finder.on_agents(&id, Err(&why));
+                    s.auto.changed();
                 }
             },
         );
@@ -528,6 +537,7 @@ impl State {
             props.get("sessionIds").and_then(Value::as_array).is_some_and(|ids| ids.iter().any(|i| i.as_str() == Some(open.as_str())));
         if named {
             self.load_catalog(&open);
+            self.load_commands(&open);
         }
     }
 }
