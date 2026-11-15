@@ -406,15 +406,27 @@ the retry line in `view/conversation.rs`). Gaps, with reasons:
   so its button is mostly seen only in the failed state; native waits for the press, because reading the scroll offset
   is component 3's scroll port. (b) Fleet's spinner turns; native's fades (Rune has no looping rotation, `RUNE.md`). The
   v0.72.0 client words the failure "Couldn't load older messages · Retry"; `main` says "· Try again", which native follows.
-- [ ] **6.5 `SetPresenceAsync(visible, formFactor)`** (`use-desk-presence.ts`): `formFactor` is `"desktop"` here, always;
+- [x] **6.5 `SetPresenceAsync(visible, formFactor)`** (`use-desk-presence.ts`): `formFactor` is `"desktop"` here, always;
   sent at launch, on each connect and reconnect, every 30 s (`PRESENCE_INTERVAL_MS`; the server forgets a window after
   90 s), and whenever visibility changes. `visible` is whether the window is on screen (`document.visibilityState`):
   native uses "not minimized and not fully hidden". An older Fleet has no such method: swallow the error.
-- [ ] **6.6 `SetSessionFocusAsync(sessionId, focused)`** (`use-session-recap.ts`): only when recaps or desktop
+- [x] **6.6 `SetSessionFocusAsync(sessionId, focused)`** (`use-session-recap.ts`): only when recaps or desktop
   notifications are enabled (preferences `session recap` and `desktop notifications`: those are Settings, component 16;
   until then send it always, behind one constant). Sent after the session's snapshot arrives (the server forgot this tab),
   when the window gains or loses focus (settled over `FOCUS_SETTLE_MS`), on leaving a session (`false`), and not repeated
   when unchanged. After a reconnect, again once the snapshot is back.
+  Native (piece G): `src/fleet/presence.rs` is the rule (no socket, a clock passed in); `link.rs` sends its calls
+  (`SetPresenceAsync(visible, "desktop")`, `SetSessionFocusAsync(id, focused)`), and `lib.rs` feeds it Rune's `on_focus` and
+  `on_visibility`. Presence goes out on each connect, every 30 s and at once when visibility changes; focus goes out after
+  the open session's snapshot (a first one or one restored after a reconnect), 250 ms after a focus or visibility
+  change, with `false` on leaving a session, and not when unchanged. "Looking" is on screen and focused. The recap/notification
+  gate is the constant `REPORT_FOCUS` (true) until Settings. The answer to either call is never read, so an older Fleet's
+  error changes nothing. Gaps: (a) Rune's `on_visibility` is "minimised, hidden, or covered whole where the system says so"; under
+  Xvfb with no window manager, unmapping or covering the window sent no event (presence stayed `true`, focus still went `false`
+  from the focus-out). Not checked on a real desktop, so on Windows and macOS it is untested. (b) A new window counts as
+  focused until Rune says otherwise; under Xvfb it says "not focused" about a second after the first snapshot, so the first
+  focus call can be `true` and then `false`. (c) Fleet's `focus`/`blur` also fire when focus moves into an iframe of the same
+  page; native has no such nesting, so a focused web canvas (component 14) needs to count as focused when it exists.
 - Tests: `history-merge.test.ts` (7) under their names; a fake hub that answers `LoadHistoryAsync`; timeout and
   stale-cursor cases; presence is sent on connect and again on the 30 s tick (a fake clock); focus is sent once per
   change and `false` on leaving.

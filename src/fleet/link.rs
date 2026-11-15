@@ -3,6 +3,7 @@
 //! thread does no network work. Events are batched to one hand-over per frame's worth.
 use super::events::Event;
 use super::history::{Page, Pending};
+use super::presence::{Call, Presence};
 use super::reducer::create_state;
 use super::signalr::{self, Frame};
 use super::state::Topic;
@@ -57,6 +58,10 @@ pub enum Cmd {
         session: String,
         cursor: String,
     },
+    /// The window gained or lost the keyboard.
+    WindowFocus(bool),
+    /// The window went off screen or came back.
+    WindowVisible(bool),
 }
 
 /// What the UI keeps of the connection.
@@ -95,6 +100,16 @@ impl Link {
     /// Asks for the page before `cursor`; the answer, or why there is none, reaches `State::on_history_page`.
     pub fn load_older(&self, session: &str, cursor: &str) {
         let _ = self.cmds.send(Cmd::LoadOlder { session: session.to_string(), cursor: cursor.to_string() });
+    }
+
+    /// The window gained or lost focus (Rune's `on_focus`); presence and the open session's focus follow.
+    pub fn window_focus(&self, focused: bool) {
+        let _ = self.cmds.send(Cmd::WindowFocus(focused));
+    }
+
+    /// The window went off screen or came back (Rune's `on_visibility`).
+    pub fn window_visible(&self, visible: bool) {
+        let _ = self.cmds.send(Cmd::WindowVisible(visible));
     }
 
     pub fn unwatch(&self, session: &str) {
@@ -150,6 +165,7 @@ fn connection(post: &Post, c: Connection) {
 fn run(base: String, rx: Receiver<Cmd>, post: Post) {
     let mut topics = Topics::default();
     let mut pending = Pending::default();
+    let mut presence = Presence::default();
     let mut attempt = 0;
     loop {
         let why = match connect(&base) {
@@ -160,7 +176,7 @@ fn run(base: String, rx: Receiver<Cmd>, post: Post) {
                 fetch_list(&base, &post);
                 connection(&post, Connection::Online);
                 post.update(|s, _| s.on_reconnected());
-                serve(ws, &base, &rx, &mut topics, &mut pending, &post)
+                serve(ws, &base, &rx, &mut topics, &mut pending, &mut presence, &post)
             }
             Err(e) => e,
         };
@@ -170,6 +186,7 @@ fn run(base: String, rx: Receiver<Cmd>, post: Post) {
         }
         connection(&post, Connection::Down(why));
         topics.forget_snapshots();
+        presence.disconnected();
         // Commands that come while waiting still count: the topics to subscribe on the next connection.
         let deadline = Instant::now() + reconnect_delay(attempt);
         attempt += 1;
@@ -185,6 +202,11 @@ fn run(base: String, rx: Receiver<Cmd>, post: Post) {
                     topics.unwatch(&id);
                 }
                 Ok(Cmd::Refresh) => {}
+                // Said again once connected (`connected`), so only what the window is like now is kept.
+                Ok(Cmd::WindowFocus(focused)) => presence.focus_changed(focused, Instant::now()),
+                Ok(Cmd::WindowVisible(visible)) => {
+                    presence.visibility_changed(visible, Instant::now());
+                }
                 // Not connected: no page can come (`loadSessionHistory` answers null).
                 Ok(Cmd::LoadOlder { session, cursor }) => history_failed(&post, session, cursor, "not connected"),
                 Err(RecvTimeoutError::Timeout) => break,
@@ -192,6 +214,20 @@ fn run(base: String, rx: Receiver<Cmd>, post: Post) {
             }
         }
     }
+}
+
+/// Makes a presence or focus call. Its answer is never read: an older Fleet without the method answers with
+/// an error, and `serve` ignores a completion it didn't ask for.
+fn send_call(
+    call: &mut impl FnMut(&mut WebSocket<TcpStream>, &str, Vec<Value>) -> Result<u32, String>,
+    ws: &mut WebSocket<TcpStream>,
+    c: Call,
+) -> Result<(), String> {
+    match c {
+        Call::Presence(visible) => call(ws, "SetPresenceAsync", vec![json!(visible), json!("desktop")]),
+        Call::Focus(session, focused) => call(ws, "SetSessionFocusAsync", vec![json!(session), json!(focused)]),
+    }
+    .map(|_| ())
 }
 
 fn history_failed(post: &Post, session: String, cursor: String, why: &str) {
@@ -228,7 +264,15 @@ fn connect(base: &str) -> Result<WebSocket<TcpStream>, String> {
 }
 
 /// Serves one connection until it fails; the error says why.
-fn serve(mut ws: WebSocket<TcpStream>, base: &str, rx: &Receiver<Cmd>, topics: &mut Topics, pending: &mut Pending, post: &Post) -> String {
+fn serve(
+    mut ws: WebSocket<TcpStream>,
+    base: &str,
+    rx: &Receiver<Cmd>,
+    topics: &mut Topics,
+    pending: &mut Pending,
+    presence: &mut Presence,
+    post: &Post,
+) -> String {
     let mut next_id = 0u32;
     let mut call = |ws: &mut WebSocket<TcpStream>, target: &str, args: Vec<Value>| -> Result<u32, String> {
         next_id += 1;
@@ -256,6 +300,9 @@ fn serve(mut ws: WebSocket<TcpStream>, base: &str, rx: &Receiver<Cmd>, topics: &
             asked.insert(n.to_string(), id);
         }
         waiting_for_snapshot = topics.open().is_some();
+        for c in presence.connected(Instant::now()) {
+            send_call(&mut call, &mut ws, c)?;
+        }
         Ok(())
     })();
     if let Err(e) = started {
@@ -268,6 +315,9 @@ fn serve(mut ws: WebSocket<TcpStream>, base: &str, rx: &Receiver<Cmd>, topics: &
                 Cmd::Open(id) if topics.open() == Some(id.as_str()) => Ok(()),
                 Cmd::Open(id) => (|| {
                     let held = topics.has_watched(&id);
+                    for c in presence.left() {
+                        send_call(&mut call, &mut ws, c)?;
+                    }
                     if let Some(old) = topics.set_open(Some(id.clone())) {
                         call(&mut ws, "UnsubscribeFromSessionAsync", vec![json!(old)])?;
                     }
@@ -301,6 +351,13 @@ fn serve(mut ws: WebSocket<TcpStream>, base: &str, rx: &Receiver<Cmd>, topics: &
                     fetch_list(base, post);
                     Ok(())
                 }
+                Cmd::WindowFocus(focused) => {
+                    presence.focus_changed(focused, Instant::now());
+                    Ok(())
+                }
+                Cmd::WindowVisible(visible) => {
+                    presence.visibility_changed(visible, Instant::now()).into_iter().try_for_each(|c| send_call(&mut call, &mut ws, c))
+                }
                 Cmd::LoadOlder { session, cursor } => (|| {
                     let n = call(&mut ws, "LoadHistoryAsync", vec![json!(session), json!(cursor)])?;
                     pending.add(n.to_string(), session, cursor);
@@ -315,6 +372,11 @@ fn serve(mut ws: WebSocket<TcpStream>, base: &str, rx: &Receiver<Cmd>, topics: &
             last_ping = Instant::now();
             if let Err(e) = ws.send(Message::text(signalr::pong())) {
                 return e.to_string();
+            }
+        }
+        for c in presence.tick(Instant::now()) {
+            if let Err(e) = send_call(&mut call, &mut ws, c) {
+                return e;
             }
         }
         match ws.read() {
@@ -409,6 +471,11 @@ fn serve(mut ws: WebSocket<TcpStream>, base: &str, rx: &Receiver<Cmd>, topics: &
             let activity = std::mem::take(&mut pending_activity);
             batch_since = None;
             waiting_for_snapshot = false;
+            for c in presence.snapshot(&session) {
+                if let Err(e) = send_call(&mut call, &mut ws, c) {
+                    return e;
+                }
+            }
             post.update(move |s, tx| {
                 s.on_snapshot(&session, state, tx);
                 s.on_events(&session, after, tx);
