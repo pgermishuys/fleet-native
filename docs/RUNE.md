@@ -840,3 +840,10 @@ Nothing new about Rune. One rule for the app: a call about a session takes its `
 - **`rt.state` edited directly doesn't rebuild the view.** A test that changes the draft and then looks for an element must change it inside `rt.update(|s, _| ..)`; with a plain assignment the next frame draws the old tree.
 - **Overflow scrolling without a scrollbar isn't needed here.** Fleet's starters row scrolls sideways on a phone; desktop only, so it is a centred row with a 640 px limit and no scrolling.
 - **No `max-width: calc(100vw - 32px)`.** `.ns-pop` caps at the window less 32; the popover here is a fixed width and `anchored_fit` keeps it in the window.
+
+## New session, piece F (the folder menu)
+
+- **A text box inside a popover takes the arrow keys through `on_input_key`.** Return true for Down, Up and Enter and false for everything else, so Tab and Esc still reach the popover's own handling (`.modal(true, close)` closes on Esc).
+- **No native `<select>`.** Fleet's Location select is the operating system's menu; here the box opens a short list right under it, inside the popover.
+- **A chip row doesn't wrap a shrinking item.** With `.shrink()` and `.min_w(0.0)` a long folder name is cut with an ellipsis next to the machine chip; Fleet moves it to its own line first (its `flex-wrap`). Taking the shrink away makes the chip overflow instead, because Rune has no `max-width: 100%`. Left as the ellipsis.
+- **A mouse hover sets the highlight with `.on_hover`**, which is Fleet's `mousemove`; the row's own hover wash and the keyboard highlight are the same colour, so a row never shows two.

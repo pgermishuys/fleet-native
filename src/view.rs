@@ -15,6 +15,7 @@ pub mod export;
 pub mod failure;
 pub mod find;
 mod fold;
+pub mod folder_menu;
 pub mod history;
 pub mod image;
 pub mod interrupted;

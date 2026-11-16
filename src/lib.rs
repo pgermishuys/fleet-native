@@ -19,6 +19,8 @@ mod tests_asks;
 #[cfg(test)]
 mod tests_browser;
 #[cfg(test)]
+mod tests_folder_menu;
+#[cfg(test)]
 mod tests_header;
 #[cfg(test)]
 mod tests_images;
@@ -76,6 +78,8 @@ pub struct State {
     pub new_draft: fleet::new_session::draft::DraftStore,
     /// The starters line on the New session page: the selection a click leaves for the box, and where Fix a bug asked to go.
     pub starters: fleet::new_session::starters::StartersUi,
+    /// The folder menu under the box: its search text, highlighted row and Location.
+    pub folder_menu: fleet::new_session::folder_menu::FolderMenu,
     /// What the New session page has read from its machine: repositories, detail, harnesses, catalog, naming.
     pub feeds: fleet::new_session::feed_state::Feeds,
     /// A scene that shows one header of each kind above the list (the Pinned group isn't drawn until piece J).
@@ -294,6 +298,7 @@ impl Default for State {
             sidebar: Default::default(),
             new_draft: Default::default(),
             starters: Default::default(),
+            folder_menu: Default::default(),
             feeds: mock::feeds(),
             sample_headers: false,
             sheet_w: 0.0,
@@ -1211,6 +1216,34 @@ pub fn spec() -> AppSpec<State> {
             ("new-session-starters-menu-light", |s| {
                 s.dark = Some(false);
                 s.show_new_session_strip(None, true, true)
+            }),
+            // Piece F of the New session page: the folder menu's list view (the scratch Fleet's data) and the chip on a long name.
+            ("new-session-folder-menu", |s| s.show_folder_menu(fleet::new_session::folder_menu::Scene::Open)),
+            ("new-session-folder-menu-light", |s| {
+                s.dark = Some(false);
+                s.show_folder_menu(fleet::new_session::folder_menu::Scene::Open)
+            }),
+            ("new-session-folder-menu-typed", |s| s.show_folder_menu(fleet::new_session::folder_menu::Scene::Typed { second_root: false })),
+            ("new-session-folder-menu-typed-light", |s| {
+                s.dark = Some(false);
+                s.show_folder_menu(fleet::new_session::folder_menu::Scene::Typed { second_root: false })
+            }),
+            ("new-session-folder-menu-location", |s| {
+                s.show_folder_menu(fleet::new_session::folder_menu::Scene::Typed { second_root: true })
+            }),
+            ("new-session-folder-menu-location-light", |s| {
+                s.dark = Some(false);
+                s.show_folder_menu(fleet::new_session::folder_menu::Scene::Typed { second_root: true })
+            }),
+            ("new-session-folder-menu-nothing", |s| s.show_folder_menu(fleet::new_session::folder_menu::Scene::Nothing)),
+            ("new-session-folder-menu-nothing-light", |s| {
+                s.dark = Some(false);
+                s.show_folder_menu(fleet::new_session::folder_menu::Scene::Nothing)
+            }),
+            ("new-session-folder-chip-long", |s| s.show_folder_menu(fleet::new_session::folder_menu::Scene::LongName)),
+            ("new-session-folder-chip-long-light", |s| {
+                s.dark = Some(false);
+                s.show_folder_menu(fleet::new_session::folder_menu::Scene::LongName)
             }),
             // Component 17, piece C: the machines in the session list.
             ("machines", |s| s.show_machines(mock::machines::Case::Several, true)),

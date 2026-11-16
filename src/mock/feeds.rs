@@ -110,6 +110,7 @@ pub fn feeds() -> Feeds {
     cat.select(Some(key.clone()), 0);
     cat.finish(1, 0, Ok(catalog()));
     f.catalogs.insert(HOME_MACHINE_KEY.into(), cat);
+    f.roots = vec!["/home/ada/src".into(), "/home/ada/work".into()];
     f.defaults = Some(DirectoryDefaults { first_branch: "main".into(), home: Some("/home/ada".into()) });
     f
 }
