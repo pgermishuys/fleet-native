@@ -206,7 +206,7 @@ python3 tools/gen-icons.py ../weave-fleet/client/node_modules/lucide-vue-next \
   text-search maximize-2 zoom-in zoom-out puzzle power-off download eraser focus git-branch-plus \
   square-dashed-bottom menu undo-2 arrow-up-to-line arrow-down-to-line sun file-down trash-2 \
   app-window book-open camera code globe layers lightbulb lightbulb-off list-checks \
-  message-circle-question-mark messages-square monitor-up package-check panels-top-left send server wrench brain history corner-down-right bot arrow-up-right circle-alert star star:filled triangle-alert rotate-cw play arrow-down activity ban circle-stop list-end git-pull-request git-pull-request-draft git-pull-request-closed git-merge shield-alert shield-check pin pencil-line compass eye-off folder-open map-pin arrow-left corner-left-up info archive-restore cloud pin-off circle-dashed minus circle-dot circle-dot
+  message-circle-question-mark messages-square monitor-up package-check panels-top-left send server wrench brain history corner-down-right bot arrow-up-right circle-alert star star:filled triangle-alert rotate-cw play arrow-down activity ban circle-stop list-end git-pull-request git-pull-request-draft git-pull-request-closed git-merge shield-alert shield-check pin pencil-line compass eye-off folder-open map-pin arrow-left corner-left-up info archive-restore cloud pin-off circle-dashed minus circle-dot
 ```
 
 ## Licences
