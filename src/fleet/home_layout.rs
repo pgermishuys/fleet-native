@@ -70,7 +70,8 @@ impl State {
             .flat_map(|(p, project)| project.sessions.iter().enumerate().map(move |(i, session)| At(p, i, session)))
             .filter(|at| !self.hides(at.2))
             .collect();
-        let (pinned, rest) = split_pinned(all);
+        // The Archived view has no Pinned group: archiving unpins, and a stale pin must not lift a row out of its project.
+        let (pinned, rest) = if self.is_archived_view() { (Vec::new(), all) } else { split_pinned(all) };
         // The Pinned group has no project name to match: each session is tested alone.
         let pinned: Vec<(usize, usize)> =
             pinned.into_iter().filter(|at| needle.is_empty() || session_matches_query(at, &needle, infos)).map(|at| (at.0, at.1)).collect();
@@ -80,6 +81,10 @@ impl State {
             let matches = |session: &Session| session_matches_query(session, &needle, infos);
             let Some(kept) = matching_sessions(&project.name, &project.sessions, &needle, matches) else { continue };
             let rows: Vec<usize> = kept.into_iter().filter(|&i| rest.contains(&(p, i))).collect();
+            // Archived sessions are the only reason to show a project there.
+            if self.is_archived_view() && rows.is_empty() {
+                continue;
+            }
             groups.push(Group { p, rows });
         }
         HomeLayout { pinned, groups }
@@ -87,7 +92,7 @@ impl State {
 
     /// Whether the live machine's tree shows (a machine heading above it may fold it).
     pub fn home_tree_open(&self) -> bool {
-        !self.machines.has_machines() || self.machine_is_open(super::settings::HOME_MACHINE_KEY)
+        self.is_archived_view() || !self.machines.has_machines() || self.machine_is_open(super::settings::HOME_MACHINE_KEY)
     }
 
     /// The Pinned group's fold: kept under `project:home:pinned`, as Fleet's is.

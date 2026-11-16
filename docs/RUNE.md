@@ -959,6 +959,11 @@ A context-menu row's label is one text run, so a machine's name in the mono face
 - **A press's handler runs inside the frame, after that frame's `poll`.** State a press changes (a fold, a filter) is seen by `poll` one frame late, and a frame that draws nothing new schedules no next one: anything `poll` must keep in step with the list needs `tx.wake_after` while it matters (`sync_selection`, 100 ms while rows are picked).
 - **An icon's stroke width can't be set**: Fleet's check in the checkbox is 10 px at stroke 3; here it is 10 px at the icon's own weight.
 
+## Component 6, piece K (Archived view)
+
+- **`cargo fmt` sorts the `mod` lines in `lib.rs`, and an attribute stays with the line it was above.** Adding a `mod tests_x;` next to a `#[cfg(test)]` one and running fmt left a test module without its `cfg`; read the diff of `lib.rs` after fmt.
+- **A live list needs the hub to be connected before the list is asked for**; a test with a fake server that has no hub can ask by `retry_list()`.
+
 ## Component 8, piece E (fork dialog, analytics popover)
 
 - A scoped style in Fleet is not what the browser draws: `SessionAnalyticsPopover.vue` says `width: 240px; padding: 0`, and

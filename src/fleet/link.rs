@@ -233,7 +233,7 @@ fn fetch_list(base: &str, post: &Post) {
         let request = s.store.begin(s.has_rows());
         std::thread::spawn(move || match http::sessions(&base, retention) {
             Ok(rows) => {
-                let listed = sessions::parse_sessions(&rows, now_ms());
+                let listed = sessions::parse_sessions_for(&rows, now_ms(), retention);
                 // Read with every list so a project's rename, move or delete shows; a failure keeps the last good answer
                 // (`useProjects`).
                 let projects = http::projects(&base).map(|body| groups::parse_projects(&body));

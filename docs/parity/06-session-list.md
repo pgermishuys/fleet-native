@@ -483,10 +483,10 @@ nothing but the status-bar words), and `theme.rs` has no coral token. Row 5.1 is
 | # | Row | Source | Native today |
 |---|---|---|---|
 | 1.77 | Footer (not selecting, not in the Archived view): `padding: 6px 8px 8px`, `border-top: 1px solid var(--border)`, flex-shrink 0; one button "Archived" (`Archive` icon 13, `gap: 7`, `height: 28`, `padding: 0 8px`, `border-radius: 8`, `--muted` 12px; hover wash(5) + `--text`) | `SP` `.panel-footer`, `.panel-footer__link`, `data-testid sessions-show-archived` | Done: `archived` row (key `archived`) |
-| 1.78 | Pressing Archived: clear the selection and `setRetentionStatus("archived")`; the list is fetched again with `?retentionStatus=archived` | `SP` `showArchived(true)`; `USS` `watch(retentionStatus)` | None (`on_press` no-op; native never asks for archived) |
-| 1.79 | Archived header replaces the New session/New project row: `padding: 8px 8px 4px`; one button "Archived sessions" (`ArrowLeft` 14 `--muted`, `gap: 8`, `height: 30`, `padding: 0 8px`, radius 8, 13px / 600, `--text`; hover wash(5)); press = `showArchived(false)` back to active | `SP` `.panel-archived-header*`, `data-testid sessions-archived-back` | None |
-| 1.80 | The Archived view shows every project that has archived sessions (projects with none are dropped), no Pinned group, no machine headings, no "Add a machine" row, no selection bar footer swap beyond Restore (1.56) | `SP` `isArchivedView`, `filteredProjectGroups`, `showMachines` | None |
-| 1.81 | Archived-view sessions are those with `retentionStatus === "archived"` (the list is fetched with the filter); archiving unpins (server) | `SP` `sessions`; `SPN` header comment | None |
+| 1.78 | Pressing Archived: clear the selection and `setRetentionStatus("archived")`; the list is fetched again with `?retentionStatus=archived` | `SP` `showArchived(true)`; `USS` `watch(retentionStatus)` | Done (piece K): `State::show_archived` |
+| 1.79 | Archived header replaces the New session/New project row: `padding: 8px 8px 4px`; one button "Archived sessions" (`ArrowLeft` 14 `--muted`, `gap: 8`, `height: 30`, `padding: 0 8px`, radius 8, 13px / 600, `--text`; hover wash(5)); press = `showArchived(false)` back to active | `SP` `.panel-archived-header*`, `data-testid sessions-archived-back` | Done (piece K) |
+| 1.80 | The Archived view shows every project that has archived sessions (projects with none are dropped), no Pinned group, no machine headings, no "Add a machine" row, no selection bar footer swap beyond Restore (1.56) | `SP` `isArchivedView`, `filteredProjectGroups`, `showMachines` | Done (piece K) |
+| 1.81 | Archived-view sessions are those with `retentionStatus === "archived"` (the list is fetched with the filter); archiving unpins (server) | `SP` `sessions`; `SPN` header comment | Done (piece K) |
 
 #### i. Dragging in the list (panel-level handlers; the row and project drop targets are Part B)
 
@@ -1664,12 +1664,24 @@ The Pinned group and bulk selection. `src/fleet/selection.rs` (the `session-sele
 
 Done: **1.43** (group, order, fold; shown while it has sessions), **1.48-1.53**, **1.54-1.58**, **1.59** (Restore: tested with the retention switched; the Archived view is piece K), **1.89, 1.90** (view), **2.10, 2.11** (now live), **3.61, 3.62** (`!isSelecting`), **3.70**, **1.50** (visible order: Pinned, then open groups, only while the machine's tree is open). Run against a scratch Fleet v0.72.0: the Pinned group from two real pins matches Fleet's.
 
-Open, with reasons: **1.43** the empty Pinned group during a drag (piece S). **1.52** Esc clears only while rows are picked and then doesn't interrupt. **1.53** switching to the Archived view clears: piece K. The selection prunes on the clock (100 ms while picking) because a press changes the list after that frame's poll; a count may show the old number for a moment. The check mark is 10 px but Fleet's 3 px stroke can't be set on a Rune icon. Selection by keyboard (Space on a row) is not in Fleet. `--script` has no modifier keys, so the live native picture shows the Pinned group only; the selection pictures put Fleet's live client beside the native scene (different invented data). **Not checked:** Windows and macOS (CI), a real Ctrl-click with a mouse (the tests send the modifier through Rune's input).
+Open, with reasons: **1.43** the empty Pinned group during a drag (piece S). **1.52** Esc clears only while rows are picked and then doesn't interrupt. **1.53** switching to the Archived view clears: done in piece K. The selection prunes on the clock (100 ms while picking) because a press changes the list after that frame's poll; a count may show the old number for a moment. The check mark is 10 px but Fleet's 3 px stroke can't be set on a Rune icon. Selection by keyboard (Space on a row) is not in Fleet. `--script` has no modifier keys, so the live native picture shows the Pinned group only; the selection pictures put Fleet's live client beside the native scene (different invented data). **Not checked:** Windows and macOS (CI), a real Ctrl-click with a mouse (the tests send the modifier through Rune's input).
 
 ![pinned, dark](../../shots/parity/06-session-list/piece-j/pair-pinned-dark.png)
 ![pinned, light](../../shots/parity/06-session-list/piece-j/pair-pinned-light.png)
 ![selection, dark](../../shots/parity/06-session-list/piece-j/pair-selection-dark.png)
 ![selection, light](../../shots/parity/06-session-list/piece-j/pair-selection-light.png)
+
+## Piece K, built (16 November 2026)
+
+The Archived view. `src/fleet/archived_view.rs` (`is_archived_view`, `show_archived`: clears the selection, sets the retention, reads the list again), `Retention::Archived` now decides what `hides` keeps (active rows in the Active list, archived rows in the Archived view), `home_layout` drops the Pinned split and empty projects there, `sessions.rs` swaps the New session row for the "Archived sessions" back button, drops the footer link and the machine headings and gives the empty view its own words. `parse_sessions_for` keeps the archived rows the server sends for an archived or "all" list (it used to drop them, so an Archived list came back empty). Tests: `src/tests_archived.rs` (9: Fleet has no archived-view test of its own, so they take the rows by name; one runs against a fake server and checks the request).
+
+Done: **1.77-1.81**, **1.53** (switching clears the selection), **1.70** (the archived wording, which piece E had), **2.15**, **2.130**, **5.5**, **1.56/1.59** (Restore now reachable from the view).
+
+Open, with reasons: **1.62** "Show all sessions": a palette command (component 1); `Retention::All` exists and the store handles it. The draft row isn't drawn in the Archived view (Fleet places it in its group if that group has archived rows; rare). A restored row leaves the view at once and the list is read again. While the new list is on its way the held rows are filtered, so a view with nothing archived can say "No archived sessions" for a moment, as Fleet's does. **Not checked:** Windows and macOS (CI). The live native pictures are dark (the app takes its theme from the system and a script can't change it): the light pair is Fleet live beside a native scene with invented data.
+
+![view, dark](../../shots/parity/06-session-list/piece-k/pair-view-dark.png)
+![view, light](../../shots/parity/06-session-list/piece-k/pair-view-light.png)
+![restored, dark](../../shots/parity/06-session-list/piece-k/pair-restored-dark.png)
 
 ## Pieces, in build order
 

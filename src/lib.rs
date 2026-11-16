@@ -17,6 +17,8 @@ mod tests;
 #[cfg(test)]
 mod tests_archive_pins;
 #[cfg(test)]
+mod tests_archived;
+#[cfg(test)]
 mod tests_asks;
 #[cfg(test)]
 mod tests_browser;
@@ -1734,6 +1736,12 @@ pub fn spec() -> AppSpec<State> {
             ("row-rename-light", |s| {
                 s.dark = Some(false);
                 s.show_row_rename(0, 1)
+            }),
+            // Piece K: the Archived view.
+            ("archived-view", |s| s.show_archived_scene()),
+            ("archived-view-light", |s| {
+                s.dark = Some(false);
+                s.show_archived_scene();
             }),
             // Piece J: the Pinned group, and three rows picked with the bar.
             ("pinned-group", |s| s.show_pinned()),
