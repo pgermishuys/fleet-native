@@ -254,9 +254,21 @@ pub struct Machines {
     pub session_machines: HashMap<String, String>,
     /// The state of each other machine's hub, by id; none until a session there is opened.
     pub hubs: HashMap<String, super::link::Connection>,
+    /// The machine of the session open now, or of the last one that was (`currentOpened`); kept for the run.
+    current_opened: Option<String>,
 }
 
 impl Machines {
+    /// The machine you're on: where the open (or last open) session is, else home. A key that isn't listed counts as home
+    /// (`currentKey`).
+    pub fn current_key(&self) -> &str {
+        self.current_opened.as_deref().filter(|k| self.machine(k).is_some()).unwrap_or(HOME_MACHINE_KEY)
+    }
+
+    pub fn set_current(&mut self, key: &str) {
+        self.current_opened = Some(key.to_string());
+    }
+
     /// Home's answer to `GET /api/machines`. Holds each machine's token under its address and lets go of the tokens of
     /// machines that are no longer listed. The machines' own state (the cached lists too) is kept for the ones still there.
     pub fn apply_list(&mut self, listed: Listed) {

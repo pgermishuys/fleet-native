@@ -197,3 +197,85 @@ fn a_parent_opens_its_children_by_itself_while_one_works_and_its_caret_toggles_t
     assert!(has(&rt, "machine-session-m-falcon-f-fork"));
     assert!(has(&rt, "session-kind-m-falcon-f-fork"), "the kind label");
 }
+
+// Piece E: opening another machine's session in place, and the machine you're on.
+
+#[test]
+fn sessionspanel_opens_another_machines_session_in_place_without_a_reload() {
+    let mut rt = scene(Case::Several);
+    click(&mut rt, "machine-session-m-falcon-f-plan");
+    rt.state.open_id().expect("a session is open");
+    assert_eq!(rt.state.open_id().as_deref(), Some("f-plan"));
+    assert_eq!(rt.state.machine_key_of("f-plan"), "m-falcon");
+    assert_eq!(rt.state.store.machine_of("f-plan"), Some("m-falcon"), "kept in elsewhere with its machine");
+    assert_eq!(rt.state.session().title, "Plan the lamp rewiring", "the conversation shows the machine's row");
+    assert_eq!(rt.state.machine_name().as_deref(), Some("falcon"));
+}
+
+#[test]
+fn sessionspanel_marks_the_open_session_s_row_on_the_machine_its_on_and_only_that_row() {
+    let mut rt = scene(Case::Several);
+    let open_rows = |s: &crate::State| -> Vec<String> {
+        let mut rows = Vec::new();
+        for (key, m) in &s.machines.others {
+            rows.extend(m.sessions.iter().filter(|x| s.is_open_on(key, &x.id)).map(|x| format!("{key}/{}", x.id)));
+        }
+        rows
+    };
+    assert!(open_rows(&rt.state).is_empty(), "home's row is open, so none of another machine's");
+    click(&mut rt, "machine-session-m-falcon-f-plan");
+    assert_eq!(open_rows(&rt.state), ["m-falcon/f-plan"]);
+    assert_eq!(rt.state.open_at().0, crate::fleet::store::ELSEWHERE, "home's list has no row open");
+    // And back to one of home's.
+    rt.update(|s, tx| s.open_session(0, 0, tx));
+    assert!(open_rows(&rt.state).is_empty());
+    assert_eq!(rt.state.machine_name(), None, "home has no chip");
+}
+
+#[test]
+fn sessionspanel_keeps_another_machines_session_open_when_home_lists_again() {
+    // The route names the session, so a refresh of home's list leaves it where it is (the part of "after a reload" that
+    // applies without a page).
+    let mut rt = scene(Case::Several);
+    click(&mut rt, "machine-session-m-falcon-f-plan");
+    rt.update(|s, tx| {
+        let list = std::mem::take(&mut s.projects);
+        s.on_list(list, tx);
+    });
+    assert_eq!(rt.state.open_id().as_deref(), Some("f-plan"));
+    assert_eq!(rt.state.session().title, "Plan the lamp rewiring");
+}
+
+#[test]
+fn machines_switch_is_on_the_live_machine_until_a_session_on_another_machine_is_open_and_stays_on_it_afterwards() {
+    let mut rt = scene(Case::Several);
+    assert_eq!(rt.state.machines.current_key(), "home");
+    click(&mut rt, "machine-session-m-falcon-f-plan");
+    assert_eq!(rt.state.machines.current_key(), "m-falcon");
+    assert_eq!(rt.state.machines.list.iter().find(|m| m.id == "m-falcon").unwrap().name, "falcon");
+    rt.update(|s, tx| s.open_session(0, 0, tx));
+    // Home's own session is open: back on the live machine.
+    assert_eq!(rt.state.machines.current_key(), "home");
+}
+
+#[test]
+fn machines_switch_ignores_a_machine_thats_gone() {
+    let mut rt = scene(Case::Several);
+    rt.update(|s, _| s.machines.set_current("cccccccccccccccccccccccccccccccc"));
+    assert_eq!(rt.state.machines.current_key(), "home");
+    rt.update(|s, _| s.machines.set_current("m-harbor"));
+    assert_eq!(rt.state.machines.current_key(), "m-harbor");
+}
+
+#[test]
+fn a_session_on_a_machine_that_isnt_answering_refuses_a_message_naming_the_machine() {
+    let mut rt = scene(Case::Down);
+    click(&mut rt, "machine-session-m-harbor-h-crane");
+    assert_eq!(rt.state.machine_refusal().as_deref(), Some("harbor isn't answering."));
+    rt.update(|s, tx| {
+        s.draft.text = "hello".into();
+        crate::send(s, tx);
+    });
+    assert_eq!(rt.state.composer_error.as_deref(), Some("harbor isn't answering."));
+    assert_eq!(rt.state.draft.text, "hello", "the draft stays");
+}

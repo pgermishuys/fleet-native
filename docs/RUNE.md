@@ -853,3 +853,7 @@ Nothing new about Rune. One rule for the app: a call about a session takes its `
 Nothing new about Rune. One thing about the harness: `row().shrink()` with a `truncate()` child and a plain child after it
 gives the "head gives way first" path of Fleet's header (the leaf is drawn whole, the head takes the ellipsis); no
 workaround was needed.
+
+## Opening another machine's session (component 17, piece E)
+
+Nothing new about Rune. The open session was found by index into `State::projects`; a session kept from another machine is not in that list, so `open_at()` returns `(store::ELSEWHERE, n)` for it and every reader of the open row goes through `session()`, `session_mut()` or `session_at()`. A scripted run that sends a message sends it again on every run: for pictures at two marks, use a new session per run, or the asks pile up.

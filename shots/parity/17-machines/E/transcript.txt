@@ -1,0 +1,9 @@
+Piece E live check, 16 November 2026, Linux. Two scratch Fleets (v0.72.0, plain http, own ports): "atlas" (home) and "falcon"
+(started with --require-token, added to atlas with POST /api/machines). The scripted model answers; Fleet's permission level is "ask".
+The app was started with --server <atlas> and a script (debug build, software renderer):
+- the list shows atlas (1 session) and falcon (its sessions); tapping a falcon row opens it: its history is in the conversation;
+  the open mark is on that row only;
+- typing "run-tests" and Enter sends the prompt to falcon (with falcon's token); the reply streams in; falcon's permission ask
+  ("Run a command") appears with the row "Needs input";
+- tapping "Allow once" answers it on falcon; the turn finishes ("Ran it, run 1 of the suite. All 42 tests pass...").
+Not checked: https through a TLS proxy from the app (it trusts the public roots only), Windows, macOS.

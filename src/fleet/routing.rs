@@ -44,8 +44,16 @@ impl State {
 
     /// The machine a session is on: where it was opened (`elsewhere`), else where a list said it lives, else home.
     pub fn target_of(&self, session: &str) -> Option<Target> {
-        let key = self.store.machine_of(session).or_else(|| self.machines.session_machines.get(session).map(String::as_str));
-        self.target_of_key(key.unwrap_or(HOME_MACHINE_KEY))
+        self.target_of_key(self.machine_key_of(session))
+    }
+
+    /// The key of the machine a session is on, as far as the app knows; home's for any it doesn't know. Needs no link.
+    pub fn machine_key_of(&self, session: &str) -> &str {
+        self.store
+            .machine_of(session)
+            .or_else(|| self.machines.session_machines.get(session).map(String::as_str))
+            .filter(|k| *k == HOME_MACHINE_KEY || self.machines.machine(k).is_some())
+            .unwrap_or(HOME_MACHINE_KEY)
     }
 
     /// The link a call about `session` goes through, started if its machine has none yet. `None` without a Fleet.
@@ -112,5 +120,42 @@ impl State {
             }
             link.open(id);
         }
+    }
+}
+
+impl State {
+    /// A good read of `key`'s sessions: the rows of its sessions kept as opened here take the new status and title, and keep
+    /// their conversation (`sessionById` reads `elsewhere` first, so a stale row would outlive the list).
+    pub fn refresh_elsewhere(&mut self, key: &str) {
+        let Some(listed) = self.machines.others.get(key) else { return };
+        let kept: Vec<&crate::mock::Session> = listed.sessions.iter().filter(|s| self.store.machine_of(&s.id) == Some(key)).collect();
+        for fresh in kept {
+            self.store.patch(&mut [], &fresh.id, |old| {
+                let messages = std::mem::take(&mut old.messages);
+                *old = fresh.row_copy();
+                old.messages = messages;
+            });
+        }
+    }
+
+    /// Whether the open session is `id` on `machine`: the open mark sits on that machine's row only (`openSessionMachineKey`).
+    pub fn is_open_on(&self, machine: &str, id: &str) -> bool {
+        self.open_id().as_deref() == Some(id) && self.machine_key_of(id) == machine
+    }
+
+    /// The name of the machine the open session is on, when it isn't home (the session header's chip reads it).
+    pub fn machine_name(&self) -> Option<String> {
+        let key = self.machine_key_of(&self.open_id()?);
+        self.machines.machine(key).map(|m| m.name.clone())
+    }
+
+    /// Why a message to the open session can't go: its machine isn't answering. The words carry the machine's name.
+    pub fn machine_refusal(&self) -> Option<String> {
+        let key = self.machine_key_of(&self.open_id()?);
+        if self.machines.is_answering(key) {
+            return None;
+        }
+        let name = self.machines.machine(key).map(|m| m.name.as_str()).unwrap_or("That machine");
+        Some(format!("{name} isn't answering."))
     }
 }
