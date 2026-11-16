@@ -247,6 +247,17 @@ impl State {
         if let Some(at) = self.notices.next_expiry() {
             tx.wake_after(Duration::from_secs_f64((at - now).max(0.0)));
         }
+        // The open card settles by itself after its hold, unless it is hovered, has focus inside it, or is pinned.
+        let focus_inside = tx.focused().is_some_and(|k| k.starts_with("notice-"));
+        changed |= self.notices.keep_hold(now, focus_inside);
+        if let Some(left) = self.notices.hold_left(now) {
+            tx.wake_after(Duration::from_secs_f64(left.max(0.0)));
+        }
+        // The countdown bar drains smoothly while it runs.
+        if self.notices.countdown(now).is_some() && !self.notices.held() {
+            tx.wake_after(Duration::from_millis(33));
+            changed = true;
+        }
         if let Some(ids) = self.notices.take_shown_save() {
             self.sidebar.save_notices_shown(&ids);
             self.save_settings();

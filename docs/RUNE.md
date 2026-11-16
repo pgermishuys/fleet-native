@@ -1252,3 +1252,13 @@ in Rune stops a drop in the wrong tree. Nothing in Rune got in the way otherwise
   `setting_switch` takes the handler and puts it on the track.
 - **`Tx::scroll_into_view` reveals "just far enough"**, not to the top as `scrollIntoView({ block: "start" })` does; a group already
   in view doesn't move.
+
+## Component 9, piece L (the notice card)
+
+- A `row()` with `on_press` and a role is not focusable: add `.focusable(true)` or `tx.focus(key)` does nothing and a test finds no
+  focused element. `tx.focus` takes effect after the next frame, so frame once before reading `tx.focused()` or pressing a key.
+- Hold timers are plain arithmetic on the app clock (`keep_hold`), woken with `tx.wake_after`; hover comes from `on_hover_change`,
+  and focus-inside from `tx.focused()` in the poll, so no focus handler is needed.
+- A rich text's link takes a `LinkPaint` for hover and focus; a `Span` carries the label's smaller size, so a list item's muted label
+  and its text are one wrapped paragraph.
+- Tests that run many seconds of a card's hold use a coarser frame step (1/20 s); 60 fps made the notice tests take minutes.

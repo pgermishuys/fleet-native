@@ -36,10 +36,22 @@ pub enum ActionTone {
     Quiet,
 }
 
+/// An icon from `src/icons.rs`, compared by which one it is.
+#[derive(Debug, Clone, Copy)]
+pub struct IconRef(pub &'static rune::Icon);
+
+impl PartialEq for IconRef {
+    fn eq(&self, other: &IconRef) -> bool {
+        std::ptr::eq(self.0, other.0)
+    }
+}
+
+impl Eq for IconRef {}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Action {
     pub label: String,
-    pub icon: Option<&'static str>,
+    pub icon: Option<IconRef>,
     pub tone: ActionTone,
     /// What the notice's source hears when it is pressed.
     pub run: String,
@@ -77,8 +89,8 @@ pub struct Notice {
     pub id: String,
     pub title: String,
     pub body: Option<String>,
-    /// A name from `src/icons.rs`; the card's default is the circle-arrow-up.
-    pub icon: Option<&'static str>,
+    /// The card's default is the circle-arrow-up.
+    pub icon: Option<IconRef>,
     pub tone: Tone,
     pub actions: Vec<Action>,
     pub items: Vec<Item>,
@@ -135,6 +147,22 @@ pub struct Notices {
     /// Ids that have been a card, oldest first, at most [`SHOWN_LIMIT`].
     shown: Vec<String>,
     shown_changed: bool,
+    hold: Hold,
+    /// The pointer is over the open card.
+    hovered: bool,
+    /// What the card's buttons, link and Esc told their source, oldest first, until the source takes it.
+    heard: Vec<String>,
+}
+
+/// How long the open card has left before it settles (`startHold`, `pauseHold`, `resumeHold`).
+#[derive(Debug, Default, Clone)]
+struct Hold {
+    id: Option<String>,
+    total: f64,
+    /// Seconds left as of `since`; while paused, as of the pause.
+    left: f64,
+    since: f64,
+    held: bool,
 }
 
 impl Notices {
@@ -287,6 +315,85 @@ impl Notices {
         for id in gone {
             self.remove(&id);
         }
+    }
+
+    // ── the open card: its hold, and what it tells its source ────────────────
+
+    /// The pointer came onto or left the open card. While it is over it, the card doesn't settle by itself.
+    pub fn set_hover(&mut self, inside: bool) {
+        self.hovered = inside;
+    }
+
+    /// Settles a card that has been open its hold, unless it is pinned or held (hovered, or focus is inside it). True
+    /// when it settled. A card that opens starts its hold now; a pinned card has none (`NoticeCard.vue`, "Hold").
+    pub fn keep_hold(&mut self, now: f64, focus_inside: bool) -> bool {
+        let Some((id, total)) = self.open().map(|n| (n.id.clone(), n.hold_secs.unwrap_or(HOLD_SECS))) else {
+            self.hold = Hold::default();
+            return false;
+        };
+        if self.hold.id.as_deref() != Some(id.as_str()) {
+            self.hold = Hold { id: Some(id), total, left: total, since: now, held: false };
+            self.hovered = false;
+        }
+        if self.pinned {
+            return false;
+        }
+        let want = self.hovered || focus_inside;
+        if want && !self.hold.held {
+            // At least a second is left after a pause, so a card you glanced at doesn't vanish as you let go.
+            self.hold.left = (self.hold.left - (now - self.hold.since)).max(1.0);
+            self.hold.held = true;
+        } else if !want && self.hold.held {
+            self.hold.held = false;
+            self.hold.since = now;
+        }
+        if !self.hold.held && now - self.hold.since >= self.hold.left {
+            self.settle();
+            return true;
+        }
+        false
+    }
+
+    /// Seconds until the open card settles by itself, for the clock to wake at; none when it is pinned or held.
+    pub fn hold_left(&self, now: f64) -> Option<f64> {
+        (self.open().is_some() && !self.pinned && !self.hold.held && self.hold.id == self.open)
+            .then_some(self.hold.left - (now - self.hold.since))
+    }
+
+    /// The share of the countdown bar still showing, for a card that has one and isn't pinned.
+    pub fn countdown(&self, now: f64) -> Option<f32> {
+        let n = self.open()?;
+        if !n.countdown || self.pinned {
+            return None;
+        }
+        if self.hold.id.as_deref() != Some(n.id.as_str()) {
+            return Some(1.0);
+        }
+        let left = if self.hold.held { self.hold.left } else { self.hold.left - (now - self.hold.since) };
+        Some((left / self.hold.total.max(f64::EPSILON)).clamp(0.0, 1.0) as f32)
+    }
+
+    /// Whether the countdown is held, so it stops drawing.
+    pub fn held(&self) -> bool {
+        self.hold.held
+    }
+
+    /// A button, link or Esc on the card: its source hears `run`.
+    pub fn tell(&mut self, run: &str) {
+        self.heard.push(run.to_string());
+    }
+
+    /// What the source has been told since it last asked.
+    pub fn take_heard(&mut self) -> Vec<String> {
+        std::mem::take(&mut self.heard)
+    }
+
+    /// Esc on the card: the source hears `on_escape`, then the card settles (`onCardKeydown`).
+    pub fn escape(&mut self) {
+        if let Some(run) = self.open().and_then(|n| n.on_escape.clone()) {
+            self.tell(&run);
+        }
+        self.settle();
     }
 
     /// Takes away notices whose time has come; true when any went.
