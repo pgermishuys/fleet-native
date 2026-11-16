@@ -3,7 +3,7 @@
 //! chips and message box are pieces E and L; until then `box_slot` holds their place at the size the stage needs.
 use crate::State;
 use crate::theme::{Theme, sans};
-use rune::{El, col, el, row, text};
+use rune::{El, col, row, text};
 
 /// The page's width limit for the box and the strip (`max-width: 760px`).
 pub const COMPOSER_W: f32 = 760.0;
@@ -80,7 +80,8 @@ fn composer(s: &State, t: &Theme) -> El {
         col()
             .w_full()
             .max_w(COMPOSER_W)
-            .child(el().key("new-session-box-slot").w_full().h(66.0))
+            .children(super::new_session_strip::no_harness_notice(s, t))
+            .child(col().key("new-session-box-slot").w_full().h(66.0).justify_end().child(super::new_session_strip::toolbar_chips(s, t)))
             .child(super::new_session_strip::strip(s, t))
             .child(super::new_session_strip::plan_line(s, t)),
     )

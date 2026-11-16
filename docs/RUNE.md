@@ -938,3 +938,8 @@ A context-menu row's label is one text run, so a machine's name in the mono face
 - **`group_opacity(1.0, 0.0)` is `visibility: hidden` on hover** for the age, ring and chips the buttons replace; the hidden text still takes the layout it had, as CSS's does.
 - **A headless click can miss a row below the fold.** A machine's rows came after home's whole tree, off screen at 760 px; the test folds home's heading first.
 - **No transition on the toast.** Fleet fades it 150 ms; here it appears and goes at once.
+## Component 7, piece J (harness, profile, agent and model chips)
+
+- **Nothing new missing.** The five menus reuse `ui::chip::pop`, `option` and `focus_group`; the harness and profile rows have no mark column
+  (grid `1fr 14px`), which `Option_::no_mark` now says. One selector menu serves both the conversation's composer and the New session page
+  because the menu is keyed by name and reads its rows through `State::selector_lists`.

@@ -147,6 +147,7 @@ fn list(s: &State, t: &Theme) -> El {
             bold: o.title_name.clone(),
             hint: None,
             tag: None,
+            no_mark: false,
         };
         let at = i;
         c = c.child(

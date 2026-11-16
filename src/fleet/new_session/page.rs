@@ -46,6 +46,7 @@ impl State {
         self.route = route;
         if !was && is {
             self.read_folder_feeds();
+            self.read_harness_feeds();
         }
     }
 

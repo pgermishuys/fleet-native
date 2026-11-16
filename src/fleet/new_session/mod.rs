@@ -10,6 +10,7 @@ pub mod folder;
 pub mod folder_clone;
 pub mod folder_menu;
 pub mod folder_path;
+pub mod harness;
 pub mod harness_choice;
 pub mod naming;
 pub mod page;
@@ -29,6 +30,8 @@ mod tests_clone;
 mod tests_feeds;
 #[cfg(test)]
 mod tests_folder;
+#[cfg(test)]
+mod tests_harness;
 #[cfg(test)]
 mod tests_path;
 #[cfg(test)]

@@ -235,6 +235,8 @@ pub struct Option_ {
     pub hint: Option<String>,
     /// `ns-option__tag`: muted words after the title (` · default`), 11.5px, weight 400.
     pub tag: Option<String>,
+    /// No mark column at all (the harness and profile rows are `1fr 14px`).
+    pub no_mark: bool,
 }
 
 impl Option_ {
@@ -251,6 +253,7 @@ impl Option_ {
             bold: None,
             hint: None,
             tag: None,
+            no_mark: false,
         }
     }
 }
@@ -281,7 +284,9 @@ pub fn option(t: &Theme, o: Option_, lead: Option<El>, on_press: impl Fn(&mut St
         r = r.fill(wash);
     }
     let lead = lead.or_else(|| o.icon.map(|g| icon(g, 14.0).color(t.muted)));
-    r = r.child(el().w(16.0).center().children(lead));
+    if !o.no_mark {
+        r = r.child(el().w(16.0).center().children(lead));
+    }
     let font = sans(13.0, 400.0, 1.3);
     let title = match (o.bold, o.tag) {
         (_, Some(tag)) => {
