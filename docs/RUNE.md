@@ -1262,3 +1262,11 @@ in Rune stops a drop in the wrong tree. Nothing in Rune got in the way otherwise
 - A rich text's link takes a `LinkPaint` for hover and focus; a `Span` carries the label's smaller size, so a list item's muted label
   and its text are one wrapped paragraph.
 - Tests that run many seconds of a card's hold use a coarser frame step (1/20 s); 60 fps made the notice tests take minutes.
+## Component 16, piece D (General)
+
+- **No native `<select>`.** Large pastes is a bordered row with a chevron that opens `ui::select::content` anchored to it
+  (`Open::Select("large-pastes")`), so the open list is Rune's panel, not the system's: it has the check mark and the select look of the
+  rest of the app, not Chrome's.
+- **A test that clicks a list's choice** finds the element by its text and presses its centre; the choices carry no keys of their own.
+- **`cargo test` with a fake server** needs the harness's wait helper (`test_wait::drive`) to run queued jobs: the answer of a request
+  reaches the UI thread only through `Link`'s `Post`, which the tests collect and run.

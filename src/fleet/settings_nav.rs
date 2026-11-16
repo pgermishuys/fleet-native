@@ -146,6 +146,8 @@ pub struct SettingsNav {
     pub more_open: std::collections::BTreeSet<String>,
     /// The kit's own page (the `settings-kit` scenes and tests), shown in place of the page when set.
     pub demo_open: bool,
+    /// Preference keys whose save is under way: their switch shows the spinner and doesn't press (`saving`).
+    pub saving: std::collections::BTreeSet<String>,
     pub demo: crate::view::settings::kit_scene::Demo,
 }
 
@@ -175,6 +177,9 @@ impl State {
     pub fn open_settings(&mut self, id: &str, anchor: Option<&str>) {
         self.rail = crate::Rail::Settings;
         self.settings.set(id, anchor);
+        if self.settings.page == Page::General {
+            self.refresh_preferences();
+        }
     }
 
     /// `openHarness`: Harnesses on that harness's tab, optionally at one of its groups (`weave`, `may-do`, `profiles`).

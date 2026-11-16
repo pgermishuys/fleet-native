@@ -6,6 +6,7 @@
 //! The data and its rules are plain Rust. Reading and writing the file is blocking: a thread does it
 //! (`State::adopt_settings`, `State::save_settings`), never a view or a handler.
 pub mod anchor;
+pub mod switches;
 
 use super::new_session::defaults::{DEFAULTS_KEY, NewSessionDefaults, defaults_key};
 use serde_json::{Value, json};

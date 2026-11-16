@@ -121,6 +121,8 @@ mod tests_selection;
 #[cfg(test)]
 mod tests_session_header;
 #[cfg(test)]
+mod tests_settings_general;
+#[cfg(test)]
 mod tests_settings_kit;
 #[cfg(test)]
 mod tests_settings_nav;
@@ -1447,6 +1449,24 @@ fn new_session_scene_folder() -> fleet::new_session::request::Folder {
     fleet::new_session::request::Folder::Repository(mock::feeds::ROCKET.into())
 }
 
+/// The General scenes' second state: each switch the other way round from its default, and the first More open.
+fn flip_general(s: &mut State) {
+    for switch in [
+        fleet::settings::switches::STARTERS,
+        fleet::settings::switches::DESKTOP_NOTIFICATIONS,
+        fleet::settings::switches::SESSION_RECAP,
+        fleet::settings::switches::RESTART_CONTINUE_AUTO,
+        fleet::settings::switches::RETRY_AFTER_LIMITS,
+        fleet::settings::switches::USAGE_LIMITS_CHIP,
+        fleet::settings::switches::BOARD,
+    ] {
+        let value = switch.toggled(&s.pickers.prefs);
+        s.pickers.prefs.set(switch.key, value);
+    }
+    s.pickers.prefs.set(composer::attached::LARGE_PASTES_KEY, "attach");
+    s.settings.more_open.insert("starters".into());
+}
+
 pub fn spec() -> AppSpec<State> {
     AppSpec {
         min_size: Some((720.0, 480.0)),
@@ -1460,6 +1480,22 @@ pub fn spec() -> AppSpec<State> {
             ("settings-general-light", |s| {
                 s.dark = Some(false);
                 s.open_settings("general", None)
+            }),
+            // Piece D: General with every switch the other way round and the first More open; the Large pastes list open.
+            ("settings-general-flipped", |s| {
+                s.dark = Some(true);
+                s.open_settings("general", None);
+                flip_general(s);
+            }),
+            ("settings-general-flipped-light", |s| {
+                s.dark = Some(false);
+                s.open_settings("general", None);
+                flip_general(s);
+            }),
+            ("settings-general-pastes", |s| {
+                s.dark = Some(true);
+                s.open_settings("general", None);
+                s.ui.open = Some(ui::Open::Select("large-pastes"));
             }),
             ("settings-kit", |s| {
                 s.dark = Some(true);

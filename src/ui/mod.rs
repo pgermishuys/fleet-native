@@ -142,6 +142,7 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
         Some(Open::MachineContext) => menus::machine_session_context(s, t),
         Some(Open::MachineProjectMenu) => menus::machine_project_context(s, t),
         Some(Open::MachineHeadingMenu) => menus::machine_heading_context(s, t),
+        Some(Open::Select("large-pastes")) => crate::view::settings::general::large_pastes_list(s, t),
         Some(Open::Select(name)) => gallery::select_content(s, t, name),
         Some(Open::Popover("context")) => crate::view::ring_popover::overlay(s, t),
         Some(Open::Popover("allowed")) => crate::view::allowed::overlay(s, t),
