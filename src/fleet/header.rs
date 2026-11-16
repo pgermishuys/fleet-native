@@ -408,6 +408,8 @@ impl crate::State {
         if let Some((parent, _)) = parent {
             self.load_parent_title(&parent);
         }
+        // The chips and the pill read the session's links (`ensureLoaded` when the session changes).
+        self.ensure_links_loaded(session);
         let Some(link) = self.link_for(session) else { return };
         let id = session.to_string();
         let path = format!("/api/sessions/{}", crate::conv::image_sniff::encode_component(session));
@@ -473,5 +475,15 @@ impl crate::State {
             restoring_here: self.head.restoring_here(&session.id),
             restored_note: self.head.restored_note(&session.id, self.clock),
         })
+    }
+}
+
+impl crate::State {
+    /// A chip or the pill was pressed (`show`): open the right panel and ask the Context tab to flash `target`, a link id or
+    /// "origin". Fleet also introduces and activates the tab; until component 10 owns the tab strip the panel is all there is.
+    pub fn show_in_context(&mut self, target: &str) {
+        self.set_content_open(true);
+        let id = self.session().id.clone();
+        self.smart_links.request_focus(&id, target);
     }
 }

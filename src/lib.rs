@@ -35,6 +35,8 @@ mod tests_fork;
 #[cfg(test)]
 mod tests_header;
 #[cfg(test)]
+mod tests_header_context;
+#[cfg(test)]
 mod tests_header_edit;
 #[cfg(test)]
 mod tests_header_toolbar;
@@ -1583,6 +1585,24 @@ pub fn spec() -> AppSpec<State> {
             ("analytics-light", |s| s.show_toolbar(mock::header::Case::Fork, false, fleet::toolbar::Scene::Analytics)),
             ("analytics-empty", |s| s.show_toolbar(mock::header::Case::Fork, true, fleet::toolbar::Scene::AnalyticsEmpty)),
             ("analytics-empty-light", |s| s.show_toolbar(mock::header::Case::Fork, false, fleet::toolbar::Scene::AnalyticsEmpty)),
+            ("context-chips", |s| s.show_chips(mock::context::Case::Chips, true)),
+            ("context-chips-light", |s| s.show_chips(mock::context::Case::Chips, false)),
+            ("context-pill-open", |s| s.show_chips(mock::context::Case::Open, true)),
+            ("context-pill-open-light", |s| s.show_chips(mock::context::Case::Open, false)),
+            ("context-pill-blocked", |s| s.show_chips(mock::context::Case::Blocked, true)),
+            ("context-pill-blocked-light", |s| s.show_chips(mock::context::Case::Blocked, false)),
+            ("context-pill-draft", |s| s.show_chips(mock::context::Case::Draft, true)),
+            ("context-pill-draft-light", |s| s.show_chips(mock::context::Case::Draft, false)),
+            ("context-pill-merged", |s| s.show_chips(mock::context::Case::Merged, true)),
+            ("context-pill-merged-light", |s| s.show_chips(mock::context::Case::Merged, false)),
+            ("context-pill-closed", |s| s.show_chips(mock::context::Case::Closed, true)),
+            ("context-pill-closed-light", |s| s.show_chips(mock::context::Case::Closed, false)),
+            ("context-pill-pending", |s| s.show_chips(mock::context::Case::Pending, true)),
+            ("context-pill-pending-light", |s| s.show_chips(mock::context::Case::Pending, false)),
+            ("context-automation", |s| s.show_chips(mock::context::Case::Automation, true)),
+            ("context-automation-light", |s| s.show_chips(mock::context::Case::Automation, false)),
+            ("context-overflow", |s| s.show_chips(mock::context::Case::Overflow, true)),
+            ("context-overflow-light", |s| s.show_chips(mock::context::Case::Overflow, false)),
             ("header-glyph", |s| s.show_header(mock::header::Case::Retry, true, false)),
             ("header-glyph-light", |s| s.show_header(mock::header::Case::Retry, false, false)),
             ("header-rename", |s| {

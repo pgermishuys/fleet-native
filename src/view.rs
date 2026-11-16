@@ -25,6 +25,7 @@ pub mod gh;
 pub mod harness_picker;
 pub mod header;
 pub mod header_banners;
+pub mod header_context;
 pub mod history;
 pub mod image;
 pub mod interrupted;
