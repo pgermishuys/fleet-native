@@ -43,6 +43,8 @@ mod tests_row_actions;
 #[cfg(test)]
 mod tests_rows;
 #[cfg(test)]
+mod tests_session_header;
+#[cfg(test)]
 mod tests_starters;
 mod theme;
 pub mod ui;
@@ -269,6 +271,8 @@ pub struct State {
     pub browser: conv::browser::Steps,
     /// Each open session's own record (`GET /api/sessions/{id}`), for the header of one the list doesn't hold.
     pub header_details: std::collections::HashMap<String, fleet::header::Detail>,
+    /// Titles of parent sessions the list doesn't hold, read once (`useSessionTitle`).
+    pub parent_titles: std::collections::HashMap<String, String>,
     /// Find in this conversation: the bar, the query and the hits (`conv::find`, `fleet::find`).
     pub find: conv::find::Find,
     /// Stands in for the open session while the list is empty.
@@ -405,6 +409,7 @@ impl Default for State {
             images: Default::default(),
             browser: Default::default(),
             header_details: Default::default(),
+            parent_titles: Default::default(),
             find: Default::default(),
             blank: Project {
                 id: String::new(),
@@ -1308,6 +1313,25 @@ pub fn spec() -> AppSpec<State> {
                 s.dark = Some(false);
                 s.show_folder_menu(fleet::new_session::folder_menu::Scene::Conflict)
             }),
+            // Component 8, piece B: the header drawn (the text of its rows, the banners).
+            ("header-fork", |s| s.show_header(mock::header::Case::Fork, true, true)),
+            ("header-fork-light", |s| s.show_header(mock::header::Case::Fork, false, true)),
+            ("header-retry", |s| s.show_header(mock::header::Case::Retry, true, true)),
+            ("header-retry-light", |s| s.show_header(mock::header::Case::Retry, false, true)),
+            ("header-archived", |s| s.show_header(mock::header::Case::Archived, true, true)),
+            ("header-archived-light", |s| s.show_header(mock::header::Case::Archived, false, true)),
+            ("header-stopped", |s| s.show_header(mock::header::Case::Stopped, true, true)),
+            ("header-stopped-light", |s| s.show_header(mock::header::Case::Stopped, false, true)),
+            ("header-disconnected", |s| s.show_header(mock::header::Case::Disconnected, true, true)),
+            ("header-disconnected-light", |s| s.show_header(mock::header::Case::Disconnected, false, true)),
+            ("header-machine", |s| s.show_header(mock::header::Case::MachineDown, true, true)),
+            ("header-machine-light", |s| s.show_header(mock::header::Case::MachineDown, false, true)),
+            ("header-long-text", |s| s.show_header(mock::header::Case::LongText, true, true)),
+            ("header-long-text-light", |s| s.show_header(mock::header::Case::LongText, false, true)),
+            ("header-subagent", |s| s.show_header(mock::header::Case::Subagent, true, true)),
+            ("header-subagent-light", |s| s.show_header(mock::header::Case::Subagent, false, true)),
+            ("header-glyph", |s| s.show_header(mock::header::Case::Retry, true, false)),
+            ("header-glyph-light", |s| s.show_header(mock::header::Case::Retry, false, false)),
             // Component 17, piece C: the machines in the session list.
             ("machines", |s| s.show_machines(mock::machines::Case::Several, true)),
             ("machines-light", |s| s.show_machines(mock::machines::Case::Several, false)),

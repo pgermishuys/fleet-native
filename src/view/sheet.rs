@@ -2,11 +2,11 @@
 //! panel on the right (collapsed to a 48px rail by default).
 use super::conversation::{Scroll, stream};
 use super::parts::tool_button;
+use crate::State;
 use crate::icons::*;
-use crate::mock::{Project, Session, Status};
-use crate::theme::{Theme, mono, sans};
-use crate::{State, interrupt};
-use rune::{Color, Cursor, El, Shadow, col, el, icon, row, spacer, text};
+use crate::mock::Session;
+use crate::theme::{Theme, sans};
+use rune::{Color, Cursor, El, Shadow, col, icon, row, spacer, text};
 
 /// `AppShell.vue`: the content panel is a column only while the conversation keeps 480px beside
 /// the panel at its narrowest (280px). In a narrower sheet it opens over the conversation.
@@ -14,15 +14,26 @@ const MIN_CONVERSATION: f32 = 480.0;
 const CONTENT_W: f32 = 360.0;
 const CONTENT_MIN: f32 = 280.0;
 
+/// How wide the conversation column is, which the header's sides and its pill's half are measured against (Fleet's
+/// `session-detail-header` container). Unmeasured counts as roomy.
+fn centre_w(s: &State) -> f32 {
+    if s.sheet_w <= 0.0 {
+        return f32::INFINITY;
+    }
+    let room = s.sheet_w - MIN_CONVERSATION;
+    let panel = if !s.content_open || room < CONTENT_MIN { 48.0 } else { CONTENT_W.min(room) };
+    s.sheet_w - panel
+}
+
 pub fn sheet(s: &State, t: &Theme) -> El {
     let session = s.session();
-    let project = s.project();
     let centre = col()
         .grow(1.0)
         .min_w(0.0)
         .h_full()
         .min_h(0.0)
-        .child(header(t, project, session, !s.is_mock(), &s.header_model()))
+        .child(super::header::header(s, t, centre_w(s)))
+        .children(super::header_banners::banners(s, t, &s.header_model()))
         .child(stream(
             t,
             session,
@@ -82,109 +93,6 @@ pub fn sheet(s: &State, t: &Theme) -> El {
             .pin(None, Some(0.0), Some(0.0), Some(0.0));
         sheet.child(content_rail(t, session)).child(over)
     }
-}
-
-fn path_head(m: &crate::fleet::header::HeaderModel, project: &Project) -> String {
-    if m.directory.is_empty() { crate::fleet::header::directory_parts(&project.path).0 } else { m.directory_head.clone() }
-}
-
-fn path_leaf(m: &crate::fleet::header::HeaderModel, project: &Project) -> String {
-    if m.directory.is_empty() { crate::fleet::header::directory_parts(&project.path).1 } else { m.directory_leaf.clone() }
-}
-
-/// `on_server`: the agent and model aren't known from the list yet, so none is invented.
-fn header(t: &Theme, project: &Project, session: &Session, on_server: bool, m: &crate::fleet::header::HeaderModel) -> El {
-    let meta_font = sans(12.0, 400.0, 1.4);
-    let path_font = mono(11.5, 400.0, 1.4);
-    let dot = || text("·").font(meta_font).color(t.muted.alpha(0.6));
-    let plain = |s: &str| text(s).font(meta_font).color(t.muted);
-    // Cut off at the column's edge when the sheet is narrow (CSS `overflow: hidden`).
-    let meta = row()
-        .w_full()
-        .min_w(0.0)
-        .center_y()
-        .gap(6.0)
-        .clip_rounded(0.0)
-        .child(plain(&project.name))
-        .children((!on_server).then(dot))
-        .children((!on_server).then(|| plain("OpenCode")))
-        .children((!on_server).then(dot))
-        .children((!on_server).then(|| plain("Sonnet 5.5")))
-        // A session from the server: what its row and record say (the invented ones keep their invented words).
-        .children(m.harness_label.clone().filter(|_| on_server).map(|h| [dot(), plain(&h)]).into_iter().flatten())
-        .children(m.model_label.clone().filter(|_| on_server).map(|h| [dot(), plain(&h)]).into_iter().flatten())
-        .children(
-            (!session.branch.is_empty() || m.branch.is_some())
-                .then(|| {
-                    let name = m.branch.clone().unwrap_or_else(|| session.branch.clone());
-                    [
-                        dot(),
-                        row()
-                            .center_y()
-                            .gap(4.0)
-                            .child(icon(&GIT_BRANCH, 12.0).color(t.muted))
-                            .child(text(name).font(path_font).color(t.text)),
-                    ]
-                })
-                .into_iter()
-                .flatten(),
-        )
-        .child(dot())
-        // The path is what gives way when the header runs out of room, from its start: the folder's name stays.
-        .child(
-            row()
-                .shrink()
-                .min_w(0.0)
-                .child(text(path_head(m, project)).font(path_font).color(t.muted.alpha(0.8)).truncate().shrink())
-                .child(text(path_leaf(m, project)).font(path_font).color(t.muted.alpha(0.8))),
-        )
-        // Add a tag.
-        .child(
-            el().key("add-tag")
-                .ml(4.0)
-                .size(20.0, 20.0)
-                .center()
-                .radius(6.0)
-                .border(1.0, t.muted.alpha(0.45))
-                .border_dash(3.0, 2.0)
-                .hover_group()
-                .cursor(Cursor::Pointer)
-                .help("Add a tag")
-                .label("Add a tag")
-                .on_press(|_: &mut State| {})
-                .child(icon(&PLUS, 12.0).color(t.muted.alpha(0.7)).group_color(t.text)),
-        );
-    let main = col()
-        .grow(1.0)
-        .shrink()
-        .min_w(0.0)
-        .gap(3.0)
-        .child(text(session.title.clone()).font(sans(14.0, 600.0, 1.3).tracking(-0.07)).color(t.text).truncate())
-        .child(meta);
-
-    let mut actions = row().center_y().gap(2.0).ml(10.5).child(tool_button(t, "terminal", &SQUARE_TERMINAL, 14.0, "Terminal"));
-    if session.status == Status::Working {
-        actions = actions.child(tool_button(t, "abort", &OCTAGON_X, 14.0, "Abort").on_press(interrupt));
-    }
-    let actions = actions
-        .child(el().size(1.0, 16.0).mx(2.0).fill(t.border))
-        .child(tool_button(t, "fork", &GIT_FORK, 14.0, "Fork"))
-        .child(
-            tool_button(t, "more", &ELLIPSIS, 14.0, "More actions")
-                .on_press(|s: &mut State| s.ui.open = Some(crate::ui::Open::Menu("more"))),
-        )
-        .child(tool_button(t, "analytics", &CHART_NO_AXES_COLUMN, 14.0, "Session analytics"));
-
-    row()
-        .key("session-header")
-        .w_full()
-        .min_h(56.0)
-        .center_y()
-        .px(17.5)
-        .py(8.0)
-        .border_sides([0.0, 0.0, 1.0, 0.0], t.border)
-        .child(main)
-        .child(actions)
 }
 
 /// The collapsed content panel (`CollapsedRightRail.vue`): the plan icon and how many steps

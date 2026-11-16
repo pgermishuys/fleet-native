@@ -4,7 +4,7 @@
 //! `HeaderModel::build` takes what the page holds (the row of the list, or the detail read from the session's own
 //! machine) and gives every word and flag the header draws. The machine is the one the open session runs on, so a
 //! session on another machine shows that machine's data and that machine's "not answering".
-use super::groups::{LineageKind, Listing, lineage_of};
+use super::groups::{LineageKind, Listing, lineage_of, lineage_origin_of};
 use super::row_status::{display_title, format_date};
 use super::rows::{Capabilities, Retrying, Row};
 use crate::composer::choice::{ModelOption, model_display_name};
@@ -316,6 +316,8 @@ pub struct Inputs<'a> {
 pub struct HeaderModel {
     pub title: String,
     pub archived: bool,
+    /// `effective_lifecycle` of the row: the stopped banner reads it.
+    pub lifecycle: &'static str,
     pub indicator: Indicator,
     pub status_label: String,
     pub glyph: Glyph,
@@ -360,6 +362,7 @@ impl HeaderModel {
         HeaderModel {
             title: display_title(None, i.title),
             archived,
+            lifecycle,
             indicator,
             status_label: status_label(indicator, &row.retrying),
             glyph: glyph_status(indicator, lifecycle),
@@ -387,6 +390,10 @@ impl HeaderModel {
 impl crate::State {
     /// Reads the open session's own record from the machine it runs on, off the UI thread, and keeps it for the header.
     pub fn load_header_detail(&mut self, session: &str) {
+        let parent = self.store.session_by_id(&self.projects, session).and_then(|s| lineage_origin_of(&s.listing));
+        if let Some((parent, _)) = parent {
+            self.load_parent_title(&parent);
+        }
         let Some(link) = self.link_for(session) else { return };
         let id = session.to_string();
         let path = format!("/api/sessions/{}", crate::conv::image_sniff::encode_component(session));
@@ -395,7 +402,11 @@ impl crate::State {
             move |s, _, result| {
                 // A session the machine can't give (gone, not answering) leaves the header on its row.
                 if let Some(detail) = result.ok().as_ref().and_then(Detail::from_wire) {
+                    let parent = lineage_of(&detail.listing).map(|(p, _)| p);
                     s.header_details.insert(id, detail);
+                    if let Some(parent) = parent {
+                        s.load_parent_title(&parent);
+                    }
                 }
             },
         );
@@ -406,7 +417,13 @@ impl crate::State {
         if !self.machines.has_machines() {
             return None;
         }
-        let key = self.target_of(session)?.key;
+        // The session's own machine; without a link (the scenes) the lookups still say where it was listed.
+        let key = self
+            .store
+            .machine_of(session)
+            .or_else(|| self.machines.session_machines.get(session).map(String::as_str))
+            .unwrap_or(super::settings::HOME_MACHINE_KEY)
+            .to_string();
         let entry = self.machines.entries().into_iter().find(|e| e.key == key)?;
         Some(MachineChip { answering: self.machines.is_answering(&key), name: entry.name })
     }
@@ -422,6 +439,8 @@ impl crate::State {
         if row.harness_profile_name.is_none() {
             row.harness_profile_name = detail.and_then(|d| d.row.harness_profile_name.clone());
         }
+        // The model that answered last comes from the open conversation first, as the composer's "Default" does.
+        row.last_model_id = self.last_model_id();
         let branch = if session.branch.is_empty() { detail.map_or("", |d| d.branch.as_str()) } else { session.branch.as_str() };
         let no_models = Vec::new();
         let models = self.pickers.catalog_of(&session.id).map_or(&no_models, |c| &c.models);

@@ -870,3 +870,12 @@ Nothing new about Rune. The open session was found by index into `State::project
   there and the next list's highlight moves to the row under it: move the pointer away (`pointer_move(0, 0)`) first.
 - `focus_within_ring(1.0, -1.0, color)` on a bordered box paints an accent border while its input has focus (Fleet's
   `:focus` border on the branch box).
+
+## Component 8, piece B (the header drawn)
+
+- **A border adds to the box only with `.border_layout()`.** A pill with `.border(1.0, ..)` and `.py(2.0)` came out 19.6 high; Fleet's
+  (CSS `border` plus padding) is 21.6. Add `.border_layout()` wherever the CSS box has a border and a height matters.
+- **`.truncate()` also lets a text shrink.** Fleet's project, harness and model are `flex-shrink: 0`; with `.truncate()` they were
+  cut ("Orch…") in a narrow header. Give them `.max_w()` only, and leave the shrinking to the path's head.
+- **Underlined text is a `rich(..)` with one `Span`.** `El` has no `.underline()`.
+- **`rt.presented(key)` gives a rect.** A "the pill keeps half" test reads widths from it; no screenshot needed.
