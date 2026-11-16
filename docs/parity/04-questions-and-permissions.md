@@ -216,7 +216,7 @@ An ask with `handoff` set (an agent wants to send work to a machine set to Ask).
 | # | Row | Source | Native today |
 |---|---|---|---|
 | 8.1 | Order under the messages: load-older row, messages (with their question cards inside), **permission cards**, **page-pick card**, mod drafts, interrupted card, working line. The permission and page-pick cards take `margin 0 auto 16`, `max-width 760`, full width (class `activity-permission`) | `ActivityStream.vue` 880-896; `docs/parity/03` row 1.x | Permission slot done (piece B): after the messages, `max-width 760`, 16 below; the page-pick card's slot is piece F's. |
-| 8.2 | A question card sits inside its message after the tool list; `questionParts` are kept apart from tools and never folded away | `MessageBubble.vue` 328, `docs/parity/03` 2.30, 1.26 | The part is drawn as a tool line only |
+| 8.2 | A question card sits inside its message after the tool list; `questionParts` are kept apart from tools and never folded away | `MessageBubble.vue` 328, `docs/parity/03` 2.30, 1.26 | Done (piece D): `view::conversation::message_row` draws it after the message's parts; a question call has no tool row. |
 | 8.3 | While a question or ask waits, the working line reads "Needs input" with the diamond (component 3, 1.80), the session row shows "Needs input", the header says so | `WorkingIndicator`, `ActivityStream.isWaitingForInput` | Row done; line is component 3 |
 | 8.4 | The composer is not locked while a card waits: typing a message answers a page pick, and a message queues as usual | PPC text, Composer | Composer is component 5 |
 | 8.5 | After Fleet restarts the question is lost: "Fleet restarted while this was waiting for you…" (component 3, 1.84) | `SessionInterruptedCard` | Component 3 |
@@ -293,12 +293,22 @@ for what talks to the server, with Fleet's tests ported under the same names.
 - 1.14 Send answer and Skip are drawn, press nothing, and the hover on Send (opacity .88) is absent: piece D.
 - 1.9/1.11 picked and typed looks match Fleet's; Fleet's real `<input>` shows a faint inner box when focused (browser default), not copied.
 
-### D. Question card live: answer, skip, answered and skipped rows
+### D. Question card live: answer, skip, answered and skipped rows — done
 - **Rows:** 1.18, 1.19, 1.21-1.23, 2.1, 2.2, 2.4, 2.5, 7.1-7.3, 7.9, 7.10, 8.2.
 - **Files:** `src/fleet/asks.rs` or `src/fleet/questions.rs` (`answer_question`, `reject_question`, gone/other failure), `src/fleet/http.rs`, `src/view/conversation.rs` (a question part draws the card or the row after its message's tool list; it is never folded), `src/view/question.rs` (keys, focus, loading, error, Dismiss), `src/fleet/tests/questions.rs`.
 - **Depends on:** C, and B for the shared focus and key helpers (`src/asks/focus.rs`: `focusBlockingCard` rule, `moveChoiceFocus`). ~600 lines.
 - **Tests to port:** `use-question-answer.test.ts` (2), QuestionCard's "takes keyboard focus on its first option, and the arrow keys move between options", "leaves focus alone while the user types in the composer", "still takes focus from an empty composer that autofocused", "sends the picked choice", "picks a choice by its number key and sends on Enter", "sends typed text instead of a choice", "skips", "shrinks to a row with the question and its answer once answered", "says when a question was skipped", "says the agent isn't waiting and lets the user dismiss the leftover card here, sending nothing".
 - **Pictures:** live: `ask-me`, the card; a click on "Redis" then Send answer; the answered row ("Asked  Which database should the cache use? → Redis ✓") and the agent's reply; a skipped one; the gone state (answer the same question from curl first, then in the app); an older question loaded from history (7.10). Beside Fleet's own client, dark and light.
+
+**Done in D (rows 1.18, 1.19, 1.21-1.23, 2.1, 2.2, 2.4, 2.5, 7.1-7.3, 7.9, 7.10, 8.2; pictures `shots/parity/04d-question-live/`, native beside Fleet's own client for the waiting card, the answered row and the skipped row, both themes, from a live run of `ask-me`; the gone, failed and sending states and the two-question and long answered rows are scenes only).** The card is made from the message's `question` tool part (`State::sync_questions`, from `sync_open`), never from an event; `view::conversation::message_row` draws the card, the answered row or the skipped row after the message's other parts. Gaps, with reasons:
+- 7.10: the app's conversation (live and on reopening a session) comes from the hub's snapshot, whose parts already have the stream's shape (`tool`, `callID`, an object `state`); the REST `toolName`/`arguments`/numeric `state` shape is only read by the export. Checked live: an answered question on a session opened later draws its row.
+- 1.22 (gone) can't be made live with Fleet's own client or the app: both show the answered row the moment the event arrives, before a second answer could be sent. Shown from a scene; the 404 and 409 paths are tests against a fake server.
+- 1.23 `statusText`: HTTP/1.1 reason phrases for the codes Fleet answers with (`fleet::questions::reason`); a code not in the table gives an empty phrase, as HTTP/2 would.
+- 1.19 Enter on a focused choice or button is that button's press (the browser's click), as in Fleet: after a digit pick focus stays on the first choice, so Enter then toggles it. Fleet's own test presses on the card, so ours does too.
+- 1.20 the card takes the 2px ring only when it holds focus itself (a question with no choices).
+- 2.2 the answer's `max-width: 50%` is half the column less the row's padding (`COLUMN`), as Rune has no percentage widths.
+- The question text field's own hash must be part of the message's `memo` key (Rune's memo docs): without it a click on the field did nothing (`docs/RUNE.md`).
+- 2.5: Fleet draws the "tool line" for a finished call with no answers; here a question call never has a tool row (row 8.2), so nothing draws.
 
 ### E. Allowed rules: the store, the list, the chip
 - **Rows:** 5.1-5.12, 7.8.

@@ -13,12 +13,14 @@ use super::image;
 use super::interrupted;
 use super::message::{self, copy_text};
 use super::prose;
+use super::question;
 use super::reasoning;
 use super::scroll;
 use super::shell;
 use super::toolrow;
 use super::working;
 use crate::State;
+use crate::asks::question::QuestionPart;
 use crate::conv::background::{AgentCall, BackgroundNotice};
 use crate::conv::bubble::{cluster_position, show_meta};
 use crate::conv::card::ToolBody;
@@ -102,6 +104,9 @@ pub enum Part {
         body: Box<ToolBody>,
         /// For a sub-agent call: the kind and task its input names (`subagentKind`, `subagentTask`).
         agent: AgentCall,
+        /// For a call of the question tool: what the card or the answered row is drawn from (`question_part`). Such a
+        /// call has no tool row; the card sits after its message.
+        question: Option<Box<QuestionPart>>,
     },
     File {
         id: String,
@@ -165,14 +170,15 @@ impl Part {
             state,
             body: Box::default(),
             agent: AgentCall::default(),
+            question: None,
         }
     }
 
     /// A call that is still running.
     pub fn running_tool(id: impl Into<String>, tool: &str, detail: &str) -> Self {
         match Part::tool(id, tool, detail, ToolState::Plain) {
-            Part::Tool { id, tool, call_id, detail, state, body, agent, .. } => {
-                Part::Tool { id, tool, call_id, detail, status: ToolStatus::Running, state, body, agent }
+            Part::Tool { id, tool, call_id, detail, state, body, agent, question, .. } => {
+                Part::Tool { id, tool, call_id, detail, status: ToolStatus::Running, state, body, agent, question }
             }
             other => other,
         }
@@ -189,7 +195,7 @@ impl Part {
     pub fn weight(&self) -> usize {
         match self {
             Part::Text { text, .. } | Part::Reasoning { text, .. } => text.len(),
-            Part::Tool { state, status, detail, body, agent, .. } => {
+            Part::Tool { state, status, detail, body, agent, question, .. } => {
                 let shown = match *state {
                     ToolState::Diff(a, r) => 2 + a as usize + r as usize,
                     ToolState::Took(secs) => 3 + secs.to_bits() as usize,
@@ -203,6 +209,7 @@ impl Part {
                     + body.summary.len()
                     + agent.kind.len()
                     + agent.task.len()
+                    + question.as_ref().map_or(0, |q| q.weight())
             }
             Part::Compaction { summary, .. } => 5 + summary.as_ref().map_or(0, String::len),
             Part::Shell(c) => 6 + c.output.len() + (c.state as usize) * 3 + c.exit.map_or(0, |e| e as usize),
@@ -296,7 +303,7 @@ pub fn stream(t: &Theme, session: &Session, plan: &FoldPlan, partial: bool, olde
                     frame,
                     s.lists().models.len(),
                     fold_key(kept),
-                    (failure, agent_row::key(s, msg), image::key(s, &msg.parts), browser_steps::key(s, &msg.parts)),
+                    (failure, agent_row::key(s, msg), image::key(s, &msg.parts), browser_steps::key(s, &msg.parts), question::key(s, msg)),
                     (s.is_shown(&msg.id), s.find_row_key(&msg.id)),
                 ),
                 || message_row(&theme, &md, msg, (kept, after_tool), streaming, s, (frame.0, frame.1)),
@@ -478,6 +485,8 @@ fn open_mask(msg: &Message, s: &State) -> u64 {
 fn drawn_parts<'a>(msg: &'a Message, kept: Option<&Kept>) -> Vec<&'a Part> {
     msg.parts
         .iter()
+        // A question call has no tool row: its card or row sits after the message (`question_views`).
+        .filter(|p| !matches!(p, Part::Tool { question: Some(_), .. }))
         .filter(|p| match (p, kept) {
             (Part::Tool { id, .. }, Some(k)) => k.tools.contains(id),
             (Part::Reasoning { .. }, Some(k)) => k.reasoning,
@@ -617,6 +626,15 @@ fn message_row(
         column = column.child(part);
         after_tool = Some(is_shell);
         k += 1;
+    }
+    // The cards and rows of its question calls, after everything else the message says, never folded away.
+    for part in &msg.parts {
+        if let Part::Tool { call_id, question: Some(q), .. } = part {
+            let first = s.active_question().is_some_and(|c| c.id == *call_id);
+            // A message of nothing else still has the gap a message has above it.
+            let gap = if std::mem::replace(&mut lead_spent, true) { 0.0 } else { above(after_tool, false) };
+            column = column.children(question::part(t, s, call_id, q, first).map(|card| el().w_full().mt(gap).child(card)));
+        }
     }
     let user = msg.role == Role::User;
     let cluster = cluster_position(grouped_with_prev, grouped_with_next);

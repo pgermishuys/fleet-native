@@ -57,7 +57,7 @@ fn header(t: &Theme) -> El {
 
 /// The call's own part, as a row.
 pub fn tool_entry(t: &Theme, s: &State, part: &Part) -> El {
-    let Part::Tool { id, tool, call_id, detail, status, state, body, agent } = part else { return el() };
+    let Part::Tool { id, tool, call_id, detail, status, state, body, agent, .. } = part else { return el() };
     // A sub-agent call whose session exists is one row of its own: who, what, how it's going, and a way in.
     if get_tool(tool).category == Category::Subagent
         && let Some(delegation) = s.stream.as_ref().and_then(|st| delegation_of(&st.delegations, call_id, id))

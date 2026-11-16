@@ -7,7 +7,7 @@ use crate::view::conversation::{Message, Part};
 fn tool(id: &str, kind: &str, status: ToolStatus) -> Part {
     match Part::tool(id, kind, id, crate::view::conversation::ToolState::Plain) {
         Part::Tool { id, tool, call_id, detail, state, body, agent, .. } => {
-            Part::Tool { id, tool, call_id, detail, status, state, body, agent }
+            Part::Tool { id, tool, call_id, detail, status, state, body, agent, question: None }
         }
         other => other,
     }
