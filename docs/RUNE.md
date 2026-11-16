@@ -1238,3 +1238,17 @@ in Rune stops a drop in the wrong tree. Nothing in Rune got in the way otherwise
 
 - Nothing in Rune got in the way. The menu reuses the session list's panel width, gutter and `sidebar_open`, so the one gutter and Ctrl/Cmd+B
   work as they do there. `cargo test | head` ends the run early (the pipe closes and cargo stops); send test output to a file.
+
+## Component 16, piece B (the setting primitives and anchors)
+
+- **No inline link in a wrapped line.** Fleet's More sits at the end of the summary's last line. A `rich` text can underline a run
+  but not take a press, so More is its own element after the summary in a wrapping row: it follows the summary when that fits on one
+  line and drops under it when it wraps.
+- **`on_key` on a `focus_group` row sees the arrows first and can return `false`.** Segments pick the neighbour in `on_key` and let
+  Rune's roving focus move; both wrap, so the picked and the focused segment stay the same one.
+- **`ElementInfo` has no checked or switch state**, only `expanded`, `focused`, `opacity` and `role`. Tests read a switch's or a
+  segment's state from `State`, and `expanded` from the More button.
+- **Press goes on the element that has the key.** A wrapper `row` around a switch's track takes no press from a click on the track:
+  `setting_switch` takes the handler and puts it on the track.
+- **`Tx::scroll_into_view` reveals "just far enough"**, not to the top as `scrollIntoView({ block: "start" })` does; a group already
+  in view doesn't move.

@@ -3,7 +3,7 @@
 //! no address, so `State.settings` holds it, and it is kept while the app runs, as Fleet's module state is.
 use crate::State;
 
-/// A page of the menu. `Credentials` has no menu entry (Fleet's menu can't reach it on `main`) and `Plugin` is a plugin's own page.
+/// A page of the menu; `Plugin` is a plugin's own page.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub enum Page {
     #[default]
@@ -140,14 +140,30 @@ pub struct SettingsNav {
     pub harness: Option<String>,
     /// A repository Memory should show when it opens.
     pub repository: Option<String>,
+    /// A kept anchor has been scrolled to, so it isn't again (`fleet::settings::anchor`).
+    pub scrolled: bool,
+    /// The rows whose More text is open (`SettingRow`'s `moreOpen`), by row id.
+    pub more_open: std::collections::BTreeSet<String>,
+    /// The kit's own page (the `settings-kit` scenes and tests), shown in place of the page when set.
+    pub demo_open: bool,
+    pub demo: crate::view::settings::kit_scene::Demo,
 }
 
 impl SettingsNav {
+    /// `SettingRow`'s More / Less.
+    pub fn toggle_more(&mut self, row: &str) {
+        if !self.more_open.remove(row) {
+            self.more_open.insert(row.to_string());
+        }
+    }
+
     /// `setActiveSection`: an old id lands on its page; the old Weave id leaves the harness tab to be chosen.
     pub fn set(&mut self, id: &str, anchor: Option<&str>) {
         let target = resolve(id, anchor);
         self.page = target.page;
         self.anchor = target.anchor;
+        self.scrolled = false;
+        self.demo_open = false;
         if id == "weave" {
             self.harness = None;
         }

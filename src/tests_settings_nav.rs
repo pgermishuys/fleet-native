@@ -107,13 +107,23 @@ fn groups_the_pages_under_you_agents_work_and_fleet_and_has_no_features_page() {
     for group in ["you", "agents", "work", "fleet", "plugins"] {
         assert!(exists(&rt, &format!("settings-group-{group}")), "{group}");
     }
-    for page in
-        ["general", "appearance", "harnesses", "permissions", "skills", "memory", "folders", "machines", "labs", "updates", "plugins"]
-    {
+    for page in [
+        "general",
+        "appearance",
+        "harnesses",
+        "permissions",
+        "skills",
+        "memory",
+        "credentials",
+        "folders",
+        "machines",
+        "labs",
+        "updates",
+        "plugins",
+    ] {
         assert!(exists(&rt, &format!("settings-nav-{page}")), "{page}");
     }
     assert!(!exists(&rt, "settings-nav-features"));
-    assert!(!exists(&rt, "settings-nav-credentials"), "API keys has no entry");
 }
 
 #[test]
@@ -143,6 +153,7 @@ fn a_menu_entry_opens_its_page_with_its_title_and_line_and_the_note() {
         Page::Permissions,
         Page::Skills,
         Page::Memory,
+        Page::Credentials,
         Page::Folders,
         Page::Labs,
         Page::Updates,
