@@ -265,6 +265,8 @@ pub struct State {
     pub images: fleet::images::Images,
     /// The steps the agent took in its own browser, per session.
     pub browser: conv::browser::Steps,
+    /// Each open session's own record (`GET /api/sessions/{id}`), for the header of one the list doesn't hold.
+    pub header_details: std::collections::HashMap<String, fleet::header::Detail>,
     /// Find in this conversation: the bar, the query and the hits (`conv::find`, `fleet::find`).
     pub find: conv::find::Find,
     /// Stands in for the open session while the list is empty.
@@ -400,6 +402,7 @@ impl Default for State {
             work: Default::default(),
             images: Default::default(),
             browser: Default::default(),
+            header_details: Default::default(),
             find: Default::default(),
             blank: Project {
                 id: String::new(),

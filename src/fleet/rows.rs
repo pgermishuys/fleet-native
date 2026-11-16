@@ -42,6 +42,53 @@ pub struct Retrying {
     pub next: Option<String>,
 }
 
+/// `capabilities` of a list item or a detail (`SessionActionCapabilities`): what the harness lets the header offer.
+/// Each is `None` when the server didn't say, so the page's fallbacks apply (`header::Actions`).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Capabilities {
+    pub can_abort: Option<bool>,
+    pub can_archive: Option<bool>,
+    pub can_fork: Option<bool>,
+    pub fork_disabled_reason: Option<String>,
+    pub can_delete: Option<bool>,
+}
+
+/// `origin`: where an imported or linked session came from (`SessionOriginDto`).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Origin {
+    pub source_type: String,
+    pub title: Option<String>,
+    pub resource_url: Option<String>,
+    pub resource_id: Option<String>,
+    pub provider_id: String,
+}
+
+impl Origin {
+    pub fn from_wire(v: &Value) -> Option<Origin> {
+        v.is_object().then(|| Origin {
+            source_type: text(v, "sourceType").unwrap_or_default(),
+            title: text(v, "title"),
+            resource_url: text(v, "resourceUrl"),
+            resource_id: text(v, "resourceId"),
+            provider_id: text(v, "providerId").unwrap_or_default(),
+        })
+    }
+}
+
+impl Capabilities {
+    pub fn from_wire(v: Option<&Value>) -> Capabilities {
+        let Some(v) = v else { return Capabilities::default() };
+        let flag = |k: &str| v.get(k).and_then(Value::as_bool);
+        Capabilities {
+            can_abort: flag("canAbort"),
+            can_archive: flag("canArchive"),
+            can_fork: flag("canFork"),
+            fork_disabled_reason: text(v, "forkDisabledReason").filter(|r| !r.is_empty()),
+            can_delete: flag("canDelete"),
+        }
+    }
+}
+
 /// The fields of a `SessionListItem` the glyph doesn't carry.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Row {
@@ -85,6 +132,18 @@ pub struct Row {
     pub running_work: u32,
     /// `progress`: the todo list's counts.
     pub progress: Option<Progress>,
+    /// `tags`, in the order the server keeps them.
+    pub tags: Vec<String>,
+    /// `workspaceDirectory`: the worktree's folder for a worktree session (the header's path).
+    pub directory: String,
+    /// `totalTokens`: `None` while the server has no count (the analytics popover says "—").
+    pub total_tokens: Option<u64>,
+    /// `totalCost`: `None` while the server has none (`cost` above is the same number as 0 when absent).
+    pub total_cost: Option<f64>,
+    pub origin: Option<Origin>,
+    pub capabilities: Capabilities,
+    /// `harnessProfileName`: the profile the session started with. Only the detail carries it.
+    pub harness_profile_name: Option<String>,
     /// The pull request the session opened. Only mock data fills it until the header component reads the smart links.
     pub pr: Option<PrBadge>,
 }
@@ -194,6 +253,17 @@ impl Row {
             page_count: item.get("pageCount").and_then(Value::as_u64).unwrap_or(0).min(u32::MAX as u64) as u32,
             last_page_shown_at: text(item, "lastPageShownAt"),
             cost: item.get("totalCost").and_then(Value::as_f64).unwrap_or(0.0),
+            tags: item
+                .get("tags")
+                .and_then(Value::as_array)
+                .map(|t| t.iter().filter_map(Value::as_str).map(str::to_string).collect())
+                .unwrap_or_default(),
+            directory: text(item, "workspaceDirectory").unwrap_or_default(),
+            total_tokens: item.get("totalTokens").and_then(Value::as_u64),
+            total_cost: item.get("totalCost").and_then(Value::as_f64),
+            origin: item.get("origin").and_then(Origin::from_wire),
+            capabilities: Capabilities::from_wire(item.get("capabilities")),
+            harness_profile_name: text(item, "harnessProfileName").filter(|n| !n.is_empty()),
             checkout_removed_at: text(item, "checkoutRemovedAt"),
             checkout_restoring: false,
             archived: text(item, "retentionStatus").as_deref() == Some("archived"),
