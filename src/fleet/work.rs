@@ -147,7 +147,7 @@ pub fn is_running(item: &RunningWorkItem) -> bool {
 
 /// Oldest first, then by id. A start time that can't be read sorts as `NaN` does in Fleet's
 /// `Date.parse(a) - Date.parse(b) || …`: the comparison is 0, so the id decides.
-fn sort(items: &mut [RunningWorkItem]) {
+pub fn sort(items: &mut [RunningWorkItem]) {
     items.sort_by(|a, b| match (started_ms(a), started_ms(b)) {
         (Some(x), Some(y)) if x != y => x.cmp(&y),
         _ => a.id.cmp(&b.id),

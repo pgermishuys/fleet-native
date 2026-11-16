@@ -29,7 +29,7 @@ fn parse_page(body: &Value) -> Option<Page> {
 
 impl State {
     fn work_item(&self, id: &str) -> Option<&RunningWorkItem> {
-        self.running_work().iter().find(|i| i.id == id)
+        self.running_work().iter().find(|i| i.id == id).or_else(|| self.list_work.get(id))
     }
 
     /// Stop (`stopWork`): a second press while one is out is refused. The answer is the item ended; it is applied at
@@ -58,8 +58,12 @@ impl State {
                 self.work.stop_errors.insert(id.to_string(), error_message(&body, format!("It couldn't be stopped (HTTP {status}).")));
             }
             Ok((_, body)) => {
-                if let (Some(item), Some(stream)) = (to_item(&body), self.stream.as_mut()) {
-                    apply_item(&mut stream.running_work, item);
+                if let Some(item) = to_item(&body) {
+                    // The item may be the open session's or another's (the status bar's list): both places take it.
+                    self.list_work.apply(item.clone());
+                    if let Some(stream) = self.stream.as_mut() {
+                        apply_item(&mut stream.running_work, item);
+                    }
                 }
             }
         }

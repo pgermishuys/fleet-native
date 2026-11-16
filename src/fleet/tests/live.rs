@@ -185,3 +185,45 @@ fn live_composer() {
     key(&mut rt, Key::Enter, false);
     println!("draft kept after /btw: {:?}", rt.state.draft.text);
 }
+
+/// The running-work counter's data against a scratch Fleet, headless: the label and the groups, as the status bar's popover
+/// will list them. Send `background-work` to two sessions (each runs a sub-agent for about 30 s) after it starts.
+///
+///     FLEET_LIVE_URL=http://127.0.0.1:6481 cargo test live_running_work -- --ignored --nocapture
+#[test]
+#[ignore = "needs a scratch Fleet"]
+fn live_running_work() {
+    let Ok(url) = std::env::var("FLEET_LIVE_URL") else { return };
+    let (jobs, queue) = channel::<Job>();
+    let jobs = Mutex::new(jobs);
+    let post = Post::new(move |job| {
+        let _ = jobs.lock().unwrap().send(job);
+    });
+    let mut rt = app();
+    let link = Link::start(url, post);
+    rt.update(move |s, _| s.link = Some(link));
+    let (start, mut last) = (Instant::now(), String::new());
+    while start.elapsed() < Duration::from_secs(60) {
+        while let Ok(job) = queue.try_recv() {
+            rt.update(job);
+        }
+        rt.frame(1.0 / 60.0);
+        let s = &rt.state;
+        let groups: Vec<String> = s
+            .placed_work_groups()
+            .iter()
+            .map(|g| {
+                let items: Vec<String> =
+                    g.group.items.iter().map(|i| format!("{} {:?}", i.kind.label(), i.label.as_deref().unwrap_or(&i.title))).collect();
+                format!("[{} · {} | {}]", g.title, g.place.as_deref().unwrap_or("-"), items.join(", "))
+            })
+            .collect();
+        let now =
+            if s.list_work.is_empty() { "nothing running".to_string() } else { format!("{} {}", s.list_work.label(), groups.join(" ")) };
+        if now != last {
+            println!("[{:>5.1}s] {now}", start.elapsed().as_secs_f32());
+            last = now;
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+}

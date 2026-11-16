@@ -52,6 +52,10 @@ pub struct Listing {
     pub project_id: Option<String>,
     pub project_name: Option<String>,
     pub workspace_directory: String,
+    /// `workspaceDisplayName`: the running-work popover names a session's place by it, before the project.
+    pub workspace_display_name: Option<String>,
+    /// `instanceId`: the server that runs the session, for a link that opens it.
+    pub instance_id: Option<String>,
     pub pin_order: Option<f64>,
     pub forked_from: Option<String>,
     pub spawned_by: Option<String>,
@@ -71,6 +75,8 @@ impl Listing {
             project_id: text("projectId"),
             project_name: text("projectName"),
             workspace_directory: text("workspaceDirectory").unwrap_or_default(),
+            workspace_display_name: text("workspaceDisplayName").filter(|v| !v.is_empty()),
+            instance_id: text("instanceId").filter(|v| !v.is_empty()),
             pin_order: row.get("pinOrder").and_then(Value::as_f64),
             forked_from: text("forkedFromSessionId"),
             spawned_by: text("spawnedBySessionId"),

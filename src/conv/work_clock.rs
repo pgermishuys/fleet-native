@@ -110,6 +110,20 @@ impl WorkStrip {
     }
 }
 
+/// `tickFor` for the popover over every session's work: how long until a running item's time reads differently (a second
+/// in its first minute, then the next whole minute). `None` with nothing running, so the clock rests.
+pub fn next_tick_ms(items: &[RunningWorkItem], now: i64) -> Option<i64> {
+    items
+        .iter()
+        .filter(|i| is_running(i))
+        .map(|item| {
+            let elapsed = work_elapsed_ms(item, now);
+            let step = if elapsed < 60_000 { 1_000 } else { 60_000 };
+            step - elapsed % step
+        })
+        .min()
+}
+
 /// The text of a row's "what" (`what`): a shell's command; "agent · what it was asked" for a sub-agent or task; the
 /// label else the title for the rest.
 pub fn what_text(item: &RunningWorkItem) -> String {

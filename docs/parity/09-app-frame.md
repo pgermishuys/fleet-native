@@ -142,12 +142,12 @@ their pictures from scenes beside Fleet's client with the answers put in by Play
 
 | # | Element / behaviour | Source | Native today |
 |---|---|---|---|
-| 5.1 | Data: `GET /api/work/running` (live machine) on start and reconnect, then `work.started/updated/ended` on `sessions`; keeps running items only; sorted by `startedAt` then id; grouped by session in first-appearance order | URW 340-382 | `ListWork` loads and follows (unordered, no groups) |
+| 5.1 | Data: `GET /api/work/running` (live machine) on start and reconnect, then `work.started/updated/ended` on `sessions`; keeps running items only; sorted by `startedAt` then id; grouped by session in first-appearance order | URW 340-382 | **Done (G)**: `ListWork` loads on start and reconnect and follows `work.*`; `running_sorted` (start, then id), `groups` (first appearance), `session_count`, `label`; `placed_work_groups` adds the open session first, the title ("Untitled session"), the place (workspace name, else project; "this session") and the instance id |
 | 5.2 | Hidden while nothing runs; no loading or error state | RWC 60 | — |
 | 5.3 | Chip: height 18, padding 0 8 0 7, radius 999, 11/500 tabular, `--running` 14% fill (24% on hover or open), `--running-text`; a 6 px `--running` dot; "N running in 1 session" / "N running in M sessions"; title "<label>: show what runs in the background" | RWC 24-28, 174-200 | None |
 | 5.4 | Popover: side top, align end, offset 6, width 460 (max window - 16), radius `--radius-card`, padding 6, gap 6, max height min(480, 70vh), scrolls; `aria-label` "Running in the background" | RWC 62-73, 233-241 | None |
 | 5.5 | Groups: the open session's first; header row (padding 6 8 4, radius 7, 12.5/600 `--text`, hover 5%): dot, title (ellipsis; "Untitled session"), "· this session" or "· <workspace or project>" (muted, 400, never shrinks); a click opens that session and closes the popover | RWC 30-56, 205-231 | None |
-| 5.6 | Rows: `BackgroundWorkRow` with `now` ticking (1 s in the first minute, then 1 min), Output, Open, Details, Events, Stop | RWC 108-116; `BackgroundWorkRow.vue` | `view::work::work_row` exists; its actions look only in the open session (`work_item`) and must also find another session's item |
+| 5.6 | Rows: `BackgroundWorkRow` with `now` ticking (1 s in the first minute, then 1 min), Output, Open, Details, Events, Stop | RWC 108-116; `BackgroundWorkRow.vue` | **Done in G (the data and actions)**: `work_item` also searches `list_work`, and a Stop answer is applied to both lists; `conv::work_clock::next_tick_ms` is the clock over the list's items (a second in the first minute, then a minute; none while nothing runs). The row's `now` and the popover are H |
 
 ## Part 6: usage limits (`UsageLimitsPopover.vue`, `lib/usage-providers.ts`, `lib/usage-limits.ts`, `use-usage-limits.ts`)
 
@@ -401,7 +401,7 @@ before N, O and U; P, Q, R; S; T, U; V when decided; W last.
   Undo"; the bar heights written from reading.
 - **Pictures:** the bar with a session working and one idle, both themes, beside Fleet's.
 
-### Piece G: running work across sessions (plain Rust)
+### Piece G: running work across sessions (plain Rust) — **done**
 
 - **Rows:** 5.1, 5.6 (actions on another session's item).
 - **Files:** `src/fleet/list_work.rs` (sorted `running`, `groups`, `session_count`, the label; session title, place
@@ -413,6 +413,10 @@ before N, O and U; P, Q, R; S; T, U; V when decided; W last.
   logic.
 - **Pictures:** non-visual: a scratch Fleet with `background-work` in two sessions, the label and groups printed by a
   test against it, and Fleet's counter showing the same.
+- **Done:** all of it. Gaps: the instance id is read from the list row's `instanceId`, but native routes a session by its id
+  alone, so H's click needs only the session id; the `RunningWorkCounter.test.ts` view cases (the hidden counter, the
+  chip, the popover's rows) are H's. Fleet's "hidden while nothing runs" (5.2) is H's too: `label()` has no case for it.
+  `fleet::tests::live::live_running_work` (ignored) prints the label and groups against a scratch Fleet.
 
 ### Piece H: the running-work counter and its popover
 
