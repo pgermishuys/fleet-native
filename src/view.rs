@@ -19,6 +19,7 @@ pub mod image;
 pub mod interrupted;
 mod marks;
 pub mod message;
+pub mod pagepick;
 mod parts;
 pub mod permission;
 pub mod progress_ring;

@@ -14,6 +14,7 @@ pub mod frame;
 pub mod groups;
 pub mod images;
 pub mod long;
+pub mod pages;
 pub mod parts;
 pub mod questions;
 pub mod ring;

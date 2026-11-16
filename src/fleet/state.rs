@@ -57,6 +57,7 @@ impl State {
             self.on_queue_event(event);
             self.on_ask_event(topic, event);
             self.on_rules_event(event);
+            self.on_pages_event(event);
             for (only, listener) in &mut self.subscribers.0 {
                 if only.is_none() || *only == kind {
                     listener(topic, event);
@@ -108,6 +109,7 @@ impl State {
             self.load_queue(&id);
             self.load_asks(&id);
             self.load_rules(&id);
+            self.load_pages(&id);
             self.load_retry(&id);
             self.load_interruption(&id);
             self.load_browser(&id);
@@ -135,6 +137,7 @@ impl State {
             self.load_queue(&id);
             self.load_asks(&id);
             self.load_rules(&id);
+            self.load_pages(&id);
             self.load_retry(&id);
             self.load_interruption(&id);
             self.load_browser(&id);

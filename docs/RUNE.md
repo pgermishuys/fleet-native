@@ -799,3 +799,10 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 
 - **Nothing here needed Rune.** The calls are threads that hand answers to the state with `Post::update`; a test of them posts to its own queue and pumps it (`tests_feeds.rs`, `live`), because a headless runtime doesn't drain `AppHandle::update`.
 - **A thread's answer can arrive after the page moved on**, so each read is numbered on the UI thread and an answer whose number is no longer the latest is dropped: that is the whole of Fleet's `AbortController` here (a blocking `ureq` call can't be aborted, only ignored).
+
+## Component 4, piece F (the page-pick card)
+
+- Nothing new missing. A flex row needs no `shrink0` for its icon and button: children don't shrink unless `.shrink()` is set, so
+  only the text column takes `.shrink().min_w(0.0)` for its ellipsis.
+- A snapshot of a live run (`--server` with `--script ... --snap --at mark:..`) draws whatever has loaded by the mark: a mark too early
+  (3 s after the tap) once showed no card because the canvas list hadn't come back yet; 6 s was enough.

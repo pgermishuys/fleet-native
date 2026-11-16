@@ -500,6 +500,7 @@ mod machine;
 mod machines;
 mod modes;
 mod ordering;
+mod pages;
 mod presence;
 mod prompts;
 mod questions;

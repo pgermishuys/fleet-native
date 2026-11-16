@@ -21,6 +21,8 @@ mod tests_header;
 #[cfg(test)]
 mod tests_images;
 #[cfg(test)]
+mod tests_pages;
+#[cfg(test)]
 mod tests_panel;
 #[cfg(test)]
 mod tests_project;
@@ -91,6 +93,10 @@ pub struct State {
     pub asks: fleet::asks::Asks,
     /// Every session's Allowed rules as Fleet last said (`fleet::rules`); the open session's are the chip's list.
     pub rules: fleet::rules::Rules,
+    /// Every session's page canvases as Fleet last said (`fleet::pages`); the page-pick card reads the open session's.
+    pub pages: fleet::pages::Pages,
+    /// The page canvas "Open page" asked the content panel to show; the tab is component 14's.
+    pub page_target: Option<String>,
     /// When the Allowed chip last grew, on `clock`: it flashes for `view::allowed::FLASH_SECS` after.
     pub allowed_flash: Option<f64>,
     /// The question cards on screen and their picks (`fleet::questions`).
@@ -285,6 +291,8 @@ impl Default for State {
             draft: TextEdit::new(""),
             asks: Default::default(),
             rules: Default::default(),
+            pages: Default::default(),
+            page_target: None,
             allowed_flash: None,
             questions: Default::default(),
             ask_acts: Default::default(),
@@ -1550,6 +1558,12 @@ pub fn spec() -> AppSpec<State> {
                 s.dark = Some(false);
                 s.show_ask(mock::asks::Case::Long)
             }),
+            ("page-pick", |s| s.show_page_pick(mock::pages::Case::Waiting)),
+            ("page-pick-light", |s| {
+                s.dark = Some(false);
+                s.show_page_pick(mock::pages::Case::Waiting)
+            }),
+            ("page-pick-stale", |s| s.show_page_pick(mock::pages::Case::Stale)),
             ("allowed-chip", |s| s.show_rules(mock::rules::Case::Chip)),
             ("allowed-chip-light", |s| {
                 s.dark = Some(false);
