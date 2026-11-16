@@ -38,6 +38,8 @@ mod tests_questions;
 mod tests_row_actions;
 #[cfg(test)]
 mod tests_rows;
+#[cfg(test)]
+mod tests_starters;
 mod theme;
 pub mod ui;
 pub mod update;
@@ -72,6 +74,8 @@ pub struct State {
     pub sidebar: fleet::settings::Sidebar,
     /// The New session page's draft (in memory only, as Fleet's is).
     pub new_draft: fleet::new_session::draft::DraftStore,
+    /// The starters line on the New session page: the selection a click leaves for the box, and where Fix a bug asked to go.
+    pub starters: fleet::new_session::starters::StartersUi,
     /// What the New session page has read from its machine: repositories, detail, harnesses, catalog, naming.
     pub feeds: fleet::new_session::feed_state::Feeds,
     /// A scene that shows one header of each kind above the list (the Pinned group isn't drawn until piece J).
@@ -289,6 +293,7 @@ impl Default for State {
             content_open: false,
             sidebar: Default::default(),
             new_draft: Default::default(),
+            starters: Default::default(),
             feeds: mock::feeds(),
             sample_headers: false,
             sheet_w: 0.0,
@@ -1160,6 +1165,11 @@ fn setup(s: &mut State, waker: rune::Waker) {
     s.logo = Some(logo);
 }
 
+/// The invented repository the strip scenes choose.
+fn new_session_scene_folder() -> fleet::new_session::request::Folder {
+    fleet::new_session::request::Folder::Repository(mock::feeds::ROCKET.into())
+}
+
 pub fn spec() -> AppSpec<State> {
     AppSpec {
         min_size: Some((720.0, 480.0)),
@@ -1185,6 +1195,22 @@ pub fn spec() -> AppSpec<State> {
             ("new-session-palette-light", |s| {
                 s.dark = Some(false);
                 s.show_new_session_palette()
+            }),
+            // Piece E of the New session page: the strip with a repository chosen, the starters menu, and Fix a bug.
+            ("new-session-strip", |s| s.show_new_session_strip(None, false, true)),
+            ("new-session-strip-light", |s| {
+                s.dark = Some(false);
+                s.show_new_session_strip(None, false, true)
+            }),
+            ("new-session-folder", |s| s.show_new_session_strip(Some(new_session_scene_folder()), false, false)),
+            ("new-session-folder-light", |s| {
+                s.dark = Some(false);
+                s.show_new_session_strip(Some(new_session_scene_folder()), false, false)
+            }),
+            ("new-session-starters-menu", |s| s.show_new_session_strip(None, true, true)),
+            ("new-session-starters-menu-light", |s| {
+                s.dark = Some(false);
+                s.show_new_session_strip(None, true, true)
             }),
             // Component 17, piece C: the machines in the session list.
             ("machines", |s| s.show_machines(mock::machines::Case::Several, true)),

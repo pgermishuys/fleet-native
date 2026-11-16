@@ -834,3 +834,9 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 ## A link per machine (component 17, piece D)
 
 Nothing new about Rune. One rule for the app: a call about a session takes its `Link` from `State::link_for(session)`, never from `State::link`, which is home's. A test for it needs only fake Fleets that record the token each request carried.
+## New session, piece E (the strip, chips and starters)
+
+- **A hover colour for a child needs `hover_group()` on the parent.** The chip's label is always `--text`; only its glyph and chevron go from `--muted` to `--text` on hover, so those are `.group_color(..)` children of a `.hover_group()` row, as the menu rows do.
+- **`rt.state` edited directly doesn't rebuild the view.** A test that changes the draft and then looks for an element must change it inside `rt.update(|s, _| ..)`; with a plain assignment the next frame draws the old tree.
+- **Overflow scrolling without a scrollbar isn't needed here.** Fleet's starters row scrolls sideways on a phone; desktop only, so it is a centred row with a 640 px limit and no scrolling.
+- **No `max-width: calc(100vw - 32px)`.** `.ns-pop` caps at the window less 32; the popover here is a fixed width and `anchored_fit` keeps it in the window.

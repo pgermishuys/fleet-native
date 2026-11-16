@@ -4,6 +4,7 @@
 //! `Ui::open`, anchored to the key of the element that opened them.
 pub mod age;
 pub mod button;
+pub mod chip;
 pub mod commands;
 pub mod confirm;
 pub mod controls;
@@ -116,6 +117,7 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
         Some(Open::Select(name)) => gallery::select_content(s, t, name),
         Some(Open::Popover("context")) => crate::view::ring_popover::overlay(s, t),
         Some(Open::Popover("allowed")) => crate::view::allowed::overlay(s, t),
+        Some(Open::Popover("starters")) => crate::view::starters::menu(t),
         Some(Open::Popover(name)) => gallery::popover_content(s, t, name),
         Some(Open::Directory) => directory_picker::view(s, t, "g-dir"),
         Some(Open::Dialog) => gallery::dialog(s, t),

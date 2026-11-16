@@ -87,7 +87,7 @@ pub fn tilde_path(path: &str) -> String {
     }
 }
 
-fn base_name(path: &str) -> &str {
+pub(super) fn base_name(path: &str) -> &str {
     path.split(['/', '\\']).rfind(|s| !s.is_empty()).unwrap_or(path)
 }
 
