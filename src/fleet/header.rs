@@ -456,8 +456,8 @@ impl crate::State {
             models,
             now: crate::view::message::now_ms(self),
             offset_secs: crate::conv::time::local_offset_secs(),
-            restoring_here: false,
-            restored_note: false,
+            restoring_here: self.head.restoring_here(&session.id),
+            restored_note: self.head.restored_note(&session.id, self.clock),
         })
     }
 }

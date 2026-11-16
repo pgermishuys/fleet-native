@@ -19,6 +19,10 @@ pub enum Case {
     /// A fork with a title, a branch and a path far wider than the header.
     LongText,
     Subagent,
+    /// A fork with two tags.
+    Tags,
+    /// A worktree session whose checkout Fleet removed to save space.
+    Checkout,
 }
 
 const PARENT: &str = "Move the image cache to disk";
@@ -33,7 +37,7 @@ impl State {
         let messages = super::projects().swap_remove(0).sessions.swap_remove(0).messages;
         let parent = listed("a-cache", PARENT, Status::Idle, "40m", None, |_| {});
         let mut open = listed("a-open", "Try a smaller cache limit", Status::Idle, "now", None, |l| {
-            if matches!(case, Case::Fork | Case::LongText | Case::Retry) {
+            if matches!(case, Case::Fork | Case::LongText | Case::Retry | Case::Tags | Case::Checkout) {
                 l.forked_from = Some("a-cache".into());
                 l.spawn_kind = Some("fork".into());
             }
@@ -51,6 +55,11 @@ impl State {
         };
         match case {
             Case::Fork => {}
+            Case::Tags => open.row.tags = vec!["bug".into(), "cache".into()],
+            Case::Checkout => {
+                open.row.workspace_id = "ws-4c2d1e90".into();
+                open.row.checkout_removed_at = Some("2024-10-01T10:00:00Z".into());
+            }
             Case::Retry => {
                 working(&mut open, "retry");
                 open.row.retrying = Retrying {

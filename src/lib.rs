@@ -27,6 +27,8 @@ mod tests_folder_path;
 #[cfg(test)]
 mod tests_header;
 #[cfg(test)]
+mod tests_header_edit;
+#[cfg(test)]
 mod tests_images;
 #[cfg(test)]
 mod tests_machines;
@@ -102,6 +104,8 @@ pub struct State {
     pub proj: fleet::projects::Projects,
     /// Rename in place on a row (`fleet::actions`).
     pub act: fleet::actions::RowActions,
+    /// The header's own edits: its title, a tag being typed, "Copied", a checkout being put back.
+    pub head: fleet::header_actions::HeaderUi,
     /// What the window shows: the open session by its id, so a refetch, a filter or a pin doesn't move it.
     pub route: fleet::store::Route,
     /// The list's own state beyond its rows: loading, error, the request in flight, sessions opened from other machines.
@@ -319,6 +323,7 @@ impl Default for State {
             project_load: fleet::groups::ProjectsLoad::new(true),
             proj: Default::default(),
             act: Default::default(),
+            head: Default::default(),
             route: fleet::store::Route::Session(fleet::store::invented_id(0, 0)),
             store: Default::default(),
             filter: TextEdit::new(""),
@@ -1054,7 +1059,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     let composer_changed = s.keep_composer_state(now) | s.keep_autocomplete(now, tx) | s.keep_attachments(tx);
     let scrolled = s.keep_scroll(tx);
     let pictures = s.keep_images(tx);
-    let renamed = s.keep_rename(tx) | s.keep_row_rename(tx);
+    let renamed = s.keep_rename(tx) | s.keep_row_rename(tx) | s.keep_header(now, tx);
     let found = s.find_poll(tx) | s.keep_questions(tx) | s.keep_allowed_flash(now, tx);
     let exported = s.export_poll(tx);
     // "Copied" on a message's button ends by itself.
@@ -1365,6 +1370,66 @@ pub fn spec() -> AppSpec<State> {
             ("header-subagent-light", |s| s.show_header(mock::header::Case::Subagent, false, true)),
             ("header-glyph", |s| s.show_header(mock::header::Case::Retry, true, false)),
             ("header-glyph-light", |s| s.show_header(mock::header::Case::Retry, false, false)),
+            ("header-rename", |s| {
+                s.show_header(mock::header::Case::Tags, true, true);
+                s.show_header_rename()
+            }),
+            ("header-rename-light", |s| {
+                s.show_header(mock::header::Case::Tags, false, true);
+                s.show_header_rename()
+            }),
+            ("header-tag-add", |s| {
+                s.show_header(mock::header::Case::Tags, true, true);
+                s.show_header_tag("perf")
+            }),
+            ("header-tag-add-light", |s| {
+                s.show_header(mock::header::Case::Tags, false, true);
+                s.show_header_tag("perf")
+            }),
+            ("header-tags", |s| {
+                s.show_header(mock::header::Case::Tags, true, true);
+            }),
+            ("header-tags-light", |s| {
+                s.show_header(mock::header::Case::Tags, false, true);
+            }),
+            ("header-copied", |s| {
+                s.show_header(mock::header::Case::Fork, true, true);
+                s.show_header_copied()
+            }),
+            ("header-copied-light", |s| {
+                s.show_header(mock::header::Case::Fork, false, true);
+                s.show_header_copied()
+            }),
+            ("header-checkout", |s| {
+                s.show_header(mock::header::Case::Checkout, true, true);
+            }),
+            ("header-checkout-light", |s| {
+                s.show_header(mock::header::Case::Checkout, false, true);
+            }),
+            ("header-checkout-restoring", |s| {
+                s.show_header(mock::header::Case::Checkout, true, true);
+                s.show_header_restoring()
+            }),
+            ("header-checkout-restoring-light", |s| {
+                s.show_header(mock::header::Case::Checkout, false, true);
+                s.show_header_restoring()
+            }),
+            ("header-checkout-restored", |s| {
+                s.show_header(mock::header::Case::Checkout, true, true);
+                s.show_header_restored()
+            }),
+            ("header-checkout-restored-light", |s| {
+                s.show_header(mock::header::Case::Checkout, false, true);
+                s.show_header_restored()
+            }),
+            ("header-checkout-error", |s| {
+                s.show_header(mock::header::Case::Checkout, true, true);
+                s.show_header_restore_error("The branch fix/cache-limit isn't there any more.")
+            }),
+            ("header-checkout-error-light", |s| {
+                s.show_header(mock::header::Case::Checkout, false, true);
+                s.show_header_restore_error("The branch fix/cache-limit isn't there any more.")
+            }),
             // Component 17, piece C: the machines in the session list.
             ("machines", |s| s.show_machines(mock::machines::Case::Several, true)),
             ("machines-light", |s| s.show_machines(mock::machines::Case::Several, false)),

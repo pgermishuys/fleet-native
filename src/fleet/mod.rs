@@ -20,6 +20,7 @@ pub mod find;
 pub mod finder;
 pub mod groups;
 pub mod header;
+pub mod header_actions;
 pub mod header_parent;
 pub mod history;
 pub mod http;

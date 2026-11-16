@@ -897,3 +897,15 @@ A context-menu row's label is one text run, so a machine's name in the mono face
   (as in the list view); a headless test needs a `frame` between opening it and clicking an item, or the item isn't there yet.
 - A reply that arrives in pieces needs more than `Post::update` once: `feed_stream` hands the worker the `Post` so each of
   git's progress lines is posted as it comes, in order.
+
+## Component 8, piece C (rename, tags, copy path, Restore now)
+
+- **`Tx::copy` gives no answer.** A refused clipboard can't be told from a written one, so "Copied" shows after every copy. The state
+  keeps the answer's place (`directory_copied(ok)`) so a test, and Rune later, can say no.
+- **A field's blur is only its model's `focused`.** Like the list row's rename, the header polls `TextEdit::focused` once the field has
+  held it and commits when it is lost (`keep_header`).
+- **`clip_rounded(0.0)` on a shrinking row** keeps what overflows (the path's leaf, the copy button) from painting over the next item;
+  CSS's `min-width: 24px` would let it spill.
+- **`group_opacity(0, 1)` needs a `hover_group()` ancestor** (here the directory row); a button inside it that is itself a `hover_group()`
+  is fine, as the message's copy button shows.
+
