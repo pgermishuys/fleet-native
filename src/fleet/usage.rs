@@ -332,6 +332,10 @@ pub struct Usage {
     pub allowing: Option<String>,
     /// How many popovers are open: several share one timer.
     watchers: usize,
+    /// Whether the usage popover's own watch is counted in `watchers` (it follows `ui.open`, however that closes).
+    pub popover_watched: bool,
+    /// The minute last drawn: a window that resets drops off the chip without a push (`now`).
+    pub minute: i64,
     /// When the next watched read is due, on the app clock; `None` means now.
     watch_due: Option<f64>,
     limits_id: AtomicU64,
@@ -473,6 +477,27 @@ impl State {
 
     /// The poll's turn: while a popover is open, this machine and the others are read at once and then every minute.
     pub(crate) fn keep_usage_watch(&mut self, now: f64, tx: &mut Tx) -> bool {
+        let mut changed = false;
+        // The popover reads while it is open, however it was closed (a press outside, Escape, another menu).
+        let open = self.ui.open == Some(crate::ui::Open::Popover("usage"));
+        if open != self.pickers.usage.popover_watched {
+            self.pickers.usage.popover_watched = open;
+            if open {
+                self.pickers.usage.watch()
+            } else {
+                self.pickers.usage.unwatch()
+            }
+            changed = true;
+        }
+        // Once a minute, and as it opens: a window that has reset leaves the chip and the list.
+        if !self.pickers.usage.limits.providers.is_empty() {
+            let minute = (now / 60.0) as i64;
+            if minute != self.pickers.usage.minute {
+                self.pickers.usage.minute = minute;
+                changed = true;
+            }
+            tx.wake_after(std::time::Duration::from_secs(60));
+        }
         if self.pickers.usage.watch_read_due(now) {
             self.load_usage_limits(true);
             self.load_usage_others();
@@ -480,7 +505,7 @@ impl State {
         if self.pickers.usage.watching() {
             tx.wake_after(std::time::Duration::from_secs(1));
         }
-        false
+        changed
     }
 
     /// `setAllowed`: Allow (`POST`) or revoke (`DELETE`) reading a provider's sign-in, then the limits are read again.

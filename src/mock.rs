@@ -29,6 +29,7 @@ pub mod rules;
 pub mod running;
 pub mod tools;
 pub mod update;
+pub mod usage;
 pub mod work;
 pub mod working;
 
