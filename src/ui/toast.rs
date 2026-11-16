@@ -62,9 +62,9 @@ pub fn view(t: &Theme, toast: &Toast, now: f64) -> El {
                 .hover(ink.alpha(0.26))
                 .cursor(Cursor::Pointer)
                 .focus_ring(2.0, 2.0, t.accent)
-                .on_press(move |s: &mut State| {
+                .on_press_tx(move |s: &mut State, tx: &mut rune::Tx| {
                     if kind == Kind::Undo {
-                        s.undo_archive();
+                        s.undo_queue(tx);
                     } else {
                         s.ui.toast = None;
                     }

@@ -6,7 +6,7 @@ use crate::State;
 use crate::mock::Session;
 
 /// A session of the list with where it is, for the grouping functions.
-struct At<'a>(usize, usize, &'a Session);
+pub(super) struct At<'a>(pub usize, pub usize, pub &'a Session);
 
 impl Listed for At<'_> {
     fn id(&self) -> &str {
@@ -46,14 +46,18 @@ impl HomeLayout {
 /// The id of each row on screen, top to bottom: Pinned, then each project's rows, for groups that are open and only while the
 /// live machine's tree is (`SP` `watch(... selection.setVisibleOrder)`, row 1.50).
 pub fn visible_ids(s: &State, layout: &HomeLayout) -> Vec<String> {
-    let id_of = |p: usize, i: usize| s.projects[p].sessions[i].id.clone();
+    // The family of each top-level row, in the order drawn and without what a folded parent hides.
+    let ids_of = |rows: &[(usize, usize)]| -> Vec<String> {
+        s.family_plan(rows).iter().filter_map(|e| e.at()).map(|(p, i)| s.projects[p].sessions[i].id.clone()).collect()
+    };
     let mut ids = Vec::new();
     if s.home_tree_open() {
         if s.home_pinned_open() {
-            ids.extend(layout.pinned.iter().map(|&(p, i)| id_of(p, i)));
+            ids.extend(ids_of(&layout.pinned));
         }
         for g in layout.groups.iter().filter(|g| s.projects[g.p].open) {
-            ids.extend(g.rows.iter().map(|&i| id_of(g.p, i)));
+            let rows: Vec<(usize, usize)> = g.rows.iter().map(|&i| (g.p, i)).collect();
+            ids.extend(ids_of(&rows));
         }
     }
     ids

@@ -4,7 +4,6 @@ use super::machine_group::{add_machine_row, machine_group};
 use super::machine_header::{Heading, machine_header};
 use super::project_header::{Header, project_header, project_shell};
 use super::selection_bar::selection_bar;
-use super::session_row::session_row;
 use crate::State;
 use crate::fleet::panel::{Feedback, banner_copy, empty_words, feedback};
 use crate::icons::*;
@@ -109,8 +108,8 @@ pub fn panel(s: &State, t: &Theme) -> El {
         let mut group = col().key("pinned-group").w_full().child(header);
         if open {
             let mut body = col().w_full().pt(2.0);
-            for &(p, i) in &layout.pinned {
-                body = body.child(session_row(s, t, &clock, p, i, &s.projects[p].sessions[i]));
+            for row in super::family::family_rows(s, t, &clock, &layout.pinned) {
+                body = body.child(row);
             }
             group = group.child(body);
         }
@@ -142,9 +141,10 @@ pub fn panel(s: &State, t: &Theme) -> El {
             if let Some(d) = drafted {
                 body = body.child(super::draft_row::draft_row(s, t, d));
             }
-            let rows = if project.open { rows } else { Vec::new() };
-            for (i, session) in rows {
-                body = body.child(session_row(s, t, &clock, p, i, session));
+            let rows: Vec<(usize, &Session)> = if project.open { rows } else { Vec::new() };
+            let at: Vec<(usize, usize)> = rows.iter().map(|&(i, _)| (p, i)).collect();
+            for row in super::family::family_rows(s, t, &clock, &at) {
+                body = body.child(row);
             }
             group = group.child(body);
         }
