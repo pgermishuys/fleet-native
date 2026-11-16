@@ -51,6 +51,7 @@ pub mod ring;
 pub mod ring_popover;
 pub mod row_actions;
 pub mod scroll;
+pub mod selection_bar;
 pub mod selector;
 pub mod session_row;
 mod sessions;

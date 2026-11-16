@@ -952,3 +952,9 @@ A context-menu row's label is one text run, so a machine's name in the mono face
 - **`Chip` gained `trailing`** (the ellipsis in place of the chevron, no label) and **`Option_` gained `mono_title`** (the machine names).
 - **Pictures of the real window on a virtual display** need `XAUTHORITY` passed through if the app is started under `env -i` inside `xvfb-run`, and `LD_LIBRARY_PATH` for
   `libxkbcommon-x11` on a machine with no root. The window opens larger than a 1280x760 screen: use 1500x1000 and crop.
+
+## Component 6, piece J (Pinned group, selection)
+
+- **A click can read the modifiers: `tx.mods()` in `on_press_tx`.** Shift-click and Ctrl/Cmd-click need nothing more. A test sends them with `rt.physical_input(PhysicalInput::Modifiers(..))` before the click; `--script` has no modifier keys, so a scripted run can't Ctrl-click.
+- **A press's handler runs inside the frame, after that frame's `poll`.** State a press changes (a fold, a filter) is seen by `poll` one frame late, and a frame that draws nothing new schedules no next one: anything `poll` must keep in step with the list needs `tx.wake_after` while it matters (`sync_selection`, 100 ms while rows are picked).
+- **An icon's stroke width can't be set**: Fleet's check in the checkbox is 10 px at stroke 3; here it is 10 px at the icon's own weight.
