@@ -238,7 +238,7 @@ impl State {
     }
 
     /// The model that answered last (`lastAssistantModelId`): from the open conversation, else the list's row.
-    fn last_model_id(&self) -> Option<String> {
+    pub(crate) fn last_model_id(&self) -> Option<String> {
         let from_stream = self.stream.as_ref().filter(|_| self.stream_of == self.open_id()).and_then(|st| {
             st.messages
                 .iter()

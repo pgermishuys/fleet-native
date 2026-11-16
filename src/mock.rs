@@ -12,6 +12,7 @@ pub mod finder;
 pub mod fold;
 pub mod frame;
 pub mod groups;
+pub mod header;
 pub mod images;
 pub mod long;
 pub mod machines;

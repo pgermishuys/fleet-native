@@ -122,6 +122,11 @@ impl State {
             ],
         }];
         self.set_open((0, 1));
+        self.show_machines_only(case);
+    }
+
+    /// The machines of `show_machines` without touching the list of sessions.
+    pub fn show_machines_only(&mut self, case: Case) {
         let others: Vec<(Machine, MachineSessions)> = match case {
             Case::Several => vec![
                 (machine("m-falcon", "falcon"), falcon()),
