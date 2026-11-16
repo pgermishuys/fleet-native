@@ -245,6 +245,7 @@ impl State {
     pub(crate) fn session_call_done(&mut self, call: &Call, was: Option<String>, result: Result<(), String>, tx: &mut Tx) {
         match call {
             Call::Rename { id, title } => {
+                self.header_rename_done(id, &result);
                 if result.is_err() {
                     // Only while it still holds the title this rename put there.
                     if let Some(was) = was

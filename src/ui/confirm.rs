@@ -99,7 +99,11 @@ impl State {
             }
             Err(why) => {
                 c.busy = false;
-                c.error = Some(why);
+                c.error = Some(why.clone());
+                // The header's toolbar keeps the same words under its buttons (`deleteError`).
+                if let Call::Delete { id } = c.call.clone() {
+                    self.head.bar.delete_error = Some((id, why));
+                }
             }
         }
     }

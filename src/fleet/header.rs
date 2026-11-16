@@ -185,6 +185,20 @@ impl Actions {
         }
     }
 
+    /// The Fork button's tooltip (on a wrapper in Fleet, since a disabled button shows none): what it does, or why it can't.
+    pub fn fork_tip(&self) -> String {
+        if self.can_fork {
+            "Fork: a new session with a copy of this conversation".into()
+        } else {
+            self.fork_disabled_reason.clone().unwrap_or_default()
+        }
+    }
+
+    /// The button's `aria-label`.
+    pub fn fork_label(&self) -> String {
+        if self.can_fork { "Fork".into() } else { format!("Fork: {}", self.fork_disabled_reason.clone().unwrap_or_default()) }
+    }
+
     /// Whether the Fork button is drawn: not for an archived session; off, with its reason, when it can't fork.
     pub fn show_fork(&self, archived: bool) -> bool {
         !archived && (self.can_fork || self.fork_disabled_reason.is_some())

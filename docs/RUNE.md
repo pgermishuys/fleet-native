@@ -923,3 +923,11 @@ A context-menu row's label is one text run, so a machine's name in the mono face
 - **A text whose tail is a muted tag** (`origin/main · default`) is also one `rich(..)` with a span at 11.5px.
 - **A mono path or branch can't break inside a plan-line run**: Fleet's inline text wraps in the middle of `fleet/fix-login-` / `redirect`;
   `flex_wrap` breaks only between runs, so a long run wraps whole.
+## Component 8, piece D (toolbar, ⋯ menu, session commands)
+
+- **A disabled element has no tooltip of its own to give a wrapper**, so the Fork button keeps `help()` on the off button itself; Rune
+  shows it, Fleet needed a wrapper only because a browser doesn't.
+- **A headless test reads the clipboard with `rune::clipboard::memory()`** given to the runtime with `use_clipboard`; `Tx::copy` writes
+  to it synchronously, so a menu item's copy can be checked without the OS.
+- **`serde_json` sorts object keys** (no `preserve_order`), so a file whose key order matters (the raw messages export) is assembled
+  by hand at the top level.

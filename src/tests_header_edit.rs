@@ -14,7 +14,7 @@ use std::sync::{Arc, Mutex};
 
 const DIRECTORY: &str = "/srv/work/orchard-worktrees/fleet-session-4c2d1e90";
 
-fn scene(case: Case) -> Runtime<crate::State> {
+pub(crate) fn scene(case: Case) -> Runtime<crate::State> {
     let mut rt = app();
     rt.update(move |s, _| s.show_header(case, true, true));
     for _ in 0..4 {
@@ -23,7 +23,7 @@ fn scene(case: Case) -> Runtime<crate::State> {
     rt
 }
 
-fn has(rt: &Runtime<crate::State>, key: &str) -> bool {
+pub(crate) fn has(rt: &Runtime<crate::State>, key: &str) -> bool {
     rt.find(key).is_some()
 }
 
@@ -261,9 +261,9 @@ fn stays_quiet_when_the_clipboard_refuses() {
 // ---- the removed checkout ----------------------------------------------------------------------------------------------
 
 /// A fake server and an app talking to it, the invented header open.
-struct Live {
-    rt: Runtime<crate::State>,
-    jobs: Receiver<Job>,
+pub(crate) struct Live {
+    pub rt: Runtime<crate::State>,
+    pub jobs: Receiver<Job>,
     seen: Arc<Mutex<Seen>>,
 }
 
@@ -314,7 +314,7 @@ fn serve(mut stream: TcpStream, seen: Arc<Mutex<Seen>>) {
 }
 
 impl Live {
-    fn start(case: Case, answer: Option<(u16, &str)>) -> Live {
+    pub(crate) fn start(case: Case, answer: Option<(u16, &str)>) -> Live {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
         let seen = Arc::new(Mutex::new(Seen { answer: answer.map(|(c, b)| (c, b.to_string())), ..Default::default() }));
@@ -339,7 +339,7 @@ impl Live {
 
     /// Runs the app until `done` holds. Only what the fake server was asked and the answers of the calls under test are
     /// applied: the list and the hub never answer, so the invented session stays.
-    fn wait(&mut self, what: &str, done: impl Fn(&Live) -> bool) {
+    pub(crate) fn wait(&mut self, what: &str, done: impl Fn(&Live) -> bool) {
         crate::test_wait::until(
             self,
             what,
@@ -357,7 +357,7 @@ impl Live {
         );
     }
 
-    fn calls(&self) -> Vec<(String, String, Value)> {
+    pub(crate) fn calls(&self) -> Vec<(String, String, Value)> {
         self.seen.lock().unwrap().calls.clone()
     }
 }

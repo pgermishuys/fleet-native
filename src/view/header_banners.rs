@@ -1,5 +1,5 @@
 //! The banners under the header (ports `SessionDetailHeader.vue`'s stopped and archived banners and the delegated-subagent
-//! bar of `routes/sessions.$id.tsx`). What they say comes from `HeaderModel`; the Restore button is wired in piece D.
+//! bar of `routes/sessions.$id.tsx`). What they say comes from `HeaderModel`; the Restore button is `toolbar_restore` (piece D).
 use crate::State;
 use crate::fleet::groups::LineageKind;
 use crate::fleet::header::HeaderModel;
@@ -69,7 +69,7 @@ fn archived(t: &Theme, can_restore: bool) -> El {
                 .hover(t.wash(5.0))
                 .cursor(Cursor::Pointer)
                 .label("Restore")
-                .on_press(|_: &mut State| {})
+                .on_press_tx(|s: &mut State, tx: &mut crate::Tx| s.toolbar_restore(tx))
                 .child(icon(&ARCHIVE_RESTORE, 13.0).color(t.text))
                 .child(text("Restore").font(sans(12.0, 500.0, 1.3)).color(t.text)),
         );

@@ -1,16 +1,16 @@
 //! The session header (ports `SessionDetailHeader.vue`'s title row and meta row; the banners under it are in
 //! `header_banners.rs`). What it says comes from `fleet::header::HeaderModel`; this file only draws it.
 //!
-//! Not here yet: the toolbar's real actions (piece D), the fork dialog and the analytics popover (piece E), and the context
+//! Not here yet: the fork dialog and the analytics popover (piece E), and the context
 //! chips between the text and the buttons (piece G). Rename, tags, the copy button and Restore now are `fleet::header_actions`.
-use super::parts::{status_glyph, tool_button};
+use super::parts::status_glyph;
 use crate::fleet::groups::LineageKind;
 use crate::fleet::header::{Checkout, HeaderModel, Indicator, MachineChip};
 use crate::fleet::header_actions::{TAG_FIELD, TITLE_FIELD};
 use crate::icons::*;
-use crate::mock::{Project, Session, Status};
+use crate::mock::{Project, Session};
 use crate::theme::{RADIUS_BTN, Theme, mono, sans};
-use crate::{State, Tx, interrupt};
+use crate::{State, Tx};
 use rune::{Cursor, Cycle, El, Key, KeyEvent, Span, col, el, icon, rich, row, text, text_input};
 
 /// `@container session-detail-header (min-width: 48rem)`: the header's sides widen from 1rem to 1.25rem.
@@ -35,7 +35,7 @@ pub fn header(s: &State, t: &Theme, centre_w: f32) -> El {
         .py(8.0)
         .border_sides([0.0, 0.0, 1.0, 0.0], t.border)
         .child(main)
-        .child(actions(t, session))
+        .child(actions(s, t, &m))
 }
 
 fn title_row(s: &State, t: &Theme, m: &HeaderModel, room: f32) -> El {
@@ -433,17 +433,65 @@ fn machine_chip(t: &Theme, chip: &MachineChip) -> El {
         .help(chip.tooltip())
 }
 
-fn actions(t: &Theme, session: &Session) -> El {
-    let mut actions = row().center_y().gap(2.0).ml(10.5).child(tool_button(t, "terminal", &SQUARE_TERMINAL, 14.0, "Terminal"));
-    if session.status == Status::Working {
-        actions = actions.child(tool_button(t, "abort", &OCTAGON_X, 14.0, "Abort").on_press(interrupt));
+/// `toolbar-icon` and `toolbar-icon-danger` (`button/index.ts`): the glyph, or a spinner in its place (`Spinner size="lg"`,
+/// 20px); off, it is half faded and takes no press.
+struct Tool {
+    key: &'static str,
+    glyph: &'static rune::Icon,
+    tip: String,
+    danger: bool,
+    off: bool,
+    spinning: bool,
+}
+
+fn toolbar_button(t: &Theme, b: Tool) -> El {
+    let (hover, ink) = if b.danger { (t.error.alpha(0.10), t.error_text) } else { (t.wash(6.0), t.text) };
+    let glyph = if b.spinning {
+        icon(&LOADER_CIRCLE, 20.0).color(t.muted).cycle(crate::view::ring_popover::spinner())
+    } else {
+        icon(b.glyph, 14.0).color(t.muted).group_color(ink)
+    };
+    let e = el().key(b.key).size(24.5, 24.5).center().radius(8.0).help(b.tip.clone()).label(b.tip).child(glyph);
+    if b.off {
+        return e.opacity(0.5);
     }
-    actions
-        .child(el().size(1.0, 16.0).mx(2.0).fill(t.border))
-        .child(tool_button(t, "fork", &GIT_FORK, 14.0, "Fork"))
-        .child(
-            tool_button(t, "more", &ELLIPSIS, 14.0, "More actions")
-                .on_press(|s: &mut State| s.ui.open = Some(crate::ui::Open::Menu("more"))),
-        )
-        .child(tool_button(t, "analytics", &CHART_NO_AXES_COLUMN, 14.0, "Session analytics"))
+    e.hover(hover).press(t.wash(10.0)).hover_group().cursor(Cursor::Pointer).on_press(|_: &mut State| {})
+}
+
+/// The buttons at the right edge (`SessionActionToolbar.vue`, desktop), and the error lines under them.
+fn actions(s: &State, t: &Theme, m: &HeaderModel) -> El {
+    let pending = s.toolbar_pending();
+    let a = &m.actions;
+    let tool = |key, glyph, tip: &str| Tool { key, glyph, tip: tip.into(), danger: false, off: false, spinning: false };
+    let mut buttons = row().center_y().gap(2.0).child(toolbar_button(t, tool("terminal", &SQUARE_TERMINAL, "Terminal")));
+    if a.can_abort {
+        let b = Tool {
+            danger: true,
+            off: pending,
+            spinning: s.head.bar.aborting.as_deref() == Some(s.session().id.as_str()),
+            ..tool("abort", &OCTAGON_X, "Abort")
+        };
+        buttons = buttons.child(toolbar_button(t, b).on_press_tx(|s: &mut State, tx: &mut Tx| s.toolbar_abort(tx)));
+    }
+    buttons = buttons.child(el().size(1.0, 16.0).mx(2.0).fill(t.border));
+    if a.show_fork(m.archived) {
+        let b = Tool { off: pending || !a.can_fork, ..tool("fork", &GIT_FORK, &a.fork_tip()) };
+        buttons = buttons.child(toolbar_button(t, b).label(a.fork_label()).on_press_tx(|s: &mut State, tx: &mut Tx| s.toolbar_fork(tx)));
+    }
+    let more = Tool { spinning: s.toolbar_busy(), ..tool("more", &ELLIPSIS, "More actions") };
+    buttons = buttons
+        .child(toolbar_button(t, more).on_press(|s: &mut State| s.ui.open = Some(crate::ui::Open::Menu("more"))))
+        .child(toolbar_button(t, tool("analytics", &CHART_NO_AXES_COLUMN, "Session analytics")));
+    let errors = s.head.bar.errors(&s.session().id);
+    if errors.is_empty() {
+        return buttons.ml(10.5);
+    }
+    // `session-action-toolbar__error`: one `role=alert` line each, 10px, the width of the buttons.
+    let mut lines = col().key("toolbar-errors").w(ACTIONS_W - 10.5).gap(2.0).mt(2.0);
+    for (i, e) in errors.into_iter().enumerate() {
+        lines = lines.child(
+            text(e.to_string()).key(format!("toolbar-error-{i}")).role("alert").font(sans(10.0, 400.0, 1.4)).color(t.error_text).wrap(),
+        );
+    }
+    col().ml(10.5).child(buttons).child(lines)
 }
