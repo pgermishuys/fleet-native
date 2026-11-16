@@ -34,9 +34,11 @@ pub mod header_context;
 pub mod history;
 pub mod image;
 pub mod interrupted;
+pub mod machine_card;
 pub mod machine_group;
 pub mod machine_header;
 pub mod machine_picker;
+pub mod machines_page;
 mod marks;
 pub mod message;
 pub mod more_options;
@@ -107,6 +109,8 @@ pub fn root(s: &State, cx: &mut Cx<State>) -> El {
         _ if s.gallery => main.child(crate::ui::gallery::view(s, &t).ml(8.0)),
         Rail::Sessions if s.sidebar_open => main.child(sessions::panel(s, &t).ml(8.0)).child(gutter(&t)).child(centre(s, &t)),
         Rail::Sessions => main.child(centre(s, &t).ml(8.0)),
+        // Component 16 builds Settings; until then its rail opens the one page that exists (docs/parity/17-machines.md, decision 7).
+        Rail::Settings => main.child(machines_page::page(s, &t).ml(8.0)),
         other => main.child(notice(&t, other).ml(8.0)),
     };
     // The window's size, for the selector menu's width and height caps (`100vw - 16px`, `60vh`).

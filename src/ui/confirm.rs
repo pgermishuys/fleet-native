@@ -83,7 +83,18 @@ impl State {
         c.busy = true;
         c.error = None;
         let call = c.call.clone();
-        self.send_session_call(call, None, tx);
+        // A machine's question has no request to hold the dialog open for: it closes and the page does the rest.
+        match call {
+            Call::ForgetMachine { key } => {
+                self.ui.confirm = None;
+                self.forget_machine(&key);
+            }
+            Call::ReplaceToken => {
+                self.ui.confirm = None;
+                self.replace_home_token();
+            }
+            call => self.send_session_call(call, None, tx),
+        }
     }
 
     /// The request answered: the dialog closes and the session leaves the list, or stays open with the reason.

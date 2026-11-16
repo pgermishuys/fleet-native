@@ -1105,3 +1105,11 @@ The small case the checklist asked for (`tests_row_drag.rs`, first test): **Rune
 ## Component 7, piece Q (the sweep)
 
 - Nothing new about Rune. A test that adds a machine by hand loses it at the first answer of home's own `GET /api/machines` poll (it clears the list), so the fake home must list the machine from its first answer, not be told afterwards.
+
+## Component 17, piece J (Settings → Machines)
+
+- **No password field.** `text_input` has no masked mode, so Fleet's `type="password"` New token field is drawn as plain text; the token is visible while it is pasted. The token shown on the page is a plain `text`, swapped for dots by the view.
+- **No max length on a field**: Fleet's `maxlength="64"` is applied when the value is saved (`chars().take(64)`).
+- **`border_sides` takes `[top, right, bottom, left]`.** A divider above a row is `[1.0, 0.0, 0.0, 0.0]`; `[0.0, 1.0, 0.0, 0.0]` draws a stripe down the right edge.
+- **`clip_rounded(r)`** is `overflow: hidden` on a rounded box (the setting group's card, the segmented control).
+- **A test types into a field after clicking its button**: replacing the field's `TextEdit` from `update` drops its focus, so a following Enter goes nowhere; press `Key::Text` instead (the field's text is selected, so it replaces it).
