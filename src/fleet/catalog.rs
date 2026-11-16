@@ -5,6 +5,7 @@
 use super::events::{Event, Kind};
 use super::http::{self, Pick};
 use super::prefs::Prefs;
+use super::settings::HOME_MACHINE_KEY;
 use crate::State;
 use crate::composer::choice::{
     AgentModelChoice, AgentOption, Catalog, CatalogAgent, CatalogProvider, DefaultLabels, ModelOption, ModelReference,
@@ -443,7 +444,7 @@ impl State {
     // ─── loading ────────────────────────────────────────────────────────────────
 
     /// The harness list and the preferences, once the server is there (and again after a reconnect).
-    pub fn load_pickers(&self) {
+    pub fn load_pickers(&mut self) {
         let Some(link) = &self.link else { return };
         link.off_thread(http::harnesses, |s, tx, result| {
             if let Ok(body) = result {
@@ -453,6 +454,8 @@ impl State {
             }
         });
         self.load_preferences();
+        // The wizard reads the live machine's harnesses whichever page shows (`HarnessSetupWizard.vue` is always mounted).
+        self.read_harnesses(HOME_MACHINE_KEY, false);
         self.load_usage();
         if let Some(id) = self.open_id() {
             self.load_catalog(&id);
@@ -465,6 +468,7 @@ impl State {
             if let Ok(body) = result {
                 s.pickers.prefs.adopt(&body);
                 s.settle_pickers(tx);
+                s.harness_setup_check();
             }
         });
     }

@@ -2139,6 +2139,18 @@ Checked on Linux (lavapipe); not on Windows or macOS (CI).
 - **Pictures:** native beside Fleet's, each step, on a scratch Fleet started with no usable harness (state how);
   both themes.
 
+- **Done (piece N).** `src/fleet/harness_setup.rs` (the open rule with its once-per-connection `offered` flag, the steps, `leave`, `toReady`, `startSession`, the done flag `harnessSetup.done` through `PUT /api/preferences/{key}`, the scenes), `src/view/harness_setup.rs`
+  (the dialog: welcome, harnesses, ready; widths 392 and 588; no close button; click outside and Esc do nothing; the three step dots), `HarnessEntry` gained `state` and `version`. The harness list is now read for the live machine at connect, not only
+  when the New session page opens. The page's "Set up a harness" fix opens the wizard at the harness step. Rows done: **C12.1-C12.9, C12.10-C12.15, C12.20-C12.22, C12.24-C12.28, C12.30-C12.34, C12.40-C12.45**, **C17.9-C17.15, C17.20-C17.21**'s wizard side.
+  Tests in `src/tests_harness_setup.rs` under Fleet's names (`HarnessSetupWizard.test.ts`; the banner and Settings entries are 23's and 16's, the new-session fix is tested). Pictures: `shots/parity/07-new-session-n/` (Fleet's welcome and harness step beside the native, both themes, from a scratch Fleet with no harness on its PATH; the "one ready" harness step and the ready step are scenes, as a scratch Fleet here can't install one).
+  Gaps, each with its reason:
+  - **C12.23 the rows**: piece O. Until then the harnesses step lists each harness with its state, so Continue and Close follow the list. `closeTerminal()` in `leave`/`toReady` (C12.40/41) waits for O's terminal.
+  - **C12.6 screen-reader text and C12.9 the first tabbable focused**: the dialog is labelled "Set up a harness"; the description and initial focus aren't set (Rune's `modal` traps focus).
+  - **C12.3 max-height with scrolling**: not set; the rows' height is O's.
+  - **C17.11 cloud mode**: the native app has no cloud mode; `Setup::cloud` is false and tested.
+  - **C17.16 the dashboard banner and C17.15's Settings entry**: components 23 and 16; they call `open_harness_setup`.
+  - Fleet's release (v0.72.0) words the welcome lede "this computer"; the checklist (weave-fleet `main`) says "this machine", which is what native shows.
+
 ### O. The setup rows
 - **Creates/touches:** `src/view/harness_setup_rows.rs` (new), `src/fleet/harness_setup_rows.rs` (row state,
   the install-place choice, the poll), `src/fleet/http.rs`.

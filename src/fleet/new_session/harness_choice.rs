@@ -22,12 +22,27 @@ pub struct HarnessEntry {
     pub supports_images: bool,
     /// `capabilities.supportsFleetTools`: the agent can read a session it is linked to (A8.3).
     pub supports_fleet_tools: bool,
+    /// `ready | not-installed | sign-in-required | not-working | update-needed`: what the setup wizard counts (`harnessState`).
+    pub state: String,
+    pub version: Option<String>,
 }
 
 impl HarnessEntry {
+    /// Installed and working (`harnessState(h) === "ready"`); a harness that only needs a sign-in doesn't count.
+    pub fn is_ready(&self) -> bool {
+        self.state == "ready"
+    }
+
     /// A harness that is installed and turned on.
     pub fn ready(kind: &str) -> HarnessEntry {
-        HarnessEntry { kind: kind.into(), display_name: kind.into(), available: true, user_enabled: true, ..HarnessEntry::default() }
+        HarnessEntry {
+            kind: kind.into(),
+            display_name: kind.into(),
+            available: true,
+            user_enabled: true,
+            state: "ready".into(),
+            ..HarnessEntry::default()
+        }
     }
 }
 
@@ -50,6 +65,8 @@ pub fn parse_harness_entries(body: &Value) -> Vec<HarnessEntry> {
                 supports_profiles: h.pointer("/capabilities/supportsProfiles").and_then(Value::as_bool) == Some(true),
                 supports_images: h.pointer("/capabilities/supportsImageAttachments").and_then(Value::as_bool) == Some(true),
                 supports_fleet_tools: h.pointer("/capabilities/supportsFleetTools").and_then(Value::as_bool) == Some(true),
+                state: text("state").unwrap_or_default(),
+                version: text("version"),
             })
         })
         .collect()

@@ -421,5 +421,7 @@ fn no_harness_says_why_and_offers_to_set_one_up() {
     assert_eq!(rt.state.no_harness_notice(), Some(("OpenCode isn't installed.".into(), "Set up a harness".into())));
     assert!(exists(&rt, "new-session-no-harness"));
     click(&mut rt, "new-session-no-harness-fix");
-    assert!(rt.state.ui.toast.is_some());
+    // The fix opens the setup wizard at its harness step (piece N).
+    assert!(rt.state.harness_setup.is_open);
+    assert_eq!(rt.state.harness_setup.step, crate::fleet::harness_setup::Step::Harnesses);
 }

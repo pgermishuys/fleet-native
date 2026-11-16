@@ -450,16 +450,14 @@ impl State {
         }
     }
 
-    /// `fixNoHarness`: the wizard sets a harness up on this machine (piece N); another machine's Settings do it there
-    /// (component 16). Neither is built, so the click says so.
+    /// `fixNoHarness`: the wizard sets a harness up on this machine; another machine's Settings do it there (component 16,
+    /// not built, so the click says so).
     pub fn fix_no_harness(&mut self, tx: &mut crate::Tx) {
-        let live = self.new_draft.machine().is_none();
-        let words = if live {
-            "The harness setup isn't in the native app yet (component 7, piece N)."
-        } else {
-            "Settings for another machine aren't in the native app yet (component 16)."
-        };
-        self.toast(words.into(), None, 4.0, tx);
+        if self.new_draft.machine().is_none() {
+            self.open_harness_setup();
+            return;
+        }
+        self.toast("Settings for another machine aren't in the native app yet (component 16).".into(), None, 4.0, tx);
     }
 
     /// What the notice above the box says when no harness can start a session, and the words of its action.

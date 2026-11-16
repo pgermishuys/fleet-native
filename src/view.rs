@@ -23,6 +23,7 @@ pub mod folder_menu_path;
 pub mod fork;
 pub mod gh;
 pub mod harness_picker;
+pub mod harness_setup;
 pub mod header;
 pub mod header_banners;
 pub mod header_context;

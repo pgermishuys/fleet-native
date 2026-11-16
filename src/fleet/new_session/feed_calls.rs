@@ -229,6 +229,7 @@ impl State {
             move |s, _, r| {
                 s.feeds.harnesses.entry(machine).or_default().finish(seq, fresh, now_ms(), r);
                 s.settle_choices();
+                s.harness_setup_check();
             },
         );
     }
