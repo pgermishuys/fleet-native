@@ -226,6 +226,33 @@ pub fn harnesses(base: &str) -> Result<Value, String> {
     get(base, "/api/harnesses")
 }
 
+/// `GET /api/config/client`: what this Fleet allows (`terminalEnabled`, `cloudMode`).
+pub fn client_config(base: &str) -> Result<Value, String> {
+    get(base, "/api/config/client")
+}
+
+/// `POST /api/setup/terminals`: a shell in the home folder, outside any session, where a harness's installer is shown. Gives the
+/// terminal's id, or the sentence to show (the server's `error`, else the status).
+pub fn setup_terminal_create(base: &str, cols: u32, rows: u32) -> Result<String, String> {
+    let (status, text) = text_with("POST", base, "/api/setup/terminals", Some(&json!({ "cols": cols, "rows": rows })))
+        .map_err(|_| "The terminal couldn't start.".to_string())?;
+    let body: Value = serde_json::from_str(&text).unwrap_or(Value::Null);
+    if (200..300).contains(&status) {
+        return body.get("id").and_then(Value::as_str).map(str::to_string).ok_or_else(|| "The terminal couldn't start.".to_string());
+    }
+    Err(body
+        .get("error")
+        .and_then(Value::as_str)
+        .filter(|e| !e.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| format!("The terminal request failed (HTTP {status}).")))
+}
+
+/// `DELETE /api/setup/terminals/{id}`; the caller ignores the answer.
+pub fn setup_terminal_close(base: &str, id: &str) -> Result<(), String> {
+    text_with("DELETE", base, &format!("/api/setup/terminals/{}", escape(id)), None).map(drop)
+}
+
 /// `GET /api/usage/limits`.
 pub fn usage_limits(base: &str) -> Result<Value, String> {
     get(base, "/api/usage/limits")

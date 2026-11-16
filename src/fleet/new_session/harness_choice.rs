@@ -1,6 +1,7 @@
 //! Which harness a new session starts on, and why none can (`composables/use-enabled-harnesses.ts`; rows A10.1-A10.3).
 //! Pure: no Rune, no I/O. The list is `GET /api/harnesses`; the preferred one is the `defaultHarnessType` preference of the
 //! machine the page asks (another machine's own preferences, or the one saved from the last visit, shown at once).
+use super::super::harness_setup_rows::Setup;
 use serde_json::Value;
 
 /// The preference that keeps the user's default harness (`DEFAULT_HARNESS_PREFERENCE_KEY`).
@@ -25,6 +26,10 @@ pub struct HarnessEntry {
     /// `ready | not-installed | sign-in-required | not-working | update-needed`: what the setup wizard counts (`harnessState`).
     pub state: String,
     pub version: Option<String>,
+    /// Where the harness runs from, once found (`executablePath`).
+    pub executable_path: Option<String>,
+    /// What the setup rows offer: installer, sign-in, download, places, notes, icon, pitch (piece O).
+    pub setup: Setup,
 }
 
 impl HarnessEntry {
@@ -67,6 +72,8 @@ pub fn parse_harness_entries(body: &Value) -> Vec<HarnessEntry> {
                 supports_fleet_tools: h.pointer("/capabilities/supportsFleetTools").and_then(Value::as_bool) == Some(true),
                 state: text("state").unwrap_or_default(),
                 version: text("version"),
+                executable_path: text("executablePath"),
+                setup: Setup::parse(h),
             })
         })
         .collect()

@@ -26,6 +26,8 @@ pub struct Setup {
     /// Fleet's cloud mode never offers it (C17.11). The native app talks to a machine's own Fleet, so this stays false; it is
     /// kept so the rule reads as Fleet's does.
     pub cloud: bool,
+    /// The rows' own state (piece O).
+    pub rows: super::harness_setup_rows::Rows,
 }
 
 impl Setup {
@@ -106,6 +108,7 @@ impl State {
 
     /// `leave()`: closes, and remembers that setup was dealt with so it doesn't open again by itself.
     pub fn leave_harness_setup(&mut self) {
+        self.close_setup_terminal();
         self.harness_setup.close();
         if !self.harness_setup_done() {
             let before = self.pickers.prefs.get(HARNESS_SETUP_DONE_KEY).map(str::to_string);
@@ -116,6 +119,7 @@ impl State {
     /// `toReady()`: a harness set up here is wanted on, so turn on every working one that was off, check them all again, and
     /// show the last step. Doesn't write the done flag; leaving does.
     pub fn harness_setup_continue(&mut self) {
+        self.close_setup_terminal();
         let harnesses = self.setup_harnesses();
         if ready_harnesses(&harnesses).is_empty() {
             return;
@@ -147,32 +151,143 @@ pub enum Scene {
     /// One installed: Continue is on and the left button says "Close".
     HarnessesReady,
     Ready,
+    /// One row in each state: ready, sign-in needed, update needed, not working.
+    RowsStates,
+    /// The install terminal open under OpenCode 2's row, the shell just asked for.
+    RowsStarting,
+    /// The terminal open and the harness found: the banner.
+    RowsFound,
+    /// The terminal couldn't open: the command to run elsewhere.
+    RowsFailure,
+    /// GitHub Copilot, which Fleet downloads itself, under OpenCode.
+    RowsCopilot,
+}
+
+fn demo(kind: &str, name: &str, state: &str, icon: &str) -> HarnessEntry {
+    use super::harness_setup_rows::Setup;
+    let ready = state == "ready";
+    HarnessEntry {
+        kind: kind.into(),
+        display_name: name.into(),
+        user_enabled: true,
+        available: ready,
+        state: state.into(),
+        reason: (!ready).then(|| format!("{name} isn't installed.")),
+        version: ready.then(|| "1.18.30".into()),
+        executable_path: ready.then(|| format!("/usr/local/bin/{kind}")),
+        setup: Setup {
+            icon: Some(icon.into()),
+            install_command: Some(format!("curl -fsSL https://example.com/{kind}/install | bash")),
+            ..Setup::default()
+        },
+        ..HarnessEntry::default()
+    }
+}
+
+/// OpenCode 2 the way a Fleet with OpenCode 1 on it offers it: two places, the first recommended, and two notes.
+fn opencode2() -> HarnessEntry {
+    use super::harness_setup_rows::{Choice, Setup};
+    let separate = "curl -fsSL https://opencode.ai/v2/install | HOME=$HOME/.weave/harnesses/opencode2 bash -s -- --no-modify-path";
+    let mut h = demo("opencode2", "OpenCode 2", "not-installed", "terminal");
+    h.is_default = true;
+    h.reason = Some("OpenCode 2 isn't installed: Fleet couldn't find it on this machine.".into());
+    h.setup = Setup {
+        icon: Some("terminal".into()),
+        install_command: Some(separate.into()),
+        sign_in_command: Some("opencode2 auth login --standalone".into()),
+        install_choices: vec![
+            Choice {
+                id: "separate".into(),
+                label: "In its own folder".into(),
+                description: "Fleet runs it from a folder of its own, with its own settings and sessions. OpenCode 1 can be installed next to it at any time.".into(),
+                command: separate.into(),
+                recommended: true,
+            },
+            Choice {
+                id: "default".into(),
+                label: "As your main opencode".into(),
+                description: "OpenCode 2's usual install, added to your PATH. Installing OpenCode 1 later replaces OpenCode 2.".into(),
+                command: "curl -fsSL https://opencode.ai/v2/install | bash".into(),
+                recommended: false,
+            },
+        ],
+        notes: vec!["OpenCode 1 is installed here, so OpenCode 2 goes into a folder of its own.".into(), "OpenCode 2 keeps its own provider sign-ins here.".into()],
+        ..Setup::default()
+    };
+    h
 }
 
 impl State {
     pub(crate) fn show_harness_setup_scene(&mut self, scene: Scene) {
-        let mut opencode = HarnessEntry { display_name: "OpenCode 2".into(), state: "not-installed".into(), ..HarnessEntry::default() };
-        opencode.kind = "opencode2".into();
-        opencode.user_enabled = true;
-        opencode.is_default = true;
-        opencode.reason = Some("OpenCode 2 isn't installed: Fleet couldn't find it on this machine.".into());
-        let mut claude = HarnessEntry { display_name: "Claude Code".into(), state: "not-installed".into(), ..opencode.clone() };
-        claude.kind = "claude-code".into();
-        claude.is_default = false;
-        claude.reason = Some("Claude Code isn't installed.".into());
-        if matches!(scene, Scene::HarnessesReady | Scene::Ready) {
-            opencode.state = "ready".into();
-            opencode.available = true;
-            opencode.reason = None;
-            opencode.version = Some("1.18.30".into());
+        let mut claude = demo("claude-code", "Claude Code", "not-installed", "hexagon");
+        claude.setup.sign_in_command = Some("claude auth login".into());
+        let mut all = vec![opencode2(), claude];
+        match scene {
+            Scene::HarnessesReady | Scene::Ready => {
+                all[0].state = "ready".into();
+                all[0].available = true;
+                all[0].reason = None;
+                all[0].version = Some("1.18.30".into());
+            }
+            Scene::RowsStates => {
+                let mut ready = demo("opencode", "OpenCode", "ready", "terminal");
+                ready.is_default = true;
+                let mut claude = demo("claude-code", "Claude Code", "sign-in-required", "hexagon");
+                claude.setup.sign_in_command = Some("claude auth login".into());
+                claude.version = Some("2.1.276".into());
+                let mut old = demo("codex", "Codex", "update-needed", "plug");
+                old.reason = Some("Fleet needs Codex 0.30.0 or newer. You have 0.21.4.".into());
+                let mut broken = demo("gemini", "Gemini CLI", "not-working", "infinity");
+                broken.reason = Some("Gemini CLI is installed but didn't answer `gemini --version`.".into());
+                all = vec![ready, claude, old, broken];
+            }
+            Scene::RowsStarting | Scene::RowsFound | Scene::RowsFailure => {
+                if scene == Scene::RowsFound {
+                    all = vec![demo("opencode", "OpenCode", "ready", "terminal")];
+                    all[0].is_default = true;
+                } else {
+                    all.truncate(1);
+                }
+                let rows = &mut self.harness_setup.rows;
+                let kind = all[0].kind.clone();
+                let command = super::harness_setup_rows::Rows::default().command_for(&all[0], super::harness_setup_rows::Action::Install);
+                let command = command.unwrap_or_default();
+                if scene == Scene::RowsFailure {
+                    rows.active = None;
+                    rows.failure = Some(super::harness_setup_rows::Failure {
+                        kind,
+                        message: "Terminals are turned off in this Fleet.".into(),
+                        command,
+                    });
+                } else {
+                    let terminal_id = (scene == Scene::RowsFound).then(|| "setup-1".to_string());
+                    rows.active = Some(super::harness_setup_rows::Active {
+                        kind,
+                        action: super::harness_setup_rows::Action::Install,
+                        command,
+                        terminal_id,
+                    });
+                }
+            }
+            Scene::RowsCopilot => {
+                let mut opencode = demo("opencode", "OpenCode", "not-installed", "terminal");
+                opencode.is_default = true;
+                opencode.setup.pitch = Some("Open source. Includes free models, or sign in to your own provider.".into());
+                let mut copilot = demo("copilot", "GitHub Copilot", "not-installed", "hexagon");
+                copilot.setup.install_command = None;
+                copilot.setup.pitch = Some("GitHub's coding agent. Needs a GitHub Copilot subscription.".into());
+                copilot.setup.install_plan = Some("Fleet downloads weave-copilot 0.2.2 and the Copilot CLI 1.0.105 from GitHub.".into());
+                all = vec![opencode, copilot];
+            }
+            _ => {}
         }
         if let Some(feed) = self.feeds.harnesses.get_mut(HOME_MACHINE_KEY) {
-            feed.harnesses.all = vec![opencode, claude];
+            feed.harnesses.all = all;
         }
         self.harness_setup.open(match scene {
             Scene::Welcome => Step::Welcome,
-            Scene::Harnesses | Scene::HarnessesReady => Step::Harnesses,
             Scene::Ready => Step::Ready,
+            _ => Step::Harnesses,
         });
     }
 }

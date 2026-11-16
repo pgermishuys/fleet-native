@@ -1024,3 +1024,13 @@ A context-menu row's label is one text run, so a machine's name in the mono face
 - **Two quick clicks on one row in a test are a double press**, which starts the rename. Click a different row between them.
 - **`children(Option<El>)`** adds an element only when there is one; there is no `child_if`.
 
+
+
+## Component 7, piece O (the setup rows)
+
+- **No hover border.** `hover(color)` changes a fill only; CSS's `:hover { border-color }` (the row buttons, the install-place cards) has no equivalent, so the plain button gets a faint accent wash on hover instead.
+- **A wrapping row is sized by its text's longest line**, not by `flex: 1 1 220px`: `flex_wrap()` plus a grown text block wraps the actions below at any width where the subtitle's full line doesn't fit. Fleet's head wraps only when tile + 220 + the actions exceed the row, so `view::harness_setup_rows` makes that test from the labels' lengths and builds the one or two-line layout itself.
+- **A panel that must scroll when taller than the window** is `max_h(..)` on a column holding the body with `.scroll(ScrollSpec { stick_bottom: false })` and `min_h(0.0)`; the panel's own padding comes off the maximum by hand.
+- **A test can't see a radio's checked flag** (`ElementInfo` has none): read the state that drives it.
+- **Text won't break inside a long word** (a shell command): give the text's box a `max_w` and `.wrap().w_full()`; it breaks at spaces and at hyphens.
+- **A scripted scroll** is `{"type":"wheel","key":"<element>","dy":-330}` (negative scrolls down).

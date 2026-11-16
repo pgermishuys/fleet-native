@@ -35,6 +35,8 @@ mod tests_fork;
 #[cfg(test)]
 mod tests_harness_setup;
 #[cfg(test)]
+mod tests_harness_setup_rows;
+#[cfg(test)]
 mod tests_header;
 #[cfg(test)]
 mod tests_header_context;
@@ -1143,7 +1145,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     let pictures = s.keep_images(tx);
     let renamed = s.keep_rename(tx) | s.keep_row_rename(tx) | s.keep_header(now, tx);
     let found = s.find_poll(tx) | s.keep_questions(tx) | s.keep_allowed_flash(now, tx);
-    let exported = s.export_poll(tx);
+    let exported = s.export_poll(tx) | s.keep_setup_rows(now, tx);
     // "Copied" on a message's button ends by itself.
     let copied = match &s.copied {
         Some((_, until)) if now >= *until => {
@@ -1534,6 +1536,31 @@ pub fn spec() -> AppSpec<State> {
             ("harness-setup-ready-light", |s| {
                 s.dark = Some(false);
                 s.show_harness_setup_scene(fleet::harness_setup::Scene::Ready)
+            }),
+            ("harness-setup-rows-states", |s| s.show_harness_setup_scene(fleet::harness_setup::Scene::RowsStates)),
+            ("harness-setup-rows-states-light", |s| {
+                s.dark = Some(false);
+                s.show_harness_setup_scene(fleet::harness_setup::Scene::RowsStates)
+            }),
+            ("harness-setup-rows-starting", |s| s.show_harness_setup_scene(fleet::harness_setup::Scene::RowsStarting)),
+            ("harness-setup-rows-starting-light", |s| {
+                s.dark = Some(false);
+                s.show_harness_setup_scene(fleet::harness_setup::Scene::RowsStarting)
+            }),
+            ("harness-setup-rows-found", |s| s.show_harness_setup_scene(fleet::harness_setup::Scene::RowsFound)),
+            ("harness-setup-rows-found-light", |s| {
+                s.dark = Some(false);
+                s.show_harness_setup_scene(fleet::harness_setup::Scene::RowsFound)
+            }),
+            ("harness-setup-rows-failure", |s| s.show_harness_setup_scene(fleet::harness_setup::Scene::RowsFailure)),
+            ("harness-setup-rows-failure-light", |s| {
+                s.dark = Some(false);
+                s.show_harness_setup_scene(fleet::harness_setup::Scene::RowsFailure)
+            }),
+            ("harness-setup-rows-copilot", |s| s.show_harness_setup_scene(fleet::harness_setup::Scene::RowsCopilot)),
+            ("harness-setup-rows-copilot-light", |s| {
+                s.dark = Some(false);
+                s.show_harness_setup_scene(fleet::harness_setup::Scene::RowsCopilot)
             }),
             ("new-session-no-harness", |s| s.show_chip_scene(fleet::new_session::harness::Scene::NoHarness)),
             ("new-session-no-harness-light", |s| {

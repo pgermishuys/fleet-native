@@ -26,6 +26,7 @@ pub mod finder;
 pub mod fork;
 pub mod groups;
 pub mod harness_setup;
+pub mod harness_setup_rows;
 pub mod header;
 pub mod header_actions;
 pub mod header_parent;

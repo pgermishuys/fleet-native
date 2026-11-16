@@ -1,6 +1,5 @@
 //! `HarnessSetupWizard.vue` (`components/harness-setup`): the dialog that opens on a first launch with no harness ready, with
-//! three steps: welcome, harnesses, ready. The rows of the harnesses step are `HarnessSetupRows.vue`, piece O; until it is
-//! built the step lists each harness with its state so Continue has something to follow. Sizes are the component's own
+//! three steps: welcome, harnesses, ready. The rows of the harnesses step are `HarnessSetupRows.vue`: `view::harness_setup_rows`. Sizes are the component's own
 //! scoped CSS (literal px).
 use crate::State;
 use crate::fleet::harness_setup::{Step, ready_harnesses, ready_line};
@@ -8,6 +7,7 @@ use crate::icons::{CIRCLE_CHECK, PLUS};
 use crate::theme::{Theme, sans};
 use crate::ui::dialog::{lift, overlay};
 use crate::ui::overlay::centred;
+use crate::view::harness_setup_rows as rows;
 use rune::{Cursor, El, Span, col, el, icon, rich, row, text};
 
 /// The dialog, or `None` while it is closed. Click outside and Escape do nothing (C12.5): only the buttons leave.
@@ -34,10 +34,21 @@ pub fn dialog(s: &State, t: &Theme) -> Option<Vec<El>> {
         .padding(24.0)
         .fill(t.card_bg)
         .border(1.0, t.border)
-        .child(body)
+        .child(if step == Step::Harnesses {
+            // `max-height: calc(100vh - 2rem)` with the body scrolling (C12.3): rows and an open terminal can be taller than the window.
+            let (_, h) = s.ui.sel.window;
+            let h = if h > 0.0 { h } else { 760.0 };
+            scrolling(body, h - 28.0)
+        } else {
+            body
+        })
         .child(dots(t, step));
     let panel = lift(t, panel).modal(false, |_: &mut State| {});
     Some(vec![overlay("harness-setup"), centred("harness-setup-frame", panel)])
+}
+
+fn scrolling(body: El, max: f32) -> El {
+    col().w_full().max_h(max - 24.0 - 6.0 - 20.0 - 48.0).min_h(0.0).child(body).scroll(rune::ScrollSpec { stick_bottom: false })
 }
 
 /// `.harness-setup__dots`: one 24×6 pill per step, the current one in the accent.
@@ -125,21 +136,7 @@ fn welcome(s: &State, t: &Theme) -> El {
 
 /// Step "harnesses": the title, the lede, the rows, and the footer with Skip for now (Close) and Continue.
 fn harnesses(s: &State, t: &Theme) -> El {
-    let list = s.setup_harnesses();
-    let any_ready = !ready_harnesses(&list).is_empty();
-    let rows = col().key("harness-setup-rows").gap(8.0).children(list.all.iter().map(|h| {
-        let label = if h.is_ready() { "Ready".to_string() } else { h.reason.clone().unwrap_or_else(|| "Not installed".into()) };
-        row()
-            .key(format!("harness-setup-row-{}", h.kind))
-            .gap(10.0)
-            .padding(12.0)
-            .radius(10.0)
-            .fill(t.card_bg)
-            .border(1.0, t.border)
-            .center_y()
-            .child(text(h.display_name.clone()).font(sans(14.0, 500.0, 1.3)).color(t.text))
-            .child(text(label).font(sans(12.5, 400.0, 1.3)).color(if h.is_ready() { t.running_text } else { t.muted }))
-    }));
+    let any_ready = !ready_harnesses(&s.setup_harnesses()).is_empty();
     col()
         .key("harness-setup-harnesses")
         .gap(18.0)
@@ -151,7 +148,7 @@ fn harnesses(s: &State, t: &Theme) -> El {
                     .wrap(),
             ),
         )
-        .child(rows)
+        .child(rows::list(s, t))
         .child(
             row()
                 .key("harness-setup-foot")
