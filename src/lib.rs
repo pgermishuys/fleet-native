@@ -59,6 +59,8 @@ mod tests_new_send;
 #[cfg(test)]
 mod tests_new_session;
 #[cfg(test)]
+mod tests_open_in;
+#[cfg(test)]
 mod tests_pages;
 #[cfg(test)]
 mod tests_panel;
@@ -201,6 +203,8 @@ pub struct State {
     pub logo: Option<Image>,
     /// The Fleet server this window shows, once the connection has started; `None` draws `mock.rs`.
     pub link: Option<Link>,
+    /// The row menu's Open in submenu: the tools and key files it shows (`fleet::open_in`).
+    pub open_in: fleet::open_in::OpenIn,
     /// The links to the other machines, started when a session there needs one (`fleet::routing`).
     pub links: fleet::routing::Links,
     pub connection: Connection,
@@ -414,6 +418,7 @@ impl Default for State {
             cache: None,
             logo: None,
             link: None,
+            open_in: Default::default(),
             links: Default::default(),
             connection: Connection::Connecting,
             open_reads: Default::default(),
@@ -1871,6 +1876,14 @@ pub fn spec() -> AppSpec<State> {
             ("row-menu-fork-light", |s| s.show_row_menu(fleet::row_menu::Scene::Fork, false)),
             ("row-menu-fork-off", |s| s.show_row_menu(fleet::row_menu::Scene::ForkOff, true)),
             ("row-menu-fork-off-light", |s| s.show_row_menu(fleet::row_menu::Scene::ForkOff, false)),
+            ("row-menu-open-in", |s| s.show_row_menu(fleet::row_menu::Scene::OpenIn, true)),
+            ("row-menu-open-in-light", |s| s.show_row_menu(fleet::row_menu::Scene::OpenIn, false)),
+            ("row-menu-open-in-files", |s| s.show_row_menu(fleet::row_menu::Scene::OpenInFiles, true)),
+            ("row-menu-open-in-files-light", |s| s.show_row_menu(fleet::row_menu::Scene::OpenInFiles, false)),
+            ("row-menu-open-in-loading", |s| s.show_row_menu(fleet::row_menu::Scene::OpenInLoading, true)),
+            ("row-menu-open-in-loading-light", |s| s.show_row_menu(fleet::row_menu::Scene::OpenInLoading, false)),
+            ("row-menu-open-in-empty", |s| s.show_row_menu(fleet::row_menu::Scene::OpenInEmpty, true)),
+            ("row-menu-open-in-empty-light", |s| s.show_row_menu(fleet::row_menu::Scene::OpenInEmpty, false)),
             ("row-menu-submenu", |s| s.show_row_menu(fleet::row_menu::Scene::Submenu, true)),
             ("row-menu-submenu-light", |s| s.show_row_menu(fleet::row_menu::Scene::Submenu, false)),
             ("archived-view", |s| s.show_archived_scene()),

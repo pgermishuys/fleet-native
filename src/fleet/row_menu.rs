@@ -194,8 +194,8 @@ pub fn build(s: &State, session: &Session, machine: Option<&str>) -> RowMenu {
             Item::new("Open in")
                 .icon(&EXTERNAL_LINK)
                 .id("session-context-open-in")
-                .hint("Opens the session's folder in an editor, a terminal or the file manager.")
-                .on(|s: &mut State, tx: &mut Tx| s.menu_waiting("Open in", "component 6, piece N", tx)),
+                .hint(crate::view::open_in::HINT)
+                .submenu_fit(crate::view::open_in::entries(s, &session.listing.workspace_directory)),
         ));
     }
     {
@@ -301,6 +301,14 @@ pub enum Scene {
     ForkOff,
     /// Move to project open.
     Submenu,
+    /// Open in open: the tools in their groups, an editor with key files (piece N).
+    OpenIn,
+    /// Open in open with that editor's key files open beside it.
+    OpenInFiles,
+    /// Open in while the tools are still being found.
+    OpenInLoading,
+    /// Open in on a machine with no tools.
+    OpenInEmpty,
 }
 
 impl State {
@@ -310,7 +318,13 @@ impl State {
         let parent = self.projects[0].sessions[0].id.clone();
         let row = &mut self.projects[0].sessions[1];
         match scene {
-            Scene::Plain | Scene::Hint | Scene::Submenu => {}
+            Scene::Plain
+            | Scene::Hint
+            | Scene::Submenu
+            | Scene::OpenIn
+            | Scene::OpenInFiles
+            | Scene::OpenInLoading
+            | Scene::OpenInEmpty => {}
             Scene::Archived => row.row.archived = true,
             Scene::Fork => {
                 row.listing.forked_from = Some(parent);
@@ -334,6 +348,22 @@ impl State {
             Scene::Submenu => {
                 self.ui.sub = Some("session-context-move".into());
                 self.ui.hint = Some("Now in Orchard.".into());
+            }
+            Scene::OpenIn | Scene::OpenInFiles | Scene::OpenInLoading | Scene::OpenInEmpty => {
+                let o = &mut self.open_in;
+                match scene {
+                    Scene::OpenInLoading => o.tools = None,
+                    Scene::OpenInEmpty => o.tools = Some(Vec::new()),
+                    _ => {
+                        o.tools = Some(super::open_in::mock_tools());
+                        o.files = super::open_in::mock_key_files();
+                    }
+                }
+                self.ui.sub = Some("session-context-open-in".into());
+                self.ui.hint = Some(crate::view::open_in::HINT.into());
+                if matches!(scene, Scene::OpenInFiles) {
+                    self.ui.sub2 = Some("open-in-code".into());
+                }
             }
             _ => {}
         }

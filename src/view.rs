@@ -42,6 +42,7 @@ pub mod new_session;
 pub mod new_session_box;
 pub mod new_session_refs;
 pub mod new_session_strip;
+pub mod open_in;
 pub mod pagepick;
 mod parts;
 pub mod permission;

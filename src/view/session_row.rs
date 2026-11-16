@@ -222,8 +222,10 @@ pub fn session_row_with(s: &State, t: &Theme, clock: &RowClock, p: usize, i: usi
             }
             move_pin_key(s, ev, &id)
         })
-        .on_secondary_press(move |s: &mut State, at, _: &mut Tx| {
+        .on_secondary_press(move |s: &mut State, at, tx: &mut Tx| {
             s.ui.show_context(crate::ui::Open::Context(p, i), (at.x, at.y));
+            let dir = s.projects.get(p).and_then(|x| x.sessions.get(i)).map(|x| x.listing.workspace_directory.clone());
+            s.open_in_prepare(&dir.unwrap_or_default(), tx);
         })
         .children(slot)
         .child(glyph)
