@@ -1148,3 +1148,11 @@ Nothing in Rune got in the way: the piece is plain Rust (`fleet/dashboard.rs`, `
 tests: 128 tests assumed a list load opens the first session. A normal run starts with no route, so "start on Home" is
 decided on whether the route being replaced was an invented session (a scene, a headless run), which keeps those and
 every scene as they were.
+
+## Component 9, piece A (the rail)
+
+- `.help()` takes one global look (`Cx::help_look`) and a delay, so a tooltip that differs from the app's (Fleet's rail
+  one is the popover colours, no delay, 16 px clear of a 40 px button) can't use it. Track the hovered element with
+  `on_hover_change` in `State`, and draw the bubble as an overlay with `anchored(.., Side::Right, Align::Center, gap)`
+  against the button's key. A test reads the overlay with `rt.find("rail-tip")` after `pointer_move`.
+- Overlay entrance: `anchored` fades and scales it in; there is no per-element fade or slide, so Fleet's 4 px slide is left out.

@@ -89,6 +89,8 @@ mod tests_project;
 #[cfg(test)]
 mod tests_questions;
 #[cfg(test)]
+mod tests_rails;
+#[cfg(test)]
 mod tests_right_panel;
 #[cfg(test)]
 mod tests_row_actions;
@@ -126,8 +128,11 @@ use view::conversation::{Message, Older, Part};
 /// The rail entries, in Fleet's order. Only Sessions is rebuilt; the others show a notice.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Rail {
+    Fleet,
     Sessions,
+    Board,
     Workflows,
+    Jobs,
     Automations,
     Analytics,
     GitHub,
@@ -138,6 +143,12 @@ pub struct State {
     /// `None` follows the system's appearance, as Fleet's default "System" theme does.
     pub dark: Option<bool>,
     pub rail: Rail,
+    /// What `GET /api/plugins` last said (`fleet::plugin_poll`).
+    pub plugins: fleet::rails::PluginStatuses,
+    /// Rails drawn dimmed with a muted dot (`RailDefinition.off`): none of Fleet's own; a plugin's would be.
+    pub rail_marked_off: Vec<Rail>,
+    /// The rail whose tooltip is showing (Fleet's own CSS tooltip, drawn as an overlay).
+    pub rail_tip: Option<Rail>,
     pub sidebar_open: bool,
     pub sidebar_w: f32,
     pub content_open: bool,
@@ -406,11 +417,22 @@ fn live() -> bool {
     SERVER.get().is_some() || LIVE.load(std::sync::atomic::Ordering::Relaxed)
 }
 
+/// The rail with Mission control and Board switched on in Settings → Labs (`rail-labs-on`).
+fn rail_labs_on(s: &mut State, light: bool) {
+    if light {
+        s.dark = Some(false);
+    }
+    s.pickers.prefs.adopt(&serde_json::json!({ "features.mission-control.enabled": "true", "features.board.enabled": "true" }));
+}
+
 impl Default for State {
     fn default() -> Self {
         let mut state = State {
             dark: None,
             rail: Rail::Sessions,
+            plugins: Default::default(),
+            rail_marked_off: Vec::new(),
+            rail_tip: None,
             sidebar_open: true,
             sidebar_w: view::SIDEBAR_W,
             content_open: false,
@@ -2956,6 +2978,13 @@ pub fn spec() -> AppSpec<State> {
                 s.show_composer("model-starred")
             }),
             ("automations", |s| s.rail = Rail::Automations),
+            ("rail-labs-on", |s| rail_labs_on(s, false)),
+            ("rail-labs-on-light", |s| rail_labs_on(s, true)),
+            ("rail-tip", |s| s.rail_tip = Some(Rail::Automations)),
+            ("rail-tip-light", |s| {
+                s.dark = Some(false);
+                s.rail_tip = Some(Rail::Automations)
+            }),
             ("update-item", |s| mock::update::show(s, mock::update::Case::Item)),
             ("update-item-light", |s| {
                 s.dark = Some(false);
