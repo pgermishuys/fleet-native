@@ -994,3 +994,5 @@ A context-menu row's label is one text run, so a machine's name in the mono face
 
 - `overflow: hidden` with a radius (the pill's number part under the rounded border) is `clip_rounded(radius)` on the container; without it a child's square fill pokes past the corners.
 - Two `impl State` blocks in different files can't use the same method name (`show_context` already belonged to the ring's scenes): name scene helpers after their file.
+- **A `Lists` with no session is the New session page's `@` list.** `composer::triggers::Autocomplete` is reusable as it is: `Lists::for_draft(None)` plus `draft_key` gives sessions and files only. Keep a second engine and popup in the page's own state: writing the page's popup into the session composer's `auto.popup` flips with `keep_autocomplete`, which clears it every poll when no session is open.
+- **A scripted key with Cmd needs `"cmd": true`, not `"mods"` or `"hold"`:** `{"type":"key","name":"l","cmd":true,"shift":true}` is what `Key::Command` shortcuts see. A script's `{"paste": {"png": "file"}}` pastes a picture.

@@ -18,6 +18,10 @@ pub struct HarnessEntry {
     /// A session that names no harness starts on this one: the user's pick, or the server's fallback.
     pub is_default: bool,
     pub supports_profiles: bool,
+    /// `capabilities.supportsImageAttachments`: a picture can go with the first message (A9.1).
+    pub supports_images: bool,
+    /// `capabilities.supportsFleetTools`: the agent can read a session it is linked to (A8.3).
+    pub supports_fleet_tools: bool,
 }
 
 impl HarnessEntry {
@@ -44,6 +48,8 @@ pub fn parse_harness_entries(body: &Value) -> Vec<HarnessEntry> {
                 reason: text("reason"),
                 is_default: flag(h, "isDefault"),
                 supports_profiles: h.pointer("/capabilities/supportsProfiles").and_then(Value::as_bool) == Some(true),
+                supports_images: h.pointer("/capabilities/supportsImageAttachments").and_then(Value::as_bool) == Some(true),
+                supports_fleet_tools: h.pointer("/capabilities/supportsFleetTools").and_then(Value::as_bool) == Some(true),
             })
         })
         .collect()

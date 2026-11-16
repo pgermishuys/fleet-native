@@ -14,19 +14,24 @@ use std::net::TcpListener;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
-const ROCKET: &str = "/home/me/src/rocket";
+pub(crate) const ROCKET: &str = "/home/me/src/rocket";
 
 #[derive(Default)]
-struct Fake {
+pub(crate) struct Fake {
     /// The bodies `POST /api/sessions` got.
     posted: Vec<Value>,
     /// What it answers instead of a new session: a status and a body.
     refuse: Option<(u16, Value)>,
     /// While set, the answer waits for a message here.
     gate: Option<Arc<Mutex<Receiver<()>>>>,
+    /// What `GET /api/directories/find` lists by folder, and the (folder, query) pairs it was asked.
+    pub(crate) folder_files: std::collections::HashMap<String, Vec<String>>,
+    pub(crate) finds: Vec<(String, String)>,
+    /// What `GET /api/sessions` answers.
+    pub(crate) sessions: Vec<Value>,
 }
 
-type Shared = Arc<Mutex<Fake>>;
+pub(crate) type Shared = Arc<Mutex<Fake>>;
 
 fn serve(fake: Shared) -> String {
     let listener = TcpListener::bind("127.0.0.1:0").expect("a port");
@@ -85,6 +90,23 @@ fn answer(mut stream: std::net::TcpStream, fake: Shared) {
                 )
             }
         }
+    } else if method == "GET" && path.starts_with("/api/directories/find") {
+        let value = |name: &str| {
+            path.split_once('?')
+                .map_or("", |(_, q)| q)
+                .split('&')
+                .find_map(|p| p.strip_prefix(&format!("{name}=")))
+                .unwrap_or("")
+                .to_string()
+        };
+        let (dir, q) = (value("path").replace("%2F", "/"), value("q").replace("%2F", "/"));
+        let mut f = fake.lock().unwrap();
+        f.finds.push((dir.clone(), q.clone()));
+        let files: Vec<String> =
+            f.folder_files.get(&dir).map(|l| l.iter().filter(|p| p.contains(&q)).cloned().collect()).unwrap_or_default();
+        (200, json!({ "directory": dir, "files": files }))
+    } else if method == "GET" && path.starts_with("/api/sessions") {
+        (200, Value::Array(fake.lock().unwrap().sessions.clone()))
     } else {
         (404, json!({}))
     };
@@ -96,13 +118,13 @@ fn answer(mut stream: std::net::TcpStream, fake: Shared) {
     let _ = stream.write_all(out.as_bytes());
 }
 
-struct Rig {
-    rt: Runtime<State>,
-    queue: Receiver<Job>,
-    fake: Shared,
+pub(crate) struct Rig {
+    pub(crate) rt: Runtime<State>,
+    pub(crate) queue: Receiver<Job>,
+    pub(crate) fake: Shared,
 }
 
-fn rig() -> Rig {
+pub(crate) fn rig() -> Rig {
     let fake: Shared = Default::default();
     let base = serve(fake.clone());
     let (jobs, queue) = channel::<Job>();
@@ -121,37 +143,37 @@ fn rig() -> Rig {
 }
 
 impl Rig {
-    fn wait(&mut self, what: &str, done: impl FnMut(&State) -> bool) {
+    pub(crate) fn wait(&mut self, what: &str, done: impl FnMut(&State) -> bool) {
         test_wait::drive(&mut self.rt, &self.queue, what, done, |s| format!("route {:?}, starting {}", s.route, s.new_session_starting()));
     }
 
-    fn text(&mut self, words: &str) {
+    pub(crate) fn text(&mut self, words: &str) {
         click(&mut self.rt, "new-session-message");
         self.rt.key(KeyEvent { key: Key::Text(words.into()), mods: Mods::default() });
         self.rt.frame(FRAME);
         self.rt.frame(FRAME);
     }
 
-    fn press(&mut self, key: Key, mods: Mods) {
+    pub(crate) fn press(&mut self, key: Key, mods: Mods) {
         self.rt.key(KeyEvent { key, mods });
         self.rt.frame(FRAME);
         self.rt.frame(FRAME);
     }
 
-    fn enter(&mut self) {
+    pub(crate) fn enter(&mut self) {
         self.press(Key::Enter, Mods::default());
     }
 
-    fn posted(&self) -> Vec<Value> {
+    pub(crate) fn posted(&self) -> Vec<Value> {
         self.fake.lock().unwrap().posted.clone()
     }
 
-    fn message(&self) -> String {
+    pub(crate) fn message(&self) -> String {
         self.rt.state.new_draft.draft().map(|d| d.message.clone()).unwrap_or_default()
     }
 
     /// Enter, and the wait for the answer to have been applied.
-    fn send_and_wait(&mut self) {
+    pub(crate) fn send_and_wait(&mut self) {
         self.enter();
         self.wait("the session to open", |s| !s.on_new_session_page() || s.new_box.create_error.is_some());
     }

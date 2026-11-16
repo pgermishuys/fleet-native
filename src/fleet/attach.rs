@@ -50,9 +50,19 @@ fn name_of(path: &Path) -> String {
 }
 
 impl State {
+    /// Whose pictures these are: the open session's draft, or on the New session page the draft's row.
+    fn attach_owner(&self) -> Option<String> {
+        if self.on_new_session_page() { self.new_row_key() } else { self.draft_owner() }
+    }
+
+    /// Whether the harness the next prompt goes to passes pictures on (`supportsImages`).
+    fn attach_supports_images(&self) -> bool {
+        if self.on_new_session_page() { self.new_page_supports_images() } else { self.caps().supports_images }
+    }
+
     /// The pictures held for the open session's next prompt.
     pub fn held_images(&self) -> &[HeldImage] {
-        match self.draft_owner() {
+        match self.attach_owner() {
             Some(owner) => self.attach.of(&owner),
             None => &[],
         }
@@ -65,7 +75,7 @@ impl State {
 
     /// The paperclip: the system's file picker. Rune's dialog takes one file at a time (docs/RUNE.md).
     pub fn pick_files(&mut self, tx: &mut Tx) {
-        if self.composer_disabled() {
+        if if self.on_new_session_page() { self.new_session_starting() } else { self.composer_disabled() } {
             return;
         }
         let options = FileDialogOptions { title: "Attach files".into(), ..Default::default() };
@@ -90,8 +100,17 @@ impl State {
     }
 
     fn add_one(&mut self, name: String, mime: &'static str, source: Source, tx: &mut Tx) {
-        let Some(owner) = self.draft_owner() else { return };
+        let Some(owner) = self.attach_owner() else { return };
         let held = self.attach.of(&owner).len() + self.held.files(&owner).len() + self.attach.reading(&owner);
+        // The first message takes pictures only: anything else is refused in the order `addImage` checks (A9.3).
+        if self.on_new_session_page()
+            && !attach::is_image_mime(mime)
+            && let Err(message) = attach::check_image(self.attach_supports_images(), mime, 0, held)
+        {
+            self.attach.set_error(message, self.clock);
+            tx.wake_after(Duration::from_secs_f64(attach::ERROR_SECONDS + 0.1));
+            return;
+        }
         // Anything but a picture is held as a file until Send (row 11.1).
         if !attach::is_image_mime(mime) {
             if held >= crate::conv::image_sniff::MAX_ATTACHMENTS_PER_PROMPT {
@@ -108,7 +127,7 @@ impl State {
             // A file's size is read on the thread, with the file.
             Source::File(_) => 0,
         };
-        if let Err(message) = check_file(self.caps().supports_images, mime, size, held) {
+        if let Err(message) = check_file(self.attach_supports_images(), mime, size, held) {
             self.attach.set_error(message, self.clock);
             tx.wake_after(Duration::from_secs_f64(attach::ERROR_SECONDS + 0.1));
             return;
@@ -133,8 +152,8 @@ impl State {
         if content.image().is_some() {
             mimes.push("image/png");
         }
-        if !attach::paste_takes_files(self.caps().supports_images, &mimes, !content.text().is_empty()) {
-            return self.paste_text(content.text(), tx);
+        if !attach::paste_takes_files(self.attach_supports_images(), &mimes, !content.text().is_empty()) {
+            return !self.on_new_session_page() && self.paste_text(content.text(), tx);
         }
         self.add_files(content.files(), tx);
         if let Some(image) = content.image() {
@@ -152,7 +171,7 @@ impl State {
 
     /// The x on a chip.
     pub fn remove_image(&mut self, id: &str) {
-        let Some(owner) = self.draft_owner() else { return };
+        let Some(owner) = self.attach_owner() else { return };
         if let Some(image) = self.attach.remove(&owner, id) {
             self.forget_previews(&[image]);
         }

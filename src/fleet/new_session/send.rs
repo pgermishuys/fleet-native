@@ -29,11 +29,21 @@ pub struct NewBox {
     focused_for: Option<String>,
     /// When Enter was pressed, in milliseconds: the sent bubble's time.
     pub sent_at: i64,
+    /// The `@` list, the picks' folder line and the GitHub place (piece M).
+    pub refs: super::refs::NewRefs,
 }
 
 impl Default for NewBox {
     fn default() -> Self {
-        NewBox { edit: TextEdit::new(""), seen: String::new(), validation: None, create_error: None, focused_for: None, sent_at: 0 }
+        NewBox {
+            edit: TextEdit::new(""),
+            seen: String::new(),
+            validation: None,
+            create_error: None,
+            focused_for: None,
+            sent_at: 0,
+            refs: Default::default(),
+        }
     }
 }
 
@@ -51,9 +61,9 @@ struct Sent {
 }
 
 impl State {
-    /// The error box: `validationError ?? imageError ?? createError` (images are piece M's).
+    /// The error box: `validationError ?? imageError ?? createError`.
     pub fn new_session_error(&self) -> Option<&str> {
-        self.new_box.validation.as_deref().or(self.new_box.create_error.as_deref())
+        self.new_box.validation.as_deref().or(self.attach_error()).or(self.new_box.create_error.as_deref())
     }
 
     /// Whether a session is being made, so the box is read-only and Send shows a spinner (`isStarting`).
@@ -156,6 +166,8 @@ impl State {
         state.harness_type = picked.harness_type;
         state.harness_profile_id = picked.harness_profile_id;
         state.github_preset = d.github_preset.clone();
+        state.session_references = self.new_session_references(&state.message);
+        state.attachments = self.new_session_images();
         state.branch = Some(d.branch_name.clone()).filter(|b| !b.is_empty());
         state.base_branch = d.base_branch.clone();
         state.fetch_origin = d.fetch_origin;
@@ -170,6 +182,7 @@ impl State {
         };
         self.new_box.validation = None;
         self.new_box.create_error = None;
+        self.new_box.refs.notice = None;
         let machine = self.target_key();
         let Some(link) = self.link_for_machine(&machine) else {
             self.new_box.create_error = Some("There is no Fleet to start a session on.".into());
@@ -224,6 +237,7 @@ impl State {
             self.store.upsert_elsewhere(&sent.machine, session.row_copy());
             self.machines.upsert_session(&sent.machine, session);
         }
+        self.forget_new_refs();
         self.new_draft.hand_off(&id);
         // Someone who left while it started stays where they went; the row is there for them.
         if self.new_draft.is_page_open() {
