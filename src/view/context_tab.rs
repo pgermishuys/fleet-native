@@ -1,7 +1,8 @@
 //! The Context tab (`SessionContextCanvas.vue`, rows 12.2 to 12.9 of docs/parity/08-session-header-and-context.md): the
 //! GitHub notice, the sections of links, loading, the error, the empty note, the attach form, the workspace list and the
 //! footer with Refresh. What is in each section, and every sentence, is worked out in `fleet::context_tab`. Pull requests
-//! draw as rows (`smart_link_row`) until piece J's card.
+//! draw as cards (`smart_link_card`), issues as rows (`smart_link_row`).
+use super::smart_link_card::smart_link_card;
 use super::smart_link_row::{flash, link_row};
 use crate::State;
 use crate::fleet::context_tab::{Feedback, Groups, automation_detail, automation_origin, feedback, own_heading, workspace_rows};
@@ -81,19 +82,27 @@ pub fn context_tab(s: &State, t: &Theme) -> El {
                 );
             flash(origin, t, s, "origin")
         } else if let Some(link) = groups.origin {
-            let note = (!crate::fleet::smart_links::is_pull_request(link)).then_some("Session started here");
-            col().key("context-origin").w_full().child(link_row(s, t, link, note))
+            let inner = if crate::fleet::smart_links::is_pull_request(link) {
+                smart_link_card(s, t, link)
+            } else {
+                link_row(s, t, link, Some("Session started here"))
+            };
+            col().key("context-origin").w_full().child(inner)
         } else {
             el()
         };
         body = body.child(section("context-started-from", "Started from", t, vec![inner]));
     }
     if !groups.own.is_empty() {
-        let rows = groups.own.iter().map(|l| link_row(s, t, l, None)).collect();
+        let rows = groups.own.iter().map(|l| smart_link_card(s, t, l)).collect();
         body = body.child(section("context-own", own_heading(groups.own.len()), t, rows));
     }
     if !groups.pinned.is_empty() {
-        let rows = groups.pinned.iter().map(|l| link_row(s, t, l, None)).collect();
+        let rows = groups
+            .pinned
+            .iter()
+            .map(|l| if crate::fleet::smart_links::is_pull_request(l) { smart_link_card(s, t, l) } else { link_row(s, t, l, None) })
+            .collect();
         body = body.child(section("context-pinned", "Pinned", t, rows));
     }
     if !groups.mentioned.is_empty() {

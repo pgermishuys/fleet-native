@@ -168,6 +168,10 @@ pub struct ContextTab {
     pub loaded_for: Option<String>,
     /// The clock the freshness line was last computed from.
     pub freshness_at: f64,
+    /// The cards' Checks signals the user opened or closed (a card's own choice beats the default, open while failing), and the
+    /// Review signals opened. Held per link id, as each Vue card holds its own `ref`.
+    pub checks_open: std::collections::HashMap<String, bool>,
+    pub review_open: std::collections::HashSet<String>,
 }
 
 impl Default for ContextTab {
@@ -183,6 +187,8 @@ impl Default for ContextTab {
             seen_nonce: 0,
             loaded_for: None,
             freshness_at: 0.0,
+            checks_open: Default::default(),
+            review_open: Default::default(),
         }
     }
 }
@@ -190,6 +196,22 @@ impl Default for ContextTab {
 impl ContextTab {
     pub fn refreshing(&self, clock: f64) -> bool {
         self.refreshing_since.is_some_and(|at| clock - at < REFRESH_SPIN_SECS)
+    }
+
+    /// Whether a card's Checks signal is open: the user's choice, else open while a check fails.
+    pub fn checks_are_open(&self, link: &str, by_default: bool) -> bool {
+        self.checks_open.get(link).copied().unwrap_or(by_default)
+    }
+
+    pub fn toggle_checks(&mut self, link: &str, by_default: bool) {
+        let open = self.checks_are_open(link, by_default);
+        self.checks_open.insert(link.to_string(), !open);
+    }
+
+    pub fn toggle_review(&mut self, link: &str) {
+        if !self.review_open.remove(link) {
+            self.review_open.insert(link.to_string());
+        }
     }
 
     /// `startAttach`.

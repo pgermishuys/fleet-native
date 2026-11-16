@@ -91,6 +91,8 @@ mod tests_selection;
 #[cfg(test)]
 mod tests_session_header;
 #[cfg(test)]
+mod tests_smart_link_card;
+#[cfg(test)]
 mod tests_starters;
 #[cfg(test)]
 mod tests_workspace;
@@ -1808,6 +1810,19 @@ pub fn spec() -> AppSpec<State> {
             ("context-tab-flash-light", |s| s.show_context_tab_scene(mock::context_tab::Case::Flash, false)),
             ("context-tab-automation", |s| s.show_context_tab_scene(mock::context_tab::Case::Automation, true)),
             ("context-tab-automation-light", |s| s.show_context_tab_scene(mock::context_tab::Case::Automation, false)),
+            // Component 8, piece J: the smart-link card.
+            ("context-card-failing", |s| s.show_context_tab_scene(mock::context_tab::Case::CardFailing, true)),
+            ("context-card-failing-light", |s| s.show_context_tab_scene(mock::context_tab::Case::CardFailing, false)),
+            ("context-card-review", |s| s.show_context_tab_scene(mock::context_tab::Case::CardReview, true)),
+            ("context-card-review-light", |s| s.show_context_tab_scene(mock::context_tab::Case::CardReview, false)),
+            ("context-card-merged", |s| s.show_context_tab_scene(mock::context_tab::Case::CardMerged, true)),
+            ("context-card-merged-light", |s| s.show_context_tab_scene(mock::context_tab::Case::CardMerged, false)),
+            ("context-card-conflict", |s| s.show_context_tab_scene(mock::context_tab::Case::CardConflict, true)),
+            ("context-card-conflict-light", |s| s.show_context_tab_scene(mock::context_tab::Case::CardConflict, false)),
+            ("context-card-pending", |s| s.show_context_tab_scene(mock::context_tab::Case::CardPending, true)),
+            ("context-card-pending-light", |s| s.show_context_tab_scene(mock::context_tab::Case::CardPending, false)),
+            ("context-card-labels", |s| s.show_context_tab_scene(mock::context_tab::Case::CardLabels, true)),
+            ("context-card-labels-light", |s| s.show_context_tab_scene(mock::context_tab::Case::CardLabels, false)),
             ("context-pill-open", |s| s.show_chips(mock::context::Case::Open, true)),
             ("context-pill-open-light", |s| s.show_chips(mock::context::Case::Open, false)),
             ("context-pill-blocked", |s| s.show_chips(mock::context::Case::Blocked, true)),

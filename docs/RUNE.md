@@ -1049,6 +1049,12 @@ A context-menu row's label is one text run, so a machine's name in the mono face
 - **`flex_wrap()` on a row** is the only wrap switch; `justify-content: space-between` has no counterpart, so a wrapped notice's button sits at the left of its own line (Fleet's does too once it wraps).
 - **A flash is `box_shadow` with `spread` and no blur, its alpha computed from `State.clock`**, redrawn by `tx.wake_after(33 ms)` while it lasts; `scroll_into_view_in("<scroll key>", "<row key>")` scrolls the target to view.
 
+## Component 8, piece J (the smart-link card)
+
+- **CSS's adjacent-sibling rules (`.signal + .signal`) are ordinary data here**: build the parts as `(kind, El)` pairs and add the top border to the ones that follow a signal or a list; a bar between two breaks the rule, as in Fleet.
+- **A chevron that turns 90 degrees** is two icons (`CHEVRON_RIGHT`, `CHEVRON_DOWN`): Rune has no transform.
+- **`hover_group()` plus `group_color(..)`** gives a button's glyph and words their hover colour together (the Send buttons' accent).
+
 ## `auto_grow` takes the key `scroll`
 
 `auto_grow(field, min, max)` returns a scroll wrapper keyed `"scroll"`. A `.key(..)` set on what it returns replaces that
