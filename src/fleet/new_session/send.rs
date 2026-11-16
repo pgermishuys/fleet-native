@@ -57,6 +57,8 @@ struct Sent {
     choice: Option<(String, AgentModelChoice)>,
     /// `projectForRow`: the project the row goes under.
     project: Option<(String, String)>,
+    /// The provider and model sent, for the Recent list (A10.15).
+    model: Option<(String, String)>,
     sent_at: i64,
 }
 
@@ -172,6 +174,7 @@ impl State {
         state.base_branch = d.base_branch.clone();
         state.fetch_origin = d.fetch_origin;
         state.agent = picked.agent;
+        let sent_model = picked.model.clone();
         state.model = picked.model;
         let request = match build_create_session_request(&state) {
             Ok(request) => request,
@@ -198,6 +201,7 @@ impl State {
                 .sends_agent_and_model()
                 .then(|| (self.resolved_harness(), AgentModelChoice { agent: d.agent.clone(), model: d.model.clone() })),
             project: self.project_for_row(d.project_id.as_deref()),
+            model: sent_model,
             sent_at: self.new_box.sent_at,
         };
         // The message moves into the conversation at once; the session catches up (A13.4).
@@ -236,6 +240,10 @@ impl State {
         } else {
             self.store.upsert_elsewhere(&sent.machine, session.row_copy());
             self.machines.upsert_session(&sent.machine, session);
+        }
+        // The picker's lists are the page's own until it hands off, so the model is looked up while they still are (A10.15).
+        if self.new_draft.is_page_open() && sent.model.is_some() {
+            self.record_recent_model(&crate::fleet::http::Pick { model: sent.model.clone(), ..Default::default() });
         }
         self.forget_new_refs();
         self.new_draft.hand_off(&id);

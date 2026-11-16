@@ -263,3 +263,14 @@ fn new_session_in_this_folder_asks_the_server_and_opens_what_it_made() {
     });
     assert_eq!(rt.state.new_draft.open_after_list.as_deref(), Some("later"));
 }
+
+#[test]
+fn puts_the_cursor_in_the_message_box() {
+    // A21.1 / A2.15: the box has the keyboard as the page opens.
+    let mut rt = app();
+    click(&mut rt, "new-session");
+    rt.frame(FRAME);
+    rt.frame(FRAME);
+    let focused = rt.elements().into_iter().find(|e| e.focused).and_then(|e| e.key);
+    assert_eq!(focused.as_deref(), Some("new-session-message"));
+}

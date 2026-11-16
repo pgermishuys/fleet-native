@@ -1101,3 +1101,7 @@ The small case the checklist asked for (`tests_row_drag.rs`, first test): **Rune
   `:focus-visible` and hides the kind label then (#1048). Tested in `tests_lineage` while writing the piece. Wanted: a way for a control that
   is faded out by its group to still take focus and show itself when it has it.
 - **A menu row held lit while its submenu is open** needs only `.fill(highlight)` on the trigger; the open state lives in `State::ui.sub`, so `ui::menu` takes it as an argument.
+
+## Component 7, piece Q (the sweep)
+
+- Nothing new about Rune. A test that adds a machine by hand loses it at the first answer of home's own `GET /api/machines` poll (it clears the list), so the fake home must list the machine from its first answer, not be told afterwards.
