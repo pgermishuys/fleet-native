@@ -111,7 +111,7 @@ const SIDEBAR_MIN: f32 = 200.0;
 const SIDEBAR_MAX: f32 = 500.0;
 
 pub fn root(s: &State, cx: &mut Cx<State>) -> El {
-    let t = Theme::of(s.dark.unwrap_or_else(|| cx.system_dark()));
+    let t = s.with_code_theme(Theme::of(s.dark.unwrap_or_else(|| cx.system_dark())));
     s.drawn_dark.set(t.dark);
     cx.help_look(crate::ui::help_look(&t));
     let mut main = row().w_full().grow(1.0).min_h(0.0).padding(8.0).child(rail::rail(s, &t));

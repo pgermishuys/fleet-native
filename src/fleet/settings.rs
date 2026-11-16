@@ -6,6 +6,8 @@
 //! The data and its rules are plain Rust. Reading and writing the file is blocking: a thread does it
 //! (`State::adopt_settings`, `State::save_settings`), never a view or a handler.
 pub mod anchor;
+pub mod appearance;
+pub mod code_themes;
 pub mod switches;
 
 use super::new_session::defaults::{DEFAULTS_KEY, NewSessionDefaults, defaults_key};
@@ -55,6 +57,8 @@ pub struct Sidebar {
     saved_repositories: BTreeMap<String, super::new_session::feeds::Scan>,
     /// Ids of the notices that have been a card, oldest first (`weave:notices-shown`).
     notices_shown: Vec<String>,
+    /// The Appearance page's choices (`weave:theme`, `weave:code-theme`, `weave:font-size`, `weave:thinking`).
+    appearance: appearance::Appearance,
     dir: Option<PathBuf>,
     dirty: bool,
 }
@@ -99,6 +103,7 @@ impl Sidebar {
         if let Some(Value::Array(ids)) = root.get("noticesShown") {
             s.notices_shown = ids.iter().filter_map(|v| v.as_str().map(String::from)).collect();
         }
+        s.appearance = appearance::Appearance::parse(&root);
         s
     }
 
@@ -121,6 +126,7 @@ impl Sidebar {
         if !self.notices_shown.is_empty() {
             root["noticesShown"] = json!(self.notices_shown);
         }
+        self.appearance.write(&mut root);
         serde_json::to_string_pretty(&root).unwrap_or_default()
     }
 
@@ -272,6 +278,18 @@ impl Sidebar {
             self.saved_repositories.insert(machine.to_string(), scan.clone());
             self.dirty = true;
         }
+    }
+
+    // ── Appearance ────────────────────────────────────────────────────────────
+
+    pub fn appearance(&self) -> appearance::Appearance {
+        self.appearance
+    }
+
+    pub fn update_appearance(&mut self, change: impl FnOnce(&mut appearance::Appearance)) {
+        let before = self.appearance;
+        change(&mut self.appearance);
+        self.dirty |= self.appearance != before;
     }
 
     // ── lists on screen ───────────────────────────────────────────────────────

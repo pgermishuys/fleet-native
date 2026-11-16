@@ -352,11 +352,13 @@ pub fn all(s: &State) -> Vec<Command> {
             Some(md("T")),
             &["appearance", "dark", "light"],
             now(|s, _| {
-                s.dark = match s.dark {
-                    None => Some(true),
-                    Some(true) => Some(false),
-                    Some(false) => None,
-                }
+                use crate::fleet::settings::appearance::ThemeChoice::{Dark, Light, System};
+                let next = match s.dark {
+                    None => Dark,
+                    Some(true) => Light,
+                    Some(false) => System,
+                };
+                s.set_theme(next);
             }),
         ),
         c(
@@ -367,7 +369,7 @@ pub fn all(s: &State) -> Vec<Command> {
             View,
             None,
             &["theme"],
-            now(|s, _| s.dark = Some(!s.drawn_dark.get())),
+            now(|s, _| s.toggle_theme()),
         ),
         c("toggle-fullscreen", "Toggle full screen", "Enter or exit fullscreen mode.", &MAXIMIZE_2, View, None, &[], Run::Waiting(24)),
         c("zoom-in", "Zoom in", "Increase the interface scale.", &ZOOM_IN, View, Some(md("=")), &["larger"], Run::Waiting(9)),
