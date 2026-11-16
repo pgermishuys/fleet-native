@@ -526,6 +526,7 @@ impl State {
                 }
                 match result.and_then(|v| Prepared::parse(&v).ok_or_else(|| PREPARE_FAILED.to_string())) {
                     Ok(prepared) => {
+                        s.report_reviewing(&prepared.title);
                         s.report.prepared = Some(prepared);
                         s.report.stage = Stage::Review;
                     }

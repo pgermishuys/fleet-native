@@ -84,7 +84,7 @@ fn names_a_kind_that_has_no_words_by_itself() {
 
 // ─── the stand-in server ─────────────────────────────────────────────────────────────────────────────────────────────
 
-type Heard = Arc<Mutex<Vec<(String, Value)>>>;
+pub(crate) type Heard = Arc<Mutex<Vec<(String, Value)>>>;
 
 fn prepared() -> Value {
     json!({
@@ -104,7 +104,7 @@ fn prepared() -> Value {
 
 /// Answers the three report routes as Fleet does and writes down what was asked. `refusal` is what `/send` answers with
 /// instead of an id, with status 429.
-fn standin(refusal: Option<&'static str>, can_send: bool) -> (String, Heard) {
+pub(crate) fn standin(refusal: Option<&'static str>, can_send: bool) -> (String, Heard) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("a port");
     let base = format!("http://{}", listener.local_addr().unwrap());
     let heard: Heard = Default::default();
@@ -162,7 +162,7 @@ fn standin(refusal: Option<&'static str>, can_send: bool) -> (String, Heard) {
     (base, heard)
 }
 
-fn rig(base: String) -> (Runtime<State>, Receiver<Job>) {
+pub(crate) fn rig(base: String) -> (Runtime<State>, Receiver<Job>) {
     let (jobs, queue) = channel::<Job>();
     let jobs = Mutex::new(jobs);
     let post = Post::new(move |job| {
@@ -177,7 +177,7 @@ fn rig(base: String) -> (Runtime<State>, Receiver<Job>) {
     (rt, queue)
 }
 
-fn asked(heard: &Heard, path: &str) -> Vec<Value> {
+pub(crate) fn asked(heard: &Heard, path: &str) -> Vec<Value> {
     heard.lock().unwrap().iter().filter(|c| c.0 == path).map(|c| c.1.clone()).collect()
 }
 
