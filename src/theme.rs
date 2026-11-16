@@ -9,9 +9,22 @@ fn c(s: &str) -> Color {
     rune::color::hex(s).expect("a colour literal")
 }
 
+/// One Dark and One Light, Fleet's no-JS defaults (`markdown.css`), before a code theme is chosen.
+fn default_syntax(dark: bool) -> [Color; 8] {
+    let h: [&str; 8] = if dark {
+        ["#c678dd", "#98c379", "#d19a66", "#8b949e", "#61afef", "#e5c07b", "#e06c75", "#56b6c2"]
+    } else {
+        ["#a626a4", "#50a14f", "#986801", "#a0a1a7", "#4078f2", "#c18401", "#e45649", "#0184bc"]
+    };
+    h.map(c)
+}
+
 #[derive(Clone, Copy)]
 pub struct Theme {
     pub dark: bool,
+    /// The eight `--syntax-*` colours code is drawn in: One Dark or One Light until the app picks the code theme chosen
+    /// on Appearance (`with_syntax`).
+    syntax: [Color; 8],
     /// `--main-bg`: the window behind the rail, the session list and the status bar.
     pub main_bg: Color,
     /// `--panel-bg`: the workspace sheet.
@@ -69,6 +82,7 @@ impl Theme {
         if dark {
             Theme {
                 dark,
+                syntax: default_syntax(dark),
                 main_bg: c("#0d0d10"),
                 panel_bg: c("#141418"),
                 card_bg: c("#1b1b20"),
@@ -105,6 +119,7 @@ impl Theme {
         } else {
             Theme {
                 dark,
+                syntax: default_syntax(dark),
                 main_bg: c("#F3F2EF"),
                 panel_bg: c("#FFFFFF"),
                 card_bg: c("#FFFFFF"),
@@ -262,16 +277,24 @@ impl Theme {
         self.muted.mix(self.accent, 0.55)
     }
 
-    /// The eight `--syntax-*` tokens of `markdown.css` (One Dark and One Light, Fleet's no-JS defaults), in the order
-    /// keyword, string, number, comment, function, attr, type, literal. A chosen code theme overrides them in Fleet;
-    /// the code themes land with Settings.
+    /// The eight `--syntax-*` tokens, in the order keyword, string, number, comment, function, attr, type, literal: the code
+    /// theme chosen on Appearance (`with_syntax`), One Dark or One Light before any is.
     pub fn syntax(&self) -> [Color; 8] {
-        let h: [&str; 8] = if self.dark {
-            ["#c678dd", "#98c379", "#d19a66", "#8b949e", "#61afef", "#e5c07b", "#e06c75", "#56b6c2"]
-        } else {
-            ["#a626a4", "#50a14f", "#986801", "#a0a1a7", "#4078f2", "#c18401", "#e45649", "#0184bc"]
-        };
-        h.map(c)
+        self.syntax
+    }
+
+    /// The same theme with the colours of a code theme (`applyCodeTheme`).
+    pub fn with_syntax(mut self, hex: &[impl AsRef<str>; 8]) -> Theme {
+        self.syntax = std::array::from_fn(|i| c(hex[i].as_ref()));
+        self
+    }
+
+    /// `--text`, `--main-bg`, `--panel-bg` and `--card-bg` as Fleet's CSS has them: the surfaces code sits on, which a code
+    /// theme's colours are lifted to read on (`documentCodeGrounds`).
+    pub fn code_grounds(&self) -> crate::fleet::settings::code_themes::Grounds {
+        let (text, surfaces) =
+            if self.dark { ("#e8e8ec", ["#0d0d10", "#141418", "#1b1b20"]) } else { ("#1a1918", ["#f3f2ef", "#ffffff", "#ffffff"]) };
+        crate::fleet::settings::code_themes::Grounds { text: text.into(), surfaces: surfaces.map(String::from).to_vec() }
     }
 
     /// `--color-secondary`: `color-mix(in srgb, var(--text) 8%, transparent)`, the segmented tabs' track.

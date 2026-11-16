@@ -217,6 +217,7 @@ impl State {
     pub fn adopt_settings(&mut self, dir: std::path::PathBuf, stored: super::settings::Sidebar) {
         self.notices.adopt_shown(stored.notices_shown());
         self.sidebar.adopt(dir, stored);
+        self.apply_appearance();
         self.seed_feeds_from_settings();
         self.sidebar_open = !self.sidebar.panel_collapsed();
         for project in &mut self.projects {

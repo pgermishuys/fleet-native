@@ -1270,3 +1270,8 @@ in Rune stops a drop in the wrong tree. Nothing in Rune got in the way otherwise
 - **A test that clicks a list's choice** finds the element by its text and presses its centre; the choices carry no keys of their own.
 - **`cargo test` with a fake server** needs the harness's wait helper (`test_wait::drive`) to run queued jobs: the answer of a request
   reaches the UI thread only through `Link`'s `Post`, which the tests collect and run.
+
+## Component 16, piece E (Appearance data)
+
+- **`Color` is linear light**, so a hex colour can't be got back from a `Color` by rounding its fields. Where Fleet's own rules need hex (the contrast lift), keep the hex strings and convert once with `rune::color::hex`; `Theme::code_grounds` holds the surfaces as the same literals `Theme::of` uses, and a test checks they agree.
+- **A view can't be handed a computed theme by `Theme::of` alone** when part of it depends on `State`: `view::root` builds the theme and `State::with_code_theme` adds the chosen colours, caching the lift in a `RefCell` on `State` because views get `&State`.

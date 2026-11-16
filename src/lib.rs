@@ -121,6 +121,8 @@ mod tests_selection;
 #[cfg(test)]
 mod tests_session_header;
 #[cfg(test)]
+mod tests_settings_appearance;
+#[cfg(test)]
 mod tests_settings_general;
 #[cfg(test)]
 mod tests_settings_kit;
@@ -146,6 +148,7 @@ pub mod view;
 use conv::tools::ToolStatus;
 use fleet::link::{Connection, Link, Post};
 use fleet::model::StreamState;
+use fleet::settings::code_themes::{CodeThemeId, CodeThemeSelection as Sel};
 use mock::machines_page::AddCase;
 use mock::{Project, Session, Status};
 use rune::{App, AppSpec, Image, ImageCache, Key, KeyEvent, TextEdit, Tx};
@@ -202,6 +205,8 @@ pub struct State {
     /// The theme the last frame was drawn in, so the theme key can flip what is on screen even
     /// while `dark` still follows the system.
     pub drawn_dark: std::cell::Cell<bool>,
+    /// The chosen code theme's colours as last worked out, and for which choice and scheme (`with_code_theme`).
+    pub(crate) code_palette: fleet::settings::appearance::PaletteCache,
     pub projects: Vec<Project>,
     /// `GET /api/projects`: what orders and names the groups, and whether the last read failed.
     pub project_load: fleet::groups::ProjectsLoad,
@@ -483,6 +488,7 @@ impl Default for State {
             sample_headers: false,
             sheet_w: 0.0,
             drawn_dark: std::cell::Cell::new(true),
+            code_palette: Default::default(),
             projects: mock::projects(),
             project_load: fleet::groups::ProjectsLoad::new(true),
             new_box: Default::default(),
@@ -1423,7 +1429,7 @@ fn on_key(s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool {
         s.open_new_session_page(None);
     } else if ev.is_command('l') && ev.mods.shift {
         // Not a Fleet shortcut: a quick way to see both themes in the prototype.
-        s.dark = Some(!s.drawn_dark.get());
+        s.toggle_theme();
     } else if ev.key == Key::Escape && s.selection.is_selecting() {
         // `handleSelectionKeydown`: Esc lets the picked rows go, and only that.
         s.selection.clear();
@@ -2447,6 +2453,12 @@ pub fn spec() -> AppSpec<State> {
                 s.dark = Some(false);
                 s.show_find_marks(2, true)
             }),
+            ("code-theme-match", |s| s.show_code_theme(Sel::Match, true)),
+            ("code-theme-match-light", |s| s.show_code_theme(Sel::Match, false)),
+            ("code-theme-monokai", |s| s.show_code_theme(Sel::Scheme(CodeThemeId::Monokai), true)),
+            ("code-theme-github", |s| s.show_code_theme(Sel::Scheme(CodeThemeId::Github), true)),
+            ("code-theme-github-light", |s| s.show_code_theme(Sel::Scheme(CodeThemeId::Github), false)),
+            ("code-theme-darcula-light", |s| s.show_code_theme(Sel::Scheme(CodeThemeId::Darcula), false)),
             ("find-marks-closed-turn", |s| s.show_find_marks(0, false)),
             ("tool-rows", |s| s.show_conversation(mock::tools::of_each_kind())),
             ("tool-rows-light", |s| {
