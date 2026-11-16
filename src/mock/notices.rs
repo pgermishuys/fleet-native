@@ -64,3 +64,28 @@ pub fn show(s: &mut State, case: Case) {
     s.notices.post(notice(case), s.clock);
     s.notices.open_next();
 }
+
+/// A note an agent saved, as the `memory.saved` event carries it: the card goes through the real event path.
+pub fn remembered(s: &mut State) {
+    use crate::fleet::events::{Event, Kind};
+    let note = serde_json::json!({
+        "id": "5c1e9a02", "list": "repository", "text": "Run the formatter before you commit; CI rejects unformatted files.",
+        "repository": "/work/example", "updated": "2026-11-16T09:30:00Z",
+    });
+    let payload = serde_json::json!({"note": note, "repositoryName": "example", "previous": null});
+    s.dispatch(&crate::fleet::state::Topic::Sessions, &[Event::Other(Kind::MemorySaved, payload)]);
+    s.notices.open_next();
+}
+
+/// The card, already settled: only its chip in the status bar.
+pub fn settled(s: &mut State) {
+    s.notices.post(notice(Case::Plain), s.clock);
+    s.notices.open_next();
+    s.notices.settle();
+}
+
+/// The card with the right panel shut, so the composer reaches under it.
+pub fn lifted(s: &mut State) {
+    s.content_open = false;
+    show(s, Case::Plain);
+}

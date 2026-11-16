@@ -174,19 +174,19 @@ their pictures from scenes beside Fleet's client with the answers put in by Play
 | 7.2 | `post` (same id replaces in place; a new one waits, unless quiet or already shown, which go straight to a chip), `update` (pins the open card, so a question stays), `openNext`, `reopen` (from a chip, pinned), `settle` (no chip → removed), `remove`, `removeWhere(prefix, keep)`; one card at a time | ST 116-185 | Done in K: `Notices` with post, update, open_next, reopen, settle, remove, remove_where, expire |
 | 7.3 | A shown id never opens as a card again, across restarts (last 50 ids, `weave:notices-shown`; native: the settings file) | ST 62-79 | Done in K: the last 50 ids in the settings file (`noticesShown`), read before a notice posted early is queued |
 | 7.4 | A card opens only at a quiet moment: 3 s after start, 2.5 s after the last key typed into a text field, the window visible and focused; checked every 500 ms and on focus | NC 28-35, 257-261 | Done in K: `Quiet` (3 s, 2.5 s after typing, focused, visible), checked every 0.5 s and on focus and visibility. "Typing" is a key through a focused control or a changed draft; other text fields are added by their own pieces |
-| 7.5 | Card: fixed right 12, bottom 40 (lifted 8 px above the composer when it would cover it, `data-notice-avoid`), width 264 (340 with items), padding 12 12 10, 1 px `--border`, radius `--radius-panel`, `--card-bg`, shadow `0 1px 0 --text 4% inset, 0 16px 36px -16px rgba(0,0,0,.4)` | NC 139-180, 399-417 | None |
+| 7.5 | Card: fixed right 12, bottom 40 (lifted 8 px above the composer when it would cover it, `data-notice-avoid`; **lift done in M**), width 264 (340 with items), padding 12 12 10, 1 px `--border`, radius `--radius-panel`, `--card-bg`, shadow `0 1px 0 --text 4% inset, 0 16px 36px -16px rgba(0,0,0,.4)` | NC 139-180, 399-417 | None |
 | 7.6 | Top row: 26×26 icon tile (radius 8, `--accent-dim`/`--accent`; warn `--status-waiting` 15%/`--status-waiting`), title 13/600, body 12/1.45 muted with the link inline (underlined, muted, hover `--text`), close 22×22 `X` 14 "Dismiss (Esc)" | NC 279-330, 419-476 | None |
 | 7.7 | Items (padding-left 36, gap 7, 12.5 px, a 5 px accent dot, `--running` for fixed, a muted label before the text), "more" line; countdown bar (3 px, accent, shrinks over the hold, paused while hovered or focused); actions (height 26, padding 0 10, radius 7, 12/500; primary accent, danger `--error` 16%, quiet transparent; a leading quiet button -10 px) | NC 331-389, 508-649 | None |
 | 7.8 | Hold 8 s (or `holdMs`), paused on hover or focus (at least 1 s left after a pause), never for a pinned card; Esc inside the card runs `onEscape` and settles | NC 87-126, 205-210 | None |
-| 7.9 | Enter 260 ms (fade, up 8 px, scale .98); settle 320 ms: the card shrinks to its chip's corner and fades; no chip or reduced motion → gone at once | NC 235-255, 656-663 | None |
-| 7.10 | Chips (status bar, gap 6): height 18, padding 0 8 0 7, radius 999, `--accent-dim`/`--accent-text`, 11/500, a 6 px accent dot with a ring that pulses twice; quiet chips transparent, muted, `--running` dot, no ring; fade in 220 ms after 180 ms; a click runs `onChipClick` or reopens the card | CH 8-141 | None |
+| 7.9 | **Done in M** (see Piece M). Enter 260 ms (fade, up 8 px, scale .98); settle 320 ms: the card shrinks to its chip's corner and fades; no chip or reduced motion → gone at once | NC 235-255, 656-663 | None |
+| 7.10 | **Done in M** (see Piece M). Chips (status bar, gap 6): height 18, padding 0 8 0 7, radius 999, `--accent-dim`/`--accent-text`, 11/500, a 6 px accent dot with a ring that pulses twice; quiet chips transparent, muted, `--running` dot, no ring; fade in 220 ms after 180 ms; a click runs `onChipClick` or reopens the card | CH 8-141 | None |
 
 ## Part 8: the notice sources
 
 | # | Notice | Source | Native today / owner |
 |---|---|---|---|
 | 8.1 | **Fleet restarted** (`restart-cut-off:<at>`, warn, `RotateCw`, hold 30 s): "Fleet restarted" or "Fleet updated to v<x>"; "N sessions were cut off." / "Continuing N sessions."; up to 5 items (a lost question says "…: the question was lost. Ask again."), "+N more"; one line per other machine that restarted; link "Next time, continue these by itself?" (sets `RestartContinueAuto`); **Continue all** (`POST …/interruption/continue` each), **Dismiss all** (`DELETE …/interruption` each), or in automatic mode **Stop all** (`POST /api/sessions/interruptions/stop-automatic`, also on Esc); a machines-only variant "A machine restarted" | `use-restart-notice.ts` | Per-session cards and calls done (3I); the notice, `stop-automatic` and the preference missing |
-| 8.2 | **Remembered** (`memory-saved-<id>-<updated>`, `Lightbulb`, hold 6 s with countdown, expires 2 min): "Remembered for this machine / <repo> / this repository", the note's text; **Undo** (update back to the previous text, or forget the note and put the previous back); on failure "Couldn't undo it" + reason | `use-memory-notices.ts` | `memory.saved` not read |
+| 8.2 | **Remembered** (`memory-saved-<id>-<updated>`, `Lightbulb`, hold 6 s with countdown, expires 2 min): "Remembered for this machine / <repo> / this repository", the note's text; **Undo** (update back to the previous text, or forget the note and put the previous back); on failure "Couldn't undo it" + reason | `use-memory-notices.ts` | **Done in M**: `memory.saved` on the `sessions` topic posts the card; Undo goes through `/api/memory` |
 | 8.3 | **Machine updated** (`fleet-updated:<machine>:<to>`, within 3 days): "<name> updated to <to>", "At HH:MM, <when nothing was working / overnight / when you restarted it / by Update machines now>."; once, the rule sentence and "Change the rule"; What's new, Dismiss. **Chip** `fleet-updates-waiting`: "↑ N machines can update" or "Updating machines · k of n", opens Settings → Updates › Machines | `use-fleet-update-notices.ts`, `lib/fleet-updates.ts` | Machine info from 17; `update.rollout` read but unused |
 | 8.4 | **What's new after an update** (server variant) and "Updated to …" quiet chip | `use-update-notices.ts` 235-300 | Component 16 (needs release notes and Settings → Updates & about) |
 | 8.5 | **Dream** notices ("Fleet updated <repo>'s notes", See what changed → Settings → Memory) | `use-dream-notices.ts` | Component 16 (Memory and Dreaming) |
@@ -494,7 +494,7 @@ before N, O and U; P, Q, R; S; T, U; V when decided; W last.
   Gaps: the link's `:focus-visible` and the buttons' hover tint are Rune's own looks; the link's href opens in the browser through
   `tx.open_url`. Open for M: enter and settle animations, the lift above the composer, chips.
 
-### Piece M: notices: chips, settling, the lift, and Remembered
+### Piece M: notices: chips, settling, the lift, and Remembered — **done**
 
 - **Rows:** 7.5 (the lift above the composer), 7.9, 7.10, 8.2.
 - **Files:** new `src/view/notice_chips.rs`, `src/view/notice_card.rs` (enter and settle animations; the composer's
@@ -504,6 +504,25 @@ before N, O and U; P, Q, R; S; T, U; V when decided; W last.
 - **Tests:** `NoticeCard.test.ts` 11-12, `use-memory-notices.test.ts` (6).
 - **Pictures:** a card settling into its chip (a short video), the card above the composer, a saved-note card, both
   themes.
+
+- **Done:** rows 7.5 (the lift), 7.9, 7.10, 8.2 (`shots/parity/09m-notice-chips/`). `src/fleet/notice_place.rs` keeps the rectangles the layout
+  reports (window, card, composer, the chip's place) and `Place::bottom` is Fleet's `place()`: the card sits 40 up, or 8 above the
+  composer's top when the composer would be under it (a composer only counts on a session view). `src/view/notice_chips.rs` draws the
+  chips in the status bar after the usage chip: 18 px pills, `accent-dim`; quiet ones transparent with a green dot; a press tells the
+  notice's `on_chip_click` or reopens the card. Fade (220 ms after 180 ms) and the ring that pulses twice are drawn from the chip's age
+  on the app clock. `src/fleet/memory_notice.rs`: `memory.saved` → "Remembered for this machine / <repo>" card (lightbulb, 6 s with the
+  countdown, expires in 2 min); Undo PUTs the old text back, or DELETEs the note and POSTs the one it replaced; a failure says
+  "Couldn't undo it" with the server's words or "Forget the note in Settings → Memory instead."
+  Tests: `src/tests_memory_notice.rs` ports `use-memory-notices.test.ts` (6, with the two Undo shapes and the refusal text added),
+  `src/tests_notice_chips.rs` ports `NoticeCard.test.ts` 11 and 12 (the release-notes link as the address it opens) and adds the chips,
+  the ring and the fold. Scenes `notice-{remembered,chip,lift}` (+ `-light`).
+  Gaps: (1) Fleet's card leaves into a chip that is already in the page; here a hidden chip is laid out in the status bar while the card
+  is open so its place is known, which moves the status bar's right-hand text left by a chip's width meanwhile. (2) The rise and the
+  fold are springs of 0.26 s and 0.32 s, not Fleet's cubic-bezier curves; the scripted renderer (`--video`, `--snap --at`) draws at
+  rest, so the motion has no picture, only tests that read the card's rect and opacity on virtual frames. (3) Fleet's pictures were
+  made with the client's own notices store (the scratch Fleet saves no notes), so its card shows the default icon and no Undo.
+  (4) Fleet's pictures show the empty home, not the open session the native ones show; the state of the notice is the same.
+  (5) Reduced motion is Rune's own (spatial travel snaps).
 
 ### Piece N: the Fleet restarted notice
 

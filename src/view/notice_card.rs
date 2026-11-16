@@ -1,16 +1,18 @@
 //! The notice card (`components/notices/NoticeCard.vue`): an icon tile, the title and body, a close button, an optional
 //! list, a countdown bar and the action buttons. Fixed 12 from the right and 40 from the bottom, just above the status
 //! bar. Which card is open, when it opens and how long it stays are `fleet::notices`; this file only draws it and
-//! hands presses back (row 7.5 to 7.8). The enter and settle animations and the lift over a composer are piece M's.
+//! hands presses back (row 7.5 to 7.8). It rises in over 260 ms, and settles over 320 ms into the corner of its chip
+//! (row 7.9); with a composer under it, it lifts to 8 above it (row 7.5, `fleet::notice_place`).
 use crate::State;
+use crate::fleet::notice_place::{self, Place};
 use crate::fleet::notices::{Action, ActionTone, ItemKind, Notice, Tone};
 use crate::icons::{CIRCLE_ARROW_UP, X};
 use crate::theme::{RADIUS_BTN, RADIUS_PANEL, Theme, sans};
-use rune::{Color, Cursor, El, Key, KeyEvent, Link, LinkPaint, Shadow, Span, Tx, col, el, icon, rich, row, text};
+use rune::{Color, Cursor, El, Key, KeyEvent, Link, LinkPaint, Shadow, Span, Spring, Tx, col, el, icon, rich, row, text};
 
-/// Where the card sits, from the bottom-right corner.
-const RIGHT: f32 = 12.0;
-const BOTTOM: f32 = 40.0;
+use crate::fleet::notices::{ENTER_SECS as ENTER, SETTLE_SECS as SETTLE};
+const ENTER_SECS: f32 = ENTER as f32;
+const SETTLE_SECS: f32 = SETTLE as f32;
 /// 264 wide, 340 with a list to read.
 const WIDTH: f32 = 264.0;
 const WIDTH_LIST: f32 = 340.0;
@@ -19,7 +21,8 @@ const INDENT: f32 = 36.0;
 
 /// The open card, or none while no notice is open.
 pub fn view(s: &State, t: &Theme) -> Option<El> {
-    let n = s.notices.open()?;
+    let leaving = s.notices.open().is_none();
+    let n = s.notices.open().or_else(|| s.notices.leaving())?;
     let width = if n.items.is_empty() { WIDTH } else { WIDTH_LIST };
     let mut card = col()
         .key("notice-card")
@@ -35,6 +38,8 @@ pub fn view(s: &State, t: &Theme) -> Option<El> {
         .box_shadow(Shadow { x: 0.0, y: 1.0, blur: 0.0, spread: 0.0, color: t.wash(4.0), inset: true })
         .box_shadow(Shadow { x: 0.0, y: 16.0, blur: 36.0, spread: -16.0, color: Color::BLACK.alpha(0.4), inset: false })
         .on_hover_change(|s: &mut State, inside: bool, _: &mut Tx| s.notices.set_hover(inside))
+        .on_layout(|s: &mut State, rect| s.place.card = rect)
+        .origin(1.0, 1.0)
         .child(top(t, n));
     if !n.items.is_empty() {
         card = card.child(items(t, n));
@@ -48,7 +53,41 @@ pub fn view(s: &State, t: &Theme) -> Option<El> {
     if !n.actions.is_empty() {
         card = card.child(actions(t, &n.actions));
     }
-    Some(col().key("notice-frame").absolute(0.0, 0.0).w_full().h_full().justify_end().items_end().pr(RIGHT).pb(BOTTOM).child(card))
+    // A composer only counts while the session view that holds it is the one showing.
+    let composer =
+        s.place.composer.filter(|_| s.rail == crate::Rail::Sessions && matches!(s.route, crate::fleet::store::Route::Session(_)));
+    let bottom = Place { composer, ..s.place }.bottom();
+    let card = pose(s, card, leaving);
+    Some(
+        col()
+            .key("notice-frame")
+            .absolute(0.0, 0.0)
+            .w_full()
+            .h_full()
+            .justify_end()
+            .items_end()
+            .pr(notice_place::RIGHT)
+            .pb(bottom)
+            .on_layout(|s: &mut State, [_, _, w, h]| s.place.window = [w, h])
+            .child(card),
+    )
+}
+
+/// In: up from 8 px below and from 98%, fading in. Out: into the chip's corner, shrinking to the chip's width and fading; or
+/// where it is, fading, when its chip's place isn't known yet. Each is the card's resting look changed on a spring, so it
+/// moves on the frames after it is drawn at rest, and both turn about the bottom-right corner.
+fn pose(s: &State, card: El, leaving: bool) -> El {
+    let (dx, dy, scale, opacity, secs) = if leaving {
+        let (off, scale) = if s.notices.leaving_started() { s.place.settle().unzip() } else { (Some([0.0, 0.0]), Some(1.0)) };
+        let [dx, dy] = off.unwrap_or([0.0, 0.0]);
+        (dx, dy, scale.unwrap_or(1.0), if s.notices.leaving_started() { 0.0 } else { 1.0 }, SETTLE_SECS)
+    } else if s.notices.risen() {
+        (0.0, 0.0, 1.0, 1.0, ENTER_SECS)
+    } else {
+        (0.0, 8.0, 0.98, 0.0, ENTER_SECS)
+    };
+    let spring = Spring::new(secs, 0.0);
+    card.offset(dx, dy).offset_motion(spring).scale(scale).scale_motion(spring).opacity(opacity).opacity_motion(spring)
 }
 
 /// The window's key handler, for Esc while focus is inside the card (`onCardKeydown`). True when it took the key.
