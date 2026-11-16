@@ -143,15 +143,19 @@ impl Queues {
         self.items.insert(session.to_string(), items);
     }
 
-    /// Adds an item unless the event got there first.
+    /// Adds an item unless the event got there first. A load asked for before this answer may still be on its way
+    /// with the queue as it was, so it is older than this and is dropped (else it takes the item away again).
     pub fn add(&mut self, session: &str, item: Item) {
+        *self.generation.entry(session.to_string()).or_default() += 1;
         let items = self.items.entry(session.to_string()).or_default();
         if !items.iter().any(|i| i.id == item.id) {
             items.push(item);
         }
     }
 
+    /// Takes an item out; a load asked for earlier would put it back, so it is dropped like in `add`.
     pub fn remove(&mut self, session: &str, id: &str) {
+        *self.generation.entry(session.to_string()).or_default() += 1;
         if let Some(items) = self.items.get_mut(session) {
             items.retain(|i| i.id != id);
         }

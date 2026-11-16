@@ -97,6 +97,8 @@ fn pump(
     seconds: f64,
     until: impl Fn(&crate::State) -> bool,
 ) -> bool {
+    // A wait for something to happen gets the shared bound; only a "nothing more happens" window keeps its own length.
+    let seconds = if seconds >= 10.0 || seconds == 3.0 { crate::test_wait::BOUND.as_secs_f64() } else { seconds };
     let end = Instant::now() + Duration::from_secs_f64(seconds);
     while Instant::now() < end {
         while let Ok(job) = queue.try_recv() {

@@ -11,6 +11,8 @@ mod icons;
 mod mock;
 mod script;
 #[cfg(test)]
+mod test_wait;
+#[cfg(test)]
 mod tests;
 #[cfg(test)]
 mod tests_asks;

@@ -152,12 +152,15 @@ fn refuses_a_file_over_25_mb() {
     std::fs::File::options().write(true).open(&path).unwrap().set_len(26 * 1024 * 1024).unwrap();
     let p = path.clone();
     rt.update(move |s, tx| s.add_files(&[p], tx));
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
-    while rt.state.attach_error().is_none() {
-        assert!(std::time::Instant::now() < deadline, "the refusal");
-        rt.frame(FRAME);
-        std::thread::sleep(std::time::Duration::from_millis(5));
-    }
+    crate::test_wait::until(
+        &mut rt,
+        "the refusal",
+        |rt| {
+            rt.frame(FRAME);
+            rt.state.attach_error().is_some()
+        },
+        |rt| format!("error {:?}", rt.state.attach_error()),
+    );
     assert_eq!(rt.state.attach_error(), Some("dump.zip is 26 MB. The limit is 25 MB."));
     assert!(names(&rt).is_empty());
     forget(&path);
@@ -170,12 +173,15 @@ fn files_count_with_pictures_toward_the_ten_and_a_picture_alone_still_sends() {
     let all = paths.clone();
     rt.update(move |s, tx| s.add_files(&all, tx));
     assert_eq!(rt.state.attach_error(), Some("10 files at most per prompt."));
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
-    while rt.state.held_files().len() < 10 {
-        assert!(std::time::Instant::now() < deadline, "ten chips");
-        rt.frame(FRAME);
-        std::thread::sleep(std::time::Duration::from_millis(5));
-    }
+    crate::test_wait::until(
+        &mut rt,
+        "ten chips",
+        |rt| {
+            rt.frame(FRAME);
+            rt.state.held_files().len() >= 10
+        },
+        |rt| format!("{} files held", rt.state.held_files().len()),
+    );
     for p in &paths {
         forget(p);
     }

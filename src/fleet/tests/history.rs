@@ -12,7 +12,7 @@ use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tungstenite::Message;
 
 // ─── history-merge.test.ts ──────────────────────────────────────────────────
@@ -429,16 +429,8 @@ fn an_older_page_is_asked_for_over_the_hub_a_refusal_is_retried_and_the_page_joi
     let link = Link::start(base, post);
     rt.update(move |s, _| s.link = Some(link));
 
-    let deadline = Instant::now() + Duration::from_secs(20);
     let step = |rt: &mut Runtime<State>, until: &dyn Fn(&State) -> bool, what: &str| {
-        while !until(&rt.state) {
-            assert!(Instant::now() < deadline, "{what}: {:?} {:?}", rt.state.older(), rt.state.notice);
-            while let Ok(job) = queue.try_recv() {
-                rt.update(job);
-            }
-            rt.frame(1.0 / 60.0);
-            std::thread::sleep(Duration::from_millis(10));
-        }
+        crate::test_wait::drive(rt, &queue, what, until, |s| format!("{:?} {:?}", s.older(), s.notice));
     };
     // A conversation that fits the window is at its top, so Fleet asks for the page by itself (`updatePinnedState`); the
     // first ask is the one the server refuses.

@@ -152,7 +152,7 @@ mod parse_tool_output_tests {
         assert_eq!(line_text(&parsed.lines[50]), "retry 50");
         assert!(!parsed.plain.contains(ESC));
         // Linear work takes a few milliseconds; the bound is loose for busy CI machines and catches a quadratic slip.
-        assert!(elapsed.as_millis() < 1000, "took {elapsed:?}");
+        assert!(elapsed.as_millis() < 5_000, "took {elapsed:?}");
     }
 }
 

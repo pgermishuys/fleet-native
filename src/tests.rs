@@ -1390,7 +1390,7 @@ fn events_press_is_taken_by_a_monitor_with_a_call() {
 pub(crate) fn finish(stream: &mut std::net::TcpStream) {
     use std::io::Read;
     let _ = stream.shutdown(std::net::Shutdown::Write);
-    let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(2)));
+    let _ = stream.set_read_timeout(Some(crate::test_wait::BOUND));
     let mut sink = [0u8; 256];
     while matches!(stream.read(&mut sink), Ok(n) if n > 0) {}
 }
@@ -1675,13 +1675,14 @@ fn activity_stream_and_work_fleet_stopped_asks_fleet_for_older_work_when_the_str
     assert_eq!(notices(&rt).remove(0).state, BackgroundState::Error);
     let id = rt.state.open_id().unwrap();
     assert_eq!(rt.state.work.older_for.as_deref(), Some(id.as_str()));
-    let started = std::time::Instant::now();
     // The link's own hub negotiation arrives too: look for the one call this test is about.
     let wanted = format!("GET /api/sessions/{id}/work?all=true ");
-    while !seen.lock().unwrap().iter().any(|l| l.starts_with(&wanted)) && started.elapsed().as_secs() < 5 {
-        std::thread::sleep(std::time::Duration::from_millis(20));
-    }
-    assert!(seen.lock().unwrap().iter().any(|l| l.starts_with(&wanted)), "{:?}", seen.lock().unwrap());
+    crate::test_wait::until(
+        &mut (),
+        &format!("the call {wanted:?}"),
+        |_| seen.lock().unwrap().iter().any(|l| l.starts_with(&wanted)),
+        |_| format!("calls seen: {:?}", seen.lock().unwrap()),
+    );
     // Its answer (delivered here by hand: the test's `Post` drops the app's own delivery) turns the notice to stopped.
     let (_, work) = stopped_shell("sh_dev");
     rt.update(move |s, _| s.on_older_work(&id, Ok((200, serde_json::json!([work])))));

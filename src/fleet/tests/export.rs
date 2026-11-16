@@ -154,13 +154,15 @@ fn saves_title_md_on_save() {
     std::fs::create_dir_all(&folder).unwrap();
     let path = folder.join(&name);
     rt.resolve_file_dialog(Some(path.clone())).unwrap();
-    for _ in 0..200 {
-        rt.frame(FRAME);
-        if path.exists() && rt.state.ui.toast.is_some() {
-            break;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(5));
-    }
+    crate::test_wait::until(
+        &mut rt,
+        "the export file and its toast",
+        |rt| {
+            rt.frame(FRAME);
+            path.exists() && rt.state.ui.toast.is_some()
+        },
+        |rt| format!("file exists {}, toast {:?}", path.exists(), rt.state.ui.toast.is_some()),
+    );
     let written = std::fs::read_to_string(&path).unwrap();
     assert_eq!(written, rt.state.export.dialog.as_ref().unwrap().markdown());
     assert!(written.contains("## You"));

@@ -110,14 +110,12 @@ fn a_change_reaches_the_file_on_disk_without_the_ui_thread_waiting_for_it() {
     let mut rt = app();
     let dir = with_folder(&mut rt, "disk");
     click(&mut rt, "project-0");
-    let mut found = false;
-    for _ in 0..200 {
-        if crate::fleet::settings::load(&dir).is_group_collapsed(&project_group_key("home", &rt.state.projects[0].id)) {
-            found = true;
-            break;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(10));
-    }
+    let key = project_group_key("home", &rt.state.projects[0].id);
+    let result = std::panic::catch_unwind(|| {
+        crate::test_wait::until_true("the folded group to be written", || crate::fleet::settings::load(&dir).is_group_collapsed(&key))
+    });
     let _ = std::fs::remove_dir_all(&dir);
-    assert!(found, "the folded group was written");
+    if let Err(e) = result {
+        std::panic::resume_unwind(e);
+    }
 }

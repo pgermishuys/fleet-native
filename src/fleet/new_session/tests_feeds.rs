@@ -511,7 +511,6 @@ mod live {
     use std::net::TcpListener;
     use std::sync::mpsc::channel;
     use std::sync::{Arc, Mutex};
-    use std::time::{Duration, Instant};
 
     fn serve(route: impl Fn(&str, &str) -> (u16, String) + Send + Sync + 'static) -> (String, Arc<Mutex<Vec<String>>>) {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
@@ -556,15 +555,7 @@ mod live {
     }
 
     fn wait(rt: &mut rune::Runtime<State>, queue: &std::sync::mpsc::Receiver<Job>, until: impl Fn(&State) -> bool, what: &str) {
-        let end = Instant::now() + Duration::from_secs(15);
-        while !until(&rt.state) {
-            assert!(Instant::now() < end, "{what}");
-            while let Ok(job) = queue.try_recv() {
-                rt.update(job);
-            }
-            rt.frame(1.0 / 60.0);
-            std::thread::sleep(Duration::from_millis(10));
-        }
+        crate::test_wait::drive(rt, queue, what, until, crate::test_wait::app_state);
     }
 
     #[test]
@@ -660,17 +651,18 @@ mod live {
         rt.update(move |s, _| {
             s.inspect_folder(home, "/src/rocket", Box::new(move |_, _, r| tx.send(r).unwrap()));
         });
-        let end = Instant::now() + Duration::from_secs(15);
-        let inspected = loop {
-            while let Ok(job) = queue.try_recv() {
-                rt.update(job);
-            }
-            if let Ok(r) = rx.try_recv() {
-                break r;
-            }
-            assert!(Instant::now() < end, "the inspection");
-            std::thread::sleep(Duration::from_millis(10));
-        };
+        let mut inspected = None;
+        crate::test_wait::drive(
+            &mut rt,
+            &queue,
+            "the inspection",
+            |_| {
+                inspected = inspected.take().or_else(|| rx.try_recv().ok());
+                inspected.is_some()
+            },
+            crate::test_wait::app_state,
+        );
+        let inspected = inspected.unwrap();
         assert!(inspected.unwrap().is_git_repo);
     }
 

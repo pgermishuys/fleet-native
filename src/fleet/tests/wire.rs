@@ -10,7 +10,6 @@ use rune::{App, Env};
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::mpsc::{Sender, channel};
-use std::time::{Duration, Instant};
 use tungstenite::Message;
 
 fn reply(stream: &mut TcpStream, body: &str) {
@@ -117,7 +116,6 @@ fn the_hub_thread_fills_the_state_from_a_server_and_sends_prompts() {
     let mut rt = App::new(spec()).headless_runtime((1280.0, 760.0), Env::new(true, 1.0));
     let link = Link::start(base, post);
     rt.update(move |s, _| s.link = Some(link));
-    let deadline = Instant::now() + Duration::from_secs(20);
     // The server replays the turn's frames one by one; the reply text arrives before the closing
     // status event, so wait for the status too instead of reading it mid-replay.
     let done = |s: &State| {
@@ -128,27 +126,13 @@ fn the_hub_thread_fills_the_state_from_a_server_and_sends_prompts() {
                 .iter()
                 .any(|m| m.parts.iter().any(|p| matches!(p, Part::Text { text, .. } if text.contains("All 42 tests pass"))))
     };
-    while !done(&rt.state) {
-        assert!(
-            Instant::now() < deadline,
-            "the list, snapshot and events didn't all arrive: {:?}, {:?}, {} projects, {} messages",
-            rt.state.connection,
-            rt.state.notice,
-            rt.state.projects.len(),
-            rt.state.session().messages.len()
-        );
-        while let Ok(job) = queue.try_recv() {
-            rt.update(job);
-        }
-        rt.frame(1.0 / 60.0);
-        std::thread::sleep(Duration::from_millis(10));
-    }
+    crate::test_wait::drive(&mut rt, &queue, "the list, snapshot and events", done, crate::test_wait::app_state);
     assert_eq!(rt.state.session().title, "Fix pagination");
     assert_eq!(rt.state.session().status, Status::Idle);
 
     let id = rt.state.open_id().unwrap();
     rt.update(move |s, _| s.send_to_server(&id, "run-tests"));
-    let body: Value = serde_json::from_str(&sent.recv_timeout(Duration::from_secs(10)).expect("the prompt reached the server")).unwrap();
+    let body: Value = serde_json::from_str(&crate::test_wait::recv("the prompt to reach the server", &sent)).unwrap();
     assert_eq!(body["text"], "run-tests");
     // The correlation id the optimistic prompt waits on goes with it.
     assert!(body["correlationId"].as_str().unwrap().starts_with("prompt-"), "{body}");

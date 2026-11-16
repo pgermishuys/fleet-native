@@ -12,9 +12,6 @@ use std::io::{BufRead, BufReader, Write};
 use std::net::TcpListener;
 use std::sync::Mutex;
 use std::sync::mpsc::channel;
-use std::time::{Duration, Instant};
-
-const FRAME: f64 = 1.0 / 60.0;
 
 fn choice(status: &str) -> Value {
     json!({"callId": "c1", "status": status, "at": "2026-10-16T12:00:00Z"})
@@ -176,14 +173,6 @@ fn loads_the_canvases_when_the_session_opens() {
         s.on_list(sessions::parse_list(&serde_json::from_str(&fixture("api-sessions.json")).unwrap(), 0), tx);
     });
     let id = rt.state.open_id().unwrap();
-    let deadline = Instant::now() + Duration::from_secs(20);
-    while rt.state.pages.of(&id).is_empty() {
-        assert!(Instant::now() < deadline, "the canvases to load");
-        while let Ok(job) = jobs.try_recv() {
-            rt.update(job);
-        }
-        rt.frame(FRAME);
-        std::thread::sleep(Duration::from_millis(10));
-    }
+    crate::test_wait::drive(&mut rt, &jobs, "the canvases to load", |s| !s.pages.of(&id).is_empty(), crate::test_wait::app_state);
     assert_eq!(status_of(&rt.state, &id), [("c1".to_string(), 2, Some(ChoiceStatus::Waiting))], "the browser canvas is component 14's");
 }
