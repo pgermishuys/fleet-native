@@ -172,7 +172,7 @@ impl State {
     }
 
     /// The title `id` shows now, in home's list or another machine's.
-    fn title_of(&self, id: &str) -> Option<String> {
+    pub(crate) fn title_of(&self, id: &str) -> Option<String> {
         if let Some((p, i)) = self.row_of(id) {
             return Some(self.projects[p].sessions[i].title.clone());
         }
@@ -275,7 +275,7 @@ impl State {
     }
 
     /// Reads the list `session` is in again: home's own, or only that machine's (`refreshList`, `refreshMachine`).
-    fn list_again(&mut self, session: &str) {
+    pub(crate) fn list_again(&mut self, session: &str) {
         let key = self.machine_key_of(session).to_string();
         self.list_again_on(&key);
     }

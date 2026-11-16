@@ -165,7 +165,9 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
     {
         layer.push(list.anchored_fit("composer-frame", rune::Side::Top, rune::Align::Start, 0.0));
     }
-    if let Some(toast) = &s.ui.toast {
+    // One toast: what the archive waits on or failed at, else a plain message (`ArchiveUndoToast`).
+    let queued = s.queue_toast();
+    if let Some(toast) = queued.as_ref().or(s.ui.toast.as_ref()) {
         layer.push(
             rune::col()
                 .key("toast-frame")

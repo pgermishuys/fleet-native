@@ -1641,6 +1641,23 @@ Items marked **Decision** need the owner or the orchestrator before the piece th
   Mock data needs invented machine names ("hangar", "macbook" are in the Vue tests; fine) and one down machine.
 
 
+## Piece I, built (16 November 2026)
+
+Archive with Undo, pins and the row's hover buttons. `src/fleet/archive_queue.rs` (the 6 s wait on the app clock, hidden ids while waiting and sending, one flush per session side by side, the failure words, restore, `queue_toast`), `src/fleet/pins.rs` (`PUT`/`DELETE .../pin`, optimistic order from `pin_order_for`, roll-back, re-reading every order on home when the server renumbered, `move_pin`), `src/view/row_actions.rs` (the buttons), `src/ui/toast.rs` (`Kind::{Message, Undo, Error}`; Undo's hover is 26% now), `machine_tree::build_hiding`, `http::text_with` learned PUT. Every call goes through `link_for(session)`, so a session of another machine is archived and pinned on that machine with its token (tested against two fake Fleets). Tests: `src/tests_archive_pins.rs` (25; "archive queue" 7 and "session pins" 5 under Fleet's names, the toast, the buttons, another machine, the requests).
+
+Done: **2.150-2.157**, **3.60-3.65**, **4.20-4.26**, **1.89, 1.91-1.95** (logic and toast; 1.90 and the group are J's), **3.72** Alt+Up/Down. Not drawn live because the scratch Fleet can't make it: the error toast (a scene), Restore (needs piece K's Archived view; tested with `Retention::All`).
+
+Open, with reasons: **3.61/3.62** `isSelecting` hides the buttons: selection is piece J. **3.65** `isAnyActionPending` is only "restoring" here (rename and delete are optimistic or modal). **4.27/4.20** the lineage-move Undo shares the toast but lineage is piece M; the toast's enter/leave motion (150 ms fade) is not drawn: the toast appears and goes at once. **3.72** focus does not return to the moved row (the Pinned group that would move it is J's). The Archive and Pin items in the right-click menu (and the header's Archive) are still stubs: piece L and component 8. A pinned row stays in its project until piece J draws the Pinned group. Archiving the open session leaves it open, as Fleet does; the next list read then drops it. v0.72.0's buttons carry no `data-testid`; its titles `Archive`/`Pin to top` match `main`.
+
+Pictures, Fleet's own client (left) beside native, one scratch Fleet v0.72.0: the hovered row, and the Undo toast 2.5 s into its drain. Scenes (native only): the toast at 3 s, and the error toast.
+
+![hover, dark](../../shots/parity/06-session-list/piece-i/pair-hover-dark.png)
+![hover, light](../../shots/parity/06-session-list/piece-i/pair-hover-light.png)
+![undo, dark](../../shots/parity/06-session-list/piece-i/pair-undo-dark.png)
+![undo, light](../../shots/parity/06-session-list/piece-i/pair-undo-light.png)
+![error, dark](../../shots/parity/06-session-list/piece-i/scene-archive-error.png)
+![error, light](../../shots/parity/06-session-list/piece-i/scene-archive-error-light.png)
+
 ## Pieces, in build order
 
 Twenty pull requests, each a fresh session working from this file alone. Sizes are Rust lines with

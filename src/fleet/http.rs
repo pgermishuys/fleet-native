@@ -307,6 +307,7 @@ pub fn text_with(method: &str, base: &str, path: &str, body: Option<&Value>) -> 
         "GET" => agent.get(target).call(),
         "DELETE" => agent.delete(target).call(),
         "PATCH" => agent.patch(target).header("content-type", "application/json").send(json()),
+        "PUT" => agent.put(target).header("content-type", "application/json").send(json()),
         _ => agent.post(target).header("content-type", "application/json").send(json()),
     };
     let mut response = response.map_err(|e| e.to_string())?;

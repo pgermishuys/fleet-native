@@ -3,6 +3,7 @@
 //! Hover buttons, rename, the menu and lineage come after (docs/parity/06-session-list.md, rows 3.x).
 use super::parts::{cut_dot, status_glyph};
 use super::progress_ring::progress_ring;
+use super::row_actions::{Buttons, actions};
 use crate::fleet::actions::RENAME_FIELD;
 use crate::fleet::row_chips::{self, Checks, PrBadge, PrState};
 use crate::fleet::row_status::{self, Dim, Glyph, RowItem, RowStatus, Tone};
@@ -168,7 +169,6 @@ pub fn session_row_with(s: &State, t: &Theme, clock: &RowClock, p: usize, i: usi
         .radius(RADIUS_BTN)
         .fill(if active { t.wash(9.0) } else { Color::TRANSPARENT })
         .hover(if active { Color::TRANSPARENT } else { t.wash(5.0) })
-        .hover_group()
         .cursor(Cursor::Pointer)
         .focusable(true)
         .focus_ring(2.0, -2.0, t.accent)
@@ -177,11 +177,12 @@ pub fn session_row_with(s: &State, t: &Theme, clock: &RowClock, p: usize, i: usi
         .on_double_press_tx(move |s: &mut State, tx: &mut Tx| s.start_row_rename(p, i, tx))
         // `handleRowKeydown`: F2 renames.
         .on_key(move |s: &mut State, ev: &KeyEvent, tx: &mut Tx| {
+            let id = s.projects.get(p).and_then(|project| project.sessions.get(i)).map(|x| x.id.clone()).unwrap_or_default();
             if ev.key == Key::Function(2) {
                 s.start_row_rename(p, i, tx);
                 return true;
             }
-            false
+            move_pin_key(s, ev, &id)
         })
         .on_secondary_press(move |s: &mut State, at, _: &mut Tx| {
             s.ui.point = (at.x, at.y);
@@ -191,7 +192,7 @@ pub fn session_row_with(s: &State, t: &Theme, clock: &RowClock, p: usize, i: usi
         .child(el().key(format!("session-caret-{key}")).size(14.0, 14.0).mr(-4.0))
         .child(glyph)
         .child(
-            text(title)
+            text(title.clone())
                 .key(format!("session-title-{key}"))
                 .font(sans(13.0, if active { 500.0 } else { 400.0 }, 1.3))
                 .color(title_ink(t, active, dim))
@@ -199,20 +200,48 @@ pub fn session_row_with(s: &State, t: &Theme, clock: &RowClock, p: usize, i: usi
                 .truncate()
                 .grow(1.0),
         );
-    line = tail(s, t, &key, session, &status, dim, slots, line);
-    el().w_full().py(1.0).child(line)
+    let buttons = Buttons::of(session, false);
+    line = tail(s, t, &key, session, &status, dim, slots, buttons, line);
+    // The shell holds the pointer for the buttons beside the row: they show while it is over either.
+    let mut shell = el().w_full().py(1.0).hover_group().child(line);
+    for button in actions(s, t, &key, session, &title, buttons, None) {
+        shell = shell.child(button);
+    }
+    shell
+}
+
+/// `handleRowKeydown`: Alt+Up and Alt+Down move a pinned row's pin one place.
+pub fn move_pin_key(s: &mut State, ev: &KeyEvent, id: &str) -> bool {
+    if !ev.mods.alt || !matches!(ev.key, Key::Up | Key::Down) || !s.is_pinned(id) {
+        return false;
+    }
+    s.move_pin(id, if ev.key == Key::Up { -1 } else { 1 });
+    true
 }
 
 /// What follows the title on a row: the running chip, the pull request, the progress ring and one of the step note, the kind
 /// label and the status word. Both the list's own rows and another machine's rows end like this.
 #[allow(clippy::too_many_arguments)]
-pub fn tail(s: &State, t: &Theme, key: &str, session: &Session, status: &RowStatus, dim: Dim, slots: Slots, mut line: El) -> El {
+pub fn tail(
+    s: &State,
+    t: &Theme,
+    key: &str,
+    session: &Session,
+    status: &RowStatus,
+    dim: Dim,
+    slots: Slots,
+    buttons: Buttons,
+    mut line: El,
+) -> El {
     let key = key.to_string();
     if session.row.running_work > 0 {
-        line = line.child(running_chip(t, &key, session.row.running_work));
+        // The buttons take the right edge: the chip and the badge give way to two of them, the word and the ring to one.
+        let chip = running_chip(t, &key, session.row.running_work);
+        line = line.child(if buttons.two() { chip.group_opacity(1.0, 0.0) } else { chip });
     }
     if let Some(pr) = &session.row.pr {
-        line = line.child(pr_badge(t, &key, pr));
+        let badge = pr_badge(t, &key, pr);
+        line = line.child(if buttons.two() { badge.group_opacity(1.0, 0.0) } else { badge });
     }
     let progress = row_chips::progress_view(session.row.progress.as_ref(), status.tone);
     if let Some(view) = progress {
@@ -231,7 +260,7 @@ pub fn tail(s: &State, t: &Theme, key: &str, session: &Session, status: &RowStat
                     .color(t.row_meta_ink()),
             );
         }
-        line = line.child(group);
+        line = line.child(if buttons.any() { group.group_opacity(1.0, 0.0) } else { group });
     }
     // One of: the step note, the kind label, the status word (which the count replaces).
     if let Some(note) = slots.step_note {
@@ -252,7 +281,7 @@ pub fn tail(s: &State, t: &Theme, key: &str, session: &Session, status: &RowStat
     } else if !progress.is_some_and(|v| v.count)
         && let Some(word) = word(t, &key, status, dim)
     {
-        line = line.child(word);
+        line = line.child(if buttons.any() { word.group_opacity(1.0, 0.0) } else { word });
     }
     line
 }

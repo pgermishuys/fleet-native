@@ -3,6 +3,7 @@
 //! real server (`tests/fixtures/`). The impure parts (`http`, `link`) do the network work on their
 //! own threads and hand results to the state.
 pub mod actions;
+pub mod archive_queue;
 pub mod asks;
 pub mod attach;
 pub mod auth;
@@ -42,6 +43,7 @@ pub mod modes;
 pub mod new_session;
 pub mod pages;
 pub mod panel;
+pub mod pins;
 pub mod prefs;
 pub mod presence;
 pub mod projects;
