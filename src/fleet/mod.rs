@@ -55,6 +55,7 @@ pub mod settings;
 pub mod signalr;
 pub mod state;
 pub mod store;
+pub mod tls;
 pub mod topics;
 pub mod uploads;
 pub mod usage;

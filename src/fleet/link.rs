@@ -9,13 +9,13 @@ use super::refresh::Refresh;
 use super::rows::RowPatch;
 use super::signalr::{self, Frame};
 use super::state::Topic;
+use super::tls::Stream;
 use super::topics::{Topics, reconnect_delay};
 use super::{groups, http, sessions};
 use crate::State;
 use rune::{AppHandle, Tx};
 use serde_json::{Value, json};
 use std::collections::HashMap;
-use std::net::TcpStream;
 use std::sync::Arc;
 use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender, channel};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -293,8 +293,8 @@ fn run(base: String, rx: Receiver<Cmd>, post: Post) {
 /// Makes a presence or focus call. Its answer is never read: an older Fleet without the method answers with
 /// an error, and `serve` ignores a completion it didn't ask for.
 fn send_call(
-    call: &mut impl FnMut(&mut WebSocket<TcpStream>, &str, Vec<Value>) -> Result<u32, String>,
-    ws: &mut WebSocket<TcpStream>,
+    call: &mut impl FnMut(&mut WebSocket<Stream>, &str, Vec<Value>) -> Result<u32, String>,
+    ws: &mut WebSocket<Stream>,
     c: Call,
 ) -> Result<(), String> {
     match c {
@@ -309,21 +309,37 @@ fn history_failed(post: &Post, session: String, cursor: String, why: &str) {
     post.update(move |s, _| s.on_history_page(&session, &cursor, Err(why)));
 }
 
-pub(crate) fn host_of(base: &str) -> Result<String, String> {
-    let rest = base.strip_prefix("http://").ok_or("only http:// servers are supported so far (no TLS)")?;
-    let host = rest.trim_end_matches('/');
-    // `http://127.0.0.1` has no port to connect to: it is 80, as for any browser.
-    let has_port = host.rsplit_once(':').is_some_and(|(_, p)| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit()));
-    Ok(if has_port { host.to_string() } else { format!("{host}:80") })
+/// Whether `base` is reached over TLS (`https://`, and so `wss://` for the hub).
+pub(crate) fn is_secure(base: &str) -> bool {
+    base.starts_with("https://")
 }
 
-fn connect(base: &str) -> Result<WebSocket<TcpStream>, String> {
+/// `host:port` of a server address, for the socket; the scheme's default port when there is none, as for any browser.
+pub(crate) fn host_of(base: &str) -> Result<String, String> {
+    let (rest, default) = match (base.strip_prefix("http://"), base.strip_prefix("https://")) {
+        (Some(rest), _) => (rest, "80"),
+        (_, Some(rest)) => (rest, "443"),
+        _ => return Err("a server address starts with http:// or https://".to_string()),
+    };
+    let host = rest.split(['/', '?', '#']).next().unwrap_or("");
+    let has_port = host.rsplit_once(':').is_some_and(|(_, p)| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit()));
+    Ok(if has_port { host.to_string() } else { format!("{host}:{default}") })
+}
+
+/// The name a certificate must be for: `host_of` without the port, and without the brackets of an IPv6 address.
+fn name_of(host_port: &str) -> &str {
+    let host = host_port.rsplit_once(':').map_or(host_port, |(h, _)| h);
+    host.trim_start_matches('[').trim_end_matches(']')
+}
+
+pub(crate) fn connect(base: &str) -> Result<WebSocket<Stream>, String> {
     let host = host_of(base)?;
+    let secure = is_secure(base);
     let token = http::negotiate(base)?;
-    let stream = TcpStream::connect(&host).map_err(|e| e.to_string())?;
-    let _ = stream.set_nodelay(true);
+    let stream = Stream::open(secure, &host, name_of(&host))?;
+    let scheme = if secure { "wss" } else { "ws" };
     let (mut ws, _) =
-        tungstenite::client(format!("ws://{host}/hubs/session-events?id={token}{}", super::auth::hub_query_for(base)), stream)
+        tungstenite::client(format!("{scheme}://{host}/hubs/session-events?id={token}{}", super::auth::hub_query_for(base)), stream)
             .map_err(|e| e.to_string())?;
     ws.send(Message::text(signalr::handshake())).map_err(|e| e.to_string())?;
     // The handshake's answer is the first frame; read it blocking, then switch to short reads.
@@ -344,7 +360,7 @@ fn connect(base: &str) -> Result<WebSocket<TcpStream>, String> {
 
 /// Serves one connection until it fails; the error says why.
 fn serve(
-    mut ws: WebSocket<TcpStream>,
+    mut ws: WebSocket<Stream>,
     base: &str,
     rx: &Receiver<Cmd>,
     topics: &mut Topics,
@@ -353,7 +369,7 @@ fn serve(
     post: &Post,
 ) -> String {
     let mut next_id = 0u32;
-    let mut call = |ws: &mut WebSocket<TcpStream>, target: &str, args: Vec<Value>| -> Result<u32, String> {
+    let mut call = |ws: &mut WebSocket<Stream>, target: &str, args: Vec<Value>| -> Result<u32, String> {
         next_id += 1;
         ws.send(Message::text(signalr::invocation(next_id, target, &args))).map_err(|e| e.to_string())?;
         Ok(next_id)

@@ -962,6 +962,7 @@ dependencies = [
  "libc",
  "rune",
  "rune-kit",
+ "rustls",
  "self-replace",
  "serde_json",
  "sha2",
@@ -969,6 +970,7 @@ dependencies = [
  "tungstenite",
  "ureq",
  "wasm-bindgen",
+ "webpki-roots",
  "winresource",
  "zip",
 ]
