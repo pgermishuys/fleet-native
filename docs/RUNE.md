@@ -1054,3 +1054,7 @@ A context-menu row's label is one text run, so a machine's name in the mono face
 `auto_grow(field, min, max)` returns a scroll wrapper keyed `"scroll"`. A `.key(..)` set on what it returns replaces that
 key, so clicks and `tx.focus` on the key never reach the field. Key the field and attach `on_edit` first, then wrap it
 (`ui::controls::textarea_field` and `grow`).
+
+## Component 6, piece P (the draft row)
+
+- Nothing new about Rune. `TextEdit::replace_text` (and `clear`) drops the undo history; `State::set_draft_text` selects all and `insert`s instead, so a text written into the open composer from outside can still be undone.
