@@ -86,7 +86,15 @@ fn row_menu(s: &State, t: &Theme, session: &crate::mock::Session, machine: Optio
     let menu = crate::fleet::row_menu::build(s, session, machine);
     // The footer says the hovered row's hint, else where the session is; the read-only menu has none.
     let footer = menu.footer.map(|f| s.ui.hint.clone().unwrap_or(f)).or_else(|| s.ui.hint.clone());
-    super::menu::context_hint(t, "ctx", s.ui.point, menu.entries, Some(super::rem(16.5)), footer, s.ui.sub.as_deref())
+    super::menu::context_nested(
+        t,
+        "ctx",
+        s.ui.point,
+        menu.entries,
+        Some(super::rem(16.5)),
+        footer,
+        (s.ui.sub.as_deref(), s.ui.sub2.as_deref()),
+    )
 }
 
 /// The right-click menu of a project on another machine: Rename, which goes to that machine. New session, Move and Delete

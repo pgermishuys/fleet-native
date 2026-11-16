@@ -1035,3 +1035,9 @@ A context-menu row's label is one text run, so a machine's name in the mono face
 - **A test can't see a radio's checked flag** (`ElementInfo` has none): read the state that drives it.
 - **Text won't break inside a long word** (a shell command): give the text's box a `max_w` and `.wrap().w_full()`; it breaks at spaces and at hyphens.
 - **A scripted scroll** is `{"type":"wheel","key":"<element>","dy":-330}` (negative scrolls down).
+
+## Component 6, piece N (the Open in submenu)
+
+- **A panel sized to its content leaves the widest row touching the right edge**, and a `truncate()` label in it is cut to "Code..." because the panel measures rows at their minimum. `ui::menu::fit_width` estimates the width from the longest label (letters, icon, chevron, paddings) and the rows of such a panel don't truncate. A real measure-then-size would replace it.
+- **Submenus nest by key, one field per level** (`Ui::sub`, `Ui::sub2`): a row's press sets its level's field, and a press on level 0 clears level 1. Escape closes the innermost `modal` first, so each level's panel carries its own close handler.
+- **No looping rotation**: the spinner is the same slow fade as `ui::confirm::spinner`, now shared with the menu's "Detecting tools..." and "Loading..." rows.

@@ -78,6 +78,8 @@ pub struct Ui {
     pub hint: Option<String>,
     /// The row of the open menu whose submenu is open (its key).
     pub sub: Option<String>,
+    /// The row of that submenu whose own submenu is open (Open in > an editor with key files).
+    pub sub2: Option<String>,
 }
 
 impl Ui {
@@ -86,6 +88,7 @@ impl Ui {
         self.point = at;
         self.hint = None;
         self.sub = None;
+        self.sub2 = None;
         self.open = Some(open);
     }
 }
@@ -110,6 +113,7 @@ impl Default for Ui {
             confirm: None,
             hint: None,
             sub: None,
+            sub2: None,
         }
     }
 }

@@ -34,6 +34,12 @@ pub struct Item {
     pub disabled: bool,
     pub mark: Mark,
     pub sub: Option<Vec<Entry>>,
+    /// The submenu is as wide as its rows (min 8rem), not the context menu's fixed width (`ContextMenuSubContent`'s default).
+    pub sub_fit: bool,
+    /// A 14px spinner where the icon goes ("Detecting tools…").
+    pub spinner: bool,
+    /// The label in the mono face, 12.25px (a key file's path).
+    pub mono: bool,
     pub run: Option<Action>,
     /// The label ends in a machine's name, drawn in mono 11.5 px / 600 (`machine-header__menu-name`): where it starts.
     pub name_at: Option<usize>,
@@ -55,6 +61,9 @@ impl Item {
             disabled: false,
             mark: Mark::None,
             sub: None,
+            sub_fit: false,
+            spinner: false,
+            mono: false,
             run: None,
             name_at: None,
             id: None,
@@ -98,6 +107,20 @@ impl Item {
         self.sub = Some(entries);
         self
     }
+    /// `submenu`, sized to its rows.
+    pub fn submenu_fit(mut self, entries: Vec<Entry>) -> Self {
+        self.sub = Some(entries);
+        self.sub_fit = true;
+        self
+    }
+    pub fn mono(mut self) -> Self {
+        self.mono = true;
+        self
+    }
+    pub fn spinner(mut self) -> Self {
+        self.spinner = true;
+        self
+    }
     /// "`before` `name`" with the name in the machine-name type; one line, a long name cut short.
     pub fn with_name(mut self, before: &str, name: &str) -> Self {
         self.label = format!("{before} {name}");
@@ -126,7 +149,7 @@ pub fn shortcut_chip(t: &Theme, label: &str) -> El {
         .child(text(label.to_string()).font(sans(10.0, 500.0, 1.0)).color(t.muted))
 }
 
-fn row_el(t: &Theme, key: String, it: Item, closes: bool, chevron: bool, top: bool) -> El {
+fn row_el(t: &Theme, key: String, it: Item, closes: bool, chevron: bool, top: bool, fit: bool) -> El {
     let ink = if it.destructive { t.destructive } else { t.text };
     let glyph_ink = if it.destructive { t.destructive } else { t.muted };
     let highlight = if it.destructive { t.destructive.alpha(0.12) } else { t.wash(7.0) };
@@ -159,7 +182,9 @@ fn row_el(t: &Theme, key: String, it: Item, closes: bool, chevron: bool, top: bo
             e = e.pl(rem(2.0)).child(dot);
         }
     }
-    if let Some(g) = it.icon {
+    if it.spinner {
+        e = e.child(super::confirm::spinner(glyph_ink));
+    } else if let Some(g) = it.icon {
         e = e.child(icon(g, rem(0.875)).color(glyph_ink).group_color(if it.destructive { t.destructive } else { t.text }));
     }
     e = match it.name_at {
@@ -180,7 +205,12 @@ fn row_el(t: &Theme, key: String, it: Item, closes: bool, chevron: bool, top: bo
                     .child(text(it.label).font(sans(13.0, 400.0, 1.3)).color(ink))
                     .child(text(note.clone()).font(sans(11.5, 400.0, 1.3)).color(t.muted).wrap().w_full()),
             ),
-            None => e.child(text(it.label).font(sans(13.0, 400.0, 1.3)).color(ink).grow(1.0).min_w(0.0).truncate()),
+            None => {
+                let font = if it.mono { mono(rem(0.75), 400.0, 1.3) } else { sans(13.0, 400.0, 1.3) };
+                let label = text(it.label).font(font).color(ink).grow(1.0);
+                // A panel sized to its rows must not cut them short.
+                e.child(if fit { label } else { label.min_w(0.0).truncate() })
+            }
         },
     };
     if let Some(s) = it.shortcut {
@@ -210,6 +240,24 @@ fn row_el(t: &Theme, key: String, it: Item, closes: bool, chevron: bool, top: bo
     e
 }
 
+/// A width for a panel sized to its rows (Rune's shrink-to-fit leaves the widest row touching the edge): the longest label at
+/// a generous per-letter width, with the icon, the chevron and the paddings.
+pub fn fit_width(entries: &[Entry]) -> f32 {
+    let widest = entries
+        .iter()
+        .filter_map(|e| match e {
+            Entry::Item(it) => {
+                let letters = it.label.chars().count() as f32 * if it.mono { 7.4 } else { 6.9 };
+                let lead = if it.icon.is_some() || it.spinner { 14.0 + rem(0.5) } else { 0.0 };
+                let tail = if it.sub.is_some() { 14.0 + rem(0.5) } else { 0.0 };
+                Some(letters + lead + tail + 2.0 * rem(0.5) + 10.0)
+            }
+            _ => None,
+        })
+        .fold(0.0_f32, f32::max);
+    widest.max(rem(8.0))
+}
+
 /// The panel: `rounded-card border bg-card-bg p-[5px] shadow-(--menu-shadow)`, min width 8rem.
 pub fn panel(t: &Theme, key: &str, entries: Vec<Entry>) -> El {
     panel_capped(t, key, entries, None)
@@ -221,7 +269,7 @@ pub fn panel_capped(t: &Theme, key: &str, entries: Vec<Entry>, max_h: Option<f32
 }
 
 /// A submenu a row opens: the key of its trigger row, and its rows.
-pub type Sub = (String, Vec<Entry>);
+pub type Sub = (String, Vec<Entry>, bool);
 
 /// The key of the row `i` of menu `key` (`Item::id`, else `<menu>-item<i>`).
 fn item_key(key: &str, i: usize, it: &Item) -> String {
@@ -231,6 +279,20 @@ fn item_key(key: &str, i: usize, it: &Item) -> String {
 /// `panel_capped` with the hint footer (`footer` is what it says now) and the submenus its rows open. `top` is false for a
 /// submenu's own rows, which do not touch the footer.
 pub fn panel_full(t: &Theme, key: &str, entries: Vec<Entry>, max_h: Option<f32>, footer: Option<String>, top: bool) -> (El, Vec<Sub>) {
+    panel_level(t, key, entries, max_h, footer, top, (0, false))
+}
+
+/// `panel_full` for the menu at nesting `level` (with whether its rows fit their panel): 0 is the menu itself, 1 its submenu. A row's submenu opens by setting
+/// `Ui::sub` (level 0) or `Ui::sub2` (level 1).
+fn panel_level(
+    t: &Theme,
+    key: &str,
+    entries: Vec<Entry>,
+    max_h: Option<f32>,
+    footer: Option<String>,
+    top: bool,
+    (level, fit_rows): (u8, bool),
+) -> (El, Vec<Sub>) {
     let mut subs = Vec::new();
     let mut list = col().key("rows").items_stretch();
     for (i, entry) in entries.into_iter().enumerate() {
@@ -241,12 +303,17 @@ pub fn panel_full(t: &Theme, key: &str, entries: Vec<Entry>, max_h: Option<f32>,
                 let chevron = sub.is_some();
                 if let Some(rows) = sub {
                     let open = k.clone();
+                    let fit = it.sub_fit;
                     it.run = Some(Rc::new(move |s: &mut State, _: &mut Tx| {
-                        s.ui.sub = if s.ui.sub.as_deref() == Some(open.as_str()) { None } else { Some(open.clone()) };
+                        let slot = if level == 0 { &mut s.ui.sub } else { &mut s.ui.sub2 };
+                        *slot = if slot.as_deref() == Some(open.as_str()) { None } else { Some(open.clone()) };
+                        if level == 0 {
+                            s.ui.sub2 = None;
+                        }
                     }));
-                    subs.push((k.clone(), rows));
+                    subs.push((k.clone(), rows, fit));
                 }
-                row_el(t, k, it, !chevron, chevron, top)
+                row_el(t, k, it, !chevron, chevron, top, fit_rows)
             }
             Entry::Separator => el().key(format!("{key}-sep{i}")).h(1.0).mx(2.0).my(4.0).fill(t.border),
             Entry::Label(l) => {
@@ -334,6 +401,19 @@ pub fn context_hint(
     footer: Option<String>,
     open: Option<&str>,
 ) -> Vec<El> {
+    context_nested(t, key, at, entries, width, footer, (open, None))
+}
+
+/// `context_hint` with a second level: `open` is the submenu's row and the submenu's own open row.
+pub fn context_nested(
+    t: &Theme,
+    key: &str,
+    at: (f32, f32),
+    entries: Vec<Entry>,
+    width: Option<f32>,
+    footer: Option<String>,
+    open: (Option<&str>, Option<&str>),
+) -> Vec<El> {
     let point = format!("{key}-point");
     let (mut p, subs) = panel_full(t, key, entries, None, footer, true);
     if let Some(w) = width {
@@ -346,11 +426,20 @@ pub fn context_hint(
         anchored(p, &point, Side::Bottom, Align::Start, 0.0),
     ];
     // `ContextMenuSubContent`: beside its trigger; Escape closes it before the menu.
-    for (trigger, rows) in subs.into_iter().filter(|(k, _)| Some(k.as_str()) == open) {
+    for (trigger, rows, fit) in subs.into_iter().filter(|(k, ..)| Some(k.as_str()) == open.0) {
         let sub_key = format!("{trigger}-sub");
-        let (panel, _) = panel_full(t, &sub_key, rows, None, None, false);
-        let panel = panel.w(rem(13.0)).modal(true, |s: &mut State| s.ui.sub = None);
+        let width = fit_width(&rows);
+        let (panel, inner) = panel_level(t, &sub_key, rows, None, None, false, (1, fit));
+        let panel = if fit { panel.w(width) } else { panel.w(rem(13.0)) };
+        let panel = panel.modal(true, |s: &mut State| s.ui.sub = None);
         out.push(anchored(panel, &trigger, Side::Right, Align::Start, 4.0));
+        for (inner_trigger, inner_rows, _) in inner.into_iter().filter(|(k, ..)| Some(k.as_str()) == open.1) {
+            let width = fit_width(&inner_rows);
+            let (panel, _) = panel_level(t, &format!("{inner_trigger}-sub"), inner_rows, None, None, false, (2, true));
+            let panel = panel.w(width);
+            let panel = panel.modal(true, |s: &mut State| s.ui.sub2 = None);
+            out.push(anchored(panel, &inner_trigger, Side::Right, Align::Start, 4.0));
+        }
     }
     out
 }

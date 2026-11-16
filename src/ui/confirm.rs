@@ -110,7 +110,7 @@ impl State {
 }
 
 /// `Spinner` (`size="sm"`): 14px, turning.
-fn spinner(ink: Color) -> El {
+pub(crate) fn spinner(ink: Color) -> El {
     static FADE: [(f32, f32); 3] = [(0.0, 1.0), (0.5, 0.35), (1.0, 1.0)];
     icon(&LOADER_CIRCLE, 14.0).color(ink).cycle(Cycle { period: 1.2, phase: 0.0, stops: &FADE, still: 1.0, fps: 30.0 })
 }
