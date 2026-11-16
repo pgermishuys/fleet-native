@@ -1,7 +1,8 @@
 //! The home page (`FleetDashboard.vue`, `PageHeader.vue`, `EmptyState.vue`, `ErrorNote.vue`, `routes/index.tsx`'s centre): the
 //! greeting and what needs the user, the harness banner, the loading, error and empty states, and the three sections of
-//! sessions. The summary bar (F), the hover actions, "Show N more" and the retention filter's menu (E) are not drawn yet.
-use super::dashboard_row::dashboard_row;
+//! sessions, "Show N more" and the retention filter's menu. On another machine the same page draws that machine's sessions
+//! (read by `fleet::dashboard_machine`) with no row actions. The summary bar (F) is not drawn yet.
+use super::dashboard_row::{At, dashboard_row};
 use super::session_row::RowClock;
 use crate::State;
 use crate::fleet::dashboard::{self, Bucket};
@@ -11,7 +12,7 @@ use crate::mock::Session;
 use crate::theme::{RADIUS_BTN, RADIUS_CARD, RADIUS_PANEL, Theme, sans};
 use crate::ui::button::{Size, Variant, button};
 use crate::ui::rem;
-use rune::{Align, Cycle, El, ScrollSpec, col, el, icon, row, text};
+use rune::{Align, Cursor, Cycle, El, ScrollSpec, col, el, icon, row, text};
 
 /// How many quiet sessions show before "Show more" (`RECENT_LIMIT`).
 pub const RECENT_LIMIT: usize = 8;
@@ -21,19 +22,22 @@ const COLUMN: f32 = 1040.0;
 /// Where the dashboard's sessions are: each one's place in `State::projects`, the way the rows open them.
 #[derive(Clone, Copy)]
 struct Placed<'a> {
-    p: usize,
-    i: usize,
+    at: At,
     session: &'a Session,
 }
 
 /// The sessions the dashboard lists, in each section, newest first (`shown`, `sections`).
 fn placed(s: &State) -> [Vec<Placed<'_>>; 3] {
-    let all: Vec<Placed> = s
-        .projects
-        .iter()
-        .enumerate()
-        .flat_map(|(p, project)| project.sessions.iter().enumerate().map(move |(i, session)| Placed { p, i, session }))
-        .collect();
+    // Another machine's page lists what it read itself; the live machine's is the session list's.
+    let all: Vec<Placed> = if s.dashboard_on_other().is_some() {
+        s.dash.other.sessions.iter().map(|session| Placed { at: At::There, session }).collect()
+    } else {
+        s.projects
+            .iter()
+            .enumerate()
+            .flat_map(|(p, project)| project.sessions.iter().enumerate().map(move |(i, session)| Placed { at: At::Here(p, i), session }))
+            .collect()
+    };
     let shown = dashboard::shown(all.iter().map(|x| x.session), s.store.retention, &|id| s.archive.hides(id));
     // `workflowWaiting` is the workflows' store (component 23): no run waits until it exists.
     let sections = dashboard::sections(&shown, &|_| false);
@@ -167,17 +171,30 @@ fn retention_word(r: Retention) -> &'static str {
     }
 }
 
-/// `RetentionFilter`'s button: "Show: Active" and a chevron. The menu behind it is piece E's.
+/// `RetentionFilter`'s button: "Show: Active" and a chevron; it opens the menu of the three (`menus::retention`).
 fn filter_label(t: &Theme, word: &str) -> El {
     row()
         .key("home-filter")
-        .gap(4.0)
+        .role("button")
+        .label(format!("Show: {word}"))
+        .gap(rem(0.375))
         .center_y()
-        .px(6.0)
+        .px(rem(0.625))
         .h(rem(1.75))
         .radius(RADIUS_BTN)
-        .child(text(format!("Show: {word}")).font(sans(12.25, 400.0, 1.3)).color(t.muted))
-        .child(icon(&CHEVRON_DOWN, 14.0).color(t.muted))
+        .cursor(Cursor::Pointer)
+        .focusable(true)
+        .focus_ring(2.0, 1.0, t.accent)
+        .hover(t.wash(7.0))
+        .hover_group()
+        .on_press(|s: &mut State| s.ui.open = Some(crate::ui::Open::Menu("retention")))
+        .child(text(format!("Show: {word}")).font(sans(12.5, 400.0, 1.3)).color(t.muted).group_color(t.text))
+        .child(icon(&CHEVRON_DOWN, rem(0.875)).color(t.muted).group_color(t.text))
+}
+
+/// The word of a retention in the filter and its menu.
+pub fn retention_label(r: Retention) -> &'static str {
+    retention_word(r)
 }
 
 /// A section's title: the name and its count (`dashboard__section-title`).
@@ -192,7 +209,7 @@ fn title(key: &str, name: &str, count: usize, ink: rune::Color, pad: f32) -> El 
 }
 
 fn rows(s: &State, t: &Theme, clock: &RowClock, list: &[Placed]) -> El {
-    col().w_full().children(list.iter().map(|x| dashboard_row(s, t, clock, x.p, x.i, x.session)))
+    col().w_full().children(list.iter().map(|x| dashboard_row(s, t, clock, x.at, x.session)))
 }
 
 fn section(s: &State, t: &Theme, clock: &RowClock, which: Bucket, list: &[Placed]) -> El {
@@ -234,9 +251,28 @@ fn section(s: &State, t: &Theme, clock: &RowClock, which: Bucket, list: &[Placed
                 .py(16.0),
         );
     } else {
-        // Piece E adds "Show N more" under the first eight.
-        let shown = if which == Bucket::Recent { &list[..list.len().min(RECENT_LIMIT)] } else { list };
+        let all = which == Bucket::Recent && s.dash.show_all_recent;
+        let shown = if which == Bucket::Recent && !all { &list[..list.len().min(RECENT_LIMIT)] } else { list };
         out = out.child(rows(s, t, clock, shown));
+    }
+    if which == Bucket::Recent && list.len() > RECENT_LIMIT {
+        let word = if s.dash.show_all_recent { "Show fewer".to_string() } else { format!("Show {} more", list.len() - RECENT_LIMIT) };
+        out = out.child(
+            row()
+                .key("home-more")
+                .role("button")
+                .label(word.clone())
+                .px(6.0)
+                .py(4.0)
+                .ml(4.0)
+                .radius(RADIUS_BTN)
+                .cursor(Cursor::Pointer)
+                .focusable(true)
+                .focus_ring(2.0, 1.0, t.accent)
+                .hover_group()
+                .on_press(|s: &mut State| s.toggle_recent())
+                .child(text(word).font(sans(12.5, 400.0, 1.3)).color(t.muted).group_color(t.text)),
+        );
     }
     out
 }
@@ -253,8 +289,11 @@ pub fn page(s: &State, t: &Theme) -> El {
         body = body.child(harness_banner(t, &reason));
     }
     let nothing = needs.is_empty() && working.is_empty() && recent.is_empty();
-    let loading = s.store.is_loading && nothing;
-    if let Some(reason) = &s.store.error {
+    // Another machine's list is asked for once the page is shown: until then it is loading, not empty.
+    let other = s.dashboard_on_other().is_some();
+    let loading = nothing && if other { s.dash.other.key.is_none() || s.dash.other.loading } else { s.store.is_loading };
+    let error = if other { s.dash.other.error.as_ref() } else { s.store.error.as_ref() };
+    if let Some(reason) = error {
         body = body.child(error_note(t, "Couldn't load sessions.", reason));
     }
     if loading {
@@ -268,9 +307,9 @@ pub fn page(s: &State, t: &Theme) -> El {
                 .child(spinner(t))
                 .child(text("Loading sessions…").font(sans(13.0, 400.0, 1.3)).color(t.muted)),
         );
-    } else if nothing && s.store.error.is_none() {
+    } else if nothing && error.is_none() {
         body = body.child(empty(t, s.store.retention == Retention::Archived));
-    } else if !(nothing && s.store.error.is_some()) {
+    } else if !(nothing && error.is_some()) {
         if !needs.is_empty() {
             body = body.child(section(s, t, &clock, Bucket::NeedsYou, &needs));
         }

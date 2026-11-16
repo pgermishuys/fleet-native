@@ -31,6 +31,12 @@ pub enum Scene {
     Error,
     /// No harness is ready: the banner with Fleet's reason.
     Harness,
+    /// The three of `Three` and ten more quiet ones: Recent has eleven, shows eight and "Show 3 more".
+    Many,
+    /// The "Show:" menu open over the three sections.
+    Filter,
+    /// The window works on an invented machine "falcon": its sessions, read-only rows.
+    Machine,
 }
 
 impl State {
@@ -59,6 +65,65 @@ impl State {
                 if scene == Scene::Error {
                     self.store.error = Some("The server didn't answer (503).".into());
                 }
+            }
+            Scene::Many => {
+                self.show_home_scene(Scene::Three, dark);
+                let titles = [
+                    "Rename the tide table",
+                    "Sort the harbour log",
+                    "Tune the cache sizes",
+                    "Write the tide parser",
+                    "Check the lamp timer",
+                    "Draft the release notes",
+                    "Label the chart legend",
+                    "Trim the image sizes",
+                    "Name the map layers",
+                    "Rerun the nightly import",
+                ];
+                for (n, title) in titles.iter().enumerate() {
+                    let mut x = crate::mock::machines::listed(&format!("q{n}"), title, crate::mock::Status::Idle, "1h", None, |_| {});
+                    x.ago_secs = Some(3600 * (n as i64 + 2));
+                    x.row.updated = 0;
+                    x.listing.project_name = Some("Scratch".into());
+                    x.branch.clear();
+                    self.projects[0].sessions.push(x);
+                }
+            }
+            Scene::Filter => self.ui.open = Some(crate::ui::Open::Menu("retention")),
+            Scene::Machine => {
+                use crate::mock::machines::{Case, listed};
+                self.show_machines_only(Case::Several);
+                self.now_ms = Some(crate::mock::rows::NOW);
+                let rows = vec![
+                    listed(
+                        "f-fence",
+                        "Paint the fence",
+                        crate::mock::Status::NeedsInput,
+                        "3h",
+                        Some(("p-lighthouse", "Lighthouse")),
+                        |_| {},
+                    ),
+                    listed(
+                        "f-fork",
+                        "Try the other lens model",
+                        crate::mock::Status::Working,
+                        "now",
+                        Some(("p-lighthouse", "Lighthouse")),
+                        |_| {},
+                    ),
+                    listed(
+                        "f-plan",
+                        "Plan the lamp rewiring",
+                        crate::mock::Status::Idle,
+                        "12m",
+                        Some(("p-lighthouse", "Lighthouse")),
+                        |_| {},
+                    ),
+                    listed("f-tomato", "Water the tomatoes", crate::mock::Status::Idle, "2d", Some(("p-garden", "Garden")), |_| {}),
+                ];
+                self.machines.set_current("m-falcon");
+                self.dash.other.key = Some("m-falcon".into());
+                self.dash.other.sessions = rows;
             }
             Scene::Harness => {
                 let mut off = super::new_session::harness_choice::HarnessEntry::ready("opencode");

@@ -33,6 +33,8 @@ pub struct Item {
     pub destructive: bool,
     pub disabled: bool,
     pub mark: Mark,
+    /// A check after the label when `Some(true)` (the retention filter's `justify-between` row); nothing when `Some(false)`.
+    pub end_check: Option<bool>,
     pub sub: Option<Vec<Entry>>,
     /// The submenu is as wide as its rows (min 8rem), not the context menu's fixed width (`ContextMenuSubContent`'s default).
     pub sub_fit: bool,
@@ -60,6 +62,7 @@ impl Item {
             destructive: false,
             disabled: false,
             mark: Mark::None,
+            end_check: None,
             sub: None,
             sub_fit: false,
             spinner: false,
@@ -101,6 +104,11 @@ impl Item {
     }
     pub fn mark(mut self, m: Mark) -> Self {
         self.mark = m;
+        self
+    }
+    /// The row's check sits after its label, drawn only while `on`.
+    pub fn end_check(mut self, on: bool) -> Self {
+        self.end_check = Some(on);
         self
     }
     pub fn submenu(mut self, entries: Vec<Entry>) -> Self {
@@ -170,7 +178,7 @@ fn row_el(t: &Theme, key: String, it: Item, closes: bool, chevron: bool, top: bo
     if held {
         e = e.fill(highlight);
     }
-    e = e.focusable(!it.disabled).focus_selected(matches!(it.mark, Mark::Check(true) | Mark::Radio(true)));
+    e = e.focusable(!it.disabled).focus_selected(matches!(it.mark, Mark::Check(true) | Mark::Radio(true)) || it.end_check == Some(true));
     if !it.disabled {
         e = e.focus_highlight(highlight).hover(highlight);
     } else {
@@ -218,6 +226,9 @@ fn row_el(t: &Theme, key: String, it: Item, closes: bool, chevron: bool, top: bo
             }
         },
     };
+    if it.end_check == Some(true) {
+        e = e.child(icon(&crate::icons::CHECK, rem(1.0)).color(t.text));
+    }
     if let Some(s) = it.shortcut {
         e = e.child(shortcut_chip(t, &s).ml(rem(0.5)));
     }

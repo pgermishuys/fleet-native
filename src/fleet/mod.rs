@@ -18,6 +18,7 @@ pub mod context;
 pub mod context_chips;
 pub mod context_tab;
 pub mod dashboard;
+pub mod dashboard_machine;
 pub mod delegations;
 pub mod discover;
 pub mod drafts;
