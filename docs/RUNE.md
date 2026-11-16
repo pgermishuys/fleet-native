@@ -1200,3 +1200,12 @@ in Rune stops a drop in the wrong tree. Nothing in Rune got in the way otherwise
   answers `/api/machines` with an empty list unless told; its poll then replaces any machines a test put in by hand. Give the fake the
   machine list (and the other machine its sessions, projects and identity) rather than setting `machines.list`.
 - **A poll that must stop when its page is covered keys off the route and the rail, not the route alone** (component 9, piece F): a rail pressed from Home leaves the route at Home and only swaps what is drawn, so the summary bar's reads stop on `route == Home && rail == Sessions`. `wake_after(1 s)` from `poll` is enough to run 30 s and 5 min timers; no thread sleeps.
+
+## Component 9, piece J (usage chip and popover)
+
+- A bar with a mark over it: `clip_rounded` on the track also clips a child that sticks out, so the pace tick (2 px, a 1 px ring as a
+  `box_shadow` spread) sits in a plain frame beside the clipped bar, not inside it.
+- A popover that must watch while open: don't call watch/unwatch from the handlers (a press outside, Esc and another menu all clear
+  `ui.open` without them). Compare `ui.open` with a flag in the poll and count the change there.
+- A grid with `minmax(70px, 1fr)` is a `grow(1).min_w(70)` cell next to fixed-width ones; let its text `wrap()` as the browser does.
+- A button inside a stretched column fills the width: wrap it in a `row()` to keep its own width.

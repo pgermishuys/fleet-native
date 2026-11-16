@@ -354,3 +354,15 @@ pub const fn sans(size: f32, weight: f32, line: f32) -> TextStyle {
 pub const fn mono(size: f32, weight: f32, line: f32) -> TextStyle {
     TextStyle::new(size, weight).mono().lh(size * line)
 }
+
+impl Theme {
+    /// `.usage-pop__tick`'s `#fff`: the pace mark on a usage bar, white in both themes.
+    pub fn usage_tick(&self) -> Color {
+        c("#ffffff")
+    }
+
+    /// `color-mix(in srgb, #000 45%, transparent)`: the 1 px ring that keeps the tick visible on the filled and the empty part.
+    pub fn usage_tick_ring(&self) -> Color {
+        c("#000000").alpha(0.45)
+    }
+}

@@ -130,10 +130,13 @@ pub fn bar(s: &State, t: &Theme) -> El {
         .child(end(s, t, session))
 }
 
-/// `status-bar__end`: running work first (more chips to come), then the session part.
+/// `status-bar__end`: running work, the usage chip (more chips to come), then the session part.
 fn end(s: &State, t: &Theme, session: El) -> El {
     let mut end = row().center_y().gap(10.0);
     if let Some(chip) = super::running_counter::chip(s, t) {
+        end = end.child(chip);
+    }
+    if let Some(chip) = super::usage_chip::chip(s, t) {
         end = end.child(chip);
     }
     end.child(session)

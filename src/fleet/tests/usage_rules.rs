@@ -360,20 +360,20 @@ fn words_credits_as_money_left_or_used_and_github_s_ai_credits_apart() {
 
 // ─── use-usage-limits.test.ts ───────────────────────────────────────────────
 
-fn body(name: &str) -> String {
+pub(crate) fn body(name: &str) -> String {
     json!({"enabled": true, "providers": [{"provider": name, "name": name, "state": "ok", "windows": []}]}).to_string()
 }
 
 /// A server that remembers what it was asked ("GET /path?query") and answers the paths in `routes` (a path without its
 /// query, or a prefix ending in `/`) with a status and a body, 404 for the rest.
-struct Fake {
-    base: String,
+pub(crate) struct Fake {
+    pub(crate) base: String,
     asked: Arc<Mutex<Vec<String>>>,
 }
 
-type Routes = Vec<(&'static str, u16, String)>;
+pub(crate) type Routes = Vec<(&'static str, u16, String)>;
 
-fn fake(routes: Routes) -> Fake {
+pub(crate) fn fake(routes: Routes) -> Fake {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let asked: Arc<Mutex<Vec<String>>> = Arc::default();
@@ -418,7 +418,7 @@ fn fake(routes: Routes) -> Fake {
 }
 
 /// A Fleet answering the usage limits with `limits`, and an Allow or revoke with `allow_status`.
-fn usage_fleet(limits: &str, allow_status: u16, mut more: Routes) -> Fake {
+pub(crate) fn usage_fleet(limits: &str, allow_status: u16, mut more: Routes) -> Fake {
     more.push(("/api/usage/limits", 200, limits.to_string()));
     more.push(("/api/usage/limits/", allow_status, String::new()));
     fake(more)
@@ -426,22 +426,22 @@ fn usage_fleet(limits: &str, allow_status: u16, mut more: Routes) -> Fake {
 
 impl Fake {
     /// What it was asked about usage: Fleet's link asks for other things too (the machines, the hub, plugins).
-    fn asked(&self) -> Vec<String> {
+    pub(crate) fn asked(&self) -> Vec<String> {
         self.asked.lock().unwrap().iter().filter(|a| a.contains("/api/usage/")).cloned().collect()
     }
 
-    fn count(&self, what: &str) -> usize {
+    pub(crate) fn count(&self, what: &str) -> usize {
         self.asked().iter().filter(|a| a.as_str() == what).count()
     }
 }
 
-struct Rig {
-    rt: rune::Runtime<State>,
-    jobs: Receiver<Job>,
+pub(crate) struct Rig {
+    pub(crate) rt: rune::Runtime<State>,
+    pub(crate) jobs: Receiver<Job>,
 }
 
 impl Rig {
-    fn new(home: &Fake) -> Rig {
+    pub(crate) fn new(home: &Fake) -> Rig {
         let (tx, jobs) = channel::<Job>();
         let tx = Mutex::new(tx);
         let mut rt = crate::tests::app();
@@ -450,7 +450,7 @@ impl Rig {
         Rig { rt, jobs }
     }
 
-    fn until(&mut self, what: &str, done: impl FnMut(&State) -> bool) {
+    pub(crate) fn until(&mut self, what: &str, done: impl FnMut(&State) -> bool) {
         crate::test_wait::drive(&mut self.rt, &self.jobs, what, done, |s| format!("providers {:?}", names(s)));
     }
 
@@ -467,7 +467,7 @@ fn names(s: &State) -> Vec<String> {
 }
 
 /// Waits for `n` reads of exactly `what` to have reached the fake.
-fn reads(rig: &mut Rig, fake: &Fake, what: &str, n: usize) {
+pub(crate) fn reads(rig: &mut Rig, fake: &Fake, what: &str, n: usize) {
     crate::test_wait::until_true(&format!("{n} × {what}"), || {
         while let Ok(job) = rig.jobs.try_recv() {
             rig.rt.update(job);

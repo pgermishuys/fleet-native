@@ -152,6 +152,7 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
         Some(Open::Popover("harness")) => crate::view::harness_picker::overlay(s, t),
         Some(Open::Popover("profile")) => crate::view::profile_picker::overlay(s, t),
         Some(Open::Popover("machine")) => crate::view::machine_picker::overlay(s, t),
+        Some(Open::Popover("usage")) => crate::view::usage_popover::overlay(s, t),
         Some(Open::Popover("running")) => crate::view::running_counter::overlay(s, t),
         Some(Open::Popover("pr")) => crate::view::pr_popover::overlay(s, t),
         Some(Open::Popover("analytics")) => crate::view::analytics::overlay(s, t),

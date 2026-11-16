@@ -91,6 +91,8 @@ pub mod summary_bar;
 pub mod toolcard;
 pub mod toolrow;
 pub mod update;
+pub mod usage_chip;
+pub mod usage_popover;
 pub mod work;
 pub mod work_output;
 pub mod working;

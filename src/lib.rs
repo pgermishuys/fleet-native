@@ -121,6 +121,8 @@ mod tests_status_bar;
 #[cfg(test)]
 mod tests_summary_bar;
 #[cfg(test)]
+mod tests_usage_popover;
+#[cfg(test)]
 mod tests_workspace;
 mod theme;
 pub mod ui;
@@ -2702,6 +2704,46 @@ pub fn spec() -> AppSpec<State> {
             }),
             ("work-output-loading", |s| s.show_work(mock::work::Case::OutputLoading)),
             ("work-stop-refused", |s| s.show_work(mock::work::Case::StopRefused)),
+            ("usage-chip-quiet", |s| s.show_usage(mock::usage::Case::Quiet, false)),
+            ("usage-chip-quiet-light", |s| {
+                s.dark = Some(false);
+                s.show_usage(mock::usage::Case::Quiet, false)
+            }),
+            ("usage-chip-warn", |s| s.show_usage(mock::usage::Case::Warn, false)),
+            ("usage-chip-warn-light", |s| {
+                s.dark = Some(false);
+                s.show_usage(mock::usage::Case::Warn, false)
+            }),
+            ("usage-chip-used", |s| s.show_usage(mock::usage::Case::Used, false)),
+            ("usage-chip-used-light", |s| {
+                s.dark = Some(false);
+                s.show_usage(mock::usage::Case::Used, false)
+            }),
+            ("usage-chip-no-bar", |s| s.show_usage(mock::usage::Case::NoBar, false)),
+            ("usage-chip-no-bar-light", |s| {
+                s.dark = Some(false);
+                s.show_usage(mock::usage::Case::NoBar, false)
+            }),
+            ("usage-popover-providers", |s| s.show_usage(mock::usage::Case::Providers, true)),
+            ("usage-popover-providers-light", |s| {
+                s.dark = Some(false);
+                s.show_usage(mock::usage::Case::Providers, true)
+            }),
+            ("usage-popover-states", |s| s.show_usage(mock::usage::Case::States, true)),
+            ("usage-popover-states-light", |s| {
+                s.dark = Some(false);
+                s.show_usage(mock::usage::Case::States, true)
+            }),
+            ("usage-popover-pace", |s| s.show_usage(mock::usage::Case::Pace, true)),
+            ("usage-popover-pace-light", |s| {
+                s.dark = Some(false);
+                s.show_usage(mock::usage::Case::Pace, true)
+            }),
+            ("usage-popover-machines", |s| s.show_usage(mock::usage::Case::Machines, true)),
+            ("usage-popover-machines-light", |s| {
+                s.dark = Some(false);
+                s.show_usage(mock::usage::Case::Machines, true)
+            }),
             ("running-closed", |s| s.show_running(mock::running::Case::One, false)),
             ("running-closed-light", |s| {
                 s.dark = Some(false);

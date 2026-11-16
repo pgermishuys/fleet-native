@@ -113,6 +113,7 @@ pub mod toolbar;
 pub mod topics;
 pub mod uploads;
 pub mod usage;
+pub mod usage_chip;
 pub mod usage_rules;
 pub mod view;
 pub mod work;
