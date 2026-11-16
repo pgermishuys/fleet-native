@@ -171,7 +171,14 @@ impl Sidebar {
     }
 
     pub fn remembered_right(&self, session: &str) -> Option<bool> {
-        self.right_choice(session).or(self.last_right)
+        let by_content = if self.empty_sessions.contains(session) {
+            Some(true)
+        } else if self.opened_by_change.contains(session) {
+            Some(false)
+        } else {
+            None
+        };
+        self.right_choice(session).or(by_content).or(self.last_right)
     }
 
     /// The user opened or closed the right panel. The last choice anywhere always changes; the session's own only when a

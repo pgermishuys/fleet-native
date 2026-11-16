@@ -61,6 +61,7 @@ pub mod queued;
 mod rail;
 mod reasoning;
 mod recap;
+mod right_rail;
 pub mod ring;
 pub mod ring_popover;
 pub mod row_actions;
