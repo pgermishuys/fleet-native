@@ -41,6 +41,9 @@ pub enum Open {
     Context(usize, usize),
     /// A right-click menu on a project's header: its place in the list.
     ProjectMenu(usize),
+    /// A right-click menu on a row, or on a project's header, of another machine (`State::machine_menu` says which).
+    MachineContext,
+    MachineProjectMenu,
     Select(&'static str),
     Popover(&'static str),
     Directory,
@@ -114,6 +117,8 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
         Some(Open::Menu(name)) => menus::dropdown(s, t, name),
         Some(Open::Context(p, i)) => menus::session_context(s, t, p, i),
         Some(Open::ProjectMenu(p)) => menus::project_context(s, t, p),
+        Some(Open::MachineContext) => menus::machine_session_context(s, t),
+        Some(Open::MachineProjectMenu) => menus::machine_project_context(s, t),
         Some(Open::Select(name)) => gallery::select_content(s, t, name),
         Some(Open::Popover("context")) => crate::view::ring_popover::overlay(s, t),
         Some(Open::Popover("allowed")) => crate::view::allowed::overlay(s, t),

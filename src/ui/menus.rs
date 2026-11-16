@@ -78,6 +78,63 @@ pub fn session_context(s: &State, t: &Theme, p: usize, i: usize) -> Vec<El> {
     )
 }
 
+/// The right-click menu of a row on another machine: this machine's menu, with Copy path where Open in is (the folder is on
+/// that machine) and no Repeat on a schedule (Automations is this machine's page).
+pub fn machine_session_context(s: &State, t: &Theme) -> Vec<El> {
+    let Some((machine, id)) = s.machine_menu.clone() else { return Vec::new() };
+    let (m1, i1, m2, i2, m3, i3, m4, i4) =
+        (machine.clone(), id.clone(), machine.clone(), id.clone(), machine.clone(), id.clone(), machine.clone(), id.clone());
+    super::menu::context_w(
+        t,
+        "ctx",
+        s.ui.point,
+        vec![
+            Entry::Item(
+                Item::new("Open").icon(&MESSAGE_SQUARE).on(move |s: &mut State, tx: &mut Tx| s.open_machine_session(&machine, &id, tx)),
+            ),
+            Entry::Item(Item::new("Rename").icon(&PENCIL).shortcut("F2").on(move |s: &mut State, tx: &mut Tx| {
+                s.ui.open = None;
+                s.start_machine_row_rename(&m1, &i1, tx);
+            })),
+            waiting("Archive", &ARCHIVE, 6),
+            Entry::Item(Item::new("Copy path").icon(&COPY).on(move |s: &mut State, tx: &mut Tx| {
+                s.ui.open = None;
+                s.copy_machine_path(&m2, &i2, tx);
+            })),
+            Entry::Item(
+                Item::new("Clear attachments…")
+                    .icon(&PAPERCLIP)
+                    .on(move |s: &mut State, tx: &mut Tx| s.ask_machine_clear_attachments(&m3, &i3, tx)),
+            ),
+            Entry::Separator,
+            Entry::Item(
+                Item::new("Delete permanently…")
+                    .icon(&TRASH_2)
+                    .destructive()
+                    .on(move |s: &mut State, tx: &mut Tx| s.ask_machine_delete_session(&m4, &i4, tx)),
+            ),
+        ],
+        Some(super::rem(16.5)),
+    )
+}
+
+/// The right-click menu of a project on another machine: Rename, which goes to that machine. New session, Move and Delete
+/// wait for component 7 and for the project actions to take a machine (docs/parity/17-machines.md, piece F).
+pub fn machine_project_context(s: &State, t: &Theme) -> Vec<El> {
+    let Some((machine, id)) = s.machine_menu.clone() else { return Vec::new() };
+    let busy = s.proj.pending;
+    super::menu::context_w(
+        t,
+        "pctx",
+        s.ui.point,
+        vec![Entry::Item(Item::new("Rename").icon(&PENCIL).shortcut("F2").disabled(busy).on(move |s: &mut State, tx: &mut Tx| {
+            s.ui.open = None;
+            s.start_machine_rename(&machine, &id, tx);
+        }))],
+        Some(196.0),
+    )
+}
+
 /// A project header's right-click menu (`ProjectGroup.vue`).
 pub fn project_context(s: &State, t: &Theme, p: usize) -> Vec<El> {
     crate::view::project_menu::context(s, t, p)

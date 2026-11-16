@@ -111,6 +111,8 @@ pub struct Rename {
     original: String,
     /// The field has held focus; losing it after that is the blur that commits.
     seen_focus: bool,
+    /// The machine the project is on, when it isn't home's.
+    machine: Option<String>,
 }
 
 /// The delete dialog.
@@ -122,6 +124,16 @@ pub struct DeleteDialog {
     pub deleting: bool,
 }
 
+impl Projects {
+    /// A rename on another machine a scene shows already under way.
+    pub fn show_machine_rename(&mut self, machine: &str, id: &str, name: &str) {
+        self.edit = TextEdit::new(name.to_string());
+        self.edit.set_selection(0, name.len());
+        self.edit.focused = true;
+        self.rename = Some(Rename { id: id.into(), original: name.into(), seen_focus: true, machine: Some(machine.into()) });
+    }
+}
+
 #[derive(Default)]
 pub struct Projects {
     pub rename: Option<Rename>,
@@ -130,6 +142,8 @@ pub struct Projects {
     pub delete: Option<DeleteDialog>,
     /// A rename, move or delete is on its way (`isAnyActionPending`): the + and the menu wait.
     pub pending: bool,
+    /// The machine the call on its way goes to; `None` is home.
+    on: Option<String>,
     /// The project the + or the menu's New session asked for; the New session page (component 7) reads it.
     pub new_session_in: Option<String>,
 }
@@ -179,21 +193,44 @@ impl State {
         let name = self.projects[p].name.clone();
         self.proj.edit = TextEdit::new(name.clone());
         self.proj.edit.set_selection(0, name.len());
-        self.proj.rename = Some(Rename { id: self.projects[p].id.clone(), original: name, seen_focus: false });
+        self.proj.rename = Some(Rename { id: self.projects[p].id.clone(), original: name, seen_focus: false, machine: None });
         tx.focus(RENAME_FIELD, true);
+    }
+
+    /// F2 or the menu's Rename on a project of another machine; the name goes to that machine. Not while it isn't answering.
+    pub fn start_machine_rename(&mut self, machine: &str, id: &str, tx: &mut Tx) {
+        if self.proj.pending || !self.machines.is_answering(machine) {
+            return;
+        }
+        let Some(project) = self.machines.others.get(machine).and_then(|m| m.projects.iter().find(|p| p.id == id)) else { return };
+        let name = project.name.clone();
+        self.proj.edit = TextEdit::new(name.clone());
+        self.proj.edit.set_selection(0, name.len());
+        self.proj.rename = Some(Rename { id: id.to_string(), original: name, seen_focus: false, machine: Some(machine.to_string()) });
+        tx.focus(RENAME_FIELD, true);
+    }
+
+    pub fn machine_project_renaming(&self, machine: &str, id: &str) -> bool {
+        self.proj.rename.as_ref().is_some_and(|r| r.id == id && r.machine.as_deref() == Some(machine))
     }
 
     /// Enter, Escape or blur ends the edit; only the first counts (`hasCompleted`).
     pub fn finish_rename(&mut self, commit: bool, tx: &mut Tx) {
         let Some(r) = self.proj.rename.take() else { return };
         // Back to the header, where the F2 that started it can be pressed again.
-        if let Some(key) = self.projects.iter().position(|p| p.id == r.id) {
-            tx.focus(format!("project-{key}"), true);
+        match &r.machine {
+            Some(m) => tx.focus(format!("machine-project-{m}-{}", r.id), true),
+            None => {
+                if let Some(key) = self.projects.iter().position(|p| p.id == r.id) {
+                    tx.focus(format!("project-{key}"), true);
+                }
+            }
         }
         if !commit {
             return;
         }
         if let Some(name) = rename_outcome(&r.original, &self.proj.edit.text) {
+            self.proj.on = r.machine;
             self.send_project_call(Call::Rename { id: r.id, name }, tx);
         }
     }
@@ -261,7 +298,11 @@ impl State {
     /// Sends the call on a thread, or with no server applies it to the invented list.
     fn send_project_call(&mut self, call: Call, tx: &mut Tx) {
         self.proj.pending = true;
-        let Some(link) = &self.link else {
+        let link = match &self.proj.on {
+            Some(machine) => self.link_for_machine(machine),
+            None => self.link.clone(),
+        };
+        let Some(link) = link else {
             let result = self.apply_to_mock(&call, tx);
             self.project_call_done(&call, result, tx);
             return;
@@ -274,15 +315,20 @@ impl State {
     /// silent failure isn't (docs/parity row 2.59).
     pub(crate) fn project_call_done(&mut self, call: &Call, result: Result<(), String>, tx: &mut Tx) {
         self.proj.pending = false;
+        let machine = self.proj.on.take();
         let deleting = matches!(call, Call::Delete { .. });
         match result {
             Ok(()) => {
                 if deleting {
                     self.proj.delete = None;
                 }
-                if let Some(link) = &self.link {
-                    link.refetch_list();
+                // The name shows at once on that machine; its list is read again either way.
+                if let (Some(m), Call::Rename { id, name }) = (&machine, call)
+                    && let Some(project) = self.machines.others.get_mut(m).and_then(|o| o.projects.iter_mut().find(|p| p.id == *id))
+                {
+                    project.name = name.clone();
                 }
+                self.list_again_on(machine.as_deref().unwrap_or(super::settings::HOME_MACHINE_KEY));
             }
             Err(why) => {
                 if let Some(d) = self.proj.delete.as_mut() {
@@ -295,6 +341,9 @@ impl State {
 
     /// The invented list takes the change at once, so a scene or test needs no server.
     fn apply_to_mock(&mut self, call: &Call, tx: &mut Tx) -> Result<(), String> {
+        if self.proj.on.is_some() {
+            return Ok(());
+        }
         let mut projects = std::mem::take(&mut self.projects);
         match call {
             Call::Rename { id, name } => {
@@ -362,7 +411,7 @@ impl State {
         self.proj.edit = TextEdit::new(name.clone());
         self.proj.edit.set_selection(0, name.len());
         self.proj.edit.focused = true;
-        self.proj.rename = Some(Rename { id: self.projects[p].id.clone(), original: name, seen_focus: true });
+        self.proj.rename = Some(Rename { id: self.projects[p].id.clone(), original: name, seen_focus: true, machine: None });
     }
 
     /// The delete dialog for project `p` with `mode` picked, and whether the request is on its way.

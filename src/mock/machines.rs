@@ -149,3 +149,32 @@ impl State {
         }
     }
 }
+
+// ---- scenes (piece F) -------------------------------------------------------------------------------------------------
+
+impl State {
+    /// Falcon's "Paint the fence" renamed in place, the title selected (a scene has no focus to give, so the field is shown focused).
+    pub fn show_machine_row_rename(&mut self, dark: bool) {
+        self.show_machines(Case::Several, dark);
+        let title = "Paint the fence".to_string();
+        self.act.edit = rune::TextEdit::new(title.clone());
+        self.act.edit.set_selection(0, title.len());
+        self.act.edit.focused = true;
+        self.machines.remember_sessions("m-falcon", &["f-fence".to_string()]);
+        self.act.rename = Some(crate::fleet::actions::RowRename::scene("f-fence", &title));
+    }
+
+    /// Falcon's Lighthouse project renamed in place.
+    pub fn show_machine_project_rename(&mut self, dark: bool) {
+        self.show_machines(Case::Several, dark);
+        self.proj.show_machine_rename("m-falcon", "p-lighthouse", "Lighthouse");
+    }
+
+    /// The right-click menu on falcon's "Paint the fence".
+    pub fn show_machine_row_menu(&mut self, dark: bool, y: f32) {
+        self.show_machines(Case::Several, dark);
+        self.machine_menu = Some(("m-falcon".into(), "f-fence".into()));
+        self.ui.point = (120.0, y);
+        self.ui.open = Some(crate::ui::Open::MachineContext);
+    }
+}
