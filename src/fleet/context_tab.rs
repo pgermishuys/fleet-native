@@ -310,9 +310,9 @@ impl State {
         self.context.start_attach();
     }
 
-    /// `connectGitHub`: Settings, until component 16 has the GitHub plugin's page to go to.
+    /// `connectGitHub`: the GitHub plugin's page in Settings.
     pub fn connect_github(&mut self) {
-        self.rail = crate::Rail::Settings;
+        self.open_settings("plugin:github", None);
     }
 
     /// Try again after a failed load (`retryLoad`).

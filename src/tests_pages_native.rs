@@ -171,7 +171,7 @@ fn repositories_with_none_says_so_and_points_to_settings() {
     assert_eq!(r.rt.state.repos_page.body(), Body::Empty);
     assert!(r.rt.find("repositories-empty").is_some());
     click(&mut r.rt, "repositories-open-settings");
-    assert!(r.rt.state.ui.toast.is_some(), "Settings is component 16's: a toast says so until then");
+    assert_eq!((r.rt.state.rail, r.rt.state.settings.page.clone()), (crate::Rail::Settings, crate::fleet::settings_nav::Page::Folders));
 }
 
 #[test]

@@ -247,5 +247,5 @@ fn whats_new_opens_settings_at_updates_and_about() {
     click(&mut rt, "help-pop-item2");
     assert_eq!(rt.state.ui.open, None);
     assert_eq!(rt.state.rail, crate::Rail::Settings);
-    assert_eq!(rt.state.settings_section, Some("updates"));
+    assert_eq!(rt.state.settings.page, crate::fleet::settings_nav::Page::Updates);
 }

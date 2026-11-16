@@ -36,7 +36,6 @@ impl State {
     /// The Add a machine row: Settings opens on Machines with the add form open. The poll opens the form (`keep_add_form`), so
     /// it opens even when it was asked for before the page was shown.
     pub fn add_machine(&mut self) {
-        self.rail = crate::Rail::Settings;
-        self.add_machine_asked = true;
+        self.open_add_machine();
     }
 }

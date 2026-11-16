@@ -87,10 +87,10 @@ fn a_card_is_only_built_when_there_is_an_ask() {
 fn opens_permission_settings() {
     let mut rt = shown(Case::Command);
     click(&mut rt, "permission-settings");
-    assert_eq!(rt.state.settings_section, Some("permissions"));
+    assert_eq!(rt.state.settings.page, crate::fleet::settings_nav::Page::Permissions);
     let mut rt = shown(Case::Handoff);
     click(&mut rt, "permission-settings");
-    assert_eq!(rt.state.settings_section, Some("machines"));
+    assert_eq!(rt.state.settings.page, crate::fleet::settings_nav::Page::Machines);
 }
 
 #[test]

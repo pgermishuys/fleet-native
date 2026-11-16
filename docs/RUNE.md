@@ -1223,3 +1223,8 @@ in Rune stops a drop in the wrong tree. Nothing in Rune got in the way otherwise
 - A key typed into a focused `text_input` is not a window `on_key` event unless the control passes it on, so "the user is typing" is read from `tx.focused()` inside `on_key` and from the draft text changing, not from every keydown.
 - `on_focus` and `on_visibility` hand a `Tx`: a handler that must act at once (open a waiting card on return) can call the same keeper the poll calls, instead of waiting for the next `wake_after`.
 - A scene's clock is the real one: `--snap --at 3.6` runs 3.6 s of frames, so a timed behaviour can be shown by two snaps either side of its time.
+
+## Component 16, piece A (the Settings shell)
+
+- Nothing in Rune got in the way. The menu reuses the session list's panel width, gutter and `sidebar_open`, so the one gutter and Ctrl/Cmd+B
+  work as they do there. `cargo test | head` ends the run early (the pipe closes and cargo stops); send test output to a file.

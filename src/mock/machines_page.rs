@@ -32,7 +32,7 @@ impl State {
     /// read). `token` shows this machine's token instead of its dots.
     pub fn show_machines_page(&mut self, dark: bool, token: bool) {
         self.show_machines(Case::Several, dark);
-        self.rail = crate::Rail::Settings;
+        self.open_settings("machines", None);
         self.machine_page.opened = true;
         self.machine_page.show_token = token;
         self.machines.home = Some(info("home-id", "atlas", "all", 1, 2));

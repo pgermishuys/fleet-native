@@ -189,6 +189,15 @@ one bordered card of `SettingRow`s); those primitives are rows 1.40-1.52.
 | 1.68 | Starters' "Settings → General → Show starters brings them back." (words only) | `NewSessionStarters.vue` | Done (words) |
 | 1.69 | Later entry points owned by other pages' pieces: dream notices → Memory with the repository (Part 9), machine-update notices → Updates#machines (Part 13), Automations → Labs / Memory (components 18-19), workflow run boxes → Skills / Harnesses (component 20) | `use-dream-notices.ts:38`, `use-fleet-update-notices.ts:47`, `AutomationDetailPanel.vue:340`, `BuiltinAutomationDetail.vue:127`, `WorkflowRunBox.vue:155-160` | None |
 
+### Piece A: done (16 November 2026)
+
+Built in `src/fleet/settings_nav.rs`, `src/view/settings.rs`, `src/tests_settings_nav.rs`; pictures in `shots/parity/16a-settings-shell/`.
+
+- **Done:** 1.1 (menu in the session list's width panel with its gutter and Ctrl/Cmd+B), 1.2 (one scroll, padding 24, gap 21), 1.3 (as `State.settings`, decision 2), 1.5, 1.10, 1.12-1.14, 1.18, 1.20, 1.21, 1.25, 1.30, 1.32, 1.50-1.52, 1.60-1.67 (each opens its page; Manage profiles opens the picker's harness at `profiles`; Connect GitHub opens `plugin:github`, which shows the not-yet note until AD-AF).
+- **Open, with owner:** 1.4 and 1.11 (the machine switch in the menu and the reset on opening: piece C), 1.15-1.16 (Plugins count, fold, children: Part 11), 1.17 (update dot, machine badge: Part 13), 1.22-1.24 (machine chip, "comes later" note, fade: Parts 11-12 with C), 1.31 (anchor scrolling: piece B; the anchor is stored and cleared by no page yet), 1.40-1.48 (primitives: piece B), 1.42-1.44, 1.69 (other pieces). Hover underline and the focus ring colours are as in the rest of the app.
+- **Differences from Fleet seen in the pictures:** the menu rows are within a pixel of Fleet's; hover uses `main_bg` for `--bg`.
+- Fleet's tests ported under their names: the table of old ids, "sends an old integration id…", "leaves current ids alone", "stores the new page and anchor…", "opens Harnesses on a harness's tab…", "sends the old Weave id…", "opens Memory with the repository", "goes to Machines at the Add a machine row…", "groups the pages under You, Agents, Work and Fleet…", "has no Mods entry…". The Plugins-entry cases wait for Part 11.
+
 ### Requests, events and preferences
 
 The shell itself asks nothing: the menu reads the plugin registry (Part 11), the update status (Part 13) and the Mods

@@ -117,6 +117,8 @@ mod tests_selection;
 #[cfg(test)]
 mod tests_session_header;
 #[cfg(test)]
+mod tests_settings_nav;
+#[cfg(test)]
 mod tests_smart_link_card;
 #[cfg(test)]
 mod tests_starters;
@@ -240,9 +242,8 @@ pub struct State {
     pub ask_seen: std::collections::HashSet<String>,
     /// The words typed into the permission card's Deny field (row 3.10).
     pub deny: TextEdit,
-    /// Which part of Settings the card's "Permission settings" / "Machine settings" asked for (row 3.13); Settings
-    /// (component 16) reads it, until then nothing else happens.
-    pub settings_section: Option<&'static str>,
+    /// Which Settings page is open and what asked for it (`use-settings-nav.ts`); the rail remembers it while the app runs.
+    pub settings: fleet::settings_nav::SettingsNav,
     /// Every session's draft (the open one's text is `draft`; it is put here when another session opens) and the
     /// message history, kept in a file in the app's data folder (`composer::drafts`).
     pub drafts: composer::drafts::Drafts,
@@ -499,7 +500,7 @@ impl Default for State {
             ask_acts: Default::default(),
             ask_seen: Default::default(),
             deny: TextEdit::new(""),
-            settings_section: None,
+            settings: Default::default(),
             drafts: Default::default(),
             draft_of: None,
             clock: 0.0,
@@ -1436,6 +1437,19 @@ pub fn spec() -> AppSpec<State> {
         min_size: Some((720.0, 480.0)),
         scenes: &[
             ("light", |s| s.dark = Some(false)),
+            // Piece A of the Settings component: the menu and a page that isn't built yet (General), then Appearance's open.
+            ("settings-general", |s| {
+                s.dark = Some(true);
+                s.open_settings("general", None)
+            }),
+            ("settings-general-light", |s| {
+                s.dark = Some(false);
+                s.open_settings("general", None)
+            }),
+            ("settings-harnesses", |s| {
+                s.dark = Some(true);
+                s.open_settings("harnesses", None)
+            }),
             ("dark", |s| s.dark = Some(true)),
             ("sidebar-closed", |s| s.sidebar_open = false),
             // Discovery found no Fleet: the status bar says where it looked and how to name one.

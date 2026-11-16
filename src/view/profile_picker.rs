@@ -55,9 +55,10 @@ pub fn overlay(s: &State, t: &Theme) -> Vec<El> {
     }
     body.push(pop_separator(t));
     body.push(pop_note(t, "The session keeps this profile for as long as it lives."));
-    body.push(option(t, Option_ { icon: Some(&LAYERS), ..Option_::new(row_key("manage"), "Manage profiles") }, None, |s, tx| {
+    let harness = s.resolved_harness();
+    body.push(option(t, Option_ { icon: Some(&LAYERS), ..Option_::new(row_key("manage"), "Manage profiles") }, None, move |s, _| {
         s.close_chip_menu();
-        s.toast("Profiles are managed in Settings, which isn't in the native app yet (component 16).".into(), None, 4.0, tx);
+        s.open_harness(&harness, Some("profiles"));
     }));
     let panel = pop(t, "new-session-profile-pop", WIDTH, body)
         .focus_return(PROFILE_CHIP.to_string())

@@ -120,10 +120,9 @@ impl State {
     }
 
     /// Add a machine… closes the dialog and goes to Settings (`addMachine`).
-    pub fn add_machine_from_project(&mut self, tx: &mut Tx) {
+    pub fn add_machine_from_project(&mut self, _tx: &mut Tx) {
         self.proj.new = None;
         self.add_machine();
-        self.toast("Adding a machine is in Settings, which isn't in the native app yet (component 16).".into(), None, 4.0, tx);
     }
 
     /// Create (Enter in the name does the same): nothing for a blank name or while one is being made (`handleSubmit`).
