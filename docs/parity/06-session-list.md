@@ -1972,3 +1972,37 @@ Open, with reasons: **1.88, 2.132** the screen-reader announcements: Rune has no
 
 ![Fleet's archive box and Pinned box mid-drag (dark)](../../shots/drag-and-drop/fleet-drag-archive-dark.png)
 ![The native app, the same (dark)](../../shots/drag-and-drop/native-archive.png)
+
+
+## Piece T, the sweep (16 November 2026)
+
+**How to read the row tables.** The "native today" column of the rows above is the audit made before any piece was built (the
+commit named at the top). Pieces A to S recorded what they built, and what they left open and why, in their own "built"
+sections; those sections win over the table. This sweep went through every "Open, with reasons" paragraph and built what could be built.
+
+**Built here**
+
+- **Kind label (3.42, 3.124; Fleet #1048, merged 16 November 2026).** The FORK / STARTED label of a row gives way while the row is
+  hovered, so Pin and Archive never cover it (`session_row::tail`, `group_opacity(1.0, 0.0)`, as the status word already did).
+  Test: `tests_lineage::the_kind_label_hides_while_the_row_is_hovered`. **Open: keyboard focus.** Fleet also hides it while a row
+  button has keyboard focus, but the buttons are not reachable by the keyboard here (see `docs/RUNE.md`, "Component 6, piece T"), so
+  there is no such state to hide it for. The v0.72.0 client the Fleet pictures come from predates #1048 and still shows the overlap.
+- **Open in (4.40-4.47).** The trigger row keeps its fill while its submenu is open, and so does "Move to project", and
+  the editor row inside the Open in submenu (`ui::menu`, `held`). Test: `tests_open_in::the_trigger_row_keeps_its_fill_while_its_submenu_is_open`.
+
+**Still open, with the reason and who owns it**
+
+- **No transitions (1.16, 1.28, 2.2, 2.4, 2.13, 2.21, 2.22, 3.2, 3.40 colour easing, toast enter/leave):** Rune eases only what it
+  has a track for; recorded in `docs/RUNE.md`. Not buildable here.
+- **Screen-reader announcements (1.88, 2.132):** Rune has no polite live region.
+- **Drag image, dashed drop outline, `dir="auto"` titles, 2.25 strokes (3 px check, 2.25 px loader):** Rune limits, in `docs/RUNE.md`.
+- **Keyboard focus on a row's Pin / Archive buttons (3.10, 3.72):** Tab and `tx.focus` skip a button whose group opacity is 0, so a keyboard
+  user cannot reach them. Fleet shows them on `:focus-visible`. Needs Rune to focus a hidden control (or a way to reveal on focus).
+- **Machines (1.36, 1.68, 1.137, 2.79, 3.74, 3.82, 5.x, 5.53-5.76):** component 17 (`docs/parity/17-machines.md`).
+- **Right panel contents (1.133-1.138, 2.108-2.110, 3.50, 3.51, 3.55 progress detail, 3.143-3.145):** components 10, 11 and 12 (changes, content, header and smart links).
+- **Workflows (2.103, 3.98 Save as workflow):** component 12 (workflows).
+- **Palette and routes (1.8, 1.11, 1.12, 1.62 "Show all sessions", 1.63, 6.16):** components 1 and 9 (the palette, the header, routes); native has no URL, `Route` plays it.
+- **New session page links (1.17, 1.18, 2.24):** component 7.
+- **Decisions kept (not bugs):** the Open in tool icons are one glyph per group; a toast tells why a request failed where Fleet is silent; the
+  dialogs follow weave-fleet `main` where v0.72.0's client differs; row keys stay `session-{p}-{i}` (3.13).
+- **Not checked:** Windows and macOS (CI draws them on `main`), a real keyboard's F2 and menu keys.

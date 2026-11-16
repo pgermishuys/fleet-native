@@ -341,12 +341,12 @@ pub fn tail(
         );
     } else if let Some(kind) = slots.kind_label {
         // Lineage stays muted in every state (decision of 17 October 2026): the row's meta colour, set on the label itself.
-        line = line.child(
-            text(kind.to_uppercase())
-                .key(format!("session-kind-{key}"))
-                .font(sans(10.5, 600.0, 1.2).tracking(0.04 * 10.5))
-                .color(t.row_meta_ink()),
-        );
+        // Hidden while the row's buttons show (Fleet #1048), so pin and archive never cover it.
+        let label = text(kind.to_uppercase())
+            .key(format!("session-kind-{key}"))
+            .font(sans(10.5, 600.0, 1.2).tracking(0.04 * 10.5))
+            .color(t.row_meta_ink());
+        line = line.child(if buttons.any() { label.group_opacity(1.0, 0.0) } else { label });
     } else if !progress.is_some_and(|v| v.count)
         && let Some(word) = word(t, &key, status, dim)
     {

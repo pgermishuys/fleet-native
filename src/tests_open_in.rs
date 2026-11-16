@@ -374,3 +374,20 @@ fn a_refused_open_shows_nothing() {
     }
     assert!(rt.state.ui.toast.is_none(), "no toast for a refused open (4.47)");
 }
+
+#[test]
+fn the_trigger_row_keeps_its_fill_while_its_submenu_is_open() {
+    let mut rt = app();
+    menu_on(&mut rt);
+    let fill =
+        |rt: &Runtime<State>| rt.elements().iter().find(|e| e.key.as_deref() == Some("session-context-open-in")).map(|e| e.fill.a).unwrap();
+    assert!(fill(&rt) < 0.001, "closed and not hovered: no fill");
+    open_in(&mut rt);
+    // Move the pointer into the submenu: the trigger is no longer hovered, and stays lit.
+    let (x, y) = rt.find("open-in-term").unwrap();
+    rt.pointer_move(x, y);
+    for _ in 0..6 {
+        rt.frame(FRAME);
+    }
+    assert!(fill(&rt) > 0.01, "the submenu is open: the trigger holds its fill");
+}

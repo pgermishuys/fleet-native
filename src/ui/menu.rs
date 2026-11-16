@@ -149,7 +149,8 @@ pub fn shortcut_chip(t: &Theme, label: &str) -> El {
         .child(text(label.to_string()).font(sans(10.0, 500.0, 1.0)).color(t.muted))
 }
 
-fn row_el(t: &Theme, key: String, it: Item, closes: bool, chevron: bool, top: bool, fit: bool) -> El {
+#[allow(clippy::too_many_arguments)]
+fn row_el(t: &Theme, key: String, it: Item, closes: bool, chevron: bool, top: bool, fit: bool, held: bool) -> El {
     let ink = if it.destructive { t.destructive } else { t.text };
     let glyph_ink = if it.destructive { t.destructive } else { t.muted };
     let highlight = if it.destructive { t.destructive.alpha(0.12) } else { t.wash(7.0) };
@@ -165,6 +166,10 @@ fn row_el(t: &Theme, key: String, it: Item, closes: bool, chevron: bool, top: bo
         .radius(RADIUS_BTN - 2.0)
         .cursor(Cursor::Default)
         .hover_group();
+    // A row whose submenu is open keeps its hover fill (Fleet's `data-[state=open]:bg-accent`).
+    if held {
+        e = e.fill(highlight);
+    }
     e = e.focusable(!it.disabled).focus_selected(matches!(it.mark, Mark::Check(true) | Mark::Radio(true)));
     if !it.disabled {
         e = e.focus_highlight(highlight).hover(highlight);
@@ -265,7 +270,7 @@ pub fn panel(t: &Theme, key: &str, entries: Vec<Entry>) -> El {
 
 /// `panel`, its rows scrolling inside `max_h` (the panel's padding included).
 pub fn panel_capped(t: &Theme, key: &str, entries: Vec<Entry>, max_h: Option<f32>) -> El {
-    panel_full(t, key, entries, max_h, None, true).0
+    panel_full(t, key, entries, max_h, None, true, None).0
 }
 
 /// A submenu a row opens: the key of its trigger row, and its rows.
@@ -278,8 +283,16 @@ fn item_key(key: &str, i: usize, it: &Item) -> String {
 
 /// `panel_capped` with the hint footer (`footer` is what it says now) and the submenus its rows open. `top` is false for a
 /// submenu's own rows, which do not touch the footer.
-pub fn panel_full(t: &Theme, key: &str, entries: Vec<Entry>, max_h: Option<f32>, footer: Option<String>, top: bool) -> (El, Vec<Sub>) {
-    panel_level(t, key, entries, max_h, footer, top, (0, false))
+pub fn panel_full(
+    t: &Theme,
+    key: &str,
+    entries: Vec<Entry>,
+    max_h: Option<f32>,
+    footer: Option<String>,
+    top: bool,
+    held: Option<&str>,
+) -> (El, Vec<Sub>) {
+    panel_level(t, key, entries, max_h, footer, top, (0, false, held))
 }
 
 /// `panel_full` for the menu at nesting `level` (with whether its rows fit their panel): 0 is the menu itself, 1 its submenu. A row's submenu opens by setting
@@ -291,7 +304,7 @@ fn panel_level(
     max_h: Option<f32>,
     footer: Option<String>,
     top: bool,
-    (level, fit_rows): (u8, bool),
+    (level, fit_rows, held): (u8, bool, Option<&str>),
 ) -> (El, Vec<Sub>) {
     let mut subs = Vec::new();
     let mut list = col().key("rows").items_stretch();
@@ -313,7 +326,8 @@ fn panel_level(
                     }));
                     subs.push((k.clone(), rows, fit));
                 }
-                row_el(t, k, it, !chevron, chevron, top, fit_rows)
+                let lit = held == Some(k.as_str());
+                row_el(t, k, it, !chevron, chevron, top, fit_rows, lit)
             }
             Entry::Separator => el().key(format!("{key}-sep{i}")).h(1.0).mx(2.0).my(4.0).fill(t.border),
             Entry::Label(l) => {
@@ -415,7 +429,7 @@ pub fn context_nested(
     open: (Option<&str>, Option<&str>),
 ) -> Vec<El> {
     let point = format!("{key}-point");
-    let (mut p, subs) = panel_full(t, key, entries, None, footer, true);
+    let (mut p, subs) = panel_full(t, key, entries, None, footer, true, open.0);
     if let Some(w) = width {
         p = p.w(w);
     }
@@ -429,13 +443,13 @@ pub fn context_nested(
     for (trigger, rows, fit) in subs.into_iter().filter(|(k, ..)| Some(k.as_str()) == open.0) {
         let sub_key = format!("{trigger}-sub");
         let width = fit_width(&rows);
-        let (panel, inner) = panel_level(t, &sub_key, rows, None, None, false, (1, fit));
+        let (panel, inner) = panel_level(t, &sub_key, rows, None, None, false, (1, fit, open.1));
         let panel = if fit { panel.w(width) } else { panel.w(rem(13.0)) };
         let panel = panel.modal(true, |s: &mut State| s.ui.sub = None);
         out.push(anchored(panel, &trigger, Side::Right, Align::Start, 4.0));
         for (inner_trigger, inner_rows, _) in inner.into_iter().filter(|(k, ..)| Some(k.as_str()) == open.1) {
             let width = fit_width(&inner_rows);
-            let (panel, _) = panel_level(t, &format!("{inner_trigger}-sub"), inner_rows, None, None, false, (2, true));
+            let (panel, _) = panel_level(t, &format!("{inner_trigger}-sub"), inner_rows, None, None, false, (2, true, None));
             let panel = panel.w(width);
             let panel = panel.modal(true, |s: &mut State| s.ui.sub2 = None);
             out.push(anchored(panel, &inner_trigger, Side::Right, Align::Start, 4.0));
