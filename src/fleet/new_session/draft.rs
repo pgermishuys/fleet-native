@@ -170,6 +170,14 @@ impl DraftStore {
         }
     }
 
+    /// A create failed after the page was left: a draft with nothing in it goes (`leaveNewSessionDraft` again, A13.9).
+    pub fn drop_if_empty(&mut self) {
+        if !self.page_open && self.draft.as_ref().is_some_and(|d| !d.has_content()) {
+            self.draft = None;
+            self.machine = None;
+        }
+    }
+
     /// Starts the draft on another machine (a machine key; `None` for the live one). What belongs to the old machine goes: its
     /// folder, worktree, branch, project, harness and agent. The message, title, tags and any attached issue stay (A3.12).
     /// `current_key` is the machine the app is on; picking it is the same as picking none.

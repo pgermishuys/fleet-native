@@ -1,6 +1,6 @@
 //! The New session page's shell (`NewSessionComposer.vue`'s header and stage, `routes/sessions.new.tsx`): the header with its
-//! "Not started" pill and the empty stage. Fleet draws no content panel here (A1.6), so this replaces the whole sheet. The strip,
-//! chips and message box are pieces E and L; until then `box_slot` holds their place at the size the stage needs.
+//! "Not started" pill and the empty stage. Fleet draws no content panel here (A1.6), so this replaces the whole sheet. The strip and
+//! chips are piece E, the message box and the sent message are piece L (`new_session_box`).
 use crate::State;
 use crate::theme::{Theme, sans};
 use rune::{El, col, row, text};
@@ -21,9 +21,13 @@ pub fn page(s: &State, t: &Theme) -> El {
         .border_layout()
         .radius(12.0)
         .clip_rounded(12.0)
-        .child(header(t))
-        .child(stage(s, t))
-        .child(composer(s, t));
+        .child(header(t));
+    // Once sent, the message sits where the session page will show it (A1.12).
+    page = match s.sent_message() {
+        Some((message, sent_at)) => page.child(super::new_session_box::conversation(s, t, &message, sent_at)),
+        None => page.child(stage(s, t)),
+    };
+    page = page.child(composer(s, t));
     for shadow in t.sheet_shadows() {
         page = page.box_shadow(shadow);
     }
@@ -73,15 +77,19 @@ fn stage(s: &State, t: &Theme) -> El {
     col().key("new-session-stage").w_full().grow(1.0).min_h(0.0).center().px(24.0).pt(20.0).pb(8.0).child(empty)
 }
 
-/// `.new-session__composer`: `4px 24px 18px`, its children at most 760 wide and centred. The message box (piece L) and the plan
-/// line (L) are blank slots of about their height, so the stage's centre sits where Fleet's does once they exist (A1.15).
+/// `.new-session__composer`: `4px 24px 18px`, its children at most 760 wide and centred: the red box (or, with no error, the
+/// note that no harness is ready), the message box, the chips and the plan line.
 fn composer(s: &State, t: &Theme) -> El {
-    col().key("new-session-box").w_full().items_center().px(24.0).pt(4.0).pb(18.0).child(
+    let notice = match s.new_session_error() {
+        Some(error) => Some(super::composer::error_box(t, "new-session-error", error)),
+        None => super::new_session_strip::no_harness_notice(s, t),
+    };
+    col().key("new-session-box").label("First message").w_full().items_center().px(24.0).pt(4.0).pb(18.0).child(
         col()
             .w_full()
             .max_w(COMPOSER_W)
-            .children(super::new_session_strip::no_harness_notice(s, t))
-            .child(col().key("new-session-box-slot").w_full().h(66.0).justify_end().child(super::new_session_strip::toolbar_chips(s, t)))
+            .children(notice)
+            .child(super::new_session_box::frame(s, t))
             .child(super::new_session_strip::strip(s, t))
             .child(super::new_session_strip::plan_line(s, t)),
     )

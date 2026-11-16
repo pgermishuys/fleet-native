@@ -21,7 +21,7 @@ pub fn composer(s: &State, t: &Theme, _session: &Session) -> El {
     let mut outer = col().key("composer-section").label("Message composer").w_full().pt(4.0).px(24.0).pb(18.0).items_center();
     // The first of the send errors, then the pasted-file one (`sendError || pasteError`).
     if let Some(error) = s.composer_error.as_deref().or(s.attach_error()) {
-        outer = outer.child(error_box(t, error));
+        outer = outer.child(error_box(t, "send-prompt-error", error));
     }
     if let Some(strip) = super::work::strip(s, t) {
         outer = outer.child(strip);
@@ -33,9 +33,9 @@ pub fn composer(s: &State, t: &Theme, _session: &Session) -> El {
 }
 
 /// `.composer-error`: the first thing that went wrong, in a box above the frame (`role=alert`).
-fn error_box(t: &Theme, message: &str) -> El {
+pub fn error_box(t: &Theme, key: &'static str, message: &str) -> El {
     col()
-        .key("send-prompt-error")
+        .key(key)
         .label("Error")
         .w_full()
         .max_w(COLUMN)

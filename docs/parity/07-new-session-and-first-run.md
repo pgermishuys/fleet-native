@@ -2076,6 +2076,27 @@ Checked on Linux (lavapipe); not on Windows or macOS (CI).
   the conversation the session opens in; the error box after a refused request (point the page at a
   port with nothing on it); both themes. Create the session on the scratch Fleet only.
 
+- **Done (piece L).** The box, Enter, the red box and the whole of `submit` are built: `src/view/new_session_box.rs` (frame, field, toolbar, Send, the sent
+  message in the conversation's place), `src/fleet/new_session/send.rs` (the field's state kept equal to the draft's `message`, the guards, the request on a thread,
+  success and failure), `src/view/new_session.rs`, `src/view/new_session_strip.rs` ("Start without a message"). Rows done: **A4.1-A4.2, A4.4-A4.10, A4.12, A4.17-A4.20**,
+  **A5.1-A5.7** (without the `#` and `@` handlers, which are M's), **A13.1-A13.4, A13.5, A13.6** (remember, the seeded pending prompt, the row, the hand-off),
+  **A13.8-A13.12**, **A14.1-A14.4, A14.8**, **A1.12-A1.14** (the sent bubble), **A12.12** ("Start without a message"), **A21.36, 39-41, 43-45, 60-61, 85-91** in
+  `src/tests_new_send.rs` under Fleet's names (A21.92-94 and A21.192-197 were ported with B and D), plus the starter's "…" selection that E left for L. Live: against a scratch
+  Fleet, pick a folder, send, the session is made, opens, the scripted model's reply streams in; and the same on the second scratch Fleet (a machine added with `POST /api/machines`):
+  the session is on that machine (its own `GET /api/sessions` lists it), under its heading, and opens in place. Pictures: `shots/parity/07-new-session-l/`.
+  Gaps, each with its reason:
+  - **A4.3 dragging, A4.11 the reference mirror, A4.13 caret outside picks, A4.14 `#` dismissal, A4.15 aria on the `@` list, A4.16 focus return after a chip's menu, A4.21 the Attach button,
+    A5.8-A5.12 (reference keys, `#` and `@` keys, paste, drop), A13.3's references and images, A13.6's "forget @ picks, clear images", A14.9**: M's (`@`, images, the GitHub places).
+    Fleet's toolbar shows the paperclip first; ours starts at the harness chip until M.
+  - **A10.15 (the recent model)**: not recorded after a send. `record_recent_model` reads the open session's model lists, and the new session has none until it opens; it needs a read of the
+    folder's catalog keyed the way the picker is (a follow-up inside 5's selector).
+  - **A21.101, A21.104, A21.105, A18.4** (start on the picked machine, its row kept out of the live list): checked live on two scratch Fleets (pictures) but not as unit tests, which need a machine
+    entry pointing at the fake server; `Sent::machine` is what the answer's bookkeeping branches on.
+  - **A13.9's "message returns to the textarea"** is the field never being cleared (the draft keeps it); the field is drawn blank and read-only while it starts, as Fleet's `:value` is.
+  - **Found, outside the rows**: nothing read the repositories when the page opened (Fleet does, on mount), so a live page offered no folders; `read_harness_feeds` now asks (one line). The starters test
+    that expected `focus_box` to stay set now checks the focused element, since L takes the request.
+  - **Fleet issue noticed, not fixed**: pressing Enter with no folder chosen opens the folder menu even when the box is empty (the guard order in `submit`); harmless.
+
 ### M. `@`, images and the GitHub places
 - **Creates/touches:** `src/fleet/new_session/{refs,places}.rs` (new), `src/view/new_session_box.rs`.
 - **Behaviour:** `A8` (the `@` list: sessions then the folder's files; tint; sessions sent with the request;
