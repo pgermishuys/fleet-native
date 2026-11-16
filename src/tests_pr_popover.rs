@@ -18,18 +18,18 @@ use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
 #[derive(Default)]
-struct Fake {
+pub(crate) struct Fake {
     /// The (path, body) of every `POST .../prompt`.
-    posted: Vec<(String, Value)>,
+    pub(crate) posted: Vec<(String, Value)>,
     /// What it answers instead of a receipt.
     refuse: Option<u16>,
     /// While set, the answer waits for a message here.
     gate: Option<Arc<Mutex<Receiver<()>>>>,
 }
 
-type Shared = Arc<Mutex<Fake>>;
+pub(crate) type Shared = Arc<Mutex<Fake>>;
 
-fn serve(fake: Shared) -> String {
+pub(crate) fn serve(fake: Shared) -> String {
     let listener = TcpListener::bind("127.0.0.1:0").expect("a port");
     let base = format!("http://{}", listener.local_addr().expect("an address"));
     std::thread::spawn(move || {

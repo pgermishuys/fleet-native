@@ -1,5 +1,5 @@
 //! `SmartLinkRow.vue`: one link in the Context tab as a row, an icon, the title (a link) over a detail line, and the buttons
-//! Pin to header, Unpin and Dismiss. A pull request is drawn as a row here too until piece J's card exists.
+//! Pin to header, Unpin and Dismiss.
 use super::header_context::link_icon;
 use crate::State;
 use crate::fleet::context_tab::{row_detail, target_key};
@@ -9,7 +9,7 @@ use crate::theme::{RADIUS_BTN, Theme, sans};
 use rune::{Cursor, El, Icon, Shadow, Tx, col, icon, row, text};
 
 /// A 22px square button with a 12px glyph (`.link-row__btn`).
-fn action(t: &Theme, key: String, glyph: &'static Icon, tip: String, on: impl Fn(&mut State) + Send + Sync + 'static) -> El {
+pub(super) fn action(t: &Theme, key: String, glyph: &'static Icon, tip: String, on: impl Fn(&mut State) + Send + Sync + 'static) -> El {
     row()
         .key(key)
         .role("button")

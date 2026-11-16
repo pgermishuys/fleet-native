@@ -89,6 +89,7 @@ pub mod session_commands;
 pub mod sessions;
 pub mod settings;
 pub mod signalr;
+pub mod smart_link_card;
 pub mod smart_link_feed;
 pub mod smart_links;
 pub mod state;

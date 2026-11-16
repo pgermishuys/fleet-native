@@ -44,7 +44,7 @@ pub enum Pop {
 
 pub const SESSION: &str = "a-open";
 
-fn run(name: &str, status: &str, conclusion: Option<&str>) -> Value {
+pub(super) fn run(name: &str, status: &str, conclusion: Option<&str>) -> Value {
     json!({"id": name.len(), "name": name, "status": status, "conclusion": conclusion, "htmlUrl": format!("https://ci.example.test/{name}"),
         "workflowName": "CI", "startedAt": null, "completedAt": null})
 }
@@ -85,14 +85,21 @@ pub fn failing(number: u32, relationship: &str) -> Value {
     wire
 }
 
-fn thread(id: &str, path: &str, line: u32, author: &str, body: &str) -> Value {
+pub(super) fn thread(id: &str, path: &str, line: u32, author: &str, body: &str) -> Value {
     json!({"threadNodeId": id, "isResolved": false, "isOutdated": false, "path": path, "line": line, "comments": [
         {"id": format!("c-{id}"), "databaseId": 1, "body": body, "authorLogin": author, "createdAt": "2024-10-04T09:00:00Z",
          "url": format!("https://github.com/example/demo/pull/187#discussion_{id}")}]})
 }
 
 /// Fills in what the popover's header shows: branches, the diff stat, the reviewers and, as asked, the threads.
-fn popover_pr(status: &str, runs: Vec<Value>, review: Option<&str>, threads: Vec<Value>, changes: bool, conflict: bool) -> Value {
+pub(crate) fn popover_pr(
+    status: &str,
+    runs: Vec<Value>,
+    review: Option<&str>,
+    threads: Vec<Value>,
+    changes: bool,
+    conflict: bool,
+) -> Value {
     let mut wire = pull_request(SESSION, 187, status, runs, review);
     wire["title"] = "example/demo #187: Cache thumbnails between reloads".into();
     let mut meta: Value = serde_json::from_str(wire["metadataJson"].as_str().unwrap()).unwrap();

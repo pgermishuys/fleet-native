@@ -72,6 +72,7 @@ pub mod session_row;
 mod sessions;
 mod sheet;
 mod shell;
+pub mod smart_link_card;
 pub mod smart_link_row;
 pub mod starters;
 mod status;

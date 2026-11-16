@@ -1,6 +1,6 @@
 //! Invented links for the Context tab's scenes and tests (component 8, piece I): every state of the tab the scratch Fleet
 //! can't make (it has no GitHub), shaped as the server sends them (`mock::links`).
-use super::context::{SESSION, failing, issue};
+use super::context::{SESSION, failing, issue, popover_pr, run, thread};
 use super::links::pull_request;
 use crate::State;
 use crate::fleet::context_tab::PanelTab;
@@ -27,6 +27,62 @@ pub enum Case {
     Flash,
     /// An automation started the session.
     Automation,
+    /// Piece J's cards. A pull request with failing checks (the Checks signal opens itself) and a running one.
+    CardFailing,
+    /// Everything green, with two unresolved threads and a requested change: the Review signal opened.
+    CardReview,
+    /// Merged: the one static line.
+    CardMerged,
+    /// A merge conflict, checks passing.
+    CardConflict,
+    /// GitHub hasn't answered yet.
+    CardPending,
+    /// GitHub labels, a head and base, and the diff stat; Checks and Review closed.
+    CardLabels,
+}
+
+fn threads() -> Vec<Value> {
+    vec![
+        thread("t1", "src/cache.rs", 12, "mira", "This keeps every thumbnail for the whole session. Can the cache have a size limit?"),
+        thread("t2", "src/render/tiles.rs", 48, "jonas", "Please name this after what it holds."),
+    ]
+}
+
+fn card_links(case: Case) -> Vec<Value> {
+    let green = || vec![run("lint", "completed", Some("success")), run("build", "completed", Some("success"))];
+    match case {
+        Case::CardFailing => vec![popover_pr(
+            "open",
+            vec![
+                run("lint", "completed", Some("success")),
+                run("build", "in_progress", None),
+                run("e2e", "completed", Some("failure")),
+                run("unit", "completed", Some("failure")),
+            ],
+            None,
+            vec![],
+            false,
+            false,
+        )],
+        Case::CardReview => vec![popover_pr("open", green(), None, threads(), true, false)],
+        Case::CardMerged => vec![popover_pr("merged", vec![], Some("APPROVED"), vec![], false, false)],
+        Case::CardConflict => vec![popover_pr("open", green(), Some("APPROVED"), vec![], false, true)],
+        Case::CardPending => {
+            let mut wire = pull_request(SESSION, 187, "open", vec![], None);
+            wire["enrichmentStatus"] = "pending".into();
+            wire["statusLabel"] = "".into();
+            wire["title"] = "example/demo #187: Cache thumbnails between reloads".into();
+            vec![wire]
+        }
+        Case::CardLabels => {
+            let mut wire = popover_pr("open", green(), Some("APPROVED"), vec![], false, false);
+            let mut meta: Value = serde_json::from_str(wire["metadataJson"].as_str().unwrap()).unwrap();
+            meta["labels"] = json!([{"name": "bug", "color": "d73a4a"}, {"name": "performance", "color": "0e8a16"}, {"name": "needs design", "color": "fbca04"}]);
+            wire["metadataJson"] = meta.to_string().into();
+            vec![wire]
+        }
+        _ => Vec::new(),
+    }
 }
 
 fn mentioned(wire: Value) -> Value {
@@ -48,6 +104,9 @@ fn open(mut wire: Value) -> Value {
 fn links(case: Case) -> Vec<Value> {
     match case {
         Case::Empty | Case::Loading | Case::Error | Case::Automation => Vec::new(),
+        Case::CardFailing | Case::CardReview | Case::CardMerged | Case::CardConflict | Case::CardPending | Case::CardLabels => {
+            card_links(case)
+        }
         Case::Links | Case::Flash => {
             let mut pinned = issue(9, "pinned");
             pinned["title"] = "example/demo #9: Cache size should be configurable".into();
@@ -103,6 +162,9 @@ impl State {
                 self.context.attach_error = Some("Paste a link to a GitHub pull request or issue.".into());
             }
             Case::Flash => self.smart_links.request_focus(&id, "link-187"),
+            Case::CardReview => {
+                self.context.review_open.insert("link-187".into());
+            }
             _ => {}
         }
         if case == Case::Automation {
