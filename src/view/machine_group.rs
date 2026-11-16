@@ -273,9 +273,8 @@ fn read_only_row(
                 move_pin_key(s, ev, &id2)
             })
             .on_secondary_press(move |s: &mut State, at, _: &mut Tx| {
-                s.ui.point = (at.x, at.y);
                 s.machine_menu = Some((m3.clone(), id3.clone()));
-                s.ui.open = Some(crate::ui::Open::MachineContext);
+                s.ui.show_context(crate::ui::Open::MachineContext, (at.x, at.y));
             });
     } else {
         line = line.help(format!("Open on {}", machine.name));

@@ -200,7 +200,7 @@ fn the_menus_rename_starts_it_and_closes_the_menu() {
     let mut rt = app();
     right_click(&mut rt, "session-0-1");
     assert!(rt.find("ctx-menu").is_some());
-    click(&mut rt, "ctx-item1");
+    click(&mut rt, "session-context-rename");
     assert!(rt.state.row_renaming(0, 1));
     assert!(rt.find("ctx-menu").is_none(), "the menu closed before the field opened");
 }
@@ -242,7 +242,7 @@ fn ask_from_menu(rt: &mut Runtime<crate::State>, p: usize, i: usize, item: &str)
 fn sessionitem_clear_attachments_is_in_the_menu() {
     let mut rt = app();
     right_click(&mut rt, "session-0-1");
-    assert!(rt.find("ctx-item3").is_some());
+    assert!(rt.find("session-context-clear-attachments").is_some());
     assert!(rt.state.ui.confirm.is_none(), "the menu item asks, it doesn't act");
 }
 
@@ -250,7 +250,7 @@ fn sessionitem_clear_attachments_is_in_the_menu() {
 fn sessionitem_clear_attachments_asks_first_then_clears_the_sessions_attachments() {
     let mut rt = app();
     let name = title(&rt, 0, 1);
-    ask_from_menu(&mut rt, 0, 1, "ctx-item3");
+    ask_from_menu(&mut rt, 0, 1, "session-context-clear-attachments");
     let c = rt.state.ui.confirm.as_ref().expect("a question");
     assert_eq!(c.title, "Clear attachments?");
     assert_eq!(c.subject, name);
@@ -267,7 +267,7 @@ fn sessionitem_clear_attachments_asks_first_then_clears_the_sessions_attachments
 #[test]
 fn sessionitem_clear_attachments_keeps_the_dialog_open_and_says_why_when_the_server_refuses() {
     let mut rt = app();
-    ask_from_menu(&mut rt, 0, 1, "ctx-item3");
+    ask_from_menu(&mut rt, 0, 1, "session-context-clear-attachments");
     rt.update(|s, tx| {
         s.ui.confirm.as_mut().unwrap().busy = true;
         s.confirm_done(Err("The session is archived".into()), tx);
@@ -284,7 +284,7 @@ fn sessionitem_delete_permanently_asks_first_naming_the_session_then_deletes_it(
     let mut rt = app();
     let (name, gone) = (title(&rt, 0, 1), id(&rt, 0, 1));
     let rows = rt.state.projects[0].sessions.len();
-    ask_from_menu(&mut rt, 0, 1, "ctx-item5");
+    ask_from_menu(&mut rt, 0, 1, "session-context-delete");
     let c = rt.state.ui.confirm.as_ref().expect("a question");
     assert_eq!((c.title.as_str(), c.subject.as_str()), ("Delete this session?", name.as_str()));
     assert_eq!(c.body, "It and its session data are deleted for good.");
@@ -301,7 +301,7 @@ fn deleting_the_open_session_opens_another() {
     let mut rt = app();
     let crate::fleet::store::Route::Session(open) = rt.state.route.clone() else { panic!("a session is open") };
     let (p, i) = rt.state.row_of(&open).unwrap();
-    ask_from_menu(&mut rt, p, i, "ctx-item5");
+    ask_from_menu(&mut rt, p, i, "session-context-delete");
     click(&mut rt, "confirm-action");
     assert!(rt.state.row_of(&open).is_none());
     assert!(rt.state.has_session(), "the window isn't left with a session that is gone");
@@ -311,7 +311,7 @@ fn deleting_the_open_session_opens_another() {
 fn sessionitem_delete_permanently_keeps_the_dialog_open_and_says_why_when_the_delete_fails() {
     let mut rt = app();
     let rows = rt.state.projects[0].sessions.len();
-    ask_from_menu(&mut rt, 0, 1, "ctx-item5");
+    ask_from_menu(&mut rt, 0, 1, "session-context-delete");
     rt.update(|s, tx| {
         s.ui.confirm.as_mut().unwrap().busy = true;
         s.confirm_done(Err("Session is running".into()), tx);
@@ -326,7 +326,7 @@ fn sessionitem_delete_permanently_keeps_the_dialog_open_and_says_why_when_the_de
 #[test]
 fn confirmaction_draws_the_question_the_subject_what_happens_and_a_button_that_says_the_action() {
     let mut rt = app();
-    ask_from_menu(&mut rt, 0, 1, "ctx-item5");
+    ask_from_menu(&mut rt, 0, 1, "session-context-delete");
     for key in ["confirm-dialog", "confirm-subject", "confirm-body", "confirm-cancel", "confirm-action"] {
         assert!(rt.find(key).is_some(), "{key} is drawn");
     }
@@ -337,7 +337,7 @@ fn confirmaction_draws_the_question_the_subject_what_happens_and_a_button_that_s
 fn confirmaction_resolves_false_on_cancel() {
     let mut rt = app();
     let rows = rt.state.projects[0].sessions.len();
-    ask_from_menu(&mut rt, 0, 1, "ctx-item5");
+    ask_from_menu(&mut rt, 0, 1, "session-context-delete");
     click(&mut rt, "confirm-cancel");
     assert!(rt.state.ui.confirm.is_none());
     assert_eq!(rt.state.projects[0].sessions.len(), rows);
@@ -347,7 +347,7 @@ fn confirmaction_resolves_false_on_cancel() {
 fn confirmaction_resolves_false_on_esc() {
     let mut rt = app();
     let rows = rt.state.projects[0].sessions.len();
-    ask_from_menu(&mut rt, 0, 1, "ctx-item5");
+    ask_from_menu(&mut rt, 0, 1, "session-context-delete");
     press(&mut rt, Key::Escape);
     assert!(rt.state.ui.confirm.is_none());
     assert_eq!(rt.state.projects[0].sessions.len(), rows);
@@ -360,7 +360,7 @@ fn confirmaction_resolves_false_on_esc() {
 #[test]
 fn confirmaction_a_second_ask_cancels_the_first() {
     let mut rt = app();
-    ask_from_menu(&mut rt, 0, 1, "ctx-item5");
+    ask_from_menu(&mut rt, 0, 1, "session-context-delete");
     rt.update(|s, tx| s.ask_clear_attachments(0, 2, tx));
     rt.frame(FRAME);
     let c = rt.state.ui.confirm.as_ref().unwrap();
@@ -386,7 +386,7 @@ fn confirmaction_holds_the_dialog_open_and_busy_while_the_action_runs() {
 fn confirmaction_keeps_the_dialog_open_with_the_error_when_the_action_fails_to_try_again_or_cancel() {
     let mut rt = app();
     let rows = rt.state.projects[0].sessions.len();
-    ask_from_menu(&mut rt, 0, 1, "ctx-item5");
+    ask_from_menu(&mut rt, 0, 1, "session-context-delete");
     rt.update(|s, tx| {
         s.ui.confirm.as_mut().unwrap().busy = true;
         s.confirm_done(Err("nope".into()), tx);
@@ -403,7 +403,7 @@ fn confirmaction_keeps_the_dialog_open_with_the_error_when_the_action_fails_to_t
 fn confirmaction_resolves_false_when_cancelled_after_a_failure() {
     let mut rt = app();
     let rows = rt.state.projects[0].sessions.len();
-    ask_from_menu(&mut rt, 0, 1, "ctx-item5");
+    ask_from_menu(&mut rt, 0, 1, "session-context-delete");
     rt.update(|s, tx| {
         s.ui.confirm.as_mut().unwrap().busy = true;
         s.confirm_done(Err("nope".into()), tx);

@@ -1683,6 +1683,20 @@ Open, with reasons: **1.62** "Show all sessions": a palette command (component 1
 ![view, light](../../shots/parity/06-session-list/piece-k/pair-view-light.png)
 ![restored, dark](../../shots/parity/06-session-list/piece-k/pair-restored-dark.png)
 
+## Piece L, built (16 November 2026)
+
+The row's right-click menu. `src/fleet/row_menu.rs` (one builder for a row of this machine and a row of another: `build(state, session, machine)` gives the rows in Fleet's order, each with its id (Fleet's test ids), hint, shortcut chip and condition; the footer; scenes), `src/fleet/row_menu_actions.rs` (Fork and New session in this folder made at once, Move to project, Move out / back under, the request paths and bodies), `src/ui/menu.rs` (the 50 px hint footer, a second line on a disabled row, `Item::id`, a submenu that opens beside its trigger), `fork.rs` (`Made::{Fork, InFolder}`, shared by the header's dialog and the menu), `State::can_move_pin`. A machine that isn't answering gets only Copy session ID. Tests: `src/tests_row_menu.rs` (16; the six `SessionItem.test.ts` menu cases and the three "moving it out of its parent" cases under their names, the rest from the source).
+
+Done: **3.90-3.96**, **3.99** (Copy path; Open in is a stub), **3.100** (submenu from the project list, current one checked), **3.101-3.108**, **3.109**, **3.107** (the Open row is gone), **3.141** (project and lineage writes), **3.142** (the fallback words), **3.97** (as a toast: Automations is another component).
+
+Open, with reasons: **3.98** Save as workflow: the workflows feature flag and the harness's `supportsOffTheRecordPrompt` aren't read yet (component 12). **3.99** Open in is a toast stub with no chevron: piece N. **3.101/3.102** the menu moves a session out and back, but the Undo toast and the nesting are piece M's. **3.100** the project list is the list already held (not a fetch when the menu opens), and the submenu opens on a press, not on hover or the Right arrow. **3.106/3.109** the footer follows the pointer, not keyboard focus (Rune has no per-row focus callback); arrow keys still move the highlight. A disabled row shows no hint (as in Fleet). The "waiting" toast text of Repeat on a schedule is ours. Fork from the menu has no dialog and sends `{}` (Fleet's menu does the same); its failure is a toast. **Not checked:** Windows and macOS (CI), a menu opened with the keyboard.
+
+Pictures: Fleet's own client (left) beside native (right), one scratch Fleet v0.72.0, 760x760 crops of 1280x760. Scenes (native only, invented data): the hint footer, Fork off with its reason, the Move to project submenu, and the archived and fork states.
+
+![plain, dark](../../shots/parity/06-session-list/piece-l/pair-plain-dark.png)
+![fork, dark](../../shots/parity/06-session-list/piece-l/pair-fork-dark.png)
+![archived, dark](../../shots/parity/06-session-list/piece-l/pair-archived-dark.png)
+
 ## Pieces, in build order
 
 Twenty pull requests, each a fresh session working from this file alone. Sizes are Rust lines with

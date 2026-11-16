@@ -37,6 +37,12 @@ pub struct Item {
     pub run: Option<Action>,
     /// The label ends in a machine's name, drawn in mono 11.5 px / 600 (`machine-header__menu-name`): where it starts.
     pub name_at: Option<usize>,
+    /// The row's own key (a test finds it by this); without one it is `<menu>-item<n>`.
+    pub id: Option<String>,
+    /// `ContextMenuHint`: what the footer says while the pointer is on this row.
+    pub hint: Option<String>,
+    /// A second line under the label: why a disabled row is (Fork's reason), 11.5px in the muted colour.
+    pub note: Option<String>,
 }
 
 impl Item {
@@ -51,7 +57,22 @@ impl Item {
             sub: None,
             run: None,
             name_at: None,
+            id: None,
+            hint: None,
+            note: None,
         }
+    }
+    pub fn id(mut self, id: impl Into<String>) -> Self {
+        self.id = Some(id.into());
+        self
+    }
+    pub fn hint(mut self, h: impl Into<String>) -> Self {
+        self.hint = Some(h.into());
+        self
+    }
+    pub fn note(mut self, n: impl Into<String>) -> Self {
+        self.note = Some(n.into());
+        self
     }
     pub fn icon(mut self, i: &'static Icon) -> Self {
         self.icon = Some(i);
@@ -95,7 +116,8 @@ pub fn item(label: impl Into<String>) -> Entry {
 
 /// A key chip, as in the status bar (`menuShortcutClass`).
 pub fn shortcut_chip(t: &Theme, label: &str) -> El {
-    row()
+    col()
+        .items_stretch()
         .px(5.0)
         .py(2.0)
         .radius(RADIUS_BTN - 3.0)
@@ -104,7 +126,7 @@ pub fn shortcut_chip(t: &Theme, label: &str) -> El {
         .child(text(label.to_string()).font(sans(10.0, 500.0, 1.0)).color(t.muted))
 }
 
-fn row_el(t: &Theme, key: String, it: Item, closes: bool) -> El {
+fn row_el(t: &Theme, key: String, it: Item, closes: bool, chevron: bool, top: bool) -> El {
     let ink = if it.destructive { t.destructive } else { t.text };
     let glyph_ink = if it.destructive { t.destructive } else { t.muted };
     let highlight = if it.destructive { t.destructive.alpha(0.12) } else { t.wash(7.0) };
@@ -150,13 +172,32 @@ fn row_el(t: &Theme, key: String, it: Item, closes: bool) -> El {
                 .child(text(it.label[..at - 1].to_string()).font(sans(13.0, 400.0, 1.3)).color(ink))
                 .child(text(it.label[at..].to_string()).font(mono(11.5, 600.0, 1.3)).color(ink).truncate().min_w(0.0)),
         ),
-        None => e.child(text(it.label).font(sans(13.0, 400.0, 1.3)).color(ink).grow(1.0)),
+        None => match &it.note {
+            Some(note) => e.child(
+                col()
+                    .grow(1.0)
+                    .min_w(0.0)
+                    .child(text(it.label).font(sans(13.0, 400.0, 1.3)).color(ink))
+                    .child(text(note.clone()).font(sans(11.5, 400.0, 1.3)).color(t.muted).wrap().w_full()),
+            ),
+            None => e.child(text(it.label).font(sans(13.0, 400.0, 1.3)).color(ink).grow(1.0).min_w(0.0).truncate()),
+        },
     };
     if let Some(s) = it.shortcut {
         e = e.child(shortcut_chip(t, &s).ml(rem(0.5)));
     }
-    if it.sub.is_some() {
+    if chevron {
         e = e.child(icon(&crate::icons::CHEVRON_RIGHT, rem(0.875)).color(t.muted));
+    }
+    // Rows of a submenu leave the footer alone; a trigger keeps its hint while its submenu is open.
+    if let (Some(h), true, false) = (it.hint.clone(), top, it.disabled) {
+        e = e.on_hover_change(move |s: &mut State, inside: bool, _: &mut Tx| {
+            if inside {
+                s.ui.hint = Some(h.clone());
+            } else if !chevron && s.ui.hint.as_deref() == Some(h.as_str()) {
+                s.ui.hint = None;
+            }
+        });
     }
     if let (Some(run), false) = (it.run, it.disabled) {
         e = e.on_press_tx(move |s: &mut State, tx: &mut Tx| {
@@ -176,10 +217,37 @@ pub fn panel(t: &Theme, key: &str, entries: Vec<Entry>) -> El {
 
 /// `panel`, its rows scrolling inside `max_h` (the panel's padding included).
 pub fn panel_capped(t: &Theme, key: &str, entries: Vec<Entry>, max_h: Option<f32>) -> El {
+    panel_full(t, key, entries, max_h, None, true).0
+}
+
+/// A submenu a row opens: the key of its trigger row, and its rows.
+pub type Sub = (String, Vec<Entry>);
+
+/// The key of the row `i` of menu `key` (`Item::id`, else `<menu>-item<i>`).
+fn item_key(key: &str, i: usize, it: &Item) -> String {
+    it.id.clone().unwrap_or_else(|| format!("{key}-item{i}"))
+}
+
+/// `panel_capped` with the hint footer (`footer` is what it says now) and the submenus its rows open. `top` is false for a
+/// submenu's own rows, which do not touch the footer.
+pub fn panel_full(t: &Theme, key: &str, entries: Vec<Entry>, max_h: Option<f32>, footer: Option<String>, top: bool) -> (El, Vec<Sub>) {
+    let mut subs = Vec::new();
     let mut list = col().key("rows").items_stretch();
     for (i, entry) in entries.into_iter().enumerate() {
         list = list.child(match entry {
-            Entry::Item(it) => row_el(t, format!("{key}-item{i}"), it, true),
+            Entry::Item(mut it) => {
+                let k = item_key(key, i, &it);
+                let sub = it.sub.take();
+                let chevron = sub.is_some();
+                if let Some(rows) = sub {
+                    let open = k.clone();
+                    it.run = Some(Rc::new(move |s: &mut State, _: &mut Tx| {
+                        s.ui.sub = if s.ui.sub.as_deref() == Some(open.as_str()) { None } else { Some(open.clone()) };
+                    }));
+                    subs.push((k.clone(), rows));
+                }
+                row_el(t, k, it, !chevron, chevron, top)
+            }
             Entry::Separator => el().key(format!("{key}-sep{i}")).h(1.0).mx(2.0).my(4.0).fill(t.border),
             Entry::Label(l) => {
                 row().px(rem(0.5)).pt(7.0).pb(3.0).child(text(l.to_uppercase()).font(sans(11.0, 600.0, 1.2).tracking(0.55)).color(t.muted))
@@ -200,6 +268,24 @@ pub fn panel_capped(t: &Theme, key: &str, entries: Vec<Entry>, max_h: Option<f32
         .border(1.0, t.border)
         .items_stretch()
         .child(list);
+    if let Some(text_) = footer {
+        // `ContextMenuHint`: it runs edge to edge under the rows, over the panel's padding.
+        p = p.child(
+            row()
+                .key(format!("{key}-hint"))
+                .mx(-5.0)
+                .mt(4.0)
+                .mb(-5.0)
+                .h(50.0)
+                .px(13.0)
+                .pt(8.0)
+                .pb(9.0)
+                .fill(t.wash(2.5))
+                .clip_corners([0.0, 0.0, RADIUS_CARD - 1.0, RADIUS_CARD - 1.0])
+                .child(el().h(1.0).w_full().fill(t.border).absolute(0.0, 0.0))
+                .child(text(text_).font(sans(11.5, 400.0, 1.4)).color(t.muted).wrap_anywhere().w_full()),
+        );
+    }
     // A scrolling menu is Fleet's selector box: 380 wide (row 3.3), not as wide as its widest row.
     if max_h.is_some() {
         p = p.w(380.0);
@@ -207,7 +293,7 @@ pub fn panel_capped(t: &Theme, key: &str, entries: Vec<Entry>, max_h: Option<f32
     for s in t.menu_shadows() {
         p = p.box_shadow(s);
     }
-    p
+    (p, subs)
 }
 
 /// A dropdown anchored under (or over) the element keyed `anchor`: the scrim, the modal that
@@ -235,15 +321,36 @@ pub fn context(t: &Theme, key: &str, at: (f32, f32), entries: Vec<Entry>) -> Vec
 
 /// `context`, `width` wide (`w-56` on the project menu).
 pub fn context_w(t: &Theme, key: &str, at: (f32, f32), entries: Vec<Entry>, width: Option<f32>) -> Vec<El> {
+    context_hint(t, key, at, entries, width, None, None)
+}
+
+/// `context_w` with the hint footer (`footer`, else nothing) and the submenu `open` names (`State::ui.sub`).
+pub fn context_hint(
+    t: &Theme,
+    key: &str,
+    at: (f32, f32),
+    entries: Vec<Entry>,
+    width: Option<f32>,
+    footer: Option<String>,
+    open: Option<&str>,
+) -> Vec<El> {
     let point = format!("{key}-point");
-    let mut p = panel(t, key, entries);
+    let (mut p, subs) = panel_full(t, key, entries, None, footer, true);
     if let Some(w) = width {
         p = p.w(w);
     }
     let p = p.modal(true, |s: &mut State| s.ui.open = None);
-    vec![
+    let mut out = vec![
         scrim(&format!("{key}-scrim"), |s: &mut State| s.ui.open = None),
         el().key(point.clone()).absolute(at.0, at.1).size(0.0, 0.0),
         anchored(p, &point, Side::Bottom, Align::Start, 0.0),
-    ]
+    ];
+    // `ContextMenuSubContent`: beside its trigger; Escape closes it before the menu.
+    for (trigger, rows) in subs.into_iter().filter(|(k, _)| Some(k.as_str()) == open) {
+        let sub_key = format!("{trigger}-sub");
+        let (panel, _) = panel_full(t, &sub_key, rows, None, None, false);
+        let panel = panel.w(rem(13.0)).modal(true, |s: &mut State| s.ui.sub = None);
+        out.push(anchored(panel, &trigger, Side::Right, Align::Start, 4.0));
+    }
+    out
 }

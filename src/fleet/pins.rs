@@ -137,6 +137,11 @@ impl State {
         );
     }
 
+    /// Whether a pinned `id` has a pinned neighbour that way (the menu's Move up and Move down turn off at the ends).
+    pub fn can_move_pin(&self, id: &str, delta: i32) -> bool {
+        self.pin_context(id).is_some_and(|(l, list)| l.pin_order.is_some() && pinned_neighbour_for(&list, id, delta).is_some())
+    }
+
     /// Moves a pinned session one place up (-1) or down (+1) in the Pinned group; not past either end.
     pub fn move_pin(&mut self, id: &str, delta: i32) {
         let before = {

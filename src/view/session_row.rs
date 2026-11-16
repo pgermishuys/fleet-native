@@ -204,8 +204,7 @@ pub fn session_row_with(s: &State, t: &Theme, clock: &RowClock, p: usize, i: usi
             move_pin_key(s, ev, &id)
         })
         .on_secondary_press(move |s: &mut State, at, _: &mut Tx| {
-            s.ui.point = (at.x, at.y);
-            s.ui.open = Some(crate::ui::Open::Context(p, i));
+            s.ui.show_context(crate::ui::Open::Context(p, i), (at.x, at.y));
         })
         // The place a row with children puts its caret in: 14x14, tucked 4px toward the glyph (`.session-caret-slot`).
         .child(el().key(format!("session-caret-{key}")).size(14.0, 14.0).mr(-4.0))
