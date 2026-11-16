@@ -1,15 +1,14 @@
 //! Settings → Machines (`MachinesSection.vue`, inside `SettingsPage.vue`'s detail pane): the machines this app knows as cards, and
-//! "This machine", how other devices reach it, with its access token. Component 16 owns Settings and its menu and has not been
-//! built, so until it is this page fills the context area on its own (decision 7 of docs/parity/17-machines.md) and 16 mounts
-//! the same `page` as its Machines page. The pairing form is piece K's, the address list and route line piece M's, phones are out.
+//! "This machine", how other devices reach it, with its access token. `settings.rs` mounts `content` as the Machines page. The
+//! pairing form is piece K's, the address list and route line piece M's, phones are out.
 use super::machine_card::{card, faded};
 use crate::fleet::machine_actions::{Access, AccessState};
 use crate::icons::{CHECK, CIRCLE_ALERT, COPY, EYE, EYE_OFF, PLUS, REFRESH_CW};
-use crate::theme::{RADIUS_BTN, RADIUS_CARD, RADIUS_PANEL, Theme, mono, sans};
+use crate::theme::{RADIUS_BTN, RADIUS_CARD, Theme, mono, sans};
 use crate::ui::button::{Size, Variant, button};
 use crate::ui::rem;
 use crate::{State, Tx};
-use rune::{Cursor, El, ScrollSpec, col, el, icon, row, text};
+use rune::{Cursor, El, col, el, icon, row, text};
 
 /// `SettingGroup`: the title (and a hint on the right) over one bordered card of rows divided by rules.
 fn group(t: &Theme, key: &str, title: &str, hint: Option<&str>, rows: Vec<El>) -> El {
@@ -239,8 +238,8 @@ fn access_group(s: &State, t: &Theme) -> El {
     group(t, "machine-access", &format!("Let other devices reach {name}"), Some("Phones and devices, and the access token."), rows)
 }
 
-/// The page: one scrolling column in a panel (`SettingsPage`: a title and a line under it, then the groups).
-pub fn page(s: &State, t: &Theme) -> El {
+/// The page's content: the title and its line, then the groups. The Settings shell (`settings.rs`) gives it the sheet and the scroll.
+pub fn content(s: &State, t: &Theme) -> El {
     let add = button(t, Variant::Default, Size::Default, Some(&PLUS), "Add a machine")
         .key("machines-add")
         .on_press_tx(|s: &mut State, tx: &mut Tx| s.open_add_form(tx));
@@ -260,25 +259,12 @@ pub fn page(s: &State, t: &Theme) -> El {
         rows.push(super::add_machine::added(t, name));
     }
     rows.extend(s.machine_cards().iter().map(|c| card(s, t, c)));
-    let header = col().gap(4.0).child(text("Machines").font(sans(21.0, 600.0, 1.33).tracking(-0.525)).color(t.text)).child(
-        text("The machines you work on, phones and devices, and the access token.").font(sans(rem(0.875), 400.0, 1.43)).color(t.muted),
-    );
-    let body = col()
+    let header = super::settings::page_header(t, &crate::fleet::settings_nav::Page::Machines);
+    col()
         .key("machines-page-body")
         .w_full()
         .gap(21.0)
         .child(header)
         .child(group(t, "machines-group", "Machines", None, rows))
-        .child(access_group(s, t));
-    col()
-        .key("machines-page")
-        .grow(1.0)
-        .h_full()
-        .min_w(0.0)
-        .fill(t.panel_bg)
-        .border(1.0, t.border)
-        .border_layout()
-        .radius(RADIUS_PANEL)
-        .clip_rounded(RADIUS_PANEL)
-        .child(body.padding(24.0).scroll(ScrollSpec { stick_bottom: false }).key("machines-scroll").w_full().grow(1.0).min_h(0.0))
+        .child(access_group(s, t))
 }

@@ -55,8 +55,7 @@ pub fn help() -> Vec<Entry> {
         ),
         Entry::Separator,
         Entry::Item(Item::new("What's new").icon(&SPARKLES).on(|s: &mut State, _: &mut Tx| {
-            s.rail = crate::Rail::Settings;
-            s.settings_section = Some("updates");
+            s.open_settings("updates", None);
         })),
     ]
 }

@@ -323,7 +323,7 @@ fn foot(t: &Theme, ask: &PermissionAsk) -> El {
             .font(sans(11.0, 400.0, 1.4))
             .color(t.accent_text)
             .cursor(Cursor::Pointer)
-            .on_press_tx(move |s: &mut State, _: &mut Tx| s.settings_section = Some(section)),
+            .on_press_tx(move |s: &mut State, _: &mut Tx| s.open_settings(section, None)),
     )
 }
 

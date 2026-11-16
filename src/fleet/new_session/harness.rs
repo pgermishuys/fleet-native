@@ -450,14 +450,13 @@ impl State {
         }
     }
 
-    /// `fixNoHarness`: the wizard sets a harness up on this machine; another machine's Settings do it there (component 16,
-    /// not built, so the click says so).
-    pub fn fix_no_harness(&mut self, tx: &mut crate::Tx) {
+    /// `fixNoHarness`: the wizard sets a harness up on this machine; another machine's Settings do it there, so the click opens Harnesses.
+    pub fn fix_no_harness(&mut self, _tx: &mut crate::Tx) {
         if self.new_draft.machine().is_none() {
             self.open_harness_setup();
             return;
         }
-        self.toast("Settings for another machine aren't in the native app yet (component 16).".into(), None, 4.0, tx);
+        self.open_settings("harnesses", None);
     }
 
     /// What the notice above the box says when no harness can start a session, and the words of its action.

@@ -266,10 +266,8 @@ fn notes(t: &Theme, h: &HarnessEntry) -> El {
 
 // ─── Fleet's own download (GitHub Copilot): the strip and sign-in panel are Settings' ────────────────────────
 
-fn hand_off(what: &'static str) -> impl Fn(&mut State, &mut Tx) + 'static {
-    move |s: &mut State, tx: &mut Tx| {
-        s.toast(format!("{what} comes with Settings, which isn't in the native app yet (component 16)."), None, 4.0, tx)
-    }
+fn hand_off(_what: &'static str) -> impl Fn(&mut State, &mut Tx) + 'static {
+    move |s: &mut State, _: &mut Tx| s.open_settings("harnesses", None)
 }
 
 fn update_strip(t: &Theme, h: &HarnessEntry) -> El {

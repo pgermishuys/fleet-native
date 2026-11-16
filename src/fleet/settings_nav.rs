@@ -1,0 +1,181 @@
+//! Ports `composables/use-settings-nav.ts`: which Settings page is showing, and the ids other parts of the app use to send the
+//! user to one. Fleet keeps this in module state and in the address (`/settings`, `/settings/plugins/<id>`); the native app has
+//! no address, so `State.settings` holds it, and it is kept while the app runs, as Fleet's module state is.
+use crate::State;
+
+/// A page of the menu. `Credentials` has no menu entry (Fleet's menu can't reach it on `main`) and `Plugin` is a plugin's own page.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub enum Page {
+    #[default]
+    General,
+    Appearance,
+    Harnesses,
+    Permissions,
+    Skills,
+    Memory,
+    Folders,
+    Machines,
+    Labs,
+    Updates,
+    Credentials,
+    Plugins,
+    Plugin(String),
+}
+
+impl Page {
+    /// The page's id in Fleet (`SettingsPageId`).
+    pub fn id(&self) -> String {
+        match self {
+            Page::General => "general".into(),
+            Page::Appearance => "appearance".into(),
+            Page::Harnesses => "harnesses".into(),
+            Page::Permissions => "permissions".into(),
+            Page::Skills => "skills".into(),
+            Page::Memory => "memory".into(),
+            Page::Folders => "folders".into(),
+            Page::Machines => "machines".into(),
+            Page::Labs => "labs".into(),
+            Page::Updates => "updates".into(),
+            Page::Credentials => "credentials".into(),
+            Page::Plugins => "plugins".into(),
+            Page::Plugin(id) => format!("plugin:{id}"),
+        }
+    }
+
+    /// The title over the page and, for the menu's pages, the entry's words (`PAGES`).
+    pub fn title(&self) -> &'static str {
+        match self {
+            Page::General => "General",
+            Page::Appearance => "Appearance",
+            Page::Harnesses => "Harnesses",
+            Page::Permissions => "What agents can do",
+            Page::Skills => "Skills & tools",
+            Page::Memory => "Memory",
+            Page::Folders => "Folders",
+            Page::Machines => "Machines",
+            Page::Labs => "Labs",
+            Page::Updates => "Updates & about",
+            Page::Credentials => "API keys",
+            Page::Plugins => "Plugins",
+            Page::Plugin(_) => "Plugin",
+        }
+    }
+
+    /// The line under the title, word for word.
+    pub fn line(&self) -> &'static str {
+        match self {
+            Page::General => "Everyday behaviour.",
+            Page::Appearance => "How Fleet looks.",
+            Page::Harnesses => "The runtimes Fleet drives sessions with. Everything about one harness is on its tab.",
+            Page::Permissions => "Edits, commands, messages and other machines: one setting each, with its exceptions.",
+            Page::Skills => "What agents can use: skills, tools and, with Mods on, mods.",
+            Page::Memory => "What Fleet remembers about each repository.",
+            Page::Folders => "Where your repositories are, how worktrees are named, and the disk they take.",
+            Page::Machines => "The machines you work on, phones and devices, and the access token.",
+            Page::Labs => "Experiments. They can change or go away, and each is off until you turn it on.",
+            Page::Updates => "Every version and update: Fleet, harnesses and machines, and what's new.",
+            Page::Credentials => "Credentials for model providers.",
+            Page::Plugins => {
+                "Add-ons that put things in Fleet: rail icons, settings pages and pickers. Turn one off and everything it adds goes with it."
+            }
+            Page::Plugin(_) => "",
+        }
+    }
+
+    /// The menu entry that lights for this page: a plugin's page lights Plugins.
+    pub fn entry(&self) -> Page {
+        match self {
+            Page::Plugin(_) => Page::Plugins,
+            other => other.clone(),
+        }
+    }
+}
+
+/// Where an id lands: a page and the group or tab on it to open at.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Target {
+    pub page: Page,
+    pub anchor: Option<String>,
+}
+
+/// `resolveSettingsTarget`: current ids as they are, the ids from before the pages were grouped on the page that holds the
+/// setting now, and `integration:<id>` on that plugin's page.
+pub fn resolve(id: &str, anchor: Option<&str>) -> Target {
+    let own = |page: Page, fixed: Option<&str>| Target { page, anchor: anchor.or(fixed).map(str::to_string) };
+    if let Some(plugin) = id.strip_prefix("integration:").or_else(|| id.strip_prefix("plugin:")) {
+        return own(Page::Plugin(plugin.to_string()), None);
+    }
+    match id {
+        "features" => own(Page::General, None),
+        "workspace" => own(Page::Folders, None),
+        "storage" => own(Page::Folders, Some("storage")),
+        "browser" => own(Page::Permissions, Some("browser")),
+        "tools" => own(Page::Skills, Some("tools")),
+        "mods" => own(Page::Skills, Some("mods")),
+        "system" => own(Page::Updates, None),
+        "weave" => own(Page::Harnesses, Some("weave")),
+        "workflows" => own(Page::Labs, Some("workflows")),
+        "appearance" => own(Page::Appearance, None),
+        "harnesses" => own(Page::Harnesses, None),
+        "permissions" => own(Page::Permissions, None),
+        "skills" => own(Page::Skills, None),
+        "memory" => own(Page::Memory, None),
+        "folders" => own(Page::Folders, None),
+        "machines" => own(Page::Machines, None),
+        "labs" => own(Page::Labs, None),
+        "updates" => own(Page::Updates, None),
+        "credentials" => own(Page::Credentials, None),
+        "plugins" => own(Page::Plugins, None),
+        _ => own(Page::General, None),
+    }
+}
+
+/// What Settings shows and what asked for it (`activeSection`, `activeAnchor`, `activeHarness`, `memoryRepository`).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct SettingsNav {
+    pub page: Page,
+    /// The group or tab to open at; the page lets go of it once it has gone there.
+    pub anchor: Option<String>,
+    /// The harness tab Harnesses shows; none is the default harness's.
+    pub harness: Option<String>,
+    /// A repository Memory should show when it opens.
+    pub repository: Option<String>,
+}
+
+impl SettingsNav {
+    /// `setActiveSection`: an old id lands on its page; the old Weave id leaves the harness tab to be chosen.
+    pub fn set(&mut self, id: &str, anchor: Option<&str>) {
+        let target = resolve(id, anchor);
+        self.page = target.page;
+        self.anchor = target.anchor;
+        if id == "weave" {
+            self.harness = None;
+        }
+    }
+}
+
+impl State {
+    /// Opens Settings on a page: the rail, and the page by its id or an old id. Every entry point goes through here.
+    pub fn open_settings(&mut self, id: &str, anchor: Option<&str>) {
+        self.rail = crate::Rail::Settings;
+        self.settings.set(id, anchor);
+    }
+
+    /// `openHarness`: Harnesses on that harness's tab, optionally at one of its groups (`weave`, `may-do`, `profiles`).
+    pub fn open_harness(&mut self, harness: &str, anchor: Option<&str>) {
+        self.settings.harness = Some(harness.to_string());
+        self.open_settings("harnesses", anchor);
+    }
+
+    /// `openMemory`: Memory with the repository selected.
+    pub fn open_memory(&mut self, repository: &str) {
+        self.settings.repository = Some(repository.to_string());
+        self.open_settings("memory", None);
+    }
+
+    /// `openAddMachine`: Machines at the Add a machine row, with the form asked for.
+    pub fn open_add_machine(&mut self) {
+        self.add_machine_asked = true;
+        self.open_settings("machines", Some("add-machine"));
+    }
+}

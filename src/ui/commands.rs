@@ -135,7 +135,7 @@ pub fn all(s: &State) -> Vec<Command> {
             Navigation,
             None,
             &["node", "pair", "remote"],
-            Run::Waiting(17),
+            now(|s, _| s.open_add_machine()),
         ),
         c(
             "new-session",
@@ -380,7 +380,7 @@ pub fn all(s: &State) -> Vec<Command> {
             Fleet,
             None,
             &["marketplace", "extensions"],
-            Run::Waiting(16),
+            now(|s, _| s.open_settings("plugins", None)),
         ),
         c(
             "report-problem",

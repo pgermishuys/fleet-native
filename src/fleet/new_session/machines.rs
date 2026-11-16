@@ -138,10 +138,9 @@ impl State {
     }
 
     /// Add a machine… (B5.15): Settings, on Machines, with the add form asked for. Settings is component 16's.
-    pub fn add_machine_from_menu(&mut self, tx: &mut crate::Tx) {
+    pub fn add_machine_from_menu(&mut self, _tx: &mut crate::Tx) {
         self.close_machine_menu();
         self.add_machine();
-        self.toast("Adding a machine is in Settings, which isn't in the native app yet (component 16).".into(), None, 4.0, tx);
     }
 }
 

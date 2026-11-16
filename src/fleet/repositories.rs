@@ -144,8 +144,8 @@ impl State {
         self.repos_page.last_scan(crate::view::message::now_ms(self), local_offset_secs())
     }
 
-    /// "Workspace settings" and "Open settings": Settings is component 16's; until then a toast says so.
-    pub fn open_workspace_settings(&mut self, tx: &mut Tx) {
-        self.menu_waiting("Settings → Folders", "component 16", tx);
+    /// "Workspace settings" and "Open settings": Settings → Folders.
+    pub fn open_workspace_settings(&mut self, _tx: &mut Tx) {
+        self.open_settings("folders", None);
     }
 }

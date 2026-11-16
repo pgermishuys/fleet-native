@@ -81,6 +81,7 @@ pub mod selection_bar;
 pub mod selector;
 pub mod session_row;
 mod sessions;
+pub mod settings;
 mod sheet;
 mod shell;
 pub mod smart_link_card;
@@ -120,8 +121,10 @@ pub fn root(s: &State, cx: &mut Cx<State>) -> El {
         _ if s.gallery => main.child(crate::ui::gallery::view(s, &t).ml(8.0)),
         Rail::Sessions if s.context_panel_shown() => main.child(sessions::panel(s, &t).ml(8.0)).child(gutter(&t)).child(centre(s, &t)),
         Rail::Sessions => main.child(centre(s, &t).ml(8.0)),
-        // Component 16 builds Settings; until then its rail opens the one page that exists (docs/parity/17-machines.md, decision 7).
-        Rail::Settings => main.child(machines_page::page(s, &t).ml(8.0)),
+        Rail::Settings if s.context_panel_shown() => {
+            main.child(settings::menu(s, &t).ml(8.0)).child(gutter(&t)).child(settings::detail(s, &t))
+        }
+        Rail::Settings => main.child(settings::detail(s, &t).ml(8.0)),
         other => main.child(notice(&t, other).ml(8.0)),
     };
     // The window's size, for the selector menu's width and height caps (`100vw - 16px`, `60vh`).
