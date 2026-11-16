@@ -99,6 +99,7 @@ pub mod smart_link_card;
 pub mod smart_link_feed;
 pub mod smart_links;
 pub mod state;
+pub mod status_hints;
 pub mod store;
 pub mod tls;
 pub mod toolbar;

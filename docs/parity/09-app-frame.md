@@ -116,9 +116,9 @@ their pictures from scenes beside Fleet's client with the answers put in by Play
 
 | # | Element / behaviour | Source | Native today |
 |---|---|---|---|
-| 3.1 | Help button (`CircleHelp` 18, tooltip "Help", testid `rail-help`) opens a dropdown, side right, align end, width 224 (`w-56`) | IconRail 282-300 | Button only |
-| 3.2 | "Report a problem…" (`Bug` 14) → `problemReport.show({from: "help"})` | IconRail 304-310 | None |
-| 3.3 | Separator, then "What's new" (`Sparkles` 14) → Settings, section Updates & about (`useWhatsNew`) | IconRail 311-318, `use-whats-new.ts` | None; the Updates page is component 16, so until then it opens Settings |
+| 3.1 | Help button (`CircleHelp` 18, tooltip "Help", testid `rail-help`) opens a dropdown, side right, align end, width 224 (`w-56`) | IconRail 282-300 | Done (piece B). Width is `w-56` at Fleet's 14 px root = 196 px, not 224 (the 224 above assumed a 16 px root); same as the header's ⋯ menu  |
+| 3.2 | "Report a problem…" (`Bug` 14) → `problemReport.show({from: "help"})` | IconRail 304-310 | Done (piece B): runs the `report-problem` command, which toasts "isn't in the native app yet (component 9)" until piece Q  |
+| 3.3 | Separator, then "What's new" (`Sparkles` 14) → Settings, section Updates & about (`useWhatsNew`) | IconRail 311-318, `use-whats-new.ts` | Done (piece B): opens Settings with `settings_section = "updates"`; the Updates page itself is component 16  |
 
 ## Part 4: the status bar (`StatusBar.vue`)
 
@@ -126,13 +126,13 @@ their pictures from scenes beside Fleet's client with the answers put in by Play
 |---|---|---|---|
 | 4.1 | Bar: height 28, padding 0 12 2, gap 10, 11 px `--muted`, `--main-bg` | SB 257-270 | Done |
 | 4.2 | Hint: flex gap 4, padding 2 5, `--muted`; `kbd` 10 px/500, padding 2 4, `--text` on `--text` 6%, 1 px `--border`, radius `--radius-btn - 3`; separators "·" in `--border` | SB 318-383 | Done |
-| 4.3 | Each hint is a **button** running its command (`mousedown.prevent` keeps the keyboard where it was); hover/focus fill `--text` 6% and ink `--text`, pressed 10%; disabled opacity .45, cursor default; `title` "<label> (<shortcut>)", or the command's own reason when disabled, "Not available yet" when missing | SB 37-50, 296-317 | Only the palette hint is a button |
-| 4.4 | Prev / next: one hint with `[` and `]` as their own small buttons (padding 1; the key lights: border `--muted`, fill `--text` 14%, pressed 20%); disabled with the command's reason when there's no other session | SB 118-148, 325-352 | Drawn, not buttons |
-| 4.5 | Interrupt: disabled "Open a session to interrupt it" with no session; "Nothing to interrupt: the session isn't working" unless the activity is busy, delegating or retry; else "Interrupt the session (Esc)" | SB 60-73 | Always full strength |
-| 4.6 | Terminal hint only while `config.terminalEnabled` | SB 175-191 | Always drawn |
+| 4.3 | Each hint is a **button** running its command (`mousedown.prevent` keeps the keyboard where it was); hover/focus fill `--text` 6% and ink `--text`, pressed 10%; disabled opacity .45, cursor default; `title` "<label> (<shortcut>)", or the command's own reason when disabled, "Not available yet" when missing | SB 37-50, 296-317 | Done (piece B), two gaps: the pressed tint (10%) and the key-lit border colour have no Rune API (only a hover fill), so they are hover-only; hints are out of the Tab order (see `docs/RUNE.md`, component 9 B)  |
+| 4.4 | Prev / next: one hint with `[` and `]` as their own small buttons (padding 1; the key lights: border `--muted`, fill `--text` 14%, pressed 20%); disabled with the command's reason when there's no other session | SB 118-148, 325-352 | Done (piece B): `[` and `]` are their own buttons, lit by a fill on hover (no border change, as 4.3)  |
+| 4.5 | Interrupt: disabled "Open a session to interrupt it" with no session; "Nothing to interrupt: the session isn't working" unless the activity is busy, delegating or retry; else "Interrupt the session (Esc)" | SB 60-73 | Done (piece B), in `fleet::status_hints::interrupt_hint`  |
+| 4.6 | Terminal hint only while `config.terminalEnabled` | SB 175-191 | Done (piece B): `GET /api/config/client` `terminalEnabled`, read with the preferences; with no server the hint is drawn (scenes), with one it waits for the answer (Fleet's default is off)  |
 | 4.7 | While the terminal has the keyboard: "Terminal has the keyboard · Esc Ctrl K Ctrl B go to the shell · Ctrl J Hide terminal · Ctrl Shift C Copy" (accent text) | SB 82-114 | Component 13 |
-| 4.8 | End cluster (margin-left auto, gap 10), in order: running work (5.x), usage chip (6.x, unless the `UsageLimitsChip` preference is `"false"`), notice chips (7.x), the mod chip (22, only on a session's page), the session part | SB 222-254 | Only the session part |
-| 4.9 | Session part, only with an active session (the dashboard clears it): `harnessType` in mono 11/500 (fallback "claude-opus-4"), "|" in `--border`, `formatCount(totalTokens)` + " tokens" ("0 tokens" without), tabular | SB 75-99, 245-254 | Drawn; "opencode" is fixed in mock mode, check live uses the row's harness |
+| 4.8 | End cluster (margin-left auto, gap 10), in order: running work (5.x), usage chip (6.x, unless the `UsageLimitsChip` preference is `"false"`), notice chips (7.x), the mod chip (22, only on a session's page), the session part | SB 222-254 | Order kept (piece B): the session part stays last; the slots for running work, usage, notices and the mod chip are filled by pieces H, J, M and component 22 |
+| 4.9 | Session part, only with an active session (the dashboard clears it): `harnessType` in mono 11/500 (fallback "claude-opus-4"), "|" in `--border`, `formatCount(totalTokens)` + " tokens" ("0 tokens" without), tabular | SB 75-99, 245-254 | Done (piece B): `harnessType` from the session row, fallback "claude-opus-4"; the invented sessions say "opencode"  |
 | 4.10 | macOS shows ⌘, others Ctrl | SB 28-31 | Done |
 | 4.11 | Under 768 px the hints hide | SB 400-405 | Native cuts them instead (fine: no phone layout) |
 | 4.12 | **Native only:** the connection note ("Connecting to …", "Can't reach Fleet at …. Trying again…", the sign-in line) in `--error`. Fleet's status bar has no connection line: its desktop shell owns its server (component 24) and the header says Disconnected (8). Kept: a native app pointed at a server needs to say why nothing loads. The later note's raw-error wording is already fixed (`state.rs:748`) | `state.rs` | Native-only, kept |

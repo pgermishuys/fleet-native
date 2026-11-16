@@ -198,7 +198,7 @@ pub fn all(s: &State) -> Vec<Command> {
         let mut cmd = c(
             id,
             label,
-            "Switch to the next or previous session.",
+            if many { "Switch to the next or previous session." } else { "A second session is required." },
             icon,
             Session,
             Some(md(keys)),
@@ -211,7 +211,7 @@ pub fn all(s: &State) -> Vec<Command> {
     let mut interrupt = c(
         "interrupt-session",
         "Interrupt session",
-        "Abort the active session.",
+        if open { "Abort the active session." } else { "No active session selected." },
         &OCTAGON_X,
         Session,
         Some("Esc".into()),
@@ -300,7 +300,7 @@ pub fn all(s: &State) -> Vec<Command> {
         c(
             "toggle-sidebar",
             if s.sidebar_open { "Hide sidebar" } else { "Show sidebar" },
-            "Collapse or expand the session list.",
+            if s.sidebar_open { "Collapse the left context panel." } else { "Expand the left context panel." },
             &PANEL_LEFT_CLOSE,
             View,
             Some(md("B")),
@@ -317,16 +317,21 @@ pub fn all(s: &State) -> Vec<Command> {
             &["content", "detail"],
             now(|s, _| s.content_open = !s.content_open),
         ),
-        c(
-            "toggle-terminal",
-            "Show terminal",
-            "Open the session's terminal.",
-            &SQUARE_TERMINAL,
-            View,
-            Some(md("J")),
-            &["shell", "console"],
-            Run::Waiting(13),
-        ),
+        {
+            // Fleet turns it off while no session is open ("Open a session to use its terminal.").
+            let mut terminal = c(
+                "toggle-terminal",
+                "Show terminal",
+                if open { "Show or hide the terminal under the chat." } else { "Open a session to use its terminal." },
+                &SQUARE_TERMINAL,
+                View,
+                Some(md("J")),
+                &["shell", "console"],
+                Run::Waiting(13),
+            );
+            terminal.disabled = !open;
+            terminal
+        },
         c(
             "toggle-diff-view",
             "Show inline tool diffs",
@@ -454,4 +459,23 @@ pub fn score(cmd: &Command, query: &str) -> Option<u32> {
     }
     let mut hay = label.chars();
     q.chars().all(|ch| hay.any(|h| h == ch)).then_some(100)
+}
+
+/// The command `id` as the list stands now (the status bar's hints read their label and reason from it).
+pub fn find(s: &State, id: &str) -> Option<Command> {
+    all(s).into_iter().find(|c| c.id == id)
+}
+
+/// What a hint's button does: runs the command unless it is missing or disabled (`runCommand`); a command still waiting
+/// on its component says so with a toast, the way the palette does.
+pub fn run(s: &mut State, tx: &mut Tx, id: &str) {
+    let Some(cmd) = find(s, id) else { return };
+    if cmd.disabled {
+        return;
+    }
+    match cmd.run {
+        Run::Now(f) => f(s, tx),
+        Run::Waiting(n) => s.toast(format!("{} isn't in the native app yet (component {n} of the port).", cmd.label), None, 4.0, tx),
+        Run::Level(_) => {}
+    }
 }

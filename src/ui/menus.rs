@@ -22,9 +22,25 @@ pub fn dropdown(s: &State, t: &Theme, name: &'static str) -> Vec<El> {
     match name {
         "agent" => selector(s, t, "agent"),
         "model" => selector(s, t, "model"),
+        "help" => super::menu::dropdown_w(t, "help-pop", "rail-help", help(), Side::Right, Align::End, super::rem(14.0)),
         "more" => super::menu::dropdown_w(t, "more-pop", "more", more(s), Side::Bottom, Align::End, super::rem(14.0)),
         _ => drop(t, "gallery-pop", "g-menu", gallery(s), Side::Bottom, Align::Start),
     }
+}
+
+/// The rail's Help menu (`IconRail.vue`, `w-56`). Report a problem opens the dialog once piece Q builds it; What's new is
+/// Settings → Updates & about (`useWhatsNew`).
+pub fn help() -> Vec<Entry> {
+    vec![
+        Entry::Item(
+            Item::new("Report a problem…").icon(&BUG).on(|s: &mut State, tx: &mut Tx| crate::ui::commands::run(s, tx, "report-problem")),
+        ),
+        Entry::Separator,
+        Entry::Item(Item::new("What's new").icon(&SPARKLES).on(|s: &mut State, _: &mut Tx| {
+            s.rail = crate::Rail::Settings;
+            s.settings_section = Some("updates");
+        })),
+    ]
 }
 
 /// The header's ⋯ menu (`SessionActionToolbar.vue`, `w-56`): what the open session's capabilities allow, in Fleet's order.

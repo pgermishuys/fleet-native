@@ -1127,3 +1127,13 @@ The small case the checklist asked for (`tests_row_drag.rs`, first test): **Rune
 - **A row can be a drop target by its key's place.** The drag finds the row under the pointer through `Picked::path()` (as in 06 S); a URL can't be in the key because the path is split on `/`, so rows are keyed by index (`machine-address-<card>-<n>`).
 - **An element that left the tree can still be found for a frame or two** (`rt.find` / `elements()` after the view stopped drawing it); a test asserts on the state that drew it, not on the key being gone.
 - **A keyed handle keeps focus when its row moves**: `tx.focus(key, false)` in the handler that moved it puts focus on the new place.
+
+## Component 9, piece B (the Help menu and the status bar's hints)
+
+- **`preserve_focus_on_press(true)` only helps an element that can't take focus itself.** On a `focusable(true)` button the press focuses the button and the
+  composer loses the keyboard; with `focusable(false)` + `preserve_focus_on_press(true)` the composer keeps it. Fleet's `mousedown.prevent` hints stay
+  reachable by Tab; here they can't be (no way found to be in the Tab order and keep a press from taking focus).
+- **No pressed fill, and no hover border.** `hover(color)` is the only state tint, so Fleet's pressed 10% tint and the `[`/`]` key's lit border are not drawn.
+- **`ElementInfo` is enough to test a button**: `help` (tooltip), `label`, `opacity` and `focused` read a hint's state without a picture; `focusable` is false
+  on any element that only has `on_press`, so it says nothing about enabled or disabled.
+- **A menu measured mid-animation is narrower** (190 of 196 px a frame after opening); run frames before asserting its width.

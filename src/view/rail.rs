@@ -34,8 +34,8 @@ fn divider(t: &Theme) -> El {
     el().size(24.0, 1.0).my(4.0).fill(t.border)
 }
 
-/// One rail button. `which` is the view it opens; Help opens a menu in Fleet and nothing here.
-fn item(s: &State, t: &Theme, which: Option<Rail>, glyph: &'static Icon, label: &str, off: bool) -> El {
+/// One rail button. `which` is the view it opens; Help opens a menu (`ui::menus::help`) instead.
+fn item(s: &State, t: &Theme, which: Option<Rail>, glyph: &'static Icon, label: &'static str, off: bool) -> El {
     // `/welcome` and `/repositories` belong to no rail (`NO_RAIL`): nothing is lit.
     let active = which == Some(s.rail) && !s.on_bare_page();
     let mut face = el()
@@ -56,6 +56,9 @@ fn item(s: &State, t: &Theme, which: Option<Rail>, glyph: &'static Icon, label: 
         .help(label)
         .label(label)
         .on_press(move |s: &mut State| {
+            if label == "Help" {
+                s.ui.open = Some(crate::ui::Open::Menu("help"));
+            }
             if let Some(which) = which {
                 s.rail = which;
                 // A rail entry takes the window back from `/welcome` and `/repositories`.
