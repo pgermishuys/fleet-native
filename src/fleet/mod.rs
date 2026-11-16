@@ -82,6 +82,7 @@ pub mod rails;
 pub mod reducer;
 pub mod references;
 pub mod refresh;
+pub mod report;
 pub mod repositories;
 pub mod retry;
 pub mod right_panel;

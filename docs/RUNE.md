@@ -1209,3 +1209,12 @@ in Rune stops a drop in the wrong tree. Nothing in Rune got in the way otherwise
   `ui.open` without them). Compare `ui.open` with a flag in the poll and count the change there.
 - A grid with `minmax(70px, 1fr)` is a `grow(1).min_w(70)` cell next to fixed-width ones; let its text `wrap()` as the browser does.
 - A button inside a stretched column fills the width: wrap it in a `row()` to keep its own width.
+
+## Component 9, piece P (Report a problem: data and requests)
+
+- Nothing in Rune got in the way: it is plain Rust. A request that returns a file (`/api/reports/file`) needs the response's
+  `content-disposition`, which the other helpers in `http.rs` drop: `report_call` returns status, header and bytes, with
+  `http_status_as_error(false)` so a refusal's own words can be read. The file's name from a server is cut to its last path part
+  before it is joined to the downloads folder.
+- An answer that arrives after the report was closed must not bring it back: each request takes a generation from the state and the
+  answer is dropped unless it still matches (`ReportState::finished`).

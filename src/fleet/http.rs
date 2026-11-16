@@ -610,3 +610,47 @@ pub fn worktree_naming(base: &str, directory: Option<&str>) -> Result<(u16, Stri
     let tail = directory.filter(|d| !d.is_empty()).map_or(String::new(), |d| format!("?directory={}", query_value(d)));
     text_with("GET", base, &format!("/api/worktrees/naming{tail}"), None)
 }
+
+/// One report call: the status and the body, `Err` only when nothing answered.
+fn report_call(base: &str, path: &str, body: &Value, timeout: u64) -> Result<(u16, String, Vec<u8>), String> {
+    let agent: ureq::Agent = builder().timeout_global(Some(Duration::from_secs(timeout))).http_status_as_error(false).build().into();
+    let mut response =
+        agent.post(url(base, path)).header("content-type", "application/json").send(body.to_string()).map_err(|e| e.to_string())?;
+    let status = response.status().as_u16();
+    let disposition = response.headers().get("content-disposition").and_then(|v| v.to_str().ok()).unwrap_or_default().to_string();
+    let bytes = response.body_mut().with_config().limit(32 * 1024 * 1024).read_to_vec().map_err(|e| e.to_string())?;
+    Ok((status, disposition, bytes))
+}
+
+/// `POST /api/reports/prepare`: the prepared report, or the server's own words (`error`), or the fallback.
+pub fn report_prepare(base: &str, body: &Value) -> Result<Value, String> {
+    use super::report::{PREPARE_FAILED, error_words};
+    let (status, _, bytes) = report_call(base, "/api/reports/prepare", body, 30).map_err(|_| PREPARE_FAILED.to_string())?;
+    let text = String::from_utf8_lossy(&bytes);
+    if !(200..300).contains(&status) {
+        return Err(error_words(status, &text, PREPARE_FAILED));
+    }
+    serde_json::from_str(&text).map_err(|_| PREPARE_FAILED.to_string())
+}
+
+/// `POST /api/reports/send`: the report's id.
+pub fn report_send(base: &str, body: &Value) -> Result<String, String> {
+    use super::report::{SEND_FAILED, error_words};
+    let (status, _, bytes) = report_call(base, "/api/reports/send", body, 60).map_err(|_| SEND_FAILED.to_string())?;
+    let text = String::from_utf8_lossy(&bytes);
+    if !(200..300).contains(&status) {
+        return Err(error_words(status, &text, SEND_FAILED));
+    }
+    let id = serde_json::from_str::<Value>(&text).ok().and_then(|v| v.get("id")?.as_str().map(str::to_string));
+    id.ok_or_else(|| SEND_FAILED.to_string())
+}
+
+/// `POST /api/reports/file`: the zip's `content-disposition` and bytes.
+pub fn report_file(base: &str, body: &Value) -> Result<(String, Vec<u8>), String> {
+    use super::report::{SAVE_FAILED, error_words};
+    let (status, disposition, bytes) = report_call(base, "/api/reports/file", body, 60).map_err(|_| SAVE_FAILED.to_string())?;
+    if !(200..300).contains(&status) {
+        return Err(error_words(status, &String::from_utf8_lossy(&bytes), SAVE_FAILED));
+    }
+    Ok((disposition, bytes))
+}

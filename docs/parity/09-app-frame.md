@@ -514,7 +514,7 @@ before N, O and U; P, Q, R; S; T, U; V when decided; W last.
 - **Tests:** `use-fleet-update-notices.test.ts` (5).
 - **Pictures:** the chip and the card from scenes beside Fleet's own with the same machine answers (Playwright).
 
-### Piece P: Report a problem: the data and the requests (plain Rust)
+### Piece P: Report a problem: the data and the requests (plain Rust) — **done**
 
 - **Rows:** 9.1 (the store), 9.7, 9.9 (requests), 9.11.
 - **Files:** new `src/fleet/report.rs` (kinds, stages, ticked parts, the client facts, private values, the label
@@ -524,6 +524,16 @@ before N, O and U; P, Q, R; S; T, U; V when decided; W last.
 - **Tests:** `problem-report.test.ts` (5), `ProblemReportDialog.test.ts` 3-5 as request tests.
 - **Pictures:** non-visual: a prepared report from the scratch Fleet printed (its labels), beside Fleet's Review
   screen for the same text.
+- **Done:** rows 9.1 (the store: `ReportState` with `show` a no-op while open, `hide`, and no close while sending), 9.7, 9.9 (the
+  requests) and 9.11 (the footer's words; the server's `error` wins). `src/fleet/report.rs`, `src/fleet/http.rs`
+  (`report_prepare`, `report_send`, `report_file`), `src/tests_report.rs`. Tests: `problem-report.test.ts`'s five cases under their
+  names (the browser-name part of "names the browser, or the desktop app" is only the desktop line: there is no browser here) and
+  `ProblemReportDialog.test.ts` 3-5 as requests, against a stand-in server on this machine, plus the zip's name and place, the
+  late answer and the blank description. Live: `live_report` (ignored) prepares and saves against a scratch Fleet and prints the labels;
+  it never sends, because a Fleet's `/send` reaches the real inbox. Picture: `shots/parity/09p-report-requests/fleet-review.png`,
+  Fleet's Review for the same text as the native run (same title, "3 private details replaced · 1 folder, 1 token, 1 email address").
+  Gaps: the connection facts that need the hub's topic counts ("Subscribed", "Open session") are Q's to give, as is the session's shown
+  status; `Client` takes them as given. Save as file writes to the home folder's `Downloads` (Fleet's browser download), not a dialog.
 
 ### Piece Q: Report a problem: Describe, and the screenshot
 
