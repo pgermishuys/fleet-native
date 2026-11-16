@@ -958,3 +958,12 @@ A context-menu row's label is one text run, so a machine's name in the mono face
 - **A click can read the modifiers: `tx.mods()` in `on_press_tx`.** Shift-click and Ctrl/Cmd-click need nothing more. A test sends them with `rt.physical_input(PhysicalInput::Modifiers(..))` before the click; `--script` has no modifier keys, so a scripted run can't Ctrl-click.
 - **A press's handler runs inside the frame, after that frame's `poll`.** State a press changes (a fold, a filter) is seen by `poll` one frame late, and a frame that draws nothing new schedules no next one: anything `poll` must keep in step with the list needs `tx.wake_after` while it matters (`sync_selection`, 100 ms while rows are picked).
 - **An icon's stroke width can't be set**: Fleet's check in the checkbox is 10 px at stroke 3; here it is 10 px at the icon's own weight.
+
+## Component 8, piece E (fork dialog, analytics popover)
+
+- A scoped style in Fleet is not what the browser draws: `SessionAnalyticsPopover.vue` says `width: 240px; padding: 0`, and
+  the popover measures 252 wide with 14 px padding and square corners. Measure Fleet's DOM (`getBoundingClientRect`,
+  `getComputedStyle`) before copying a number from a `.vue` file.
+- `ui::dialog::Dialog.description` is one line that does not wrap; pass `description_el` with `.wrap().w_full()` for a long text.
+- A `TextEdit` handed to a dialog's field needs `set_selection(0, len)` for the browser's "autofocused text is selected"; focus
+  itself is `tx.focus(key, false)` on open.

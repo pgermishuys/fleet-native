@@ -92,7 +92,7 @@ fn shows_fork_off_with_its_reason_when_the_harness_cant_fork() {
     assert_eq!(rt.state.header_model().actions.fork_label(), "Fork: Copilot can't copy a conversation.");
     assert_eq!(rt.state.header_model().actions.fork_tip(), "Copilot can't copy a conversation.");
     click(&mut rt, "fork");
-    assert!(rt.state.head.bar.fork_for.is_none(), "an off Fork opens nothing");
+    assert!(rt.state.head.bar.fork.is_none(), "an off Fork opens nothing");
 }
 
 #[test]
@@ -231,7 +231,7 @@ fn abort_does_nothing_while_another_action_is_pending() {
 fn fork_opens_the_fork_dialog_when_allowed() {
     let mut rt = scene(Case::Fork);
     click(&mut rt, "fork");
-    assert_eq!(rt.state.head.bar.fork_for.as_deref(), Some("a-open"));
+    assert_eq!(rt.state.head.bar.fork.as_ref().map(|d| d.session.as_str()), Some("a-open"));
 }
 
 #[test]
@@ -239,7 +239,7 @@ fn fork_is_not_offered_when_the_harness_cannot_fork() {
     let mut rt = scene(Case::Fork);
     caps(&mut rt, Capabilities { can_fork: Some(false), ..Default::default() });
     rt.update(|s, tx| s.toolbar_fork(tx));
-    assert!(rt.state.head.bar.fork_for.is_none());
+    assert!(rt.state.head.bar.fork.is_none());
     assert_eq!(rt.state.header_model().actions.fork_label(), "Fork: This session can't be forked.");
 }
 

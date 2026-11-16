@@ -2,6 +2,7 @@
 //! 14px root (see `client/src/components/layout/AppShell.vue`).
 pub mod agent_row;
 pub mod allowed;
+pub mod analytics;
 pub mod ask_card;
 pub mod attachments;
 pub mod autocomplete;
@@ -19,6 +20,7 @@ mod fold;
 pub mod folder_menu;
 pub mod folder_menu_clone;
 pub mod folder_menu_path;
+pub mod fork;
 pub mod harness_picker;
 pub mod header;
 pub mod header_banners;

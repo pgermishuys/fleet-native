@@ -132,6 +132,7 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
         Some(Open::Popover("harness")) => crate::view::harness_picker::overlay(s, t),
         Some(Open::Popover("profile")) => crate::view::profile_picker::overlay(s, t),
         Some(Open::Popover("machine")) => crate::view::machine_picker::overlay(s, t),
+        Some(Open::Popover("analytics")) => crate::view::analytics::overlay(s, t),
         Some(Open::Popover("more")) => crate::view::more_options::overlay(s, t),
         Some(Open::Popover(name)) => gallery::popover_content(s, t, name),
         Some(Open::Directory) => directory_picker::view(s, t, "g-dir"),
@@ -152,6 +153,9 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
     }
     if let Some(ask) = confirm::view(s, t) {
         layer.extend(ask);
+    }
+    if let Some(fork) = crate::view::fork::view(s, t) {
+        layer.extend(fork);
     }
     if let Some(export) = crate::view::export::dialog(s, t) {
         layer.extend(export);

@@ -97,7 +97,7 @@ impl State {
     }
 
     /// What opening any session does once the route names it.
-    fn after_open(&mut self, tx: &mut Tx) {
+    pub(crate) fn after_open(&mut self, tx: &mut Tx) {
         // The right panel comes back the way this session left it, else the way it was last left anywhere.
         if let Some(c) = self.open_id().and_then(|id| self.sidebar.remembered_right(&id)) {
             self.content_open = !c;

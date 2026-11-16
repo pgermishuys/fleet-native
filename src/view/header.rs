@@ -442,6 +442,8 @@ struct Tool {
     danger: bool,
     off: bool,
     spinning: bool,
+    /// The analytics button once either number is known: filled, with its border (`analytics-trigger--active`).
+    active: bool,
 }
 
 fn toolbar_button(t: &Theme, b: Tool) -> El {
@@ -451,7 +453,10 @@ fn toolbar_button(t: &Theme, b: Tool) -> El {
     } else {
         icon(b.glyph, 14.0).color(t.muted).group_color(ink)
     };
-    let e = el().key(b.key).size(24.5, 24.5).center().radius(8.0).help(b.tip.clone()).label(b.tip).child(glyph);
+    let mut e = el().key(b.key).size(24.5, 24.5).center().radius(8.0).help(b.tip.clone()).label(b.tip).child(glyph);
+    if b.active {
+        e = e.fill(t.main_bg).border(1.0, t.border).border_layout();
+    }
     if b.off {
         return e.opacity(0.5);
     }
@@ -462,7 +467,7 @@ fn toolbar_button(t: &Theme, b: Tool) -> El {
 fn actions(s: &State, t: &Theme, m: &HeaderModel) -> El {
     let pending = s.toolbar_pending();
     let a = &m.actions;
-    let tool = |key, glyph, tip: &str| Tool { key, glyph, tip: tip.into(), danger: false, off: false, spinning: false };
+    let tool = |key, glyph, tip: &str| Tool { key, glyph, tip: tip.into(), danger: false, off: false, spinning: false, active: false };
     let mut buttons = row().center_y().gap(2.0).child(toolbar_button(t, tool("terminal", &SQUARE_TERMINAL, "Terminal")));
     if a.can_abort {
         let b = Tool {
@@ -478,10 +483,13 @@ fn actions(s: &State, t: &Theme, m: &HeaderModel) -> El {
         let b = Tool { off: pending || !a.can_fork, ..tool("fork", &GIT_FORK, &a.fork_tip()) };
         buttons = buttons.child(toolbar_button(t, b).label(a.fork_label()).on_press_tx(|s: &mut State, tx: &mut Tx| s.toolbar_fork(tx)));
     }
+    let has_usage = m.tokens_text != "\u{2014}" || m.cost_text != "\u{2014}";
     let more = Tool { spinning: s.toolbar_busy(), ..tool("more", &ELLIPSIS, "More actions") };
-    buttons = buttons
-        .child(toolbar_button(t, more).on_press(|s: &mut State| s.ui.open = Some(crate::ui::Open::Menu("more"))))
-        .child(toolbar_button(t, tool("analytics", &CHART_NO_AXES_COLUMN, "Session analytics")));
+    buttons = buttons.child(toolbar_button(t, more).on_press(|s: &mut State| s.ui.open = Some(crate::ui::Open::Menu("more")))).child(
+        toolbar_button(t, Tool { active: has_usage, ..tool("analytics", &CHART_NO_AXES_COLUMN, "Session analytics") })
+            .label("Show session analytics")
+            .on_press(|s: &mut State| s.ui.open = Some(crate::ui::Open::Popover("analytics"))),
+    );
     let errors = s.head.bar.errors(&s.session().id);
     if errors.is_empty() {
         return buttons.ml(10.5);
