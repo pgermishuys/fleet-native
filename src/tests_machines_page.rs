@@ -13,10 +13,10 @@ use std::net::TcpListener;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
-type Rt = Runtime<State>;
+pub(crate) type Rt = Runtime<State>;
 type Heard = Arc<Mutex<Vec<(String, String, Value, Option<String>)>>>;
 
-fn page() -> Rt {
+pub(crate) fn page() -> Rt {
     let mut rt = app();
     rt.update(|s, _| s.show_machines_page(true, false));
     rt.frame(FRAME);
@@ -25,43 +25,43 @@ fn page() -> Rt {
 }
 
 /// The page with only falcon beside home, so the access block fits on the screen to be clicked.
-fn short_page() -> Rt {
+pub(crate) fn short_page() -> Rt {
     let mut rt = page();
     rt.update(|s, _| s.machines.list.retain(|m| m.id == "m-falcon"));
     rt.frame(FRAME);
     rt
 }
 
-fn words(rt: &Rt, key: &str) -> String {
+pub(crate) fn words(rt: &Rt, key: &str) -> String {
     let all = rt.elements();
     let it = all.iter().find(|e| e.key.as_deref() == Some(key)).unwrap_or_else(|| panic!("no element keyed {key:?}"));
     let own = it.text.clone().unwrap_or_default();
     own + &all.iter().filter(|e| e.path.starts_with(&it.path) && e.path != it.path).filter_map(|e| e.text.clone()).collect::<String>()
 }
 
-fn exists(rt: &Rt, key: &str) -> bool {
+pub(crate) fn exists(rt: &Rt, key: &str) -> bool {
     rt.find(key).is_some()
 }
 
-fn press(rt: &mut Rt, key: Key) {
+pub(crate) fn press(rt: &mut Rt, key: Key) {
     rt.key(KeyEvent { key, mods: Mods::default() });
     rt.frame(FRAME);
     rt.frame(FRAME);
 }
 
-fn card_of(rt: &Rt, key: &str) -> crate::fleet::machine_card::Card {
+pub(crate) fn card_of(rt: &Rt, key: &str) -> crate::fleet::machine_card::Card {
     rt.state.machine_cards().into_iter().find(|c| c.key == key).unwrap_or_else(|| panic!("no card {key}"))
 }
 
 // ── the fake Fleet ─────────────────────────────────────────────────────────────
 
 /// Answers `routes` (method + path → status, body) and records everything else as a 404.
-struct Fake {
-    base: String,
+pub(crate) struct Fake {
+    pub(crate) base: String,
     heard: Heard,
 }
 
-fn fake(routes: Vec<(&'static str, &'static str, u16, String)>) -> Fake {
+pub(crate) fn fake(routes: Vec<(&'static str, &'static str, u16, String)>) -> Fake {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let heard: Heard = Default::default();
@@ -113,19 +113,19 @@ fn serve(stream: std::net::TcpStream, log: &Heard, routes: &[(&'static str, &'st
 }
 
 impl Fake {
-    fn seen(&self, method: &str, path: &str) -> Vec<(Value, Option<String>)> {
+    pub(crate) fn seen(&self, method: &str, path: &str) -> Vec<(Value, Option<String>)> {
         self.heard.lock().unwrap().iter().filter(|h| h.0 == method && h.1 == path).map(|h| (h.2.clone(), h.3.clone())).collect()
     }
 }
 
-struct Rig {
-    rt: Rt,
+pub(crate) struct Rig {
+    pub(crate) rt: Rt,
     jobs: Receiver<Job>,
 }
 
 impl Rig {
     /// The page, with its home at `home`: the invented machines are shown and every write goes to the fake.
-    fn new(home: &Fake) -> Rig {
+    pub(crate) fn new(home: &Fake) -> Rig {
         let mut rt = short_page();
         let (tx, jobs) = channel::<Job>();
         let tx = Mutex::new(tx);
@@ -135,7 +135,7 @@ impl Rig {
         Rig { rt, jobs }
     }
 
-    fn wait(&mut self, what: &str, done: impl FnMut(&State) -> bool) {
+    pub(crate) fn wait(&mut self, what: &str, done: impl FnMut(&State) -> bool) {
         // The poll thread's own jobs would replace the invented machines with the fake's answer; only the page's are wanted.
         crate::test_wait::drive(&mut self.rt, &self.jobs, what, done, |s| {
             format!("page errors {:?}, busy {:?}", s.machine_page.errors, s.machine_page.busy)

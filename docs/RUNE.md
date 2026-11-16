@@ -1121,3 +1121,9 @@ The small case the checklist asked for (`tests_row_drag.rs`, first test): **Rune
 - **`--at` counts frames, not seconds on the wall.** With `--server`, a software renderer drew 6 s of frames (360 at 60 fps) in about two
   minutes of real time, so a live state that lasts 30 s (a `background-work` sub-agent) had ended by the mark. For a picture of a passing live
   state, take it from a scene, or use a real window grabbed at the right moment (`checks/window.sh` style), not `--snap --at` on lavapipe.
+
+## Component 17, piece M (the address list)
+
+- **A row can be a drop target by its key's place.** The drag finds the row under the pointer through `Picked::path()` (as in 06 S); a URL can't be in the key because the path is split on `/`, so rows are keyed by index (`machine-address-<card>-<n>`).
+- **An element that left the tree can still be found for a frame or two** (`rt.find` / `elements()` after the view stopped drawing it); a test asserts on the state that drew it, not on the key being gone.
+- **A keyed handle keeps focus when its row moves**: `tx.focus(key, false)` in the handler that moved it puts focus on the new place.

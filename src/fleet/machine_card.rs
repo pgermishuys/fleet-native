@@ -1,6 +1,7 @@
 //! What a card on Settings → Machines says, as plain data (`MachinesSection.vue`: `stateLine`, `capabilityLine`,
 //! `readyHarnesses`, `harnessVersions`, `showsAgentWork`, `location`; `stores/machines.ts`: `agentWorkLevelName`). The view only
 //! draws it, so every word is testable without a window.
+use super::machine::{Address, AddressResult, Kind, kind_of};
 use super::machine_diagnosis::Diagnosis;
 use super::machines::{AgentWork, Capabilities, Entry, Machines, Source};
 use crate::State;
@@ -33,6 +34,62 @@ pub struct Card {
     pub agent_work: Option<(AgentWork, String)>,
     /// Why the machine isn't answering, for the Details panel.
     pub diagnosis: Option<Diagnosis>,
+    /// "Connected on your network" and, only when Fleet fell back off Tailscale, why (`routeLine`); only while it answers.
+    pub route: Option<Route>,
+    /// Where the machine can be reached, in the order Fleet tries them (`addressesOf`); none for home or an SSH machine.
+    pub addresses: Vec<AddressRow>,
+}
+
+/// `routeLine`: how this app is connected, from the kind of the address in use.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Route {
+    pub text: String,
+    pub note: Option<String>,
+}
+
+/// One row of the address list (`MachineAddressList.vue`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AddressRow {
+    pub url: String,
+    /// `KIND_LABELS`.
+    pub kind: &'static str,
+    /// The machine reported it itself; false for the address it was added with.
+    pub learned: bool,
+    /// "In use", "Answered", "No answer", "Another device" or "Not tried" (`statusOf`).
+    pub status: &'static str,
+    pub in_use: bool,
+}
+
+impl AddressRow {
+    fn of(a: &Address, in_use: &str) -> AddressRow {
+        let used = a.url == in_use;
+        let status = if used {
+            "In use"
+        } else {
+            match a.last_result {
+                Some(AddressResult::Ok) => "Answered",
+                Some(AddressResult::NoAnswer) => "No answer",
+                Some(AddressResult::OtherMachine) => "Another device",
+                None => "Not tried",
+            }
+        };
+        AddressRow { url: a.url.clone(), kind: a.kind.label(), learned: a.learned, status, in_use: used }
+    }
+}
+
+/// `routeLine`: `base` is the address in use, `addresses` the machine's, first to try first.
+fn route_line(base: &str, addresses: &[Address]) -> Option<Route> {
+    let first = addresses.first()?;
+    let kind = kind_of(base);
+    let text = match kind {
+        k if k.is_tailscale() => "Connected over Tailscale".to_string(),
+        Kind::Lan => "Connected on your network".to_string(),
+        Kind::Hostname => "Connected by host name".to_string(),
+        _ => format!("Connected at {base}"),
+    };
+    // Only when Fleet fell back off Tailscale: on its IP after its name failed, Tailscale itself works.
+    let note = (first.url != base && first.kind.is_tailscale() && !kind.is_tailscale()).then(|| "Tailscale isn't answering".to_string());
+    Some(Route { text, note })
 }
 
 /// The names of the permission levels (`PERMISSION_LEVEL_NAMES`); "unknown" for a Fleet too old to say.
@@ -108,6 +165,11 @@ impl Machines {
                 let (state, tone) = self.state_line(&entry, why.as_ref());
                 let answering = entry.is_home || self.is_answering(&entry.key);
                 let caps = entry.capabilities().filter(|_| answering).cloned();
+                // Home and an SSH machine have no addresses to order.
+                let by_url = entry.machine.as_ref().filter(|m| !m.addresses.is_empty() && m.ssh_destination.is_none());
+                let addresses: Vec<AddressRow> =
+                    by_url.map(|m| m.addresses.iter().map(|a| AddressRow::of(a, m.base())).collect()).unwrap_or_default();
+                let route = by_url.filter(|_| tone == Tone::Ok).and_then(|m| route_line(m.base(), &m.addresses));
                 let location = match entry.machine.as_ref().and_then(|m| m.ssh_destination.as_ref()) {
                     Some(dest) => format!("Over SSH as {dest}"),
                     None => entry.machine.as_ref().map_or_else(|| "this machine".to_string(), |m| m.base().to_string()),
@@ -130,6 +192,8 @@ impl Machines {
                     versions: caps.as_ref().and_then(harness_versions),
                     agent_work,
                     diagnosis: why,
+                    route,
+                    addresses,
                 }
             })
             .collect()
@@ -137,7 +201,14 @@ impl Machines {
 }
 
 impl State {
+    /// The cards, with an address list drawn in the order just asked for while that order is being saved.
     pub fn machine_cards(&self) -> Vec<Card> {
-        self.machines.cards()
+        let mut cards = self.machines.cards();
+        for card in &mut cards {
+            if let Some(order) = self.machine_page.addresses.order.get(&card.key) {
+                card.addresses.sort_by_key(|a| order.iter().position(|u| *u == a.url).unwrap_or(usize::MAX));
+            }
+        }
+        cards
     }
 }

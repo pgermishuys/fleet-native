@@ -52,6 +52,40 @@ impl State {
         });
     }
 
+    /// The cards' ways of being reached: falcon on its local address with Tailscale not answering and four addresses to order, harbor
+    /// over SSH with its tunnel down, lantern with one address (piece M).
+    pub fn show_machines_page_addresses(&mut self, dark: bool) {
+        use crate::fleet::machine::{Address, AddressResult, kind_of};
+        self.show_machines_page(dark, false);
+        let address = |url: &str, learned: bool, last_result: Option<AddressResult>| Address {
+            url: url.into(),
+            kind: kind_of(url),
+            learned,
+            last_result,
+            last_tried_at: None,
+        };
+        for m in &mut self.machines.list {
+            match m.id.as_str() {
+                "m-falcon" => {
+                    m.addresses = vec![
+                        address("http://falcon.tail4f2a.ts.net:2113", false, Some(AddressResult::NoAnswer)),
+                        address("http://100.88.14.3:2113", true, Some(AddressResult::NoAnswer)),
+                        address("http://192.168.1.42:2113", true, Some(AddressResult::Ok)),
+                        address("http://falcon:2113", true, None),
+                    ];
+                    m.base_url = "http://192.168.1.42:2113".into();
+                }
+                "m-harbor" => {
+                    m.ssh_destination = Some("alice@harbor".into());
+                    m.tunnel_up = Some(false);
+                    m.diagnosis = None;
+                }
+                "m-lantern" => m.addresses = vec![address(&m.base_url.clone(), false, None)],
+                _ => {}
+            }
+        }
+    }
+
     /// The machine switch of a view, closed or open, with the machines of the `Several` set and the open session on home.
     pub fn show_machine_switch(&mut self, dark: bool, open: bool) {
         self.show_machines(Case::Several, dark);
