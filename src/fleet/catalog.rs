@@ -454,6 +454,11 @@ impl State {
             }
         });
         self.load_preferences();
+        link.off_thread(http::client_config, |s, _, result| {
+            if let Ok(body) = result {
+                s.terminals_allowed = Some(body.get("terminalEnabled").and_then(serde_json::Value::as_bool).unwrap_or(false));
+            }
+        });
         // The wizard reads the live machine's harnesses whichever page shows (`HarnessSetupWizard.vue` is always mounted).
         self.read_harnesses(HOME_MACHINE_KEY, false);
         self.load_usage();

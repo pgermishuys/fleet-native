@@ -105,6 +105,8 @@ mod tests_smart_link_card;
 #[cfg(test)]
 mod tests_starters;
 #[cfg(test)]
+mod tests_status_bar;
+#[cfg(test)]
 mod tests_workspace;
 mod theme;
 pub mod ui;
@@ -284,6 +286,8 @@ pub struct State {
     pub machine_children: std::collections::HashMap<String, bool>,
     /// The machine and session (or project) a right-click menu on another machine's tree was opened on.
     pub machine_menu: Option<(String, String)>,
+    /// `terminalEnabled` of `GET /api/config/client` once read: the status bar shows its Terminal hint only while it is on.
+    pub terminals_allowed: Option<bool>,
     /// The Add a machine row was pressed: the form opens when Settings has one (piece K).
     pub add_machine_asked: bool,
     /// Settings → Machines: the rename and token fields, what is busy, the access of this machine (`fleet::machine_actions`).
@@ -482,6 +486,7 @@ impl Default for State {
             machines: Default::default(),
             machine_children: Default::default(),
             machine_menu: None,
+            terminals_allowed: None,
             add_machine_asked: false,
             machine_page: Default::default(),
             machine_switch_scene: None,
@@ -619,6 +624,18 @@ impl State {
             None => fleet::store::Route::None,
         };
         self.go(route);
+    }
+
+    /// A scene of the status bar: the open session's status (`None`: no session, the window a server that has none draws).
+    pub fn show_status_hints(&mut self, dark: bool, status: Option<mock::Status>) {
+        self.dark = Some(dark);
+        match status {
+            Some(status) => {
+                let (p, i) = self.open_at();
+                self.projects[p].sessions[i].status = status;
+            }
+            None => self.go_live(false),
+        }
     }
 
     /// Every session in list order, for the previous/next keys.
@@ -1949,6 +1966,21 @@ pub fn spec() -> AppSpec<State> {
             ("machine-loading", |s| s.show_machines(mock::machines::Case::Loading, true)),
             ("machine-long-name", |s| s.show_machines(mock::machines::Case::LongName, true)),
             ("machine-empty", |s| s.show_machines(mock::machines::Case::Empty, true)),
+            // Component 9, piece B: the Help menu and the status bar's hints.
+            ("help-menu", |s| {
+                s.dark = Some(true);
+                s.ui.open = Some(ui::Open::Menu("help"));
+            }),
+            ("help-menu-light", |s| {
+                s.dark = Some(false);
+                s.ui.open = Some(ui::Open::Menu("help"));
+            }),
+            ("status-working", |s| s.show_status_hints(true, Some(mock::Status::Working))),
+            ("status-working-light", |s| s.show_status_hints(false, Some(mock::Status::Working))),
+            ("status-idle", |s| s.show_status_hints(true, Some(mock::Status::Idle))),
+            ("status-idle-light", |s| s.show_status_hints(false, Some(mock::Status::Idle))),
+            ("status-no-session", |s| s.show_status_hints(true, None)),
+            ("status-no-session-light", |s| s.show_status_hints(false, None)),
             // Piece N: the machine switch.
             ("machine-switch", |s| s.show_machine_switch(true, false)),
             ("machine-switch-light", |s| s.show_machine_switch(false, false)),
