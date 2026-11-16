@@ -1114,3 +1114,10 @@ The small case the checklist asked for (`tests_row_drag.rs`, first test): **Rune
 - **`clip_rounded(r)`** is `overflow: hidden` on a rounded box (the setting group's card, the segmented control).
 - **A test types into a field after clicking its button**: replacing the field's `TextEdit` from `update` drops its focus, so a following Enter goes nowhere; press `Key::Text` instead (the field's text is selected, so it replaces it).
 - **`--snap` with `--size` draws at scale 2 unless `--scale 1` is given**: a 1280x760 picture came out 2560x1520 until then; pictures beside a browser's need `--scale 1`.
+
+## Component 9 (planning)
+
+- **`--theme light|dark` works with `--server`**, so a live picture can be taken in either theme without touching the system's.
+- **`--at` counts frames, not seconds on the wall.** With `--server`, a software renderer drew 6 s of frames (360 at 60 fps) in about two
+  minutes of real time, so a live state that lasts 30 s (a `background-work` sub-agent) had ended by the mark. For a picture of a passing live
+  state, take it from a scene, or use a real window grabbed at the right moment (`checks/window.sh` style), not `--snap --at` on lavapipe.
