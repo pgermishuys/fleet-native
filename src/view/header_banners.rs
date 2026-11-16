@@ -14,7 +14,7 @@ pub fn banners(s: &State, t: &Theme, m: &HeaderModel) -> Option<El> {
         items.push(stopped(t, m.lifecycle == "disconnected"));
     }
     if m.archived {
-        items.push(archived(t, m.actions.can_restore));
+        items.push(archived(s, t, m.actions.can_restore));
     }
     // The page puts the subagent bar under the header chrome, not inside the banner column.
     let delegated = delegated(s, t, m);
@@ -44,7 +44,7 @@ fn stopped(t: &Theme, disconnected: bool) -> El {
         .child(text(words).font(sans(14.0, 400.0, 1.4)).color(t.muted).wrap())
 }
 
-fn archived(t: &Theme, can_restore: bool) -> El {
+fn archived(s: &State, t: &Theme, can_restore: bool) -> El {
     let mut banner = row()
         .key("session-archived-banner")
         .w_full()
@@ -56,23 +56,32 @@ fn archived(t: &Theme, can_restore: bool) -> El {
         .fill(t.idle.alpha(0.10))
         .child(text("This session is archived and read-only.").font(sans(13.0, 400.0, 1.4)).color(t.text).grow(1.0).wrap());
     if can_restore {
-        banner = banner.child(
-            row()
-                .key("session-restore-button")
-                .h(28.0)
-                .px(12.0)
-                .gap(6.0)
-                .center_y()
-                .radius(999.0)
-                .border(1.0, t.border)
-                .fill(t.panel_bg)
-                .hover(t.wash(5.0))
-                .cursor(Cursor::Pointer)
-                .label("Restore")
-                .on_press_tx(|s: &mut State, tx: &mut crate::Tx| s.toolbar_restore(tx))
-                .child(icon(&ARCHIVE_RESTORE, 13.0).color(t.text))
-                .child(text("Restore").font(sans(12.0, 500.0, 1.3)).color(t.text)),
-        );
+        // A large spinner in the icon's place while the restore is on its way, and the pill at 60 % (`disabled:opacity-60`).
+        let restoring = s.head.bar.restoring.is_some();
+        let glyph = if restoring {
+            icon(&LOADER_CIRCLE, 16.0).color(t.muted).cycle(crate::view::ring_popover::spinner())
+        } else {
+            icon(&ARCHIVE_RESTORE, 13.0).color(t.text)
+        };
+        let mut pill = row()
+            .key("session-restore-button")
+            .h(28.0)
+            .px(12.0)
+            .gap(6.0)
+            .center_y()
+            .radius(999.0)
+            .border(1.0, t.border)
+            .fill(t.panel_bg)
+            .hover(t.wash(5.0))
+            .cursor(Cursor::Pointer)
+            .label("Restore")
+            .on_press_tx(|s: &mut State, tx: &mut crate::Tx| s.toolbar_restore(tx))
+            .child(glyph)
+            .child(text("Restore").font(sans(12.0, 500.0, 1.3)).color(t.text));
+        if restoring {
+            pill = pill.opacity(0.6);
+        }
+        banner = banner.child(pill);
     }
     banner
 }

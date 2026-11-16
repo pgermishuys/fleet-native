@@ -133,14 +133,14 @@ impl State {
         self.ask(Confirm::delete_session(title, Call::Delete { id }), tx);
     }
 
-    /// Archive (`handleArchive`). Fleet queues it behind an Undo window (component 6, piece I); until that is built the
-    /// request is made at once.
+    /// Archive (`handleArchive`): queued behind the Undo window (`archive_sessions`); the session leaves the list at once.
     pub fn toolbar_archive(&mut self, tx: &mut Tx) {
         let m = self.header_model();
-        if !self.has_session() || !m.actions.can_archive || self.head.bar.archiving.is_some() {
+        if !self.has_session() || !m.actions.can_archive {
             return;
         }
-        self.set_retention(true, tx);
+        let id = self.session().id.clone();
+        self.archive_sessions(&[id], None, tx);
     }
 
     /// Restore (`handleRestore`): un-archives; a refusal is a toast.
