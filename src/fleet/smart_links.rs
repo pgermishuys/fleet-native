@@ -767,7 +767,7 @@ impl SmartLinks {
         self.load_errors.get(session).map(String::as_str)
     }
 
-    pub(super) fn set_loading(&mut self, session: &str, on: bool) {
+    pub fn set_loading(&mut self, session: &str, on: bool) {
         if on {
             self.loading.insert(session.to_string());
         } else {
@@ -775,7 +775,7 @@ impl SmartLinks {
         }
     }
 
-    pub(super) fn set_load_error(&mut self, session: &str, message: Option<String>) {
+    pub fn set_load_error(&mut self, session: &str, message: Option<String>) {
         match message {
             Some(text) => {
                 self.load_errors.insert(session.to_string(), text);

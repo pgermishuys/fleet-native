@@ -480,9 +480,9 @@ impl crate::State {
 
 impl crate::State {
     /// A chip or the pill was pressed (`show`): open the right panel and ask the Context tab to flash `target`, a link id or
-    /// "origin". Fleet also introduces and activates the tab; until component 10 owns the tab strip the panel is all there is.
+    /// "origin". Fleet also introduces and activates the tab; until component 10 owns the tab strip, the panel's two tabs are the plan and this one.
     pub fn show_in_context(&mut self, target: &str) {
-        self.set_content_open(true);
+        self.show_context_tab();
         let id = self.session().id.clone();
         self.smart_links.request_focus(&id, target);
     }

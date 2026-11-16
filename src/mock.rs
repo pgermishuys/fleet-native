@@ -5,6 +5,7 @@ pub mod agents;
 pub mod asks;
 pub mod browser;
 pub mod context;
+pub mod context_tab;
 pub mod export;
 pub mod failure;
 pub mod feeds;

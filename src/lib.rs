@@ -25,6 +25,8 @@ mod tests_browser;
 #[cfg(test)]
 mod tests_chips;
 #[cfg(test)]
+mod tests_context_tab;
+#[cfg(test)]
 mod tests_folder_clone;
 #[cfg(test)]
 mod tests_folder_menu;
@@ -279,6 +281,8 @@ pub struct State {
     pub queue: fleet::queue::Queues,
     /// Smart links, GitHub's pull requests and issues attached to sessions (`fleet::smart_links`).
     pub smart_links: fleet::smart_links::SmartLinks,
+    /// The Context tab's attach form, Refresh and flash (`fleet::context_tab`).
+    pub context: fleet::context_tab::ContextTab,
     /// The `gh-parts` scene: the small GitHub parts on one page (`view::gh::parts`).
     pub gh_parts: bool,
     /// What the `/`, `@` and `$` lists are made from, and the popup they open (`fleet::finder`, `fleet::autocomplete`).
@@ -437,6 +441,7 @@ impl Default for State {
             retry_seen: 0,
             queue: Default::default(),
             smart_links: Default::default(),
+            context: Default::default(),
             gh_parts: false,
             finder: Default::default(),
             auto: Default::default(),
@@ -1150,7 +1155,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     let pictures = s.keep_images(tx);
     let renamed = s.keep_rename(tx) | s.keep_row_rename(tx) | s.keep_header(now, tx);
     let found = s.find_poll(tx) | s.keep_questions(tx) | s.keep_allowed_flash(now, tx);
-    let exported = s.export_poll(tx) | s.keep_setup_rows(now, tx);
+    let exported = s.export_poll(tx) | s.keep_setup_rows(now, tx) | s.keep_context(now, tx);
     // "Copied" on a message's button ends by itself.
     let copied = match &s.copied {
         Some((_, until)) if now >= *until => {
@@ -1678,6 +1683,24 @@ pub fn spec() -> AppSpec<State> {
             ("analytics-empty-light", |s| s.show_toolbar(mock::header::Case::Fork, false, fleet::toolbar::Scene::AnalyticsEmpty)),
             ("context-chips", |s| s.show_chips(mock::context::Case::Chips, true)),
             ("context-chips-light", |s| s.show_chips(mock::context::Case::Chips, false)),
+            ("context-tab-empty", |s| s.show_context_tab_scene(mock::context_tab::Case::Empty, true)),
+            ("context-tab-empty-light", |s| s.show_context_tab_scene(mock::context_tab::Case::Empty, false)),
+            ("context-tab-loading", |s| s.show_context_tab_scene(mock::context_tab::Case::Loading, true)),
+            ("context-tab-loading-light", |s| s.show_context_tab_scene(mock::context_tab::Case::Loading, false)),
+            ("context-tab-error", |s| s.show_context_tab_scene(mock::context_tab::Case::Error, true)),
+            ("context-tab-error-light", |s| s.show_context_tab_scene(mock::context_tab::Case::Error, false)),
+            ("context-tab-links", |s| s.show_context_tab_scene(mock::context_tab::Case::Links, true)),
+            ("context-tab-links-light", |s| s.show_context_tab_scene(mock::context_tab::Case::Links, false)),
+            ("context-tab-attach", |s| s.show_context_tab_scene(mock::context_tab::Case::Attach, true)),
+            ("context-tab-attach-light", |s| s.show_context_tab_scene(mock::context_tab::Case::Attach, false)),
+            ("context-tab-attach-error", |s| s.show_context_tab_scene(mock::context_tab::Case::AttachError, true)),
+            ("context-tab-attach-error-light", |s| s.show_context_tab_scene(mock::context_tab::Case::AttachError, false)),
+            ("context-tab-not-connected", |s| s.show_context_tab_scene(mock::context_tab::Case::NotConnected, true)),
+            ("context-tab-not-connected-light", |s| s.show_context_tab_scene(mock::context_tab::Case::NotConnected, false)),
+            ("context-tab-flash", |s| s.show_context_tab_scene(mock::context_tab::Case::Flash, true)),
+            ("context-tab-flash-light", |s| s.show_context_tab_scene(mock::context_tab::Case::Flash, false)),
+            ("context-tab-automation", |s| s.show_context_tab_scene(mock::context_tab::Case::Automation, true)),
+            ("context-tab-automation-light", |s| s.show_context_tab_scene(mock::context_tab::Case::Automation, false)),
             ("context-pill-open", |s| s.show_chips(mock::context::Case::Open, true)),
             ("context-pill-open-light", |s| s.show_chips(mock::context::Case::Open, false)),
             ("context-pill-blocked", |s| s.show_chips(mock::context::Case::Blocked, true)),
