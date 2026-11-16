@@ -3,6 +3,7 @@
 #
 #   bash scripts/snap-scenes.sh            # 1280x760 at scale 1
 #   SNAP_SCALE=2 bash scripts/snap-scenes.sh
+#   SNAP_EVERY=8 bash scripts/snap-scenes.sh   # every 8th scene, a light scene with its dark twin
 #
 # On Linux with no GPU, install mesa-vulkan-drivers; if a picture still fails, point
 # VK_ICD_FILENAMES at /usr/share/vulkan/icd.d/lvp_icd*.json.
@@ -26,6 +27,15 @@ scenes="$("$bin" --list-scenes < /dev/null | tr -d '\r')"
 if [ -z "$scenes" ]; then
   echo "no scenes listed by $bin" >&2
   exit 1
+fi
+
+# SNAP_EVERY=N keeps every Nth scene by its place in the list, so the sample is stable while scenes
+# are added at the end. A "-light" scene is kept with the scene it repeats, so a sampled scene is
+# drawn in both themes. Used where a start is slow (Windows' software renderer, 3.7 s per scene).
+every="${SNAP_EVERY:-1}"
+if [ "$every" -gt 1 ]; then
+  scenes="$(printf '%s\n' $scenes | awk -v n="$every" '{ b = $0; sub(/-light$/, "", b); if (!(b in id)) id[b] = c++; if (id[b] % n == 0) print }')"
+  echo "drawing $(printf '%s\n' $scenes | wc -l | tr -d ' ') scenes (every $every)"
 fi
 
 # One process per scene (Rune's headless run is one picture per start), several at once. Software

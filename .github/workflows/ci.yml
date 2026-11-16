@@ -69,9 +69,13 @@ jobs:
 
       # Pull requests draw on Linux only: on Windows and macOS the software renderer already uses every
       # core for one picture, and Rune draws one scene per start, so this step took 500 s on Windows.
-      # Pushes to main draw on all three systems.
+      # Pushes to main draw on all three systems, but Windows draws every 8th scene (both themes of each):
+      # at ~3.7 s a scene, all ~700 took 41 min and hit the job's timeout, which skipped Publish latest.
+      # Linux draws every scene on pull requests and main; macOS (about 7 min) draws every scene.
       - name: Draw every scene
         if: runner.os == 'Linux' || github.event_name != 'pull_request'
+        env:
+          SNAP_EVERY: ${{ runner.os == 'Windows' && '8' || '1' }}
         run: bash scripts/snap-scenes.sh
 
       # The updater's replace step on a real system: a copy of this debug build that believes it is build 1 (FLEET_NATIVE_TEST_BUILD) updates itself from a
