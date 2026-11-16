@@ -73,6 +73,7 @@ pub mod references;
 pub mod refresh;
 pub mod repositories;
 pub mod retry;
+pub mod right_panel;
 pub mod routing;
 pub mod row_chips;
 pub mod row_menu;

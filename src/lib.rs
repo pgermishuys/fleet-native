@@ -79,6 +79,8 @@ mod tests_project;
 #[cfg(test)]
 mod tests_questions;
 #[cfg(test)]
+mod tests_right_panel;
+#[cfg(test)]
 mod tests_row_actions;
 #[cfg(test)]
 mod tests_row_menu;
@@ -122,6 +124,8 @@ pub struct State {
     pub sidebar_open: bool,
     pub sidebar_w: f32,
     pub content_open: bool,
+    /// The right panel's width rules: dragged width, Widen, review (`fleet::right_panel`).
+    pub right: fleet::right_panel::RightPanel,
     /// What is remembered between runs: folded groups and the two side panels (`fleet::settings`).
     pub sidebar: fleet::settings::Sidebar,
     /// The New session page's draft (in memory only, as Fleet's is).
@@ -383,6 +387,7 @@ impl Default for State {
             sidebar_open: true,
             sidebar_w: view::SIDEBAR_W,
             content_open: false,
+            right: Default::default(),
             sidebar: Default::default(),
             new_draft: Default::default(),
             starters: Default::default(),
@@ -1323,6 +1328,28 @@ pub fn spec() -> AppSpec<State> {
             // Discovery found no Fleet: the status bar says where it looked and how to name one.
             ("no-fleet-found", |s| s.notice = Some(fleet::discover::sample_not_found())),
             ("content-open", |s| s.content_open = true),
+            ("content-open-light", |s| {
+                s.dark = Some(false);
+                s.content_open = true
+            }),
+            // Piece Q of the session list: the collapsed rail (chevron, plan ring, pending count), and Widen with the list folded
+            // so the sheet has room for the 760px it asks for.
+            ("right-rail", |s| s.content_open = false),
+            ("right-rail-light", |s| {
+                s.dark = Some(false);
+                s.content_open = false
+            }),
+            ("right-widened", |s| {
+                s.content_open = true;
+                s.sidebar_open = false;
+                s.right.widened = true
+            }),
+            ("right-widened-light", |s| {
+                s.dark = Some(false);
+                s.content_open = true;
+                s.sidebar_open = false;
+                s.right.widened = true
+            }),
             // Piece D of the New session page: the page with an empty stage, the list's Draft row, and the palette's live row.
             ("new-session", |s| s.show_new_session(false)),
             ("new-session-light", |s| {

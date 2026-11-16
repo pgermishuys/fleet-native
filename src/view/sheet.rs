@@ -1,7 +1,6 @@
 //! The workspace sheet: the session header, the conversation, the composer, and the content
 //! panel on the right (collapsed to a 48px rail by default).
 use super::conversation::{Scroll, stream};
-use super::parts::tool_button;
 use crate::State;
 use crate::fleet::context_tab::PanelTab;
 use crate::icons::*;
@@ -9,11 +8,8 @@ use crate::mock::Session;
 use crate::theme::{Theme, sans};
 use rune::{Color, Cursor, El, Shadow, col, icon, row, spacer, text};
 
-/// `AppShell.vue`: the content panel is a column only while the conversation keeps 480px beside
-/// the panel at its narrowest (280px). In a narrower sheet it opens over the conversation.
-const MIN_CONVERSATION: f32 = 480.0;
-const CONTENT_W: f32 = 360.0;
-const CONTENT_MIN: f32 = 280.0;
+use super::right_rail;
+use crate::fleet::right_panel as rp;
 
 /// How wide the conversation column is, which the header's sides and its pill's half are measured against (Fleet's
 /// `session-detail-header` container). Unmeasured counts as roomy.
@@ -21,8 +17,7 @@ fn centre_w(s: &State) -> f32 {
     if s.sheet_w <= 0.0 {
         return f32::INFINITY;
     }
-    let room = s.sheet_w - MIN_CONVERSATION;
-    let panel = if !s.content_open || room < CONTENT_MIN { 48.0 } else { CONTENT_W.min(room) };
+    let panel = if !s.content_open || !rp::fits(s.sheet_w) { rp::RAIL_W } else { s.right_shown_w() };
     s.sheet_w - panel
 }
 
@@ -71,17 +66,11 @@ pub fn sheet(s: &State, t: &Theme) -> El {
     for shadow in t.sheet_shadows() {
         sheet = sheet.box_shadow(shadow);
     }
-    // Unmeasured (the first frame) counts as roomy, as it does in Fleet.
-    let room = if s.sheet_w > 0.0 { s.sheet_w - MIN_CONVERSATION } else { f32::INFINITY };
     sheet = sheet.child(centre);
-    if !s.content_open {
-        sheet.child(content_rail(t, session))
-    } else if room >= CONTENT_MIN {
-        sheet.child(content(s, t, session).w(CONTENT_W.min(room)))
-    } else {
-        // Too narrow for a third column: the panel lies over the conversation, on the right.
-        let over = content(s, t, session)
-            .w(CONTENT_W.min(s.sheet_w - 48.0))
+    // Too narrow for a third column (`rightPanelFits`): the panel lies over the conversation, on the right, closed until asked.
+    if !rp::fits(s.sheet_w) {
+        let over = content(s, t, session, true)
+            .w(360.0_f32.min(s.sheet_w - 48.0))
             .fill(t.panel_bg)
             .box_shadow(Shadow {
                 x: -12.0,
@@ -92,40 +81,30 @@ pub fn sheet(s: &State, t: &Theme) -> El {
                 inset: false,
             })
             .pin(None, Some(0.0), Some(0.0), Some(0.0));
-        sheet.child(content_rail(t, session)).child(over)
+        let sheet = sheet.child(collapsed_rail(s, t, session));
+        return if s.content_open { sheet.child(over) } else { sheet };
     }
+    if !s.content_open {
+        return sheet.child(collapsed_rail(s, t, session));
+    }
+    sheet.child(right_rail::gutter(t)).child(content(s, t, session, false).w(s.right_shown_w()).min_w(rp::MIN_W))
 }
 
-/// The collapsed content panel (`CollapsedRightRail.vue`): the plan icon and how many steps
-/// are still to do. A click opens the panel.
-fn content_rail(t: &Theme, session: &Session) -> El {
-    let (_, pending) = plan(session);
-    col()
-        .key("content-rail")
-        .w(48.0)
-        .h_full()
-        .items_center()
-        .pt(16.0)
-        .border_sides([0.0, 0.0, 0.0, 1.0], t.border)
-        .hover(t.wash(3.0))
-        .hover_group()
-        .cursor(Cursor::Pointer)
-        .help("Open the panel")
-        .label("Open the panel")
-        .on_press(|s: &mut State| s.set_content_open(true))
-        .child(icon(&LIST_TODO, 14.0).color(t.muted).group_color(t.text))
-        .child(text(pending.to_string()).font(sans(10.0, 700.0, 1.3)).color(t.muted).mt(3.0))
+/// The collapsed content panel (`CollapsedRightRail.vue`), counting the session's plan.
+fn collapsed_rail(s: &State, t: &Theme, session: &Session) -> El {
+    let (steps, pending) = plan(session);
+    right_rail::rail(s, t, steps.len() - pending, steps.len())
 }
 
 /// The open content panel, showing the session's plan. Fleet shows files, pages and more here;
 /// the prototype only shows that the third column opens and closes.
-fn content(s: &State, t: &Theme, session: &Session) -> El {
+fn content(s: &State, t: &Theme, session: &Session, over: bool) -> El {
     if s.context.tab == PanelTab::Context {
         return col()
             .key("content")
             .h_full()
             .border_sides([0.0, 0.0, 0.0, 1.0], t.border)
-            .child(panel_head(t, PanelTab::Context, None))
+            .child(panel_head(t, PanelTab::Context, None, over))
             .child(super::context_tab::context_tab(s, t));
     }
     let (steps, pending) = plan(session);
@@ -148,7 +127,7 @@ fn content(s: &State, t: &Theme, session: &Session) -> El {
     if steps.is_empty() {
         list = list.child(text("This session has no plan.").font(sans(13.0, 400.0, 1.4)).color(t.muted).px(8.0).py(6.0));
     }
-    let head = panel_head(t, PanelTab::Plan, Some(pending));
+    let head = panel_head(t, PanelTab::Plan, Some(pending), over);
     col().key("content").h_full().border_sides([0.0, 0.0, 0.0, 1.0], t.border).child(head).child(list)
 }
 
@@ -172,7 +151,7 @@ fn plan(session: &Session) -> (Vec<(bool, &'static str)>, usize) {
 
 /// The strip at the top of the panel. Component 10 builds Fleet's real one (`CanvasHost`); until then it holds the two tabs
 /// there are, and the button that closes the panel.
-fn panel_head(t: &Theme, active: PanelTab, pending: Option<usize>) -> El {
+fn panel_head(t: &Theme, active: PanelTab, pending: Option<usize>, over: bool) -> El {
     let tab = |key: &'static str, glyph: &'static rune::Icon, label: &str, which: PanelTab| {
         let on = active == which;
         row()
@@ -202,6 +181,5 @@ fn panel_head(t: &Theme, active: PanelTab, pending: Option<usize>) -> El {
     if let Some(pending) = pending {
         head = head.child(text(format!("{pending} to do")).font(sans(12.0, 400.0, 1.4)).color(t.muted));
     }
-    head.child(spacer())
-        .child(tool_button(t, "close-content", &CHEVRON_RIGHT, 14.0, "Close the panel").on_press(|s: &mut State| s.set_content_open(false)))
+    head.child(spacer()).child(right_rail::collapse_button(t, over))
 }

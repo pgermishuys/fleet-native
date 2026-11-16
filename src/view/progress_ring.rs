@@ -20,7 +20,7 @@ pub struct Trims(RefCell<HashMap<String, Live<[f32; 2]>>>);
 
 impl Trims {
     /// The animated end for `owner`'s ring, aimed at `end`; a ring seen the first time snaps to it.
-    fn aim(&self, owner: &str, end: f32) -> rune::live::Binding<[f32; 2]> {
+    pub(super) fn aim(&self, owner: &str, end: f32) -> rune::live::Binding<[f32; 2]> {
         let mut map = self.0.borrow_mut();
         let live = match map.get(owner) {
             Some(live) => {

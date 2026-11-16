@@ -1065,3 +1065,9 @@ key, so clicks and `tx.focus` on the key never reach the field. Key the field an
 - **No grid**: Fleet's `grid-cols-1 xl:grid-cols-2` is a column of rows, each with `columns` cards of `grow(1.0).w(0.0)` (so they share the width evenly) and empty stand-ins to fill the last row.
 - **A dashed border** is `border(..).border_layout().border_dash(dash, gap)`; the dash needs the border laid out or it draws over the content.
 - **`on_press` has no `Tx`**: use `on_press_tx` for a handler that toasts or wakes.
+
+## Component 6, piece Q (the right panel's shell)
+
+- **Layout eases on a press's commit, not on a drag's.** `tx.motion_curve(Curve::tween(0.2, Easing::cubic(..)))` in the handler gives a toggle Fleet's own 200 ms curve; `tx.instant()` in an `on_drag` lands each step at once, which is Fleet's "never while dragging".
+- **A negative margin works** (`mx(-4.0)` puts an 8 px gutter over the seam without taking width from either side).
+- **Centre text over a canvas** with a keyed-less `el().size(..).absolute(0,0).center()` box; `absolute` plus `.center()` on the text itself leaves it in the corner.
