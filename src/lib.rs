@@ -79,6 +79,8 @@ mod tests_new_send;
 #[cfg(test)]
 mod tests_new_session;
 #[cfg(test)]
+mod tests_notices;
+#[cfg(test)]
 mod tests_open_in;
 #[cfg(test)]
 mod tests_pages;
@@ -373,6 +375,9 @@ pub struct State {
     pub copied: Option<(String, f64)>,
     /// The wall clock in unix milliseconds when a scene fixes it; `None` reads the real one (the time pills).
     pub now_ms: Option<i64>,
+    /// The notices, and whether this is a quiet moment for a card to open (component 9, piece K).
+    pub notices: fleet::notices::Notices,
+    pub quiet: fleet::notices::Quiet,
     /// When the list last re-read the clock for its ages (`use-relative-time.ts`), on `clock`; `None` before the first.
     pub row_tick: Option<f64>,
     /// The agent and model lists, the harness list, the preferences and the effort memory (`fleet::catalog`).
@@ -545,6 +550,8 @@ impl Default for State {
             prompt_open: Default::default(),
             copied: None,
             now_ms: None,
+            notices: Default::default(),
+            quiet: Default::default(),
             row_tick: None,
             stream: None,
             prompts: Default::default(),
@@ -1043,6 +1050,7 @@ impl State {
                 self.aborting = None;
             }
         } else if self.drafts.text_of(&owner) != self.draft.text {
+            self.quiet.typed(now);
             self.drafts.write(&composer::drafts::session_draft_key(&owner), &self.draft.text, now);
         }
         self.keep_side_drafts(&owner, now);
@@ -1331,6 +1339,9 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     // Whole seconds only, so the "Working · 18s" label redraws once a second.
     let ticked = now.floor() != s.clock.floor();
     s.clock = now;
+    if s.keep_notices(now, tx) {
+        return true;
+    }
     let aged = s.keep_row_ages(now, tx);
     s.keep_drafts(now, tx);
     let archiving = s.keep_archive(now, tx) | s.keep_lineage(now, tx);
@@ -1372,6 +1383,10 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
 }
 
 fn on_key(s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool {
+    // A key that went through a focused control is someone typing: a card waits for them to pause.
+    if tx.focused().is_some() {
+        s.quiet.typed(s.clock);
+    }
     if s.find_key(ev, tx) || view::permission::on_key(s, ev, tx) || view::question::on_key(s, ev, tx) {
         return true;
     }
@@ -2759,6 +2774,9 @@ pub fn spec() -> AppSpec<State> {
                 s.dark = Some(false);
                 s.show_running(mock::running::Case::One, true)
             }),
+            ("notice-posted", |s| {
+                s.notices.post(fleet::notices::Notice::new("scene:hello", "Fleet 0.37.0 is ready").chip("Fleet 0.37.0 ready"), 0.0)
+            }),
             ("running-many", |s| s.show_running(mock::running::Case::Many, true)),
             ("running-many-light", |s| {
                 s.dark = Some(false);
@@ -3228,11 +3246,16 @@ pub fn start_desktop() {
     // The server hears whether the window has the keyboard and is on screen (`fleet::presence`).
     let app = App::new(spec())
         .args(rest)
-        .on_focus(|s, focused, _| {
+        .on_focus(|s, focused, tx| {
             s.each_link(|link| link.window_focus(focused));
+            s.quiet.focused = focused;
+            // Back in Fleet: a waiting card opens now, not at the next look.
+            s.keep_notices(s.clock, tx);
         })
-        .on_visibility(|s, visible, _| {
+        .on_visibility(|s, visible, tx| {
             s.each_link(|link| link.window_visible(visible));
+            s.quiet.visible = visible;
+            s.keep_notices(s.clock, tx);
         });
     let handle = app.handle();
     // The drafts and the remembered choices (folded groups, the side panels) come back from the app's own data folder, read off the UI thread. A picture or a scripted run

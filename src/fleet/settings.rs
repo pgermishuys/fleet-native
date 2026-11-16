@@ -50,6 +50,8 @@ pub struct Sidebar {
     /// The last repository scan of each machine, so the box has repositories before the machine answers
     /// (`weave:saved:repositories:{machineKey}`).
     saved_repositories: BTreeMap<String, super::new_session::feeds::Scan>,
+    /// Ids of the notices that have been a card, oldest first (`weave:notices-shown`).
+    notices_shown: Vec<String>,
     dir: Option<PathBuf>,
     dirty: bool,
 }
@@ -91,6 +93,9 @@ impl Sidebar {
         if let Some(Value::Object(by_machine)) = root.get("savedRepositories") {
             s.saved_repositories = by_machine.iter().map(|(k, v)| (k.clone(), super::new_session::feeds::Scan::from_json(v))).collect();
         }
+        if let Some(Value::Array(ids)) = root.get("noticesShown") {
+            s.notices_shown = ids.iter().filter_map(|v| v.as_str().map(String::from)).collect();
+        }
         s
     }
 
@@ -109,6 +114,9 @@ impl Sidebar {
         }
         if !self.saved_repositories.is_empty() {
             root["savedRepositories"] = self.saved_repositories.iter().map(|(m, scan)| (m.clone(), scan.to_json())).collect();
+        }
+        if !self.notices_shown.is_empty() {
+            root["noticesShown"] = json!(self.notices_shown);
         }
         serde_json::to_string_pretty(&root).unwrap_or_default()
     }
@@ -221,6 +229,19 @@ impl Sidebar {
     pub fn update_new_session_defaults(&mut self, machine: &str, change: impl FnOnce(&mut NewSessionDefaults)) {
         change(self.new_session.entry(machine.to_string()).or_default());
         self.dirty = true;
+    }
+
+    /// The notice ids shown as cards before, oldest first.
+    pub fn notices_shown(&self) -> &[String] {
+        &self.notices_shown
+    }
+
+    /// Keeps the notice ids shown so far (the last [`super::notices::SHOWN_LIMIT`]).
+    pub fn save_notices_shown(&mut self, ids: &[String]) {
+        if self.notices_shown != ids {
+            self.notices_shown = ids.to_vec();
+            self.dirty = true;
+        }
     }
 
     /// The default harness another machine last said it has (`readSaved("default-harness", key)`).
