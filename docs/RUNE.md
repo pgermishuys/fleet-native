@@ -989,3 +989,8 @@ A context-menu row's label is one text run, so a machine's name in the mono face
 - A ring like `box-shadow: 0 0 0 2px bg, 0 0 0 3.5px ring` is two `box_shadow` calls with `spread`, the wider one first; it takes no layout room, as in CSS.
 - A bar of segments sized by `flex-grow` is `el().grow(n)` children in a row with `clip_rounded` on the row.
 - A fake server for a test of a request: the hub's own negotiate `POST` reaches it too, so filter calls by path before counting them.
+
+## Component 8, piece G (context chips and the pill)
+
+- `overflow: hidden` with a radius (the pill's number part under the rounded border) is `clip_rounded(radius)` on the container; without it a child's square fill pokes past the corners.
+- Two `impl State` blocks in different files can't use the same method name (`show_context` already belonged to the ring's scenes): name scene helpers after their file.

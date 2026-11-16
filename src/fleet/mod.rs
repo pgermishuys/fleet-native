@@ -15,6 +15,7 @@ pub mod catalog;
 pub mod command;
 pub mod compact;
 pub mod context;
+pub mod context_chips;
 pub mod delegations;
 pub mod discover;
 pub mod events;

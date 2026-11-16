@@ -1,8 +1,7 @@
 //! The session header (ports `SessionDetailHeader.vue`'s title row and meta row; the banners under it are in
 //! `header_banners.rs`). What it says comes from `fleet::header::HeaderModel`; this file only draws it.
 //!
-//! Not here yet: the fork dialog and the analytics popover (piece E), and the context
-//! chips between the text and the buttons (piece G). Rename, tags, the copy button and Restore now are `fleet::header_actions`.
+//! The context chips between the text and the buttons are `header_context.rs`. Rename, tags, the copy button and Restore now are `fleet::header_actions`.
 use super::parts::status_glyph;
 use crate::fleet::groups::LineageKind;
 use crate::fleet::header::{Checkout, HeaderModel, Indicator, MachineChip};
@@ -35,6 +34,7 @@ pub fn header(s: &State, t: &Theme, centre_w: f32) -> El {
         .py(8.0)
         .border_sides([0.0, 0.0, 1.0, 0.0], t.border)
         .child(main)
+        .children(super::header_context::context_chips(s, t).map(|c| c.ml(10.5)))
         .child(actions(s, t, &m))
 }
 

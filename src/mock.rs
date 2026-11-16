@@ -4,6 +4,7 @@ use crate::view::conversation::{Message, Part, ToolState};
 pub mod agents;
 pub mod asks;
 pub mod browser;
+pub mod context;
 pub mod export;
 pub mod failure;
 pub mod feeds;
