@@ -38,6 +38,6 @@ impl State {
         }
         self.machines.set_current(key);
         self.rail = Rail::Sessions;
-        self.go(Route::None);
+        self.go(Route::Home);
     }
 }

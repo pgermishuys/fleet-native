@@ -216,13 +216,14 @@ fn an_empty_list_opens_the_page_instead_of_a_session() {
 }
 
 #[test]
-fn a_list_with_sessions_still_opens_the_first() {
+fn a_list_with_sessions_goes_home_with_nothing_selected() {
     let mut rt = app();
     rt.update(|s, tx| {
         s.route = Route::None;
         s.on_list(crate::mock::projects(), tx);
     });
-    assert_eq!(rt.state.open_at(), (0, 0));
+    assert_eq!(rt.state.route, Route::Home);
+    assert!(!rt.state.has_session());
 }
 
 #[test]

@@ -392,6 +392,8 @@ pub struct State {
     pub no_fleet: bool,
     /// A normal run (`go_live`): nothing invented is shown anywhere, status bar included.
     pub live: bool,
+    /// The rule that lands the first `/` of a start on Mission control (component 9, piece C).
+    pub landing: fleet::dashboard::Landing,
 }
 
 /// The `--server` address, read once at start so `State::default` can tell it has one.
@@ -555,6 +557,7 @@ impl Default for State {
             searching: false,
             no_fleet: false,
             live: false,
+            landing: fleet::dashboard::Landing::at_start(true),
         };
         if live() {
             state.go_live(SERVER.get().is_none());
@@ -627,6 +630,14 @@ impl State {
             None => fleet::store::Route::None,
         };
         self.go(route);
+    }
+
+    /// A scene of Home (component 9, piece C): nothing selected in the list, the placeholder sheet with its greeting and status
+    /// line, at 9 in the morning wherever the machine is.
+    pub fn show_home(&mut self, dark: bool) {
+        self.dark = Some(dark);
+        self.now_ms = Some(20_000 * 86_400_000 + (9 * 3600 - conv::time::local_offset_secs()) * 1000);
+        self.go(fleet::store::Route::Home);
     }
 
     /// A scene of the status bar: the open session's status (`None`: no session, the window a server that has none draws).
@@ -1978,6 +1989,8 @@ pub fn spec() -> AppSpec<State> {
                 s.dark = Some(false);
                 s.ui.open = Some(ui::Open::Menu("help"));
             }),
+            ("home", |s| s.show_home(true)),
+            ("home-light", |s| s.show_home(false)),
             ("status-working", |s| s.show_status_hints(true, Some(mock::Status::Working))),
             ("status-working-light", |s| s.show_status_hints(false, Some(mock::Status::Working))),
             ("status-idle", |s| s.show_status_hints(true, Some(mock::Status::Idle))),

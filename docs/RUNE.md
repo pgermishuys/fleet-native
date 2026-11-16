@@ -1142,3 +1142,9 @@ The small case the checklist asked for (`tests_row_drag.rs`, first test): **Rune
 
 - **A form that reacts to what was typed has no "on change".** A `TextEdit` is edited in place by `on_edit`, so nothing is called with the new text; the poll compares what the fields mean (the address and code they parse to) with what was last looked at and starts the request when they differ. A scene that sets the result by hand must mark that look done (`AddForm::mark_looked`) or the first poll throws the result away.
 - **A scripted run's clock is virtual, a thread's answer is not.** A live script has to leave seconds between typing a link and the mark that expects the answer, and a first-run dialog that opens when a read returns can cover the page: set its preference on the scratch Fleet first.
+## Component 9, piece C (the landing rule and the dashboard's data)
+
+Nothing in Rune got in the way: the piece is plain Rust (`fleet/dashboard.rs`, `fleet/home.rs`). One lesson about our own
+tests: 128 tests assumed a list load opens the first session. A normal run starts with no route, so "start on Home" is
+decided on whether the route being replaced was an invented session (a scene, a headless run), which keeps those and
+every scene as they were.

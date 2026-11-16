@@ -297,14 +297,14 @@ fn sessionitem_delete_permanently_asks_first_naming_the_session_then_deletes_it(
 }
 
 #[test]
-fn deleting_the_open_session_opens_another() {
+fn deleting_the_open_session_goes_home() {
     let mut rt = app();
     let crate::fleet::store::Route::Session(open) = rt.state.route.clone() else { panic!("a session is open") };
     let (p, i) = rt.state.row_of(&open).unwrap();
     ask_from_menu(&mut rt, p, i, "session-context-delete");
     click(&mut rt, "confirm-action");
     assert!(rt.state.row_of(&open).is_none());
-    assert!(rt.state.has_session(), "the window isn't left with a session that is gone");
+    assert_eq!(rt.state.route, crate::fleet::store::Route::Home, "the window isn't left with a session that is gone");
 }
 
 #[test]

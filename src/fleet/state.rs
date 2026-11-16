@@ -320,6 +320,9 @@ impl State {
             self.open_made_session(tx);
             return;
         }
+        // Invented sessions being replaced by a first list (a scene, a headless run) still open the first one, as they did; a
+        // normal run has none, and lands on the dashboard.
+        let was_invented = matches!(&self.route, store::Route::Session(id) if store::is_invented(id));
         // The open session's conversation isn't in the list; carry it over.
         let old_messages = self.session_mut().map(|s| std::mem::take(&mut s.messages)).unwrap_or_default();
         self.projects = projects;
@@ -333,8 +336,11 @@ impl State {
                 if !self.has_rows() {
                     // Nothing to open: the page that starts the first one, as Fleet's "New session" would (docs/parity/07, Decisions).
                     self.open_new_session_page(None);
-                } else if !self.projects.is_empty() {
+                } else if !self.projects.is_empty() && was_invented {
                     self.open_session(0, 0, tx);
+                } else if !self.projects.is_empty() {
+                    // A start with sessions lands on the dashboard with nothing selected, not on the first session (`/`).
+                    self.go(store::Route::Home);
                 }
             }
         }

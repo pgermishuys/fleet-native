@@ -128,7 +128,33 @@ pub fn root(s: &State, cx: &mut Cx<State>) -> El {
 
 /// What fills the rest of the row beside the list: the session sheet, or the New session page (no content panel, A1.6).
 fn centre(s: &State, t: &Theme) -> El {
-    if s.on_new_session_page() { new_session::page(s, t) } else { sheet::sheet(s, t) }
+    if s.on_new_session_page() {
+        new_session::page(s, t)
+    } else if s.on_home() {
+        home_placeholder(s, t)
+    } else {
+        sheet::sheet(s, t)
+    }
+}
+
+/// Home until the dashboard is drawn (component 9, piece D): the sheet's place, with the greeting and the status line the
+/// page will carry, so the landing rule can be seen working.
+fn home_placeholder(s: &State, t: &Theme) -> El {
+    let hour =
+        crate::fleet::dashboard::hour_of(s.now_ms.unwrap_or_else(crate::fleet::link::now_ms), crate::conv::time::local_offset_secs());
+    let rows = s.projects.iter().flat_map(|p| &p.sessions);
+    let shown = crate::fleet::dashboard::shown(rows, s.store.retention, &|id| s.archive.hides(id));
+    let [needs, working, _] = crate::fleet::dashboard::sections(&shown, &|_| false);
+    col()
+        .key("home")
+        .grow(1.0)
+        .h_full()
+        .center()
+        .gap(6.0)
+        .radius(12.0)
+        .fill(t.panel_bg)
+        .child(text(crate::fleet::dashboard::greeting(hour)).font(sans(21.0, 600.0, 1.3)).color(t.text))
+        .child(text(crate::fleet::dashboard::status_line(needs.len(), working.len())).font(sans(12.25, 400.0, 1.4)).color(t.muted))
 }
 
 /// The resize handle between the session list and the sheet: 8px wide in the 16px between them.

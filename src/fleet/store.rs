@@ -11,9 +11,11 @@ use serde_json::Value;
 /// What the window is showing. Fleet's other routes (`/sessions/new`, `/settings`) join it with their components.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub enum Route {
-    /// No session is open.
+    /// No session is open, and nothing has been chosen yet: the first moments of a start, before a list has come.
     #[default]
     None,
+    /// `/`: the home dashboard, with nothing selected in the list (component 9, piece C).
+    Home,
     /// `/sessions/<id>`.
     Session(String),
     /// `/sessions/new?projectId=`: the New session page (component 7).

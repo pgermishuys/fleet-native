@@ -256,14 +256,14 @@ fn a_refetch_with_a_changed_order_leaves_the_same_session_open() {
 }
 
 #[test]
-fn a_list_without_the_open_session_opens_the_first() {
+fn a_list_without_the_open_session_goes_home_with_nothing_selected() {
     let mut rt = app();
     let r = begin(&mut rt);
     load(&mut rt, r, rows_for(&[("s1", "alpha"), ("s2", "alpha")]));
     rt.update(|s, tx| s.open_session(0, 1, tx));
     let r = begin(&mut rt);
     load(&mut rt, r, rows_for(&[("s1", "alpha")]));
-    assert_eq!(rt.state.route, Route::Session("s1".into()));
+    assert_eq!(rt.state.route, Route::Home, "the dashboard, not the first session (component 9, piece C)");
 }
 
 #[test]
@@ -307,7 +307,9 @@ fn the_invented_sessions_have_ids_of_their_own_and_none_goes_to_a_server() {
     let rt = app();
     let id = match &rt.state.route {
         Route::Session(id) => id.clone(),
-        Route::None | Route::NewSession { .. } | Route::Welcome | Route::Repositories => panic!("the first invented session is open"),
+        Route::None | Route::Home | Route::NewSession { .. } | Route::Welcome | Route::Repositories => {
+            panic!("the first invented session is open")
+        }
     };
     assert_eq!(id, store::invented_id(0, 0));
     assert!(store::is_invented(&id));
