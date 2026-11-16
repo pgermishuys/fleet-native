@@ -5,7 +5,6 @@
 use super::fork::{Made, fork_path, new_in_folder_path, post_made, prefill};
 use super::groups::UNGROUPED_ID;
 use super::settings::HOME_MACHINE_KEY as HOME_KEY;
-use super::{http, store};
 use crate::{State, Tx};
 use serde_json::{Value, json};
 
@@ -19,42 +18,12 @@ pub fn project_body(project: Option<&str>) -> Value {
     json!({ "projectId": project })
 }
 
-/// `PATCH /api/sessions/{id}/lineage`.
-pub fn lineage_path(id: &str) -> String {
-    format!("/api/sessions/{}/lineage", crate::conv::image_sniff::encode_component(id))
-}
-
-pub fn lineage_body(detached: bool) -> Value {
-    json!({ "detached": detached })
-}
-
 /// What a refused New session in this folder says when the server gives no words.
 pub const NEW_IN_FOLDER_FAILED: &str = "Couldn't start a session in this folder";
 
-/// Where a session came from (`lineageOriginOf`): the id of its parent and whether it is a sub-agent's.
-pub fn origin_of(l: &super::groups::Listing) -> Option<(String, bool)> {
-    if let Some(p) = &l.parent {
-        return Some((p.clone(), true));
-    }
-    let fork = l.forked_from.clone();
-    let started = l.spawned_by.clone();
-    let chosen = if l.spawn_kind.as_deref() == Some("fork") { fork.or(started) } else { started.or(fork) };
-    chosen.map(|id| (id, false))
-}
-
-/// `movableOutOf`: the parent a fork or a started session can be moved out of now.
-pub fn movable_out_of(l: &super::groups::Listing) -> Option<String> {
-    origin_of(l).filter(|(_, sub)| !sub).filter(|_| !l.detached).map(|(id, _)| id)
-}
-
-/// `movableBackUnder`: the parent a session the user moved out can go back under.
-pub fn movable_back_under(l: &super::groups::Listing) -> Option<String> {
-    if l.detached { origin_of(l).map(|(id, _)| id) } else { None }
-}
-
 impl State {
     /// The session `id` as its machine's list holds it.
-    fn row_copy_of(&self, id: &str) -> Option<crate::mock::Session> {
+    pub(super) fn row_copy_of(&self, id: &str) -> Option<crate::mock::Session> {
         if let Some(s) = self.store.session_by_id(&self.projects, id) {
             return Some(s.row_copy());
         }
@@ -149,29 +118,7 @@ impl State {
         );
     }
 
-    /// The menu's Move out of / Move back under (`lineage-moves`): the row leaves or rejoins its parent at once. Its Undo
-    /// toast is piece M's.
-    pub fn move_lineage(&mut self, id: &str, detached: bool) {
-        let Some(was) = self.row_copy_of(id).map(|s| s.listing.detached) else { return };
-        self.set_detached(id, detached);
-        let Some(link) = self.link_for(id) else { return };
-        let (sent, body, path) = (id.to_string(), lineage_body(detached), lineage_path(id));
-        link.off_thread(
-            move |base| {
-                let (status, text) = http::text_with("PATCH", base, &path, Some(&body))?;
-                if (200..300).contains(&status) { Ok(()) } else { Err(store::error_text(status, &text)) }
-            },
-            move |s, tx, result| {
-                if let Err(why) = result {
-                    s.set_detached(&sent, was);
-                    s.toast(if why.is_empty() { "Couldn't move the session.".into() } else { why }, None, 5.0, tx);
-                }
-                s.list_again(&sent);
-            },
-        );
-    }
-
-    fn set_detached(&mut self, id: &str, detached: bool) {
+    pub(super) fn set_detached(&mut self, id: &str, detached: bool) {
         let key = self.machine_key_of(id).to_string();
         let mut projects = std::mem::take(&mut self.projects);
         self.store.patch(&mut projects, id, |s| s.listing.detached = detached);

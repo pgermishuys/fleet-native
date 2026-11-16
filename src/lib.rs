@@ -45,6 +45,8 @@ mod tests_header_toolbar;
 #[cfg(test)]
 mod tests_images;
 #[cfg(test)]
+mod tests_lineage;
+#[cfg(test)]
 mod tests_machine_more;
 #[cfg(test)]
 mod tests_machines;
@@ -139,6 +141,12 @@ pub struct State {
     pub act: fleet::actions::RowActions,
     /// The archive waiting for Undo, and what failed (`fleet::archive_queue`); the pin error (`fleet::pins`).
     pub archive: fleet::archive_queue::ArchiveQueue,
+    /// The lineage move waiting for Undo, and what failed (`fleet::lineage_moves`).
+    pub lineage_moves: fleet::lineage_moves::LineageMoves,
+    /// What runs in every session, for the list's sub-agent rows (`fleet::list_work`).
+    pub list_work: fleet::list_work::ListWork,
+    /// A parent's children shown or hidden by its caret, by session id; the rest follow `opens_by_itself` (`fleet::family`).
+    pub family_open: std::collections::HashMap<String, bool>,
     pub pins: fleet::pins::Pins,
     /// The rows picked in the list for a bulk archive (`session-selection`).
     pub selection: fleet::selection::Selection,
@@ -373,6 +381,9 @@ impl Default for State {
             proj: Default::default(),
             act: Default::default(),
             archive: Default::default(),
+            lineage_moves: Default::default(),
+            list_work: Default::default(),
+            family_open: Default::default(),
             pins: Default::default(),
             selection: Default::default(),
             head: Default::default(),
@@ -1198,7 +1209,7 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     s.clock = now;
     let aged = s.keep_row_ages(now, tx);
     s.keep_drafts(now, tx);
-    let archiving = s.keep_archive(now, tx);
+    let archiving = s.keep_archive(now, tx) | s.keep_lineage(now, tx);
     let picked = s.sync_selection(tx);
     if s.prompts.expire(now) {
         s.sync_open();
@@ -1852,6 +1863,13 @@ pub fn spec() -> AppSpec<State> {
                 s.show_selection();
             }),
             // Piece I: an archive waiting for Undo with three of its six seconds left, and the toast a failure leaves.
+            // Piece M: a family under the open session: a running sub-agent, a fork with a fork of its own, a started session.
+            ("lineage", |s| s.show_lineage(false)),
+            ("lineage-light", |s| {
+                s.dark = Some(false);
+                s.show_lineage(false)
+            }),
+            ("lineage-folded", |s| s.show_lineage(true)),
             ("archive-undo", |s| s.show_archive_pending("mock.0.1", 3.0)),
             ("archive-undo-light", |s| {
                 s.dark = Some(false);
@@ -2830,6 +2848,7 @@ fn connect_to(handle: &rune::AppHandle<State>, url: String) {
         s.link = Some(link);
         s.load_pickers();
         s.load_smart_links();
+        s.load_list_work();
     });
 }
 

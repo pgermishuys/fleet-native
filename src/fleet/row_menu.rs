@@ -3,7 +3,7 @@
 //! machine allows (nothing but Copy session ID when it isn't answering, Copy path for Open in, no Repeat on a schedule)
 //! decides the rows. The look is `ui::menu`'s; the work is `row_menu_actions.rs` and the row's own handlers.
 use super::groups::{ProjectKind, UNGROUPED_ID};
-use super::row_menu_actions::{movable_back_under, movable_out_of};
+use super::lineage_moves::{movable_back_under, movable_out_of};
 use super::settings::HOME_MACHINE_KEY as HOME_KEY;
 use crate::icons::*;
 use crate::mock::Session;
@@ -228,7 +228,7 @@ pub fn build(s: &State, session: &Session, machine: Option<&str>) -> RowMenu {
                 .id("session-context-move-out")
                 .hint("Lists it on its own instead of under the session it came from.")
                 .disabled(busy)
-                .on(move |s: &mut State, _: &mut Tx| s.move_lineage(&id, true)),
+                .on(move |s: &mut State, tx: &mut Tx| s.move_lineage(&id, true, tx)),
         ));
     }
     if !archived && let Some(parent) = movable_back_under(&session.listing) {
@@ -240,7 +240,7 @@ pub fn build(s: &State, session: &Session, machine: Option<&str>) -> RowMenu {
                 .id("session-context-move-back")
                 .hint("Lists it under the session it came from again.")
                 .disabled(busy)
-                .on(move |s: &mut State, _: &mut Tx| s.move_lineage(&id, false)),
+                .on(move |s: &mut State, tx: &mut Tx| s.move_lineage(&id, false, tx)),
         ));
     }
     entries.push(Entry::Item(copy_id));

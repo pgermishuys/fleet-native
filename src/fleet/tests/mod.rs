@@ -496,6 +496,7 @@ mod groups;
 mod header;
 mod history;
 mod instance;
+mod lineage;
 mod live;
 mod local_token;
 mod machine;

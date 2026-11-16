@@ -1016,3 +1016,11 @@ A context-menu row's label is one text run, so a machine's name in the mono face
 - A row that wraps (`flex_wrap`) with a `grow(1)` row holding right-aligned text is `margin-left: auto` that drops onto its own line when the headline leaves no room; a spacer `el().grow(1.0)` doesn't, it stays on the first line and the text overflows.
 - A disabled element still takes a test's `click`, so a "sent" or "sending" guard belongs in the state's method, not only in `.disabled(true)`.
 - `rt.find(key)` gives only a position; read an element's label with `rt.elements()` and its `label`.
+
+## Component 6, piece M (lineage and sub-agent rows)
+
+- **A line that fills its parent's height is `el().absolute(x, 0.0).w(1.0).h_full()`; there is no percent height.** Fleet's `bottom: 50%` (the last child's line stops at the row's middle) and `top: 50%` (the stub) are written as half of the child's known height, 15 of 30. That holds only while a child row is one line tall, which it is.
+- **A state-style test can read `ElementInfo.text_color` and `.fill` from `rt.elements()`** (no GPU needed), and `parent` to reach an icon's colour inside a button. Hover the pointer, focus, pick and open a row, and compare what lineage draws with its colour at rest: that is the muted rule's test (`tests_lineage.rs`).
+- **Two quick clicks on one row in a test are a double press**, which starts the rename. Click a different row between them.
+- **`children(Option<El>)`** adds an element only when there is one; there is no `child_if`.
+

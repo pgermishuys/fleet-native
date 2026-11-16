@@ -285,7 +285,7 @@ fn read_only_row(
         Some(_) => Some("started"),
         None => None,
     };
-    let slots = Slots { step_note: None, kind_label: label };
+    let slots = Slots { kind_label: label, ..Slots::default() };
     // A machine that isn't answering can't be asked: no buttons.
     let buttons = if selecting { Buttons::default() } else { Buttons::of(session, !answering) };
     let line = tail(s, t, &key, session, &status, if answering { dim } else { Dim::None }, slots, buttons, line);

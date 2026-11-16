@@ -206,7 +206,17 @@ impl State {
     /// The close on the error toast's X.
     pub fn dismiss_errors(&mut self) {
         self.archive.error = None;
+        self.lineage_moves.error = None;
         self.pins.error = None;
+    }
+
+    /// The toast's Undo: the archive waiting wins, else the lineage move (`ArchiveUndoToast`).
+    pub fn undo_queue(&mut self, tx: &mut Tx) {
+        if self.archive.pending.is_some() {
+            self.undo_archive();
+        } else {
+            self.undo_lineage(tx);
+        }
     }
 
     /// Whether a restore of `id` is on its way (`isRestoring`).
@@ -237,7 +247,16 @@ impl State {
                 kind: Kind::Undo,
             });
         }
-        let error = self.archive.error.clone().or_else(|| self.pins.error.clone())?;
+        if let Some(p) = &self.lineage_moves.pending {
+            return Some(Toast {
+                message: p.message.clone(),
+                action: Some("Undo".into()),
+                until: p.until,
+                total: UNDO_SECS,
+                kind: Kind::Undo,
+            });
+        }
+        let error = self.archive.error.clone().or_else(|| self.lineage_moves.error.clone()).or_else(|| self.pins.error.clone())?;
         Some(Toast { message: error, action: None, until: f64::MAX, total: 1.0, kind: Kind::Error })
     }
 }

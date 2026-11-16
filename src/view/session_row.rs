@@ -81,12 +81,16 @@ fn word(t: &Theme, id: &str, status: &RowStatus, dim: Dim) -> Option<El> {
     Some(label)
 }
 
-/// What a row's right edge shows in place of its status word: a workflow step the user finishes (`stepNote`) or how the
-/// session came from its parent (`kindLabel`). Nothing fills them yet: workflows and lineage are other pieces.
+/// What a row's right edge shows in place of its status word: a workflow step the user finishes (`stepNote`, workflows are
+/// another component) or how the session came from its parent (`kindLabel`); and what lineage adds at its left.
 #[derive(Clone, Copy, Default)]
 pub struct Slots<'a> {
     pub step_note: Option<&'a str>,
     pub kind_label: Option<&'a str>,
+    /// `Some(open)` on a top-level row with something under it: its caret, and Right and Left fold it.
+    pub caret: Option<bool>,
+    /// The content's left edge on a child row (`--lineage-indent`); a child has no caret place and is 28 px tall.
+    pub child: Option<f32>,
 }
 
 /// The chip counting what the agent has running (`.session-running-chip`): green on a 14% green pill.
@@ -162,13 +166,19 @@ pub fn session_row_with(s: &State, t: &Theme, clock: &RowClock, p: usize, i: usi
         return el().w_full().py(1.0).child(editing(s, t, format!("session-{key}"), glyph));
     }
     let title = row_status::display_title(None, &session.title);
+    let caret_open = slots.caret;
+    // The place a row with children puts its caret in: 14x14, tucked 4px toward the glyph (`.session-caret-slot`). A child has none.
+    let slot = slots.child.is_none().then(|| match slots.caret {
+        Some(open) => caret(t, &key, &session.id, open),
+        None => el().key(format!("session-caret-{key}")).size(14.0, 14.0).mr(-4.0),
+    });
     let mut line = row()
         .key(format!("session-{key}"))
         .w_full()
-        .min_h(32.0)
+        .min_h(if slots.child.is_some() { 28.0 } else { 32.0 })
         .center_y()
         .gap(9.0)
-        .pl(6.0)
+        .pl(slots.child.unwrap_or(6.0))
         .pr(10.0)
         .radius(RADIUS_BTN)
         .fill(if picked {
@@ -201,13 +211,21 @@ pub fn session_row_with(s: &State, t: &Theme, clock: &RowClock, p: usize, i: usi
                 s.start_row_rename(p, i, tx);
                 return true;
             }
+            // A row with children opens and closes like a tree item; a key that changes nothing is left alone.
+            if let (Some(open), Key::Right | Key::Left) = (caret_open, &ev.key) {
+                let want = ev.key == Key::Right;
+                if want != open {
+                    s.set_family_open(&id, want);
+                    return true;
+                }
+                return false;
+            }
             move_pin_key(s, ev, &id)
         })
         .on_secondary_press(move |s: &mut State, at, _: &mut Tx| {
             s.ui.show_context(crate::ui::Open::Context(p, i), (at.x, at.y));
         })
-        // The place a row with children puts its caret in: 14x14, tucked 4px toward the glyph (`.session-caret-slot`).
-        .child(el().key(format!("session-caret-{key}")).size(14.0, 14.0).mr(-4.0))
+        .children(slot)
         .child(glyph)
         .child(
             text(title.clone())
@@ -363,9 +381,16 @@ pub fn editing(s: &State, t: &Theme, row_key: String, glyph: El) -> El {
 }
 
 /// The chevron a parent's row carries in place of the empty slot (`.session-caret`): muted, rotated 90 degrees while the
-/// children show. Drawn by the lineage piece; here so the glyph exists beside the slot it replaces.
-#[allow(dead_code)]
-pub fn caret(t: &Theme, open: bool) -> El {
+/// children show. Always muted, hovered or not (decided 17 October 2026): nothing here changes its colour.
+pub fn caret(t: &Theme, key: &str, id: &str, open: bool) -> El {
     let turn = if open { std::f32::consts::FRAC_PI_2 } else { 0.0 };
-    el().size(14.0, 14.0).mr(-4.0).radius(4.0).center().child(rune::icon(&CHEVRON_RIGHT, 14.0).color(t.muted).rotate(turn))
+    let id = id.to_string();
+    el().key(format!("session-caret-{key}"))
+        .size(14.0, 14.0)
+        .mr(-4.0)
+        .radius(4.0)
+        .center()
+        .help(if open { "Hide what it started" } else { "Show what it started" })
+        .on_press(move |s: &mut State| s.set_family_open(&id, !open))
+        .child(rune::icon(&CHEVRON_RIGHT, 14.0).color(t.muted).rotate(turn))
 }
