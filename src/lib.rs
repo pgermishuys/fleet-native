@@ -75,6 +75,8 @@ mod tests_panel;
 #[cfg(test)]
 mod tests_pr_popover;
 #[cfg(test)]
+mod tests_progress_strip;
+#[cfg(test)]
 mod tests_project;
 #[cfg(test)]
 mod tests_questions;
@@ -1804,6 +1806,10 @@ pub fn spec() -> AppSpec<State> {
             ("context-tab-error", |s| s.show_context_tab_scene(mock::context_tab::Case::Error, true)),
             ("context-tab-error-light", |s| s.show_context_tab_scene(mock::context_tab::Case::Error, false)),
             ("context-tab-links", |s| s.show_context_tab_scene(mock::context_tab::Case::Links, true)),
+            ("progress-strip", |s| s.show_progress_strip(3, 7, Some("Write the migration"), true)),
+            ("progress-strip-light", |s| s.show_progress_strip(3, 7, Some("Write the migration"), false)),
+            ("progress-strip-done", |s| s.show_progress_strip(7, 7, None, true)),
+            ("progress-strip-done-light", |s| s.show_progress_strip(7, 7, None, false)),
             ("context-tab-links-light", |s| s.show_context_tab_scene(mock::context_tab::Case::Links, false)),
             ("context-tab-attach", |s| s.show_context_tab_scene(mock::context_tab::Case::Attach, true)),
             ("context-tab-attach-light", |s| s.show_context_tab_scene(mock::context_tab::Case::Attach, false)),

@@ -1087,3 +1087,9 @@ The small case the checklist asked for (`tests_row_drag.rs`, first test): **Rune
 - **`Drag::cancelled()` on `Phase::Up`** is Escape; put the drag down without dropping.
 - **No drag ghost.** The dragged row is dimmed to 40 % (Fleet's `.dragging`) and the targets light up; a floating copy under the pointer isn't drawn.
 - **The list changes under the pointer when a drag begins** (the empty Pinned group and the Archive box appear), as in Fleet. A test has to move off the row, run two frames and find the target again before moving to it.
+
+## Component 8, piece K (the progress strip)
+
+- **A bar whose width eases has no tool**: Fleet's `transition: width 300ms` on the strip's 1 px bar is drawn here at once (`w_frac`). `live_trim` eases a canvas stroke, not a box width; a stroke along the edge would do it, but a 1 px accent line with a stroke cap isn't the same pixels. Open, noted in the checklist.
+- **A strip pinned under a tab's body**: wrap the body in `col().grow(1.0).min_h(0.0)` so it takes the room, then the strip is the next child. A body with no growing parent leaves the strip floating under the last row.
+- **`focus_ring(2.0, -2.0, colour)`** is `outline: 2px; outline-offset: -2px` (inside the edge).
