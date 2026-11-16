@@ -125,7 +125,23 @@ fn serve(cfg: Shared) -> String {
             let cfg = cfg.clone();
             std::thread::spawn(move || {
                 let mut buf = vec![0u8; 16384];
-                let n = stream.read(&mut buf).unwrap_or(0);
+                let mut n = stream.read(&mut buf).unwrap_or(0);
+                // The head and the body may arrive in two packets: read until the body is all there.
+                loop {
+                    let so_far = String::from_utf8_lossy(&buf[..n]).to_string();
+                    let want = so_far
+                        .lines()
+                        .find_map(|l| l.to_lowercase().strip_prefix("content-length:").and_then(|v| v.trim().parse::<usize>().ok()))
+                        .unwrap_or(0);
+                    let have = so_far.split("\r\n\r\n").nth(1).map_or(0, str::len);
+                    if so_far.contains("\r\n\r\n") && have >= want {
+                        break;
+                    }
+                    match stream.read(&mut buf[n..]) {
+                        Ok(0) | Err(_) => break,
+                        Ok(m) => n += m,
+                    }
+                }
                 let text = String::from_utf8_lossy(&buf[..n]).to_string();
                 let mut first = text.lines().next().unwrap_or("").split(' ');
                 let (method, target) = (first.next().unwrap_or("").to_string(), first.next().unwrap_or("").to_string());
