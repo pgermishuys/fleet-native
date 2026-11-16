@@ -14,6 +14,7 @@ pub mod context_tab;
 pub mod conversation;
 pub mod diff;
 pub mod draft_row;
+pub mod drop_zones;
 pub mod export;
 pub mod failure;
 pub mod family;

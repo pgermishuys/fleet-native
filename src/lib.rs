@@ -83,6 +83,8 @@ mod tests_right_panel;
 #[cfg(test)]
 mod tests_row_actions;
 #[cfg(test)]
+mod tests_row_drag;
+#[cfg(test)]
 mod tests_row_menu;
 #[cfg(test)]
 mod tests_rows;
@@ -166,6 +168,8 @@ pub struct State {
     /// A parent's children shown or hidden by its caret, by session id; the rest follow `opens_by_itself` (`fleet::family`).
     pub family_open: std::collections::HashMap<String, bool>,
     pub pins: fleet::pins::Pins,
+    /// The row being dragged and what it is over (`fleet::row_drag`).
+    pub row_drag: Option<fleet::row_drag::RowDrag>,
     /// The rows picked in the list for a bulk archive (`session-selection`).
     pub selection: fleet::selection::Selection,
     /// The header's own edits: its title, a tag being typed, "Copied", a checkout being put back.
@@ -410,6 +414,7 @@ impl Default for State {
             list_work: Default::default(),
             family_open: Default::default(),
             pins: Default::default(),
+            row_drag: None,
             selection: Default::default(),
             head: Default::default(),
             agent_sends: Default::default(),
@@ -2040,6 +2045,14 @@ pub fn spec() -> AppSpec<State> {
                 s.show_row_rename(0, 1)
             }),
             // Piece K: the Archived view.
+            ("row-drag-project", |s| s.show_row_drag(fleet::row_drag::Scene::Project, true)),
+            ("row-drag-project-light", |s| s.show_row_drag(fleet::row_drag::Scene::Project, false)),
+            ("row-drag-pin-row", |s| s.show_row_drag(fleet::row_drag::Scene::PinRow, true)),
+            ("row-drag-pin-row-light", |s| s.show_row_drag(fleet::row_drag::Scene::PinRow, false)),
+            ("row-drag-pin-empty", |s| s.show_row_drag(fleet::row_drag::Scene::PinEmpty, true)),
+            ("row-drag-pin-empty-light", |s| s.show_row_drag(fleet::row_drag::Scene::PinEmpty, false)),
+            ("row-drag-archive", |s| s.show_row_drag(fleet::row_drag::Scene::Archive, true)),
+            ("row-drag-archive-light", |s| s.show_row_drag(fleet::row_drag::Scene::Archive, false)),
             ("row-menu", |s| s.show_row_menu(fleet::row_menu::Scene::Plain, true)),
             ("row-menu-light", |s| s.show_row_menu(fleet::row_menu::Scene::Plain, false)),
             ("row-menu-hint", |s| s.show_row_menu(fleet::row_menu::Scene::Hint, true)),

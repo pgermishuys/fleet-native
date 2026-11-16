@@ -11,7 +11,7 @@ use crate::icons::{CHECK, CHEVRON_RIGHT, GIT_MERGE, GIT_PULL_REQUEST, GIT_PULL_R
 use crate::mock::Session;
 use crate::theme::{RADIUS_BTN, Theme, mono, sans};
 use crate::{State, Tx};
-use rune::{Color, Cursor, El, Key, KeyEvent, el, icon, row, text, text_input};
+use rune::{Color, Cursor, Drag, El, Key, KeyEvent, Phase, el, icon, row, text, text_input};
 
 /// The clock a list is drawn by: read once for all rows, so they agree and the time zone is asked once.
 pub struct RowClock {
@@ -204,6 +204,15 @@ pub fn session_row_with(s: &State, t: &Theme, clock: &RowClock, p: usize, i: usi
             move |s: &mut State, tx: &mut Tx| s.press_row(&id, None, move |s, tx| s.open_session(p, i, tx), tx)
         })
         .on_double_press_tx(move |s: &mut State, tx: &mut Tx| s.start_row_rename(p, i, tx))
+        .opacity(if s.row_drag.as_ref().is_some_and(|d| d.id == session.id) { 0.4 } else { 1.0 })
+        .on_drag({
+            let id = session.id.clone();
+            move |s: &mut State, d: &mut Drag, tx: &mut Tx| match d.phase {
+                Phase::Down => {}
+                Phase::Move => s.row_drag_move(&id, d.window_point(), tx),
+                Phase::Up => s.row_drag_end(d.cancelled(), tx),
+            }
+        })
         // `handleRowKeydown`: F2 renames.
         .on_key(move |s: &mut State, ev: &KeyEvent, tx: &mut Tx| {
             let id = s.projects.get(p).and_then(|project| project.sessions.get(i)).map(|x| x.id.clone()).unwrap_or_default();
@@ -244,6 +253,9 @@ pub fn session_row_with(s: &State, t: &Theme, clock: &RowClock, p: usize, i: usi
     line = tail(s, t, &key, session, &status, dim, slots, buttons, line);
     // The shell holds the pointer for the buttons beside the row: they show while it is over either.
     let mut shell = el().w_full().py(1.0).hover_group().child(line);
+    if s.pin_line_before(&session.id) {
+        shell = shell.child(super::drop_zones::pin_line(t, s.sidebar_w - 36.0).absolute(10.0, -1.0));
+    }
     for button in actions(s, t, &key, session, &title, buttons, None) {
         shell = shell.child(button);
     }

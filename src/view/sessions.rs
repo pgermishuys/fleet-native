@@ -6,6 +6,7 @@ use super::project_header::{Header, project_header, project_shell};
 use super::selection_bar::selection_bar;
 use crate::State;
 use crate::fleet::panel::{Feedback, banner_copy, empty_words, feedback};
+use crate::fleet::row_drag::{Over, project_key};
 use crate::icons::*;
 use crate::mock::Session;
 use crate::theme::{Theme, sans};
@@ -101,15 +102,24 @@ pub fn panel(s: &State, t: &Theme) -> El {
     let mut first = true;
     // `showPinnedGroup`: while it has sessions (the drag that shows it empty is piece S's). It is above the projects and its
     // rows leave their own.
-    if !layout.pinned.is_empty() {
-        let open = s.home_pinned_open();
+    // It also shows empty while a row is dragged, so there is a place to drop a pin (`showPinnedGroup`, not while filtering).
+    let dragging = s.dragging_row() && needle.is_empty() && !archived_view;
+    let over = s.drag_over();
+    if !layout.pinned.is_empty() || dragging {
+        let open = s.home_pinned_open() || layout.pinned.is_empty();
         let header = project_header(t, "pinned".into(), Header::Pinned, "Pinned", layout.pinned.len(), open, false)
             .on_press(|s: &mut State| s.toggle_home_pinned());
         let mut group = col().key("pinned-group").w_full().child(header);
         if open {
             let mut body = col().w_full().pt(2.0);
+            if layout.pinned.is_empty() {
+                body = body.child(super::drop_zones::pinned_empty(t, matches!(over, Over::Pinned(_))));
+            }
             for row in super::family::family_rows(s, t, &clock, &layout.pinned) {
                 body = body.child(row);
+            }
+            if matches!(over, Over::Pinned(None)) && !layout.pinned.is_empty() {
+                body = body.child(super::drop_zones::pin_end_line(t, s.sidebar_w - 36.0));
             }
             group = group.child(body);
         }
@@ -131,7 +141,9 @@ pub fn panel(s: &State, t: &Theme) -> El {
             project_header(t, format!("project-{p}"), kind, &project.name, rows.len(), project.open, false)
                 .on_press(move |s: &mut State| s.toggle_project(p))
         };
-        let mut group = col().w_full().mt(if first { 0.0 } else { 10.0 }).child(header);
+        // `.project-header--drop-target`: a 2px outline inside the header and an 8 % wash while a row that can go here is over.
+        let header = if over == Over::Project(p) { header.outline(2.0, -2.0, t.accent).fill(t.accent.alpha(0.08)) } else { header };
+        let mut group = col().key(project_key(p)).w_full().mt(if first { 0.0 } else { 10.0 }).child(header);
         first = false;
         // A folded project stays folded while a filter is typed: Fleet's `expanded` doesn't know the query.
         let drafted = draft.as_ref().filter(|_| draft_at == Some(p));
@@ -201,6 +213,9 @@ pub fn panel(s: &State, t: &Theme) -> El {
         list = list.child(add_machine_row(t));
     } else {
         list = list.child(live);
+    }
+    if dragging {
+        list = list.child(super::drop_zones::archive_zone(s, t));
     }
     let archived = row().w_full().pt(6.0).px(8.0).pb(8.0).border_sides([1.0, 0.0, 0.0, 0.0], t.border).child(
         row()
