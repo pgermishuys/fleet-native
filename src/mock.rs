@@ -19,6 +19,7 @@ pub mod images;
 pub mod links;
 pub mod long;
 pub mod machines;
+pub mod machines_page;
 pub mod pages;
 pub mod parts;
 pub mod questions;

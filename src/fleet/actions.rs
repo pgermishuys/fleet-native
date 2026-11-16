@@ -17,9 +17,22 @@ pub const CONFIRM_ACTION: &str = "confirm-action";
 /// A request about one session.
 #[derive(Clone, PartialEq, Debug)]
 pub enum Call {
-    Rename { id: String, title: String },
-    ClearAttachments { id: String },
-    Delete { id: String },
+    Rename {
+        id: String,
+        title: String,
+    },
+    ClearAttachments {
+        id: String,
+    },
+    Delete {
+        id: String,
+    },
+    /// Settings → Machines: forget a machine (`machine_actions`); no session is involved.
+    ForgetMachine {
+        key: String,
+    },
+    /// Settings → Machines: replace this machine's access token.
+    ReplaceToken,
 }
 
 pub fn session_path(id: &str) -> String {
@@ -55,6 +68,7 @@ pub fn run(base: &str, call: &Call) -> Result<(), String> {
         Call::Rename { id, title } => ("PATCH", session_path(id), Some(rename_body(title))),
         Call::ClearAttachments { id } => ("DELETE", attachments_path(id), None),
         Call::Delete { id } => ("DELETE", session_path(id), None),
+        Call::ForgetMachine { .. } | Call::ReplaceToken => unreachable!("machine calls are made by machine_actions"),
     };
     let (status, text) = http::text_with(method, base, &path, body.as_ref())?;
     if (200..300).contains(&status) { Ok(()) } else { Err(failure_text(call, status, &text)) }
@@ -231,6 +245,7 @@ impl State {
     pub(crate) fn send_session_call(&mut self, call: Call, was: Option<String>, tx: &mut Tx) {
         let session = match &call {
             Call::Rename { id, .. } | Call::ClearAttachments { id } | Call::Delete { id } => id.clone(),
+            Call::ForgetMachine { .. } | Call::ReplaceToken => return,
         };
         let Some(link) = self.link_for(&session) else {
             self.session_call_done(&call, was, Ok(()), tx);
@@ -258,6 +273,7 @@ impl State {
                 }
             }
             Call::ClearAttachments { .. } | Call::Delete { .. } => self.confirm_done(result, tx),
+            Call::ForgetMachine { .. } | Call::ReplaceToken => {}
         }
     }
 

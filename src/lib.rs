@@ -57,6 +57,8 @@ mod tests_machine_more;
 #[cfg(test)]
 mod tests_machines;
 #[cfg(test)]
+mod tests_machines_page;
+#[cfg(test)]
 mod tests_new_project;
 #[cfg(test)]
 mod tests_new_refs;
@@ -280,6 +282,8 @@ pub struct State {
     pub machine_menu: Option<(String, String)>,
     /// The Add a machine row was pressed: the form opens when Settings has one (piece K).
     pub add_machine_asked: bool,
+    /// Settings → Machines: the rename and token fields, what is busy, the access of this machine (`fleet::machine_actions`).
+    pub machine_page: fleet::machine_actions::Page,
     /// Where `machine-sessions.json` is kept; none until the data folder is known (and in pictures).
     pub machine_dir: Option<std::path::PathBuf>,
     /// The first read of the list has said which address schemes the machines use (decision 8).
@@ -473,6 +477,7 @@ impl Default for State {
             machine_children: Default::default(),
             machine_menu: None,
             add_machine_asked: false,
+            machine_page: Default::default(),
             machine_dir: None,
             machine_schemes_told: false,
             reasoning_open: Default::default(),
@@ -1178,7 +1183,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     let pictures = s.keep_images(tx);
     let renamed = s.keep_rename(tx) | s.keep_row_rename(tx) | s.keep_header(now, tx);
     let found = s.find_poll(tx) | s.keep_questions(tx) | s.keep_allowed_flash(now, tx);
-    let exported = s.export_poll(tx) | s.keep_setup_rows(now, tx) | s.keep_context(now, tx);
+    let exported = s.export_poll(tx) | s.keep_setup_rows(now, tx) | s.keep_context(now, tx) | s.keep_machine_page(now, tx);
     // "Copied" on a message's button ends by itself.
     let copied = match &s.copied {
         Some((_, until)) if now >= *until => {
@@ -1937,6 +1942,15 @@ pub fn spec() -> AppSpec<State> {
             ("machine-loading", |s| s.show_machines(mock::machines::Case::Loading, true)),
             ("machine-long-name", |s| s.show_machines(mock::machines::Case::LongName, true)),
             ("machine-empty", |s| s.show_machines(mock::machines::Case::Empty, true)),
+            // Piece J: Settings → Machines.
+            ("machines-page", |s| s.show_machines_page(true, false)),
+            ("machines-page-light", |s| s.show_machines_page(false, false)),
+            ("machines-page-token", |s| s.show_machines_page(true, true)),
+            ("machines-page-token-light", |s| s.show_machines_page(false, true)),
+            ("machines-page-rename", |s| s.show_machines_page_rename(true)),
+            ("machines-page-details", |s| s.show_machines_page_details(true)),
+            ("machines-page-details-light", |s| s.show_machines_page_details(false)),
+            ("machines-page-error", |s| s.show_machines_page_errors(true)),
             // Piece F: another machine's rows renamed and the row menu.
             ("machine-row-rename", |s| s.show_machine_row_rename(true)),
             ("machine-row-rename-light", |s| s.show_machine_row_rename(false)),
