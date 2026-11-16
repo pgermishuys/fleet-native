@@ -192,3 +192,12 @@ impl State {
         }
     }
 }
+
+impl State {
+    /// The Context tab with the progress strip under it (piece K): `done` of `total` todos, `current` the one in hand.
+    pub fn show_progress_strip(&mut self, done: u32, total: u32, current: Option<&str>, dark: bool) {
+        self.show_context_tab_scene(Case::Links, dark);
+        self.projects[0].sessions[0].row.progress =
+            Some(crate::fleet::row_chips::Progress { kind: "todos".into(), done, total, current: current.map(str::to_string) });
+    }
+}

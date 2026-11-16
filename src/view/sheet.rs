@@ -105,7 +105,8 @@ fn content(s: &State, t: &Theme, session: &Session, over: bool) -> El {
             .h_full()
             .border_sides([0.0, 0.0, 0.0, 1.0], t.border)
             .child(panel_head(t, PanelTab::Context, None, over))
-            .child(super::context_tab::context_tab(s, t));
+            .child(col().w_full().grow(1.0).min_h(0.0).child(super::context_tab::context_tab(s, t)))
+            .children(super::progress_strip::slot(s, t));
     }
     let (steps, pending) = plan(session);
     let mut list = col().w_full().px(10.0).py(10.0).gap(2.0);
