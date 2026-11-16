@@ -39,6 +39,7 @@ pub mod machine_picker;
 mod marks;
 pub mod message;
 pub mod more_options;
+pub mod new_project;
 pub mod new_session;
 pub mod new_session_box;
 pub mod new_session_refs;

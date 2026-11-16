@@ -72,21 +72,28 @@ pub fn input(t: &Theme, edit: &TextEdit, placeholder: &str) -> El {
 
 /// `Textarea.vue`: at least 64px (`min-h-16` is 56px at 14px rem), grows with its text.
 pub fn textarea(t: &Theme, edit: &TextEdit, placeholder: &str, max_lines: usize) -> El {
-    auto_grow(
-        text_input(edit, sans(rem(0.875), 400.0, 1.4))
-            .placeholder(placeholder.to_string(), t.muted)
-            .label(placeholder.to_string())
-            .color(t.text)
-            .caret(t.text, t.accent.alpha(0.35))
-            .w_full()
-            .px(rem(0.75))
-            .py(rem(0.5))
-            .border(1.0, t.input())
-            .min_h(rem(4.0))
-            .focus_ring(3.0, 0.0, t.accent.alpha(0.5)),
-        3,
-        max_lines,
-    )
+    grow(textarea_field(t, edit, placeholder), max_lines)
+}
+
+/// A textarea's field before it is wrapped to grow: a caller that keys it and attaches handlers does that first, then `grow`s it
+/// (the wrapper takes the key `scroll`, so a key set on the wrapper would replace it).
+pub fn textarea_field(t: &Theme, edit: &TextEdit, placeholder: &str) -> El {
+    text_input(edit, sans(rem(0.875), 400.0, 1.4))
+        .placeholder(placeholder.to_string(), t.muted)
+        .label(placeholder.to_string())
+        .color(t.text)
+        .caret(t.text, t.accent.alpha(0.35))
+        .w_full()
+        .px(rem(0.75))
+        .py(rem(0.5))
+        .border(1.0, t.input())
+        .min_h(rem(4.0))
+        .focus_ring(3.0, 0.0, t.accent.alpha(0.5))
+}
+
+/// Makes a `textarea_field` fit its text, up to `max_lines`.
+pub fn grow(field: El, max_lines: usize) -> El {
+    auto_grow(field, 3, max_lines)
 }
 
 // ---- switch ----------------------------------------------------------------------------------

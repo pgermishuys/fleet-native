@@ -38,7 +38,7 @@ pub fn panel(s: &State, t: &Theme) -> El {
         .cursor(Cursor::Pointer)
         .help("New project")
         .label("New project")
-        .on_press(|_: &mut State| {})
+        .on_press_tx(|s: &mut State, tx: &mut crate::Tx| s.open_new_project(None, tx))
         .child(icon(&FOLDER_PLUS, 15.0).color(t.muted).group_color(t.text));
 
     // The field is the whole 32px box, so a click anywhere in it focuses it; the icon sits on top.

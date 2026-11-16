@@ -55,6 +55,8 @@ mod tests_machine_more;
 #[cfg(test)]
 mod tests_machines;
 #[cfg(test)]
+mod tests_new_project;
+#[cfg(test)]
 mod tests_new_refs;
 #[cfg(test)]
 mod tests_new_send;
@@ -1882,6 +1884,35 @@ pub fn spec() -> AppSpec<State> {
             }),
             ("project-delete-all", |s| s.show_project_delete(1, fleet::projects::DeleteMode::DeleteSessions, false)),
             ("project-delete-busy", |s| s.show_project_delete(1, fleet::projects::DeleteMode::DeleteSessions, true)),
+            // Piece O of the session list: the New project dialog.
+            ("new-project", |s| s.show_new_project(fleet::new_project::Scene::Empty)),
+            ("new-project-light", |s| {
+                s.dark = Some(false);
+                s.show_new_project(fleet::new_project::Scene::Empty)
+            }),
+            ("new-project-filled", |s| s.show_new_project(fleet::new_project::Scene::Filled)),
+            ("new-project-filled-light", |s| {
+                s.dark = Some(false);
+                s.show_new_project(fleet::new_project::Scene::Filled)
+            }),
+            ("new-project-creating", |s| s.show_new_project(fleet::new_project::Scene::Creating)),
+            ("new-project-error", |s| s.show_new_project(fleet::new_project::Scene::Failed)),
+            ("new-project-error-light", |s| {
+                s.dark = Some(false);
+                s.show_new_project(fleet::new_project::Scene::Failed)
+            }),
+            ("new-project-machines", |s| {
+                s.show_machines(mock::machines::Case::Several, true);
+                s.show_new_project(fleet::new_project::Scene::OnMachine)
+            }),
+            ("new-project-machines-light", |s| {
+                s.show_machines(mock::machines::Case::Several, false);
+                s.show_new_project(fleet::new_project::Scene::OnMachine)
+            }),
+            ("new-project-machine-menu", |s| {
+                s.show_machines(mock::machines::Case::Several, true);
+                s.show_new_project(fleet::new_project::Scene::Picking)
+            }),
             // Piece H of the session list: a row renamed in place and the two questions its menu asks.
             ("row-rename", |s| s.show_row_rename(0, 1)),
             ("row-rename-light", |s| {

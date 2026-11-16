@@ -53,6 +53,7 @@ pub mod machine_view;
 pub mod machines;
 pub mod model;
 pub mod modes;
+pub mod new_project;
 pub mod new_session;
 pub mod open_in;
 pub mod pages;

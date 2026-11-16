@@ -397,7 +397,7 @@ nothing but the status-bar words), and `theme.rs` has no coral token. Row 5.1 is
 | 1.19 | "New project" icon button: same `Button ghost sm` with class `--icon`: `flex: 0 0 32px`, `width: 32`, `padding: 0`, `border-color: transparent`, `background: transparent`, `color: var(--muted)`; icon `FolderPlus` 15 | `SP` `.panel-action-button--icon` | Done as a box (key `add-folder`, 32x32, `FOLDER_PLUS` 15, muted) |
 | 1.20 | New project hover: border stays transparent, background wash(5), colour `--text` (icon follows `currentColor`) | `SP` `.panel-action-button--icon:hover` | Done: `hover(t.wash(5.0))`, `group_color(t.text)` |
 | 1.21 | New project wording: `aria-label="New project"` and `title="New project"` (the tooltip). Native today says "Add a project folder" in both: wrong wording | `SP` template | Differs: `.help("Add a project folder")`, `.label("Add a project folder")` |
-| 1.22 | New project press: `activeRail = "sessions"`, `newProjectMachine = null`, `isNewProjectDialogOpen = true` (dialog rows 1.103-1.121) | `SP` `handleNewProject` | None: `on_press` no-op |
+| 1.22 | New project press: `activeRail = "sessions"`, `newProjectMachine = null`, `isNewProjectDialogOpen = true` (dialog rows 1.103-1.121) | `SP` `handleNewProject` | Done (piece O): opens the dialog on the machine you are on |
 | 1.23 | Focus ring on both buttons: `focus-visible` border `--ring` and a 3px ring at `--ring` 50% (from the Button variant) | `components/ui/button/index.ts` | None: needs a focus ring in the kit (component 1 has `ui::button`; check it) |
 | 1.24 | Disabled look is `opacity: 0.5`, no pointer events (never reached here: neither button is ever disabled) | `components/ui/button/index.ts` | n/a |
 
@@ -528,23 +528,23 @@ nothing but the status-bar words), and `theme.rs` has no coral token. Row 5.1 is
 
 | # | Row | Source | Native today |
 |---|---|---|---|
-| 1.103 | Opens from New project (1.22) and from a machine heading's "New project on ..."; closes on Cancel, the dialog X, Esc, a press on the overlay, and after a successful create | `NP` `open` model | None (`ui::dialog` exists: `Dialog`, `footer_button`) |
+| 1.103 | Opens from New project (1.22) and from a machine heading's "New project on ..."; closes on Cancel, the dialog X, Esc, a press on the overlay, and after a successful create | `NP` `open` model | Done (piece O): Cancel, X, Esc, a press on the scrim, and after a successful create; nothing closes it while it creates |
 | 1.104 | Dialog box: `DialogContent class="sm:max-w-lg"` (max 448), `p-6` (21), `gap-4` (14), `border`, `shadow-lg`, no radius, centred; overlay `bg-black/80`; close X top-right `top-4 right-4` (14) | `components/ui/dialog/DialogContent.vue`, `DialogOverlay.vue` | Done in the kit (`ui::dialog::dialog`) |
-| 1.105 | Title "New project" (`text-lg leading-none font-semibold`, 15.75); description "Create a project to organize related sessions." (`text-sm` 12.25 muted); header `gap-2` (7) | `NP` `DialogTitle`, `DialogDescription`; `DialogHeader.vue` | None |
-| 1.106 | Form: `space-y-5` (17.5 between fields); each field `space-y-2` (7) with a label | `NP` form | None |
-| 1.107 | Name field: label "Name" (`text-sm font-medium text-foreground`, `for=new-project-name`), `Input id=new-project-name`, `placeholder="Project name"`, autofocus on open (`document.getElementById("new-project-name").focus()` after `nextTick`), disabled while creating; `Input` = `h-9` (31.5), `border`, no radius, `px-3` (10.5), `py-1`, transparent, `text-sm` at md | `NP`; `components/ui/input/Input.vue` | None |
-| 1.108 | Machine field, only when other machines exist: label "Create on" (`block text-sm font-medium`), a machine chip picker (`MachinePicker`, heading "Create on", menu opens below) framed `height: 32`, `padding: 0 10px`, `border-color: var(--border)`; hint "The project and its sessions live on this machine." (`text-xs` 10.5, `--muted`); starts on `machineKey` prop or the machine you are on (`machines.currentKey`), re-set each time the dialog opens; "Add a machine" in the menu closes the dialog and goes to Settings > Machines | `NP` `pickedKey`, `pickMachine`, `addMachine`; `new-session/MachinePicker.vue` | None (component 17; picker belongs to component 7) |
-| 1.109 | Description field: label "Description", `Textarea id=new-project-description`, placeholder "Optional description", disabled while creating; `min-h-16` (56), `px-3 py-2`, `field-sizing-content` (grows with text), border, no radius | `NP`; `components/ui/textarea/Textarea.vue` | None |
-| 1.110 | Error note (when set): `ErrorNote` non-compact: `role="alert"`, `AlertCircle` 16, `rounded-card border border-error/30 bg-error/10 px-3 py-2 text-sm`, text `--error-text` | `NP`; `components/ui/error-note/ErrorNote.vue` | None |
-| 1.111 | Footer: Cancel (`variant=outline`, type button, disabled while creating) and submit (default variant, `type=submit`); `DialogFooter` is a row, justify end, `gap-2` (7) | `NP`; `DialogFooter.vue` | Partial: `ui::dialog::footer_button(label, primary)` |
-| 1.112 | Submit label: "Create project"; while creating "Creating..." (U+2026) with a `Spinner` 16 before it; disabled while creating or while the trimmed name is empty | `NP` `canSubmit`, template | None |
-| 1.113 | Submit with Enter in the name field (form submit); a blank name does nothing | `NP` `handleSubmit` | None |
-| 1.114 | Create: `POST /api/projects` body `{name: <trimmed>, description: <trimmed or undefined>}` on the picked machine's API; success: close, emit `created(project, machineKey)` | `NP`; `USA` `useCreateProject` | None |
-| 1.115 | After created: that machine's heading unfolds; for the live machine `refetchProjects()` then `refetchSessions()`; for another machine `machines.refreshMachine(key)` | `SP` `handleProjectCreated` | None |
-| 1.116 | Failure wording: server error text (`error`/`detail`/`title` field, else the response body text, else `HTTP <status>`); a network failure (a `TypeError`) with other machines reads "Can't reach `<machine>`. The project wasn't created."; anything else "Failed to create project"; the dialog stays open and the typed text is kept | `NP` `handleSubmit`; `USA` `readErrorMessage` | None |
-| 1.117 | The error clears when the name, the description or the machine changes | `NP` `watch(name)`, `watch(description)`, `pickMachine` | None |
-| 1.118 | Closing resets the form (name, description, error); opening clears the error | `NP` `watch(open)`, `resetForm` | None |
-| 1.119 | One create at a time: `isCreating` disables every field and both buttons | `NP`; `USA` `createMutationState` | None |
+| 1.105 | Title "New project" (`text-lg leading-none font-semibold`, 15.75); description "Create a project to organize related sessions." (`text-sm` 12.25 muted); header `gap-2` (7) | `NP` `DialogTitle`, `DialogDescription`; `DialogHeader.vue` | Done (piece O) |
+| 1.106 | Form: `space-y-5` (17.5 between fields); each field `space-y-2` (7) with a label | `NP` form | Done (piece O): 17.5 between fields, 7 inside |
+| 1.107 | Name field: label "Name" (`text-sm font-medium text-foreground`, `for=new-project-name`), `Input id=new-project-name`, `placeholder="Project name"`, autofocus on open (`document.getElementById("new-project-name").focus()` after `nextTick`), disabled while creating; `Input` = `h-9` (31.5), `border`, no radius, `px-3` (10.5), `py-1`, transparent, `text-sm` at md | `NP`; `components/ui/input/Input.vue` | Done (piece O): focused on open, off while creating |
+| 1.108 | Machine field, only when other machines exist: label "Create on" (`block text-sm font-medium`), a machine chip picker (`MachinePicker`, heading "Create on", menu opens below) framed `height: 32`, `padding: 0 10px`, `border-color: var(--border)`; hint "The project and its sessions live on this machine." (`text-xs` 10.5, `--muted`); starts on `machineKey` prop or the machine you are on (`machines.currentKey`), re-set each time the dialog opens; "Add a machine" in the menu closes the dialog and goes to Settings > Machines | `NP` `pickedKey`, `pickMachine`, `addMachine`; `new-session/MachinePicker.vue` | Done in part (piece O): the "Create on" chip (32 high, framed), the menu with every machine and Add a machine…, the hint, starting on the heading's machine or the one you are on. Add a machine… only says Settings isn't built (component 16) |
+| 1.109 | Description field: label "Description", `Textarea id=new-project-description`, placeholder "Optional description", disabled while creating; `min-h-16` (56), `px-3 py-2`, `field-sizing-content` (grows with text), border, no radius | `NP`; `components/ui/textarea/Textarea.vue` | Done (piece O): grows from 3 lines to 8 |
+| 1.110 | Error note (when set): `ErrorNote` non-compact: `role="alert"`, `AlertCircle` 16, `rounded-card border border-error/30 bg-error/10 px-3 py-2 text-sm`, text `--error-text` | `NP`; `components/ui/error-note/ErrorNote.vue` | Done (piece O) |
+| 1.111 | Footer: Cancel (`variant=outline`, type button, disabled while creating) and submit (default variant, `type=submit`); `DialogFooter` is a row, justify end, `gap-2` (7) | `NP`; `DialogFooter.vue` | Done (piece O) |
+| 1.112 | Submit label: "Create project"; while creating "Creating..." (U+2026) with a `Spinner` 16 before it; disabled while creating or while the trimmed name is empty | `NP` `canSubmit`, template | Done (piece O) |
+| 1.113 | Submit with Enter in the name field (form submit); a blank name does nothing | `NP` `handleSubmit` | Done (piece O) |
+| 1.114 | Create: `POST /api/projects` body `{name: <trimmed>, description: <trimmed or undefined>}` on the picked machine's API; success: close, emit `created(project, machineKey)` | `NP`; `USA` `useCreateProject` | Done (piece O): on a thread, to the picked machine's own link |
+| 1.115 | After created: that machine's heading unfolds; for the live machine `refetchProjects()` then `refetchSessions()`; for another machine `machines.refreshMachine(key)` | `SP` `handleProjectCreated` | Done (piece O): the machine's heading unfolds and its list is read again |
+| 1.116 | Failure wording: server error text (`error`/`detail`/`title` field, else the response body text, else `HTTP <status>`); a network failure (a `TypeError`) with other machines reads "Can't reach `<machine>`. The project wasn't created."; anything else "Failed to create project"; the dialog stays open and the typed text is kept | `NP` `handleSubmit`; `USA` `readErrorMessage` | Done (piece O) |
+| 1.117 | The error clears when the name, the description or the machine changes | `NP` `watch(name)`, `watch(description)`, `pickMachine` | Done (piece O) |
+| 1.118 | Closing resets the form (name, description, error); opening clears the error | `NP` `watch(open)`, `resetForm` | Done (piece O) |
+| 1.119 | One create at a time: `isCreating` disables every field and both buttons | `NP`; `USA` `createMutationState` | Done (piece O) |
 | 1.120 | No client-side name rules (no length cap, no duplicate check): the server answers | `NP` | n/a |
 | 1.121 | The dialog is a sibling of the panel `section`, so it is mounted even while the panel's content scrolls | `SP` template | n/a |
 
@@ -1895,13 +1895,20 @@ Rows 5.53-5.76 (machine data, feeds, diagnosis, pairing) are component 17's: its
   `/api/open-file`).
 - **Tests:** Part C `OpenToolContextSubmenu` cases. **Pictures:** the submenu open, both themes.
 
-### O. The New project dialog
+### O. The New project dialog (done, 16 November 2026)
 - **Touches:** `src/view/new_project.rs`, `src/fleet/projects.rs`.
 - **Behaviour:** `ui::dialog` with name and description fields, error note, "Creating…", Enter to
   submit, autofocus, reset on close, `POST /api/projects` on a thread, then re-read. The machine
   picker (1.108) waits for component 17.
 - **Tests:** Part A `NewProjectDialog.test.ts`. **Pictures:** the dialog empty, filled, with an
   error, both themes.
+
+- **Done:** rows 1.22, 1.103-1.119 (see each). **Open:** 6.7's `POST` is covered by 1.114. Fleet's released
+  server (v0.72.0) serves a client that says "New Project" and "Create Project" in title case and draws the error note
+  square; weave-fleet's `main` (this port) says "New project" / "Create project" with a rounded note. The port follows `main`.
+  The dialog's machine menu is a copy of the New session page's rows, not that page's picker, since the pick lives in the dialog.
+- **Pictures:** `shots/parity/06-new-project/` (native and Fleet's own: empty, filled, error, both themes; machine field and
+  menu from scenes only, since the scratch Fleet has one machine).
 
 ### P. The draft row and drafts storage
 - **Touches:** `src/view/draft_row.rs`, `src/fleet/drafts.rs` (shared with component 5, piece A:

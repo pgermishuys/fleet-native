@@ -176,6 +176,9 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
     if let Some(delete) = crate::view::project_dialogs::delete(s, t) {
         layer.extend(delete);
     }
+    if let Some(new) = crate::view::new_project::view(s, t) {
+        layer.extend(new);
+    }
     if let Some(ask) = confirm::view(s, t) {
         layer.extend(ask);
     }

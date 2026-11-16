@@ -136,12 +136,11 @@ pub fn machine_heading_entries(s: &State, key: String) -> Vec<Entry> {
                 .disabled(off)
                 .on(move |s: &mut State, _: &mut Tx| s.new_session_on(&k1)),
         ),
-        // The dialog is component 6's piece O.
         Entry::Item(
             named(Item::new("New project"), "New project on")
                 .icon(&FOLDER_PLUS)
-                .disabled(true)
-                .on(move |s: &mut State, _: &mut Tx| s.new_project_on(&k2)),
+                .disabled(off)
+                .on(move |s: &mut State, tx: &mut Tx| s.new_project_on(&k2, tx)),
         ),
     ];
     if !live {
