@@ -133,6 +133,8 @@ pub struct State {
     pub logo: Option<Image>,
     /// The Fleet server this window shows, once the connection has started; `None` draws `mock.rs`.
     pub link: Option<Link>,
+    /// The links to the other machines, started when a session there needs one (`fleet::routing`).
+    pub links: fleet::routing::Links,
     pub connection: Connection,
     /// The open session's conversation as the reducer holds it.
     pub stream: Option<StreamState>,
@@ -319,6 +321,7 @@ impl Default for State {
             cache: None,
             logo: None,
             link: None,
+            links: Default::default(),
             connection: Connection::Connecting,
             open_reads: Default::default(),
             tool_open: Default::default(),
@@ -986,7 +989,7 @@ pub fn interrupt(s: &mut State) {
     }
     s.aborting = s.draft_owner();
     s.optimistic = None;
-    if let (Some(link), Some(id)) = (&s.link, s.open_id()) {
+    if let Some((link, id)) = s.open_id().and_then(|id| s.link_for(&id).map(|l| (l, id))) {
         link.abort(&id);
         return;
     }
@@ -2148,14 +2151,10 @@ pub fn start_desktop() {
     let app = App::new(spec())
         .args(rest)
         .on_focus(|s, focused, _| {
-            if let Some(link) = &s.link {
-                link.window_focus(focused);
-            }
+            s.each_link(|link| link.window_focus(focused));
         })
         .on_visibility(|s, visible, _| {
-            if let Some(link) = &s.link {
-                link.window_visible(visible);
-            }
+            s.each_link(|link| link.window_visible(visible));
         });
     let handle = app.handle();
     // The drafts and the remembered choices (folded groups, the side panels) come back from the app's own data folder, read off the UI thread. A picture or a scripted run

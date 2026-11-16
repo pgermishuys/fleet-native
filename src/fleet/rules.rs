@@ -96,7 +96,7 @@ impl State {
 
     /// Loads the session's rules when it opens and after a reconnect. A failed load is not shown.
     pub fn load_rules(&mut self, session: &str) {
-        let Some(link) = &self.link else { return };
+        let Some(link) = self.link_for(session) else { return };
         let generation = self.rules.begin_load(session);
         let id = session.to_string();
         let asked = id.clone();
@@ -137,7 +137,7 @@ impl State {
     }
 
     fn send_removal(&mut self, session: &str, rule: Option<String>) {
-        let Some(link) = &self.link else { return };
+        let Some(link) = self.link_for(session) else { return };
         let id = session.to_string();
         let asked = id.clone();
         link.off_thread(

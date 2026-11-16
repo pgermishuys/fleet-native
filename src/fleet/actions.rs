@@ -157,7 +157,10 @@ impl State {
 
     /// Sends the call on a thread, or with no server applies it to the invented list. `was` is the title a rename puts back.
     pub(crate) fn send_session_call(&mut self, call: Call, was: Option<String>, tx: &mut Tx) {
-        let Some(link) = &self.link else {
+        let session = match &call {
+            Call::Rename { id, .. } | Call::ClearAttachments { id } | Call::Delete { id } => id.clone(),
+        };
+        let Some(link) = self.link_for(&session) else {
             self.session_call_done(&call, was, Ok(()), tx);
             return;
         };
@@ -177,8 +180,8 @@ impl State {
                     {
                         self.set_title(id, &was);
                     }
-                } else if let Some(link) = &self.link {
-                    link.refetch_list();
+                } else {
+                    self.list_again(id);
                 }
             }
             Call::ClearAttachments { .. } | Call::Delete { .. } => self.confirm_done(result, tx),
@@ -190,7 +193,15 @@ impl State {
         let mut projects = std::mem::take(&mut self.projects);
         self.store.remove(&mut projects, &mut self.route, id);
         self.on_list(projects, tx);
-        if let Some(link) = &self.link {
+        self.list_again(id);
+    }
+
+    /// Reads the list `session` is in again: home's own, or the other machine's with the next read of the machines.
+    fn list_again(&self, session: &str) {
+        let Some(link) = &self.link else { return };
+        if self.target_of(session).is_some_and(|t| !t.is_home()) {
+            link.refresh_machines();
+        } else {
             link.refetch_list();
         }
     }

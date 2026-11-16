@@ -56,6 +56,7 @@ fn read_home(base: &str, post: &Post) {
     let again = post.clone();
     post.update(move |s, _| {
         s.machines.apply_list(listed);
+        s.prune_links();
         if let Some(home) = home {
             s.machines.home = Some(home);
         }

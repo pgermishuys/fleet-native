@@ -41,7 +41,7 @@ impl State {
             self.work.stop_errors.insert(id.to_string(), "Already stopping.".into());
             return;
         }
-        let Some(link) = &self.link else { return };
+        let Some(link) = self.link_for(&item.session_id) else { return };
         let (session, item_id) = (item.session_id.clone(), id.to_string());
         self.work.stopping.insert(item_id.clone());
         let asked = item_id.clone();
@@ -95,7 +95,8 @@ impl State {
     }
 
     fn request_work_page(&self, id: &str, offset: u64) {
-        let (Some(link), Some(item), Some(reader)) = (&self.link, self.work_item(id), self.work.outputs.get(id)) else { return };
+        let (Some(item), Some(reader)) = (self.work_item(id), self.work.outputs.get(id)) else { return };
+        let Some(link) = self.link_for(&item.session_id) else { return };
         let (session, item_id, done_id, epoch) = (item.session_id.clone(), id.to_string(), id.to_string(), reader.epoch);
         link.off_thread(
             move |base| http::work_output(base, &session, &item_id, offset),

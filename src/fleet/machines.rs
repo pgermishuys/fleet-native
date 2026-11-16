@@ -252,6 +252,8 @@ pub struct Machines {
     pub others: HashMap<String, MachineSessions>,
     /// Which machine each session is on, by session id: ids only, never dropped (`rememberSessionMachines`).
     pub session_machines: HashMap<String, String>,
+    /// The state of each other machine's hub, by id; none until a session there is opened.
+    pub hubs: HashMap<String, super::link::Connection>,
 }
 
 impl Machines {

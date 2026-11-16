@@ -119,7 +119,7 @@ impl State {
                 continue;
             }
             // With no Fleet there is nothing to ask; a scene or a test hands pictures over with `supply_image`.
-            let Some(link) = &self.link else { continue };
+            let Some(link) = self.open_link() else { continue };
             self.images.slots.insert(key.clone(), Slot::Loading(None));
             link.off_thread(move |base| bytes_of(base, &source), move |s, _, bytes| s.on_image_bytes(&key, bytes));
         }

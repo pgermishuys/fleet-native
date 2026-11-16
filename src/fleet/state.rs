@@ -100,9 +100,7 @@ impl State {
             self.stream = shown;
             self.stream_of = Some(id.clone());
             self.loading = true;
-            if let Some(link) = &self.link {
-                link.open(&id);
-            }
+            self.open_on_link(&id);
             self.sync_open();
             self.load_catalog(&id);
             self.load_commands(&id);
@@ -131,8 +129,17 @@ impl State {
 
     /// The connection came back: every conversation shown is out of date until its new snapshot.
     pub fn on_reconnected(&mut self) {
-        self.load_pickers();
-        if let Some(id) = self.open_id() {
+        self.on_reconnected_for(super::settings::HOME_MACHINE_KEY);
+    }
+
+    /// A hub came back: home's reloads the pickers too; another machine's reloads only what its open session shows.
+    pub fn on_reconnected_for(&mut self, key: &str) {
+        if key == super::settings::HOME_MACHINE_KEY {
+            self.load_pickers();
+        }
+        let open = self.open_id().filter(|id| self.target_of(id).is_some_and(|t| t.key == key));
+        let open_here = open.is_some();
+        if let Some(id) = open {
             self.load_commands(&id);
             self.load_queue(&id);
             self.load_asks(&id);
@@ -142,7 +149,7 @@ impl State {
             self.load_interruption(&id);
             self.load_browser(&id);
         }
-        if self.stream.is_some() {
+        if self.stream.is_some() && (open_here || (key == super::settings::HOME_MACHINE_KEY && self.open_id().is_none())) {
             self.loading = true;
         }
     }
@@ -341,7 +348,8 @@ impl State {
     /// "Load older messages" (`loadOlder`). Ignored while the snapshot is loading (a kept copy's cursor may be
     /// stale), while a page is already on its way, or when there is nothing older to ask for.
     pub fn load_older(&mut self) {
-        let (Some(link), Some(id)) = (&self.link, self.open_id()) else { return };
+        let Some(id) = self.open_id() else { return };
+        let Some(link) = self.link_for(&id) else { return };
         let Some(stream) = self.stream.as_mut() else { return };
         let Some(cursor) = stream.cursor.clone() else { return };
         if self.loading || !stream.has_more || stream.is_loading_older {
@@ -440,7 +448,7 @@ impl State {
         self.add_references(&mut pick, text);
         self.note_pick_on_row(&pick);
         self.record_recent_model(&pick);
-        if let Some(link) = &self.link {
+        if let Some(link) = self.link_for(session) {
             link.send_prompt(session, &correlation_id, text.trim(), pick);
         }
         self.sync_open();
@@ -571,7 +579,8 @@ impl State {
     /// Asks the server for all of the session's work, once, when a notice says work failed and the stream holds no item
     /// for its call: work Fleet stopped reads stopped, not failed (`use-background-work.ts`).
     fn load_older_work(&mut self) {
-        let (Some(stream), Some(link), Some(id)) = (&self.stream, &self.link, self.open_id()) else { return };
+        let (Some(stream), Some(id)) = (&self.stream, self.open_id()) else { return };
+        let Some(link) = self.link_for(&id) else { return };
         if self.work.older_for.as_deref() == Some(id.as_str())
             || !background::needs_older_work(&stream.messages, &stream.running_work, &self.work.older)
         {

@@ -17,7 +17,7 @@ use rune::{AppHandle, Tx};
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender, channel};
+use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender, TryRecvError, channel};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tungstenite::{Error as WsError, Message, WebSocket};
 
@@ -52,6 +52,8 @@ pub enum Cmd {
     Open(String),
     /// Fetch the session list again.
     Refresh,
+    /// The open session is on another machine now: stop showing this one's (and say the window left it).
+    CloseOpen,
     /// Listen to another session's topic as well (its events go to `State::subscribe`).
     Watch(String),
     Unwatch(String),
@@ -66,9 +68,12 @@ pub enum Cmd {
     WindowVisible(bool),
 }
 
-/// What the UI keeps of the connection.
+/// What the UI keeps of the connection. A clone shares the same threads.
+#[derive(Clone)]
 pub struct Link {
     pub base: String,
+    /// The machine this is the link to: `home`, or another machine's id.
+    pub key: String,
     cmds: Sender<Cmd>,
     /// The thread that reads the other machines (`machine_poll`).
     machines: Sender<super::machine_poll::Cmd>,
@@ -90,9 +95,30 @@ impl Link {
     pub fn start(base: String, post: Post) -> Link {
         let (cmds, rx) = channel();
         let (b, p) = (base.clone(), post.clone());
-        std::thread::spawn(move || run(b, rx, p));
+        std::thread::spawn(move || run(super::settings::HOME_MACHINE_KEY.to_string(), b, rx, p));
         let machines = super::machine_poll::start(base.clone(), post.clone());
-        Link { base, cmds, machines, post }
+        Link { base, key: super::settings::HOME_MACHINE_KEY.to_string(), cmds, machines, post }
+    }
+
+    /// A link to another machine (`key` is its id): the same hub and calls, aimed at that machine's address, which the
+    /// token middleware pairs with that machine's token. It carries no list of its own: home's list is the live list, and
+    /// the machine's sessions are read by `machine_poll`.
+    pub fn start_machine(key: String, base: String, post: Post) -> Link {
+        let (cmds, rx) = channel();
+        let (k, b, p) = (key.clone(), base.clone(), post.clone());
+        std::thread::spawn(move || run(k, b, rx, p));
+        // Nothing reads the other end: a machine link has no machine poll, and its sends are dropped.
+        let (machines, _) = channel();
+        Link { base, key, machines, cmds, post }
+    }
+
+    pub fn is_home(&self) -> bool {
+        self.key == super::settings::HOME_MACHINE_KEY
+    }
+
+    /// Lets go of the open session: another link has it now.
+    pub fn close_open(&self) {
+        let _ = self.cmds.send(Cmd::CloseOpen);
     }
 
     /// "Try again" on the list: the sessions and the projects are read again (`SessionsPanel`'s `handleRetry`).
@@ -218,12 +244,14 @@ fn fetch_list(base: &str, post: &Post) {
     });
 }
 
-fn connection(post: &Post, c: Connection) {
-    post.update(move |s, _| s.connection = c);
+fn connection(post: &Post, key: &str, c: Connection) {
+    let key = key.to_string();
+    post.update(move |s, _| s.set_connection(&key, c));
 }
 
 /// The hub thread: connect, serve, and on loss wait and connect again.
-fn run(base: String, rx: Receiver<Cmd>, post: Post) {
+fn run(key: String, base: String, rx: Receiver<Cmd>, post: Post) {
+    let home = key == super::settings::HOME_MACHINE_KEY;
     let mut topics = Topics::default();
     let mut pending = Pending::default();
     let mut presence = Presence::default();
@@ -234,14 +262,17 @@ fn run(base: String, rx: Receiver<Cmd>, post: Post) {
                 attempt = 0;
                 // Only now that the server answers: a list asked for while it was down would fail, and the
                 // list is what a restarted server has to hand back.
-                fetch_list(&base, &post);
-                connection(&post, Connection::Online);
-                post.update(|s, _| s.on_reconnected());
-                serve(ws, &base, &rx, &mut topics, &mut pending, &mut presence, &post)
+                if home {
+                    fetch_list(&base, &post);
+                }
+                connection(&post, &key, Connection::Online);
+                let k = key.clone();
+                post.update(move |s, _| s.on_reconnected_for(&k));
+                serve(ws, (&base, home), &rx, &mut topics, &mut pending, &mut presence, &post)
             }
             Err(e) if super::auth::is_refusal(&e) => {
                 // A reconnect loop would only knock again: say what is needed and stop.
-                connection(&post, Connection::Refused);
+                connection(&post, &key, Connection::Refused);
                 return;
             }
             Err(e) => e,
@@ -250,7 +281,7 @@ fn run(base: String, rx: Receiver<Cmd>, post: Post) {
         for (session, cursor) in pending.drain() {
             history_failed(&post, session, cursor, &why);
         }
-        connection(&post, Connection::Down(why));
+        connection(&post, &key, Connection::Down(why));
         topics.forget_snapshots();
         presence.disconnected();
         // Commands that come while waiting still count: the topics to subscribe on the next connection.
@@ -268,6 +299,9 @@ fn run(base: String, rx: Receiver<Cmd>, post: Post) {
                     topics.unwatch(&id);
                 }
                 Ok(Cmd::Refresh) => {}
+                Ok(Cmd::CloseOpen) => {
+                    topics.set_open(None);
+                }
                 // Said again once connected (`connected`), so only what the window is like now is kept.
                 Ok(Cmd::WindowFocus(focused)) => {
                     presence.focus_changed(focused, Instant::now());
@@ -361,7 +395,8 @@ pub(crate) fn connect(base: &str) -> Result<WebSocket<Stream>, String> {
 /// Serves one connection until it fails; the error says why.
 fn serve(
     mut ws: WebSocket<Stream>,
-    base: &str,
+    // The Fleet's address, and whether it is home (the one whose list the window shows).
+    (base, home): (&str, bool),
     rx: &Receiver<Cmd>,
     topics: &mut Topics,
     pending: &mut Pending,
@@ -389,7 +424,10 @@ fn serve(
 
     // Every topic again, so each gets a fresh snapshot (`topicListenersV2` after a reconnect).
     let started = (|| -> Result<(), String> {
-        call(&mut ws, "SubscribeToSessionsTopicAsync", vec![])?;
+        // The sessions topic feeds the live list, which is home's: another machine's list is read by `machine_poll`.
+        if home {
+            call(&mut ws, "SubscribeToSessionsTopicAsync", vec![])?;
+        }
         for id in topics.all() {
             let n = call(&mut ws, "SubscribeToSessionAsync", vec![json!(id)])?;
             asked.insert(n.to_string(), id);
@@ -405,7 +443,13 @@ fn serve(
     }
 
     loop {
-        while let Ok(cmd) = rx.try_recv() {
+        loop {
+            let cmd = match rx.try_recv() {
+                Ok(cmd) => cmd,
+                Err(TryRecvError::Empty) => break,
+                // The app dropped this link (its machine was forgotten or moved): the hub goes with it.
+                Err(TryRecvError::Disconnected) => return "the link was dropped".to_string(),
+            };
             let result = match cmd {
                 Cmd::Open(id) if topics.open() == Some(id.as_str()) => Ok(()),
                 Cmd::Open(id) => (|| {
@@ -443,9 +487,23 @@ fn serve(
                     Ok::<(), String>(())
                 })(),
                 Cmd::Refresh => {
-                    fetch_list(base, post);
+                    if home {
+                        fetch_list(base, post);
+                    }
                     Ok(())
                 }
+                Cmd::CloseOpen => (|| {
+                    for c in presence.left() {
+                        send_call(&mut call, &mut ws, c)?;
+                    }
+                    if let Some(old) = topics.set_open(None) {
+                        call(&mut ws, "UnsubscribeFromSessionAsync", vec![json!(old)])?;
+                    }
+                    batch.clear();
+                    pending_activity.clear();
+                    waiting_for_snapshot = false;
+                    Ok::<(), String>(())
+                })(),
                 Cmd::WindowFocus(focused) => {
                     presence.focus_changed(focused, Instant::now());
                     // Coming back to the window: whatever changed while it was away (`visibilitychange`).
@@ -483,7 +541,7 @@ fn serve(
             Ok(Message::Text(text)) => {
                 for frame in signalr::parse(&text) {
                     match frame {
-                        Frame::Event { topic, data, .. } if topic == "sessions" => {
+                        Frame::Event { topic, data, .. } if topic == "sessions" && home => {
                             // Whoever owns an event reads it from here (`State::subscribe`); the list's own
                             // reactions below don't wait for them.
                             if let Some(event) = Event::from_wire(&data) {
@@ -587,7 +645,7 @@ fn serve(
         for (session, cursor) in pending.expired() {
             history_failed(post, session, cursor, "the server didn't answer in time");
         }
-        if refresh.due(Instant::now()) {
+        if refresh.due(Instant::now()) && home {
             fetch_list(base, post);
         }
     }

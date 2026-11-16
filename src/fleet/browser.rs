@@ -9,7 +9,7 @@ use serde_json::Value;
 impl State {
     /// Asks Fleet for the session's steps, off the UI thread.
     pub fn load_browser(&mut self, session: &str) {
-        let Some(link) = &self.link else { return };
+        let Some(link) = self.link_for(session) else { return };
         let id = session.to_string();
         let path = format!("/api/sessions/{}/agent-browser", crate::conv::image_sniff::encode_component(session));
         link.off_thread(

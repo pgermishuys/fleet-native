@@ -339,7 +339,11 @@ impl State {
             Step::Idle => {}
             Step::Wait(seconds) => tx.wake_after(std::time::Duration::from_secs_f64(seconds + 0.002)),
             Step::Send { generation, query } => {
-                if let (Some(link), Some(scope)) = (&self.link, scope) {
+                let link = match &scope {
+                    Some(Scope::Session(id)) => self.link_for(id),
+                    _ => self.link.clone(),
+                };
+                if let (Some(link), Some(scope)) = (link, scope) {
                     let asked = query.clone();
                     link.off_thread(
                         move |base| {
@@ -380,7 +384,7 @@ impl State {
     /// Asks for the session's commands and skills (when it opens, after a reconnect, and when the harness says its catalog
     /// changed). What was there stays up meanwhile.
     pub fn load_commands(&self, session: &str) {
-        let Some(link) = &self.link else { return };
+        let Some(link) = self.link_for(session) else { return };
         let id = session.to_string();
         let asked = id.clone();
         link.off_thread(

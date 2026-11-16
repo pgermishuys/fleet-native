@@ -87,7 +87,7 @@ impl State {
         d.messages.clear();
         d.built = None;
         let (generation, id, cancel) = (d.generation, d.session_id.clone(), d.cancel.clone());
-        let Some(link) = self.link.as_ref().filter(|_| self.open_id().is_some()) else {
+        let Some(link) = self.open_id().and_then(|id| self.link_for(&id)) else {
             self.export_done(generation, Ok(crate::mock::export::session()));
             return;
         };
