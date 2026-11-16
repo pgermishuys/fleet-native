@@ -76,6 +76,7 @@ pub mod retry;
 pub mod right_panel;
 pub mod routing;
 pub mod row_chips;
+pub mod row_drag;
 pub mod row_menu;
 pub mod row_menu_actions;
 pub mod row_status;

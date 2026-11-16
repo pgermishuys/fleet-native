@@ -1077,3 +1077,13 @@ key, so clicks and `tx.focus` on the key never reach the field. Key the field an
 - **Layout eases on a press's commit, not on a drag's.** `tx.motion_curve(Curve::tween(0.2, Easing::cubic(..)))` in the handler gives a toggle Fleet's own 200 ms curve; `tx.instant()` in an `on_drag` lands each step at once, which is Fleet's "never while dragging".
 - **A negative margin works** (`mx(-4.0)` puts an 8 px gutter over the seam without taking width from either side).
 - **Centre text over a canvas** with a keyed-less `el().size(..).absolute(0,0).center()` box; `absolute` plus `.center()` on the text itself leaves it in the corner.
+
+## Component 6, piece S (dragging a row)
+
+The small case the checklist asked for (`tests_row_drag.rs`, first test): **Rune can carry a row drag with drop targets.** No HTML5 drag-and-drop is needed.
+
+- **Which element is under a dragged pointer**: in `on_drag`, `d.window_point()` gives the pointer in window points and `tx.element_at(x, y, |s, picked, tx| ..)` hands back the deepest element there. `Picked::path()` names every keyed ancestor (`.../drop-project-1/#2/project-1`; unkeyed ones are `#n`), so a target is a key on a container and the handler walks the path from the end. It works inside a scroll box. `Picked::key()` is only the deepest element's own key, which is no use for "which group".
+- **The answer arrives after the handler**, so the target shows one move late; the release drops on the last one found. A press that moves under Rune's 4 pt threshold stays a click, so the same row can have `on_press` and `on_drag`.
+- **`Drag::cancelled()` on `Phase::Up`** is Escape; put the drag down without dropping.
+- **No drag ghost.** The dragged row is dimmed to 40 % (Fleet's `.dragging`) and the targets light up; a floating copy under the pointer isn't drawn.
+- **The list changes under the pointer when a drag begins** (the empty Pinned group and the Archive box appear), as in Fleet. A test has to move off the row, run two frames and find the target again before moving to it.

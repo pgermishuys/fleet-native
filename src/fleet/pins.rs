@@ -74,7 +74,7 @@ impl State {
         self.pin_context(id).is_some_and(|(l, _)| l.pin_order.is_some())
     }
 
-    fn set_pin_order(&mut self, id: &str, order: Option<f64>) {
+    pub(crate) fn set_pin_order(&mut self, id: &str, order: Option<f64>) {
         let mut projects = std::mem::take(&mut self.projects);
         self.store.patch(&mut projects, id, |s| s.listing.pin_order = order);
         self.projects = projects;
