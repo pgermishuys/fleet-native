@@ -459,3 +459,22 @@ fn while_an_answer_is_on_its_way_the_choices_are_off_and_a_second_press_sends_no
     live.wait(&|l| l.rt.state.open_asks().is_empty(), "the card to go");
     assert_eq!(live.calls().len(), 1, "one answer, not two");
 }
+
+// use-session-permissions.test.ts: "follows the session it's shown for"
+// Fleet unsubscribes from the old session's topic and subscribes to the new one's; here the hub does that (`link.rs`,
+// tested with the stream in `tests::wire`), so what is left to check is the state's side: a session's asks come in on its
+// own topic, and the card list is the open session's, back at once when you return.
+#[test]
+fn follows_the_session_its_shown_for() {
+    let mut rt = app();
+    rt.update(|s, _| {
+        s.dispatch(&Topic::Session("s-a".into()), &[asked(ask("per_a", "s-a"))]);
+        s.dispatch(&Topic::Session("s-b".into()), &[asked(ask("per_b", "s-b"))]);
+        s.route = crate::fleet::store::Route::Session("s-a".into());
+        assert_eq!(s.open_asks().iter().map(|a| a.id.as_str()).collect::<Vec<_>>(), ["per_a"]);
+        s.route = crate::fleet::store::Route::Session("s-b".into());
+        assert_eq!(s.open_asks().iter().map(|a| a.id.as_str()).collect::<Vec<_>>(), ["per_b"]);
+        s.route = crate::fleet::store::Route::Session("s-a".into());
+        assert_eq!(s.open_asks().len(), 1, "back on the first session, its ask is there at once");
+    });
+}

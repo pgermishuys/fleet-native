@@ -822,3 +822,11 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 
 - `.opacity(0.6)` on a column dims everything inside it, so a down machine's rows are dimmed by wrapping only the rows (Fleet's `.session-item` rule leaves the project headings at full strength).
 - `rt.find(key)` finds an element even below the scroll area's edge, but a press there lands on whatever is drawn at that point: a test that presses a row at the foot of a long list must use a scene short enough to fit (the Add a machine test uses the `Down` case).
+
+## Component 4, piece G (the sweep)
+
+- Nothing new missing. Two things about checking: a Fleet-side media query (`@media (max-width: 520px)`) is the *window's* width, not
+  the panel's, so a rule like the permission card's "hide the scope text under 520 px" can't fire in an app whose window is at least
+  720 px wide (`min_size`); it needs no code here.
+- A scripted run records at the app's own pace on a software renderer: a 16 s script with several taps takes about 1.5 minutes of
+  wall time (65 ms a frame). Plan 20 pictures as half an hour, one process each.

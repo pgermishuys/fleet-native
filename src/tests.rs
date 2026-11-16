@@ -578,7 +578,7 @@ fn press_key(rt: &mut Runtime<State>, key: Key, mods: Mods) {
 }
 
 /// Types into the open session's text area.
-fn typed(rt: &mut Runtime<State>, text: &str) {
+pub(crate) fn typed(rt: &mut Runtime<State>, text: &str) {
     click(rt, "composer");
     press_key(rt, Key::Text(text.into()), Mods::default());
 }
