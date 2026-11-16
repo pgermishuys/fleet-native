@@ -91,6 +91,8 @@ fn serve(stream: std::net::TcpStream, log: Log, gate: Arc<AtomicBool>, answer: A
     } else if path.starts_with("/api/sessions?") {
         log.lock().unwrap().push((method.clone(), path.clone(), body, token));
         answer(&method, &path)
+    } else if path.starts_with("/api/machines") {
+        answer(&method, &path)
     } else {
         (404, "{}".into())
     };
@@ -553,9 +555,12 @@ fn alt_up_and_alt_down_move_a_pinned_rows_pin() {
 
 const MINI: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
-fn on_machine(fake_home: &Fake, mini: &Fake) -> Rig {
-    let mut r = Rig::home(fake_home);
+/// Home lists the machine too, as it does for the poll that runs while the test waits, so the poll agrees with what is set up.
+fn on_machine(mini: &Fake) -> (Rig, Fake) {
     let body = json!({ "machines": [{"id": MINI, "name": "mini", "baseUrl": mini.base, "token": "token-of-mini"}] }).to_string();
+    let listed = body.clone();
+    let home = Fake::start(move |_, path| if path == "/api/machines" { (200, listed.clone()) } else { (200, "{}".into()) });
+    let mut r = Rig::home(&home);
     r.rt.update(move |s, _| {
         s.machines.apply_list(parse_machine_list(200, &body));
         // Home's own tree is folded so the machine's rows are on screen.
@@ -572,21 +577,44 @@ fn on_machine(fake_home: &Fake, mini: &Fake) -> Rig {
         }
     });
     r.rt.frame(FRAME);
-    r
+    (r, home)
 }
 
 #[test]
 fn archive_and_pin_on_another_machine_reach_that_machine_with_its_token_and_nothing_reaches_home() {
-    let home = Fake::ok();
-    let mini = Fake::start(|method, _| if method == "PUT" { (200, r#"{"pinOrder":5}"#.into()) } else { (200, "{}".into()) });
-    let mut r = on_machine(&home, &mini);
+    // The machine keeps what it was told, so the list home reads of it again while the test waits agrees with the calls.
+    let state = Arc::new(Mutex::new((None::<f64>, false)));
+    let kept = state.clone();
+    let mini = Fake::start(move |method, path| {
+        let mut state = kept.lock().unwrap();
+        if method == "PUT" {
+            state.0 = Some(5.0);
+            return (200, r#"{"pinOrder":5}"#.into());
+        }
+        if method == "PATCH" {
+            state.1 = true;
+        }
+        if path.starts_with("/api/sessions?") {
+            let row = |id: &str, title: &str, pin: Option<f64>, archived: bool| {
+                json!({"session": {"id": id, "title": title, "time": {"created": 1, "updated": 2}}, "pinOrder": pin,
+                       "retentionStatus": if archived { "archived" } else { "active" }})
+            };
+            return (
+                200,
+                json!([row("mini-1", "Water the tomatoes", state.0, state.1), row("mini-2", "Paint the fence", Some(4.0), false)])
+                    .to_string(),
+            );
+        }
+        (200, "{}".into())
+    });
+    let (mut r, home) = on_machine(&mini);
     let (a, p) = (format!("session-archive-{MINI}-mini-1"), format!("session-pin-{MINI}-mini-1"));
     click(&mut r.rt, &p);
     r.wait("the pin on its machine", |_| !mini.calls("/pin").is_empty());
     assert_eq!(mini.calls("/pin")[0].3.as_deref(), Some("token-of-mini"));
     assert_eq!(mini.calls("/pin")[0].2, json!({ "beforeSessionId": null }));
     r.wait("its row to carry the server's number", |s| {
-        s.machines.others[MINI].sessions.iter().any(|x| x.id == "mini-1" && x.listing.pin_order == Some(5.0))
+        s.machines.others.get(MINI).is_some_and(|m| m.sessions.iter().any(|x| x.id == "mini-1" && x.listing.pin_order == Some(5.0)))
     });
     // The pinned one of the same machine has an Unpin.
     assert!(r.rt.find(&format!("session-pin-{MINI}-mini-2")).is_some());
