@@ -516,6 +516,7 @@ mod selector;
 mod settings;
 mod state;
 mod store;
+mod tls;
 mod usage;
 mod wire;
 mod work;

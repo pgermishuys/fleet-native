@@ -1,11 +1,22 @@
 //! The HTTP calls this slice makes, blocking: run them on a thread, never in a view or a handler.
-//! Plain `http://` only (no TLS yet); a bearer token goes with every call when one was given (`auth`).
+//! `http://` and `https://` (rustls, the same stack as the hub's `wss://`, `tls.rs`); a bearer token goes with every call when one was given (`auth`).
 use serde_json::{Value, json};
 use std::time::Duration;
 
 /// Every agent starts here, so the access token (if one was given) goes with every call.
 fn builder() -> ureq::config::ConfigBuilder<ureq::typestate::AgentScope> {
-    ureq::Agent::config_builder().middleware(super::auth::middleware)
+    let b = ureq::Agent::config_builder().middleware(super::auth::middleware);
+    // A test trusts its own certificate; nothing outside tests can add a root.
+    #[cfg(test)]
+    let b = {
+        let extra: Vec<_> = super::tls::test_roots::all().iter().map(|d| ureq::tls::Certificate::from_der(d).to_owned()).collect();
+        if extra.is_empty() {
+            b
+        } else {
+            b.tls_config(ureq::tls::TlsConfig::builder().root_certs(ureq::tls::RootCerts::new_with_certs(&extra)).build())
+        }
+    };
+    b
 }
 
 fn agent() -> ureq::Agent {

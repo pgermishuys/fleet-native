@@ -265,5 +265,8 @@ fn the_host_of_a_server_url() {
     assert_eq!(host_of("http://[::1]:6411").unwrap(), "[::1]:6411");
     assert_eq!(host_of("http://[::1]").unwrap(), "[::1]:80");
     assert_eq!(host_of("http://localhost").unwrap(), "localhost:80");
-    assert!(host_of("https://127.0.0.1:6411").is_err());
+    assert_eq!(host_of("https://127.0.0.1:6411").unwrap(), "127.0.0.1:6411");
+    assert_eq!(host_of("https://falcon.tail1234.ts.net").unwrap(), "falcon.tail1234.ts.net:443");
+    assert_eq!(host_of("https://falcon.tail1234.ts.net/fleet").unwrap(), "falcon.tail1234.ts.net:443");
+    assert!(host_of("ftp://127.0.0.1:6411").is_err());
 }

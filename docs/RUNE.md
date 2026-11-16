@@ -806,3 +806,8 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
   only the text column takes `.shrink().min_w(0.0)` for its ellipsis.
 - A snapshot of a live run (`--server` with `--script ... --snap --at mark:..`) draws whatever has loaded by the mark: a mark too early
   (3 s after the tap) once showed no card because the canvas list hadn't come back yet; 6 s was enough.
+
+## Machines, piece I (https and wss; no Rune)
+
+- **Nothing here needed Rune.** A self-signed certificate made by `openssl req -x509` is `CA:TRUE`, which rustls/webpki refuses as a server certificate (`CaUsedAsEndEntity`) even when trusted: make a test certificate with `basicConstraints=CA:FALSE`.
+- tungstenite takes any `Read + Write`, so the hub's TLS is a stream enum, not a feature; `set_read_timeout` goes through to the socket and rustls keeps a half-read record for the next read.

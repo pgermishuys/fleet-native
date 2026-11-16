@@ -1,0 +1,6 @@
+Live checks, 16 November 2026, Linux. A scratch Fleet (v0.72.0, plain http, own ports) behind a TLS terminator
+(python ssl, certificate made for the test, trusted by the test only), then cargo test --lib -- --ignored live_:
+
+https: GET /api/sessions answered, 1773 bytes            (ureq over https, certificate verified)
+wss: the hub answered the handshake and took a ping      (tungstenite over rustls)
+https://github.com/ -> Ok(200)                           (public certificate verified with the public roots)

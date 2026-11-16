@@ -37,8 +37,9 @@ events to it with one reducer. A native client does the same.
 | Another machine, or a server that requires a token | `Authorization: Bearer <token>` on HTTP; `?access_token=<token>` on the hub's WebSocket (`Auth/BearerTokenHandler.cs`). The token is the machine's own or a paired device's. |
 
 Fleet Native takes a token with `--token <t>` or `FLEET_NATIVE_TOKEN` (`fleet::auth`): the header on every HTTP call, `&access_token=` on the hub URL, nothing in
-any address the window shows. A 401 or 403 stops the reconnecting and says the Fleet needs a token (or refused this one). Plain `http://` only: there is no
-TLS in the build, so a machine behind `tailscale serve` (https) can't be reached yet. Pairing and several machines are still a later lane.
+any address the window shows. A 401 or 403 stops the reconnecting and says the Fleet needs a token (or refused this one). `https://` works for both calls and the hub (`wss://`): ureq and the hub socket (`src/fleet/tls.rs`) use the same rustls with the `ring` provider and the webpki
+root certificates, so a machine behind `tailscale serve` (a Let's Encrypt certificate) verifies. The app can't be told to trust another certificate or to skip
+verification; tests add their own certificate to the roots (`tls::test_roots`, test builds only). Pairing and several machines are still a later lane.
 
 **Where the desktop app keeps a remote machine** (weave-fleet `main`): not in a file on the client. Fleet's desktop app always runs, or finds, a Fleet on this
 machine and serves its page from it; the other machines it knows live in that Fleet's own database (`RemoteMachineService`, `GET /api/machines`, tokens only
