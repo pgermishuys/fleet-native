@@ -102,7 +102,12 @@ pub fn panel(s: &State, t: &Theme) -> El {
         // A project whose name matches keeps all its sessions; a group with no match and another name is dropped.
         let matches = |session: &Session| session_matches_query(session, &needle, &s.project_load.projects);
         let Some(kept) = matching_sessions(&project.name, &project.sessions, &needle, matches) else { continue };
-        let rows: Vec<(usize, &Session)> = kept.into_iter().map(|i| (i, &project.sessions[i])).collect();
+        let rows: Vec<(usize, &Session)> =
+            kept.into_iter().map(|i| (i, &project.sessions[i])).filter(|(_, session)| !s.hides(session)).collect();
+        // Fleet builds the Ungrouped group only while it holds a session.
+        if rows.is_empty() && project.id == crate::fleet::groups::UNGROUPED_ID {
+            continue;
+        }
         let rows_len = rows.len();
         let kind = if project.id == crate::fleet::groups::UNGROUPED_ID { Header::Ungrouped } else { Header::Project };
         let header = if kind == Header::Project {

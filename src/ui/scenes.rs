@@ -29,6 +29,7 @@ pub fn set(s: &mut State, name: &str, dark: bool) {
         }
         "kit-toast" => {
             s.ui.toast = Some(Toast {
+                kind: Default::default(),
                 message: "Archived “Tidy the release notes”.".into(),
                 action: Some("Undo".into()),
                 until: 1.0e9,

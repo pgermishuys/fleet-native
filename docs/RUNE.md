@@ -931,3 +931,10 @@ A context-menu row's label is one text run, so a machine's name in the mono face
   to it synchronously, so a menu item's copy can be checked without the OS.
 - **`serde_json` sorts object keys** (no `preserve_order`), so a file whose key order matters (the raw messages export) is assembled
   by hand at the top level.
+
+## Hover buttons beside a row, one toast for three sources (component 6, piece I)
+
+- **The hover group goes on the shell, not the row.** Fleet's `.session-item-shell:hover` covers the row and the buttons beside it; a `hover_group()` on the row alone lets the word and ring show under a button the pointer is on. The shell is the group, and the row keeps only its own `.hover()` fill.
+- **`group_opacity(1.0, 0.0)` is `visibility: hidden` on hover** for the age, ring and chips the buttons replace; the hidden text still takes the layout it had, as CSS's does.
+- **A headless click can miss a row below the fold.** A machine's rows came after home's whole tree, off screen at 760 px; the test folds home's heading first.
+- **No transition on the toast.** Fleet fades it 150 ms; here it appears and goes at once.

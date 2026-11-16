@@ -91,6 +91,21 @@ pub trait Listed {
     fn listing(&self) -> &Listing;
 }
 
+impl<T: Listed + ?Sized> Listed for &T {
+    fn id(&self) -> &str {
+        (**self).id()
+    }
+    fn title(&self) -> &str {
+        (**self).title()
+    }
+    fn status_word(&self) -> &str {
+        (**self).status_word()
+    }
+    fn listing(&self) -> &Listing {
+        (**self).listing()
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum LineageKind {
     Subagent,

@@ -103,7 +103,14 @@ fn group_of(id: String, name: String, pinned: bool, items: Vec<Item>) -> TreeGro
 /// The tree for `sessions` with the filter `query` (lower case, trimmed; empty for none). A machine's sessions are the last
 /// list it returned, so archived and sub-agent rows aren't in it (the read drops them).
 pub fn build(sessions: &[Session], projects: &[ProjectInfo], query: &str) -> Tree {
-    let items: Vec<Item> = sessions.iter().enumerate().map(|(index, session)| Item { index, session }).collect();
+    build_hiding(sessions, projects, query, |_| false)
+}
+
+/// `build` without the sessions `hidden` names: the ones an archive is holding back (`pendingIds`). Rows keep their place in
+/// `sessions`, so what hides leaves the others' indexes alone.
+pub fn build_hiding(sessions: &[Session], projects: &[ProjectInfo], query: &str, hidden: impl Fn(&Session) -> bool) -> Tree {
+    let items: Vec<Item> =
+        sessions.iter().enumerate().filter(|(_, session)| !hidden(session)).map(|(index, session)| Item { index, session }).collect();
     let matches = |i: &Item| session_matches_query(i, query, projects);
     let (pinned, rest) = split_pinned(items);
     let pinned: Vec<Item> = if query.is_empty() { pinned } else { pinned.into_iter().filter(&matches).collect() };

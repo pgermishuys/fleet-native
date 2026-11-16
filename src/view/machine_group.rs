@@ -4,7 +4,8 @@
 //! right-click menu and its project renames from its header; while it doesn't, rows only open.
 use super::machine_header::{Heading, machine_header};
 use super::project_header::{Header, editing as project_editing, project_header};
-use super::session_row::{RowClock, Slots, editing, glyph_el, tail, title_ink};
+use super::row_actions::{Buttons, actions};
+use super::session_row::{RowClock, Slots, editing, glyph_el, move_pin_key, tail, title_ink};
 use crate::State;
 use crate::fleet::groups::{LineageKind, Listed};
 use crate::fleet::machine_tree::{self, TreeGroup, TreeRow};
@@ -29,7 +30,7 @@ pub fn machine_group(s: &State, t: &Theme, clock: &RowClock, machine: &Entry, qu
     let state = s.machines.others.get(key);
     let empty = MachineSessions::default();
     let held = state.unwrap_or(&empty);
-    let tree = machine_tree::build(&held.sessions, &held.projects, query);
+    let tree = machine_tree::build_hiding(&held.sessions, &held.projects, query, |x| s.hides(x));
     let down = held.error.is_some();
     let open = s.machine_is_open(key);
     let note = note_of(state);
@@ -219,7 +220,6 @@ fn read_only_row(
         .radius(RADIUS_BTN)
         .fill(if active { t.wash(9.0) } else { Color::TRANSPARENT })
         .hover(if active { Color::TRANSPARENT } else { t.wash(5.0) })
-        .hover_group()
         .cursor(Cursor::Pointer)
         .focusable(true)
         .focus_ring(2.0, -2.0, t.accent)
@@ -247,7 +247,9 @@ fn read_only_row(
                     s.start_machine_row_rename(&m2, &id2, tx);
                     return true;
                 }
-                false
+                // Alt+Up and Alt+Down move the pin of a row that is pinned on that machine.
+                s.machines.remember_sessions(&m2, std::slice::from_ref(&id2));
+                move_pin_key(s, ev, &id2)
             })
             .on_secondary_press(move |s: &mut State, at, _: &mut Tx| {
                 s.ui.point = (at.x, at.y);
@@ -264,8 +266,14 @@ fn read_only_row(
         None => None,
     };
     let slots = Slots { step_note: None, kind_label: label };
-    let line = tail(s, t, &key, session, &status, if answering { dim } else { Dim::None }, slots, line);
-    el().w_full().py(1.0).child(line)
+    // A machine that isn't answering can't be asked: no buttons.
+    let buttons = Buttons::of(session, !answering);
+    let line = tail(s, t, &key, session, &status, if answering { dim } else { Dim::None }, slots, buttons, line);
+    let mut shell = el().w_full().py(1.0).hover_group().child(line);
+    for button in actions(s, t, &key, session, &row_status::display_title(None, &session.title), buttons, Some(&machine.key)) {
+        shell = shell.child(button);
+    }
+    shell
 }
 
 /// `EmptyState compact`: "No sessions yet" with a New session button, or "No sessions found" while the filter has text.

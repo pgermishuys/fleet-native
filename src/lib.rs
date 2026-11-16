@@ -15,6 +15,8 @@ mod test_wait;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
+mod tests_archive_pins;
+#[cfg(test)]
 mod tests_asks;
 #[cfg(test)]
 mod tests_browser;
@@ -109,6 +111,9 @@ pub struct State {
     pub proj: fleet::projects::Projects,
     /// Rename in place on a row (`fleet::actions`).
     pub act: fleet::actions::RowActions,
+    /// The archive waiting for Undo, and what failed (`fleet::archive_queue`); the pin error (`fleet::pins`).
+    pub archive: fleet::archive_queue::ArchiveQueue,
+    pub pins: fleet::pins::Pins,
     /// The header's own edits: its title, a tag being typed, "Copied", a checkout being put back.
     pub head: fleet::header_actions::HeaderUi,
     /// What the window shows: the open session by its id, so a refetch, a filter or a pin doesn't move it.
@@ -329,6 +334,8 @@ impl Default for State {
             project_load: fleet::groups::ProjectsLoad::new(true),
             proj: Default::default(),
             act: Default::default(),
+            archive: Default::default(),
+            pins: Default::default(),
             head: Default::default(),
             route: fleet::store::Route::Session(fleet::store::invented_id(0, 0)),
             store: Default::default(),
@@ -529,7 +536,7 @@ impl State {
 
     /// Shows Fleet's toast for `seconds`, with an optional pill action.
     pub fn toast(&mut self, message: String, action: Option<String>, seconds: f64, tx: &mut Tx) {
-        self.ui.toast = Some(ui::toast::Toast { message, action, until: self.clock + seconds, total: seconds });
+        self.ui.toast = Some(ui::toast::Toast { kind: Default::default(), message, action, until: self.clock + seconds, total: seconds });
         tx.wake_after(std::time::Duration::from_millis(100));
     }
 
@@ -1133,11 +1140,12 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     s.clock = now;
     let aged = s.keep_row_ages(now, tx);
     s.keep_drafts(now, tx);
+    let archiving = s.keep_archive(now, tx);
     if s.prompts.expire(now) {
         s.sync_open();
         return true;
     }
-    let toast = match &s.ui.toast {
+    let plain = match &s.ui.toast {
         Some(t) if now >= t.until => {
             s.ui.toast = None;
             true
@@ -1148,7 +1156,7 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         }
         None => false,
     };
-    if toast {
+    if archiving || plain {
         return true;
     }
     match s.reply {
@@ -1578,6 +1586,17 @@ pub fn spec() -> AppSpec<State> {
             ("row-rename-light", |s| {
                 s.dark = Some(false);
                 s.show_row_rename(0, 1)
+            }),
+            // Piece I: an archive waiting for Undo with three of its six seconds left, and the toast a failure leaves.
+            ("archive-undo", |s| s.show_archive_pending("mock.0.1", 3.0)),
+            ("archive-undo-light", |s| {
+                s.dark = Some(false);
+                s.show_archive_pending("mock.0.1", 3.0)
+            }),
+            ("archive-error", |s| s.show_archive_error()),
+            ("archive-error-light", |s| {
+                s.dark = Some(false);
+                s.show_archive_error()
             }),
             ("confirm-delete", |s| s.show_confirm(true, 0, 1, false, None)),
             ("confirm-delete-light", |s| {
