@@ -47,6 +47,7 @@ pub mod machine;
 pub mod machine_actions;
 pub mod machine_cache;
 pub mod machine_card;
+pub mod machine_choice;
 pub mod machine_diagnosis;
 pub mod machine_heading;
 pub mod machine_poll;

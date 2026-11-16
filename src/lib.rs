@@ -55,6 +55,8 @@ mod tests_lineage;
 #[cfg(test)]
 mod tests_machine_more;
 #[cfg(test)]
+mod tests_machine_switch;
+#[cfg(test)]
 mod tests_machines;
 #[cfg(test)]
 mod tests_machines_page;
@@ -284,6 +286,8 @@ pub struct State {
     pub add_machine_asked: bool,
     /// Settings → Machines: the rename and token fields, what is busy, the access of this machine (`fleet::machine_actions`).
     pub machine_page: fleet::machine_actions::Page,
+    /// The `machine-switch` scene's choice (the views that own a real one are components 16 and 18-23).
+    pub machine_switch_scene: Option<fleet::machine_choice::MachineChoice>,
     /// Where `machine-sessions.json` is kept; none until the data folder is known (and in pictures).
     pub machine_dir: Option<std::path::PathBuf>,
     /// The first read of the list has said which address schemes the machines use (decision 8).
@@ -478,6 +482,7 @@ impl Default for State {
             machine_menu: None,
             add_machine_asked: false,
             machine_page: Default::default(),
+            machine_switch_scene: None,
             machine_dir: None,
             machine_schemes_told: false,
             reasoning_open: Default::default(),
@@ -1942,6 +1947,12 @@ pub fn spec() -> AppSpec<State> {
             ("machine-loading", |s| s.show_machines(mock::machines::Case::Loading, true)),
             ("machine-long-name", |s| s.show_machines(mock::machines::Case::LongName, true)),
             ("machine-empty", |s| s.show_machines(mock::machines::Case::Empty, true)),
+            // Piece N: the machine switch.
+            ("machine-switch", |s| s.show_machine_switch(true, false)),
+            ("machine-switch-light", |s| s.show_machine_switch(false, false)),
+            ("machine-switch-open", |s| s.show_machine_switch(true, true)),
+            ("machine-switch-open-light", |s| s.show_machine_switch(false, true)),
+            ("machine-switch-home-only", |s| s.show_machine_switch_home_only(true)),
             // Piece J: Settings → Machines.
             ("machines-page", |s| s.show_machines_page(true, false)),
             ("machines-page-light", |s| s.show_machines_page(false, false)),

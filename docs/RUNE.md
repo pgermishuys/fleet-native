@@ -1113,3 +1113,4 @@ The small case the checklist asked for (`tests_row_drag.rs`, first test): **Rune
 - **`border_sides` takes `[top, right, bottom, left]`.** A divider above a row is `[1.0, 0.0, 0.0, 0.0]`; `[0.0, 1.0, 0.0, 0.0]` draws a stripe down the right edge.
 - **`clip_rounded(r)`** is `overflow: hidden` on a rounded box (the setting group's card, the segmented control).
 - **A test types into a field after clicking its button**: replacing the field's `TextEdit` from `update` drops its focus, so a following Enter goes nowhere; press `Key::Text` instead (the field's text is selected, so it replaces it).
+- **`--snap` with `--size` draws at scale 2 unless `--scale 1` is given**: a 1280x760 picture came out 2560x1520 until then; pictures beside a browser's need `--scale 1`.

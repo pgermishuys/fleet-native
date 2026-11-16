@@ -170,6 +170,9 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
         let anchor = if s.on_new_session_page() { "new-session-frame" } else { "composer-frame" };
         layer.push(panel.anchored_fit(anchor, rune::Side::Top, rune::Align::Start, 6.0));
     }
+    if let Some(choice) = &s.machine_switch_scene {
+        layer.extend(crate::view::machine_switch::overlay(s, t, crate::view::machine_switch::SCENE, choice));
+    }
     if let Some(wizard) = crate::view::harness_setup::dialog(s, t) {
         layer.extend(wizard);
     }
