@@ -33,6 +33,8 @@ mod tests_folder_path;
 #[cfg(test)]
 mod tests_fork;
 #[cfg(test)]
+mod tests_harness_setup;
+#[cfg(test)]
 mod tests_header;
 #[cfg(test)]
 mod tests_header_context;
@@ -303,6 +305,8 @@ pub struct State {
     pub export: fleet::export::Export,
     /// A newer build to install: the status bar's item and its dialog (`update`).
     pub update: update::Update,
+    /// The harness setup wizard (component 7, piece N).
+    pub harness_setup: fleet::harness_setup::Setup,
     /// The conversation's scroll: whether it follows the end, where Rune last said the box was (`on_scroll_offset` may not
     /// change state, so it leaves it in the probe and `poll` reads it), and the message just jumped to.
     pub pin: conv::pin::Pin,
@@ -457,6 +461,7 @@ impl Default for State {
             gallery: false,
             export: Default::default(),
             update: Default::default(),
+            harness_setup: Default::default(),
             pin: Default::default(),
             scroll_probe: Default::default(),
             scroll_seen: None,
@@ -1493,6 +1498,26 @@ pub fn spec() -> AppSpec<State> {
             ("new-session-model-menu-light", |s| {
                 s.dark = Some(false);
                 s.show_chip_scene(fleet::new_session::harness::Scene::Model)
+            }),
+            ("harness-setup-welcome", |s| s.show_harness_setup_scene(fleet::harness_setup::Scene::Welcome)),
+            ("harness-setup-welcome-light", |s| {
+                s.dark = Some(false);
+                s.show_harness_setup_scene(fleet::harness_setup::Scene::Welcome)
+            }),
+            ("harness-setup-harnesses", |s| s.show_harness_setup_scene(fleet::harness_setup::Scene::Harnesses)),
+            ("harness-setup-harnesses-light", |s| {
+                s.dark = Some(false);
+                s.show_harness_setup_scene(fleet::harness_setup::Scene::Harnesses)
+            }),
+            ("harness-setup-harnesses-ready", |s| s.show_harness_setup_scene(fleet::harness_setup::Scene::HarnessesReady)),
+            ("harness-setup-harnesses-ready-light", |s| {
+                s.dark = Some(false);
+                s.show_harness_setup_scene(fleet::harness_setup::Scene::HarnessesReady)
+            }),
+            ("harness-setup-ready", |s| s.show_harness_setup_scene(fleet::harness_setup::Scene::Ready)),
+            ("harness-setup-ready-light", |s| {
+                s.dark = Some(false);
+                s.show_harness_setup_scene(fleet::harness_setup::Scene::Ready)
             }),
             ("new-session-no-harness", |s| s.show_chip_scene(fleet::new_session::harness::Scene::NoHarness)),
             ("new-session-no-harness-light", |s| {

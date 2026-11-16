@@ -1004,3 +1004,10 @@ A context-menu row's label is one text run, so a machine's name in the mono face
 - **Text wraps only with `.wrap()` (`.wrap_anywhere()` for `overflow-wrap:anywhere`)**; a text in a `grow` row is cut off without it. A label that must shorten needs `.min_w(0.0).truncate()`.
 - **`clip_corners` on a footer that runs over its panel's padding** (negative margins) rounds its bottom corners without clipping the panel's shadow, which `clip_rounded` on the panel would.
 - **`--script` has `secondary-click` and the app takes `--theme light|dark`**: a live picture of a right-click menu in both themes needs no scene.
+
+## Component 7, piece N (the harness setup wizard)
+
+- **A modal that must not be dismissed** is `.modal(false, |_| {})`: Escape and a click outside call the empty handler, focus stays trapped.
+- **A headless app seeds invented harness lists and preferences**; a test of the first-launch rule clears `feeds.harnesses` and `pickers.prefs` before connecting, or the rule sees the invented ones as already read.
+- **A disabled button drawn with `opacity(0.5)` animates in**: a test that reads `ElementInfo.opacity` runs about 30 frames after the change first.
+- **`text(..)` is centred with `.align(Align::Center)`** (there is no `text_center`), and needs `.wrap()` and a width to centre across lines.
