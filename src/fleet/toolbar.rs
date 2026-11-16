@@ -49,8 +49,8 @@ pub struct Toolbar {
     pub abort_error: Note,
     pub delete_error: Note,
     pub rename_error: Note,
-    /// The session whose Fork was pressed while forking was allowed; piece E's dialog opens from it.
-    pub fork_for: Option<String>,
+    /// The fork dialog, while it is open (it opens only when forking is allowed).
+    pub fork: Option<super::fork::ForkDialog>,
 }
 
 impl Toolbar {
@@ -117,8 +117,7 @@ impl State {
         if !self.has_session() || !m.actions.can_fork || self.toolbar_pending() {
             return;
         }
-        self.head.bar.fork_for = Some(self.session().id.clone());
-        self.toast("The fork dialog isn't in the native app yet (component 8, piece E).".into(), None, 4.0, tx);
+        self.open_fork_dialog(tx);
     }
 
     /// Delete… (`handleDelete`): asks first, naming the session; the delete runs inside the confirm, which goes to the
@@ -233,6 +232,13 @@ pub enum Scene {
     Errors,
     /// The delete question.
     Delete,
+    /// The fork dialog: as it opens, while the request runs, and after a refusal.
+    Fork,
+    Forking,
+    ForkFailed,
+    /// The analytics popover, with numbers and with neither known.
+    Analytics,
+    AnalyticsEmpty,
 }
 
 impl State {
@@ -257,6 +263,22 @@ impl State {
             Scene::Errors => {
                 self.head.bar.abort_error = Some((id.clone(), "The harness did not answer the abort.".into()));
                 self.head.bar.rename_error = Some((id, "Title is too long.".into()));
+            }
+            Scene::Fork | Scene::Forking | Scene::ForkFailed => {
+                let mut d = super::fork::ForkDialog::open(&id, &self.session().title);
+                let end = d.title.text.len();
+                d.title.set_selection(0, end);
+                d.forking = matches!(scene, Scene::Forking);
+                if matches!(scene, Scene::ForkFailed) {
+                    d.error = Some("This session has no finished reply to copy yet.".into());
+                }
+                self.head.bar.fork = Some(d);
+            }
+            Scene::Analytics | Scene::AnalyticsEmpty => {
+                let row = &mut self.projects[0].sessions[0].row;
+                (row.total_tokens, row.total_cost) =
+                    if matches!(scene, Scene::Analytics) { (Some(128_400), Some(0.4231)) } else { (None, None) };
+                self.ui.open = Some(crate::ui::Open::Popover("analytics"));
             }
             Scene::Delete => {
                 let title = display_title(None, &self.session().title);

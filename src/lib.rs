@@ -29,6 +29,8 @@ mod tests_folder_menu;
 #[cfg(test)]
 mod tests_folder_path;
 #[cfg(test)]
+mod tests_fork;
+#[cfg(test)]
 mod tests_header;
 #[cfg(test)]
 mod tests_header_edit;
@@ -1531,6 +1533,17 @@ pub fn spec() -> AppSpec<State> {
             ("toolbar-errors-light", |s| s.show_toolbar(mock::header::Case::Retry, false, fleet::toolbar::Scene::Errors)),
             ("toolbar-delete", |s| s.show_toolbar(mock::header::Case::Fork, true, fleet::toolbar::Scene::Delete)),
             ("toolbar-delete-light", |s| s.show_toolbar(mock::header::Case::Fork, false, fleet::toolbar::Scene::Delete)),
+            // Component 8, piece E: the fork dialog and the analytics popover.
+            ("fork-dialog", |s| s.show_toolbar(mock::header::Case::Fork, true, fleet::toolbar::Scene::Fork)),
+            ("fork-dialog-light", |s| s.show_toolbar(mock::header::Case::Fork, false, fleet::toolbar::Scene::Fork)),
+            ("fork-dialog-forking", |s| s.show_toolbar(mock::header::Case::Fork, true, fleet::toolbar::Scene::Forking)),
+            ("fork-dialog-forking-light", |s| s.show_toolbar(mock::header::Case::Fork, false, fleet::toolbar::Scene::Forking)),
+            ("fork-dialog-error", |s| s.show_toolbar(mock::header::Case::Fork, true, fleet::toolbar::Scene::ForkFailed)),
+            ("fork-dialog-error-light", |s| s.show_toolbar(mock::header::Case::Fork, false, fleet::toolbar::Scene::ForkFailed)),
+            ("analytics", |s| s.show_toolbar(mock::header::Case::Fork, true, fleet::toolbar::Scene::Analytics)),
+            ("analytics-light", |s| s.show_toolbar(mock::header::Case::Fork, false, fleet::toolbar::Scene::Analytics)),
+            ("analytics-empty", |s| s.show_toolbar(mock::header::Case::Fork, true, fleet::toolbar::Scene::AnalyticsEmpty)),
+            ("analytics-empty-light", |s| s.show_toolbar(mock::header::Case::Fork, false, fleet::toolbar::Scene::AnalyticsEmpty)),
             ("header-glyph", |s| s.show_header(mock::header::Case::Retry, true, false)),
             ("header-glyph-light", |s| s.show_header(mock::header::Case::Retry, false, false)),
             ("header-rename", |s| {
