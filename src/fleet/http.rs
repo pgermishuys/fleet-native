@@ -439,3 +439,85 @@ pub fn command(base: &str, session: &str, body: &Value) -> Result<(u16, Value), 
 pub fn shell(base: &str, session: &str, command: &str) -> Result<(u16, Value), String> {
     status_with("POST", base, &format!("/api/sessions/{session}/shell"), Some(&json!({ "command": command })))
 }
+
+// ─── The New session page's data (component 7, piece C): each answer is the status and the body, as the server sent it,
+// so `new_session::feeds` can say a refusal in the server's own words. ───
+
+/// `GET /api/repositories`.
+pub fn repositories(base: &str) -> Result<(u16, String), String> {
+    text_with("GET", base, "/api/repositories", None)
+}
+
+/// `POST /api/repositories/refresh`: scans again.
+pub fn repositories_refresh(base: &str) -> Result<(u16, String), String> {
+    text_with("POST", base, "/api/repositories/refresh", Some(&json!({})))
+}
+
+/// `GET /api/repositories/detail?path=`.
+pub fn repository_detail(base: &str, path: &str) -> Result<(u16, String), String> {
+    text_with("GET", base, &format!("/api/repositories/detail?path={}", query_value(path)), None)
+}
+
+/// `GET /api/repositories/worktrees?path=`.
+pub fn repository_worktrees(base: &str, path: &str) -> Result<(u16, String), String> {
+    text_with("GET", base, &format!("/api/repositories/worktrees?path={}", query_value(path)), None)
+}
+
+/// `GET /api/workspace-roots`.
+pub fn workspace_roots(base: &str) -> Result<(u16, String), String> {
+    text_with("GET", base, "/api/workspace-roots", None)
+}
+
+/// `POST /api/workspace-roots` `{path}`: lets sessions run in the folder.
+pub fn add_workspace_root(base: &str, path: &str) -> Result<(u16, String), String> {
+    text_with("POST", base, "/api/workspace-roots", Some(&json!({ "path": path })))
+}
+
+/// `GET /api/directories/defaults`.
+pub fn directory_defaults(base: &str) -> Result<(u16, String), String> {
+    text_with("GET", base, "/api/directories/defaults", None)
+}
+
+/// `GET /api/directories/inspect?path=`.
+pub fn inspect_directory(base: &str, path: &str) -> Result<(u16, String), String> {
+    text_with("GET", base, &format!("/api/directories/inspect?path={}", query_value(path)), None)
+}
+
+/// `GET /api/directories?path=&unconstrained=true`: the folders in `path`, anywhere on the machine.
+pub fn list_directory(base: &str, path: &str) -> Result<(u16, String), String> {
+    text_with("GET", base, &format!("/api/directories?path={}&unconstrained=true", query_value(path)), None)
+}
+
+/// `GET /api/harnesses`, or `?fresh=true` to have the machine check every harness again first.
+pub fn harness_list(base: &str, fresh: bool) -> Result<(u16, String), String> {
+    text_with("GET", base, if fresh { "/api/harnesses?fresh=true" } else { "/api/harnesses" }, None)
+}
+
+/// `GET /api/preferences` on any machine.
+pub fn preference_map(base: &str) -> Result<(u16, String), String> {
+    text_with("GET", base, "/api/preferences", None)
+}
+
+/// `GET /api/harnesses/{type}/profiles`.
+pub fn harness_profiles(base: &str, harness: &str) -> Result<(u16, String), String> {
+    text_with("GET", base, &format!("/api/harnesses/{}/profiles", escape(harness)), None)
+}
+
+/// `GET /api/harnesses/{type}/catalog?directory=&profile=`: what the harness offers in a folder before a session exists.
+pub fn harness_catalog(base: &str, harness: &str, directory: Option<&str>, profile: Option<&str>) -> Result<(u16, String), String> {
+    let mut query = Vec::new();
+    if let Some(d) = directory.filter(|d| !d.is_empty()) {
+        query.push(format!("directory={}", query_value(d)));
+    }
+    if let Some(p) = profile.filter(|p| !p.is_empty()) {
+        query.push(format!("profile={}", query_value(p)));
+    }
+    let tail = if query.is_empty() { String::new() } else { format!("?{}", query.join("&")) };
+    text_with("GET", base, &format!("/api/harnesses/{}/catalog{tail}", escape(harness)), None)
+}
+
+/// `GET /api/worktrees/naming?directory=`.
+pub fn worktree_naming(base: &str, directory: Option<&str>) -> Result<(u16, String), String> {
+    let tail = directory.filter(|d| !d.is_empty()).map_or(String::new(), |d| format!("?directory={}", query_value(d)));
+    text_with("GET", base, &format!("/api/worktrees/naming{tail}"), None)
+}

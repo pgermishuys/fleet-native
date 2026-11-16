@@ -64,6 +64,8 @@ pub struct State {
     pub sidebar: fleet::settings::Sidebar,
     /// The New session page's draft (in memory only, as Fleet's is).
     pub new_draft: fleet::new_session::draft::DraftStore,
+    /// What the New session page has read from its machine: repositories, detail, harnesses, catalog, naming.
+    pub feeds: fleet::new_session::feed_state::Feeds,
     /// A scene that shows one header of each kind above the list (the Pinned group isn't drawn until piece J).
     pub sample_headers: bool,
     /// The workspace sheet's measured width; 0 until its first layout.
@@ -269,6 +271,7 @@ impl Default for State {
             content_open: false,
             sidebar: Default::default(),
             new_draft: Default::default(),
+            feeds: mock::feeds(),
             sample_headers: false,
             sheet_w: 0.0,
             drawn_dark: std::cell::Cell::new(true),
@@ -2155,6 +2158,8 @@ fn connect_to(handle: &rune::AppHandle<State>, url: String) {
     handle.update(move |s, _| {
         // Nothing invented shows against a real server: the list and the conversation stay empty until it answers.
         s.projects.clear();
+        s.feeds = Default::default();
+        s.seed_feeds_from_settings();
         s.notice = None;
         s.searching = false;
         s.no_fleet = false;
