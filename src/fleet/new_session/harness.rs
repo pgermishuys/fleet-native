@@ -168,7 +168,7 @@ pub struct SentChoices {
 }
 
 impl State {
-    fn harnesses_here(&self) -> Harnesses {
+    pub(crate) fn harnesses_here(&self) -> Harnesses {
         self.harness_choice(&self.target_key())
     }
 
@@ -378,6 +378,8 @@ impl State {
         self.chips = ChipState::default();
         self.read_harnesses(&key, false);
         self.read_preferences(&key);
+        // The folder menu's repositories are read on mount (`useRepositories`); nothing else asks for them.
+        self.read_repositories(&key, false);
         self.settle_choices();
     }
 

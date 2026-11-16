@@ -35,6 +35,7 @@ impl State {
             // The open conversation isn't on screen any more; what it held is kept, so opening it again starts from that.
             self.keep_current_stream();
             let harness = self.feeds.harnesses.get(HOME_MACHINE_KEY).map(|f| f.harnesses.default_type()).unwrap_or_default();
+            self.reset_new_box_errors();
             let restored = self.new_draft.open(NewSessionDraft::blank(&harness));
             // A project in the address wins; a kept draft otherwise keeps its own (A3.5).
             if let (Route::NewSession { project_id }, Some(draft)) = (&route, self.new_draft.draft_mut())

@@ -34,6 +34,7 @@ mod marks;
 pub mod message;
 pub mod more_options;
 pub mod new_session;
+pub mod new_session_box;
 pub mod new_session_strip;
 pub mod pagepick;
 mod parts;

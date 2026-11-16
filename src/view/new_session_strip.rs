@@ -42,30 +42,47 @@ pub fn plan_line(s: &State, t: &Theme) -> El {
             text(part.text).font(sans(12.0, 400.0, 1.5)).color(if part.warn { t.status_waiting_text } else { t.muted })
         });
     }
+    if s.offers_start_without_message() {
+        line = line.child(start_without_message(s, t));
+    }
     line
 }
 
+/// `.new-session__no-message`: a muted underlined button at the end of the plan line, with a folder chosen and nothing typed.
+fn start_without_message(s: &State, t: &Theme) -> El {
+    let label = "Start without a message";
+    let starting = s.new_session_starting();
+    let spans = vec![rune::Span::new(0, label.len()).underline(t.muted.alpha(0.45))];
+    row()
+        .key("create-session-without-message")
+        .role("button")
+        .label(label)
+        .ml(6.0)
+        .cursor(rune::Cursor::Pointer)
+        .focus_ring(2.0, 2.0, t.accent)
+        .hover_group()
+        .disabled(starting)
+        .on_press_tx(|s: &mut State, tx: &mut Tx| s.submit_new_session(tx, true))
+        .child(rune::rich(label, spans).font(sans(12.0, 400.0, 1.5)).color(t.muted).group_color(t.text))
+}
+
 /// The harness, profile, agent and model chips, which Fleet puts in the message box's toolbar after the attach button
-/// (`NewSessionComposer.vue`'s `#toolbar`). The box and its frame are piece L's; until then they sit at the box's foot.
-pub fn toolbar_chips(s: &State, t: &Theme) -> El {
-    let mut r = row().key("new-session-toolbar").w_full().items_center().gap(2.0).pt(4.0).px(8.0).pb(8.0);
+/// (`NewSessionComposer.vue`'s `#toolbar`).
+pub fn toolbar_chips(s: &State, t: &Theme) -> Vec<El> {
+    let mut chips = Vec::new();
     if s.shows_harness_picker() {
-        r = r.child(super::harness_picker::chip(s, t));
+        chips.push(super::harness_picker::chip(s, t));
     }
     if s.shows_profile_picker() {
-        r = r.child(super::profile_picker::chip(s, t));
+        chips.push(super::profile_picker::chip(s, t));
     }
     if s.offers_agent_and_model() {
         let open = s.ui.open;
         let chip = |label: String| SelectorChip { label, help: None };
-        r = r.child(super::composer::selector_chip(t, open, "agent", chip(s.page_agent_chip()))).child(super::composer::selector_chip(
-            t,
-            open,
-            "model",
-            chip(s.page_model_chip()),
-        ));
+        chips.push(super::composer::selector_chip(t, open, "agent", chip(s.page_agent_chip())));
+        chips.push(super::composer::selector_chip(t, open, "model", chip(s.page_model_chip())));
     }
-    r
+    chips
 }
 
 /// `.new-session__no-harness`: why no session can start yet, with the link that fixes it (`fixNoHarness`). It sits above the box,

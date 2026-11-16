@@ -238,11 +238,16 @@ impl Message {
     }
 }
 
+/// The Markdown looks a message draws with, for a bubble drawn outside the stream (the New session page's sent message).
+pub fn styles(t: &Theme) -> Styles {
+    Styles { prose: prose::style(t), reasoning: reasoning::style(t), summary: compaction::style(t) }
+}
+
 /// The scrolling column of messages and, while a turn runs, the "Working" line. Only the rows on
 /// screen are built (`virtual_rows`), and a row whose message hasn't changed is reused (`memo`).
 pub fn stream(t: &Theme, session: &Session, plan: &FoldPlan, partial: bool, older: Option<Older>, scroll: Scroll) -> El {
     let theme = *t;
-    let md = Styles { prose: prose::style(t), reasoning: reasoning::style(t), summary: compaction::style(t) };
+    let md = styles(t);
     // After the messages: the card a restart left, then the line that says what the turn is doing. Fleet's line shows
     // while the turn isn't idle, so a question that holds it shows "Needs input" there.
     let working = session.status != Status::Idle;

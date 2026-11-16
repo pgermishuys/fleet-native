@@ -20,6 +20,7 @@ pub mod path;
 pub mod pattern;
 pub mod plan;
 pub mod request;
+pub mod send;
 pub mod starters;
 pub mod strip;
 pub mod workspace;

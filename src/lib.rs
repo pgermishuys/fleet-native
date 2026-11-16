@@ -43,6 +43,8 @@ mod tests_machine_more;
 #[cfg(test)]
 mod tests_machines;
 #[cfg(test)]
+mod tests_new_send;
+#[cfg(test)]
 mod tests_new_session;
 #[cfg(test)]
 mod tests_pages;
@@ -100,6 +102,8 @@ pub struct State {
     pub new_draft: fleet::new_session::draft::DraftStore,
     /// The starters line on the New session page: the selection a click leaves for the box, and where Fix a bug asked to go.
     pub starters: fleet::new_session::starters::StartersUi,
+    /// The New session page's message field and the red box's messages.
+    pub new_box: fleet::new_session::send::NewBox,
     /// The folder menu under the box: its search text, highlighted row and Location.
     pub folder_menu: fleet::new_session::folder_menu::FolderMenu,
     pub pickers_ns: fleet::new_session::workspace::PickerMenus,
@@ -345,6 +349,7 @@ impl Default for State {
             drawn_dark: std::cell::Cell::new(true),
             projects: mock::projects(),
             project_load: fleet::groups::ProjectsLoad::new(true),
+            new_box: Default::default(),
             proj: Default::default(),
             act: Default::default(),
             archive: Default::default(),
@@ -1083,7 +1088,7 @@ fn end_tools(session: &mut Session) {
 }
 
 fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
-    let composer_changed = s.keep_composer_state(now) | s.keep_autocomplete(now, tx) | s.keep_attachments(tx);
+    let composer_changed = s.keep_composer_state(now) | s.keep_autocomplete(now, tx) | s.keep_attachments(tx) | s.keep_new_message(tx);
     let scrolled = s.keep_scroll(tx);
     let pictures = s.keep_images(tx);
     let renamed = s.keep_rename(tx) | s.keep_row_rename(tx) | s.keep_header(now, tx);
@@ -1268,6 +1273,21 @@ pub fn spec() -> AppSpec<State> {
             ("new-session-strip-light", |s| {
                 s.dark = Some(false);
                 s.show_new_session_strip(None, false, true)
+            }),
+            ("new-session-box-typed", |s| s.show_new_session_send(fleet::new_session::send::SendScene::Typed)),
+            ("new-session-box-typed-light", |s| {
+                s.dark = Some(false);
+                s.show_new_session_send(fleet::new_session::send::SendScene::Typed)
+            }),
+            ("new-session-box-sending", |s| s.show_new_session_send(fleet::new_session::send::SendScene::Starting)),
+            ("new-session-box-sending-light", |s| {
+                s.dark = Some(false);
+                s.show_new_session_send(fleet::new_session::send::SendScene::Starting)
+            }),
+            ("new-session-box-error", |s| s.show_new_session_send(fleet::new_session::send::SendScene::Refused)),
+            ("new-session-box-error-light", |s| {
+                s.dark = Some(false);
+                s.show_new_session_send(fleet::new_session::send::SendScene::Refused)
             }),
             ("new-session-folder", |s| s.show_new_session_strip(Some(new_session_scene_folder()), false, false)),
             ("new-session-folder-light", |s| {

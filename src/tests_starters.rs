@@ -100,7 +100,9 @@ fn starters_hide_starters_turns_them_off_for_good() {
     assert_eq!(rt.state.pickers.prefs.get(STARTERS_PREFERENCE_KEY), Some("false"));
     assert!(!shown(&rt));
     assert!(rt.state.ui.open.is_none(), "the menu closed");
-    assert!(rt.state.starters.focus_box, "focus goes back to the box");
+    // The box takes the request (piece L) and the keyboard with it.
+    let focused = rt.elements().into_iter().find(|e| e.focused).and_then(|e| e.key);
+    assert_eq!(focused.as_deref(), Some("new-session-message"), "focus goes back to the box");
     assert!(rt.find("new-session-empty").is_some());
 }
 
