@@ -1093,3 +1093,11 @@ The small case the checklist asked for (`tests_row_drag.rs`, first test): **Rune
 - **A bar whose width eases has no tool**: Fleet's `transition: width 300ms` on the strip's 1 px bar is drawn here at once (`w_frac`). `live_trim` eases a canvas stroke, not a box width; a stroke along the edge would do it, but a 1 px accent line with a stroke cap isn't the same pixels. Open, noted in the checklist.
 - **A strip pinned under a tab's body**: wrap the body in `col().grow(1.0).min_h(0.0)` so it takes the room, then the strip is the next child. A body with no growing parent leaves the strip floating under the last row.
 - **`focus_ring(2.0, -2.0, colour)`** is `outline: 2px; outline-offset: -2px` (inside the edge).
+
+## Component 6, piece T (keyboard focus on a hidden row button)
+
+- **`group_opacity(0.0, 1.0)` hides a control from the keyboard.** A row's Pin and Archive buttons show only while the row is hovered;
+  `tx.focus("session-archive-0-1", true)` leaves nothing focused (with or without the pointer over the row), and Tab skips them. Fleet shows them on
+  `:focus-visible` and hides the kind label then (#1048). Tested in `tests_lineage` while writing the piece. Wanted: a way for a control that
+  is faded out by its group to still take focus and show itself when it has it.
+- **A menu row held lit while its submenu is open** needs only `.fill(highlight)` on the trigger; the open state lives in `State::ui.sub`, so `ui::menu` takes it as an argument.

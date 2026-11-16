@@ -374,3 +374,26 @@ fn a_running_subagent_opens_its_parents_family_and_a_closed_one_stays_closed() {
     rt.frame(FRAME);
     assert!(!has(&rt, "subagent-row-w1"), "the user's caret decides");
 }
+
+// ---- Fleet #1048: pin and archive never cover the kind label -------------------------------------------------------------
+
+fn opacity_of(rt: &Runtime<crate::State>, key: &str) -> f32 {
+    rt.elements().iter().find(|e| e.key.as_deref() == Some(key) && !e.exiting).map(|e| e.opacity).unwrap_or_else(|| panic!("no {key}"))
+}
+
+#[test]
+fn the_kind_label_hides_while_the_row_is_hovered() {
+    let mut rt = family();
+    assert!(opacity_of(&rt, "session-kind-0-1") > 0.99, "at rest the label shows");
+    let (x, y) = rt.find("session-0-1").unwrap();
+    rt.pointer_move(x, y);
+    for _ in 0..6 {
+        rt.frame(FRAME);
+    }
+    assert!(opacity_of(&rt, "session-kind-0-1") < 0.01, "hovered: the buttons take the edge");
+    rt.pointer_move(1.0, 1.0);
+    for _ in 0..6 {
+        rt.frame(FRAME);
+    }
+    assert!(opacity_of(&rt, "session-kind-0-1") > 0.99, "the pointer left");
+}
