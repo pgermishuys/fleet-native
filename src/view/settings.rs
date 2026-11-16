@@ -1,6 +1,9 @@
 //! The Settings rail (`SettingsRoute.vue`, `SettingsPage.vue`, `SettingsNavPanel.vue`, `ui/page-header/PageHeader.vue`,
 //! `CenterContent.vue`): the menu in the left panel and the page in the sheet. A page that isn't built yet shows its header and
 //! one note (decision 1 of docs/parity/16-settings.md); Machines is component 17's page.
+pub mod kit;
+pub mod kit_scene;
+
 use super::machines_page;
 use crate::State;
 use crate::fleet::settings_nav::Page;
@@ -12,7 +15,7 @@ use rune::{Cursor, El, Icon, ScrollSpec, col, el, icon, row, text};
 /// The menu's groups, in Fleet's order (`coreGroups`); Plugins is its own group under them.
 const GROUPS: [(&str, &[Page]); 5] = [
     ("You", &[Page::General, Page::Appearance]),
-    ("Agents", &[Page::Harnesses, Page::Permissions, Page::Skills, Page::Memory]),
+    ("Agents", &[Page::Harnesses, Page::Permissions, Page::Skills, Page::Memory, Page::Credentials]),
     ("Work", &[Page::Folders, Page::Machines]),
     ("Fleet", &[Page::Labs, Page::Updates]),
     ("Plugins", &[Page::Plugins]),
@@ -106,7 +109,9 @@ fn not_yet(t: &Theme, page: &Page) -> El {
 /// The detail: the raised sheet, one scroll for the page, a column of `gap-6` (21).
 pub fn detail(s: &State, t: &Theme) -> El {
     let page = &s.settings.page;
-    let body = if *page == Page::Machines {
+    let body = if s.settings.demo_open {
+        kit_scene::content(s, t)
+    } else if *page == Page::Machines {
         machines_page::content(s, t)
     } else {
         col().w_full().gap(21.0).child(page_header(t, page)).child(not_yet(t, page))

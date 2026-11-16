@@ -2,53 +2,14 @@
 //! "This machine", how other devices reach it, with its access token. `settings.rs` mounts `content` as the Machines page. The
 //! pairing form is piece K's, the address list and route line piece M's, phones are out.
 use super::machine_card::{card, faded};
+use super::settings::kit::{self, Row};
 use crate::fleet::machine_actions::{Access, AccessState};
 use crate::icons::{CHECK, CIRCLE_ALERT, COPY, EYE, EYE_OFF, PLUS, REFRESH_CW};
-use crate::theme::{RADIUS_BTN, RADIUS_CARD, Theme, mono, sans};
+use crate::theme::{RADIUS_BTN, Theme, mono, sans};
 use crate::ui::button::{Size, Variant, button};
 use crate::ui::rem;
 use crate::{State, Tx};
 use rune::{Cursor, El, col, el, icon, row, text};
-
-/// `SettingGroup`: the title (and a hint on the right) over one bordered card of rows divided by rules.
-fn group(t: &Theme, key: &str, title: &str, hint: Option<&str>, rows: Vec<El>) -> El {
-    let mut head = row()
-        .w_full()
-        .items_end()
-        .justify_between()
-        .gap(12.0)
-        .px(4.0)
-        .mb(7.0)
-        .child(text(title.to_string()).font(sans(rem(0.875), 600.0, 1.43)).color(t.text));
-    if let Some(hint) = hint {
-        head = head.child(text(hint.to_string()).font(sans(rem(0.75), 400.0, 1.33)).color(t.muted));
-    }
-    let mut body = col().w_full().radius(RADIUS_CARD).border(1.0, t.border).border_layout().fill(t.card_bg).clip_rounded(RADIUS_CARD);
-    for (at, r) in rows.into_iter().enumerate() {
-        body = body.child(if at == 0 { r } else { col().w_full().border_sides([1.0, 0.0, 0.0, 0.0], t.border).child(r) });
-    }
-    col().key(key.to_string()).w_full().child(head).child(body)
-}
-
-/// `SettingRow`: a title and its one-line summary on the left, the control on the right.
-fn setting_row(t: &Theme, title: &str, summary: &str, control: El) -> El {
-    row()
-        .w_full()
-        .items_start()
-        .justify_between()
-        .gap(16.0)
-        .px(16.0)
-        .py(12.0)
-        .child(
-            col()
-                .grow(1.0)
-                .shrink()
-                .min_w(0.0)
-                .child(text(title.to_string()).font(sans(rem(0.875), 500.0, 1.43)).color(t.text))
-                .child(text(summary.to_string()).font(sans(rem(0.75), 400.0, 1.33)).color(t.muted).wrap().w_full().mt(2.0)),
-        )
-        .child(control)
-}
 
 fn note(t: &Theme, key: &str, words: &str) -> El {
     text(words.to_string()).key(key.to_string()).font(sans(rem(0.875), 400.0, 1.43)).color(t.muted).wrap().w_full()
@@ -235,7 +196,7 @@ fn access_group(s: &State, t: &Theme) -> El {
                 )]
             }
         };
-    group(t, "machine-access", &format!("Let other devices reach {name}"), Some("Phones and devices, and the access token."), rows)
+    kit::group(t, "phones", &format!("Let other devices reach {name}"), Some("Phones and devices, and the access token."), rows)
 }
 
 /// The page's content: the title and its line, then the groups. The Settings shell (`settings.rs`) gives it the sheet and the scroll.
@@ -246,12 +207,12 @@ pub fn content(s: &State, t: &Theme) -> El {
     let form = &s.machine_page.add;
     // The button is gone while the form is open (`v-if="!showAddForm"`).
     let control = if form.open { el().size(0.0, 0.0) } else { add };
-    let mut rows = vec![setting_row(
-        t,
-        "Add a machine",
+    let mut rows = vec![Row::new("add-machine", "Add a machine")
+        .summary(
         "Every machine runs its own Fleet and keeps its own sessions, repositories and sign-ins. A session stays on the machine it started on. The sessions list shows them all; the one you're working in is live.",
-        control,
-    )];
+        )
+        .control(control)
+        .build(s, t)];
     if form.open {
         rows.push(super::add_machine::form(s, t));
     }
@@ -265,6 +226,6 @@ pub fn content(s: &State, t: &Theme) -> El {
         .w_full()
         .gap(21.0)
         .child(header)
-        .child(group(t, "machines-group", "Machines", None, rows))
+        .child(kit::group(t, "machines", "Machines", None, rows))
         .child(access_group(s, t))
 }

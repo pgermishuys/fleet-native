@@ -119,6 +119,8 @@ mod tests_selection;
 #[cfg(test)]
 mod tests_session_header;
 #[cfg(test)]
+mod tests_settings_kit;
+#[cfg(test)]
 mod tests_settings_nav;
 #[cfg(test)]
 mod tests_smart_link_card;
@@ -1282,7 +1284,8 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     let renamed = s.keep_rename(tx) | s.keep_row_rename(tx) | s.keep_header(now, tx);
     let found = s.find_poll(tx) | s.keep_questions(tx) | s.keep_allowed_flash(now, tx);
     let exported = s.export_poll(tx) | s.keep_setup_rows(now, tx) | s.keep_context(now, tx) | s.keep_machine_page(now, tx);
-    let exported = exported | s.keep_dashboard_machine(now, tx) | s.keep_usage_watch(now, tx) | s.keep_summary(now, tx);
+    let exported =
+        exported | s.keep_dashboard_machine(now, tx) | s.keep_usage_watch(now, tx) | s.keep_summary(now, tx) | s.keep_settings_anchor(tx);
     // "Copied" on a message's button ends by itself.
     let copied = match &s.copied {
         Some((_, until)) if now >= *until => {
@@ -1451,6 +1454,18 @@ pub fn spec() -> AppSpec<State> {
             ("settings-general-light", |s| {
                 s.dark = Some(false);
                 s.open_settings("general", None)
+            }),
+            ("settings-kit", |s| {
+                s.dark = Some(true);
+                s.open_settings("general", None);
+                s.settings.demo_open = true;
+                s.settings.more_open.insert("starters".into());
+            }),
+            ("settings-kit-light", |s| {
+                s.dark = Some(false);
+                s.open_settings("general", None);
+                s.settings.demo_open = true;
+                s.settings.more_open.insert("starters".into());
             }),
             ("settings-harnesses", |s| {
                 s.dark = Some(true);

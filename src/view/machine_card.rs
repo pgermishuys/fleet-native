@@ -1,6 +1,7 @@
 //! One machine's card on Settings → Machines (`MachinesSection.vue`, the `<li class="machine-card">` and its scoped CSS) and the
 //! Details panel under it (`MachineDiagnosisPanel.vue`). Home's card has Rename only; another machine's also has Work here, New
 //! token and Forget, and the "Agents here can send it work" setting. Every word comes from `fleet::machine_card`.
+use super::settings::kit;
 use crate::fleet::machine_actions::{RENAME_FIELD, TOKEN_FIELD, parse_agent_work};
 use crate::fleet::machine_card::{Card, Tone};
 use crate::fleet::machine_diagnosis::{Diagnosis, StepState};
@@ -10,6 +11,7 @@ use crate::theme::{RADIUS_BTN, Theme, mono, sans};
 use crate::ui::rem;
 use crate::{State, Tx};
 use rune::{Cursor, El, Key, KeyEvent, col, el, icon, row, text, text_input};
+use std::rc::Rc;
 
 /// `buttonSecondaryClass`: bordered, on the page's colour, 12.25px medium; 30px high.
 pub fn plain_button(t: &Theme, key: String, label: &str) -> El {
@@ -151,33 +153,20 @@ fn panel(s: &State, t: &Theme, card: &Card, why: &Diagnosis) -> El {
 /// "Agents here can send it work": Ask / Always / Never and the level the work runs under.
 fn agent_work(s: &State, t: &Theme, card: &Card, current: AgentWork, level: &str) -> El {
     let busy = s.machine_page.busy.as_deref() == Some(card.key.as_str());
-    let mut segments = row().radius(RADIUS_BTN).border(1.0, t.border).border_layout().clip_rounded(RADIUS_BTN);
-    for (at, (word, label)) in [("ask", "Ask"), ("always", "Always"), ("never", "Never")].into_iter().enumerate() {
-        let on = parse_agent_work(word) == Some(current);
-        let key = card.key.clone();
-        let mut seg = row()
-            .key(format!("machine-agent-work-{}-{word}", card.key))
-            .role("radio")
-            .label(label.to_string())
-            .checked(on)
-            .px(10.0)
-            .py(2.0)
-            .cursor(Cursor::Pointer)
-            .hover(if on { t.accent.alpha(0.18) } else { t.text.alpha(0.0) })
-            .child(text(label.to_string()).font(sans(12.5, if on { 600.0 } else { 400.0 }, 1.4)).color(if on { t.text } else { t.muted }));
-        if on {
-            seg = seg.fill(t.accent.alpha(0.18));
-        }
-        if at > 0 {
-            seg = seg.border_sides([0.0, 0.0, 0.0, 1.0], t.border);
-        }
-        seg = if busy {
-            seg.disabled(true)
-        } else {
-            seg.on_press(move |s: &mut State| s.set_agent_work(&key, parse_agent_work(word).unwrap_or(AgentWork::Ask)))
-        };
-        segments = segments.child(seg);
-    }
+    let machine = card.key.clone();
+    let segments = kit::segments(
+        t,
+        &format!("machine-agent-work-{}", card.key),
+        "Agents here can send it work",
+        &[("ask", "Ask"), ("always", "Always"), ("never", "Never")],
+        match current {
+            AgentWork::Ask => "ask",
+            AgentWork::Always => "always",
+            AgentWork::Never => "never",
+        },
+        busy,
+        Rc::new(move |s: &mut State, word: &str| s.set_agent_work(&machine, parse_agent_work(word).unwrap_or(AgentWork::Ask))),
+    );
     col()
         .key(format!("machine-agent-work-{}", card.key))
         .mt(6.0)
