@@ -69,6 +69,14 @@ fn tokens_mut() -> std::sync::RwLockWriteGuard<'static, Tokens> {
     TOKENS.write().unwrap_or_else(|e| e.into_inner())
 }
 
+/// The folders where this machine's own token file was looked for and not found, for the message that says so.
+static LOOKED: RwLock<Vec<String>> = RwLock::new(Vec::new());
+
+/// Remembers where the local token file was looked for (`fleet::local_token`).
+pub fn note_local_lookup(folders: Vec<String>) {
+    *LOOKED.write().unwrap_or_else(|e| e.into_inner()) = folders;
+}
+
 /// Uses `token` as the one for the Fleet the app connects to (home); an empty one clears it.
 pub fn set(token: Option<String>) {
     tokens_mut().given = token.and_then(|t| Token::new(&t));
@@ -144,9 +152,18 @@ pub fn refused_note(base: &str) -> String {
     if is_set() {
         format!("Fleet at {base} refused the access token. Check it and run again with --token <token> or FLEET_NATIVE_TOKEN.")
     } else {
-        format!(
-            "Fleet at {base} needs an access token. Run again with --token <token> or FLEET_NATIVE_TOKEN; Fleet shows it in Settings > Machines > This machine."
-        )
+        let looked = LOOKED.read().unwrap_or_else(|e| e.into_inner());
+        if looked.is_empty() {
+            format!(
+                "Fleet at {base} needs an access token. Run again with --token <token> or FLEET_NATIVE_TOKEN; Fleet shows it in Settings > Machines > This machine."
+            )
+        } else {
+            // The place first: the status bar is one line, and the long ending is the part that may be cut.
+            format!(
+                "Fleet at {base} needs an access token, and this machine's (fleet.machine.json) couldn't be read in {}. Run again with --token <token> or FLEET_NATIVE_TOKEN.",
+                looked.join(", ")
+            )
+        }
     }
 }
 

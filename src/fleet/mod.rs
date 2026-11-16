@@ -29,6 +29,7 @@ pub mod images;
 pub mod instance;
 pub mod interrupted;
 pub mod link;
+pub mod local_token;
 pub mod machine;
 pub mod machine_cache;
 pub mod machine_diagnosis;
