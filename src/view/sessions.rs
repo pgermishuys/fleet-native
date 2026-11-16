@@ -24,7 +24,7 @@ pub fn panel(s: &State, t: &Theme) -> El {
         .hover(t.wash(3.0))
         .press(t.wash(6.0))
         .cursor(Cursor::Pointer)
-        .on_press(|_: &mut State| {})
+        .on_press(|s: &mut State| s.open_new_session_page(None))
         .child(icon(&PLUS, 15.0).color(t.text))
         .child(text("New session").font(sans(13.0, 500.0, 1.3)).color(t.text));
     let add_folder = el()
@@ -85,6 +85,13 @@ pub fn panel(s: &State, t: &Theme) -> El {
     if let (Some(e), true) = (&error, s.has_rows()) {
         list = list.child(banner(t, e));
     }
+    // The draft shows in the group its session will land in: its project, else Ungrouped (`draftGroupIdFor`).
+    let draft = s.new_draft.row();
+    let draft_at = draft.as_ref().and_then(|d| {
+        let by_id = d.project_id.as_deref().and_then(|id| s.projects.iter().position(|p| p.id == id));
+        by_id.or_else(|| s.projects.iter().position(|p| p.id == crate::fleet::groups::UNGROUPED_ID))
+    });
+    let mut placed = false;
     let mut first = true;
     for (p, project) in s.projects.iter().enumerate() {
         // A project whose name matches keeps all its sessions; a group with no match and another name is dropped.
@@ -101,14 +108,24 @@ pub fn panel(s: &State, t: &Theme) -> El {
         let mut group = col().w_full().mt(if first { 0.0 } else { 10.0 }).child(header);
         first = false;
         // A folded project stays folded while a filter is typed: Fleet's `expanded` doesn't know the query.
-        if project.open {
+        let drafted = draft.as_ref().filter(|_| draft_at == Some(p));
+        placed |= drafted.is_some();
+        if project.open || drafted.is_some() {
             let mut body = col().w_full().pt(2.0);
+            if let Some(d) = drafted {
+                body = body.child(super::draft_row::draft_row(s, t, d));
+            }
+            let rows = if project.open { rows } else { Vec::new() };
             for (i, session) in rows {
                 body = body.child(session_row(s, t, &clock, p, i, session));
             }
             group = group.child(body);
         }
         list = list.child(group);
+    }
+    // No group to hold it (a list with none, or a filter that hid it): the draft heads the list instead.
+    if let (Some(d), false) = (&draft, placed) {
+        list = list.child(col().w_full().pt(2.0).child(super::draft_row::draft_row(s, t, d)));
     }
     // Fleet counts a group even with no session in it, so "no group left" is `first` here.
     if s.is_refused() && !s.has_rows() {

@@ -114,7 +114,7 @@ fn the_plus_asks_for_a_session_in_its_project_and_does_not_fold_the_group() {
     click(&mut rt, "project-new-1");
     assert_eq!(rt.state.proj.new_session_in.as_deref(), Some(id.as_str()));
     assert!(rt.state.projects[1].open, "the group stayed as it was");
-    assert!(rt.state.ui.toast.is_some(), "until component 7 the page that starts it says so");
+    assert!(rt.state.on_new_session_page(), "it opens the New session page for that project");
 }
 
 // "has no + button for the ungrouped group"

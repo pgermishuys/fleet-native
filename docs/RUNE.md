@@ -811,3 +811,9 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 
 - **Nothing here needed Rune.** A self-signed certificate made by `openssl req -x509` is `CA:TRUE`, which rustls/webpki refuses as a server certificate (`CaUsedAsEndEntity`) even when trusted: make a test certificate with `basicConstraints=CA:FALSE`.
 - tungstenite takes any `Read + Write`, so the hub's TLS is a stream enum, not a feature; `set_read_timeout` goes through to the socket and rustls keeps a half-read record for the next read.
+
+## New session, piece D (the route and the page shell)
+
+- **No CSS `margin: auto`.** The empty block is centred in the stage with `.center()` on the stage column and `w_full().max_w(640.0)` on the block; that matches Fleet's `margin: auto` while the block is narrower than the stage.
+- **A command key from `on_key` runs after the focused element.** `Ctrl+N` reaches the app's `on_key` only when nothing focused took it, which is what Fleet's `useKeyboardShortcut` does with editable targets, so no extra guard was needed.
+- **Moving the route is one function.** Rune has no router; the arriving and leaving rules of the draft hang on `State::go`, and any code that assigns `route` for another reason must go through it.

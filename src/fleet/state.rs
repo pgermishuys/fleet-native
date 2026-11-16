@@ -119,7 +119,7 @@ impl State {
     }
 
     /// Keeps the conversation being left, if it came from a snapshot (`keepCurrentStream`).
-    fn keep_current_stream(&mut self) {
+    pub(crate) fn keep_current_stream(&mut self) {
         let (id, stream) = (self.stream_of.take(), self.stream.take());
         if let (Some(id), Some(mut stream), false) = (id, stream, self.loading) {
             // A page in flight is dropped when you leave; coming back starts from a plain button.
@@ -278,6 +278,12 @@ impl State {
         for project in &mut projects {
             project.open = !self.sidebar.is_group_collapsed(&fold_key(project));
         }
+        // The page isn't a session in the list: a refresh leaves it where it is.
+        if self.on_new_session_page() {
+            self.projects = projects;
+            self.open_made_session(tx);
+            return;
+        }
         // The open session's conversation isn't in the list; carry it over.
         let old_messages = self.session_mut().map(|s| std::mem::take(&mut s.messages)).unwrap_or_default();
         self.projects = projects;
@@ -288,12 +294,16 @@ impl State {
                 self.route = store::Route::None;
                 self.stream = None;
                 self.stream_of = None;
-                if !self.projects.is_empty() {
+                if !self.has_rows() {
+                    // Nothing to open: the page that starts the first one, as Fleet's "New session" would (docs/parity/07, Decisions).
+                    self.open_new_session_page(None);
+                } else if !self.projects.is_empty() {
                     self.open_session(0, 0, tx);
                 }
             }
         }
         self.sync_open();
+        self.open_made_session(tx);
     }
 
     /// A `sessions` event that changes rows (`use-session-activity-updates.ts` and its siblings).

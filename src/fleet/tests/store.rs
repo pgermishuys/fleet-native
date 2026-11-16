@@ -307,7 +307,7 @@ fn the_invented_sessions_have_ids_of_their_own_and_none_goes_to_a_server() {
     let rt = app();
     let id = match &rt.state.route {
         Route::Session(id) => id.clone(),
-        Route::None => panic!("the first invented session is open"),
+        Route::None | Route::NewSession { .. } => panic!("the first invented session is open"),
     };
     assert_eq!(id, store::invented_id(0, 0));
     assert!(store::is_invented(&id));

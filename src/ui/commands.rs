@@ -145,7 +145,7 @@ pub fn all(s: &State) -> Vec<Command> {
             Session,
             Some(md("N")),
             &["create", "start"],
-            Run::Waiting(7),
+            now(|s, _| s.open_new_session_page(None)),
         ),
         c(
             "refresh-sessions",
@@ -223,7 +223,6 @@ pub fn all(s: &State) -> Vec<Command> {
     for (id, label, d, icon, n) in [
         ("copy-session-id", "Copy session ID", "Copy the active session ID.", &COPY, 0u8),
         ("fork-session", "Fork session", "Branch the active session into a new one.", &GIT_BRANCH_PLUS, 8),
-        ("new-session-in-folder", "New session in this folder", "Start another session in the same folder.", &FOLDER_PLUS, 7),
         ("export-raw-messages", "Export raw messages (JSON)", "Download the loaded messages as JSON.", &DOWNLOAD, 3),
     ] {
         let mut cmd = c(id, label, d, icon, Session, None, &[], if n == 0 { now(|_, _| {}) } else { Run::Waiting(n) });
@@ -234,6 +233,18 @@ pub fn all(s: &State) -> Vec<Command> {
         }
         list.push(cmd);
     }
+    let mut in_folder = c(
+        "new-session-in-folder",
+        "New session in this folder",
+        if open { "An empty session in the active session's folder, on the same harness." } else { "No active session selected." },
+        &FOLDER_PLUS,
+        Session,
+        None,
+        &["new", "session", "folder", "same", "empty"],
+        now(|s, _| s.new_session_in_folder()),
+    );
+    in_folder.disabled = !open;
+    list.push(in_folder);
     let mut export = c(
         "export-conversation",
         "Export as Markdown",
