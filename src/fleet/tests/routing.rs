@@ -252,3 +252,38 @@ fn live_two_fleets() {
     println!("the machine's hub is online; home's connection is {:?}", rt.state.connection);
     assert_eq!(rt.state.connection, Connection::Online);
 }
+
+#[test]
+fn sends_another_machines_row_actions_to_that_machine_and_lists_that_machine_again() {
+    let (home, at_home) = fake_fleet();
+    let (mini, at_mini) = fake_fleet();
+    let mut rt = app_with(&home, vec![machine(MINI, "mini", &mini, "token-of-mini")]);
+    rt.update(|s, tx| {
+        let mut one = row("mini-1");
+        one.title = "Water the tomatoes".into();
+        s.machines.upsert_session(MINI, one);
+        s.machines.others.get_mut(MINI).unwrap().projects = vec![crate::fleet::groups::ProjectInfo {
+            id: "p-garden".into(),
+            name: "Garden".into(),
+            kind: crate::fleet::groups::ProjectKind::User,
+            position: 1,
+        }];
+        // Rename a session, then a project.
+        s.start_machine_row_rename(MINI, "mini-1", tx);
+        s.act.edit = rune::TextEdit::new("Feed the tomatoes".to_string());
+        s.finish_row_rename(true, tx);
+        s.start_machine_rename(MINI, "p-garden", tx);
+        s.proj.edit = rune::TextEdit::new("Vegetable garden".to_string());
+        s.finish_rename(true, tx);
+    });
+    assert!(wait_for(&at_mini, "PATCH /api/sessions/mini-1 "), "{:?}", at_mini.lock().unwrap());
+    assert!(wait_for(&at_mini, "PATCH /api/projects/p-garden"), "{:?}", at_mini.lock().unwrap());
+    // Both were read again on that machine, with its token: its sessions, projects and identity.
+    // Then that machine's own list is read again (what the call's answer does), not home's.
+    rt.update(|s, _| s.list_again_on(MINI));
+    assert!(wait_for(&at_mini, "GET /api/sessions?"));
+    for (line, token) in at_mini.lock().unwrap().iter().filter(|(l, _)| l.starts_with("PATCH") || l.starts_with("GET /api/sessions?")) {
+        assert_eq!(token.as_deref(), Some("token-of-mini"), "{line}");
+    }
+    assert!(heard_with(&at_home, "mini-1").is_empty() && heard_with(&at_home, "p-garden").is_empty(), "nothing reaches home");
+}

@@ -62,6 +62,24 @@ impl State {
         self.link_of(&target)
     }
 
+    /// The link to a machine by its key (home's for a key that isn't listed), started if it has none yet.
+    pub fn link_for_machine(&self, key: &str) -> Option<Link> {
+        let target = self.target_of_key(key)?;
+        self.link_of(&target)
+    }
+
+    /// Reads one machine's list again, or home's own (`refreshList` after a change made there).
+    pub fn list_again_on(&mut self, key: &str) {
+        if key == HOME_MACHINE_KEY || self.machines.machine(key).is_none() {
+            if let Some(link) = &self.link {
+                link.refetch_list();
+            }
+            return;
+        }
+        let (Some(link), Some(job)) = (&self.link, self.machines.begin_read(key)) else { return };
+        super::machine_poll::spawn_read(job, link.post());
+    }
+
     fn link_of(&self, target: &Target) -> Option<Link> {
         let home = self.link.as_ref()?;
         if target.is_home() {

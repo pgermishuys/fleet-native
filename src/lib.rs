@@ -196,6 +196,8 @@ pub struct State {
     pub machines: fleet::machines::Machines,
     /// A parent session's children shown or hidden by its caret, by session id; the rest follow `opens_by_itself`.
     pub machine_children: std::collections::HashMap<String, bool>,
+    /// The machine and session (or project) a right-click menu on another machine's tree was opened on.
+    pub machine_menu: Option<(String, String)>,
     /// The Add a machine row was pressed: the form opens when Settings has one (piece K).
     pub add_machine_asked: bool,
     /// Where `machine-sessions.json` is kept; none until the data folder is known (and in pictures).
@@ -362,6 +364,7 @@ impl Default for State {
             quiet_machine: None,
             machines: Default::default(),
             machine_children: Default::default(),
+            machine_menu: None,
             add_machine_asked: false,
             machine_dir: None,
             machine_schemes_told: false,
@@ -1340,6 +1343,13 @@ pub fn spec() -> AppSpec<State> {
             ("machine-loading", |s| s.show_machines(mock::machines::Case::Loading, true)),
             ("machine-long-name", |s| s.show_machines(mock::machines::Case::LongName, true)),
             ("machine-empty", |s| s.show_machines(mock::machines::Case::Empty, true)),
+            // Piece F: another machine's rows renamed and the row menu.
+            ("machine-row-rename", |s| s.show_machine_row_rename(true)),
+            ("machine-row-rename-light", |s| s.show_machine_row_rename(false)),
+            ("machine-project-rename", |s| s.show_machine_project_rename(true)),
+            ("machine-project-rename-light", |s| s.show_machine_project_rename(false)),
+            ("machine-row-menu", |s| s.show_machine_row_menu(true, 230.0)),
+            ("machine-row-menu-light", |s| s.show_machine_row_menu(false, 230.0)),
             ("project-headers", |s| s.sample_headers = true),
             ("project-headers-light", |s| {
                 s.sample_headers = true;

@@ -879,3 +879,7 @@ Nothing new about Rune. The open session was found by index into `State::project
   cut ("Orch…") in a narrow header. Give them `.max_w()` only, and leave the shrinking to the path's head.
 - **Underlined text is a `rich(..)` with one `Span`.** `El` has no `.underline()`.
 - **`rt.presented(key)` gives a rect.** A "the pill keeps half" test reads widths from it; no screenshot needed.
+
+## Another machine's rows (component 17, piece F)
+
+Nothing new about Rune. `Open` is `Copy`, so a menu on another machine's row can't carry the machine's key and the session's id in it: it names the kind (`MachineContext`) and `State::machine_menu` holds the pair.

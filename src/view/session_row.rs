@@ -154,7 +154,7 @@ pub fn session_row_with(s: &State, t: &Theme, clock: &RowClock, p: usize, i: usi
         None => el().size(8.0, 8.0).key(format!("session-slot-{key}")),
     };
     if s.row_renaming(p, i) {
-        return el().w_full().py(1.0).child(editing(s, t, &key, glyph));
+        return el().w_full().py(1.0).child(editing(s, t, format!("session-{key}"), glyph));
     }
     let title = row_status::display_title(None, &session.title);
     let mut line = row()
@@ -259,7 +259,7 @@ pub fn tail(s: &State, t: &Theme, key: &str, session: &Session, status: &RowStat
 
 /// `.session-item--editing`: the row with the title as a field, no hover, no pick, nothing on the right; the field has
 /// the raw title selected (`.session-title--editing`: the title's own size, no border, no padding).
-fn editing(s: &State, t: &Theme, key: &str, glyph: El) -> El {
+pub fn editing(s: &State, t: &Theme, row_key: String, glyph: El) -> El {
     let field = text_input(&s.act.edit, sans(13.0, 400.0, 1.2))
         .key(RENAME_FIELD)
         .label("Session name")
@@ -283,7 +283,7 @@ fn editing(s: &State, t: &Theme, key: &str, glyph: El) -> El {
             _ => false,
         });
     row()
-        .key(format!("session-{key}"))
+        .key(row_key)
         .w_full()
         .min_h(32.0)
         .center_y()

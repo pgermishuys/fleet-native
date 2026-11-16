@@ -1,9 +1,10 @@
 //! Another machine's sessions in the list (`MachineSessionsGroup.vue`, `SessionsPanel.vue`'s machine part): its heading, the
 //! note and error line under it, its Pinned group and projects in its own order, and a row for each session as it last
-//! listed them. Rows only show for now: opening one is piece E's and a row's actions are piece F's.
+//! listed them. Pressing a row opens it; while the machine answers a row also renames (double-click, F2), has the
+//! right-click menu and its project renames from its header; while it doesn't, rows only open.
 use super::machine_header::{Heading, machine_header};
-use super::project_header::{Header, project_header};
-use super::session_row::{RowClock, Slots, glyph_el, tail, title_ink};
+use super::project_header::{Header, editing as project_editing, project_header};
+use super::session_row::{RowClock, Slots, editing, glyph_el, tail, title_ink};
 use crate::State;
 use crate::fleet::groups::{LineageKind, Listed};
 use crate::fleet::machine_tree::{self, TreeGroup, TreeRow};
@@ -12,7 +13,7 @@ use crate::fleet::row_status::{self, Dim, Glyph, RowItem};
 use crate::icons::{CHEVRON_RIGHT, PLUS};
 use crate::mock::Session;
 use crate::theme::{RADIUS_BTN, Theme, sans};
-use rune::{Align, Color, Cursor, El, Tx, col, el, icon, row, text};
+use rune::{Align, Color, Cursor, El, Key, KeyEvent, Tx, col, el, icon, row, text};
 
 /// The word on the right of a machine's heading when it has no count (`note`).
 pub fn note_of(state: Option<&MachineSessions>) -> Option<&'static str> {
@@ -89,8 +90,34 @@ fn group_of(
     let open = s.machine_project_is_open(key, &g.id);
     let kind = if g.pinned { Header::Pinned } else { Header::Project };
     let (mkey, gid) = (key.to_string(), g.id.clone());
-    let header = project_header(t, format!("machine-project-{key}-{}", g.id), kind, &g.name, g.count, open, false)
-        .on_press(move |s: &mut State| s.toggle_machine_project(&mkey, &gid));
+    let header_key = format!("machine-project-{key}-{}", g.id);
+    // A real project of an answering machine renames from its header and menu; the Pinned and Ungrouped groups don't.
+    let named = answering && !g.pinned && g.id != crate::fleet::groups::UNGROUPED_ID;
+    let header = if named && s.machine_project_renaming(key, &g.id) {
+        project_editing(s, t, header_key, open)
+    } else {
+        let (m, id) = (key.to_string(), g.id.clone());
+        let header = project_header(t, header_key, kind, &g.name, g.count, open, false)
+            .on_press(move |s: &mut State| s.toggle_machine_project(&mkey, &gid));
+        if named {
+            let (m2, id2) = (m.clone(), id.clone());
+            el().w_full()
+                .on_secondary_press(move |s: &mut State, at, _: &mut Tx| {
+                    s.ui.point = (at.x, at.y);
+                    s.machine_menu = Some((m.clone(), id.clone()));
+                    s.ui.open = Some(crate::ui::Open::MachineProjectMenu);
+                })
+                .child(header.on_key(move |s: &mut State, ev: &KeyEvent, tx: &mut Tx| {
+                    if ev.key == Key::Function(2) {
+                        s.start_machine_rename(&m2, &id2, tx);
+                        return true;
+                    }
+                    false
+                }))
+        } else {
+            header
+        }
+    };
     let out = col().w_full().mt(if first { 0.0 } else { 10.0 }).child(header);
     if !open {
         return out;
@@ -130,8 +157,8 @@ fn children_open(s: &State, sessions: &[Session], parent: &Session, kids: &[Tree
     s.machine_children.get(&parent.id).copied().unwrap_or(by_itself)
 }
 
-/// One session of another machine, as the list draws a row (`SessionItem.vue` in `MachineSessionsGroup`): no pin, archive, drag
-/// or rename; pressing it opens the session in place.
+/// One session of another machine, as the list draws a row (`SessionItem.vue` in `MachineSessionsGroup`): pressing it opens the
+/// session in place. While the machine answers it also renames and has the menu; while it doesn't it only opens.
 #[allow(clippy::too_many_arguments)]
 fn read_only_row(
     s: &State,
@@ -158,6 +185,9 @@ fn read_only_row(
         Some(g) => g.key(format!("machine-glyph-{key}")).help(status.description.clone()),
         None => el().size(8.0, 8.0).key(format!("machine-slot-{key}")),
     };
+    if answering && s.machine_row_renaming(&session.id) {
+        return el().w_full().py(1.0).child(editing(s, t, format!("machine-session-{key}"), glyph));
+    }
     let slot = match caret {
         Some(open) => {
             let (id, was) = (session.id.clone(), open);
@@ -203,7 +233,26 @@ fn read_only_row(
                 .truncate()
                 .grow(1.0),
         );
-    if !answering {
+    if answering {
+        let (m, id, m2, id2, m3, id3) =
+            (machine.key.clone(), session.id.clone(), machine.key.clone(), session.id.clone(), machine.key.clone(), session.id.clone());
+        line = line
+            .help("Double-click to rename")
+            .on_double_press_tx(move |s: &mut State, tx: &mut Tx| s.start_machine_row_rename(&m, &id, tx))
+            // `handleRowKeydown`: F2 renames.
+            .on_key(move |s: &mut State, ev: &KeyEvent, tx: &mut Tx| {
+                if ev.key == Key::Function(2) {
+                    s.start_machine_row_rename(&m2, &id2, tx);
+                    return true;
+                }
+                false
+            })
+            .on_secondary_press(move |s: &mut State, at, _: &mut Tx| {
+                s.ui.point = (at.x, at.y);
+                s.machine_menu = Some((m3.clone(), id3.clone()));
+                s.ui.open = Some(crate::ui::Open::MachineContext);
+            });
+    } else {
         line = line.help(format!("Open on {}", machine.name));
     }
     // Lineage stays muted in every state: the label takes the row's meta colour.

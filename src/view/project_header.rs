@@ -101,7 +101,7 @@ pub fn project_shell(s: &State, t: &Theme, p: usize, count: usize) -> El {
 }
 
 /// `.project-header--editing`: the same row with no button in it and the field where the title was; no count.
-fn editing(s: &State, t: &Theme, key: String, open: bool) -> El {
+pub fn editing(s: &State, t: &Theme, key: String, open: bool) -> El {
     let turn = if open { 0.0 } else { -std::f32::consts::FRAC_PI_2 };
     let busy = s.proj.pending;
     // `.project-copy` (flex 1 1 auto) beside an empty `.project-spacer` (flex 1): the field is as wide as its own 193px plus

@@ -279,3 +279,114 @@ fn a_session_on_a_machine_that_isnt_answering_refuses_a_message_naming_the_machi
     assert_eq!(rt.state.composer_error.as_deref(), Some("harbor isn't answering."));
     assert_eq!(rt.state.draft.text, "hello", "the draft stays");
 }
+
+// Piece F: another machine's rows: actions and read-only.
+
+fn right_click(rt: &mut Runtime<crate::State>, key: &str) {
+    let (x, y) = rt.find(key).unwrap_or_else(|| panic!("no element keyed {key:?}"));
+    rt.pointer_move(x, y);
+    rt.secondary_down(x, y);
+    rt.secondary_up(x, y);
+    rt.frame(FRAME);
+    rt.frame(FRAME);
+}
+
+fn falcon_title(rt: &Runtime<crate::State>, id: &str) -> String {
+    rt.state.machines.others["m-falcon"].sessions.iter().find(|s| s.id == id).unwrap().title.clone()
+}
+
+fn type_over(rt: &mut Runtime<crate::State>, text: &str) {
+    rt.update(|s, _| s.act.edit = rune::TextEdit::new("x".to_string()));
+    let text = text.to_string();
+    rt.update(move |s, _| s.act.edit = rune::TextEdit::new(text));
+}
+
+#[test]
+fn machinesessionsgroup_gives_its_rows_what_the_live_machines_rows_have_rename_and_the_menu() {
+    let mut rt = scene(Case::Several);
+    // The title says how, as this machine's rows do.
+    assert!(rt.find("machine-session-m-falcon-f-fence").is_some());
+    // F2 starts the rename on the row: the title is a field.
+    rt.update(|s, tx| s.start_machine_row_rename("m-falcon", "f-fence", tx));
+    rt.frame(FRAME);
+    assert!(rt.state.machine_row_renaming("f-fence"));
+    assert!(rt.find(crate::fleet::actions::RENAME_FIELD).is_some(), "the field is where the title was");
+    type_over(&mut rt, "Paint the gate");
+    rt.update(|s, tx| s.finish_row_rename(true, tx));
+    rt.frame(FRAME);
+    assert_eq!(falcon_title(&rt, "f-fence"), "Paint the gate", "the new title shows at once on that machine's list");
+    assert!(rt.find("machine-title-m-falcon-f-fence").is_some(), "and the row is a row again");
+}
+
+#[test]
+fn machinesessionsgroup_only_opens_a_session_no_pin_archive_drag_rename_or_picking() {
+    let mut rt = scene(Case::Down);
+    rt.update(|s, tx| s.start_machine_row_rename("m-harbor", "h-ledger", tx));
+    assert!(!rt.state.machine_row_renaming("h-ledger"), "a machine that isn't answering renames nothing");
+    right_click(&mut rt, "machine-session-m-harbor-h-ledger");
+    assert!(rt.find("ctx-menu").is_none(), "no menu");
+    assert!(rt.state.ui.confirm.is_none());
+    rt.update(|s, tx| {
+        s.ask_machine_delete_session("m-harbor", "h-ledger", tx);
+        s.ask_machine_clear_attachments("m-harbor", "h-ledger", tx);
+    });
+    assert!(rt.state.ui.confirm.is_none(), "nor a question about it");
+    click(&mut rt, "machine-session-m-harbor-h-ledger");
+    assert_eq!(rt.state.open_id().as_deref(), Some("h-ledger"), "but it opens");
+}
+
+#[test]
+fn machinesessionsgroup_offers_copy_path_not_open_in_on_another_machines_row() {
+    let mut rt = scene(Case::Several);
+    right_click(&mut rt, "machine-session-m-falcon-f-fence");
+    assert!(rt.find("ctx-menu").is_some());
+    // Open, Rename, Archive, Copy path, Clear attachments, a separator, Delete permanently: no Open in, no schedule.
+    for n in [0, 1, 2, 3, 4, 6] {
+        assert!(rt.find(&format!("ctx-item{n}")).is_some(), "item {n}");
+    }
+    assert!(rt.find("ctx-item7").is_none());
+    assert_eq!(rt.state.machines.others["m-falcon"].sessions[2].listing.workspace_directory, "/srv/work", "the folder Copy path copies");
+}
+
+#[test]
+fn sessionspanel_the_menus_rename_and_questions_act_on_that_machines_session() {
+    let mut rt = scene(Case::Several);
+    right_click(&mut rt, "machine-session-m-falcon-f-fence");
+    click(&mut rt, "ctx-item1");
+    assert!(rt.state.machine_row_renaming("f-fence"));
+    assert!(rt.find("ctx-menu").is_none(), "the menu closed before the field opened");
+    rt.update(|s, tx| s.finish_row_rename(false, tx));
+    rt.frame(FRAME);
+    right_click(&mut rt, "machine-session-m-falcon-f-fence");
+    assert!(rt.find("ctx-menu").is_some(), "{:?} {:?}", rt.state.ui.open, rt.state.act.rename.is_some());
+    click(&mut rt, "ctx-item6");
+    rt.frame(FRAME);
+    let c = rt.state.ui.confirm.as_ref().expect("a question");
+    assert_eq!((c.title.as_str(), c.subject.as_str()), ("Delete this session?", "Paint the fence"));
+    click(&mut rt, "confirm-action");
+    assert!(rt.state.ui.confirm.is_none());
+    assert!(rt.state.machines.others["m-falcon"].sessions.iter().all(|s| s.id != "f-fence"), "out of that machine's list at once");
+    assert_eq!(rt.state.machines.others["m-falcon"].sessions.len(), 3);
+}
+
+#[test]
+fn sessionspanel_renames_another_machines_project_on_that_machine_and_lists_that_machine_again() {
+    let mut rt = scene(Case::Several);
+    let name = |rt: &Runtime<crate::State>| {
+        rt.state.machines.others["m-falcon"].projects.iter().find(|p| p.id == "p-lighthouse").unwrap().name.clone()
+    };
+    right_click(&mut rt, "machine-project-m-falcon-p-lighthouse");
+    assert!(rt.find("pctx-menu").is_some());
+    click(&mut rt, "pctx-item0");
+    assert!(rt.state.machine_project_renaming("m-falcon", "p-lighthouse"));
+    assert!(!rt.state.project_renaming(0), "not home's project of the same place in the list");
+    rt.update(|s, _| s.proj.edit = rune::TextEdit::new("Lamp house".to_string()));
+    rt.update(|s, tx| s.finish_rename(true, tx));
+    rt.frame(FRAME);
+    assert_eq!(name(&rt), "Lamp house");
+    assert!(!rt.state.proj.pending);
+    // Pinned and a down machine's projects have no rename.
+    assert!(rt.find("machine-project-m-falcon-pinned").is_none() || !rt.state.machine_project_renaming("m-falcon", "pinned"));
+    rt.update(|s, tx| s.start_machine_rename("m-harbor", "p-docks", tx));
+    assert!(!rt.state.machine_project_renaming("m-harbor", "p-docks"));
+}

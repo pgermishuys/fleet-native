@@ -69,6 +69,13 @@ pub struct RowRename {
     seen_focus: bool,
 }
 
+impl RowRename {
+    /// A rename a scene shows already under way.
+    pub fn scene(id: &str, title: &str) -> RowRename {
+        RowRename { id: id.into(), original: title.into(), seen_focus: true }
+    }
+}
+
 #[derive(Default)]
 pub struct RowActions {
     pub rename: Option<RowRename>,
@@ -91,6 +98,26 @@ impl State {
     pub fn start_row_rename(&mut self, p: usize, i: usize, tx: &mut Tx) {
         let Some(session) = self.projects.get(p).and_then(|project| project.sessions.get(i)) else { return };
         let (id, title) = (session.id.clone(), session.title.clone());
+        self.begin_row_rename(id, title, tx);
+    }
+
+    /// F2, a double-click or the menu's Rename on a row of another machine. Not while that machine isn't answering: its rows
+    /// only open (`MachineSessionsGroup`'s `readOnly`).
+    pub fn start_machine_row_rename(&mut self, machine: &str, id: &str, tx: &mut Tx) {
+        if !self.machines.is_answering(machine) {
+            return;
+        }
+        let Some(session) = self.machines.others.get(machine).and_then(|m| m.sessions.iter().find(|s| s.id == id)) else { return };
+        let title = session.title.clone();
+        self.machines.remember_sessions(machine, &[id.to_string()]);
+        self.begin_row_rename(id.to_string(), title, tx);
+    }
+
+    pub fn machine_row_renaming(&self, id: &str) -> bool {
+        self.act.rename.as_ref().is_some_and(|r| r.id == id)
+    }
+
+    fn begin_row_rename(&mut self, id: String, title: String, tx: &mut Tx) {
         // Starting on another row leaves the first one, which is the blur that saves it.
         if self.act.rename.as_ref().is_some_and(|r| r.id != id) {
             self.finish_row_rename(true, tx);
@@ -107,6 +134,8 @@ impl State {
         let Some(r) = self.act.rename.take() else { return };
         if let Some((p, i)) = self.row_of(&r.id) {
             tx.focus(format!("session-{p}-{i}"), true);
+        } else {
+            tx.focus(format!("machine-session-{}-{}", self.machine_key_of(&r.id), r.id), true);
         }
         if !commit {
             return;
@@ -137,6 +166,49 @@ impl State {
         let mut projects = std::mem::take(&mut self.projects);
         self.store.patch(&mut projects, id, |s| s.title = title.to_string());
         self.projects = projects;
+        // On another machine the title lives in that machine's list too, until its next read says the same (`patchSession`).
+        let key = self.machine_key_of(id).to_string();
+        self.machines.patch_session(&key, id, |s| s.title = title.to_string());
+    }
+
+    /// The title `id` shows now, in home's list or another machine's.
+    fn title_of(&self, id: &str) -> Option<String> {
+        if let Some((p, i)) = self.row_of(id) {
+            return Some(self.projects[p].sessions[i].title.clone());
+        }
+        let key = self.machine_key_of(id);
+        self.machines.others.get(key)?.sessions.iter().find(|s| s.id == id).map(|s| s.title.clone())
+    }
+
+    /// The menu's Clear attachments… on a row of another machine.
+    pub fn ask_machine_clear_attachments(&mut self, machine: &str, id: &str, tx: &mut Tx) {
+        let Some(title) = self.machine_row_title(machine, id) else { return };
+        self.ask(Confirm::clear_attachments(title, Call::ClearAttachments { id: id.to_string() }), tx);
+    }
+
+    /// The menu's Delete permanently… on a row of another machine.
+    pub fn ask_machine_delete_session(&mut self, machine: &str, id: &str, tx: &mut Tx) {
+        let Some(title) = self.machine_row_title(machine, id) else { return };
+        self.ask(Confirm::delete_session(title, Call::Delete { id: id.to_string() }), tx);
+    }
+
+    /// The title a dialog names, and a note of where the session lives so the call finds its machine.
+    fn machine_row_title(&mut self, machine: &str, id: &str) -> Option<String> {
+        if !self.machines.is_answering(machine) {
+            return None;
+        }
+        let session = self.machines.others.get(machine)?.sessions.iter().find(|s| s.id == id)?;
+        let title = crate::fleet::row_status::display_title(None, &session.title);
+        self.machines.remember_sessions(machine, &[id.to_string()]);
+        Some(title)
+    }
+
+    /// The menu's Copy path on a row of another machine: the folder is on that machine, so only its text is copied.
+    pub fn copy_machine_path(&mut self, machine: &str, id: &str, tx: &mut Tx) {
+        let path = self.machines.others.get(machine).and_then(|m| m.sessions.iter().find(|s| s.id == id));
+        if let Some(session) = path.filter(|s| !s.listing.workspace_directory.is_empty()) {
+            tx.copy(session.listing.workspace_directory.clone());
+        }
     }
 
     /// The menu's Clear attachments… (`handleClearAttachments`).
@@ -175,8 +247,8 @@ impl State {
             Call::Rename { id, title } => {
                 if result.is_err() {
                     // Only while it still holds the title this rename put there.
-                    if let (Some(was), Some((p, i))) = (was, self.row_of(id))
-                        && self.projects[p].sessions[i].title == *title
+                    if let Some(was) = was
+                        && self.title_of(id).as_deref() == Some(title.as_str())
                     {
                         self.set_title(id, &was);
                     }
@@ -190,20 +262,21 @@ impl State {
 
     /// The session left the server: out of the list, and out of the window when it was the open one (`removeSessionFromStore`).
     pub(crate) fn forget_session(&mut self, id: &str, tx: &mut Tx) {
+        let key = self.machine_key_of(id).to_string();
         let mut projects = std::mem::take(&mut self.projects);
         self.store.remove(&mut projects, &mut self.route, id);
         self.on_list(projects, tx);
+        // Out of that machine's list at once, before its next read.
+        if let Some(m) = self.machines.others.get_mut(&key) {
+            m.sessions.retain(|s| s.id != id);
+        }
         self.list_again(id);
     }
 
-    /// Reads the list `session` is in again: home's own, or the other machine's with the next read of the machines.
-    fn list_again(&self, session: &str) {
-        let Some(link) = &self.link else { return };
-        if self.target_of(session).is_some_and(|t| !t.is_home()) {
-            link.refresh_machines();
-        } else {
-            link.refetch_list();
-        }
+    /// Reads the list `session` is in again: home's own, or only that machine's (`refreshList`, `refreshMachine`).
+    fn list_again(&mut self, session: &str) {
+        let key = self.machine_key_of(session).to_string();
+        self.list_again_on(&key);
     }
 }
 

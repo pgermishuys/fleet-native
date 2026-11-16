@@ -364,6 +364,14 @@ impl Machines {
         jobs
     }
 
+    /// A read of one machine now, after a change made on it (`refreshMachine`). `None` for a machine that isn't listed.
+    pub fn begin_read(&mut self, key: &str) -> Option<ReadJob> {
+        let machine = self.list.iter().find(|m| m.id == key)?;
+        let job = ReadJob { key: machine.id.clone(), name: machine.name.clone(), base: machine.base().to_string() };
+        self.others.entry(key.to_string()).or_default().loading = true;
+        Some(job)
+    }
+
     /// A good read (`applyRead`). Returns whether the machine was not answering before, which is when its open
     /// sessions should connect at once rather than wait out a backoff.
     pub fn apply_read(&mut self, key: &str, read: Read, now_ms: i64) -> bool {
