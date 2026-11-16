@@ -766,3 +766,9 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 - **Cargo.lock has no `regex` and no `unicode-normalization`** (Rune doesn't bring them). The naming preview needs both (a
   `capture` pattern, NFKD for accents), so `pattern.rs` is a small matcher and the slug folds accents by table rather than
   adding two crates to three systems' builds. Reach for these only if a later piece needs a full regex.
+
+## Machines, piece B (reading the machines; no Rune)
+
+- **Nothing here needed Rune**: `machines.rs` is plain Rust, `machine_poll.rs` is threads that hand answers to the state with `Post::update`.
+  A headless runtime doesn't drain `AppHandle::update`, so a test of a poll posts to its own queue and pumps it, as `tests/auth.rs` does.
+- **Rune's `Session` row (`mock::Session`) has no `Clone` or `Debug`**, so the per-machine state can't derive either; tests compare titles.

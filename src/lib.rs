@@ -158,6 +158,12 @@ pub struct State {
     /// The open session's machine stopped answering: its name (`quietMachine`). The machines list is another
     /// component's, so nothing sets it yet but a scene.
     pub quiet_machine: Option<String>,
+    /// The other machines home lists and what is known of each (`fleet::machines`).
+    pub machines: fleet::machines::Machines,
+    /// Where `machine-sessions.json` is kept; none until the data folder is known (and in pictures).
+    pub machine_dir: Option<std::path::PathBuf>,
+    /// The first read of the list has said which address schemes the machines use (decision 8).
+    pub machine_schemes_told: bool,
     /// What the error box above the composer says (`sendError`, row 1.10): a refused prompt, for now.
     pub composer_error: Option<String>,
     /// The pictures held for each draft and the pasted-file error (`fleet::attach`), the threads reading them, and whether
@@ -303,6 +309,9 @@ impl Default for State {
             auto: Default::default(),
             interrupt_acts: Default::default(),
             quiet_machine: None,
+            machines: Default::default(),
+            machine_dir: None,
+            machine_schemes_told: false,
             reasoning_open: Default::default(),
             summary_open: Default::default(),
             shell_wide: Default::default(),
@@ -2020,7 +2029,9 @@ pub fn start_desktop() {
         std::thread::spawn(move || {
             let stored = composer::drafts::load(&dir);
             let settings = fleet::settings::load(&dir);
+            let machines = fleet::machine_cache::load(&dir);
             handle.update(move |s, _| {
+                s.adopt_machine_cache(dir.clone(), machines);
                 s.adopt_settings(dir.clone(), settings);
                 s.adopt_drafts(dir, stored);
             });

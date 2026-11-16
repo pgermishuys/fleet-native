@@ -70,6 +70,8 @@ pub enum Cmd {
 pub struct Link {
     pub base: String,
     cmds: Sender<Cmd>,
+    /// The thread that reads the other machines (`machine_poll`).
+    machines: Sender<super::machine_poll::Cmd>,
     post: Post,
 }
 
@@ -89,12 +91,18 @@ impl Link {
         let (cmds, rx) = channel();
         let (b, p) = (base.clone(), post.clone());
         std::thread::spawn(move || run(b, rx, p));
-        Link { base, cmds, post }
+        let machines = super::machine_poll::start(base.clone(), post.clone());
+        Link { base, cmds, machines, post }
     }
 
     /// "Try again" on the list: the sessions and the projects are read again (`SessionsPanel`'s `handleRetry`).
     pub fn refetch_list(&self) {
         fetch_list(&self.base, &self.post);
+    }
+
+    /// Reads the machine list and every machine again now: after a machine is added, forgotten, renamed or given a new token.
+    pub fn refresh_machines(&self) {
+        let _ = self.machines.send(super::machine_poll::Cmd::Now);
     }
 
     pub fn open(&self, session: &str) {
@@ -113,11 +121,15 @@ impl Link {
 
     /// The window gained or lost focus (Rune's `on_focus`); presence and the open session's focus follow.
     pub fn window_focus(&self, focused: bool) {
+        if focused {
+            self.refresh_machines();
+        }
         let _ = self.cmds.send(Cmd::WindowFocus(focused));
     }
 
     /// The window went off screen or came back (Rune's `on_visibility`).
     pub fn window_visible(&self, visible: bool) {
+        let _ = self.machines.send(super::machine_poll::Cmd::Visible(visible));
         let _ = self.cmds.send(Cmd::WindowVisible(visible));
     }
 
