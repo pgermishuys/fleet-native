@@ -5,8 +5,9 @@
 //!
 //! The data and its rules are plain Rust. Reading and writing the file is blocking: a thread does it
 //! (`State::adopt_settings`, `State::save_settings`), never a view or a handler.
+use super::new_session::defaults::{DEFAULTS_KEY, NewSessionDefaults, defaults_key};
 use serde_json::{Value, json};
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::path::{Path, PathBuf};
 
 pub const FILE: &str = "settings.json";
@@ -42,6 +43,10 @@ pub struct Sidebar {
     opened_by_change: HashSet<String>,
     lists: HashSet<u64>,
     next_list: u64,
+    /// The New session page's remembered choices, by machine key (component 7; `weave:new-session:defaults[:key]`).
+    new_session: BTreeMap<String, NewSessionDefaults>,
+    /// The default harness last seen on each other machine, shown at once on the next visit (`saved-per-machine`).
+    default_harness: BTreeMap<String, String>,
     dir: Option<PathBuf>,
     dirty: bool,
 }
@@ -68,6 +73,18 @@ impl Sidebar {
                 }
             }
         }
+        let prefix = format!("{DEFAULTS_KEY}:");
+        if let Some(Value::Object(by_key)) = root.get("newSessionDefaults") {
+            for (key, v) in by_key {
+                let machine = if key == DEFAULTS_KEY { Some(HOME_MACHINE_KEY) } else { key.strip_prefix(&prefix) };
+                if let Some(machine) = machine.filter(|m| !m.is_empty()) {
+                    s.new_session.insert(machine.to_string(), NewSessionDefaults::parse(v));
+                }
+            }
+        }
+        if let Some(Value::Object(by_machine)) = root.get("defaultHarness") {
+            s.default_harness = by_machine.iter().filter_map(|(k, v)| Some((k.clone(), v.as_str()?.to_string()))).collect();
+        }
         s
     }
 
@@ -77,6 +94,12 @@ impl Sidebar {
         let mut root = json!({ "collapsedGroups": groups, "leftCollapsed": self.left_collapsed, "rightCollapsedBySession": by_session });
         if let Some(c) = self.last_right {
             root["rightCollapsed"] = Value::Bool(c);
+        }
+        if !self.new_session.is_empty() {
+            root["newSessionDefaults"] = self.new_session.iter().map(|(m, d)| (defaults_key(m), d.to_json())).collect();
+        }
+        if !self.default_harness.is_empty() {
+            root["defaultHarness"] = json!(self.default_harness);
         }
         serde_json::to_string_pretty(&root).unwrap_or_default()
     }
@@ -169,6 +192,33 @@ impl Sidebar {
             self.empty_sessions.remove(session);
             self.opened_by_change.insert(session.to_string());
         }
+    }
+
+    // ── the New session page ──────────────────────────────────────────────────
+
+    /// What the page remembers for `machine` (a machine key); nothing the first time.
+    pub fn new_session_defaults(&self, machine: &str) -> NewSessionDefaults {
+        self.new_session.get(machine).cloned().unwrap_or_default()
+    }
+
+    /// Changes `machine`'s remembered choices; the file is written at the next save.
+    pub fn update_new_session_defaults(&mut self, machine: &str, change: impl FnOnce(&mut NewSessionDefaults)) {
+        change(self.new_session.entry(machine.to_string()).or_default());
+        self.dirty = true;
+    }
+
+    /// The default harness another machine last said it has (`readSaved("default-harness", key)`).
+    pub fn saved_default_harness(&self, machine: &str) -> Option<&str> {
+        self.default_harness.get(machine).map(String::as_str)
+    }
+
+    /// Keeps what a machine said (`writeSaved`); `None` forgets it.
+    pub fn save_default_harness(&mut self, machine: &str, harness: Option<&str>) {
+        let changed = match harness {
+            Some(h) => self.default_harness.insert(machine.to_string(), h.to_string()).as_deref() != Some(h),
+            None => self.default_harness.remove(machine).is_some(),
+        };
+        self.dirty |= changed;
     }
 
     // ── lists on screen ───────────────────────────────────────────────────────

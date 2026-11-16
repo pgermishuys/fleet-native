@@ -777,3 +777,9 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 - **Nothing here needed Rune**: `machines.rs` is plain Rust, `machine_poll.rs` is threads that hand answers to the state with `Post::update`.
   A headless runtime doesn't drain `AppHandle::update`, so a test of a poll posts to its own queue and pumps it, as `tests/auth.rs` does.
 - **Rune's `Session` row (`mock::Session`) has no `Clone` or `Debug`**, so the per-machine state can't derive either; tests compare titles.
+
+## New session, piece B (draft, defaults, harness choice; no Rune)
+
+- **Nothing here needed Rune.** `State` already had a `draft` (the composer's text), so the page's draft is `State::new_draft`.
+- **One settings file, one writer**: remembered choices went into `settings::Sidebar` rather than a second file, so the existing ordered, whole-file write covers them.
+

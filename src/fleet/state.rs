@@ -185,6 +185,24 @@ impl State {
         }
     }
 
+    /// A session was created from the New session page: remember the folder, workspace and choice on `machine` (a machine key).
+    pub fn remember_new_session(
+        &mut self,
+        machine: &str,
+        folder: &super::new_session::request::Folder,
+        workspace: &super::new_session::request::Workspace,
+        choice: Option<(&str, &crate::composer::choice::AgentModelChoice)>,
+    ) {
+        self.sidebar.update_new_session_defaults(machine, |d| d.remember(folder, workspace, choice));
+        self.save_settings();
+    }
+
+    /// Where a new folder or clone went, so the next one goes there too.
+    pub fn remember_new_folder_root(&mut self, machine: &str, root: &str) {
+        self.sidebar.update_new_session_defaults(machine, |d| d.remember_new_folder_root(root));
+        self.save_settings();
+    }
+
     /// Whether the list holds any row.
     pub fn has_rows(&self) -> bool {
         self.projects.iter().any(|p| !p.sessions.is_empty())
