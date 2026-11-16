@@ -140,6 +140,8 @@ pub struct Projects {
     /// The name field's text (a field needs a place in the state to live in, whether or not one is shown).
     pub edit: TextEdit,
     pub delete: Option<DeleteDialog>,
+    /// The New project dialog.
+    pub new: Option<super::new_project::NewProject>,
     /// A rename, move or delete is on its way (`isAnyActionPending`): the + and the menu wait.
     pub pending: bool,
     /// The machine the call on its way goes to; `None` is home.

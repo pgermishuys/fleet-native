@@ -23,8 +23,12 @@ impl State {
         self.new_draft.set_machine(picked, HOME_MACHINE_KEY);
     }
 
-    /// New project on a machine. The dialog is component 6's piece O: nothing opens until it exists, and the menu item is off.
-    pub fn new_project_on(&mut self, _key: &str) {}
+    /// New project on a machine (`handleNewProjectOn`): the dialog opens with that machine picked. Not on one that isn't answering.
+    pub fn new_project_on(&mut self, key: &str, tx: &mut crate::Tx) {
+        if self.machines.is_answering(key) {
+            self.open_new_project(Some(key), tx);
+        }
+    }
 
     /// Work here: the machine becomes the one you're on, and the window goes to the first page, the Sessions rail with
     /// nothing open (`setCurrent`, then `navigate({to: "/"})`). A machine that is gone is ignored.

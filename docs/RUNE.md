@@ -1048,3 +1048,8 @@ A context-menu row's label is one text run, so a machine's name in the mono face
 - **Negative side margins (`.ml(-6.0).mr(-6.0)`) on a row in a stretched column** widen it past the column as CSS does, so a row can have its own hover padding and still line its text up with the heading.
 - **`flex_wrap()` on a row** is the only wrap switch; `justify-content: space-between` has no counterpart, so a wrapped notice's button sits at the left of its own line (Fleet's does too once it wraps).
 - **A flash is `box_shadow` with `spread` and no blur, its alpha computed from `State.clock`**, redrawn by `tx.wake_after(33 ms)` while it lasts; `scroll_into_view_in("<scroll key>", "<row key>")` scrolls the target to view.
+## `auto_grow` takes the key `scroll`
+
+`auto_grow(field, min, max)` returns a scroll wrapper keyed `"scroll"`. A `.key(..)` set on what it returns replaces that
+key, so clicks and `tx.focus` on the key never reach the field. Key the field and attach `on_edit` first, then wrap it
+(`ui::controls::textarea_field` and `grow`).
