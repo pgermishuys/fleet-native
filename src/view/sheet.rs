@@ -22,7 +22,7 @@ pub fn sheet(s: &State, t: &Theme) -> El {
         .min_w(0.0)
         .h_full()
         .min_h(0.0)
-        .child(header(t, project, session, !s.is_mock()))
+        .child(header(t, project, session, !s.is_mock(), &s.header_model()))
         .child(stream(
             t,
             session,
@@ -84,8 +84,16 @@ pub fn sheet(s: &State, t: &Theme) -> El {
     }
 }
 
+fn path_head(m: &crate::fleet::header::HeaderModel, project: &Project) -> String {
+    if m.directory.is_empty() { crate::fleet::header::directory_parts(&project.path).0 } else { m.directory_head.clone() }
+}
+
+fn path_leaf(m: &crate::fleet::header::HeaderModel, project: &Project) -> String {
+    if m.directory.is_empty() { crate::fleet::header::directory_parts(&project.path).1 } else { m.directory_leaf.clone() }
+}
+
 /// `on_server`: the agent and model aren't known from the list yet, so none is invented.
-fn header(t: &Theme, project: &Project, session: &Session, on_server: bool) -> El {
+fn header(t: &Theme, project: &Project, session: &Session, on_server: bool, m: &crate::fleet::header::HeaderModel) -> El {
     let meta_font = sans(12.0, 400.0, 1.4);
     let path_font = mono(11.5, 400.0, 1.4);
     let dot = || text("·").font(meta_font).color(t.muted.alpha(0.6));
@@ -102,17 +110,34 @@ fn header(t: &Theme, project: &Project, session: &Session, on_server: bool) -> E
         .children((!on_server).then(|| plain("OpenCode")))
         .children((!on_server).then(dot))
         .children((!on_server).then(|| plain("Sonnet 5.5")))
-        .child(dot())
-        .child(
-            row()
-                .center_y()
-                .gap(4.0)
-                .child(icon(&GIT_BRANCH, 12.0).color(t.muted))
-                .child(text(session.branch.clone()).font(path_font).color(t.text)),
+        // A session from the server: what its row and record say (the invented ones keep their invented words).
+        .children(m.harness_label.clone().filter(|_| on_server).map(|h| [dot(), plain(&h)]).into_iter().flatten())
+        .children(m.model_label.clone().filter(|_| on_server).map(|h| [dot(), plain(&h)]).into_iter().flatten())
+        .children(
+            (!session.branch.is_empty() || m.branch.is_some())
+                .then(|| {
+                    let name = m.branch.clone().unwrap_or_else(|| session.branch.clone());
+                    [
+                        dot(),
+                        row()
+                            .center_y()
+                            .gap(4.0)
+                            .child(icon(&GIT_BRANCH, 12.0).color(t.muted))
+                            .child(text(name).font(path_font).color(t.text)),
+                    ]
+                })
+                .into_iter()
+                .flatten(),
         )
         .child(dot())
-        // The path is what gives way when the header runs out of room.
-        .child(text(project.path.clone()).font(path_font).color(t.muted.alpha(0.8)).truncate().shrink())
+        // The path is what gives way when the header runs out of room, from its start: the folder's name stays.
+        .child(
+            row()
+                .shrink()
+                .min_w(0.0)
+                .child(text(path_head(m, project)).font(path_font).color(t.muted.alpha(0.8)).truncate().shrink())
+                .child(text(path_leaf(m, project)).font(path_font).color(t.muted.alpha(0.8))),
+        )
         // Add a tag.
         .child(
             el().key("add-tag")

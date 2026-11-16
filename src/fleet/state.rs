@@ -111,6 +111,7 @@ impl State {
             self.load_retry(&id);
             self.load_interruption(&id);
             self.load_browser(&id);
+            self.load_header_detail(&id);
         }
         self.reset_scroll();
         self.follow_end(tx);
@@ -148,6 +149,7 @@ impl State {
             self.load_retry(&id);
             self.load_interruption(&id);
             self.load_browser(&id);
+            self.load_header_detail(&id);
         }
         if self.stream.is_some() && (open_here || (key == super::settings::HOME_MACHINE_KEY && self.open_id().is_none())) {
             self.loading = true;

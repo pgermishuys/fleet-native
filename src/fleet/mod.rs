@@ -19,6 +19,7 @@ pub mod export;
 pub mod find;
 pub mod finder;
 pub mod groups;
+pub mod header;
 pub mod history;
 pub mod http;
 pub mod images;

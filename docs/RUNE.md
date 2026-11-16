@@ -847,3 +847,9 @@ Nothing new about Rune. One rule for the app: a call about a session takes its `
 - **No native `<select>`.** Fleet's Location select is the operating system's menu; here the box opens a short list right under it, inside the popover.
 - **A chip row doesn't wrap a shrinking item.** With `.shrink()` and `.min_w(0.0)` a long folder name is cut with an ellipsis next to the machine chip; Fleet moves it to its own line first (its `flex-wrap`). Taking the shrink away makes the chip overflow instead, because Rune has no `max-width: 100%`. Left as the ellipsis.
 - **A mouse hover sets the highlight with `.on_hover`**, which is Fleet's `mousemove`; the row's own hover wash and the keyboard highlight are the same colour, so a row never shows two.
+
+## Component 8, piece A (header data)
+
+Nothing new about Rune. One thing about the harness: `row().shrink()` with a `truncate()` child and a plain child after it
+gives the "head gives way first" path of Fleet's header (the leaf is drawn whole, the head takes the ellipsis); no
+workaround was needed.

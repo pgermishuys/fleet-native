@@ -493,6 +493,7 @@ mod files;
 mod find;
 mod finder;
 mod groups;
+mod header;
 mod history;
 mod instance;
 mod live;
