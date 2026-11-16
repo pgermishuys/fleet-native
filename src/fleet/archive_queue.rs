@@ -141,7 +141,7 @@ impl State {
         self.archive.sending.remove(id);
         let ok = result.is_ok();
         if ok {
-            self.set_retention(id, true);
+            self.mark_retention(id, true);
         }
         let Some(f) = self.archive.flights.get_mut(&flight) else { return };
         f.open -= 1;
@@ -177,13 +177,13 @@ impl State {
     fn restore_done(&mut self, id: &str, result: Result<(), String>) {
         self.archive.restoring.remove(id);
         match result {
-            Ok(()) => self.set_retention(id, false),
+            Ok(()) => self.mark_retention(id, false),
             Err(why) => self.archive.error = Some(if why.is_empty() { "Couldn't restore the session.".into() } else { why }),
         }
     }
 
     /// The row says archived (or active) now, in home's list or its machine's, which is read again (`setRetention`).
-    fn set_retention(&mut self, id: &str, archived: bool) {
+    fn mark_retention(&mut self, id: &str, archived: bool) {
         let mut projects = std::mem::take(&mut self.projects);
         self.store.patch(&mut projects, id, |s| s.row.archived = archived);
         self.projects = projects;
