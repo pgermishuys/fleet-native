@@ -13,7 +13,7 @@ use crate::fleet::prefs::Prefs;
 use crate::fleet::settings::HOME_MACHINE_KEY;
 use crate::{State, Tx};
 
-type Done<T> = Box<dyn FnOnce(&mut State, &mut Tx, T) + Send>;
+pub(crate) type Done<T> = Box<dyn FnOnce(&mut State, &mut Tx, T) + Send>;
 
 impl State {
     /// Where machine `key` is: home's address, or the address of a machine home lists. None with no server or an unknown key.
@@ -27,7 +27,7 @@ impl State {
 
     /// Runs `call` against machine `key` on a thread; `done` runs on the UI thread. False (and nothing runs) when the
     /// machine can't be reached from here.
-    fn feed_call<T: Send + 'static>(
+    pub(crate) fn feed_call<T: Send + 'static>(
         &self,
         key: &str,
         call: impl FnOnce(&str) -> T + Send + 'static,
@@ -186,7 +186,11 @@ impl State {
             key,
             move |base| parse_listing(&asked, http::list_directory(base, &asked)),
             move |s, _, r| {
-                s.feeds.listing.finish(seq, r);
+                let error = r.as_ref().err().cloned();
+                if s.feeds.listing.finish(seq, r) {
+                    // A failed listing's words stay until a later one succeeds (B2.133).
+                    s.folder_menu.listing_error = error;
+                }
             },
         );
     }

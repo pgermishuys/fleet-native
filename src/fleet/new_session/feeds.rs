@@ -298,6 +298,41 @@ pub fn parse_listing(asked: &str, answer: Answer) -> Result<Listing, String> {
     })
 }
 
+/// A folder Fleet just made (`NewFolder`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NewFolder {
+    pub path: String,
+    pub is_git_repo: bool,
+    /// It was outside the locations, so Fleet added it.
+    pub added_to_fleet: bool,
+    /// Something to tell the person, such as a missing first commit.
+    pub warning: Option<String>,
+}
+
+/// Why a create failed: the server's words, and the folder that was already there when it answered 409 (`FolderExistsError`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MakeFailure {
+    pub message: String,
+    pub existing: Option<String>,
+}
+
+/// `POST /api/directories` for `path`: the folder, or why not. A refusal says why in the body's `error`.
+pub fn parse_created(path: &str, answer: Answer) -> Result<NewFolder, MakeFailure> {
+    const FAILED: &str = "Couldn't create that folder.";
+    let fail = |status: Option<u16>, message: String| MakeFailure { message, existing: (status == Some(409)).then(|| path.to_string()) };
+    let (status, body) = answer.map_err(|_| fail(None, FAILED.into()))?;
+    if !ok(status) {
+        return Err(fail(Some(status), read_error(&body, FAILED.into())));
+    }
+    let v = json(&body).filter(|v| !v.is_null()).ok_or_else(|| fail(Some(status), FAILED.into()))?;
+    Ok(NewFolder {
+        path: text(&v, "path").unwrap_or_default(),
+        is_git_repo: v.get("isGitRepo").and_then(Value::as_bool) == Some(true),
+        added_to_fleet: v.get("addedToFleet").and_then(Value::as_bool) == Some(true),
+        warning: text(&v, "warning").filter(|w| !w.is_empty()),
+    })
+}
+
 // ─── Harnesses ──────────────────────────────────────────────────────────────
 
 /// `GET /api/harnesses`: the entries, or the words of a failure (the body's `error`, else `HTTP n`; a call that never

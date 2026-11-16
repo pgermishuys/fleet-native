@@ -1,6 +1,7 @@
 //! What the folder menu keeps while it is open, and what its keys and rows do (`NSD/FolderPicker.vue`: the `open` watch,
 //! `handleSearchKeydown`, `chooseOption`, `choose`; rows B2.19, B2.20, B2.42, B2.45-B2.53, B2.100-B2.103). The rows come from
-//! `folder.rs`. The path view (piece G), the clone view and the actual create and clone (piece H) are not here: their rows say so.
+//! `folder.rs`. The path view and creating a folder are `folder_path.rs`; the clone view and the actual clone (piece H) are not
+//! here: their rows say so.
 use super::folder::{self, Act, FolderOption, Inputs};
 use super::request::Folder;
 use crate::{State, Tx};
@@ -12,7 +13,39 @@ pub const SEARCH_KEY: &str = "new-session-folder-search";
 pub const CHIP: &str = "new-session-folder-chip";
 pub const POPOVER: &str = "folder";
 
-/// A create or clone that runs (`makeStatus`). Nothing starts one before pieces G and H; the rows already read it.
+/// Which of the menu's views shows (`view`); the clone view is piece H's.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum View {
+    #[default]
+    List,
+    Path,
+}
+
+/// A folder being checked, or added to the locations, before it is used (`openStatus`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Opening {
+    #[default]
+    Idle,
+    Checking,
+    Adding,
+}
+
+/// What a new folder in the path view starts as (`newKind`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum NewKind {
+    Empty,
+    #[default]
+    Git,
+}
+
+/// The server's warning about a folder that was made (`makeWarning`): the folder and the words.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Warning {
+    pub path: String,
+    pub text: String,
+}
+
+/// A create or clone that runs (`makeStatus`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Make {
     #[default]
@@ -22,6 +55,7 @@ pub enum Make {
 }
 
 pub struct FolderMenu {
+    pub view: View,
     pub query: TextEdit,
     pub highlight: usize,
     /// The Location picked in this opening; resets on each open (B2.95).
@@ -38,11 +72,21 @@ pub struct FolderMenu {
     pub clone_name: Option<String>,
     pub clone_phase: Option<String>,
     pub clone_percent: Option<u8>,
+    // The path view (B2.8-B2.10).
+    pub path: TextEdit,
+    pub path_highlight: usize,
+    pub new_kind: NewKind,
+    pub branch: TextEdit,
+    pub opening: Opening,
+    /// Why the last listing failed; stays until a later one succeeds (B2.133).
+    pub listing_error: Option<String>,
+    pub warning: Option<Warning>,
 }
 
 impl Default for FolderMenu {
     fn default() -> Self {
         FolderMenu {
+            view: View::List,
             query: TextEdit::new(""),
             highlight: 0,
             picked_root: None,
@@ -54,6 +98,13 @@ impl Default for FolderMenu {
             clone_name: None,
             clone_phase: None,
             clone_percent: None,
+            path: TextEdit::new(""),
+            path_highlight: 0,
+            new_kind: NewKind::Git,
+            branch: TextEdit::new(""),
+            opening: Opening::Idle,
+            listing_error: None,
+            warning: None,
         }
     }
 }
@@ -149,6 +200,7 @@ impl State {
             return None;
         }
         self.folder_menu.query = TextEdit::new("");
+        self.folder_menu.view = View::List;
         self.folder_menu.picked_root = None;
         self.folder_menu.root_list = false;
         self.reset_make();
@@ -174,6 +226,7 @@ impl State {
         self.folder_menu.make = Make::Idle;
         self.folder_menu.error = None;
         self.folder_menu.existing = None;
+        self.folder_menu.warning = None;
     }
 
     /// Typing (B2.42): the highlight goes back to the first row and an old failure is forgotten.
@@ -211,9 +264,9 @@ impl State {
         }
         match option.act {
             Act::Choose(folder) => self.choose_folder(folder),
-            Act::Path(_) => self.toast("The path view isn't in the native app yet (component 7, piece G).".into(), None, 4.0, tx),
+            Act::Path(text) => self.show_path(text, tx),
             Act::CloneForm => self.toast("The clone view isn't in the native app yet (component 7, piece H).".into(), None, 4.0, tx),
-            Act::Create { .. } => self.toast("Creating a folder isn't in the native app yet (component 7, piece G).".into(), None, 4.0, tx),
+            Act::Create { target, root } => self.create_folder_at(target, true, Some(root), None),
             Act::Clone { .. } => self.toast("Cloning isn't in the native app yet (component 7, piece H).".into(), None, 4.0, tx),
         }
     }
@@ -264,6 +317,26 @@ pub enum Scene {
     Nothing,
     /// A repository with a very long name chosen, the menu shut.
     LongName,
+    /// The path view (piece G), on the scratch Fleet's project folder.
+    Path(PathScene),
+    /// A name that is a folder already: the list view's Create said no (409) and offers the folder that is there.
+    Conflict,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PathScene {
+    /// Just opened on the location: Open, then what is in it.
+    Open,
+    /// A name typed in a folder that is there: Create, its options and the preview.
+    Create,
+    /// Missing folders above the name too, an empty folder chosen.
+    CreateDeep,
+    /// A character no folder name can have: the note, and no Create.
+    Invalid,
+    /// A folder that is there: Open it, nothing to create.
+    Exists,
+    /// A folder outside the locations: the line that says Fleet adds it.
+    Outside,
 }
 
 /// Scenes for the pictures: the same data the scratch Fleet of `docs/FLEET.md` serves (one repository under one location),
@@ -297,6 +370,16 @@ impl State {
                 self.folder_menu.query = TextEdit::new("zzz");
             }
             Scene::LongName => self.set_folder(Folder::Repository(format!("{ROOT}/{long}")), true),
+            Scene::Path(case) => {
+                self.begin_folder_menu();
+                self.show_path_scene(case, ROOT)
+            }
+            Scene::Conflict => {
+                self.begin_folder_menu();
+                self.folder_menu.query = TextEdit::new("clients");
+                self.folder_menu.error = Some(format!("{ROOT}/clients already exists."));
+                self.folder_menu.existing = Some(format!("{ROOT}/clients"));
+            }
         }
         // `open_folder_menu` asks the machine; a scene has none, so the data above stays.
     }

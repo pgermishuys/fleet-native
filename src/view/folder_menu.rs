@@ -2,12 +2,13 @@
 //! the path and clone views are pieces G and H). What the rows are is `fleet::new_session::folder`; what the keys do is
 //! `fleet::new_session::folder_menu`.
 use crate::fleet::new_session::folder::{self, FolderOption, Group, Mark};
-use crate::fleet::new_session::folder_menu::{CHIP, Make, SEARCH_KEY, row_key};
+use crate::fleet::new_session::folder_menu::{CHIP, Make, SEARCH_KEY, View, row_key};
 use crate::fleet::new_session::plan::tilde_path;
 use crate::fleet::new_session::request::Folder;
 use crate::icons::*;
 use crate::theme::{Theme, mono, sans};
 use crate::ui::chip::{Chip, Option_, option, pop, pop_label, pop_note, pop_separator};
+use crate::view::folder_menu_path;
 use crate::{State, Tx};
 use rune::{Align, Cursor, Cycle, El, Key, KeyEvent, ScrollSpec, Side, col, icon, row, text, text_input};
 
@@ -41,10 +42,15 @@ pub fn trigger(s: &State, t: &Theme) -> El {
         .view(t, |s: &mut State, tx: &mut Tx| s.open_folder_menu(tx))
 }
 
-fn mark(t: &Theme, o: &FolderOption, busy: bool) -> El {
+/// The spinner a row shows while its create, clone or check runs.
+pub fn spinner(t: &Theme) -> El {
     static FADE: [(f32, f32); 3] = [(0.0, 1.0), (0.5, 0.35), (1.0, 1.0)];
+    icon(&LOADER_CIRCLE, 14.0).color(t.muted).cycle(Cycle { period: 1.2, phase: 0.0, stops: &FADE, still: 1.0, fps: 30.0 })
+}
+
+fn mark(t: &Theme, o: &FolderOption, busy: bool) -> El {
     if busy {
-        return icon(&LOADER_CIRCLE, 14.0).color(t.muted).cycle(Cycle { period: 1.2, phase: 0.0, stops: &FADE, still: 1.0, fps: 30.0 });
+        return spinner(t);
     }
     let (glyph, color) = match o.mark {
         Mark::Repository => (&FOLDER_GIT_2, t.muted),
@@ -102,7 +108,7 @@ fn search(s: &State, t: &Theme) -> El {
         .child(field)
 }
 
-fn alert(t: &Theme, key: &str, words: String) -> El {
+pub fn alert(t: &Theme, key: &str, words: String) -> El {
     row()
         .key(key.to_string())
         .role("alert")
@@ -139,6 +145,7 @@ fn list(s: &State, t: &Theme) -> El {
             disabled: false,
             highlighted: i == hl,
             bold: o.title_name.clone(),
+            hint: None,
         };
         let at = i;
         c = c.child(
@@ -210,41 +217,54 @@ fn location(s: &State, t: &Theme) -> Option<El> {
     Some(c)
 }
 
+/// The server's words for a failed create, open or clone, with "Use that folder" after a 409 (B2.100-B2.102).
+pub fn make_error(s: &State, t: &Theme) -> Option<El> {
+    let error = s.folder_menu.error.as_ref()?;
+    let mut line = row()
+        .key("new-session-folder-error")
+        .role("alert")
+        .mx(8.0)
+        .mb(8.0)
+        .gap(6.0)
+        .flex_wrap()
+        .child(text(error.clone()).font(sans(12.5, 400.0, 1.4)).color(t.error_text).wrap().min_w(0.0));
+    if s.folder_menu.existing.is_some() {
+        line = line.child(
+            row()
+                .key("new-session-folder-use-existing")
+                .cursor(Cursor::Pointer)
+                .focus_ring(2.0, 0.0, t.accent)
+                .on_press(|s: &mut State| s.use_existing_folder())
+                .child(text("Use that folder").font(sans(12.5, 400.0, 1.4)).color(t.accent_text)),
+        );
+    }
+    Some(line)
+}
+
 /// The menu and what dismisses it: it opens above the chip, 6px off, its left edge on the chip's (B2.25).
 pub fn overlay(s: &State, t: &Theme) -> Vec<El> {
-    let mut body = vec![search(s, t)];
-    if let Some(c) = s.folder_invalid_char() {
-        body.push(alert(t, "new-session-folder-invalid", format!("“{c}” can't be in a folder name.")));
-    }
-    body.push(list(s, t));
-    body.extend(location(s, t));
-    if let Some(error) = &s.folder_menu.error {
-        let mut line = row()
-            .key("new-session-folder-error")
-            .role("alert")
-            .mx(8.0)
-            .mb(8.0)
-            .gap(6.0)
-            .wrap()
-            .child(text(error.clone()).font(sans(12.5, 400.0, 1.4)).color(t.error_text));
-        if s.folder_menu.existing.is_some() {
-            line = line.child(
-                row()
-                    .key("new-session-folder-use-existing")
-                    .cursor(Cursor::Pointer)
-                    .focus_ring(2.0, 0.0, t.accent)
-                    .on_press_tx(|s: &mut State, tx: &mut Tx| {
-                        s.toast("Using the folder that's there isn't in the native app yet (component 7, piece G).".into(), None, 4.0, tx)
-                    })
-                    .child(text("Use that folder").font(sans(12.5, 400.0, 1.4)).color(t.accent_text)),
-            );
-        }
-        body.push(line);
-    }
+    let body = if s.folder_menu.warning.is_some() {
+        vec![folder_menu_path::warning_panel(s, t)]
+    } else if s.folder_menu.view == View::Path {
+        folder_menu_path::path_view(s, t)
+    } else {
+        list_view(s, t)
+    };
     let panel =
         pop(t, "new-session-folder-pop", WIDTH, body).focus_return(CHIP.to_string()).modal(true, |s: &mut State| s.close_folder_menu());
     vec![
         crate::ui::overlay::scrim("new-session-folder-scrim", |s: &mut State| s.close_folder_menu()),
         crate::ui::overlay::anchored(panel, CHIP, Side::Top, Align::Start, 6.0),
     ]
+}
+
+fn list_view(s: &State, t: &Theme) -> Vec<El> {
+    let mut body = vec![search(s, t)];
+    if let Some(c) = s.folder_invalid_char() {
+        body.push(alert(t, "new-session-folder-invalid", format!("“{c}” can't be in a folder name.")));
+    }
+    body.push(list(s, t));
+    body.extend(location(s, t));
+    body.extend(make_error(s, t));
+    body
 }

@@ -857,3 +857,16 @@ workaround was needed.
 ## Opening another machine's session (component 17, piece E)
 
 Nothing new about Rune. The open session was found by index into `State::projects`; a session kept from another machine is not in that list, so `open_at()` returns `(store::ELSEWHERE, n)` for it and every reader of the open row goes through `session()`, `session_mut()` or `session_at()`. A scripted run that sends a message sends it again on every run: for pictures at two marks, use a new session per run, or the asks pile up.
+
+## New session, piece G (the folder menu's path view)
+
+- `row().wrap()` wraps the words of its text children, not the children: a line that is some text and a link needs
+  `flex_wrap()` to put the link on a second line.
+- `text_input(..).h(..)` is ignored: a box of a set height is a row of that height with the input inside it,
+  `items_center()`.
+- `TextEdit::new(..)` over a focused input drops its focus, so Enter and Tab no longer reach it; `replace_text(..)` keeps it.
+  A test that sets the text uses `replace_text`.
+- A row that arrives under the pointer takes `on_hover` at once, so a headless test that clicked a row leaves the pointer
+  there and the next list's highlight moves to the row under it: move the pointer away (`pointer_move(0, 0)`) first.
+- `focus_within_ring(1.0, -1.0, color)` on a bordered box paints an accent border while its input has focus (Fleet's
+  `:focus` border on the branch box).

@@ -504,6 +504,12 @@ pub fn list_directory(base: &str, path: &str) -> Result<(u16, String), String> {
     text_with("GET", base, &format!("/api/directories?path={}&unconstrained=true", query_value(path)), None)
 }
 
+/// `POST /api/directories` `{path, git, branch}`: makes the folder and the ones above it that are missing; with `git`, a
+/// repository with an empty first commit on `branch` (the machine's default when none).
+pub fn create_directory(base: &str, path: &str, git: bool, branch: Option<&str>) -> Result<(u16, String), String> {
+    text_with("POST", base, "/api/directories", Some(&json!({ "path": path, "git": git, "branch": branch })))
+}
+
 /// `GET /api/harnesses`, or `?fresh=true` to have the machine check every harness again first.
 pub fn harness_list(base: &str, fresh: bool) -> Result<(u16, String), String> {
     text_with("GET", base, if fresh { "/api/harnesses?fresh=true" } else { "/api/harnesses" }, None)
