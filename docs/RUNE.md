@@ -1041,3 +1041,10 @@ A context-menu row's label is one text run, so a machine's name in the mono face
 - **A panel sized to its content leaves the widest row touching the right edge**, and a `truncate()` label in it is cut to "Code..." because the panel measures rows at their minimum. `ui::menu::fit_width` estimates the width from the longest label (letters, icon, chevron, paddings) and the rows of such a panel don't truncate. A real measure-then-size would replace it.
 - **Submenus nest by key, one field per level** (`Ui::sub`, `Ui::sub2`): a row's press sets its level's field, and a press on level 0 clears level 1. Escape closes the innermost `modal` first, so each level's panel carries its own close handler.
 - **No looping rotation**: the spinner is the same slow fade as `ui::confirm::spinner`, now shared with the menu's "Detecting tools..." and "Loading..." rows.
+
+## Component 8, piece I (the Context tab)
+
+- **A `grow(1)` spacer inside a scroll column does pin a footer to the viewport's bottom** when the content is shorter than the viewport (the Context tab's footer, as Fleet's `margin-top: auto`); a longer one scrolls with it.
+- **Negative side margins (`.ml(-6.0).mr(-6.0)`) on a row in a stretched column** widen it past the column as CSS does, so a row can have its own hover padding and still line its text up with the heading.
+- **`flex_wrap()` on a row** is the only wrap switch; `justify-content: space-between` has no counterpart, so a wrapped notice's button sits at the left of its own line (Fleet's does too once it wraps).
+- **A flash is `box_shadow` with `spread` and no blur, its alpha computed from `State.clock`**, redrawn by `tx.wake_after(33 ms)` while it lasts; `scroll_into_view_in("<scroll key>", "<row key>")` scrolls the target to view.

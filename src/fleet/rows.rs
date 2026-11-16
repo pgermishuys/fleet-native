@@ -107,6 +107,8 @@ pub struct Row {
     pub last_page_shown_at: Option<String>,
     pub cost: f64,
     pub checkout_removed_at: Option<String>,
+    /// `isolationStrategy` ("existing", "worktree", ...): the Context tab's Workspace section names it unless it is "existing".
+    pub isolation: Option<String>,
     pub checkout_restoring: bool,
     /// `retentionStatus == "archived"`: the composer takes no prompt (row 1.9).
     pub archived: bool,
@@ -265,6 +267,7 @@ impl Row {
             capabilities: Capabilities::from_wire(item.get("capabilities")),
             harness_profile_name: text(item, "harnessProfileName").filter(|n| !n.is_empty()),
             checkout_removed_at: text(item, "checkoutRemovedAt"),
+            isolation: text(item, "isolationStrategy").filter(|n| !n.is_empty()),
             checkout_restoring: false,
             archived: text(item, "retentionStatus").as_deref() == Some("archived"),
             can_prompt: item.get("capabilities").and_then(|c| c.get("canPrompt")).and_then(Value::as_bool),

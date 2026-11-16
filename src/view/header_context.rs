@@ -42,7 +42,7 @@ pub fn context_chips(s: &State, t: &Theme) -> Option<El> {
 }
 
 /// `SmartLinkIcon`: the link's own icon in its state's colour; neutral until GitHub has answered.
-fn link_icon(t: &Theme, link: &crate::fleet::smart_links::SmartLink, size: f32) -> El {
+pub(super) fn link_icon(t: &Theme, link: &crate::fleet::smart_links::SmartLink, size: f32) -> El {
     let resolved = link.enrichment == Enrichment::Resolved;
     if !is_pull_request(link) {
         let state = if resolved && link.status == "closed" {

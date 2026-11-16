@@ -3,6 +3,7 @@
 use super::conversation::{Scroll, stream};
 use super::parts::tool_button;
 use crate::State;
+use crate::fleet::context_tab::PanelTab;
 use crate::icons::*;
 use crate::mock::Session;
 use crate::theme::{Theme, sans};
@@ -76,10 +77,10 @@ pub fn sheet(s: &State, t: &Theme) -> El {
     if !s.content_open {
         sheet.child(content_rail(t, session))
     } else if room >= CONTENT_MIN {
-        sheet.child(content(t, session).w(CONTENT_W.min(room)))
+        sheet.child(content(s, t, session).w(CONTENT_W.min(room)))
     } else {
         // Too narrow for a third column: the panel lies over the conversation, on the right.
-        let over = content(t, session)
+        let over = content(s, t, session)
             .w(CONTENT_W.min(s.sheet_w - 48.0))
             .fill(t.panel_bg)
             .box_shadow(Shadow {
@@ -118,7 +119,15 @@ fn content_rail(t: &Theme, session: &Session) -> El {
 
 /// The open content panel, showing the session's plan. Fleet shows files, pages and more here;
 /// the prototype only shows that the third column opens and closes.
-fn content(t: &Theme, session: &Session) -> El {
+fn content(s: &State, t: &Theme, session: &Session) -> El {
+    if s.context.tab == PanelTab::Context {
+        return col()
+            .key("content")
+            .h_full()
+            .border_sides([0.0, 0.0, 0.0, 1.0], t.border)
+            .child(panel_head(t, PanelTab::Context, None))
+            .child(super::context_tab::context_tab(s, t));
+    }
     let (steps, pending) = plan(session);
     let mut list = col().w_full().px(10.0).py(10.0).gap(2.0);
     for (done, step) in &steps {
@@ -139,21 +148,7 @@ fn content(t: &Theme, session: &Session) -> El {
     if steps.is_empty() {
         list = list.child(text("This session has no plan.").font(sans(13.0, 400.0, 1.4)).color(t.muted).px(8.0).py(6.0));
     }
-    let head = row()
-        .w_full()
-        .min_h(56.0)
-        .center_y()
-        .gap(8.0)
-        .pl(17.5)
-        .pr(12.0)
-        .border_sides([0.0, 0.0, 1.0, 0.0], t.border)
-        .child(icon(&LIST_TODO, 14.0).color(t.muted))
-        .child(text("Plan").font(sans(14.0, 600.0, 1.3)).color(t.text))
-        .child(text(format!("{pending} to do")).font(sans(12.0, 400.0, 1.4)).color(t.muted))
-        .child(spacer())
-        .child(
-            tool_button(t, "close-content", &CHEVRON_RIGHT, 14.0, "Close the panel").on_press(|s: &mut State| s.set_content_open(false)),
-        );
+    let head = panel_head(t, PanelTab::Plan, Some(pending));
     col().key("content").h_full().border_sides([0.0, 0.0, 0.0, 1.0], t.border).child(head).child(list)
 }
 
@@ -173,4 +168,40 @@ fn plan(session: &Session) -> (Vec<(bool, &'static str)>, usize) {
     };
     let pending = steps.iter().filter(|(done, _)| !done).count();
     (steps, pending)
+}
+
+/// The strip at the top of the panel. Component 10 builds Fleet's real one (`CanvasHost`); until then it holds the two tabs
+/// there are, and the button that closes the panel.
+fn panel_head(t: &Theme, active: PanelTab, pending: Option<usize>) -> El {
+    let tab = |key: &'static str, glyph: &'static rune::Icon, label: &str, which: PanelTab| {
+        let on = active == which;
+        row()
+            .key(key)
+            .role("tab")
+            .label(label.to_string())
+            .gap(6.0)
+            .center_y()
+            .h_full()
+            .px(2.0)
+            .cursor(Cursor::Pointer)
+            .border_sides([0.0, 0.0, 2.0, 0.0], if on { t.accent } else { Color::TRANSPARENT })
+            .on_press(move |s: &mut State| s.set_panel_tab(which))
+            .child(icon(glyph, 14.0).color(if on { t.text } else { t.muted }))
+            .child(text(label.to_string()).font(sans(14.0, 600.0, 1.3)).color(if on { t.text } else { t.muted }))
+    };
+    let mut head = row()
+        .w_full()
+        .h(56.0)
+        .center_y()
+        .gap(14.0)
+        .pl(17.5)
+        .pr(12.0)
+        .border_sides([0.0, 0.0, 1.0, 0.0], t.border)
+        .child(tab("content-tab-plan", &LIST_TODO, "Plan", PanelTab::Plan))
+        .child(tab("content-tab-context", &PAPERCLIP, "Context", PanelTab::Context));
+    if let Some(pending) = pending {
+        head = head.child(text(format!("{pending} to do")).font(sans(12.0, 400.0, 1.4)).color(t.muted));
+    }
+    head.child(spacer())
+        .child(tool_button(t, "close-content", &CHEVRON_RIGHT, 14.0, "Close the panel").on_press(|s: &mut State| s.set_content_open(false)))
 }
