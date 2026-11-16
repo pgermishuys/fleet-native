@@ -1,0 +1,83 @@
+//! Ports the chips under the New session box (`NewSessionComposer.vue`'s `.new-session__strip`, rows A11, B11.17): the
+//! machine chip, a separator, the folder chip, and the workspace, base and "…" chips as their pieces land. Each chip is
+//! `ui::chip::Chip`; what a chip opens is its picker's piece (the toast says which until it is built).
+use crate::fleet::new_session::request::{Folder, Workspace};
+use crate::icons::*;
+use crate::theme::{Theme, mono, sans};
+use crate::ui::chip::Chip;
+use crate::{State, Tx};
+use rune::{El, el, row, text};
+
+/// `.new-session__strip-separator`: 1 by 14, `--border`, 3px either side.
+fn separator(t: &Theme) -> El {
+    el().w(1.0).h(14.0).mx(3.0).fill(t.border)
+}
+
+/// The machine chip (`MachinePicker.vue`): a 7px dot in `--running` (`--error` when it can't be reached), the machine's name
+/// in the UI font at 13px, a chevron. Its menu is piece K's.
+fn machine(s: &State, t: &Theme) -> El {
+    let down = s.target_is_down();
+    let chip = Chip::new("new-session-machine", s.target_name())
+        .dot(if down { t.error } else { t.running })
+        .label_font(sans(13.0, 500.0, 1.2))
+        .disabled(starting(s));
+    let chip = if down { chip.ink(t.error_text) } else { chip };
+    chip.view(t, |s: &mut State, tx: &mut Tx| {
+        s.toast("The machine menu isn't in the native app yet (component 7, piece K).".into(), None, 4.0, tx);
+    })
+}
+
+/// The folder chip (`FolderPicker.vue`'s trigger): a mark for the kind of folder, its name, a chevron; the accent-tinted
+/// border while nothing is chosen. Its menu is pieces F-H.
+fn folder(s: &State, t: &Theme) -> El {
+    let chosen = s.new_draft.draft().and_then(|d| d.folder.as_ref());
+    let glyph = match chosen {
+        Some(Folder::None) => &MESSAGE_SQUARE,
+        Some(Folder::Directory(_)) => &FOLDER,
+        _ => &FOLDER_GIT_2,
+    };
+    let path = match chosen {
+        Some(Folder::Repository(p) | Folder::Directory(p)) => Some(p.clone()),
+        _ => None,
+    };
+    Chip::new("new-session-folder-chip", s.folder_label(chosen))
+        .glyph(glyph)
+        .attention(chosen.is_none())
+        .help(path)
+        .disabled(starting(s))
+        .view(t, |s: &mut State, tx: &mut Tx| {
+            s.toast("The folder menu isn't in the native app yet (component 7, pieces F-H).".into(), None, 4.0, tx);
+        })
+}
+
+fn starting(s: &State) -> bool {
+    s.new_draft.draft().is_some_and(|d| d.is_starting)
+}
+
+/// `.new-session__strip`: wraps, 2px apart, `6px 4px 0`.
+pub fn strip(s: &State, t: &Theme) -> El {
+    let chips = s.strip_chips();
+    let mut r = row().key("new-session-strip").w_full().wrap().items_center().gap(2.0).px(4.0).pt(6.0);
+    if chips.machine {
+        r = r.child(machine(s, t)).child(separator(t));
+    }
+    r.child(folder(s, t))
+}
+
+/// `.new-session__plan`: what Enter will do, in one muted 12px line under the chips (`min-height: 22px`, `4px 11px 0`); a path
+/// or branch is mono 11.5px in `--text`, a warning in the waiting colour. Piece E draws the line from the folder alone
+/// ("Machine and folder" until one is chosen); the branch and worktree details come with the pickers (pieces I, L).
+pub fn plan_line(s: &State, t: &Theme) -> El {
+    use crate::fleet::new_session::plan::{PlanInput, describe_new_session};
+    let draft = s.new_draft.draft();
+    let input = PlanInput::new(draft.and_then(|d| d.folder.clone()), draft.map(|d| d.workspace.clone()).unwrap_or(Workspace::New));
+    let mut line = row().key("new-session-plan").w_full().wrap().items_center().min_h(22.0).px(11.0).pt(4.0);
+    for part in describe_new_session(&input) {
+        line = line.child(if part.code {
+            text(part.text).font(mono(11.5, 400.0, 1.5)).color(t.text)
+        } else {
+            text(part.text).font(sans(12.0, 400.0, 1.5)).color(if part.warn { t.status_waiting_text } else { t.muted })
+        });
+    }
+    line
+}

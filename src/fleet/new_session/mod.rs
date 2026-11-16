@@ -11,6 +11,8 @@ pub mod page;
 pub mod pattern;
 pub mod plan;
 pub mod request;
+pub mod starters;
+pub mod strip;
 
 #[cfg(test)]
 mod tests;

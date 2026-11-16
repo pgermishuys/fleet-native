@@ -23,7 +23,7 @@ pub fn page(s: &State, t: &Theme) -> El {
         .clip_rounded(12.0)
         .child(header(t))
         .child(stage(s, t))
-        .child(box_slot());
+        .child(composer(s, t));
     for shadow in t.sheet_shadows() {
         page = page.box_shadow(shadow);
     }
@@ -55,10 +55,11 @@ fn header(t: &Theme) -> El {
 }
 
 /// `.new-session__stage` with its `.new-session__empty` block, centred both ways.
-fn stage(_s: &State, t: &Theme) -> El {
-    // Piece E decides between the starters line and this one (A1.10, A1.11); with no preferences read yet it is this one.
-    let sub = "Type below. The chips under the box say where it runs.";
-    let empty = col()
+fn stage(s: &State, t: &Theme) -> El {
+    // The starters line while they show (A1.10), else the line that points at the chips (A1.11).
+    let starters = s.starters_visible();
+    let sub = if starters { "Type below, or start from one of these." } else { "Type below. The chips under the box say where it runs." };
+    let mut empty = col()
         .key("new-session-empty")
         .w_full()
         .max_w(640.0)
@@ -66,11 +67,21 @@ fn stage(_s: &State, t: &Theme) -> El {
         .gap(4.0)
         .child(text("What should we work on?").font(sans(17.0, 600.0, 1.3).tracking(-0.17)).color(t.text))
         .child(text(sub).font(sans(13.5, 400.0, 1.4)).color(t.muted).align(rune::Align::Center).wrap().w_full());
+    if starters {
+        empty = empty.child(super::starters::line(s, t));
+    }
     col().key("new-session-stage").w_full().grow(1.0).min_h(0.0).center().px(24.0).pt(20.0).pb(8.0).child(empty)
 }
 
-/// Where the strip and the message box go (A1.15): about the height Fleet's empty box and chips take, so the stage's centre
-/// is where it will be.
-fn box_slot() -> El {
-    el().key("new-session-box").w_full().h(118.0 + 24.0)
+/// `.new-session__composer`: `4px 24px 18px`, its children at most 760 wide and centred. The message box (piece L) and the plan
+/// line (L) are blank slots of about their height, so the stage's centre sits where Fleet's does once they exist (A1.15).
+fn composer(s: &State, t: &Theme) -> El {
+    col().key("new-session-box").w_full().items_center().px(24.0).pt(4.0).pb(18.0).child(
+        col()
+            .w_full()
+            .max_w(COMPOSER_W)
+            .child(el().key("new-session-box-slot").w_full().h(66.0))
+            .child(super::new_session_strip::strip(s, t))
+            .child(super::new_session_strip::plan_line(s, t)),
+    )
 }
