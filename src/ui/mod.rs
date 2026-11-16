@@ -199,6 +199,9 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
     if let Some(export) = crate::view::export::dialog(s, t) {
         layer.extend(export);
     }
+    if let Some(report) = crate::view::report::dialog(s, t) {
+        layer.extend(report);
+    }
     if let Some(update) = crate::view::update::dialog(s, t) {
         layer.extend(update);
     }

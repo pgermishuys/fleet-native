@@ -23,6 +23,7 @@ pub mod machines_page;
 pub mod pages;
 pub mod parts;
 pub mod questions;
+pub mod report;
 pub mod ring;
 pub mod rows;
 pub mod rules;

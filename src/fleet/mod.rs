@@ -84,6 +84,7 @@ pub mod reducer;
 pub mod references;
 pub mod refresh;
 pub mod report;
+pub mod report_form;
 pub mod repositories;
 pub mod retry;
 pub mod right_panel;

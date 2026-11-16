@@ -101,6 +101,8 @@ mod tests_rails;
 #[cfg(test)]
 mod tests_report;
 #[cfg(test)]
+mod tests_report_describe;
+#[cfg(test)]
 mod tests_right_panel;
 #[cfg(test)]
 mod tests_row_actions;
@@ -393,6 +395,8 @@ pub struct State {
     pub export: fleet::export::Export,
     /// Help → Report a problem: whether it is open and what its requests said.
     pub report: fleet::report::ReportState,
+    /// What Describe holds: the typed text, the ticked parts, the screenshot.
+    pub report_form: fleet::report_form::ReportForm,
     /// A newer build to install: the status bar's item and its dialog (`update`).
     pub update: update::Update,
     /// The harness setup wizard (component 7, piece N).
@@ -583,6 +587,7 @@ impl Default for State {
             gallery: false,
             export: Default::default(),
             report: Default::default(),
+            report_form: Default::default(),
             update: Default::default(),
             harness_setup: Default::default(),
             repos_page: Default::default(),
@@ -779,9 +784,10 @@ impl State {
         !self.composer_disabled() && composer::status::can_interrupt(self.composer_status(), aborting)
     }
 
-    /// Report this: the problem-report dialog is not in the native app yet (component 17 of the port).
-    pub fn report_turn_failure(&mut self, _summary: &str, tx: &mut Tx) {
-        self.toast("The problem report isn't in the native app yet.".into(), None, 4.0, tx);
+    /// Report this (`reportTurnFailure`): Report a problem about this session, its description starting with what the card says.
+    pub fn report_turn_failure(&mut self, summary: &str, _: &mut Tx) {
+        let text = format!("This turn stopped early: {summary}\n\n");
+        self.report_open(fleet::report::Source::Failure, self.open_id(), &text);
     }
 
     /// A scene: the open session's composer holds `text` (put in the drafts, which the first frame reads back).
@@ -3201,6 +3207,21 @@ pub fn spec() -> AppSpec<State> {
             ("kit-alert-light", |s| ui::scenes::set(s, "kit-alert", false)),
             ("kit-sheet", |s| ui::scenes::set(s, "kit-sheet", true)),
             ("kit-sheet-light", |s| ui::scenes::set(s, "kit-sheet", false)),
+            ("report-describe", |s| s.show_report(mock::report::Case::Fresh)),
+            ("report-describe-light", |s| {
+                s.dark = Some(false);
+                s.show_report(mock::report::Case::Fresh)
+            }),
+            ("report-describe-filled", |s| s.show_report(mock::report::Case::Filled)),
+            ("report-describe-filled-light", |s| {
+                s.dark = Some(false);
+                s.show_report(mock::report::Case::Filled)
+            }),
+            ("report-describe-noshot", |s| s.show_report(mock::report::Case::NoShot)),
+            ("report-describe-noshot-light", |s| {
+                s.dark = Some(false);
+                s.show_report(mock::report::Case::NoShot)
+            }),
         ],
         fonts: &[include_bytes!("../assets/fonts/InterVariable.ttf"), include_bytes!("../assets/fonts/JetBrainsMono-Variable.ttf")],
         families: ("Inter", "JetBrains Mono"),

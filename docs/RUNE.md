@@ -1210,6 +1210,16 @@ in Rune stops a drop in the wrong tree. Nothing in Rune got in the way otherwise
 - A grid with `minmax(70px, 1fr)` is a `grow(1).min_w(70)` cell next to fixed-width ones; let its text `wrap()` as the browser does.
 - A button inside a stretched column fills the width: wrap it in a `row()` to keep its own width.
 
+## Component 9, piece Q (Report a problem: Describe and the screenshot)
+
+- **A running app can't take its own picture.** Rune renders a window's frame on the GPU and exposes no call that returns it to the app
+  (`--snap` and `--script` do it from outside; `on_frame_drawn` gives the element tree, not pixels; `Offscreen::read` is for Rune's own
+  renderer). Smallest case: in a handler, get the RGBA of the window as last drawn. So Report a problem ships "Couldn't take a screenshot"
+  (`fleet::report_form::grab_frame` returns `None`) and the rest of the path works from a picture handed in.
+- A flex column with only a `max_h` has no definite height, so a child with `grow(1.0)` gets 0: put the `max_h` on the scrolling child itself
+  (the window's limit less the header and footer).
+- A scrim's middle is under the dialog: a test that closes by the scrim must press its corner, not `rt.find("…-overlay")`.
+
 ## Component 9, piece P (Report a problem: data and requests)
 
 - Nothing in Rune got in the way: it is plain Rust. A request that returns a file (`/api/reports/file`) needs the response's
