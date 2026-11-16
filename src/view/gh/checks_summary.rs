@@ -19,12 +19,18 @@ pub fn checks_summary(t: &Theme, key: &str, counts: CheckCounts, bar_only: bool)
         summary = summary.child(
             row()
                 .w_full()
+                .flex_wrap()
                 .center_y()
                 .gap(8.0)
                 .child(check_icon(t, icon, 14.0))
                 .child(text(checks_headline(state)).font(sans(12.5, 500.0, 1.3)).color(t.text))
-                .child(el().grow(1.0))
-                .child(text(check_count_words(counts)).font(sans(11.5, 400.0, 1.3).features("'tnum' 1")).color(t.muted)),
+                // `margin-left: auto`: right-aligned, and onto a line of its own when the headline leaves no room.
+                .child(
+                    row()
+                        .grow(1.0)
+                        .justify_end()
+                        .child(text(check_count_words(counts)).font(sans(11.5, 400.0, 1.3).features("'tnum' 1")).color(t.muted)),
+                ),
         );
     }
     if total > 0 {

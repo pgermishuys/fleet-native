@@ -1,6 +1,6 @@
 //! The header's context chips and the pull request pill's trigger (ports `SessionContextChips.vue` and the trigger of
 //! `PullRequestPill.vue`, rows 10.x and 11.1 of docs/parity/08-session-header-and-context.md). What they say comes from
-//! `fleet::context_chips`; this file only draws it. The pill's popover is piece H's.
+//! `fleet::context_chips`; this file only draws it. The pill's popover is `pr_popover`.
 //!
 //! Nothing here knows GitHub: the chips draw generic smart links, and a pull request is whatever has `resource_type` "pull_request".
 use super::gh::{CheckKind, ItemKind, check_icon, item_icon};
@@ -151,7 +151,8 @@ fn pill_trigger(t: &Theme, p: &Pill) -> El {
         .hover(t.wash(4.0))
         .cursor(Cursor::Pointer)
         .help(p.description.clone())
-        .label(p.description.clone());
+        .label(p.description.clone())
+        .on_press(|s: &mut State| s.ui.open = Some(crate::ui::Open::Popover("pr")));
     frame = frame.clip_rounded(RADIUS_BTN).child(number);
     if p.resolved {
         let mut words = row().key("session-pr-words").center_y().gap(5.0).px(8.0).shrink().min_w(0.0);

@@ -1011,3 +1011,8 @@ A context-menu row's label is one text run, so a machine's name in the mono face
 - **A headless app seeds invented harness lists and preferences**; a test of the first-launch rule clears `feeds.harnesses` and `pickers.prefs` before connecting, or the rule sees the invented ones as already read.
 - **A disabled button drawn with `opacity(0.5)` animates in**: a test that reads `ElementInfo.opacity` runs about 30 frames after the change first.
 - **`text(..)` is centred with `.align(Align::Center)`** (there is no `text_center`), and needs `.wrap()` and a width to centre across lines.
+## Component 8, piece H (the pull request popover)
+
+- A row that wraps (`flex_wrap`) with a `grow(1)` row holding right-aligned text is `margin-left: auto` that drops onto its own line when the headline leaves no room; a spacer `el().grow(1.0)` doesn't, it stays on the first line and the text overflows.
+- A disabled element still takes a test's `click`, so a "sent" or "sending" guard belongs in the state's method, not only in `.disabled(true)`.
+- `rt.find(key)` gives only a position; read an element's label with `rt.elements()` and its `label`.
