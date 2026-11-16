@@ -15,6 +15,8 @@ mod test_wait;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
+mod tests_add_machine;
+#[cfg(test)]
 mod tests_archive_pins;
 #[cfg(test)]
 mod tests_archived;
@@ -116,6 +118,7 @@ pub mod view;
 use conv::tools::ToolStatus;
 use fleet::link::{Connection, Link, Post};
 use fleet::model::StreamState;
+use mock::machines_page::AddCase;
 use mock::{Project, Session, Status};
 use rune::{App, AppSpec, Image, ImageCache, Key, KeyEvent, TextEdit, Tx};
 use view::conversation::{Message, Older, Part};
@@ -1999,6 +2002,16 @@ pub fn spec() -> AppSpec<State> {
             // Piece M: how a machine is reached.
             ("machines-page-addresses", |s| s.show_machines_page_addresses(true)),
             ("machines-page-addresses-light", |s| s.show_machines_page_addresses(false)),
+            // Piece K: the Add a machine form.
+            ("add-machine", |s| s.show_add_machine(true, AddCase::Empty)),
+            ("add-machine-light", |s| s.show_add_machine(false, AddCase::Empty)),
+            ("add-machine-found", |s| s.show_add_machine(true, AddCase::Found)),
+            ("add-machine-found-light", |s| s.show_add_machine(false, AddCase::Found)),
+            ("add-machine-error", |s| s.show_add_machine(true, AddCase::Refused)),
+            ("add-machine-error-light", |s| s.show_add_machine(false, AddCase::Refused)),
+            ("add-machine-address", |s| s.show_add_machine(true, AddCase::Address)),
+            ("add-machine-token", |s| s.show_add_machine(true, AddCase::Token)),
+            ("add-machine-added", |s| s.show_add_machine(true, AddCase::Added)),
             // Piece F: another machine's rows renamed and the row menu.
             ("machine-row-rename", |s| s.show_machine_row_rename(true)),
             ("machine-row-rename-light", |s| s.show_machine_row_rename(false)),

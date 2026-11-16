@@ -9,7 +9,7 @@ use crate::theme::{RADIUS_BTN, RADIUS_CARD, RADIUS_PANEL, Theme, mono, sans};
 use crate::ui::button::{Size, Variant, button};
 use crate::ui::rem;
 use crate::{State, Tx};
-use rune::{Cursor, El, ScrollSpec, col, icon, row, text};
+use rune::{Cursor, El, ScrollSpec, col, el, icon, row, text};
 
 /// `SettingGroup`: the title (and a hint on the right) over one bordered card of rows divided by rules.
 fn group(t: &Theme, key: &str, title: &str, hint: Option<&str>, rows: Vec<El>) -> El {
@@ -243,13 +243,22 @@ fn access_group(s: &State, t: &Theme) -> El {
 pub fn page(s: &State, t: &Theme) -> El {
     let add = button(t, Variant::Default, Size::Default, Some(&PLUS), "Add a machine")
         .key("machines-add")
-        .on_press(|s: &mut State| s.add_machine());
+        .on_press_tx(|s: &mut State, tx: &mut Tx| s.open_add_form(tx));
+    let form = &s.machine_page.add;
+    // The button is gone while the form is open (`v-if="!showAddForm"`).
+    let control = if form.open { el().size(0.0, 0.0) } else { add };
     let mut rows = vec![setting_row(
         t,
         "Add a machine",
         "Every machine runs its own Fleet and keeps its own sessions, repositories and sign-ins. A session stays on the machine it started on. The sessions list shows them all; the one you're working in is live.",
-        add,
+        control,
     )];
+    if form.open {
+        rows.push(super::add_machine::form(s, t));
+    }
+    if let Some(name) = &form.added {
+        rows.push(super::add_machine::added(t, name));
+    }
     rows.extend(s.machine_cards().iter().map(|c| card(s, t, c)));
     let header = col().gap(4.0).child(text("Machines").font(sans(21.0, 600.0, 1.33).tracking(-0.525)).color(t.text)).child(
         text("The machines you work on, phones and devices, and the access token.").font(sans(rem(0.875), 400.0, 1.43)).color(t.muted),

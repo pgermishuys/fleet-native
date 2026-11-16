@@ -130,6 +130,69 @@ impl State {
     }
 }
 
+/// Which state of the Add a machine form a scene shows.
+#[derive(Clone, Copy)]
+pub enum AddCase {
+    Empty,
+    Found,
+    Refused,
+    Address,
+    Token,
+    Added,
+}
+
+impl State {
+    /// The Add a machine form open on the page, in one of its states. The link is an invented one.
+    pub fn show_add_machine(&mut self, dark: bool, case: AddCase) {
+        use crate::fleet::machine_diagnosis::Diagnosis;
+        use crate::fleet::pairing::{Failure, Preview};
+        use rune::TextEdit;
+        self.show_machines_page(dark, false);
+        let form = &mut self.machine_page.add;
+        form.open = true;
+        let link = "http://100.64.90.72:2113/add-machine#K7QM-R2XD";
+        let found =
+            Preview { name: "kestrel".into(), os: "linux".into(), version: "0.72.0".into(), base_url: "http://100.64.90.72:2113".into() };
+        match case {
+            AddCase::Empty => form.link.focused = true,
+            AddCase::Found => {
+                form.link = TextEdit::new(link.to_string());
+                form.found = Some(found);
+            }
+            AddCase::Refused => {
+                form.link = TextEdit::new(link.to_string());
+                form.found = Some(found);
+                form.error = Some(Failure {
+                    message: "That code has expired or was already used. Run fleet node pair on the other machine for a new one.".into(),
+                    diagnosis: Diagnosis::from_json(&json!({
+                        "code": "pairing-code", "headline": "That code was turned away", "try": "running fleet node pair on kestrel for a new one.",
+                        "steps": [
+                            { "label": "Name found", "state": "ok" }, { "label": "Machine answers", "state": "ok" },
+                            { "label": "Port answers", "state": "ok" }, { "label": "It's Fleet", "state": "ok" },
+                            { "label": "Version fits", "state": "ok" },
+                            { "label": "Key accepted", "state": "failed", "detail": "The code is unknown, expired or used." },
+                        ],
+                    })),
+                });
+            }
+            AddCase::Address => {
+                form.link = TextEdit::new("100.64.90.72:2113".to_string());
+                form.code.focused = true;
+                form.looking = true;
+            }
+            AddCase::Token => {
+                form.link = TextEdit::new("100.64.90.72:2113".to_string());
+                form.advanced = true;
+            }
+            AddCase::Added => form.added = Some("kestrel".into()),
+        }
+        form.mark_looked();
+        if matches!(case, AddCase::Added) {
+            form.open = false;
+        }
+    }
+}
+
 /// An identity with harnesses, for a test that checks a machine that isn't answering shows none of it.
 #[cfg(test)]
 pub fn info_for_tests(id: &str, name: &str) -> Info {

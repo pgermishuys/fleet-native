@@ -120,7 +120,7 @@ impl Fake {
 
 pub(crate) struct Rig {
     pub(crate) rt: Rt,
-    jobs: Receiver<Job>,
+    pub(crate) jobs: Receiver<Job>,
 }
 
 impl Rig {

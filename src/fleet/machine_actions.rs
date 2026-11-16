@@ -101,6 +101,8 @@ pub struct Page {
     /// Which cards have Details open.
     pub details: Vec<String>,
     pub access: AccessState,
+    /// The Add a machine form (piece K).
+    pub add: super::pairing::AddForm,
     pub show_token: bool,
     pub replacing: bool,
     /// Which copy button shows its tick, and until when.
@@ -410,8 +412,8 @@ impl State {
     }
 
     /// The poll's turn: the page's visit and the tick, which ends by itself. True when something drawn changed.
-    pub fn keep_machine_page(&mut self, now: f64, _tx: &mut Tx) -> bool {
-        let mut changed = self.keep_machines_page_open();
+    pub fn keep_machine_page(&mut self, now: f64, tx: &mut Tx) -> bool {
+        let mut changed = self.keep_machines_page_open() | self.keep_add_form(tx);
         if self.machine_page.copied.as_ref().is_some_and(|(_, until)| now >= *until) {
             self.machine_page.copied = None;
             changed = true;
