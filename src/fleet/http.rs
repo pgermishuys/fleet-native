@@ -325,6 +325,21 @@ pub fn permissions(base: &str, session: &str) -> Result<(u16, Value), String> {
     status_of("GET", base, &format!("/api/sessions/{session}/permissions"))
 }
 
+/// `GET /api/sessions/{id}/permission-rules`: what "Don't ask again" allowed in the session (`use-session-permission-rules.ts`).
+pub fn rules(base: &str, session: &str) -> Result<(u16, Value), String> {
+    status_of("GET", base, &format!("/api/sessions/{session}/permission-rules"))
+}
+
+/// `DELETE /api/sessions/{id}/permission-rules/{ruleId}`: removes one rule.
+pub fn rule_remove(base: &str, session: &str, rule: &str) -> Result<(u16, Value), String> {
+    status_of("DELETE", base, &format!("/api/sessions/{session}/permission-rules/{rule}"))
+}
+
+/// `DELETE /api/sessions/{id}/permission-rules`: removes every rule of the session.
+pub fn rules_remove_all(base: &str, session: &str) -> Result<(u16, Value), String> {
+    status_of("DELETE", base, &format!("/api/sessions/{session}/permission-rules"))
+}
+
 /// `POST /api/sessions/{id}/permissions/{ask}`: answers one ask; `message` is what Deny tells the agent.
 pub fn reply(base: &str, session: &str, ask: &str, reply: &str, message: Option<&str>) -> Result<(u16, Value), String> {
     let body = json!({ "reply": reply, "message": message });

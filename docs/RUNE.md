@@ -783,3 +783,14 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 - **Nothing here needed Rune.** `State` already had a `draft` (the composer's text), so the page's draft is `State::new_draft`.
 - **One settings file, one writer**: remembered choices went into `settings::Sidebar` rather than a second file, so the existing ordered, whole-file write covers them.
 
+
+## Component 4, piece E (the Allowed chip and list)
+
+- **One `rich` text does a mixed-weight wrapping line**: Fleet's rule row is words, an inline `<code>` and words that wrap anywhere.
+  `rich(content, vec![Span::new(a, b).mono().size(..)])` with `.wrap()` draws it in one element, and `ElementInfo.text` reads back the
+  whole sentence, so a test compares "Run bun test* without asking".
+- **A fade over time is the app's clock, not Rune's**: `allowed-flash` (35% accent fading to none in 0.9 s) is drawn from
+  `State.clock` in the view and kept redrawing by `poll` (`wake_after` 33 ms) until it has run. Rune's `Cycle` and transitions animate
+  opacity of an element, not a background colour to nothing. Reduced motion is not read anywhere yet (the same gap as the other fades).
+- **The popover gap is a parameter of `anchored`, not of `dialog::popover`** (which fixes 4 px): the chip's `side-offset 8` builds its
+  own card with `lift` and `anchored(.., 8.0)`.

@@ -138,6 +138,12 @@ impl Theme {
         self.idle
     }
 
+    /// `var(--warning, #b45309)`: weave-fleet's main.css defines no `--warning`, so Fleet always draws the fallback. It tints
+    /// an Allowed rule that covers every use of a tool.
+    pub fn warning(&self) -> Color {
+        c("#b45309")
+    }
+
     /// `--diff-add` (`var(--running)`) and `--diff-del` (`var(--error)`): the fill of an added and a removed line.
     pub fn diff_add(&self) -> Color {
         self.running

@@ -46,6 +46,7 @@ pub mod retry;
 pub mod row_chips;
 pub mod row_status;
 pub mod rows;
+pub mod rules;
 pub mod scroll;
 pub mod selector;
 pub mod sessions;

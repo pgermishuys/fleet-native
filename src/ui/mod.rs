@@ -2,6 +2,7 @@
 //! control; every colour comes from `theme.rs`. Controls are functions that return elements;
 //! overlays (menus, selects, popovers, dialogs, the palette) are mounted once, at the root, from
 //! `Ui::open`, anchored to the key of the element that opened them.
+pub mod age;
 pub mod button;
 pub mod commands;
 pub mod confirm;
@@ -114,6 +115,7 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
         Some(Open::ProjectMenu(p)) => menus::project_context(s, t, p),
         Some(Open::Select(name)) => gallery::select_content(s, t, name),
         Some(Open::Popover("context")) => crate::view::ring_popover::overlay(s, t),
+        Some(Open::Popover("allowed")) => crate::view::allowed::overlay(s, t),
         Some(Open::Popover(name)) => gallery::popover_content(s, t, name),
         Some(Open::Directory) => directory_picker::view(s, t, "g-dir"),
         Some(Open::Dialog) => gallery::dialog(s, t),

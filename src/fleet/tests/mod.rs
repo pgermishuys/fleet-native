@@ -509,6 +509,7 @@ mod references;
 mod refresh;
 mod row_status;
 mod rows;
+mod rules;
 mod scroll;
 mod selector;
 mod settings;
