@@ -43,6 +43,7 @@ pub mod new_session_strip;
 pub mod pagepick;
 mod parts;
 pub mod permission;
+pub mod pr_popover;
 pub mod profile_picker;
 pub mod progress_ring;
 pub mod project_dialogs;

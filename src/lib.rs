@@ -59,6 +59,8 @@ mod tests_pages;
 #[cfg(test)]
 mod tests_panel;
 #[cfg(test)]
+mod tests_pr_popover;
+#[cfg(test)]
 mod tests_project;
 #[cfg(test)]
 mod tests_questions;
@@ -142,6 +144,8 @@ pub struct State {
     pub selection: fleet::selection::Selection,
     /// The header's own edits: its title, a tag being typed, "Copied", a checkout being put back.
     pub head: fleet::header_actions::HeaderUi,
+    /// The Send to agent buttons' own state (`fleet::send_to_agent`).
+    pub agent_sends: fleet::send_to_agent::SendToAgent,
     /// What the window shows: the open session by its id, so a refetch, a filter or a pin doesn't move it.
     pub route: fleet::store::Route,
     /// The list's own state beyond its rows: loading, error, the request in flight, sessions opened from other machines.
@@ -372,6 +376,7 @@ impl Default for State {
             pins: Default::default(),
             selection: Default::default(),
             head: Default::default(),
+            agent_sends: Default::default(),
             route: fleet::store::Route::Session(fleet::store::invented_id(0, 0)),
             store: Default::default(),
             filter: TextEdit::new(""),
@@ -1646,6 +1651,23 @@ pub fn spec() -> AppSpec<State> {
             ("context-automation-light", |s| s.show_chips(mock::context::Case::Automation, false)),
             ("context-overflow", |s| s.show_chips(mock::context::Case::Overflow, true)),
             ("context-overflow-light", |s| s.show_chips(mock::context::Case::Overflow, false)),
+            // Component 8, piece H: the pull request popover and Send to agent.
+            ("pr-popover-blocked", |s| s.show_popover(mock::context::Case::PopBlocked, true, mock::context::Pop::Plain)),
+            ("pr-popover-blocked-light", |s| s.show_popover(mock::context::Case::PopBlocked, false, mock::context::Pop::Plain)),
+            ("pr-popover-checks", |s| s.show_popover(mock::context::Case::PopChecks, true, mock::context::Pop::Plain)),
+            ("pr-popover-checks-light", |s| s.show_popover(mock::context::Case::PopChecks, false, mock::context::Pop::Plain)),
+            ("pr-popover-review", |s| s.show_popover(mock::context::Case::PopReview, true, mock::context::Pop::Plain)),
+            ("pr-popover-review-light", |s| s.show_popover(mock::context::Case::PopReview, false, mock::context::Pop::Plain)),
+            ("pr-popover-merged", |s| s.show_popover(mock::context::Case::PopMerged, true, mock::context::Pop::Plain)),
+            ("pr-popover-merged-light", |s| s.show_popover(mock::context::Case::PopMerged, false, mock::context::Pop::Plain)),
+            ("pr-popover-ready", |s| s.show_popover(mock::context::Case::PopReady, true, mock::context::Pop::Plain)),
+            ("pr-popover-ready-light", |s| s.show_popover(mock::context::Case::PopReady, false, mock::context::Pop::Plain)),
+            ("pr-popover-sending", |s| s.show_popover(mock::context::Case::PopBlocked, true, mock::context::Pop::Sending)),
+            ("pr-popover-sending-light", |s| s.show_popover(mock::context::Case::PopBlocked, false, mock::context::Pop::Sending)),
+            ("pr-popover-sent", |s| s.show_popover(mock::context::Case::PopBlocked, true, mock::context::Pop::Sent)),
+            ("pr-popover-sent-light", |s| s.show_popover(mock::context::Case::PopBlocked, false, mock::context::Pop::Sent)),
+            ("pr-popover-error", |s| s.show_popover(mock::context::Case::PopBlocked, true, mock::context::Pop::Error)),
+            ("pr-popover-error-light", |s| s.show_popover(mock::context::Case::PopBlocked, false, mock::context::Pop::Error)),
             ("header-glyph", |s| s.show_header(mock::header::Case::Retry, true, false)),
             ("header-glyph-light", |s| s.show_header(mock::header::Case::Retry, false, false)),
             ("header-rename", |s| {
