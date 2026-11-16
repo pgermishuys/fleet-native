@@ -82,7 +82,7 @@ fn serve(stream: std::net::TcpStream, log: Log, gate: Arc<AtomicBool>, answer: A
     let body: Value = serde_json::from_slice(&raw).unwrap_or(Value::Null);
     let mut parts = head.lines().next().unwrap_or("").split(' ');
     let (method, path) = (parts.next().unwrap_or("").to_string(), parts.next().unwrap_or("").to_string());
-    let (status, text) = if path.starts_with("/api/sessions/") && !path.contains("negotiate") {
+    let (status, text) = if (path.starts_with("/api/sessions/") && !path.contains("negotiate")) || path.starts_with("/api/projects/") {
         log.lock().unwrap().push((method.clone(), path.clone(), body, token));
         while path.ends_with("/retention") && gate.load(Ordering::SeqCst) {
             std::thread::sleep(std::time::Duration::from_millis(5));

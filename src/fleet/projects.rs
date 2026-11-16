@@ -122,6 +122,8 @@ pub struct DeleteDialog {
     pub count: usize,
     pub mode: DeleteMode,
     pub deleting: bool,
+    /// The machine the project is on, when it isn't home's.
+    pub machine: Option<String>,
 }
 
 impl Projects {
@@ -274,7 +276,63 @@ impl State {
             count,
             mode: DeleteMode::MoveToScratch,
             deleting: false,
+            machine: None,
         });
+    }
+
+    /// The ids of another machine's groups that can be ordered, in the order it shows them.
+    fn machine_orderable(&self, machine: &str) -> Vec<String> {
+        let Some(held) = self.machines.others.get(machine) else { return Vec::new() };
+        let mut projects: Vec<&super::groups::ProjectInfo> = held.projects.iter().filter(|p| p.id != UNGROUPED_ID).collect();
+        projects.sort_by_key(|p| p.position);
+        projects.into_iter().map(|p| p.id.clone()).collect()
+    }
+
+    pub fn can_move_machine_project(&self, machine: &str, id: &str, up: bool) -> bool {
+        let order = self.machine_orderable(machine);
+        order.iter().position(|o| o == id).is_some_and(|at| move_targets(&order, at, up).is_some())
+    }
+
+    /// Move up or down in another machine's tree; the order goes to that machine.
+    pub fn move_machine_project(&mut self, machine: &str, id: &str, up: bool, tx: &mut Tx) {
+        if self.proj.pending || !self.machines.is_answering(machine) {
+            return;
+        }
+        let order = self.machine_orderable(machine);
+        let Some(targets) = order.iter().position(|o| o == id).and_then(|at| move_targets(&order, at, up)) else { return };
+        self.proj.on = Some(machine.to_string());
+        self.send_project_call(Call::Reorder(targets), tx);
+    }
+
+    /// The menu's Delete… on a project of another machine; `count` is what its group shows.
+    pub fn open_machine_delete(&mut self, machine: &str, id: &str, count: usize) {
+        if self.proj.pending || !self.machines.is_answering(machine) {
+            return;
+        }
+        let Some(project) = self.machines.others.get(machine).and_then(|m| m.projects.iter().find(|p| p.id == id)) else { return };
+        let name = project.name.clone();
+        self.proj.delete = Some(DeleteDialog {
+            id: id.to_string(),
+            name,
+            count,
+            mode: DeleteMode::MoveToScratch,
+            deleting: false,
+            machine: Some(machine.to_string()),
+        });
+    }
+
+    /// The + and the menu's New session on a project of another machine: the page opens on that machine with the project.
+    pub fn new_session_in_machine_project(&mut self, machine: &str, id: &str) {
+        if self.proj.pending || !self.machines.is_answering(machine) {
+            return;
+        }
+        self.proj.new_session_in = Some(id.to_string());
+        self.open_new_session_page(Some(id.to_string()));
+        self.new_session_on(machine);
+        // Picking the machine starts the draft's choices again; the project is the one asked for.
+        if let Some(d) = self.new_draft.draft_mut() {
+            d.project_id = Some(id.to_string());
+        }
     }
 
     /// Cancel and Escape; nothing closes the dialog while it deletes.
@@ -294,6 +352,7 @@ impl State {
         let Some(d) = self.proj.delete.as_mut().filter(|d| !d.deleting) else { return };
         d.deleting = true;
         let call = Call::Delete { id: d.id.clone(), mode: d.mode };
+        self.proj.on = d.machine.clone();
         self.send_project_call(call, tx);
     }
 

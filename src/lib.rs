@@ -17,7 +17,7 @@ mod tests;
 #[cfg(test)]
 mod tests_add_machine;
 #[cfg(test)]
-mod tests_archive_pins;
+pub(crate) mod tests_archive_pins;
 #[cfg(test)]
 mod tests_archived;
 #[cfg(test)]
@@ -58,6 +58,8 @@ mod tests_images;
 mod tests_lineage;
 #[cfg(test)]
 mod tests_machine_addresses;
+#[cfg(test)]
+mod tests_machine_drag;
 #[cfg(test)]
 mod tests_machine_more;
 #[cfg(test)]
@@ -2068,6 +2070,10 @@ pub fn spec() -> AppSpec<State> {
             ("machine-heading-menu-light", |s| s.show_machine_heading_menu_scene(false, "m-falcon", 140.0)),
             ("machine-home-menu", |s| s.show_machine_heading_menu_scene(true, "home", 84.0)),
             ("machine-home-menu-light", |s| s.show_machine_heading_menu_scene(false, "home", 84.0)),
+            ("machine-drag-project", |s| s.show_machine_drag(false, true)),
+            ("machine-drag-project-light", |s| s.show_machine_drag(false, false)),
+            ("machine-drag-pinned", |s| s.show_machine_drag(true, true)),
+            ("machine-drag-pinned-light", |s| s.show_machine_drag(true, false)),
             ("machine-down-menu", |s| s.show_machine_heading_menu_scene(true, "m-harbor", 505.0)),
             ("machine-row-menu", |s| s.show_machine_row_menu(true, 230.0)),
             ("machine-row-menu-light", |s| s.show_machine_row_menu(false, 230.0)),

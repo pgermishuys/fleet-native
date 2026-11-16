@@ -103,7 +103,7 @@ pub fn panel(s: &State, t: &Theme) -> El {
     // `showPinnedGroup`: while it has sessions (the drag that shows it empty is piece S's). It is above the projects and its
     // rows leave their own.
     // It also shows empty while a row is dragged, so there is a place to drop a pin (`showPinnedGroup`, not while filtering).
-    let dragging = s.dragging_row() && needle.is_empty() && !archived_view;
+    let dragging = s.dragging_home_row() && needle.is_empty() && !archived_view;
     let over = s.drag_over();
     if !layout.pinned.is_empty() || dragging {
         let open = s.home_pinned_open() || layout.pinned.is_empty();
