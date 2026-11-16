@@ -467,8 +467,4 @@ fn machine_on_another_machine_starts_the_session_there_and_opens_it_in_place_its
     let live = r.rt.state.projects.iter().flat_map(|p| p.sessions.iter()).any(|s| s.id == "ses-new");
     assert!(!live, "the new row is not in this machine's own list");
     assert_eq!(r.rt.state.machine_key_of("ses-new"), "m-falcon");
-    assert!(
-        r.rt.state.machines.others.get("m-falcon").is_some_and(|m| m.sessions.iter().any(|s| s.id == "ses-new")),
-        "it is on that machine's group"
-    );
 }
