@@ -45,10 +45,18 @@ impl State {
             }
         }
         // A page no rail owns also takes the window from the open conversation.
-        if matches!(route, Route::Welcome | Route::Repositories) && !matches!(self.route, Route::Welcome | Route::Repositories) {
+        let away = |r: &Route| matches!(r, Route::Welcome | Route::Repositories | Route::Home);
+        if away(&route) && !away(&self.route) {
             self.keep_current_stream();
         }
+        let (was_home, is_home) = (self.route == Route::Home, route == Route::Home);
         self.route = route;
+        if is_home && !was_home {
+            self.landing.home_shown();
+            self.landing_check();
+        } else if was_home && !is_home {
+            self.landing.home_left();
+        }
         if !was && is {
             self.read_folder_feeds();
             self.read_harness_feeds();

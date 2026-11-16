@@ -485,6 +485,7 @@ mod autocomplete;
 mod cards;
 mod catalog;
 mod composables;
+mod dashboard;
 mod delegations;
 mod discover;
 mod drafts;

@@ -62,8 +62,9 @@ fn item(s: &State, t: &Theme, which: Option<Rail>, glyph: &'static Icon, label: 
             if let Some(which) = which {
                 s.rail = which;
                 // A rail entry takes the window back from `/welcome` and `/repositories`.
-                if s.on_bare_page() {
-                    s.go(crate::fleet::store::Route::None);
+                // Sessions goes to `/` too (core-rails: its address is `/`), with nothing selected.
+                if s.on_bare_page() || which == Rail::Sessions {
+                    s.go(crate::fleet::store::Route::Home);
                 }
             }
         })

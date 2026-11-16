@@ -472,6 +472,7 @@ impl State {
         link.off_thread(http::preferences, |s, tx, result| {
             if let Ok(body) = result {
                 s.pickers.prefs.adopt(&body);
+                s.landing_check();
                 s.settle_pickers(tx);
                 s.harness_setup_check();
             }
