@@ -97,6 +97,8 @@ mod tests_questions;
 #[cfg(test)]
 mod tests_rails;
 #[cfg(test)]
+mod tests_report;
+#[cfg(test)]
 mod tests_right_panel;
 #[cfg(test)]
 mod tests_row_actions;
@@ -383,6 +385,8 @@ pub struct State {
     pub gallery: bool,
     /// Export as Markdown: the dialog, while it is open (`fleet::export`).
     pub export: fleet::export::Export,
+    /// Help → Report a problem: whether it is open and what its requests said.
+    pub report: fleet::report::ReportState,
     /// A newer build to install: the status bar's item and its dialog (`update`).
     pub update: update::Update,
     /// The harness setup wizard (component 7, piece N).
@@ -570,6 +574,7 @@ impl Default for State {
             ui: ui::Ui::default(),
             gallery: false,
             export: Default::default(),
+            report: Default::default(),
             update: Default::default(),
             harness_setup: Default::default(),
             repos_page: Default::default(),
