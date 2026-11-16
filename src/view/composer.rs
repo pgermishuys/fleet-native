@@ -112,7 +112,11 @@ fn frame(s: &State, t: &Theme, disabled: bool, mode: Mode) -> El {
         .fill(if s.dragging && !disabled { t.card_mix(t.accent, 5.0) } else { t.card_bg })
         .border(1.0, edge)
         .box_shadow(Shadow { x: 0.0, y: 10.0, blur: 28.0, spread: -18.0, color: Color::BLACK.alpha(0.5), inset: false })
-        .on_layout(|s: &mut State, [_, _, w, _]| s.pickers.composer_w = w)
+        .on_layout(|s: &mut State, rect| {
+            s.pickers.composer_w = rect[2];
+            // The notice card lifts above it (`data-notice-avoid`).
+            s.place.composer = Some(rect);
+        })
         // A file dropped on the frame is attached (row 1.4): `--dragging` is the accent border over a 5% wash.
         .on_drop_files(|s: &mut State, files, tx| {
             s.dragging = false;

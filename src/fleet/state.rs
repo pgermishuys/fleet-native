@@ -55,6 +55,7 @@ impl State {
             self.on_feeds_event(event);
             self.on_usage_event(event);
             self.on_smart_link_event(topic, event);
+            self.on_memory_event(topic, event);
             self.on_list_work_event(event);
             self.on_queue_event(event);
             self.on_ask_event(topic, event);
@@ -236,6 +237,7 @@ impl State {
     pub(crate) fn keep_notices(&mut self, now: f64, tx: &mut crate::Tx) -> bool {
         use super::notices::WAIT_POLL_SECS;
         use std::time::Duration;
+        self.keep_memory_undo();
         let mut changed = self.notices.expire(now);
         if self.notices.open().is_none() && self.notices.next_waiting().is_some() {
             if self.quiet.is_quiet(now) {
@@ -256,6 +258,16 @@ impl State {
         }
         // The countdown bar drains smoothly while it runs.
         if self.notices.countdown(now).is_some() && !self.notices.held() {
+            tx.wake_after(Duration::from_millis(33));
+            changed = true;
+        }
+        // The card rises in and folds into its chip over a few frames of the clock.
+        if self.notices.keep_motion(now) {
+            tx.wake_after(Duration::from_millis(16));
+            changed = true;
+        }
+        // A chip fades in and pulses its ring as it arrives, so the clock keeps drawing until it is still.
+        if self.notices.keep_chips(now) {
             tx.wake_after(Duration::from_millis(33));
             changed = true;
         }

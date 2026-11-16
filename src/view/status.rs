@@ -130,7 +130,7 @@ pub fn bar(s: &State, t: &Theme) -> El {
         .child(end(s, t, session))
 }
 
-/// `status-bar__end`: running work, the usage chip (more chips to come), then the session part.
+/// `status-bar__end`: running work, the usage chip, the notice chips, then the session part.
 fn end(s: &State, t: &Theme, session: El) -> El {
     let mut end = row().center_y().gap(10.0);
     if let Some(chip) = super::running_counter::chip(s, t) {
@@ -138,6 +138,10 @@ fn end(s: &State, t: &Theme, session: El) -> El {
     }
     if let Some(chip) = super::usage_chip::chip(s, t) {
         end = end.child(chip);
+    }
+    // On the right, under the corner a notice card settles from.
+    if let Some(chips) = super::notice_chips::chips(s, t) {
+        end = end.child(chips);
     }
     end.child(session)
 }

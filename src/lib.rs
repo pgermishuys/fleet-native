@@ -71,6 +71,8 @@ mod tests_machines;
 #[cfg(test)]
 mod tests_machines_page;
 #[cfg(test)]
+mod tests_memory_notice;
+#[cfg(test)]
 mod tests_new_project;
 #[cfg(test)]
 mod tests_new_refs;
@@ -80,6 +82,8 @@ mod tests_new_send;
 mod tests_new_session;
 #[cfg(test)]
 mod tests_notice_card;
+#[cfg(test)]
+mod tests_notice_chips;
 #[cfg(test)]
 mod tests_notices;
 #[cfg(test)]
@@ -392,6 +396,9 @@ pub struct State {
     /// The notices, and whether this is a quiet moment for a card to open (component 9, piece K).
     pub notices: fleet::notices::Notices,
     pub quiet: fleet::notices::Quiet,
+    /// The "Remembered" notices' payloads, for Undo (piece M), and where the card, the composer and the chips sit (the lift, the settle).
+    pub memory: fleet::memory_notice::MemoryNotices,
+    pub place: fleet::notice_place::Place,
     /// When the list last re-read the clock for its ages (`use-relative-time.ts`), on `clock`; `None` before the first.
     pub row_tick: Option<f64>,
     /// The agent and model lists, the harness list, the preferences and the effort memory (`fleet::catalog`).
@@ -569,6 +576,8 @@ impl Default for State {
             now_ms: None,
             notices: Default::default(),
             quiet: Default::default(),
+            memory: Default::default(),
+            place: Default::default(),
             row_tick: None,
             stream: None,
             prompts: Default::default(),
@@ -2865,6 +2874,21 @@ pub fn spec() -> AppSpec<State> {
             }),
             ("notice-posted", |s| {
                 s.notices.post(fleet::notices::Notice::new("scene:hello", "Fleet 0.37.0 is ready").chip("Fleet 0.37.0 ready"), 0.0)
+            }),
+            ("notice-remembered", |s| mock::notices::remembered(s)),
+            ("notice-remembered-light", |s| {
+                s.dark = Some(false);
+                mock::notices::remembered(s)
+            }),
+            ("notice-chip", |s| mock::notices::settled(s)),
+            ("notice-chip-light", |s| {
+                s.dark = Some(false);
+                mock::notices::settled(s)
+            }),
+            ("notice-lift", |s| mock::notices::lifted(s)),
+            ("notice-lift-light", |s| {
+                s.dark = Some(false);
+                mock::notices::lifted(s)
             }),
             ("notice-plain", |s| mock::notices::show(s, mock::notices::Case::Plain)),
             ("notice-plain-light", |s| {

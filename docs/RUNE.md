@@ -1275,3 +1275,19 @@ in Rune stops a drop in the wrong tree. Nothing in Rune got in the way otherwise
 
 - **`Color` is linear light**, so a hex colour can't be got back from a `Color` by rounding its fields. Where Fleet's own rules need hex (the contrast lift), keep the hex strings and convert once with `rune::color::hex`; `Theme::code_grounds` holds the surfaces as the same literals `Theme::of` uses, and a test checks they agree.
 - **A view can't be handed a computed theme by `Theme::of` alone** when part of it depends on `State`: `view::root` builds the theme and `State::with_code_theme` adds the chosen colours, caching the lift in a `RefCell` on `State` because views get `&State`.
+
+
+## Component 9, piece M (chips, settling, the lift, Remembered)
+
+- **A change made by `Runtime::update` or by `poll` skips the exit transition**; only an input handler's change plays it. Fleet's card
+  settles from a timer, so a `.transition()` on it never showed. What works: keep the node in the tree after it "goes" and change its
+  `.offset()`, `.scale()` and `.opacity()` with `*_motion(Spring)` (the same key keeps its springs). `fleet::notices` holds the card
+  as `leaving` for 0.37 s and the view draws it at the chip's corner.
+- A removed node with `.transition(..)` only exits if the node carrying the transition is the one removed (the frame around it isn't
+  retained alone); and a test must settle by a press (`click`), never by `rt.update`.
+- **`--video` and `--snap --at` draw at rest**: springs don't advance between scripted frames, so a card folding into its chip shows as
+  a cut. Tests on virtual frames (`rt.frame(dt)` then `rt.presented(key)`) are the check for motion.
+- `Transition` can't scale below 0.9 without `allow_small_scale` (floor 0.5): Fleet's fold shrinks to a chip's width (about 0.47).
+- `on_layout` reports window points, so the card, composer and chip rects can be compared directly; it reports again only on change,
+  so a composer that leaves the tree keeps its last rect (guard it by the route).
+- A hidden (`opacity(0.0)`) element still takes layout and reports `on_layout`: how the card learns where its chip will be.

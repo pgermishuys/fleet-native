@@ -14,8 +14,13 @@ pub const HOLD_SECS: f64 = 8.0;
 pub const TYPING_QUIET_SECS: f64 = 2.5;
 /// And this long after Fleet opens, so it never lands on top of the first paint (`NOTICE_STARTUP_QUIET_MS`).
 pub const STARTUP_QUIET_SECS: f64 = 3.0;
+/// The card's rise (`.notice-enter-active`, 260 ms) and its fold into the chip (`onLeave`, 320 ms).
+pub const ENTER_SECS: f64 = 0.26;
+pub const SETTLE_SECS: f64 = 0.32;
 /// How often a waiting notice looks for its quiet moment (`WAIT_POLL_MS`).
 pub const WAIT_POLL_SECS: f64 = 0.5;
+/// A chip fades in after 180 ms over 220 ms; its ring pulses twice from 400 ms, 1.1 s each: still after this (`CH`).
+pub const CHIP_ANIMATION_SECS: f64 = 2.7;
 /// The settings file keeps this many shown ids (`SHOWN_LIMIT`).
 pub const SHOWN_LIMIT: usize = 50;
 
@@ -152,6 +157,21 @@ pub struct Notices {
     hovered: bool,
     /// What the card's buttons, link and Esc told their source, oldest first, until the source takes it.
     heard: Vec<String>,
+    /// The card that just settled into its chip, still drawn while it folds in (`Leaving`).
+    leaving: Option<Leaving>,
+    /// When the open card first drew, on the app clock, for its rise.
+    opened_at: Option<(String, f64)>,
+    rise_started: bool,
+    /// When each chip on screen appeared, for its fade-in and the ring that pulses as it arrives.
+    chip_since: Vec<(String, f64)>,
+}
+
+/// A card on its way into its chip. It stays in the tree for [`SETTLE_SECS`] with its look of the moment it settled.
+#[derive(Debug, Clone)]
+struct Leaving {
+    notice: Notice,
+    /// Set by the first [`Notices::keep_motion`] after, so the view has drawn the card at rest first.
+    since: Option<f64>,
 }
 
 /// How long the open card has left before it settles (`startHold`, `pauseHold`, `resumeHold`).
@@ -178,6 +198,58 @@ impl Notices {
         self.get(id).is_some()
     }
 
+    /// The card folding into its chip, as it looked when it settled.
+    pub fn leaving(&self) -> Option<&Notice> {
+        self.leaving.as_ref().map(|l| &l.notice)
+    }
+
+    /// Whether the card has been drawn at rest since it opened: its first frame is where its rise starts from.
+    pub fn risen(&self) -> bool {
+        self.open.is_some() && self.rise_started
+    }
+
+    /// Whether the leaving card has been drawn once yet, so the view can send it to its chip.
+    pub fn leaving_started(&self) -> bool {
+        self.leaving.as_ref().is_some_and(|l| l.since.is_some())
+    }
+
+    /// Keeps the rise and the fold going: true while either still moves, so the clock keeps drawing.
+    pub fn keep_motion(&mut self, now: f64) -> bool {
+        let mut moving = false;
+        if let Some(l) = &mut self.leaving {
+            match l.since {
+                None => {
+                    l.since = Some(now);
+                    moving = true;
+                }
+                Some(at) if now - at < SETTLE_SECS + 0.05 => moving = true,
+                Some(_) => self.leaving = None,
+            }
+        }
+        match (self.open.clone(), &self.opened_at) {
+            (None, _) => {
+                self.opened_at = None;
+                self.rise_started = false;
+            }
+            (Some(id), at) if at.as_ref().is_none_or(|(i, _)| *i != id) => {
+                self.opened_at = Some((id, now));
+                self.rise_started = false;
+                moving = true;
+            }
+            (Some(_), Some((_, at))) => {
+                // The frame after the first one lets go of the rise's starting pose.
+                if !self.rise_started {
+                    self.rise_started = true;
+                    moving = true;
+                } else if now - at < ENTER_SECS + 0.05 {
+                    moving = true;
+                }
+            }
+            _ => {}
+        }
+        moving
+    }
+
     /// The open card.
     pub fn open(&self) -> Option<&Notice> {
         self.open.as_deref().and_then(|id| self.get(id))
@@ -199,6 +271,34 @@ impl Notices {
             .iter()
             .filter(|n| n.chip.is_some() && self.open.as_deref() != Some(n.id.as_str()) && !self.waiting.contains(&n.id))
             .collect()
+    }
+
+    /// The chip row in order: each notice with a chip text that isn't waiting for its card. The open card's own is `true`:
+    /// it isn't drawn yet, but is laid out so the card knows where to settle.
+    pub fn chip_slots(&self) -> Vec<(&Notice, bool)> {
+        self.notices
+            .iter()
+            .filter(|n| n.chip.is_some() && !self.waiting.contains(&n.id))
+            .map(|n| (n, self.open.as_deref() == Some(n.id.as_str())))
+            .collect()
+    }
+
+    /// Notes when chips appeared and forgets those that went. Seconds since a chip appeared, for the youngest one still
+    /// animating: the clock wakes at its pace until it is still.
+    pub fn keep_chips(&mut self, now: f64) -> bool {
+        let live: Vec<String> = self.chips().iter().map(|n| n.id.clone()).collect();
+        self.chip_since.retain(|(id, _)| live.contains(id));
+        for id in live {
+            if !self.chip_since.iter().any(|(i, _)| *i == id) {
+                self.chip_since.push((id, now));
+            }
+        }
+        self.chip_since.iter().any(|(_, at)| now - at < CHIP_ANIMATION_SECS)
+    }
+
+    /// Seconds since this chip appeared.
+    pub fn chip_age(&self, id: &str, now: f64) -> Option<f64> {
+        self.chip_since.iter().find(|(i, _)| i == id).map(|(_, at)| (now - at).max(0.0))
     }
 
     // ── what is remembered between runs ──────────────────────────────────────
@@ -273,6 +373,7 @@ impl Notices {
             return;
         }
         let id = self.waiting.remove(0);
+        self.leaving = None;
         self.mark_shown(&id);
         self.open = Some(id);
         self.pinned = false;
@@ -284,6 +385,7 @@ impl Notices {
             return;
         }
         self.waiting.retain(|w| w != id);
+        self.leaving = None;
         self.pinned = true;
         self.open = Some(id.to_string());
         self.mark_shown(id);
@@ -293,8 +395,10 @@ impl Notices {
     pub fn settle(&mut self) {
         let Some(id) = self.open.take() else { return };
         self.pinned = false;
-        if self.get(&id).is_some_and(|n| n.chip.is_none()) {
-            self.remove(&id);
+        match self.get(&id) {
+            Some(n) if n.chip.is_none() => self.remove(&id),
+            Some(n) => self.leaving = Some(Leaving { notice: n.clone(), since: None }),
+            None => {}
         }
     }
 
@@ -302,6 +406,9 @@ impl Notices {
         self.notices.retain(|n| n.id != id);
         self.expiry.retain(|(e, _)| e != id);
         self.waiting.retain(|w| w != id);
+        if self.leaving.as_ref().is_some_and(|l| l.notice.id == id) {
+            self.leaving = None;
+        }
         if self.open.as_deref() == Some(id) {
             self.open = None;
             self.pinned = false;
@@ -386,6 +493,13 @@ impl Notices {
     /// What the source has been told since it last asked.
     pub fn take_heard(&mut self) -> Vec<String> {
         std::mem::take(&mut self.heard)
+    }
+
+    /// What the source owning `prefix` has been told since it last asked, leaving what others were told for them.
+    pub fn take_heard_with(&mut self, prefix: &str) -> Vec<String> {
+        let (mine, rest) = std::mem::take(&mut self.heard).into_iter().partition(|h| h.starts_with(prefix));
+        self.heard = rest;
+        mine
     }
 
     /// Esc on the card: the source hears `on_escape`, then the card settles (`onCardKeydown`).
