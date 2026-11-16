@@ -28,24 +28,49 @@ pub fn dropdown(s: &State, t: &Theme, name: &'static str) -> Vec<El> {
     match name {
         "agent" => selector(s, t, "agent"),
         "model" => selector(s, t, "model"),
-        "more" => drop(t, "more-pop", "more", more(), Side::Bottom, Align::End),
+        "more" => super::menu::dropdown_w(t, "more-pop", "more", more(s), Side::Bottom, Align::End, super::rem(14.0)),
         _ => drop(t, "gallery-pop", "g-menu", gallery(s), Side::Bottom, Align::Start),
     }
 }
 
-fn more() -> Vec<Entry> {
-    vec![
-        waiting("Copy folder path", &COPY, 9),
-        Entry::Item(Item::new("Rename").icon(&PENCIL).shortcut("Double-click title").on(|s: &mut State, tx: &mut Tx| {
-            s.toast("Rename isn't in the native app yet (component 6 of the port).".into(), None, 4.0, tx);
-        })),
-        waiting("Export as Markdown…", &FILE_DOWN, 3),
-        waiting("Archive", &ARCHIVE, 6),
-        Entry::Separator,
-        Entry::Item(Item::new("Delete…").icon(&TRASH_2).destructive().on(|s: &mut State, tx: &mut Tx| {
-            s.toast("Delete isn't in the native app yet (component 6 of the port).".into(), None, 4.0, tx);
-        })),
-    ]
+/// The header's ⋯ menu (`SessionActionToolbar.vue`, `w-56`): what the open session's capabilities allow, in Fleet's order.
+/// A phone's extra rows (usage, Show terminal, Fork) are not here.
+pub fn more(s: &State) -> Vec<Entry> {
+    let m = s.header_model();
+    let pending = s.toolbar_pending();
+    let mut entries = Vec::new();
+    if !m.directory.is_empty() {
+        let dir = m.directory.clone();
+        // No "Copied" and no toast: the menu closing is the answer.
+        entries.push(Entry::Item(Item::new("Copy folder path").icon(&COPY).on(move |_: &mut State, tx: &mut Tx| tx.copy(dir.clone()))));
+    }
+    if !m.archived {
+        entries.push(Entry::Item(
+            Item::new("Rename")
+                .icon(&PENCIL)
+                .shortcut("Double-click title")
+                .disabled(pending)
+                .on(|s: &mut State, tx: &mut Tx| s.start_header_rename(tx)),
+        ));
+    }
+    entries.push(Entry::Item(Item::new("Export as Markdown…").icon(&FILE_DOWN).on(|s: &mut State, _: &mut Tx| s.export_open())));
+    if m.actions.can_archive {
+        entries.push(Entry::Item(
+            Item::new("Archive").icon(&ARCHIVE).disabled(pending).on(|s: &mut State, tx: &mut Tx| s.toolbar_archive(tx)),
+        ));
+    }
+    if m.actions.can_restore {
+        entries.push(Entry::Item(
+            Item::new("Restore").icon(&ARCHIVE_RESTORE).disabled(pending).on(|s: &mut State, tx: &mut Tx| s.toolbar_restore(tx)),
+        ));
+    }
+    if m.actions.can_delete {
+        entries.push(Entry::Separator);
+        entries.push(Entry::Item(
+            Item::new("Delete…").icon(&TRASH_2).destructive().disabled(pending).on(|s: &mut State, tx: &mut Tx| s.toolbar_delete(tx)),
+        ));
+    }
+    entries
 }
 
 /// A session row's right-click menu (`SessionContextMenu`).

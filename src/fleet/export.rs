@@ -16,6 +16,9 @@ use std::time::Duration;
 /// How long the Copy button says "Copied" (2000 ms).
 const COPIED_SECONDS: f64 = 2.0;
 
+/// The `generation` of a write that no export dialog asked for.
+const NO_DIALOG: u64 = u64::MAX;
+
 /// What a file write came to, from the thread that did it.
 pub struct Saved {
     generation: u64,
@@ -199,6 +202,17 @@ impl State {
         });
     }
 
+    /// Writes `content` to `path` off the UI thread; the toast says how it went (the raw messages file's way out).
+    pub(crate) fn save_text(&mut self, name: String, path: PathBuf, content: String, tx: &mut Tx) {
+        let send = self.export.send.clone();
+        self.export.writing += 1;
+        std::thread::spawn(move || {
+            let result = std::fs::write(&path, content).map_err(|e| e.to_string());
+            let _ = send.send(Saved { generation: NO_DIALOG, name, result });
+        });
+        tx.wake_after(Duration::from_millis(50));
+    }
+
     fn export_failed(&mut self, generation: u64, why: &str) {
         if let Some(d) = self.export.dialog.as_mut().filter(|d| d.generation == generation) {
             d.action_error = Some(why.into());
@@ -237,6 +251,7 @@ impl State {
             changed = true;
             match saved.result {
                 Ok(()) => self.toast(format!("Saved {}", saved.name), None, 3.0, tx),
+                Err(_) if saved.generation == NO_DIALOG => self.toast(format!("Could not save {}", saved.name), None, 4.0, tx),
                 Err(_) => self.export_failed(saved.generation, "Fleet could not save the file. Use Copy instead."),
             }
         }

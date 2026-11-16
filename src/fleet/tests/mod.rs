@@ -26,7 +26,7 @@ pub(super) fn snapshot(activity: &str, messages: Vec<Lifecycle>) -> Value {
     json!({"session": {}, "messages": messages, "delegations": [], "activityStatus": activity, "lastEventId": null})
 }
 
-pub(super) fn new_state() -> StreamState {
+pub(crate) fn new_state() -> StreamState {
     create_state(&snapshot("idle", vec![]))
 }
 

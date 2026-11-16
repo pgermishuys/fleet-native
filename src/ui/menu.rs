@@ -222,6 +222,12 @@ pub fn dropdown_capped(t: &Theme, key: &str, anchor: &str, entries: Vec<Entry>, 
     vec![scrim(&format!("{key}-scrim"), |s: &mut State| s.ui.open = None), anchored(p, anchor, side, align, 4.0)]
 }
 
+/// `dropdown`, `width` wide (`w-56` on the header's ⋯ menu).
+pub fn dropdown_w(t: &Theme, key: &str, anchor: &str, entries: Vec<Entry>, side: Side, align: Align, width: f32) -> Vec<El> {
+    let p = panel(t, key, entries).w(width).focus_return(anchor.to_string()).modal(true, |s: &mut State| s.ui.open = None);
+    vec![scrim(&format!("{key}-scrim"), |s: &mut State| s.ui.open = None), anchored(p, anchor, side, align, 4.0)]
+}
+
 /// A right-click menu at a window point (`context-menu/`).
 pub fn context(t: &Theme, key: &str, at: (f32, f32), entries: Vec<Entry>) -> Vec<El> {
     context_w(t, key, at, entries, None)

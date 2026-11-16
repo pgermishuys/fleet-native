@@ -59,12 +59,14 @@ pub mod rows;
 pub mod rules;
 pub mod scroll;
 pub mod selector;
+pub mod session_commands;
 pub mod sessions;
 pub mod settings;
 pub mod signalr;
 pub mod state;
 pub mod store;
 pub mod tls;
+pub mod toolbar;
 pub mod topics;
 pub mod uploads;
 pub mod usage;
@@ -73,4 +75,4 @@ pub mod work;
 pub mod work_actions;
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

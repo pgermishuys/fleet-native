@@ -29,6 +29,8 @@ mod tests_header;
 #[cfg(test)]
 mod tests_header_edit;
 #[cfg(test)]
+mod tests_header_toolbar;
+#[cfg(test)]
 mod tests_images;
 #[cfg(test)]
 mod tests_machines;
@@ -1418,6 +1420,21 @@ pub fn spec() -> AppSpec<State> {
             ("header-long-text-light", |s| s.show_header(mock::header::Case::LongText, false, true)),
             ("header-subagent", |s| s.show_header(mock::header::Case::Subagent, true, true)),
             ("header-subagent-light", |s| s.show_header(mock::header::Case::Subagent, false, true)),
+            // Component 8, piece D: the toolbar, the ⋯ menu and the delete question.
+            ("toolbar-abort", |s| s.show_toolbar(mock::header::Case::Retry, true, fleet::toolbar::Scene::Plain)),
+            ("toolbar-abort-light", |s| s.show_toolbar(mock::header::Case::Retry, false, fleet::toolbar::Scene::Plain)),
+            ("toolbar-more", |s| s.show_toolbar(mock::header::Case::Fork, true, fleet::toolbar::Scene::Menu)),
+            ("toolbar-more-light", |s| s.show_toolbar(mock::header::Case::Fork, false, fleet::toolbar::Scene::Menu)),
+            ("toolbar-more-archived", |s| s.show_toolbar(mock::header::Case::Archived, true, fleet::toolbar::Scene::Menu)),
+            ("toolbar-more-archived-light", |s| s.show_toolbar(mock::header::Case::Archived, false, fleet::toolbar::Scene::Menu)),
+            ("toolbar-more-nodir", |s| s.show_toolbar(mock::header::Case::Fork, true, fleet::toolbar::Scene::MenuNoDirectory)),
+            ("toolbar-more-nodir-light", |s| s.show_toolbar(mock::header::Case::Fork, false, fleet::toolbar::Scene::MenuNoDirectory)),
+            ("toolbar-fork-off", |s| s.show_toolbar(mock::header::Case::Fork, true, fleet::toolbar::Scene::ForkOff)),
+            ("toolbar-fork-off-light", |s| s.show_toolbar(mock::header::Case::Fork, false, fleet::toolbar::Scene::ForkOff)),
+            ("toolbar-errors", |s| s.show_toolbar(mock::header::Case::Retry, true, fleet::toolbar::Scene::Errors)),
+            ("toolbar-errors-light", |s| s.show_toolbar(mock::header::Case::Retry, false, fleet::toolbar::Scene::Errors)),
+            ("toolbar-delete", |s| s.show_toolbar(mock::header::Case::Fork, true, fleet::toolbar::Scene::Delete)),
+            ("toolbar-delete-light", |s| s.show_toolbar(mock::header::Case::Fork, false, fleet::toolbar::Scene::Delete)),
             ("header-glyph", |s| s.show_header(mock::header::Case::Retry, true, false)),
             ("header-glyph-light", |s| s.show_header(mock::header::Case::Retry, false, false)),
             ("header-rename", |s| {

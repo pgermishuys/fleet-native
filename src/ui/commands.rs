@@ -220,17 +220,20 @@ pub fn all(s: &State) -> Vec<Command> {
     );
     interrupt.disabled = !open;
     list.push(interrupt);
-    for (id, label, d, icon, n) in [
-        ("copy-session-id", "Copy session ID", "Copy the active session ID.", &COPY, 0u8),
-        ("fork-session", "Fork session", "Branch the active session into a new one.", &GIT_BRANCH_PLUS, 8),
-        ("export-raw-messages", "Export raw messages (JSON)", "Download the loaded messages as JSON.", &DOWNLOAD, 3),
-    ] {
-        let mut cmd = c(id, label, d, icon, Session, None, &[], if n == 0 { now(|_, _| {}) } else { Run::Waiting(n) });
+    let session_commands: [(&str, &str, &str, &'static rune::Icon, Run); 3] = [
+        ("copy-session-id", "Copy session ID", "Copy the active session ID.", &COPY, now(|s, tx| s.copy_session_id(tx))),
+        ("fork-session", "Fork session", "Branch the active session into a new one.", &GIT_BRANCH_PLUS, now(|s, tx| s.toolbar_fork(tx))),
+        (
+            "export-raw-messages",
+            "Export raw messages (JSON)",
+            "Download the loaded messages as JSON.",
+            &DOWNLOAD,
+            now(|s, tx| s.export_raw_messages(tx)),
+        ),
+    ];
+    for (id, label, d, icon, run) in session_commands {
+        let mut cmd = c(id, label, d, icon, Session, None, &[], run);
         cmd.disabled = !open;
-        if n == 0 {
-            // Rune at this pin has no clipboard write from a handler (docs/RUNE.md).
-            cmd.run = Run::Waiting(9);
-        }
         list.push(cmd);
     }
     let mut in_folder = c(

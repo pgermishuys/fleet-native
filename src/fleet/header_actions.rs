@@ -1,7 +1,7 @@
 //! What the header does on its own (`SessionDetailHeader.vue`): rename the title in place, add and remove tags, copy the
 //! folder path and put a removed checkout back. The requests and their words are plain data; `State`'s methods run them on a
 //! thread, and with no server the invented list takes the change, so scenes and tests need none.
-//! The toolbar's actions (abort, archive, delete) are piece D's.
+//! The toolbar's actions (abort, archive, delete) are `toolbar.rs`.
 use super::actions::Call;
 use super::{http, projects::rename_outcome};
 use crate::{State, Tx};
@@ -81,6 +81,8 @@ pub struct HeaderUi {
     pub restored_until: Option<(String, f64)>,
     /// The server's sentence for the last restore that failed, with its session.
     pub restore_error: Option<(String, String)>,
+    /// The toolbar's pending actions and error lines (`toolbar.rs`).
+    pub bar: super::toolbar::Toolbar,
 }
 
 impl HeaderUi {
@@ -134,6 +136,7 @@ impl State {
         // The new title shows at once; a refusal puts the old one back (`useRenameSession`), the same as a row's.
         let was = edit.original;
         self.set_title(&edit.id, &title);
+        self.header_rename_sent(&edit.id);
         self.send_session_call(Call::Rename { id: edit.id, title }, Some(was), tx);
     }
 
