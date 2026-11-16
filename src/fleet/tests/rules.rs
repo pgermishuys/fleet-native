@@ -209,11 +209,7 @@ fn removes_a_rule_at_once_and_tells_fleet() {
 #[test]
 fn loads_the_list_again_when_fleet_refuses_a_removal() {
     let mut live = Live::start(json!([rule("rule_1", &["a*"])]));
-    live.rt.update(|s, _| {
-        let id = s.open_id().unwrap();
-        s.load_rules(&id);
-    });
-    live.wait(&|l| l.rt.state.rules.of(&l.id).len() == 1, "the rules to load");
+    live.wait(&|l| l.rt.state.rules.of(&l.id).len() == 1 && l.seen.lock().unwrap().gets >= 1, "the rules to load");
     live.seen.lock().unwrap().refuse = Some((500, Value::Null));
     let before = live.seen.lock().unwrap().gets;
     live.rt.update(|s, _| s.remove_rule("rule_1"));
@@ -223,12 +219,10 @@ fn loads_the_list_again_when_fleet_refuses_a_removal() {
 
 #[test]
 fn a_404_on_a_removal_is_not_a_failure() {
+    // Opening the session already loads the rules; a second load of the test's own would still be in flight when the
+    // first one lands, and its GET would arrive after `before` was taken on a slow machine.
     let mut live = Live::start(json!([rule("rule_1", &["a*"])]));
-    live.rt.update(|s, _| {
-        let id = s.open_id().unwrap();
-        s.load_rules(&id);
-    });
-    live.wait(&|l| l.rt.state.rules.of(&l.id).len() == 1, "the rules to load");
+    live.wait(&|l| l.rt.state.rules.of(&l.id).len() == 1 && l.seen.lock().unwrap().gets >= 1, "the rules to load");
     live.seen.lock().unwrap().refuse = Some((404, Value::Null));
     let before = live.seen.lock().unwrap().gets;
     live.rt.update(|s, _| s.remove_rule("rule_1"));

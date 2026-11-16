@@ -35,7 +35,7 @@ fn reads_what_home_says() {
 }
 
 fn listed(diagnosis: serde_json::Value) -> Machines {
-    let body = json!({ "machines": [{ "id": "macbook-id", "name": "macbook", "baseUrl": "http://127.0.0.1:9", "token": "macbook-token-0123456789",
+    let body = json!({ "machines": [{ "id": "macbook-id", "name": "macbook", "baseUrl": "http://127.0.0.43:9", "token": "macbook-token-0123456789",
         "addedAt": "2026-09-26T00:00:00Z", "diagnosis": diagnosis }] });
     let mut m = Machines::default();
     m.apply_list(parse_machine_list(200, &body.to_string()));

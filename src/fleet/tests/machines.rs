@@ -116,7 +116,7 @@ fn app_row(id: &str, title: &str) -> crate::mock::Session {
 #[test]
 fn takes_home_s_list_over_the_cached_one() {
     let cached = {
-        let mut old = knows_falcon("http://127.0.0.1:9");
+        let mut old = knows_falcon("http://127.0.0.44:9");
         old.others.entry(FALCON_ID.into()).or_default().loaded_at = Some(1);
         let mut gone = Machines::default();
         gone.others.insert("stale".into(), Default::default());
@@ -143,7 +143,7 @@ fn a_fleet_that_can_t_list_machines_has_none_and_shows_no_error() {
         let l = parse_machine_list(status, body);
         assert_eq!((l.source, l.machines.len()), (Source::Cannot, 0), "{status} {body}");
     }
-    let mut m = knows_falcon("http://127.0.0.1:9");
+    let mut m = knows_falcon("http://127.0.0.44:9");
     m.apply_list(parse_machine_list(404, ""));
     assert!(!m.has_machines());
 }
@@ -357,7 +357,7 @@ fn forgets_a_machine_without_touching_its_sessions() {
 
 #[test]
 fn finds_a_machine_by_its_id_home_a_listed_one_or_none() {
-    let mut m = knows_falcon("http://127.0.0.1:9");
+    let mut m = knows_falcon("http://127.0.0.44:9");
     m.home = crate::fleet::machines::Info::from_json(&info("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh", "atlas"));
     assert_eq!(m.key_of_machine("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh").as_deref(), Some("home"));
     assert_eq!(m.key_of_machine(FALCON_ID).as_deref(), Some(FALCON_ID));
@@ -366,7 +366,7 @@ fn finds_a_machine_by_its_id_home_a_listed_one_or_none() {
 
 #[test]
 fn home_is_first_and_called_this_machine_until_it_answers() {
-    let mut m = knows_falcon("http://127.0.0.1:9");
+    let mut m = knows_falcon("http://127.0.0.44:9");
     let names: Vec<_> = m.entries().iter().map(|e| (e.key.clone(), e.name.clone(), e.is_home)).collect();
     assert_eq!(names, [("home".into(), "This machine".into(), true), (FALCON_ID.into(), "falcon".into(), false)]);
     m.home = crate::fleet::machines::Info::from_json(&info("h", "atlas"));
@@ -395,7 +395,7 @@ fn marks_the_machine_unreachable_when_the_read_fails_keeping_the_last_read() {
 
 #[test]
 fn says_a_machine_its_feed_can_t_read_isn_t_answering() {
-    let mut m = knows_falcon("http://127.0.0.1:9");
+    let mut m = knows_falcon("http://127.0.0.44:9");
     assert!(m.is_answering("home") && m.is_answering(FALCON_ID), "nothing wrong yet");
     m.mark_unreachable(FALCON_ID, "Can't reach falcon.".into());
     assert!(m.is_answering("home"), "home always answers");
@@ -424,7 +424,7 @@ fn a_wrong_token_says_it_didn_t_accept_it_and_keeps_the_list() {
 
 #[test]
 fn one_read_at_a_time_per_machine() {
-    let mut m = knows_falcon("http://127.0.0.1:9");
+    let mut m = knows_falcon("http://127.0.0.44:9");
     assert_eq!(m.begin_reads().len(), 1);
     assert!(m.begin_reads().is_empty(), "the first is still out");
     m.mark_unreachable(FALCON_ID, "x".into());
@@ -462,7 +462,7 @@ fn a_corrupt_cache_reads_as_empty() {
 
 #[test]
 fn a_machine_that_was_never_read_is_not_in_the_cache() {
-    let m = knows_falcon("http://127.0.0.1:9");
+    let m = knows_falcon("http://127.0.0.44:9");
     let mut m = m;
     m.begin_reads();
     assert!(machine_cache::parse(&machine_cache::to_json(&m)).others.is_empty());
@@ -471,7 +471,7 @@ fn a_machine_that_was_never_read_is_not_in_the_cache() {
 #[test]
 fn the_cache_file_is_written_whole_and_read_back() {
     let dir = std::env::temp_dir().join(format!("fleet-native-machine-cache-{}", std::process::id()));
-    let mut m = knows_falcon("http://127.0.0.1:9");
+    let mut m = knows_falcon("http://127.0.0.44:9");
     let job = m.begin_reads().remove(0);
     let read = read_machine(&job.name, Ok((200, json!([row("a", "A")]).to_string())), Err("x".into()), Err("x".into()), 0).unwrap();
     m.apply_read(FALCON_ID, read, 7);
