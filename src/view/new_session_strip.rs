@@ -2,7 +2,6 @@
 //! machine chip, a separator, the folder chip, and the workspace, base and "…" chips as their pieces land. Each chip is
 //! `ui::chip::Chip`; what a chip opens is its picker's piece (the toast says which until it is built).
 use crate::theme::{Theme, mono, sans};
-use crate::ui::chip::Chip;
 use crate::{State, Tx};
 use rune::{El, el, row, text};
 
@@ -13,30 +12,12 @@ fn separator(t: &Theme) -> El {
     el().w(1.0).h(14.0).mx(3.0).fill(t.border)
 }
 
-/// The machine chip (`MachinePicker.vue`): a 7px dot in `--running` (`--error` when it can't be reached), the machine's name
-/// in the UI font at 13px, a chevron. Its menu is piece K's.
-fn machine(s: &State, t: &Theme) -> El {
-    let down = s.target_is_down();
-    let chip = Chip::new("new-session-machine", s.target_name())
-        .dot(if down { t.error } else { t.running })
-        .label_font(sans(13.0, 500.0, 1.2))
-        .disabled(starting(s));
-    let chip = if down { chip.ink(t.error_text) } else { chip };
-    chip.view(t, |s: &mut State, tx: &mut Tx| {
-        s.toast("The machine menu isn't in the native app yet (component 7, piece K).".into(), None, 4.0, tx);
-    })
-}
-
-fn starting(s: &State) -> bool {
-    s.new_draft.draft().is_some_and(|d| d.is_starting)
-}
-
 /// `.new-session__strip`: wraps, 2px apart, `6px 4px 0`.
 pub fn strip(s: &State, t: &Theme) -> El {
     let chips = s.strip_chips();
     let mut r = row().key("new-session-strip").w_full().wrap().items_center().gap(2.0).px(4.0).pt(6.0);
     if chips.machine {
-        r = r.child(machine(s, t)).child(separator(t));
+        r = r.child(super::machine_picker::chip(s, t)).child(separator(t));
     }
     r = r.child(super::folder_menu::trigger(s, t));
     if chips.workspace {
@@ -45,7 +26,8 @@ pub fn strip(s: &State, t: &Theme) -> El {
     if chips.base {
         r = r.child(super::base_picker::chip(s, t));
     }
-    r
+    // `margin-left: auto` pushes the "…" chip to the strip's right end.
+    r.child(el().grow(1.0)).child(super::more_options::chip(s, t))
 }
 
 /// `.new-session__plan`: what Enter will do, in one muted 12px line under the chips (`min-height: 22px`, `4px 11px 0`); a path

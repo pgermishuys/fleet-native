@@ -3,7 +3,6 @@
 use super::plan::{base_name, tilde_path};
 use super::request::{Folder, Workspace};
 use crate::State;
-use crate::fleet::settings::HOME_MACHINE_KEY;
 
 /// Which chips the strip has now.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -34,15 +33,16 @@ impl State {
         }
     }
 
-    /// The machine key the draft starts on: `home` for the machine the app works in.
+    /// The machine key the draft starts on: the machine the app works in unless the draft picked another (`target.key`).
     pub fn target_key(&self) -> String {
-        self.new_draft.machine().unwrap_or(HOME_MACHINE_KEY).to_string()
+        self.new_draft.machine().unwrap_or_else(|| self.machines.current_key()).to_string()
     }
 
     /// `targetName`: the machine's name as the chip shows it.
     pub fn target_name(&self) -> String {
         let key = self.target_key();
-        self.machines.entries().into_iter().find(|e| e.key == key).map(|e| e.name).unwrap_or_default()
+        let entries = self.machines.entries();
+        entries.iter().find(|e| e.key == key).or(entries.first()).map(|e| e.name.clone()).unwrap_or_default()
     }
 
     /// Whether the machine the draft starts on can't be reached, so the chip and its dot turn red (`selectedDown`).

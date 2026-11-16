@@ -12,6 +12,8 @@ pub mod folder_menu;
 pub mod folder_path;
 pub mod harness;
 pub mod harness_choice;
+pub mod machines;
+pub mod more;
 pub mod naming;
 pub mod page;
 pub mod path;
@@ -32,6 +34,8 @@ mod tests_feeds;
 mod tests_folder;
 #[cfg(test)]
 mod tests_harness;
+#[cfg(test)]
+mod tests_machines;
 #[cfg(test)]
 mod tests_path;
 #[cfg(test)]

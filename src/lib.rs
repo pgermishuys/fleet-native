@@ -37,6 +37,8 @@ mod tests_header_toolbar;
 #[cfg(test)]
 mod tests_images;
 #[cfg(test)]
+mod tests_machine_more;
+#[cfg(test)]
 mod tests_machines;
 #[cfg(test)]
 mod tests_new_session;
@@ -1426,6 +1428,47 @@ pub fn spec() -> AppSpec<State> {
             ("new-session-no-harness-light", |s| {
                 s.dark = Some(false);
                 s.show_chip_scene(fleet::new_session::harness::Scene::NoHarness)
+            }),
+            // Component 7, piece K: the machine picker and More options.
+            ("new-session-machine-one", |s| s.show_machine_scene(fleet::new_session::machines::Scene::One)),
+            ("new-session-machine-one-light", |s| {
+                s.dark = Some(false);
+                s.show_machine_scene(fleet::new_session::machines::Scene::One)
+            }),
+            ("new-session-machine-one-menu", |s| s.show_machine_scene(fleet::new_session::machines::Scene::OneMenu)),
+            ("new-session-machine-one-menu-light", |s| {
+                s.dark = Some(false);
+                s.show_machine_scene(fleet::new_session::machines::Scene::OneMenu)
+            }),
+            ("new-session-machine-menu", |s| s.show_machine_scene(fleet::new_session::machines::Scene::Menu)),
+            ("new-session-machine-menu-light", |s| {
+                s.dark = Some(false);
+                s.show_machine_scene(fleet::new_session::machines::Scene::Menu)
+            }),
+            ("new-session-machine-moved", |s| s.show_machine_scene(fleet::new_session::machines::Scene::Moved)),
+            ("new-session-machine-moved-light", |s| {
+                s.dark = Some(false);
+                s.show_machine_scene(fleet::new_session::machines::Scene::Moved)
+            }),
+            ("new-session-more-chip", |s| s.show_more_scene(fleet::new_session::more::Scene::Chip)),
+            ("new-session-more-chip-light", |s| {
+                s.dark = Some(false);
+                s.show_more_scene(fleet::new_session::more::Scene::Chip)
+            }),
+            ("new-session-more-plain", |s| s.show_more_scene(fleet::new_session::more::Scene::Plain)),
+            ("new-session-more-plain-light", |s| {
+                s.dark = Some(false);
+                s.show_more_scene(fleet::new_session::more::Scene::Plain)
+            }),
+            ("new-session-more-filled", |s| s.show_more_scene(fleet::new_session::more::Scene::Filled)),
+            ("new-session-more-filled-light", |s| {
+                s.dark = Some(false);
+                s.show_more_scene(fleet::new_session::more::Scene::Filled)
+            }),
+            ("new-session-more-select", |s| s.show_more_scene(fleet::new_session::more::Scene::Select)),
+            ("new-session-more-select-light", |s| {
+                s.dark = Some(false);
+                s.show_more_scene(fleet::new_session::more::Scene::Select)
             }),
             ("new-session-plan-new", |s| s.show_picker_scene(fleet::new_session::workspace::Scene::PlanNew)),
             ("new-session-plan-new-light", |s| {

@@ -36,6 +36,24 @@ pub fn trigger(t: &Theme, label: &str, placeholder: bool, small: bool, width: f3
 
 /// The open list. `options` are `(value, label)`.
 pub fn content(t: &Theme, key: &str, anchor: &str, width: f32, options: &[(&str, &str)], current: Option<&str>, choose: Choose) -> Vec<El> {
+    let close: Rc<dyn Fn(&mut State)> = Rc::new(|s: &mut State| s.ui.open = None);
+    content_in(t, key, anchor, width, options, current, choose, close, 0.0)
+}
+
+/// `content` for a list that sits in another popover: `close` ends only the list (the popover stays), and the panel has the
+/// `radius` that popover gives it (`.ns-select-content`).
+#[allow(clippy::too_many_arguments)]
+pub fn content_in(
+    t: &Theme,
+    key: &str,
+    anchor: &str,
+    width: f32,
+    options: &[(&str, &str)],
+    current: Option<&str>,
+    choose: Choose,
+    close: Rc<dyn Fn(&mut State)>,
+    radius: f32,
+) -> Vec<El> {
     let mut list = col().key("rows").items_stretch();
     for (i, (value, label)) in options.iter().enumerate() {
         let on = current == Some(*value);
@@ -65,9 +83,12 @@ pub fn content(t: &Theme, key: &str, anchor: &str, width: f32, options: &[(&str,
                         .opacity(if on { 1.0 } else { 0.0 })
                         .ml(rem(0.5)),
                 )
-                .on_press_tx(move |s: &mut State, _| {
-                    s.ui.open = None;
-                    choose(s, &v);
+                .on_press_tx({
+                    let close = close.clone();
+                    move |s: &mut State, _| {
+                        close(s);
+                        choose(s, &v);
+                    }
                 }),
         );
     }
@@ -81,10 +102,14 @@ pub fn content(t: &Theme, key: &str, anchor: &str, width: f32, options: &[(&str,
         .border(1.0, t.border)
         .items_stretch()
         .child(list)
+        .radius(radius)
         .focus_return(anchor.to_string())
-        .modal(true, |s: &mut State| s.ui.open = None);
+        .modal(true, {
+            let close = close.clone();
+            move |s: &mut State| close(s)
+        });
     for s in t.menu_shadows() {
         p = p.box_shadow(s);
     }
-    vec![scrim(&format!("{key}-scrim"), |s: &mut State| s.ui.open = None), anchored(p, anchor, Side::Bottom, Align::Start, 4.0)]
+    vec![scrim(&format!("{key}-scrim"), move |s: &mut State| close(s)), anchored(p, anchor, Side::Bottom, Align::Start, 4.0)]
 }

@@ -23,6 +23,8 @@ pub struct PickerMenus {
     pub base_highlight: usize,
     /// The New branch field. The draft holds the text; this is the field's caret and selection, filled on open.
     pub branch: TextEdit,
+    /// The "…" menu's Project list and its Title and Tags fields (piece K).
+    pub more: super::more::MoreMenu,
 }
 
 /// `WorktreeInfo` rows as the menu lists them: the one used last first, then the server's order (`orderedWorktrees`).

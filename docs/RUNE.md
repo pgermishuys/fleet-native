@@ -943,3 +943,10 @@ A context-menu row's label is one text run, so a machine's name in the mono face
 - **Nothing new missing.** The five menus reuse `ui::chip::pop`, `option` and `focus_group`; the harness and profile rows have no mark column
   (grid `1fr 14px`), which `Option_::no_mark` now says. One selector menu serves both the conversation's composer and the New session page
   because the menu is keyed by name and reads its rows through `State::selector_lists`.
+
+## Component 7, piece K (machine picker, More options)
+
+- **A list inside a popover needs its own close.** `ui::select::content` closed `ui.open`, which would shut the whole "…" menu; `content_in` takes the
+  close action and the radius, so the Project list closes alone (its modal layer takes Esc first). Scenes can't focus a row, so the list's selected
+  row is not drawn highlighted in a scene as it is when opened by a press.
+- **`Chip` gained `trailing`** (the ellipsis in place of the chevron, no label) and **`Option_` gained `mono_title`** (the machine names).
