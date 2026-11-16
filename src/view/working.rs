@@ -55,16 +55,30 @@ impl State {
         Some(now_ms(self) - ((self.clock - self.working_since).max(0.0) * 1000.0) as i64)
     }
 
+    /// The name of the open session's machine while it isn't answering: the turn it was running can't be known to run on
+    /// (`quietMachine` in `ActivityStream.vue`). The scenes set `quiet_machine` themselves.
+    pub fn not_answering_machine(&self) -> Option<String> {
+        if self.quiet_machine.is_some() {
+            return self.quiet_machine.clone();
+        }
+        let key = self.machine_key_of(&self.open_id()?);
+        if self.machines.is_answering(key) {
+            return None;
+        }
+        Some(self.machines.machine(key).map_or_else(|| "Its machine".to_string(), |m| m.name.clone()))
+    }
+
     /// What the line says right now, and the second it changes (for `memo`-less redraws the poll already does each
     /// second; this is for the tests and the scenes).
     pub fn working_text(&self) -> Working {
         let facts = self.working_facts();
         let retrying = self.session().row.activity == "retry";
+        let quiet = self.not_answering_machine();
         let inputs = Inputs {
             since: facts.since,
             waiting: facts.waiting,
             retry: retrying.then_some(&self.session().row.retrying),
-            not_answering: self.quiet_machine.as_deref(),
+            not_answering: quiet.as_deref(),
             work: facts.work.as_ref(),
         };
         working_line(&inputs, now_ms(self))

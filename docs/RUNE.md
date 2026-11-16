@@ -909,3 +909,7 @@ A context-menu row's label is one text run, so a machine's name in the mono face
 - **`group_opacity(0, 1)` needs a `hover_group()` ancestor** (here the directory row); a button inside it that is itself a `hover_group()`
   is fine, as the message's copy button shows.
 
+
+## A tooltip with its own delay and width (component 17, piece H)
+
+`HelpLook` is set once per frame for the whole window (`cx.help_look`), so one element can't ask for another delay or width: Fleet's machine tooltip is 150 ms and 224 px, every other tooltip is 700 ms. We keep the window's look and break the words by hand (`machine_header::wrapped`); `.help(headline).help_row(try)` gives the two lines but not a medium-weight headline. A per-element delay and max width would remove the workaround.

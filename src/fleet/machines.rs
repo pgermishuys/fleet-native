@@ -7,6 +7,7 @@
 use super::auth;
 use super::groups::{ProjectInfo, parse_projects};
 use super::machine::Machine;
+use super::machine_diagnosis::Diagnosis;
 use super::sessions::parse_sessions;
 use super::settings::HOME_MACHINE_KEY;
 use crate::mock::Session;
@@ -207,6 +208,8 @@ pub struct ReadJob {
     pub key: String,
     pub name: String,
     pub base: String,
+    /// For picking another address when the one in use can't be reached.
+    pub machine: Machine,
 }
 
 /// The words of a failed answer (`readError`): the body's `error`, then `message`, else `fallback`.
@@ -250,6 +253,8 @@ pub struct Machines {
     /// What each other machine last said about itself, by id.
     pub identities: HashMap<String, Info>,
     pub others: HashMap<String, MachineSessions>,
+    /// Why each machine that isn't answering isn't, by id, from home's `check`; kept only while its error stands.
+    pub diagnoses: HashMap<String, Diagnosis>,
     /// Which machine each session is on, by session id: ids only, never dropped (`rememberSessionMachines`).
     pub session_machines: HashMap<String, String>,
     /// The state of each other machine's hub, by id; none until a session there is opened.
@@ -286,6 +291,7 @@ impl Machines {
         let ids: Vec<&str> = listed.machines.iter().map(|m| m.id.as_str()).collect();
         self.identities.retain(|id, _| ids.contains(&id.as_str()));
         self.others.retain(|id, _| ids.contains(&id.as_str()));
+        self.diagnoses.retain(|id, _| ids.contains(&id.as_str()));
         self.agent_work = listed.agent_work;
         self.list = listed.machines;
         self.source = listed.source;
@@ -358,7 +364,12 @@ impl Machines {
             let state = self.others.entry(machine.id.clone()).or_default();
             if !state.loading {
                 state.loading = true;
-                jobs.push(ReadJob { key: machine.id.clone(), name: machine.name.clone(), base: machine.base().to_string() });
+                jobs.push(ReadJob {
+                    key: machine.id.clone(),
+                    name: machine.name.clone(),
+                    base: machine.base().to_string(),
+                    machine: machine.clone(),
+                });
             }
         }
         jobs
@@ -367,7 +378,8 @@ impl Machines {
     /// A read of one machine now, after a change made on it (`refreshMachine`). `None` for a machine that isn't listed.
     pub fn begin_read(&mut self, key: &str) -> Option<ReadJob> {
         let machine = self.list.iter().find(|m| m.id == key)?;
-        let job = ReadJob { key: machine.id.clone(), name: machine.name.clone(), base: machine.base().to_string() };
+        let job =
+            ReadJob { key: machine.id.clone(), name: machine.name.clone(), base: machine.base().to_string(), machine: machine.clone() };
         self.others.entry(key.to_string()).or_default().loading = true;
         Some(job)
     }
@@ -380,6 +392,7 @@ impl Machines {
         }
         let state = self.others.entry(key.to_string()).or_default();
         let recovered = state.error.take().is_some();
+        self.diagnoses.remove(key);
         if let Some(identity) = read.identity {
             self.identities.insert(key.to_string(), identity);
         }
@@ -400,6 +413,35 @@ impl Machines {
         let state = self.others.entry(key.to_string()).or_default();
         state.error = Some(error);
         state.loading = false;
+    }
+
+    /// Why `key`'s machine isn't answering, for the heading's tooltip: this app's own check when it has run, else home's last
+    /// look at it. None while it answers (`why` in `MachineSessionsGroup.vue`).
+    pub fn why(&self, key: &str) -> Option<&Diagnosis> {
+        if self.is_answering(key) {
+            return None;
+        }
+        self.diagnoses.get(key).or_else(|| self.machine(key)?.diagnosis.as_ref())
+    }
+
+    /// Whether home should be asked why `key`'s machine isn't answering: it isn't, nothing says why yet, and the SSH tunnel
+    /// isn't known to be down (the card says that itself). Only home can look, and only an owner's app reaches it.
+    pub fn wants_diagnosis(&self, key: &str) -> bool {
+        self.source == Source::Owner
+            && !self.is_answering(key)
+            && self.machine(key).is_some_and(|m| m.tunnel_up != Some(false))
+            && !self.diagnoses.contains_key(key)
+    }
+
+    /// Home's answer to `check`, kept only while the machine still has an error (`diagnose`).
+    pub fn set_diagnosis(&mut self, key: &str, diagnosis: Option<Diagnosis>) {
+        if self.is_answering(key) {
+            return;
+        }
+        match diagnosis {
+            Some(d) => self.diagnoses.insert(key.to_string(), d),
+            None => self.diagnoses.remove(key),
+        };
     }
 
     /// Records that the sessions are on `key`'s machine, so a link to one finds it (`rememberSessions`).
@@ -436,6 +478,7 @@ impl Machines {
         let gone = self.list.remove(at);
         auth::set_for(gone.base(), None);
         self.others.remove(id);
+        self.diagnoses.remove(id);
         self.identities.remove(id);
         self.agent_work.remove(id);
         true

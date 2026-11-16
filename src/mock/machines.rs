@@ -34,6 +34,7 @@ pub fn machine(id: &str, name: &str) -> Machine {
         added_at: "2026-01-01T00:00:00Z".into(),
         ssh_destination: None,
         tunnel_up: None,
+        diagnosis: None,
     }
 }
 
@@ -91,6 +92,19 @@ fn falcon() -> MachineSessions {
     )
 }
 
+/// Harbor as home listed it while it was down: with what home's last look found.
+fn harbor_machine() -> Machine {
+    let mut m = machine("m-harbor", "harbor");
+    m.diagnosis = crate::fleet::machine_diagnosis::Diagnosis::from_json(&json!({
+        "code": "no-route", "headline": "harbor isn't answering",
+        "try": "Check that harbor is awake and on the same network, then try again.",
+        "steps": [{ "label": "Name found", "state": "ok" }, { "label": "Machine answers", "state": "failed", "detail": "No route to host" },
+                  { "label": "Port answers", "state": "notChecked" }, { "label": "It's Fleet", "state": "notChecked" },
+                  { "label": "Version fits", "state": "notChecked" }, { "label": "Key accepted", "state": "notChecked" }],
+    }));
+    m
+}
+
 fn harbor() -> MachineSessions {
     let docks = Some(("p-docks", "Docks"));
     let mut state = answered(
@@ -130,10 +144,10 @@ impl State {
         let others: Vec<(Machine, MachineSessions)> = match case {
             Case::Several => vec![
                 (machine("m-falcon", "falcon"), falcon()),
-                (machine("m-harbor", "harbor"), harbor()),
+                (harbor_machine(), harbor()),
                 (machine("m-lantern", "lantern"), MachineSessions { loading: true, ..Default::default() }),
             ],
-            Case::Down => vec![(machine("m-harbor", "harbor"), harbor())],
+            Case::Down => vec![(harbor_machine(), harbor())],
             Case::Loading => vec![(machine("m-lantern", "lantern"), MachineSessions { loading: true, ..Default::default() })],
             Case::LongName => {
                 vec![(machine("m-long", "the-observatory-workstation-in-the-north-tower"), falcon())]

@@ -476,7 +476,7 @@ fn machineheader_has_no_menu_unless_asked_for_one() {
     let t = crate::theme::Theme::of(true);
     let _ = machine_header(
         &t,
-        Heading { key: "machine-x".into(), name: "x", unreachable: false, note: None, expanded: None, count: None, menu: false },
+        Heading { key: "machine-x".into(), name: "x", unreachable: false, note: None, why: None, expanded: None, count: None, menu: false },
     );
     // The add-a-machine row and plain headings carry no right-click handler: only `menu: true` headings do, and a press on the
     // heading itself still only folds.
@@ -497,4 +497,56 @@ fn sessionspanel_work_here_makes_that_machine_the_one_youre_on_and_goes_to_its_f
     assert_eq!(rt.state.rail, crate::Rail::Sessions);
     rt.update(|s, _| s.work_here("m-gone"));
     assert_eq!(rt.state.machines.current_key(), "m-falcon", "a machine that isn't listed is ignored");
+}
+
+// ─── piece H: unreachable, and why ──────────────────────────────────────────────────────────────────────────────────
+
+fn help_of(rt: &Runtime<crate::State>, key: &str) -> Option<String> {
+    rt.elements().into_iter().find(|e| e.key.as_deref() == Some(key)).and_then(|e| e.help)
+}
+
+#[test]
+fn machinesessionsgroup_says_why_an_unreachable_machine_isnt_answering_from_homes_last_look_at_it_on_its_note() {
+    let rt = scene(Case::Down);
+    let tip = help_of(&rt, "machine-m-harbor-note").expect("the note has a tooltip");
+    assert!(tip.starts_with("harbor isn't answering"), "{tip}");
+    assert!(tip.contains("Check that harbor is awake"), "the headline, then what to try: {tip}");
+    assert!(tip.lines().all(|l| l.chars().count() <= 34), "kept inside Fleet's 224 px: {tip}");
+    // A machine that answers, and one still loading, have no tooltip: there is nothing to say.
+    let several = scene(Case::Several);
+    assert_eq!(help_of(&several, "machine-m-falcon-note"), None);
+    assert_eq!(help_of(&several, "machine-m-lantern-note"), None);
+}
+
+#[test]
+fn an_unreachable_machine_without_a_diagnosis_has_no_tooltip() {
+    let mut rt = app();
+    rt.update(|s, _| {
+        s.show_machines(Case::Down, true);
+        s.machines.list[0].diagnosis = None;
+    });
+    for _ in 0..4 {
+        rt.frame(FRAME);
+    }
+    assert!(has(&rt, "machine-m-harbor-note"));
+    assert_eq!(help_of(&rt, "machine-m-harbor-note"), None);
+}
+
+#[test]
+fn the_conversation_says_not_answering_instead_of_working_for_a_session_on_a_machine_that_isnt_answering() {
+    use crate::conv::working::Working;
+    let mut rt = scene(Case::Down);
+    click(&mut rt, "machine-session-m-harbor-h-crane");
+    assert_eq!(rt.state.not_answering_machine().as_deref(), Some("harbor"));
+    assert!(matches!(rt.state.working_text(), Working::NotAnswering(name) if name == "harbor"));
+    rt.update(|s, _| s.machines.others.get_mut("m-harbor").unwrap().error = None);
+    assert_eq!(rt.state.not_answering_machine(), None, "back on air: working again");
+}
+
+#[test]
+fn the_status_bar_speaks_for_home_only_a_machines_trouble_shows_on_its_heading() {
+    let rt = scene(Case::Down);
+    assert!(!rt.state.machines.is_answering("m-harbor"));
+    assert_eq!(rt.state.connection_note(), None, "harbor is down; the Fleet the app is connected to is fine");
+    assert!(has(&rt, "machine-m-harbor-note"));
 }

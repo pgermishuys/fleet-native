@@ -5,7 +5,12 @@ use std::time::Duration;
 
 /// Every agent starts here, so the access token (if one was given) goes with every call.
 fn builder() -> ureq::config::ConfigBuilder<ureq::typestate::AgentScope> {
-    let b = ureq::Agent::config_builder().middleware(super::auth::middleware);
+    plain_builder().middleware(super::auth::middleware)
+}
+
+/// An agent that sends no token: only for asking who answers at an address (`get_plain`).
+fn plain_builder() -> ureq::config::ConfigBuilder<ureq::typestate::AgentScope> {
+    let b = ureq::Agent::config_builder();
     // A test trusts its own certificate; nothing outside tests can add a root.
     #[cfg(test)]
     let b = {
@@ -56,6 +61,18 @@ pub fn get_page(base: &str, path: &str) -> Result<(u16, String), String> {
     let status = response.status().as_u16();
     let body = response.body_mut().with_config().limit(64 * 1024 * 1024).read_to_string().map_err(|e| e.to_string())?;
     Ok((status, body))
+}
+
+/// A GET that carries no token, within `timeout`: the status, the content type and the first 64 KB of the body. `Err`
+/// only when nothing answered (`probeAddress`: `credentials: "omit"`). The token must never reach an address that
+/// hasn't said whose it is.
+pub fn get_plain(base: &str, path: &str, timeout: Duration) -> Result<(u16, String, String), String> {
+    let agent: ureq::Agent = plain_builder().timeout_global(Some(timeout)).http_status_as_error(false).build().into();
+    let mut response = agent.get(url(base, path)).call().map_err(|e| e.to_string())?;
+    let status = response.status().as_u16();
+    let kind = response.headers().get("content-type").and_then(|v| v.to_str().ok()).unwrap_or_default().to_ascii_lowercase();
+    let body = response.body_mut().with_config().limit(64 * 1024).read_to_string().map_err(|e| e.to_string())?;
+    Ok((status, kind, body))
 }
 
 pub fn post(base: &str, path: &str, body: &Value) -> Result<Value, String> {

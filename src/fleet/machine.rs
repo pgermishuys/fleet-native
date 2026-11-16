@@ -102,6 +102,8 @@ pub struct Machine {
     pub ssh_destination: Option<String>,
     /// Whether the SSH tunnel is up; none when it isn't an SSH machine.
     pub tunnel_up: Option<bool>,
+    /// Home's last look at why the machine isn't answering; none while it answers.
+    pub diagnosis: Option<super::machine_diagnosis::Diagnosis>,
 }
 
 impl Machine {
@@ -122,17 +124,20 @@ impl Machine {
             added_at: text("addedAt").unwrap_or_default(),
             ssh_destination: text("sshDestination"),
             tunnel_up: v.get("tunnelUp").and_then(Value::as_bool),
+            diagnosis: v.get("diagnosis").and_then(super::machine_diagnosis::Diagnosis::from_json),
         })
     }
 
     /// The address this app uses for the machine: `picked` while it is still one of the machine's, else the one home uses
-    /// (`baseUrlOf`). Picking an address is piece H's.
+    /// (`baseUrlOf`).
     pub fn base_url_with<'a>(&'a self, picked: Option<&'a str>) -> &'a str {
         picked.filter(|p| self.addresses.iter().any(|a| a.url == *p)).unwrap_or(&self.base_url)
     }
 
+    /// The address in use: the one this app picked (`machine_routes`), else the one home uses.
     pub fn base(&self) -> &str {
-        self.base_url_with(None)
+        let picked = super::machine_routes::picked(&self.id);
+        self.addresses.iter().find(|a| picked.as_deref() == Some(a.url.as_str())).map_or(self.base_url.as_str(), |a| a.url.as_str())
     }
 
     /// Where this machine's token is held: its own address.
