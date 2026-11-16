@@ -117,8 +117,9 @@ fn picking_another_folder_while_a_clone_runs_lets_the_clone_finish_without_takin
 
     go.send(()).unwrap();
     r.wait("the clone to end", |s| s.folder_menu.make == Make::Idle);
-    // The refresh is asked for as the clone ends: the list is read again so the folder shows next time.
-    assert!(r.asked().iter().any(|l| l.starts_with("POST /api/repositories/refresh")));
+    // The list is read again so the folder shows next time; that read is a thread of its own.
+    let cfg = r.cfg.clone();
+    r.wait("the list to be read again", move |_| cfg.lock().unwrap().seen.iter().any(|l| l.starts_with("POST /api/repositories/refresh")));
     assert_eq!(r.folder(), Some(Folder::Repository("/home/me/src/comet".into())), "the choice stays");
     assert!(r.state().folder_menu.created.contains("/home/me/src/recipe-box"));
 }
