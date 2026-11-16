@@ -1,8 +1,10 @@
 //! What a session's row shows besides its title and word (`SessionItem.vue`, `ProgressRing.vue`, `PrBadge.vue`,
 //! `lib/session-progress.ts`): the progress summary and when it shows, the running chip's words and the pull request
-//! badge's state. Pure: no Rune, no I/O. The badge's data (the smart-links store) is the session header's; until that
-//! exists a row carries a `PrBadge` only from mock data.
+//! badge's state. Pure: no Rune, no I/O. The badge's data is the smart-links store's (`PrBadge::of_link`); a row that
+//! carries a `PrBadge` of its own (mock data) shows that one.
+use super::pr_state;
 use super::row_status::Tone;
+use super::smart_links::{self, Enrichment, SmartLink};
 use serde_json::Value;
 
 /// `SessionProgressSummary`: how far along a session is, as the server counts it.
@@ -81,24 +83,7 @@ pub fn running_label(count: u32) -> String {
     if count == 1 { "1 thing running in the background".into() } else { format!("{count} things running in the background") }
 }
 
-/// `PrState` (`lib/pr-state.ts`): what colour the badge takes.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PrState {
-    Open,
-    Draft,
-    Blocked,
-    Merged,
-    Closed,
-}
-
-/// `ChecksState`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Checks {
-    None,
-    Passing,
-    Failing,
-    Pending,
-}
+pub use super::pr_state::{Checks, PrState};
 
 /// `PrBadge`'s props: the pull request a session opened, once GitHub has answered for it.
 #[derive(Clone, Debug, PartialEq)]
@@ -114,5 +99,23 @@ impl PrBadge {
     /// The checks dot shows while the pull request is still alive (`showChecks`).
     pub fn shows_checks(&self) -> bool {
         self.checks != Checks::None && matches!(self.state, PrState::Open | PrState::Blocked | PrState::Draft)
+    }
+}
+
+impl PrBadge {
+    /// `SessionItem.vue`'s `prBadge`: the session's pull request once GitHub has answered for it (`enrichmentStatus` is
+    /// `resolved`) and the link has a number.
+    pub fn of_link(link: &SmartLink) -> Option<PrBadge> {
+        let number = u32::try_from(smart_links::link_number(link)?).ok()?;
+        if link.enrichment != Enrichment::Resolved {
+            return None;
+        }
+        let facts = smart_links::link_pr_facts(link);
+        Some(PrBadge {
+            number,
+            state: pr_state::pr_state(&facts),
+            checks: facts.checks,
+            description: format!("Pull request #{number} · {}", pr_state::pr_words(&facts)),
+        })
     }
 }
