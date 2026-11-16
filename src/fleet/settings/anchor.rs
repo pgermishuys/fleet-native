@@ -21,6 +21,9 @@ pub fn targets(page: &Page) -> &'static [(&'static str, &'static str)] {
         Page::Machines => {
             &[("machines", "settings-group-machines"), ("add-machine", "settings-row-add-machine"), ("phones", "settings-group-phones")]
         }
+        Page::General => {
+            &[("new-sessions", "settings-group-new-sessions"), ("away", "settings-group-away"), ("rail", "settings-group-rail")]
+        }
         _ => &[],
     }
 }

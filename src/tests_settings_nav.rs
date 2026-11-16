@@ -141,7 +141,7 @@ fn the_settings_rail_draws_the_menu_beside_the_page_and_opens_on_general() {
     assert!(exists(&rt, "settings-menu") && exists(&rt, "settings-detail") && exists(&rt, "sidebar-gutter"));
     assert!(!exists(&rt, "session-list"), "the session list belongs to Sessions");
     assert_eq!(rt.state.settings.page, Page::General);
-    assert!(exists(&rt, "settings-not-yet"));
+    assert!(exists(&rt, "general-section"));
 }
 
 #[test]
