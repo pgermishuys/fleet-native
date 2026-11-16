@@ -52,6 +52,7 @@ impl State {
         for event in events.iter().filter(|e| !matches!(e, Event::Cursor(_))) {
             let kind = event.kind();
             self.on_catalog_event(event);
+            self.on_feeds_event(event);
             self.on_usage_event(event);
             self.on_queue_event(event);
             self.on_ask_event(topic, event);
@@ -170,6 +171,7 @@ impl State {
     /// The settings file was read (off the UI thread): the list and the panels take what it says.
     pub fn adopt_settings(&mut self, dir: std::path::PathBuf, stored: super::settings::Sidebar) {
         self.sidebar.adopt(dir, stored);
+        self.seed_feeds_from_settings();
         self.sidebar_open = !self.sidebar.panel_collapsed();
         for project in &mut self.projects {
             if self.sidebar.is_group_collapsed(&fold_key(project)) {
@@ -182,7 +184,7 @@ impl State {
     }
 
     /// Writes the settings file on a thread, if it has a folder and something changed.
-    fn save_settings(&mut self) {
+    pub(crate) fn save_settings(&mut self) {
         if let Some((dir, json)) = self.sidebar.take_save() {
             super::settings::spawn_save(dir, json);
         }

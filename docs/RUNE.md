@@ -794,3 +794,8 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
   opacity of an element, not a background colour to nothing. Reduced motion is not read anywhere yet (the same gap as the other fades).
 - **The popover gap is a parameter of `anchored`, not of `dialog::popover`** (which fixes 4 px): the chip's `side-offset 8` builds its
   own card with `lift` and `anchored(.., 8.0)`.
+
+## New session, piece C (the page's data; no Rune)
+
+- **Nothing here needed Rune.** The calls are threads that hand answers to the state with `Post::update`; a test of them posts to its own queue and pumps it (`tests_feeds.rs`, `live`), because a headless runtime doesn't drain `AppHandle::update`.
+- **A thread's answer can arrive after the page moved on**, so each read is numbered on the UI thread and an answer whose number is no longer the latest is dropped: that is the whole of Fleet's `AbortController` here (a blocking `ureq` call can't be aborted, only ignored).

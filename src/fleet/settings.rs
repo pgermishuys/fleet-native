@@ -47,6 +47,9 @@ pub struct Sidebar {
     new_session: BTreeMap<String, NewSessionDefaults>,
     /// The default harness last seen on each other machine, shown at once on the next visit (`saved-per-machine`).
     default_harness: BTreeMap<String, String>,
+    /// The last repository scan of each machine, so the box has repositories before the machine answers
+    /// (`weave:saved:repositories:{machineKey}`).
+    saved_repositories: BTreeMap<String, super::new_session::feeds::Scan>,
     dir: Option<PathBuf>,
     dirty: bool,
 }
@@ -85,6 +88,9 @@ impl Sidebar {
         if let Some(Value::Object(by_machine)) = root.get("defaultHarness") {
             s.default_harness = by_machine.iter().filter_map(|(k, v)| Some((k.clone(), v.as_str()?.to_string()))).collect();
         }
+        if let Some(Value::Object(by_machine)) = root.get("savedRepositories") {
+            s.saved_repositories = by_machine.iter().map(|(k, v)| (k.clone(), super::new_session::feeds::Scan::from_json(v))).collect();
+        }
         s
     }
 
@@ -100,6 +106,9 @@ impl Sidebar {
         }
         if !self.default_harness.is_empty() {
             root["defaultHarness"] = json!(self.default_harness);
+        }
+        if !self.saved_repositories.is_empty() {
+            root["savedRepositories"] = self.saved_repositories.iter().map(|(m, scan)| (m.clone(), scan.to_json())).collect();
         }
         serde_json::to_string_pretty(&root).unwrap_or_default()
     }
@@ -219,6 +228,19 @@ impl Sidebar {
             None => self.default_harness.remove(machine).is_some(),
         };
         self.dirty |= changed;
+    }
+
+    /// The repositories a machine last listed (`readSaved("repositories", key)`); none the first time.
+    pub fn saved_repositories(&self) -> impl Iterator<Item = (&String, &super::new_session::feeds::Scan)> {
+        self.saved_repositories.iter()
+    }
+
+    /// Keeps a machine's scan (`writeSaved`).
+    pub fn save_repositories(&mut self, machine: &str, scan: &super::new_session::feeds::Scan) {
+        if self.saved_repositories.get(machine) != Some(scan) {
+            self.saved_repositories.insert(machine.to_string(), scan.clone());
+            self.dirty = true;
+        }
     }
 
     // ── lists on screen ───────────────────────────────────────────────────────

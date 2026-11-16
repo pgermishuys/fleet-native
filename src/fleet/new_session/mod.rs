@@ -2,6 +2,9 @@
 //! worktree naming preview. No Rune and no I/O in this folder; later pieces' views read these types.
 pub mod defaults;
 pub mod draft;
+pub mod feed_calls;
+pub mod feed_state;
+pub mod feeds;
 pub mod harness_choice;
 pub mod naming;
 pub mod pattern;
@@ -10,5 +13,7 @@ pub mod request;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_feeds;
 #[cfg(test)]
 mod tests_state;

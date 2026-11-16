@@ -6,6 +6,7 @@ pub mod asks;
 pub mod browser;
 pub mod export;
 pub mod failure;
+pub mod feeds;
 pub mod find;
 pub mod finder;
 pub mod fold;
@@ -125,6 +126,8 @@ pub fn blank_session() -> Session {
 fn brief(ask: &'static str, answer: &'static str) -> Vec<Message> {
     vec![Message::user("u1", ask), Message::assistant("a1", vec![Part::text("a1-t", answer)])]
 }
+
+pub use feeds::feeds;
 
 pub fn projects() -> Vec<Project> {
     let mut projects = vec![

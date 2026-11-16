@@ -1311,6 +1311,7 @@ New tests worth adding natively (not in Fleet): Esc from the path/clone view clo
 9. Spinner `size="lg"` (20) is forced down to 14px by `.ns-option__icon` / `.ns-chip__icon`; the prop is misleading.
 10. `Looking…` is shown for every keystroke that changes the listed folder (no debounce, no keep-previous), so deep paths flicker.
 11. The relative text "reached N minutes ago" uses the sidebar's last poll time, not a live check.
+12. The repository, worktree, inspect, harness and catalog reads turn a refusal into text with `String(apiError)` (`use-repositories.ts`, `use-repository-detail.ts`, `use-worktrees.ts`, `folder-access.ts`), which is `[object Object]` for the server's `{error}` body; `use-harnesses.ts` and `use-harness-catalog.ts` read `payload.error` properly.
 
 ### Short names
 
@@ -1846,6 +1847,25 @@ Open: nothing in the piece. Not done here: the page's watch that rewrites a draf
   A21.12 and A21.22-29 for the catalog parts that are data. Add a test per error text.
 - **Pictures:** none (non-visual). Show the scratch Fleet's answers read by a short script run and the
   state they fill.
+
+Done: **A20.10-A20.17, A20.22** and the **Data and requests** rows of Part B (all but Clone and the `#` calls, which are H and component 21): `GET /api/repositories` and
+`POST /api/repositories/refresh` (kept per machine in the settings file, `savedRepositories`, and shown from there before the machine answers: `State::seed_feeds_from_settings`),
+repository detail and worktrees (each read numbered; an answer for a path the page has left is dropped, which is Fleet's abort), `GET /api/workspace-roots` (any failure is none),
+`GET /api/directories/defaults` (`main` and an unknown home on failure), `inspect`, `POST /api/workspace-roots`, `GET /api/directories?...&unconstrained=true` (numbered like detail),
+`GET /api/harnesses` (`?fresh=true`; plain reads share one running, an older answer never overwrites a newer one, a 10 s reuse window), harness profiles, the machine's preferences
+(`NewSessionStarters`, `defaultHarnessType`, `Workflows`), `GET /api/worktrees/naming`, and the new-session catalog `GET /api/harnesses/{type}/catalog` (cached per machine, folder and profile,
+fresh for 5 minutes, old one up while the next loads) refreshed by `harness.catalog_changed`. Where it lives: `src/fleet/new_session/{feeds,feed_state,feed_calls}.rs` (parsers, the numbered
+state, the threads), `State::feeds`, the `http.rs` calls, invented data in `src/mock/feeds.rs`. Every call runs on a thread against the machine key it was asked for (home, or a machine
+home lists, with its own token); with no server nothing is asked and the invented data stays. Tests: Fleet's `use-harnesses`, `use-harness-catalog`, `folder-access` (`listWorkspaceRoots`),
+`use-repositories` (`groupByRoot`) cases under their names, A21.22, A21.28, A21.29 (the data parts), one test per error text, and three tests against a fake server (every read, the event, no server).
+Checked live: `live_feeds_from_a_scratch_fleet` (`--ignored`, output in the PR) reads every call from a scratch Fleet v0.72.0.
+Differences from Fleet, on purpose: (1) a refusal says the server's own `error` text, else `HTTP n`, where Fleet's `String(apiError)` prints `[object Object]` (Fleet issue 12 below);
+(2) home's preferences are the app's own (`pickers.prefs`, one read shared with the composer), another machine's are `Feeds::prefs`; (3) the projects are not read again: the session list's read
+(`project_load`, or a machine's own from 17B) is the shared call, `State::new_session_projects` hides Scratch.
+Open, with reasons: the harness list and the catalogs are not saved across restarts (Fleet's `saved-per-machine` `harnesses` and `harness-catalogs`): only the repositories are needed to fill the
+box before the machine answers, and the settings file would grow with every folder; the shown list is one read behind after a restart. `A20.18` (`find_in_directory`) and `A20.19`
+(`sessions_for_mentions`) already exist from component 5; `A20.20-A20.21` are M and component 21. The `harness.catalog_changed` event refreshes home's catalogs only (as Fleet: it listens to the live machine).
+The page that calls these (and `Feeds::detail`/`worktrees` cancel on leaving) is D onward; until then only tests call them.
 
 ### D. The route, the page shell, the empty state and every way in
 - **Creates/touches:** `src/view/new_session.rs` (new), `src/view.rs` (the `Route::NewSession` arm;
