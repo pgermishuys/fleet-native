@@ -1,7 +1,7 @@
 //! What the folder menu keeps while it is open, and what its keys and rows do (`NSD/FolderPicker.vue`: the `open` watch,
 //! `handleSearchKeydown`, `chooseOption`, `choose`; rows B2.19, B2.20, B2.42, B2.45-B2.53, B2.100-B2.103). The rows come from
-//! `folder.rs`. The path view and creating a folder are `folder_path.rs`; the clone view and the actual clone (piece H) are not
-//! here: their rows say so.
+//! `folder.rs`. The path view and creating a folder are `folder_path.rs`; the clone view and the clone itself are
+//! `folder_clone.rs`.
 use super::folder::{self, Act, FolderOption, Inputs};
 use super::request::Folder;
 use crate::{State, Tx};
@@ -13,12 +13,13 @@ pub const SEARCH_KEY: &str = "new-session-folder-search";
 pub const CHIP: &str = "new-session-folder-chip";
 pub const POPOVER: &str = "folder";
 
-/// Which of the menu's views shows (`view`); the clone view is piece H's.
+/// Which of the menu's views shows (`view`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum View {
     #[default]
     List,
     Path,
+    Clone,
 }
 
 /// A folder being checked, or added to the locations, before it is used (`openStatus`).
@@ -72,6 +73,16 @@ pub struct FolderMenu {
     pub clone_name: Option<String>,
     pub clone_phase: Option<String>,
     pub clone_percent: Option<u8>,
+    /// Another folder was picked while the clone ran: it finishes without taking over (`isCloneSuperseded`).
+    pub clone_superseded: bool,
+    // The clone view (B2.160-B2.170): the repository box, the Location (`None` is "Another folder…") and the parent typed.
+    pub clone_text: TextEdit,
+    pub clone_location: Option<String>,
+    pub clone_parent: TextEdit,
+    /// The Location list under its select is showing.
+    pub clone_root_list: bool,
+    /// Where suggestions come from (`getRepositorySources`); none registered, none shown.
+    pub sources: super::clone::RepositorySources,
     // The path view (B2.8-B2.10).
     pub path: TextEdit,
     pub path_highlight: usize,
@@ -98,6 +109,12 @@ impl Default for FolderMenu {
             clone_name: None,
             clone_phase: None,
             clone_percent: None,
+            clone_superseded: false,
+            clone_text: TextEdit::new(""),
+            clone_location: None,
+            clone_parent: TextEdit::new(""),
+            clone_root_list: false,
+            sources: Default::default(),
             path: TextEdit::new(""),
             path_highlight: 0,
             new_kind: NewKind::Git,
@@ -196,6 +213,7 @@ impl State {
     /// Everything of opening that isn't the keyboard's: the row to bring into view, or `None` when a clone's state is kept.
     pub(crate) fn begin_folder_menu(&mut self) -> Option<usize> {
         self.ui.open = Some(crate::ui::Open::Popover(POPOVER));
+        // A clone that runs (or ended while the menu was shut) keeps the menu as it was (`keepStateOnOpen`).
         if self.folder_menu.make == Make::Cloning {
             return None;
         }
@@ -222,8 +240,8 @@ impl State {
         self.feeds.listing.cancel();
     }
 
+    /// `resetMake`: forgets a failure and a warning. A create or clone that runs keeps running (typing never stops one).
     pub fn reset_make(&mut self) {
-        self.folder_menu.make = Make::Idle;
         self.folder_menu.error = None;
         self.folder_menu.existing = None;
         self.folder_menu.warning = None;
@@ -235,8 +253,12 @@ impl State {
         self.reset_make();
     }
 
-    /// `choose`: the folder becomes the draft's, the menu shuts.
+    /// `choose`: the folder becomes the draft's, the menu shuts. Choosing while a clone runs lets the clone finish without
+    /// taking over (B2.170).
     pub fn choose_folder(&mut self, folder: Folder) {
+        if self.folder_menu.make == Make::Cloning {
+            self.folder_menu.clone_superseded = true;
+        }
         self.set_folder(folder, true);
         self.close_folder_menu();
     }
@@ -265,9 +287,9 @@ impl State {
         match option.act {
             Act::Choose(folder) => self.choose_folder(folder),
             Act::Path(text) => self.show_path(text, tx),
-            Act::CloneForm => self.toast("The clone view isn't in the native app yet (component 7, piece H).".into(), None, 4.0, tx),
+            Act::CloneForm => self.show_clone(tx),
             Act::Create { target, root } => self.create_folder_at(target, true, Some(root), None),
-            Act::Clone { .. } => self.toast("Cloning isn't in the native app yet (component 7, piece H).".into(), None, 4.0, tx),
+            Act::Clone { source, target, root } => self.clone_into(source, target, Some(root)),
         }
     }
 
@@ -289,7 +311,7 @@ impl State {
     /// The chip's words (`chipLabel`): while a clone for this folder runs it says so (B2.10).
     pub fn folder_chip_label(&self, folder: Option<&Folder>) -> String {
         match (&self.folder_menu.clone_name, self.folder_menu.make) {
-            (Some(name), Make::Cloning) => match self.folder_menu.clone_percent {
+            (Some(name), Make::Cloning) if !self.folder_menu.clone_superseded => match self.folder_menu.clone_percent {
                 Some(p) => format!("Cloning {name}… {p}%"),
                 None => format!("Cloning {name}…"),
             },
@@ -321,6 +343,40 @@ pub enum Scene {
     Path(PathScene),
     /// A name that is a folder already: the list view's Create said no (409) and offers the folder that is there.
     Conflict,
+    /// The clone view (piece H).
+    Clone(CloneScene),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CloneScene {
+    /// A repository pasted in the search box and carried over: the preview of where it lands.
+    Pasted,
+    /// The box empty, a source registered: up to five suggestions (no live Fleet has a source without an account).
+    Suggestions,
+    /// The clone runs: git's words in the preview and on the chip, the fields shut.
+    Running,
+    /// The folder is there already (409): the failure and "Use that folder".
+    Exists,
+}
+
+/// A source of repositories for the scene of suggestions.
+struct SceneSource;
+
+impl super::clone::RepositorySource for SceneSource {
+    fn icon(&self) -> &'static str {
+        "github"
+    }
+    fn refresh(&self) {}
+    fn repositories(&self) -> Vec<super::clone::RemoteRepository> {
+        ["ada/garden-notes", "ada/weave-website", "ada/recipe-box", "ada/demo", "ada/trail-maps", "ada/spare"]
+            .iter()
+            .map(|n| super::clone::RemoteRepository {
+                id: n.to_string(),
+                full_name: n.to_string(),
+                name: n.rsplit('/').next().unwrap().into(),
+            })
+            .collect()
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -373,6 +429,23 @@ impl State {
             Scene::Path(case) => {
                 self.begin_folder_menu();
                 self.show_path_scene(case, ROOT)
+            }
+            Scene::Clone(case) => {
+                self.begin_folder_menu();
+                self.folder_menu.query = TextEdit::new(if case == CloneScene::Suggestions { "" } else { "ada/recipe-box" });
+                if case == CloneScene::Suggestions {
+                    self.folder_menu.sources.register(std::sync::Arc::new(SceneSource));
+                }
+                self.enter_clone_view();
+                if case == CloneScene::Running {
+                    let m = &mut self.folder_menu;
+                    (m.make, m.clone_name, m.clone_phase, m.clone_percent) =
+                        (Make::Cloning, Some("recipe-box".into()), Some("Receiving objects".into()), Some(42));
+                }
+                if case == CloneScene::Exists {
+                    self.folder_menu.error = Some(format!("{ROOT}/recipe-box already exists."));
+                    self.folder_menu.existing = Some(format!("{ROOT}/recipe-box"));
+                }
             }
             Scene::Conflict => {
                 self.begin_folder_menu();

@@ -16,6 +16,7 @@ pub mod failure;
 pub mod find;
 mod fold;
 pub mod folder_menu;
+pub mod folder_menu_clone;
 pub mod folder_menu_path;
 pub mod header;
 pub mod header_banners;

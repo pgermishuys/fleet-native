@@ -19,18 +19,30 @@ use std::sync::{Arc, Mutex};
 const HOME: &str = "/home/me";
 
 /// What the fake machine says that a test may change.
-struct Config {
+pub(crate) struct Config {
     /// The home folder `GET /api/directories/defaults` reports (the machine's own is always `HOME`).
-    home: String,
-    roots: Vec<String>,
-    inspect: Value,
-    create: (u16, Value),
+    pub(crate) home: String,
+    pub(crate) roots: Vec<String>,
+    pub(crate) inspect: Value,
+    pub(crate) create: (u16, Value),
     /// Folders on the machine, and whether each is a git checkout.
-    folders: Vec<(String, bool)>,
-    seen: Vec<String>,
+    pub(crate) folders: Vec<(String, bool)>,
+    pub(crate) seen: Vec<String>,
+    /// The answer to a clone: its status and what the stream does (piece H).
+    pub(crate) clone: (u16, Vec<Step>),
+    /// A `Step::Wait` waits for one message here; the test sends it when it wants the stream to go on.
+    pub(crate) gate: Option<Arc<Mutex<Receiver<()>>>>,
 }
 
-type Shared = Arc<Mutex<Config>>;
+/// One thing the fake machine's clone stream does.
+#[derive(Clone)]
+pub(crate) enum Step {
+    /// Writes these bytes and flushes (a line may be cut in two).
+    Write(String),
+    Wait,
+}
+
+pub(crate) type Shared = Arc<Mutex<Config>>;
 
 fn config() -> Shared {
     let dir = |p: &str, git: bool| (p.to_string(), git);
@@ -53,6 +65,8 @@ fn config() -> Shared {
             dir("/srv", false),
         ],
         seen: Vec::new(),
+        clone: (200, Vec::new()),
+        gate: None,
     }))
 }
 
@@ -118,6 +132,28 @@ fn serve(cfg: Shared) -> String {
                 let body = text.split("\r\n\r\n").nth(1).unwrap_or("").to_string();
                 let (path, query) = target.split_once('?').unwrap_or((&target, ""));
                 let asked = query.split('&').find_map(|p| p.strip_prefix("path=")).map(decode).unwrap_or_default();
+                if method == "POST" && path == "/api/directories/clone" {
+                    let (status, steps, gate) = {
+                        let mut c = cfg.lock().unwrap();
+                        c.seen.push(format!("{method} {path} {asked} {body}").trim().to_string());
+                        (c.clone.0, c.clone.1.clone(), c.gate.clone())
+                    };
+                    let _ = write!(stream, "HTTP/1.1 {status} X\r\ncontent-type: application/x-ndjson\r\nconnection: close\r\n\r\n");
+                    for step in steps {
+                        match step {
+                            Step::Write(bytes) => {
+                                let _ = stream.write_all(bytes.as_bytes());
+                                let _ = stream.flush();
+                            }
+                            Step::Wait => {
+                                if let Some(gate) = &gate {
+                                    let _ = gate.lock().unwrap().recv_timeout(test_wait::BOUND);
+                                }
+                            }
+                        }
+                    }
+                    return;
+                }
                 let mut cfg = cfg.lock().unwrap();
                 cfg.seen.push(format!("{method} {path} {asked} {body}").trim().to_string());
                 let (status, reply) = match (method.as_str(), path) {
@@ -150,17 +186,17 @@ fn serve(cfg: Shared) -> String {
     base
 }
 
-struct Rig {
-    rt: Runtime<State>,
+pub(crate) struct Rig {
+    pub(crate) rt: Runtime<State>,
     queue: Receiver<Job>,
-    cfg: Shared,
+    pub(crate) cfg: Shared,
 }
 
-fn rig() -> Rig {
+pub(crate) fn rig() -> Rig {
     rig_with(|_| {})
 }
 
-fn rig_with(change: impl FnOnce(&mut Config)) -> Rig {
+pub(crate) fn rig_with(change: impl FnOnce(&mut Config)) -> Rig {
     let cfg = config();
     change(&mut cfg.lock().unwrap());
     let base = serve(cfg.clone());
@@ -184,7 +220,7 @@ fn rig_with(change: impl FnOnce(&mut Config)) -> Rig {
 }
 
 impl Rig {
-    fn wait(&mut self, what: &str, done: impl FnMut(&State) -> bool) {
+    pub(crate) fn wait(&mut self, what: &str, done: impl FnMut(&State) -> bool) {
         test_wait::drive(&mut self.rt, &self.queue, what, done, |s| {
             format!(
                 "listing {:?}, error {:?}, make {:?}, view {:?}",
@@ -193,17 +229,17 @@ impl Rig {
         });
     }
 
-    fn state(&self) -> &State {
+    pub(crate) fn state(&self) -> &State {
         &self.rt.state
     }
 
     /// Opens the menu and waits for the machine's locations and defaults.
-    fn open_menu(&mut self) {
+    pub(crate) fn open_menu(&mut self) {
         click(&mut self.rt, "new-session-folder-chip");
         self.wait("the locations and defaults", |s| !s.feeds.roots.is_empty() && s.feeds.defaults.is_some());
     }
 
-    fn open_box(&mut self) {
+    pub(crate) fn open_box(&mut self) {
         self.open_menu();
         click(&mut self.rt, "new-session-folder-path");
         // The pointer was on the row that opened the box: rows that arrive under it would take the highlight.
@@ -212,26 +248,26 @@ impl Rig {
         self.rt.update(|s, _| s.folder_menu.path_highlight = 0);
     }
 
-    fn type_text(&mut self, words: &str) {
+    pub(crate) fn type_text(&mut self, words: &str) {
         self.rt.frame(FRAME);
         self.rt.key(KeyEvent { key: Key::Text(words.into()), mods: Mods::default() });
         self.rt.frame(FRAME);
         self.rt.frame(FRAME);
     }
 
-    fn type_in_box(&mut self, words: &str) {
+    pub(crate) fn type_in_box(&mut self, words: &str) {
         self.type_text(words);
         self.wait("the listing of what was typed", |s| s.current_listing().is_some());
     }
 
-    fn press(&mut self, key: Key) {
+    pub(crate) fn press(&mut self, key: Key) {
         self.rt.frame(FRAME);
         self.rt.key(KeyEvent { key, mods: Mods::default() });
         self.rt.frame(FRAME);
         self.rt.frame(FRAME);
     }
 
-    fn set_path(&mut self, text: &str) {
+    pub(crate) fn set_path(&mut self, text: &str) {
         let text = text.to_string();
         self.rt.update(move |s, _| {
             s.folder_menu.path.replace_text(text);
@@ -240,20 +276,20 @@ impl Rig {
         self.wait("the listing", |s| s.current_listing().is_some());
     }
 
-    fn asked(&self) -> Vec<String> {
+    pub(crate) fn asked(&self) -> Vec<String> {
         self.cfg.lock().unwrap().seen.clone()
     }
 
-    fn last_listing_request(&self) -> String {
+    pub(crate) fn last_listing_request(&self) -> String {
         let seen = self.asked();
         seen.iter().rev().find_map(|l| l.strip_prefix("GET /api/directories ").map(str::to_string)).unwrap_or_default()
     }
 
-    fn created(&self) -> Vec<Value> {
+    pub(crate) fn created(&self) -> Vec<Value> {
         self.asked().iter().filter_map(|l| l.strip_prefix("POST /api/directories ")).filter_map(|b| serde_json::from_str(b).ok()).collect()
     }
 
-    fn row_titles(&self) -> Vec<String> {
+    pub(crate) fn row_titles(&self) -> Vec<String> {
         self.state()
             .path_rows()
             .into_iter()
@@ -261,17 +297,17 @@ impl Rig {
             .collect()
     }
 
-    fn chip(&self) -> String {
+    pub(crate) fn chip(&self) -> String {
         let folder = self.state().new_draft.draft().and_then(|d| d.folder.clone());
         self.state().folder_chip_label(folder.as_ref())
     }
 
-    fn folder(&self) -> Option<Folder> {
+    pub(crate) fn folder(&self) -> Option<Folder> {
         self.state().new_draft.draft().and_then(|d| d.folder.clone())
     }
 
     /// Search the list view: opens the menu and types.
-    fn search(&mut self, words: &str) {
+    pub(crate) fn search(&mut self, words: &str) {
         self.open_menu();
         self.type_text(words);
     }

@@ -20,7 +20,7 @@ const LIST_MAX_H: f32 = 340.0;
 /// its name, a `new` tag for a folder made from this menu, a chevron; the accent-tinted border while nothing is chosen.
 pub fn trigger(s: &State, t: &Theme) -> El {
     let chosen = s.new_draft.draft().and_then(|d| d.folder.as_ref());
-    let cloning = s.folder_menu.make == Make::Cloning && s.folder_menu.clone_name.is_some();
+    let cloning = s.folder_menu.make == Make::Cloning && s.folder_menu.clone_name.is_some() && !s.folder_menu.clone_superseded;
     let glyph = match chosen {
         Some(Folder::None) => &MESSAGE_SQUARE,
         Some(Folder::Directory(_)) => &FOLDER,
@@ -227,7 +227,7 @@ pub fn make_error(s: &State, t: &Theme) -> Option<El> {
         .mb(8.0)
         .gap(6.0)
         .flex_wrap()
-        .child(text(error.clone()).font(sans(12.5, 400.0, 1.4)).color(t.error_text).wrap().min_w(0.0));
+        .child(text(error.clone()).font(sans(12.5, 400.0, 1.4)).color(t.error_text).wrap().w_full());
     if s.folder_menu.existing.is_some() {
         line = line.child(
             row()
@@ -247,6 +247,8 @@ pub fn overlay(s: &State, t: &Theme) -> Vec<El> {
         vec![folder_menu_path::warning_panel(s, t)]
     } else if s.folder_menu.view == View::Path {
         folder_menu_path::path_view(s, t)
+    } else if s.folder_menu.view == View::Clone {
+        crate::view::folder_menu_clone::clone_view(s, t)
     } else {
         list_view(s, t)
     };

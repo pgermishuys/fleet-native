@@ -236,7 +236,7 @@ impl State {
     }
 
     /// `useMade`: the folder is the draft's; a warning keeps the menu open so it can be read.
-    fn use_made(&mut self, made: NewFolder, root: Option<String>) {
+    pub(crate) fn use_made(&mut self, made: NewFolder, root: Option<String>) {
         let key = self.target_key();
         self.folder_menu.created.insert(made.path.clone());
         self.read_repositories(&key, true);
