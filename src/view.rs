@@ -5,6 +5,7 @@ pub mod allowed;
 pub mod ask_card;
 pub mod attachments;
 pub mod autocomplete;
+pub mod base_picker;
 pub mod browser_steps;
 mod compaction;
 pub mod composer;
@@ -58,6 +59,7 @@ pub mod update;
 pub mod work;
 pub mod work_output;
 pub mod working;
+pub mod workspace_picker;
 
 use crate::theme::{Theme, sans};
 use crate::{Rail, State};

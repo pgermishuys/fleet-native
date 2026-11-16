@@ -127,6 +127,8 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
         Some(Open::Popover("allowed")) => crate::view::allowed::overlay(s, t),
         Some(Open::Popover("starters")) => crate::view::starters::menu(t),
         Some(Open::Popover("folder")) => crate::view::folder_menu::overlay(s, t),
+        Some(Open::Popover("workspace")) => crate::view::workspace_picker::overlay(s, t),
+        Some(Open::Popover("base")) => crate::view::base_picker::overlay(s, t),
         Some(Open::Popover(name)) => gallery::popover_content(s, t, name),
         Some(Open::Directory) => directory_picker::view(s, t, "g-dir"),
         Some(Open::Dialog) => gallery::dialog(s, t),

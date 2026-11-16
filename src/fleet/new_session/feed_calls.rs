@@ -151,7 +151,9 @@ impl State {
             key,
             move |base| parse_worktrees(http::repository_worktrees(base, &asked)),
             move |s, _, r| {
-                s.feeds.worktrees.finish_or(seq, r, true);
+                if s.feeds.worktrees.finish_or(seq, r, true) {
+                    s.drop_missing_worktree();
+                }
             },
         );
     }

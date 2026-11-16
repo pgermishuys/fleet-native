@@ -44,6 +44,9 @@ impl State {
             }
         }
         self.route = route;
+        if !was && is {
+            self.read_folder_feeds();
+        }
     }
 
     /// `/sessions/new` with an optional `projectId`: the list's button, a project's +, the draft row, the palette, Ctrl+N.

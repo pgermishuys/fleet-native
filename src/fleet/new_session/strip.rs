@@ -85,5 +85,6 @@ impl State {
         draft.has_chosen_folder |= chosen;
         draft.folder = Some(folder);
         draft.workspace = workspace;
+        self.read_folder_feeds();
     }
 }

@@ -50,6 +50,8 @@ mod tests_rows;
 mod tests_session_header;
 #[cfg(test)]
 mod tests_starters;
+#[cfg(test)]
+mod tests_workspace;
 mod theme;
 pub mod ui;
 pub mod update;
@@ -88,6 +90,7 @@ pub struct State {
     pub starters: fleet::new_session::starters::StartersUi,
     /// The folder menu under the box: its search text, highlighted row and Location.
     pub folder_menu: fleet::new_session::folder_menu::FolderMenu,
+    pub pickers_ns: fleet::new_session::workspace::PickerMenus,
     /// What the New session page has read from its machine: repositories, detail, harnesses, catalog, naming.
     pub feeds: fleet::new_session::feed_state::Feeds,
     /// A scene that shows one header of each kind above the list (the Pinned group isn't drawn until piece J).
@@ -315,6 +318,7 @@ impl Default for State {
             new_draft: Default::default(),
             starters: Default::default(),
             folder_menu: Default::default(),
+            pickers_ns: Default::default(),
             feeds: mock::feeds(),
             sample_headers: false,
             sheet_w: 0.0,
@@ -1350,6 +1354,52 @@ pub fn spec() -> AppSpec<State> {
             ("new-session-folder-clone-exists-light", |s| {
                 s.dark = Some(false);
                 s.show_folder_menu(fleet::new_session::folder_menu::Scene::Clone(fleet::new_session::folder_menu::CloneScene::Exists))
+            }),
+            // Component 7, piece I: the workspace and base pickers.
+            ("new-session-workspace-menu", |s| s.show_picker_scene(fleet::new_session::workspace::Scene::WorkspaceMenu)),
+            ("new-session-workspace-menu-light", |s| {
+                s.dark = Some(false);
+                s.show_picker_scene(fleet::new_session::workspace::Scene::WorkspaceMenu)
+            }),
+            ("new-session-workspace-last-used", |s| s.show_picker_scene(fleet::new_session::workspace::Scene::WorkspaceLastUsed)),
+            ("new-session-workspace-last-used-light", |s| {
+                s.dark = Some(false);
+                s.show_picker_scene(fleet::new_session::workspace::Scene::WorkspaceLastUsed)
+            }),
+            ("new-session-base-menu", |s| s.show_picker_scene(fleet::new_session::workspace::Scene::BaseMenu)),
+            ("new-session-base-menu-light", |s| {
+                s.dark = Some(false);
+                s.show_picker_scene(fleet::new_session::workspace::Scene::BaseMenu)
+            }),
+            ("new-session-base-local", |s| s.show_picker_scene(fleet::new_session::workspace::Scene::BaseLocal)),
+            ("new-session-base-local-light", |s| {
+                s.dark = Some(false);
+                s.show_picker_scene(fleet::new_session::workspace::Scene::BaseLocal)
+            }),
+            ("new-session-base-nothing", |s| s.show_picker_scene(fleet::new_session::workspace::Scene::BaseNothing)),
+            ("new-session-base-nothing-light", |s| {
+                s.dark = Some(false);
+                s.show_picker_scene(fleet::new_session::workspace::Scene::BaseNothing)
+            }),
+            ("new-session-plan-new", |s| s.show_picker_scene(fleet::new_session::workspace::Scene::PlanNew)),
+            ("new-session-plan-new-light", |s| {
+                s.dark = Some(false);
+                s.show_picker_scene(fleet::new_session::workspace::Scene::PlanNew)
+            }),
+            ("new-session-plan-picked", |s| s.show_picker_scene(fleet::new_session::workspace::Scene::PlanPicked)),
+            ("new-session-plan-picked-light", |s| {
+                s.dark = Some(false);
+                s.show_picker_scene(fleet::new_session::workspace::Scene::PlanPicked)
+            }),
+            ("new-session-plan-current", |s| s.show_picker_scene(fleet::new_session::workspace::Scene::PlanCurrent)),
+            ("new-session-plan-current-light", |s| {
+                s.dark = Some(false);
+                s.show_picker_scene(fleet::new_session::workspace::Scene::PlanCurrent)
+            }),
+            ("new-session-plan-existing", |s| s.show_picker_scene(fleet::new_session::workspace::Scene::PlanExisting)),
+            ("new-session-plan-existing-light", |s| {
+                s.dark = Some(false);
+                s.show_picker_scene(fleet::new_session::workspace::Scene::PlanExisting)
             }),
             // Component 8, piece B: the header drawn (the text of its rows, the banners).
             ("header-fork", |s| s.show_header(mock::header::Case::Fork, true, true)),

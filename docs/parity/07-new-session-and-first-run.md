@@ -1994,6 +1994,18 @@ Checked on Linux (lavapipe); not on Windows or macOS (CI).
 - **Pictures:** native beside Fleet's, each menu open on a repository with a few branches (invented), both
   themes; the plan line in three states.
 
+- **Done (piece I).** Rows B3.1-B3.22 and B4.1-B4.14 are built (`src/view/{workspace_picker,base_picker}.rs`, `src/fleet/new_session/workspace.rs`),
+  with the plan line (A12) and the naming preview (A17) fed from the branches, worktrees and templates read when the folder changes. Tests
+  `src/tests_workspace.rs` keep Fleet's names (A21.2-4, 12-21, 176). Pictures: `shots/parity/07-new-session-i/`.
+  Gaps, each with its reason:
+  - **Option rows are shorter than Fleet's** (44px against 48px): the shared `ui::chip::option` uses line-height 1.3, Fleet's `.ns-option` inherits 1.5. It
+    also shows in the folder menu; fixing it is the shared file's owner's call (not this piece's rows).
+  - **A mono run in the plan line wraps only between runs** (Rune; see `docs/RUNE.md`).
+  - **B3.12's scroll to the chosen row on open** works from the chip; a scene that opens the menu directly doesn't scroll.
+  - **Home/End and type-ahead in the workspace menu** (B4 header): Rune's `focus_group` has Up/Down and type-select only.
+  - **"Last used"** can't be made on the scratch Fleet without sending a session (that is piece L's); it is shown from a scene only.
+  - **With no server, only the mock's `rocket` has branches**: another repository says "Loading branches…".
+
 ### J. Harness, profile, agent and model chips
 - **Creates/touches:** `src/view/{harness_picker,profile_picker}.rs` (new), `src/fleet/new_session/harness.rs`
   (`describe_defaults`, `keep_offered` for a folder's choice, `profile_summary`), `src/view/new_session_strip.rs`.

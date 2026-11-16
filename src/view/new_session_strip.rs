@@ -1,7 +1,6 @@
 //! Ports the chips under the New session box (`NewSessionComposer.vue`'s `.new-session__strip`, rows A11, B11.17): the
 //! machine chip, a separator, the folder chip, and the workspace, base and "…" chips as their pieces land. Each chip is
 //! `ui::chip::Chip`; what a chip opens is its picker's piece (the toast says which until it is built).
-use crate::fleet::new_session::request::Workspace;
 use crate::theme::{Theme, mono, sans};
 use crate::ui::chip::Chip;
 use crate::{State, Tx};
@@ -37,18 +36,22 @@ pub fn strip(s: &State, t: &Theme) -> El {
     if chips.machine {
         r = r.child(machine(s, t)).child(separator(t));
     }
-    r.child(super::folder_menu::trigger(s, t))
+    r = r.child(super::folder_menu::trigger(s, t));
+    if chips.workspace {
+        r = r.child(separator(t)).child(super::workspace_picker::chip(s, t));
+    }
+    if chips.base {
+        r = r.child(super::base_picker::chip(s, t));
+    }
+    r
 }
 
 /// `.new-session__plan`: what Enter will do, in one muted 12px line under the chips (`min-height: 22px`, `4px 11px 0`); a path
 /// or branch is mono 11.5px in `--text`, a warning in the waiting colour. Piece E draws the line from the folder alone
 /// ("Machine and folder" until one is chosen); the branch and worktree details come with the pickers (pieces I, L).
 pub fn plan_line(s: &State, t: &Theme) -> El {
-    use crate::fleet::new_session::plan::{PlanInput, describe_new_session};
-    let draft = s.new_draft.draft();
-    let input = PlanInput::new(draft.and_then(|d| d.folder.clone()), draft.map(|d| d.workspace.clone()).unwrap_or(Workspace::New));
-    let mut line = row().key("new-session-plan").w_full().wrap().items_center().min_h(22.0).px(11.0).pt(4.0);
-    for part in describe_new_session(&input) {
+    let mut line = row().key("new-session-plan").w_full().flex_wrap().items_center().min_h(22.0).px(11.0).pt(4.0);
+    for part in s.plan_parts() {
         line = line.child(if part.code {
             text(part.text).font(mono(11.5, 400.0, 1.5)).color(t.text)
         } else {
