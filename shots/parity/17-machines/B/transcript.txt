@@ -1,0 +1,16 @@
+Live check, 16 November 2026: two scratch Fleets on this machine ("atlas" = home, "falcon" started with --require-token,
+added to atlas with POST /api/machines). The app is pointed at atlas (--server), headless, with a data folder of its own.
+
+1. both up:
+fleet-native: machines reached over http
+fleet-native: machine falcon listed 2 session(s)
+   machine-sessions.json then holds falcon's 2 trimmed rows and the session-to-machine map; no token in it (grep -c token = 0).
+
+2. falcon's token rotated (atlas still holds the old one):
+fleet-native: machines reached over http
+fleet-native: machine falcon: falcon didn't accept the token.
+   the cached rows of the run before are still in the file.
+
+3. falcon stopped:
+fleet-native: machines reached over http
+fleet-native: machine falcon: Can't reach falcon.
