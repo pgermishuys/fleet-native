@@ -42,5 +42,10 @@ codesign --verify --deep --strict "$app"
 
 ln -s /Applications "$work/stage/Applications"
 rm -f "$out"
-hdiutil create -volname "Fleet Native" -srcfolder "$work/stage" -ov -format UDZO "$out"
+# Transient "Resource busy" errors happen on CI runners: retry, and let the last try show its error.
+for i in 1 2 3 4; do
+  hdiutil create -volname "Fleet Native" -srcfolder "$work/stage" -ov -format UDZO "$out" && break
+  [ "$i" = 4 ] && exit 1
+  sleep $((i * 3))
+done
 rm -rf "$work"
