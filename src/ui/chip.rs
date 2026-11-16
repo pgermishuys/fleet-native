@@ -23,6 +23,9 @@ pub struct Chip {
     busy: bool,
     /// `ns-chip__new`: the small `new` tag after the label.
     tag: bool,
+    /// `ns-chip__hint` inside the label: muted words before (`from `) and after (` · no fetch`) it, weight 400.
+    head: Option<String>,
+    tail: Option<String>,
 }
 
 impl Chip {
@@ -41,6 +44,8 @@ impl Chip {
             label_font: None,
             busy: false,
             tag: false,
+            head: None,
+            tail: None,
         }
     }
     pub fn glyph(mut self, g: &'static Icon) -> Self {
@@ -84,6 +89,14 @@ impl Chip {
     }
     pub fn new_tag(mut self, on: bool) -> Self {
         self.tag = on;
+        self
+    }
+    pub fn head(mut self, words: impl Into<String>) -> Self {
+        self.head = Some(words.into());
+        self
+    }
+    pub fn tail(mut self, words: Option<String>) -> Self {
+        self.tail = words;
         self
     }
     pub fn label_font(mut self, font: rune::tok::TextStyle) -> Self {
@@ -137,7 +150,20 @@ impl Chip {
         }
         let ink = self.ink.unwrap_or(t.text);
         let font = self.label_font.unwrap_or(sans(12.5, 500.0, 1.2));
-        chip = chip.child(text(self.label).font(font).color(ink).truncate().shrink());
+        if self.head.is_some() || self.tail.is_some() {
+            let (head, tail) = (self.head.unwrap_or_default(), self.tail.unwrap_or_default());
+            let whole = format!("{head}{}{tail}", self.label);
+            let mut spans = Vec::new();
+            if !head.is_empty() {
+                spans.push(rune::Span::new(0, head.len()).weight(400.0).color(t.muted));
+            }
+            if !tail.is_empty() {
+                spans.push(rune::Span::new(whole.len() - tail.len(), whole.len()).weight(400.0).color(t.muted));
+            }
+            chip = chip.child(rich(whole, spans).font(font).color(ink).truncate().shrink());
+        } else {
+            chip = chip.child(text(self.label).font(font).color(ink).truncate().shrink());
+        }
         if self.tag {
             // `.ns-chip__new`: 10px/600 on a 16px line, `0 4px`, 4px radius, `--running` at 14%.
             chip = chip.child(
@@ -207,6 +233,8 @@ pub struct Option_ {
     pub bold: Option<String>,
     /// A key hint in the last column instead of the check (`.ns-folder-kbd`: the path view's highlighted row).
     pub hint: Option<String>,
+    /// `ns-option__tag`: muted words after the title (` · default`), 11.5px, weight 400.
+    pub tag: Option<String>,
 }
 
 impl Option_ {
@@ -222,6 +250,7 @@ impl Option_ {
             highlighted: false,
             bold: None,
             hint: None,
+            tag: None,
         }
     }
 }
@@ -254,12 +283,16 @@ pub fn option(t: &Theme, o: Option_, lead: Option<El>, on_press: impl Fn(&mut St
     let lead = lead.or_else(|| o.icon.map(|g| icon(g, 14.0).color(t.muted)));
     r = r.child(el().w(16.0).center().children(lead));
     let font = sans(13.0, 400.0, 1.3);
-    let title = match o.bold {
-        Some(bold) => {
+    let title = match (o.bold, o.tag) {
+        (_, Some(tag)) => {
+            let spans = vec![rune::Span::new(o.title.len(), o.title.len() + tag.len()).weight(400.0).size(11.5).color(t.muted)];
+            rich(format!("{}{tag}", o.title), spans).font(font).color(t.text).truncate()
+        }
+        (Some(bold), None) => {
             let spans = vec![rune::Span::new(o.title.len() + 1, o.title.len() + 1 + bold.len()).weight(600.0)];
             rich(format!("{} {bold}", o.title), spans).font(font).color(t.text).truncate()
         }
-        None => text(o.title).font(font).color(t.text).truncate(),
+        (None, None) => text(o.title).font(font).color(t.text).truncate(),
     };
     let mut words = col().grow(1.0).min_w(0.0).child(title);
     if let Some(detail) = o.detail {

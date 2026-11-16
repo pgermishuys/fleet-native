@@ -26,24 +26,38 @@ pub fn scan() -> Scan {
     }
 }
 
-/// `rocket`'s branches, remotes and default base.
+/// `rocket`'s branches, remotes and default base, in the order the server sends them (most recent commit first, a local
+/// branch before its `origin/` twin). The hashes are those of the scratch repository the pictures' Fleet client shows.
 pub fn detail() -> Detail {
-    let branch = |name: &str, current: bool, remote: bool| Branch {
+    detail_in("/home/ada/src")
+}
+
+/// The same repository under another folder, for scenes that put the native app and Fleet's own client side by side.
+pub fn detail_in(root: &str) -> Detail {
+    let branch = |name: &str, message: &str, hash: &str, current: bool| Branch {
         name: name.into(),
-        short_hash: "3f9a2c1".into(),
-        message: "Tidy the launch checks".into(),
-        author: "Ada".into(),
-        date: "2026-11-02".into(),
+        short_hash: hash.into(),
+        message: message.into(),
+        author: String::new(),
+        date: "2026-11-02T09:00:00Z".into(),
         is_current: current,
-        is_remote: remote,
+        is_remote: name.starts_with("origin/"),
     };
     Detail {
         name: "rocket".into(),
-        path: ROCKET.into(),
+        path: format!("{root}/rocket"),
         branch: "fix-login".into(),
-        default_base: "main".into(),
+        default_base: "origin/main".into(),
         default_branch: "main".into(),
-        branches: vec![branch("main", false, false), branch("fix-login", true, false), branch("origin/main", false, true)],
+        branches: vec![
+            branch("fix-login", "Keep the redirect after sign-in", "3f01000", true),
+            branch("spike-cache", "Cache the stage plan", "383debe", false),
+            branch("origin/spike-cache", "Cache the stage plan", "383debe", false),
+            branch("release/2.0", "Bump the fuel gauge to 2.0", "1eecfcc", false),
+            branch("origin/release/2.0", "Bump the fuel gauge to 2.0", "1eecfcc", false),
+            branch("main", "Tidy the launch checks", "f6b0df7", false),
+            branch("origin/main", "Tidy the launch checks", "f6b0df7", false),
+        ],
         remotes: vec![Remote {
             name: "origin".into(),
             url: "https://github.com/ada/rocket.git".into(),
@@ -53,11 +67,18 @@ pub fn detail() -> Detail {
 }
 
 pub fn worktrees() -> Vec<Worktree> {
-    vec![Worktree {
-        path: "/home/ada/src/rocket-worktrees/fix-login".into(),
-        branch: Some("fix-login".into()),
-        commit_hash: "3f9a2c1d".into(),
-    }]
+    worktrees_in("/home/ada/src")
+}
+
+/// `git worktree list` for the repository, as the server sends it: a detached one, one beside the repository, two on branches.
+pub fn worktrees_in(root: &str) -> Vec<Worktree> {
+    let parent = root.rsplit_once('/').map_or("", |(p, _)| p);
+    let tree = |path: String, branch: Option<&str>, hash: &str| Worktree { path, branch: branch.map(Into::into), commit_hash: hash.into() };
+    vec![
+        tree(format!("{parent}/elsewhere/rocket-detached"), None, "f6b0df792767"),
+        tree(format!("{root}/rocket-worktrees/release-2-0"), Some("release/2.0"), "1eecfccb9349"),
+        tree(format!("{root}/rocket-worktrees/spike-cache"), Some("spike-cache"), "383debe87c6b"),
+    ]
 }
 
 pub fn harnesses() -> Vec<HarnessEntry> {

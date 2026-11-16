@@ -913,3 +913,13 @@ A context-menu row's label is one text run, so a machine's name in the mono face
 ## A tooltip with its own delay and width (component 17, piece H)
 
 `HelpLook` is set once per frame for the whole window (`cx.help_look`), so one element can't ask for another delay or width: Fleet's machine tooltip is 150 ms and 224 px, every other tooltip is 700 ms. We keep the window's look and break the words by hand (`machine_header::wrapped`); `.help(headline).help_row(try)` gives the two lines but not a medium-weight headline. A per-element delay and max width would remove the workaround.
+
+## Component 7, piece I (workspace and base pickers)
+
+- **`focus_group` roves with Up and Down only.** Fleet's workspace menu (a Reka dropdown) also takes Home and End and type-ahead on the item
+  text; here Up, Down and type-select work, Home and End do nothing.
+- **A label with muted words inside it** (`from ` before the base, ` · no fetch` after) is one `rich(..)` text with spans coloured
+  `--muted` at weight 400, not a hint child: a child adds the row's 5px gap, which Fleet's inline `<span>` doesn't have.
+- **A text whose tail is a muted tag** (`origin/main · default`) is also one `rich(..)` with a span at 11.5px.
+- **A mono path or branch can't break inside a plan-line run**: Fleet's inline text wraps in the middle of `fleet/fix-login-` / `redirect`;
+  `flex_wrap` breaks only between runs, so a long run wraps whole.
