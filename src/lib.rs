@@ -53,6 +53,8 @@ mod tests_images;
 #[cfg(test)]
 mod tests_lineage;
 #[cfg(test)]
+mod tests_machine_addresses;
+#[cfg(test)]
 mod tests_machine_more;
 #[cfg(test)]
 mod tests_machine_switch;
@@ -1962,6 +1964,9 @@ pub fn spec() -> AppSpec<State> {
             ("machines-page-details", |s| s.show_machines_page_details(true)),
             ("machines-page-details-light", |s| s.show_machines_page_details(false)),
             ("machines-page-error", |s| s.show_machines_page_errors(true)),
+            // Piece M: how a machine is reached.
+            ("machines-page-addresses", |s| s.show_machines_page_addresses(true)),
+            ("machines-page-addresses-light", |s| s.show_machines_page_addresses(false)),
             // Piece F: another machine's rows renamed and the row menu.
             ("machine-row-rename", |s| s.show_machine_row_rename(true)),
             ("machine-row-rename-light", |s| s.show_machine_row_rename(false)),

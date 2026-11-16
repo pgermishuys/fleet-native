@@ -288,6 +288,12 @@ pub fn card(s: &State, t: &Theme, c: &Card) -> El {
     names = names
         .child(text(c.location.clone()).key(format!("machine-location-{}", c.key)).font(small).color(t.muted).wrap().w_full())
         .child(text(c.state.clone()).key(format!("machine-state-{}", c.key)).font(small).color(tone_ink(t, c.tone)).wrap().w_full());
+    if let Some(r) = &c.route {
+        names = names.child(super::machine_addresses::route(t, &c.key, r));
+    }
+    if let Some(list) = super::machine_addresses::list(s, t, c) {
+        names = names.child(list);
+    }
     if let Some(line) = &c.capabilities {
         let mut e = text(line.clone()).key(format!("machine-capabilities-{}", c.key)).font(small).color(t.muted).wrap().w_full();
         if let Some(versions) = &c.versions {

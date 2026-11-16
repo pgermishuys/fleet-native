@@ -45,6 +45,7 @@ pub mod list_work;
 pub mod local_token;
 pub mod machine;
 pub mod machine_actions;
+pub mod machine_addresses;
 pub mod machine_cache;
 pub mod machine_card;
 pub mod machine_choice;

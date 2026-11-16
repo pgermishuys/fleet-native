@@ -107,10 +107,12 @@ pub struct Page {
     pub copied: Option<(String, f64)>,
     /// The page was opened once, so the access is read once per visit.
     pub opened: bool,
+    /// The address lists' own state (`MachineAddressList.vue`).
+    pub addresses: super::machine_addresses::Lists,
 }
 
 /// `PUT`, `POST` or `DELETE` on `base`: the answer's JSON, or the server's own words (`readError`) when it refuses.
-fn send(method: &str, base: &str, path: &str, body: Option<&Value>, fallback: &str, unreachable: &str) -> Result<Value, String> {
+pub fn send(method: &str, base: &str, path: &str, body: Option<&Value>, fallback: &str, unreachable: &str) -> Result<Value, String> {
     let (status, text) = http::text_with(method, base, path, body).map_err(|_| unreachable.to_string())?;
     if (200..300).contains(&status) {
         Ok(serde_json::from_str(&text).unwrap_or(Value::Null))

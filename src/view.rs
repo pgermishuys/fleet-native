@@ -34,6 +34,7 @@ pub mod header_context;
 pub mod history;
 pub mod image;
 pub mod interrupted;
+pub mod machine_addresses;
 pub mod machine_card;
 pub mod machine_group;
 pub mod machine_header;
