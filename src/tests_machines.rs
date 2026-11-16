@@ -340,11 +340,10 @@ fn machinesessionsgroup_offers_copy_path_not_open_in_on_another_machines_row() {
     let mut rt = scene(Case::Several);
     right_click(&mut rt, "machine-session-m-falcon-f-fence");
     assert!(rt.find("ctx-menu").is_some());
-    // Open, Rename, Archive, Copy path, Clear attachments, a separator, Delete permanently: no Open in, no schedule.
-    for n in [0, 1, 2, 3, 4, 6] {
-        assert!(rt.find(&format!("ctx-item{n}")).is_some(), "item {n}");
+    for id in ["rename", "archive", "copy-path", "copy-id", "clear-attachments", "delete"] {
+        assert!(rt.find(&format!("session-context-{id}")).is_some(), "{id}");
     }
-    assert!(rt.find("ctx-item7").is_none());
+    assert!(rt.find("session-context-open-in").is_none() && rt.find("session-repeat-on-schedule").is_none());
     assert_eq!(rt.state.machines.others["m-falcon"].sessions[2].listing.workspace_directory, "/srv/work", "the folder Copy path copies");
 }
 
@@ -352,14 +351,14 @@ fn machinesessionsgroup_offers_copy_path_not_open_in_on_another_machines_row() {
 fn sessionspanel_the_menus_rename_and_questions_act_on_that_machines_session() {
     let mut rt = scene(Case::Several);
     right_click(&mut rt, "machine-session-m-falcon-f-fence");
-    click(&mut rt, "ctx-item1");
+    click(&mut rt, "session-context-rename");
     assert!(rt.state.machine_row_renaming("f-fence"));
     assert!(rt.find("ctx-menu").is_none(), "the menu closed before the field opened");
     rt.update(|s, tx| s.finish_row_rename(false, tx));
     rt.frame(FRAME);
     right_click(&mut rt, "machine-session-m-falcon-f-fence");
     assert!(rt.find("ctx-menu").is_some(), "{:?} {:?}", rt.state.ui.open, rt.state.act.rename.is_some());
-    click(&mut rt, "ctx-item6");
+    click(&mut rt, "session-context-delete");
     rt.frame(FRAME);
     let c = rt.state.ui.confirm.as_ref().expect("a question");
     assert_eq!((c.title.as_str(), c.subject.as_str()), ("Delete this session?", "Paint the fence"));

@@ -58,9 +58,17 @@ impl ForkDialog {
     }
 }
 
+/// What the server made from a session: a fork of it, or an empty session in its folder (`new-in-folder`).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Made {
+    Fork,
+    InFolder,
+}
+
 /// `buildForkedSessionListItem` and what `forkSession` adds to it: a list item in the shape `GET /api/sessions` sends, so the
 /// list's own parser reads it. `source` is the row the fork was made from; `answer` is the server's reply.
-pub fn forked_row(source: &Session, answer: &Value, source_id: &str) -> Value {
+pub fn forked_row(source: &Session, answer: &Value, source_id: &str, made: Made) -> Value {
+    let fork = made == Made::Fork;
     let session = answer.get("session").cloned().unwrap_or(Value::Null);
     let directory = &source.listing.workspace_directory;
     let tags = session.get("tags").cloned().unwrap_or_else(|| json!([]));
@@ -82,20 +90,30 @@ pub fn forked_row(source: &Session, answer: &Value, source_id: &str) -> Value {
         "archivedAt": null,
         "typedInstanceStatus": "running",
         "isHidden": false,
-        "totalTokens": source.row.total_tokens,
-        "totalCost": source.row.total_cost,
+        "totalTokens": if fork { source.row.total_tokens } else { Some(0) },
+        "totalCost": if fork { source.row.total_cost } else { Some(0.0) },
         "projectId": source.listing.project_id,
         "projectName": source.listing.project_name,
         "harnessType": answer.get("harnessType"),
         "tags": tags,
-        "forkedFromSessionId": answer.get("forkedFromSessionId").and_then(Value::as_str).unwrap_or(source_id),
-        "spawnKind": "fork",
+        "forkedFromSessionId": if fork { answer.get("forkedFromSessionId").and_then(Value::as_str).or(Some(source_id)) } else { None },
+        "spawnKind": if fork { Some("fork") } else { None },
     })
 }
 
 /// The server's answer to a fork, blocking: its body, or its own words for a refusal.
 pub fn request(base: &str, id: &str, typed: &str) -> Result<Value, String> {
-    let (status, text) = http::text_with("POST", base, &fork_path(id), Some(&fork_body(typed)))?;
+    post_made(base, &fork_path(id), &fork_body(typed))
+}
+
+/// `POST /api/sessions/{id}/new-in-folder`.
+pub fn new_in_folder_path(id: &str) -> String {
+    format!("/api/sessions/{}/new-in-folder", crate::conv::image_sniff::encode_component(id))
+}
+
+/// A POST that answers the new session (`{ instanceId, workspaceId, session: { id, … } }`).
+pub fn post_made(base: &str, path: &str, body: &Value) -> Result<Value, String> {
+    let (status, text) = http::text_with("POST", base, path, Some(body))?;
     if !(200..300).contains(&status) {
         return Err(store::error_text(status, &text));
     }
@@ -167,8 +185,14 @@ impl State {
         if self.head.bar.fork.as_ref().is_some_and(|d| d.session == source_id) {
             self.head.bar.fork = None;
         }
+        self.made_done(source_id, machine, Made::Fork, answer, tx);
+    }
+
+    /// What the server made is a row of its own: it goes in the list (or, for another machine's session, in that machine's
+    /// kept sessions) and opens. Fork and the menu's New session in this folder end here.
+    pub(crate) fn made_done(&mut self, source_id: &str, machine: &str, made: Made, answer: Value, tx: &mut Tx) {
         let Some(source) = self.store.session_by_id(&self.projects, source_id).map(|s| s.row_copy()) else { return };
-        let Some(mut made) = sessions::parse_sessions(&json!([forked_row(&source, &answer, source_id)]), 0).pop() else { return };
+        let Some(mut made) = sessions::parse_sessions(&json!([forked_row(&source, &answer, source_id, made)]), 0).pop() else { return };
         made.title = display_title(None, answer.pointer("/session/title").and_then(Value::as_str).unwrap_or(""));
         let id = made.id.clone();
         if machine == HOME_KEY {

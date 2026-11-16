@@ -996,3 +996,11 @@ A context-menu row's label is one text run, so a machine's name in the mono face
 - Two `impl State` blocks in different files can't use the same method name (`show_context` already belonged to the ring's scenes): name scene helpers after their file.
 - **A `Lists` with no session is the New session page's `@` list.** `composer::triggers::Autocomplete` is reusable as it is: `Lists::for_draft(None)` plus `draft_key` gives sessions and files only. Keep a second engine and popup in the page's own state: writing the page's popup into the session composer's `auto.popup` flips with `keep_autocomplete`, which clears it every poll when no session is open.
 - **A scripted key with Cmd needs `"cmd": true`, not `"mods"` or `"hold"`:** `{"type":"key","name":"l","cmd":true,"shift":true}` is what `Key::Command` shortcuts see. A script's `{"paste": {"png": "file"}}` pastes a picture.
+
+## Component 6, piece L (the row's right-click menu)
+
+- **A menu has no "highlighted row" to read.** `focus_highlight` moves focus with the pointer, but the view can't ask which row has it. The footer takes its text from `on_hover_change` on each row (a pointer-driven hint); keyboard focus doesn't update it.
+- **A submenu is a second `anchored` panel** (`Side::Right`, `Align::Start`) on the trigger's key, with its own `modal`, shown while a `State` field names the trigger. Escape closes the submenu first.
+- **Text wraps only with `.wrap()` (`.wrap_anywhere()` for `overflow-wrap:anywhere`)**; a text in a `grow` row is cut off without it. A label that must shorten needs `.min_w(0.0).truncate()`.
+- **`clip_corners` on a footer that runs over its panel's padding** (negative margins) rounds its bottom corners without clipping the panel's shadow, which `clip_rounded` on the panel would.
+- **`--script` has `secondary-click` and the app takes `--theme light|dark`**: a live picture of a right-click menu in both themes needs no scene.

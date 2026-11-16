@@ -74,6 +74,20 @@ pub struct Ui {
     pub g_collapsed: bool,
     /// The question being asked, if any (`ui::confirm`).
     pub confirm: Option<confirm::Confirm>,
+    /// A context menu's footer: the hint of the row the pointer is on.
+    pub hint: Option<String>,
+    /// The row of the open menu whose submenu is open (its key).
+    pub sub: Option<String>,
+}
+
+impl Ui {
+    /// A right-click menu opens at `at`, with no row highlighted and no submenu open.
+    pub fn show_context(&mut self, open: Open, at: (f32, f32)) {
+        self.point = at;
+        self.hint = None;
+        self.sub = None;
+        self.open = Some(open);
+    }
 }
 
 impl Default for Ui {
@@ -94,6 +108,8 @@ impl Default for Ui {
             g_area: TextEdit::new(""),
             g_collapsed: false,
             confirm: None,
+            hint: None,
+            sub: None,
         }
     }
 }

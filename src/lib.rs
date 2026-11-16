@@ -63,6 +63,8 @@ mod tests_questions;
 #[cfg(test)]
 mod tests_row_actions;
 #[cfg(test)]
+mod tests_row_menu;
+#[cfg(test)]
 mod tests_rows;
 #[cfg(test)]
 mod tests_selection;
@@ -1774,6 +1776,18 @@ pub fn spec() -> AppSpec<State> {
                 s.show_row_rename(0, 1)
             }),
             // Piece K: the Archived view.
+            ("row-menu", |s| s.show_row_menu(fleet::row_menu::Scene::Plain, true)),
+            ("row-menu-light", |s| s.show_row_menu(fleet::row_menu::Scene::Plain, false)),
+            ("row-menu-hint", |s| s.show_row_menu(fleet::row_menu::Scene::Hint, true)),
+            ("row-menu-hint-light", |s| s.show_row_menu(fleet::row_menu::Scene::Hint, false)),
+            ("row-menu-archived", |s| s.show_row_menu(fleet::row_menu::Scene::Archived, true)),
+            ("row-menu-archived-light", |s| s.show_row_menu(fleet::row_menu::Scene::Archived, false)),
+            ("row-menu-fork", |s| s.show_row_menu(fleet::row_menu::Scene::Fork, true)),
+            ("row-menu-fork-light", |s| s.show_row_menu(fleet::row_menu::Scene::Fork, false)),
+            ("row-menu-fork-off", |s| s.show_row_menu(fleet::row_menu::Scene::ForkOff, true)),
+            ("row-menu-fork-off-light", |s| s.show_row_menu(fleet::row_menu::Scene::ForkOff, false)),
+            ("row-menu-submenu", |s| s.show_row_menu(fleet::row_menu::Scene::Submenu, true)),
+            ("row-menu-submenu-light", |s| s.show_row_menu(fleet::row_menu::Scene::Submenu, false)),
             ("archived-view", |s| s.show_archived_scene()),
             ("archived-view-light", |s| {
                 s.dark = Some(false);

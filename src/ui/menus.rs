@@ -8,12 +8,6 @@ use crate::theme::Theme;
 use crate::{State, Tx};
 use rune::{Align, El, Side};
 
-fn waiting(label: &'static str, icon: &'static rune::Icon, n: u8) -> Entry {
-    Entry::Item(Item::new(label).icon(icon).on(move |s: &mut State, tx: &mut Tx| {
-        s.toast(format!("{label} isn't in the native app yet (component {n} of the port)."), None, 4.0, tx);
-    }))
-}
-
 /// The composer's pickers: Fleet's selector box (`view/selector.rs`) above the chip, over a scrim that closes it.
 fn selector(s: &State, t: &Theme, name: &'static str) -> Vec<El> {
     let key = format!("{name}-pop");
@@ -73,74 +67,26 @@ pub fn more(s: &State) -> Vec<Entry> {
     entries
 }
 
-/// A session row's right-click menu (`SessionContextMenu`).
+/// A session row's right-click menu (`SessionContextMenu`, `w-66`): one menu for a row of this machine and for a row of
+/// another machine, its rows decided by what each allows (`fleet::row_menu`).
 pub fn session_context(s: &State, t: &Theme, p: usize, i: usize) -> Vec<El> {
-    let at = s.ui.point;
-    let open = Entry::Item(Item::new("Open").icon(&MESSAGE_SQUARE).on(move |s: &mut State, tx: &mut Tx| s.open_session(p, i, tx)));
-    // `ContextMenuContent class="w-66"`.
-    super::menu::context_w(
-        t,
-        "ctx",
-        at,
-        vec![
-            open,
-            Entry::Item(
-                Item::new("Rename").icon(&PENCIL).shortcut("F2").on(move |s: &mut State, tx: &mut Tx| s.start_row_rename(p, i, tx)),
-            ),
-            waiting("Archive", &ARCHIVE, 6),
-            Entry::Item(
-                Item::new("Clear attachments…").icon(&PAPERCLIP).on(move |s: &mut State, tx: &mut Tx| s.ask_clear_attachments(p, i, tx)),
-            ),
-            Entry::Separator,
-            Entry::Item(
-                Item::new("Delete permanently…")
-                    .icon(&TRASH_2)
-                    .destructive()
-                    .on(move |s: &mut State, tx: &mut Tx| s.ask_delete_session(p, i, tx)),
-            ),
-        ],
-        Some(super::rem(16.5)),
-    )
+    let Some(session) = s.projects.get(p).and_then(|project| project.sessions.get(i)) else { return Vec::new() };
+    row_menu(s, t, session, None)
 }
 
-/// The right-click menu of a row on another machine: this machine's menu, with Copy path where Open in is (the folder is on
-/// that machine) and no Repeat on a schedule (Automations is this machine's page).
+/// The right-click menu of a row on another machine: the same menu, with Copy path where Open in is (the folder is on that
+/// machine) and no Repeat on a schedule.
 pub fn machine_session_context(s: &State, t: &Theme) -> Vec<El> {
     let Some((machine, id)) = s.machine_menu.clone() else { return Vec::new() };
-    let (m1, i1, m2, i2, m3, i3, m4, i4) =
-        (machine.clone(), id.clone(), machine.clone(), id.clone(), machine.clone(), id.clone(), machine.clone(), id.clone());
-    super::menu::context_w(
-        t,
-        "ctx",
-        s.ui.point,
-        vec![
-            Entry::Item(
-                Item::new("Open").icon(&MESSAGE_SQUARE).on(move |s: &mut State, tx: &mut Tx| s.open_machine_session(&machine, &id, tx)),
-            ),
-            Entry::Item(Item::new("Rename").icon(&PENCIL).shortcut("F2").on(move |s: &mut State, tx: &mut Tx| {
-                s.ui.open = None;
-                s.start_machine_row_rename(&m1, &i1, tx);
-            })),
-            waiting("Archive", &ARCHIVE, 6),
-            Entry::Item(Item::new("Copy path").icon(&COPY).on(move |s: &mut State, tx: &mut Tx| {
-                s.ui.open = None;
-                s.copy_machine_path(&m2, &i2, tx);
-            })),
-            Entry::Item(
-                Item::new("Clear attachments…")
-                    .icon(&PAPERCLIP)
-                    .on(move |s: &mut State, tx: &mut Tx| s.ask_machine_clear_attachments(&m3, &i3, tx)),
-            ),
-            Entry::Separator,
-            Entry::Item(
-                Item::new("Delete permanently…")
-                    .icon(&TRASH_2)
-                    .destructive()
-                    .on(move |s: &mut State, tx: &mut Tx| s.ask_machine_delete_session(&m4, &i4, tx)),
-            ),
-        ],
-        Some(super::rem(16.5)),
-    )
+    let Some(session) = s.machines.others.get(&machine).and_then(|m| m.sessions.iter().find(|x| x.id == id)) else { return Vec::new() };
+    row_menu(s, t, session, Some(&machine))
+}
+
+fn row_menu(s: &State, t: &Theme, session: &crate::mock::Session, machine: Option<&str>) -> Vec<El> {
+    let menu = crate::fleet::row_menu::build(s, session, machine);
+    // The footer says the hovered row's hint, else where the session is; the read-only menu has none.
+    let footer = menu.footer.map(|f| s.ui.hint.clone().unwrap_or(f)).or_else(|| s.ui.hint.clone());
+    super::menu::context_hint(t, "ctx", s.ui.point, menu.entries, Some(super::rem(16.5)), footer, s.ui.sub.as_deref())
 }
 
 /// The right-click menu of a project on another machine: Rename, which goes to that machine. New session, Move and Delete

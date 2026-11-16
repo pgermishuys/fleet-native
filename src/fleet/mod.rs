@@ -63,6 +63,8 @@ pub mod refresh;
 pub mod retry;
 pub mod routing;
 pub mod row_chips;
+pub mod row_menu;
+pub mod row_menu_actions;
 pub mod row_status;
 pub mod rows;
 pub mod rules;
