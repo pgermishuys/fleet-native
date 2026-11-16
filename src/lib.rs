@@ -2619,6 +2619,11 @@ pub fn start_desktop() {
                 },
             );
             eprintln!("fleet-native: found a Fleet at {} ({})", found.url, found.place.describe());
+            // A Fleet that asks for a token even on this machine: use this machine's own, from Fleet's file.
+            let looked = fleet::discover::all_places(fleet::discover::Os::current(), &|k| std::env::var(k).ok());
+            if fleet::local_token::adopt(&found, &looked) == fleet::local_token::Outcome::Adopted {
+                eprintln!("fleet-native: using this machine's access token from Fleet's data folder");
+            }
             connect_to(&handle, found.url)
         });
     }

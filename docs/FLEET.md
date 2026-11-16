@@ -41,6 +41,15 @@ any address the window shows. A 401 or 403 stops the reconnecting and says the F
 root certificates, so a machine behind `tailscale serve` (a Let's Encrypt certificate) verifies. The app can't be told to trust another certificate or to skip
 verification; tests add their own certificate to the roots (`tls::test_roots`, test builds only). Pairing and several machines are still a later lane.
 
+**This machine's own token** (`fleet::local_token`). A Fleet bound to `0.0.0.0` (or started with `--require-token`) wants a credential even on loopback. Fleet keeps
+this machine's token in `<database name>.machine.json` next to its database (`MachineIdentityStore.cs`; `fleet.machine.json` for the usual `fleet.db`), as
+`accessToken`, created owner-only (mode 0600) on Linux and macOS. `WEAVE_FLEET_AUTH_TOKEN` can fix the token instead, and then the file isn't what Fleet checks. The data folder is
+`~/.weave` for the launcher and the desktop app (`%USERPROFILE%\.weave` on Windows), or the server program's own default: `~/.local/share/WeaveFleet` (Linux),
+`~/Library/Application Support/WeaveFleet` (macOS), `%LOCALAPPDATA%\WeaveFleet` (Windows). When discovery finds a Fleet on a loopback address that answers `/api/projects` with a
+401 or 403 and no `--token` was given, the app reads that file (the database named in the instance file first, then `fleet.machine.json` in each data folder it looked in),
+asks again with the token, and keeps it only if Fleet accepts it. The token goes to that address alone. Weave-fleet's desktop app doesn't read the file: it never needs one,
+because it starts its Fleet on loopback.
+
 **Where the desktop app keeps a remote machine** (weave-fleet `main`): not in a file on the client. Fleet's desktop app always runs, or finds, a Fleet on this
 machine and serves its page from it; the other machines it knows live in that Fleet's own database (`RemoteMachineService`, `GET /api/machines`, tokens only
 for the owner), and older versions kept them in the page's `localStorage` (`weave:machines`) inside Electron's profile. Neither is read from here. The token of a

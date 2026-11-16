@@ -950,3 +950,5 @@ A context-menu row's label is one text run, so a machine's name in the mono face
   close action and the radius, so the Project list closes alone (its modal layer takes Esc first). Scenes can't focus a row, so the list's selected
   row is not drawn highlighted in a scene as it is when opened by a press.
 - **`Chip` gained `trailing`** (the ellipsis in place of the chevron, no label) and **`Option_` gained `mono_title`** (the machine names).
+- **Pictures of the real window on a virtual display** need `XAUTHORITY` passed through if the app is started under `env -i` inside `xvfb-run`, and `LD_LIBRARY_PATH` for
+  `libxkbcommon-x11` on a machine with no root. The window opens larger than a 1280x760 screen: use 1500x1000 and crop.

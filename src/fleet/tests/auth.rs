@@ -11,6 +11,9 @@ use std::time::{Duration, Instant};
 
 const SECRET: &str = "s3cret-token-value-1234";
 
+/// The home token is the process's: every test that sets it takes this first.
+pub(super) static HOME_TOKEN: Mutex<()> = Mutex::new(());
+
 fn env<'a>(pairs: &'a [(&'a str, &'a str)]) -> impl Fn(&str) -> Option<String> + 'a {
     move |k| pairs.iter().find(|(n, _)| *n == k).map(|(_, v)| v.to_string())
 }
@@ -116,6 +119,7 @@ fn pump(
 // One test, because the token is the process's: two tests would take turns badly.
 #[test]
 fn a_fleet_that_needs_a_token_is_refused_once_and_then_reached_with_one() {
+    let _held = HOME_TOKEN.lock().unwrap_or_else(|e| e.into_inner());
     // No token: refused, said so, and not knocked on again.
     auth::set(None);
     let (base, seen) = fake_fleet();

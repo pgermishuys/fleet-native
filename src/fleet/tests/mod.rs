@@ -497,6 +497,7 @@ mod header;
 mod history;
 mod instance;
 mod live;
+mod local_token;
 mod machine;
 mod machine_diagnosis;
 mod machine_routes;
