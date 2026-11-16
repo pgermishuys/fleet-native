@@ -1058,3 +1058,10 @@ key, so clicks and `tx.focus` on the key never reach the field. Key the field an
 ## Component 6, piece P (the draft row)
 
 - Nothing new about Rune. `TextEdit::replace_text` (and `clear`) drops the undo history; `State::set_draft_text` selects all and `insert`s instead, so a text written into the open composer from outside can still be undone.
+
+## Component 7, piece P (the Welcome and Repositories pages)
+
+- **No `padding(x, y)`**: `padding` takes one number; `px` and `py` set the axes.
+- **No grid**: Fleet's `grid-cols-1 xl:grid-cols-2` is a column of rows, each with `columns` cards of `grow(1.0).w(0.0)` (so they share the width evenly) and empty stand-ins to fill the last row.
+- **A dashed border** is `border(..).border_layout().border_dash(dash, gap)`; the dash needs the border laid out or it draws over the content.
+- **`on_press` has no `Tx`**: use `on_press_tx` for a handler that toasts or wakes.

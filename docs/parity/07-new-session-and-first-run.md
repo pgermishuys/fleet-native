@@ -2190,6 +2190,17 @@ Checked on Linux (lavapipe); not on Windows or macOS (CI).
 - **Pictures:** native beside Fleet's, both pages, both themes, empty and with a repository (the scratch
   Fleet), and Refresh running.
 
+- **Done (piece P).** `src/view/pages.rs` (both pages), `src/fleet/repositories.rs` (the page's state, the read, Refresh as scan then read, sorted by name, "Last scan"), `Route::Welcome` and `Route::Repositories` in `src/fleet/store.rs`, `State::on_bare_page` (no list panel, no rail entry lit; a rail click returns to Sessions). Rows done: **C15.1-C15.10** (the version line is `v{build} · {short hash}` from `FLEET_NATIVE_BUILD`/`FLEET_NATIVE_COMMIT`, `vdev · dev` for a local build), **C16.1-C16.19**, **C17.17-C17.19**. Tests in `src/tests_pages_native.rs` (the suggested ones: loading, error, empty, sorted by name, Refresh scans then reads, a failed Refresh clears the list, the Last scan label, welcome words, no rail lit). Pictures: `shots/parity/07-new-session-p/`.
+  Gaps, each with its reason:
+  - **C16.5/C16.8 "Workspace settings" and "Open settings"** show the kit's toast: Settings (component 16) is not built. Nothing else is owed here.
+  - **Page padding**: both pages sit in `CenterContent.vue`'s own 24px padding (`center__body`) as well as the section's 21px, so content starts 45px in. The checklist rows (C15.1, C16.1) don't say so; read from the running client.
+  - **Muted text**: the served v0.72.0 client draws `text-muted-foreground` in the plain text colour; `main.css` on weave-fleet's `main` maps it to `--muted`. This port follows `main`, so the descriptions, the "Last scan" line and the empty state's icon are greyer than in the beside-picture.
+  - **Last scan format**: the app uses the shared `D Mon[ YYYY], h:mm AM/PM` writer (C16.3). Fleet in an en-US browser wrote `11/16/2026, 1:30:57 PM`, the browser's own locale.
+  - **Empty state's icon** is drawn at 28px as the row says; Fleet's picture shows it about 1.6 times that size (unexplained, probably a class on the icon). Its title is also a little lighter than the 600 here.
+  - **C16.9 two columns** from a window 1280 wide, as `xl:` (16px rem). Not checked at other widths against Fleet.
+  - **Not live**: the loading, Refresh-running and error states (a scratch Fleet answers at once and does not fail) are scenes only; the empty state was made live by removing the scratch Fleet's locations. Windows and macOS not looked at (CI draws the scenes on `main`).
+  - **C16.12 tooltip**: none, as Fleet.
+
 ### Q. The sweep
 - **Behaviour:** tick every row still open or write why it stays open here; run the whole page live on a
   scratch Fleet (create a session with the scripted model from a repository on a new worktree, from a plain

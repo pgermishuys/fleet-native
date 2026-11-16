@@ -71,6 +71,7 @@ pub mod queue;
 pub mod reducer;
 pub mod references;
 pub mod refresh;
+pub mod repositories;
 pub mod retry;
 pub mod routing;
 pub mod row_chips;
