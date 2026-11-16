@@ -474,7 +474,7 @@ before N, O and U; P, Q, R; S; T, U; V when decided; W last.
 - **Pictures:** non-visual: a scene with a notice posted shows nothing for 3 s, then the placeholder card (a plain
   box until L), with the timeline in the PR.
 
-### Piece L: notices: the card
+### Piece L: notices: the card — **done**
 
 - **Rows:** 7.5 (not the lift), 7.6, 7.7, 7.8.
 - **Files:** new `src/view/notice_card.rs`, `src/ui/mod.rs` (an overlay layer for it), scenes `notice-plain`,
@@ -483,6 +483,16 @@ before N, O and U; P, Q, R; S; T, U; V when decided; W last.
 - **Tests:** `NoticeCard.test.ts` 4-10.
 - **Pictures:** each scene beside Fleet's own card raised by a posted event (Fleet's own card from a `memory.saved`
   event sent by Playwright; the scratch Fleet's model doesn't save notes), both themes.
+- **Done:** rows 7.5 (position, size, shadow; not the lift), 7.6, 7.7, 7.8 (`shots/parity/09l-notice-card/`). `src/view/notice_card.rs`
+  draws the card; `fleet::notices` gained the hold (`keep_hold`, paused while hovered or while focus is inside, at least 1 s left after
+  a pause, never for a pinned card), `countdown`, and what a button, link or Esc tells its source (`tell`, `take_heard`, `escape`);
+  `Notice.icon` and `Action.icon` are now `IconRef` (a static icon). Esc is the window's `on_key` while focus is in the card.
+  Tests: `src/tests_notice_card.rs` ports `NoticeCard.test.ts` 4-10 under their names plus width, countdown, focus-hold and scenes.
+  Scenes `notice-{plain,items,warn,countdown}` (+ `-light`). Fleet's cards were raised by putting the notice in the client's own
+  notices store with Playwright (the scratch Fleet's model saves no notes, restarts nothing); Playwright can't hand Fleet an icon
+  component, so Fleet's warn and countdown cards show its default icon and no Undo icon where native shows the rotate and lightbulb.
+  Gaps: the link's `:focus-visible` and the buttons' hover tint are Rune's own looks; the link's href opens in the browser through
+  `tx.open_url`. Open for M: enter and settle animations, the lift above the composer, chips.
 
 ### Piece M: notices: chips, settling, the lift, and Remembered
 

@@ -79,6 +79,8 @@ mod tests_new_send;
 #[cfg(test)]
 mod tests_new_session;
 #[cfg(test)]
+mod tests_notice_card;
+#[cfg(test)]
 mod tests_notices;
 #[cfg(test)]
 mod tests_open_in;
@@ -1397,7 +1399,11 @@ fn on_key(s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool {
     if tx.focused().is_some() {
         s.quiet.typed(s.clock);
     }
-    if s.find_key(ev, tx) || view::permission::on_key(s, ev, tx) || view::question::on_key(s, ev, tx) {
+    if s.find_key(ev, tx)
+        || view::permission::on_key(s, ev, tx)
+        || view::question::on_key(s, ev, tx)
+        || view::notice_card::on_key(s, ev, tx)
+    {
         return true;
     }
     if ev.is_command('k') {
@@ -2811,6 +2817,26 @@ pub fn spec() -> AppSpec<State> {
             }),
             ("notice-posted", |s| {
                 s.notices.post(fleet::notices::Notice::new("scene:hello", "Fleet 0.37.0 is ready").chip("Fleet 0.37.0 ready"), 0.0)
+            }),
+            ("notice-plain", |s| mock::notices::show(s, mock::notices::Case::Plain)),
+            ("notice-plain-light", |s| {
+                s.dark = Some(false);
+                mock::notices::show(s, mock::notices::Case::Plain)
+            }),
+            ("notice-items", |s| mock::notices::show(s, mock::notices::Case::Items)),
+            ("notice-items-light", |s| {
+                s.dark = Some(false);
+                mock::notices::show(s, mock::notices::Case::Items)
+            }),
+            ("notice-warn", |s| mock::notices::show(s, mock::notices::Case::Warn)),
+            ("notice-warn-light", |s| {
+                s.dark = Some(false);
+                mock::notices::show(s, mock::notices::Case::Warn)
+            }),
+            ("notice-countdown", |s| mock::notices::show(s, mock::notices::Case::Countdown)),
+            ("notice-countdown-light", |s| {
+                s.dark = Some(false);
+                mock::notices::show(s, mock::notices::Case::Countdown)
             }),
             ("running-many", |s| s.show_running(mock::running::Case::Many, true)),
             ("running-many-light", |s| {
