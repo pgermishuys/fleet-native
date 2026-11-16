@@ -1032,7 +1032,7 @@ Footer: `flex-row justify-end gap-2` on desktop. `ui/dialog.rs::dialog` has this
 
 | # | Row | Source | Native today | Owner |
 |---|---|---|---|---|
-| 5.1 | With no machine saved besides home the list draws no machine heading, no Add a machine button, and the live tree cannot be folded by a machine fold | SP:143-147, 680, 820 | Done (nothing is drawn); no test names it | L |
+| 5.1 | With no machine saved besides home the list draws no machine heading, no Add a machine button, and the live tree cannot be folded by a machine fold | SP:143-147, 680, 820 | Done; test `sessionspanel_shows_no_machine_headings_and_its_rows_act_on_this_machine_as_before` (17 C) | L |
 | 5.2 | With one or more other machines saved, every machine gets a heading, in a fixed order: home first, then the others in the order they were added; switching the live machine moves no heading, only the open row | SP:138-139, M `entries` (:466) | None | L+17 |
 | 5.3 | The live machine's heading is shown only when `showMachines`; its tree sits under it and folds with it | SP:679-694, 147 | None | L+17 |
 | 5.4 | Another machine is a `MachineSessionsGroup` (`<section aria-label="Sessions on <name>" data-machine=<key>>`) under the live one, never above | SP:803, MG:214-220 | None | L+17 |

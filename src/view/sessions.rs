@@ -1,5 +1,7 @@
 //! The session list (`SessionsPanel.vue`, `ProjectGroup.vue`): New session, the filter, sessions grouped by project,
 //! and the Archived link. A row is `session_row.rs`.
+use super::machine_group::{add_machine_row, machine_group};
+use super::machine_header::{Heading, machine_header};
 use super::project_header::{Header, project_header, project_shell};
 use super::session_row::session_row;
 use crate::State;
@@ -68,7 +70,8 @@ pub fn panel(s: &State, t: &Theme) -> El {
 
     let needle = s.filter.text.trim().to_lowercase();
     let clock = super::session_row::RowClock::now(s);
-    let mut list = col().w_full().px(8.0).pb(12.0);
+    // What the live machine's heading folds: everything below until the other machines.
+    let mut live = col().w_full();
     if s.sample_headers {
         // The Pinned group is piece J's: until then a scene draws one header of each kind for the picture.
         let samples = [
@@ -77,13 +80,13 @@ pub fn panel(s: &State, t: &Theme) -> El {
             ("sample-project", Header::Project, "A project with a very long name that has to be cut short", 12, true),
         ];
         for (key, kind, name, count, open) in samples {
-            list = list.child(col().w_full().mb(10.0).child(project_header(t, key.into(), kind, name, count, open, false)));
+            live = live.child(col().w_full().mb(10.0).child(project_header(t, key.into(), kind, name, count, open, false)));
         }
     }
     let error = s.list_error();
     // Rows from an earlier read stay on screen under a banner that says the refresh failed.
     if let (Some(e), true) = (&error, s.has_rows()) {
-        list = list.child(banner(t, e));
+        live = live.child(banner(t, e));
     }
     // The draft shows in the group its session will land in: its project, else Ungrouped (`draftGroupIdFor`).
     let draft = s.new_draft.row();
@@ -92,12 +95,15 @@ pub fn panel(s: &State, t: &Theme) -> El {
         by_id.or_else(|| s.projects.iter().position(|p| p.id == crate::fleet::groups::UNGROUPED_ID))
     });
     let mut placed = false;
+    // What the live machine's heading counts: the sessions the filter leaves.
+    let mut shown = 0;
     let mut first = true;
     for (p, project) in s.projects.iter().enumerate() {
         // A project whose name matches keeps all its sessions; a group with no match and another name is dropped.
         let matches = |session: &Session| session_matches_query(session, &needle, &s.project_load.projects);
         let Some(kept) = matching_sessions(&project.name, &project.sessions, &needle, matches) else { continue };
         let rows: Vec<(usize, &Session)> = kept.into_iter().map(|i| (i, &project.sessions[i])).collect();
+        let rows_len = rows.len();
         let kind = if project.id == crate::fleet::groups::UNGROUPED_ID { Header::Ungrouped } else { Header::Project };
         let header = if kind == Header::Project {
             project_shell(s, t, p, rows.len())
@@ -105,6 +111,7 @@ pub fn panel(s: &State, t: &Theme) -> El {
             project_header(t, format!("project-{p}"), kind, &project.name, rows.len(), project.open, false)
                 .on_press(move |s: &mut State| s.toggle_project(p))
         };
+        shown += rows_len;
         let mut group = col().w_full().mt(if first { 0.0 } else { 10.0 }).child(header);
         first = false;
         // A folded project stays folded while a filter is typed: Fleet's `expanded` doesn't know the query.
@@ -121,31 +128,57 @@ pub fn panel(s: &State, t: &Theme) -> El {
             }
             group = group.child(body);
         }
-        list = list.child(group);
+        live = live.child(group);
     }
     // No group to hold it (a list with none, or a filter that hid it): the draft heads the list instead.
     if let (Some(d), false) = (&draft, placed) {
-        list = list.child(col().w_full().pt(2.0).child(super::draft_row::draft_row(s, t, d)));
+        live = live.child(col().w_full().pt(2.0).child(super::draft_row::draft_row(s, t, d)));
     }
     // Fleet counts a group even with no session in it, so "no group left" is `first` here.
     if s.is_refused() && !s.has_rows() {
         let line = if crate::fleet::auth::is_set() { "The access token was refused." } else { "Run fleet-native with --token <token>." };
-        list = list.child(empty_state(t, "This Fleet needs a token", line));
+        live = live.child(empty_state(t, "This Fleet needs a token", line));
     }
     // No Fleet was found: nothing is listed, and there is nothing to try again.
     if s.no_fleet && !s.has_rows() {
-        list = list.child(empty_state(t, "No Fleet found", "Looking again every few seconds. Start Fleet, or run fleet-native with --server <url>. A Fleet on another machine also needs --token <token>: Fleet shows it in Settings > Machines > This machine."));
+        live = live.child(empty_state(t, "No Fleet found", "Looking again every few seconds. Start Fleet, or run fleet-native with --server <url>. A Fleet on another machine also needs --token <token>: Fleet shows it in Settings > Machines > This machine."));
     }
     let kind = feedback(s.list_is_loading(), error.as_deref(), s.has_rows(), usize::from(!first));
     match kind {
-        Feedback::Loading => list = list.child(loading_block(t)),
-        Feedback::Error(e) => list = list.child(error_block(t, &e)),
+        Feedback::Loading => live = live.child(loading_block(t)),
+        Feedback::Error(e) => live = live.child(error_block(t, &e)),
         Feedback::Empty if s.no_fleet || s.is_refused() => {}
         Feedback::Empty => {
             let (title, line) = empty_words(!needle.is_empty(), false);
-            list = list.child(empty_state(t, title, line));
+            live = live.child(empty_state(t, title, line));
         }
         Feedback::None => {}
+    }
+    let machines = &s.machines;
+    let show_machines = machines.has_machines();
+    let mut list = col().w_full().px(8.0).pb(12.0);
+    if show_machines {
+        // Home first, then the others in the order home lists them. Home has no group of its own: its tree is `live`.
+        let home = &machines.entries()[0];
+        let open = s.machine_is_open(&home.key);
+        let heading = Heading {
+            key: "machine-home".into(),
+            name: &home.name,
+            unreachable: false,
+            note: None,
+            expanded: Some(open),
+            count: Some(shown),
+        };
+        list = list.child(machine_header(t, heading).on_press(|s: &mut State| s.toggle_machine(crate::fleet::settings::HOME_MACHINE_KEY)));
+        if open {
+            list = list.child(live);
+        }
+        for entry in machines.entries().iter().skip(1) {
+            list = list.child(machine_group(s, t, &clock, entry, &needle));
+        }
+        list = list.child(add_machine_row(t));
+    } else {
+        list = list.child(live);
     }
     let archived = row().w_full().pt(6.0).px(8.0).pb(8.0).border_sides([1.0, 0.0, 0.0, 0.0], t.border).child(
         row()

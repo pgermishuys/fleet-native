@@ -47,7 +47,7 @@ pub fn title_ink(t: &Theme, active: bool, dim: Dim) -> Color {
     }
 }
 
-fn glyph_el(t: &Theme, g: Glyph) -> Option<El> {
+pub fn glyph_el(t: &Theme, g: Glyph) -> Option<El> {
     Some(match g {
         Glyph::Quiet => return None,
         Glyph::Cut => cut_dot(t.idle),
@@ -199,6 +199,15 @@ pub fn session_row_with(s: &State, t: &Theme, clock: &RowClock, p: usize, i: usi
                 .truncate()
                 .grow(1.0),
         );
+    line = tail(s, t, &key, session, &status, dim, slots, line);
+    el().w_full().py(1.0).child(line)
+}
+
+/// What follows the title on a row: the running chip, the pull request, the progress ring and one of the step note, the kind
+/// label and the status word. Both the list's own rows and another machine's rows end like this.
+#[allow(clippy::too_many_arguments)]
+pub fn tail(s: &State, t: &Theme, key: &str, session: &Session, status: &RowStatus, dim: Dim, slots: Slots, mut line: El) -> El {
+    let key = key.to_string();
     if session.row.running_work > 0 {
         line = line.child(running_chip(t, &key, session.row.running_work));
     }
@@ -241,11 +250,11 @@ pub fn session_row_with(s: &State, t: &Theme, clock: &RowClock, p: usize, i: usi
                 .color(t.row_meta_ink()),
         );
     } else if !progress.is_some_and(|v| v.count)
-        && let Some(word) = word(t, &key, &status, dim)
+        && let Some(word) = word(t, &key, status, dim)
     {
         line = line.child(word);
     }
-    el().w_full().py(1.0).child(line)
+    line
 }
 
 /// `.session-item--editing`: the row with the title as a field, no hover, no pick, nothing on the right; the field has

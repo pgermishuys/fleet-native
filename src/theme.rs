@@ -47,6 +47,9 @@ pub struct Theme {
     /// `--complete-text` and `--queued-text`: blue and violet ink that read on the page (terminal colours).
     pub complete_text: Color,
     pub queued_text: Color,
+    /// `--coral` and `--coral-text`: a machine's colour, apart from every status colour (the machine heading).
+    pub coral: Color,
+    pub coral_text: Color,
     /// How much of `--text` a quiet session row keeps after a day (`--row-dim-1`) and after three (`--row-dim-2`).
     pub row_dim: [f32; 2],
     /// `--row-meta`: the share of `--text` a row's age and labels take.
@@ -88,6 +91,8 @@ impl Theme {
                 queued: c("#8b5cf6"),
                 complete_text: c("#4F8FF7"),
                 queued_text: c("#9F78F8"),
+                coral: c("#D95A3A"),
+                coral_text: c("#DE6E52"),
                 row_dim: [0.66, 0.51],
                 row_meta: 0.53,
                 row_error: 0.71,
@@ -122,6 +127,8 @@ impl Theme {
                 queued: c("#7c3aed"),
                 complete_text: c("#2159D4"),
                 queued_text: c("#7537DF"),
+                coral: c("#D95A3A"),
+                coral_text: c("#A7452D"),
                 row_dim: [0.77, 0.62],
                 row_meta: 0.63,
                 row_error: 0.71,
@@ -175,10 +182,15 @@ impl Theme {
 
     /// `color-mix(in srgb, <color> share, var(--text))`: a status colour as a row's text (`--row-error` and the rest).
     pub fn text_mix(&self, color: Color, share: f32) -> Color {
+        self.mix(color, self.text, share)
+    }
+
+    /// `color-mix(in srgb, a share%, b)`.
+    pub fn mix(&self, a: Color, b: Color, share: f32) -> Color {
         // CSS mixes the sRGB numbers; Rune's colours are linear, so decode, mix and encode back.
-        let mix =
-            |a: f32, b: f32| rune::color::srgb_decode(share * rune::color::srgb_encode(a) + (1.0 - share) * rune::color::srgb_encode(b));
-        Color { r: mix(color.r, self.text.r), g: mix(color.g, self.text.g), b: mix(color.b, self.text.b), a: 1.0 }
+        let m =
+            |x: f32, y: f32| rune::color::srgb_decode(share * rune::color::srgb_encode(x) + (1.0 - share) * rune::color::srgb_encode(y));
+        Color { r: m(a.r, b.r), g: m(a.g, b.g), b: m(a.b, b.b), a: 1.0 }
     }
 
     /// The row text `--row-meta` of `--text`: a session's age, labels and progress count.
