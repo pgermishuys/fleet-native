@@ -1137,3 +1137,8 @@ The small case the checklist asked for (`tests_row_drag.rs`, first test): **Rune
 - **`ElementInfo` is enough to test a button**: `help` (tooltip), `label`, `opacity` and `focused` read a hint's state without a picture; `focusable` is false
   on any element that only has `on_press`, so it says nothing about enabled or disabled.
 - **A menu measured mid-animation is narrower** (190 of 196 px a frame after opening); run frames before asserting its width.
+
+## Component 17, piece K (Add a machine)
+
+- **A form that reacts to what was typed has no "on change".** A `TextEdit` is edited in place by `on_edit`, so nothing is called with the new text; the poll compares what the fields mean (the address and code they parse to) with what was last looked at and starts the request when they differ. A scene that sets the result by hand must mark that look done (`AddForm::mark_looked`) or the first poll throws the result away.
+- **A scripted run's clock is virtual, a thread's answer is not.** A live script has to leave seconds between typing a link and the mark that expects the answer, and a first-run dialog that opens when a read returns can cover the page: set its preference on the scratch Fleet first.

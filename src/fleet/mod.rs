@@ -62,6 +62,7 @@ pub mod new_project;
 pub mod new_session;
 pub mod open_in;
 pub mod pages;
+pub mod pairing;
 pub mod panel;
 pub mod pins;
 pub mod pr_popover;

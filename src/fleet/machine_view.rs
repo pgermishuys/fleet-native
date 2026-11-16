@@ -33,8 +33,8 @@ impl State {
         self.machine_children.insert(session.to_string(), !now_open);
     }
 
-    /// The Add a machine row: Settings opens on Machines with the add form open. Settings is component 16's and the form
-    /// is piece K's, so for now this goes to Settings and remembers that the form was asked for.
+    /// The Add a machine row: Settings opens on Machines with the add form open. The poll opens the form (`keep_add_form`), so
+    /// it opens even when it was asked for before the page was shown.
     pub fn add_machine(&mut self) {
         self.rail = crate::Rail::Settings;
         self.add_machine_asked = true;
