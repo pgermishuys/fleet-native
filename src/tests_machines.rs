@@ -390,3 +390,111 @@ fn sessionspanel_renames_another_machines_project_on_that_machine_and_lists_that
     rt.update(|s, tx| s.start_machine_rename("m-harbor", "p-docks", tx));
     assert!(!rt.state.machine_project_renaming("m-harbor", "p-docks"));
 }
+
+// Piece G: the heading's menu and Work here (`MachineHeader.test.ts`, the Work here case of `SessionsPanel.test.ts`).
+
+/// The menu's rows as (label, off), from the same list the menu draws.
+fn menu_rows(rt: &Runtime<crate::State>, key: &str) -> Vec<(String, bool)> {
+    use crate::ui::menu::Entry;
+    crate::ui::menus::machine_heading_entries(&rt.state, key.to_string())
+        .into_iter()
+        .filter_map(|e| match e {
+            Entry::Item(i) => Some((i.label, i.disabled)),
+            _ => None,
+        })
+        .collect()
+}
+
+fn menu_label(rt: &Runtime<crate::State>, n: usize) -> String {
+    let key = rt.state.machine_menu.as_ref().expect("a menu is open").0.clone();
+    menu_rows(rt, &key)[n].0.clone()
+}
+
+#[test]
+fn machineheader_offers_a_new_project_there_named_for_a_machine_that_isnt_live() {
+    let mut rt = scene(Case::Several);
+    right_click(&mut rt, "machine-m-falcon");
+    assert!(has(&rt, "mctx-menu"));
+    assert_eq!(menu_label(&rt, 1), "New project on falcon");
+    assert!(rt.state.machine_is_open("m-falcon"), "the right-click never folds the group");
+}
+
+#[test]
+fn machineheader_says_just_new_project_on_the_live_machine_and_cant_be_picked_on_one_thats_unreachable() {
+    let mut rt = scene(Case::Several);
+    right_click(&mut rt, "machine-home");
+    assert_eq!(menu_label(&rt, 1), "New project");
+    rt.state.ui.open = None;
+    rt.frame(FRAME);
+    right_click(&mut rt, "machine-m-harbor");
+    assert_eq!(menu_rows(&rt, "m-harbor")[..2], [("New session on harbor".to_string(), true), ("New project on harbor".to_string(), true)]);
+    let before = rt.state.new_draft.is_page_open();
+    click(&mut rt, "mctx-item1");
+    assert!(!rt.state.new_draft.is_page_open() && !before, "disabled: nothing happens");
+}
+
+#[test]
+fn machineheader_offers_a_new_session_there_and_work_here_on_a_machine_that_isnt_live() {
+    let mut rt = scene(Case::Several);
+    right_click(&mut rt, "machine-m-falcon");
+    assert_eq!(menu_label(&rt, 0), "New session on falcon");
+    assert_eq!(menu_label(&rt, 2), "Work here");
+    click(&mut rt, "mctx-item0");
+    assert!(rt.state.on_new_session_page());
+    assert_eq!(rt.state.target_key(), "m-falcon", "the page starts on that machine");
+    assert!(rt.state.machine_is_open("m-falcon"));
+    rt.update(|s, _| s.work_here("m-falcon"));
+    right_click(&mut rt, "machine-m-falcon");
+    click(&mut rt, "mctx-item3");
+    assert_eq!(rt.state.machines.current_key(), "m-falcon");
+}
+
+#[test]
+fn machineheader_offers_only_new_session_on_the_live_machine() {
+    let mut rt = scene(Case::Several);
+    right_click(&mut rt, "machine-home");
+    assert_eq!(menu_label(&rt, 0), "New session");
+    assert!(rt.find("mctx-item2").is_none(), "no Work here");
+    click(&mut rt, "mctx-item0");
+    assert!(rt.state.on_new_session_page());
+    assert_eq!(rt.state.target_key(), "home");
+}
+
+#[test]
+fn machineheader_cant_start_a_session_on_a_machine_it_cant_reach_but_can_still_work_there() {
+    let mut rt = scene(Case::Several);
+    right_click(&mut rt, "machine-m-harbor");
+    click(&mut rt, "mctx-item0");
+    assert!(!rt.state.on_new_session_page(), "New session is off");
+    click(&mut rt, "mctx-item3");
+    assert_eq!(rt.state.machines.current_key(), "m-harbor", "Work here is on");
+}
+
+#[test]
+fn machineheader_has_no_menu_unless_asked_for_one() {
+    use crate::view::machine_header::{Heading, machine_header};
+    let t = crate::theme::Theme::of(true);
+    let _ = machine_header(
+        &t,
+        Heading { key: "machine-x".into(), name: "x", unreachable: false, note: None, expanded: None, count: None, menu: false },
+    );
+    // The add-a-machine row and plain headings carry no right-click handler: only `menu: true` headings do, and a press on the
+    // heading itself still only folds.
+    let mut rt = scene(Case::Several);
+    assert!(rt.state.machine_menu.is_none());
+    click(&mut rt, "machine-m-falcon");
+    assert!(rt.state.ui.open.is_none(), "a left press opens no menu");
+}
+
+#[test]
+fn sessionspanel_work_here_makes_that_machine_the_one_youre_on_and_goes_to_its_first_page_in_place() {
+    let mut rt = scene(Case::Several);
+    click(&mut rt, "machine-session-m-falcon-f-fence");
+    assert!(rt.state.open_id().is_some());
+    rt.update(|s, _| s.work_here("m-falcon"));
+    assert_eq!(rt.state.machines.current_key(), "m-falcon");
+    assert!(rt.state.open_id().is_none(), "the first page: nothing open");
+    assert_eq!(rt.state.rail, crate::Rail::Sessions);
+    rt.update(|s, _| s.work_here("m-gone"));
+    assert_eq!(rt.state.machines.current_key(), "m-falcon", "a machine that isn't listed is ignored");
+}

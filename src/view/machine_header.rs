@@ -1,8 +1,9 @@
 //! A machine's heading in the session list (`MachineHeader.vue`): chevron (when it folds), a dot that says the machine
-//! answers, its name in coral, and one note on the right. The right-click menu is piece G's and the tooltip on a down note is
-//! piece H's. Home's heading is this too, only it has no group of its own to fold (its tree is the list's).
+//! answers, its name in coral, and one note on the right. The right-click menu is `ui::menus::machine_heading_context`; the
+//! tooltip on a down note is piece H's. Home's heading is this too, only it has no group of its own to fold (its tree is the list's).
 use crate::icons::CHEVRON_DOWN;
 use crate::theme::{Theme, mono, sans};
+use crate::{State, Tx};
 use rune::{Cursor, El, el, icon, row, text};
 
 pub struct Heading<'a> {
@@ -15,6 +16,8 @@ pub struct Heading<'a> {
     /// `Some` makes the heading a button with a chevron; `None` is a plain row that lines its dot up with the others.
     pub expanded: Option<bool>,
     pub count: Option<usize>,
+    /// Right-click opens the heading's menu (New session, New project, Work here); without it nothing opens.
+    pub menu: bool,
 }
 
 pub fn machine_header(t: &Theme, h: Heading) -> El {
@@ -46,6 +49,10 @@ pub fn machine_header(t: &Theme, h: Heading) -> El {
             .focusable(true)
             .focus_ring(2.0, -2.0, t.accent)
             .child(icon(&CHEVRON_DOWN, 12.0).color(t.muted.alpha(0.7)).rotate(turn));
+    }
+    if h.menu {
+        let key = h.key.strip_prefix("machine-").unwrap_or(&h.key).to_string();
+        line = line.on_secondary_press(move |s: &mut State, at, _: &mut Tx| s.show_machine_heading_menu(&key, at.x, at.y));
     }
     line = line.child(dot).child(name);
     if let Some(note) = note {

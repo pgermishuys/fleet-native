@@ -883,3 +883,8 @@ Nothing new about Rune. The open session was found by index into `State::project
 ## Another machine's rows (component 17, piece F)
 
 Nothing new about Rune. `Open` is `Copy`, so a menu on another machine's row can't carry the machine's key and the session's id in it: it names the kind (`MachineContext`) and `State::machine_menu` holds the pair.
+
+## A menu row with a differently styled name (component 17, piece G)
+
+A context-menu row's label is one text run, so a machine's name in the mono face needs its own run: `ui::menu::Item::with_name` draws the label as two texts in a row, the second one truncating (`min_w(0.0)`), which gives Fleet's one-line, cut-short label. A key on the `context` panel's items is `<key>-item<n>` where `n` counts separators too.
+
