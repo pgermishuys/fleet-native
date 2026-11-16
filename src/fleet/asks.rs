@@ -131,7 +131,7 @@ impl State {
 
     /// Loads the session's asks when it opens and after a reconnect. A failed load is not shown.
     pub fn load_asks(&mut self, session: &str) {
-        let Some(link) = &self.link else { return };
+        let Some(link) = self.link_for(session) else { return };
         let generation = self.asks.begin_load(session);
         let id = session.to_string();
         let asked = id.clone();
@@ -168,7 +168,7 @@ impl State {
         }
         // Deny's words go with a reject; a hand-off has nobody to tell, so none.
         let words = (reply == Reply::Reject && ask.handoff.is_none()).then(|| self.deny.text.trim().to_string()).filter(|w| !w.is_empty());
-        let Some(link) = &self.link else {
+        let Some(link) = self.link_for(&ask.session_id) else {
             // No server (a scene or the mock data): the card is simply taken away.
             self.asks.forget(&ask.id);
             return;

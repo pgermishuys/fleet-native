@@ -213,10 +213,11 @@ impl State {
     pub fn start_upload(&mut self, modifier: bool, tx: &mut Tx) -> bool {
         let Some(owner) = self.draft_owner() else { return false };
         let files = self.held.files(&owner).to_vec();
-        let (Some(link), Some(session)) = (&self.link, self.open_id()) else {
+        let Some(link) = self.open_id().and_then(|id| self.link_for(&id)) else {
             self.held.clear_files(&owner);
             return false;
         };
+        let Some(session) = self.open_id() else { return false };
         let (base, send) = (link.base.clone(), self.reads.send.clone());
         self.uploading = true;
         std::thread::spawn(move || {

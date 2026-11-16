@@ -181,7 +181,7 @@ impl State {
 
     /// Loads the session's page canvases when it opens and after a reconnect. A failed load is not shown.
     pub fn load_pages(&mut self, session: &str) {
-        let Some(link) = &self.link else { return };
+        let Some(link) = self.link_for(session) else { return };
         let generation = self.pages.begin_load(session);
         let id = session.to_string();
         let asked = id.clone();

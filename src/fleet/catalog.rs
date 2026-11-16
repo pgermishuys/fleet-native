@@ -472,7 +472,7 @@ impl State {
     /// Asks for a session's agents and models (rows 14.1, 14.2). The old lists stay until the new ones arrive, and a
     /// failed request keeps them: the pickers have no loading or error state (row 3.21).
     pub fn load_catalog(&self, session: &str) {
-        let Some(link) = &self.link else { return };
+        let Some(link) = self.link_for(session) else { return };
         let id = session.to_string();
         let asked = id.clone();
         link.off_thread(

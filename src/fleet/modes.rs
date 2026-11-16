@@ -158,7 +158,8 @@ impl State {
         self.composer_error = None;
         self.draft.clear();
         tx.focus("composer", false);
-        let (Some(link), Some(session)) = (&self.link, self.open_id()) else { return };
+        let Some(session) = self.open_id() else { return };
+        let Some(link) = self.link_for(&session) else { return };
         let asked = session.clone();
         link.off_thread(move |base| http::shell(base, &asked, &command), move |s, _, result| s.on_shell_answer(&session, typed, result));
     }

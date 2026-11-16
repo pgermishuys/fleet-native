@@ -23,7 +23,7 @@ impl State {
 
     /// Loads the session's interruption when it opens and after a reconnect (`load`).
     pub fn load_interruption(&self, session: &str) {
-        let Some(link) = &self.link else { return };
+        let Some(link) = self.link_for(session) else { return };
         let id = session.to_string();
         let asked = id.clone();
         link.off_thread(move |base| http::interruption_load(base, &asked), move |s, _, result| s.on_interruption_loaded(&id, result));
@@ -54,7 +54,7 @@ impl State {
             return;
         }
         self.interrupt_acts.insert(id.clone(), Act { busy: true, error: None });
-        let Some(link) = &self.link else {
+        let Some(link) = self.link_for(&id) else {
             // No server (a scene or the mock data): the card is simply taken from the row.
             let (p, i) = self.open_at();
             if let Some(session) = self.projects.get_mut(p).and_then(|p| p.sessions.get_mut(i)) {

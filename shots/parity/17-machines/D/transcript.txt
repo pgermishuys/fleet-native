@@ -1,0 +1,12 @@
+Piece D live check: two scratch Fleets (home on :6471; "lab-box" on :6473 started with --require-token, added to home with POST /api/machines).
+`cargo test live_two_fleets -- --ignored --nocapture` with FLEET_NATIVE_LIVE_HOME=<home>:
+
+fleet-native: machine lab-box listed 1 session(s)
+machine lab-box lists session <id>
+target of the session: machine at http://127.0.0.1:6473
+the machine's hub is online; home's connection is Online
+
+Afterwards, by the scratch Fleets themselves (tokens not shown):
+- lab-box's messages for that session hold the prompt "run-tests" (5 messages): the prompt reached lab-box, with its token.
+- home answers 404 for that session; lab-box answers 401 without its token.
+- home's request log has 2 "/prompt" lines, none for the lab-box session (they are the demo session's own start).

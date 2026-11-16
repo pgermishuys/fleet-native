@@ -183,7 +183,7 @@ impl State {
 
     /// Loads the session's queue when it opens and after a reconnect.
     pub fn load_queue(&mut self, session: &str) {
-        let Some(link) = &self.link else { return };
+        let Some(link) = self.link_for(session) else { return };
         let generation = self.queue.begin_load(session);
         let id = session.to_string();
         let asked = id.clone();
@@ -203,7 +203,7 @@ impl State {
     /// something new was typed meanwhile (`queueDraft`).
     pub fn enqueue(&mut self, session: &str, typed: String, text: String, options: Options) {
         self.composer_error = None;
-        let Some(link) = &self.link else {
+        let Some(link) = self.link_for(session) else {
             // No server (a scene or the mock data): the item is kept here, as Fleet's event would have it.
             let id = self.queue.local_id();
             self.queue.add(session, Item { id, text, kind: options.kind, from_mod: None });
@@ -254,7 +254,7 @@ impl State {
             return;
         }
         self.composer_error = None;
-        let Some(link) = &self.link else {
+        let Some(link) = self.link_for(&session) else {
             self.queue.remove(&session, &item.id);
             return;
         };
@@ -283,7 +283,7 @@ impl State {
         let Some(session) = self.draft_owner() else { return };
         let Some(item) = self.queue.of(&session).get(index).cloned() else { return };
         self.queue.remove(&session, &item.id);
-        let Some(link) = &self.link else { return };
+        let Some(link) = self.link_for(&session) else { return };
         let asked = session.clone();
         link.off_thread(
             move |base| http::queue_remove(base, &asked, &item.id),

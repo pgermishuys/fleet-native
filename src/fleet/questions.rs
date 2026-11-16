@@ -243,7 +243,7 @@ impl State {
     }
 
     fn send_question(&mut self, id: &str, sent: Sent, call: impl FnOnce(&str) -> Result<(u16, Value), String> + Send + 'static) {
-        let Some(link) = &self.link else { return };
+        let Some(link) = self.questions.cards.iter().find(|c| c.id == id).and_then(|c| self.link_for(&c.session)) else { return };
         if let Some(card) = self.questions.cards.iter_mut().find(|c| c.id == id) {
             card.busy = true;
             card.error = None;

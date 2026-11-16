@@ -508,6 +508,7 @@ mod queue;
 mod reconnect;
 mod references;
 mod refresh;
+mod routing;
 mod row_status;
 mod rows;
 mod rules;

@@ -830,3 +830,7 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
   720 px wide (`min_size`); it needs no code here.
 - A scripted run records at the app's own pace on a software renderer: a 16 s script with several taps takes about 1.5 minutes of
   wall time (65 ms a frame). Plan 20 pictures as half an hour, one process each.
+
+## A link per machine (component 17, piece D)
+
+Nothing new about Rune. One rule for the app: a call about a session takes its `Link` from `State::link_for(session)`, never from `State::link`, which is home's. A test for it needs only fake Fleets that record the token each request carried.

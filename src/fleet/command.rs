@@ -39,7 +39,7 @@ impl State {
         self.draft.clear();
         let pick = self.prompt_pick(None);
         let body = command_body(&command, &args, &pick);
-        let Some(link) = &self.link else { return };
+        let Some(link) = self.link_for(&session) else { return };
         let asked = session.clone();
         link.off_thread(move |base| http::command(base, &asked, &body), move |s, _, result| s.on_command_answer(&session, typed, result));
     }

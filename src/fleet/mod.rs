@@ -46,6 +46,7 @@ pub mod reducer;
 pub mod references;
 pub mod refresh;
 pub mod retry;
+pub mod routing;
 pub mod row_chips;
 pub mod row_status;
 pub mod rows;

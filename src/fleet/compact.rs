@@ -57,7 +57,7 @@ impl State {
         if !self.compact.begin(&id) {
             return;
         }
-        let Some(link) = &self.link else {
+        let Some(link) = self.link_for(&id) else {
             // A scene or a test with no server: the request is "in flight" until the test finishes it.
             return;
         };
