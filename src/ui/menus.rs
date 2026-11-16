@@ -50,9 +50,9 @@ pub fn retention(s: &State) -> Vec<Entry> {
 /// Settings → Updates & about (`useWhatsNew`).
 pub fn help() -> Vec<Entry> {
     vec![
-        Entry::Item(
-            Item::new("Report a problem…").icon(&BUG).on(|s: &mut State, tx: &mut Tx| crate::ui::commands::run(s, tx, "report-problem")),
-        ),
+        Entry::Item(Item::new("Report a problem…").icon(&BUG).on(|s: &mut State, _: &mut Tx| {
+            s.report_open(crate::fleet::report::Source::Help, None, "");
+        })),
         Entry::Separator,
         Entry::Item(Item::new("What's new").icon(&SPARKLES).on(|s: &mut State, _: &mut Tx| {
             s.open_settings("updates", None);

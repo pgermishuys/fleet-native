@@ -117,7 +117,7 @@ their pictures from scenes beside Fleet's client with the answers put in by Play
 | # | Element / behaviour | Source | Native today |
 |---|---|---|---|
 | 3.1 | Help button (`CircleHelp` 18, tooltip "Help", testid `rail-help`) opens a dropdown, side right, align end, width 224 (`w-56`) | IconRail 282-300 | Done (piece B). Width is `w-56` at Fleet's 14 px root = 196 px, not 224 (the 224 above assumed a 16 px root); same as the header's ⋯ menu  |
-| 3.2 | "Report a problem…" (`Bug` 14) → `problemReport.show({from: "help"})` | IconRail 304-310 | Done (piece B): runs the `report-problem` command, which toasts "isn't in the native app yet (component 9)" until piece Q  |
+| 3.2 | "Report a problem…" (`Bug` 14) → `problemReport.show({from: "help"})` | IconRail 304-310 | Done (pieces B, Q): runs `report-problem`, which opens Report a problem (`report_open`, from Help) |
 | 3.3 | Separator, then "What's new" (`Sparkles` 14) → Settings, section Updates & about (`useWhatsNew`) | IconRail 311-318, `use-whats-new.ts` | Done (piece B): opens Settings with `settings_section = "updates"`; the Updates page itself is component 16  |
 
 ## Part 4: the status bar (`StatusBar.vue`)
@@ -200,18 +200,18 @@ their pictures from scenes beside Fleet's client with the answers put in by Play
 
 | # | Element / behaviour | Source | Native today |
 |---|---|---|---|
-| 9.1 | Opened from Help (`from: "help"`), the palette (`report-problem`, "Tell the Fleet maintainers what went wrong."), a turn failure card ("This turn stopped early: <summary>", with the session), Electron's menu (n/a). `show` waits 200 ms for a menu to close and takes the screenshot first; no-op while open | store; IconRail 296; `use-commands.ts:783`; `ActivityStream.vue:126` | Palette row is a stub |
-| 9.2 | Frame: 820 wide, max height min(720, window - 32), `--panel-bg`, 1 px `--border`, radius 12, no close X of the kit's; overlay black 80%; Esc and the overlay close it, except while sending | D 280-420 | None |
-| 9.3 | Header (padding 16 20 12, rule under): "Report a problem" 15/600; `ShieldCheck` 13 `--running` + "Nothing leaves your machine until you send it." / "This is everything that will be sent." / "Sent to the Fleet maintainers."; steps "1 Describe › 2 Review" (pills, the active `--accent-dim`); close 26×26 | D | None |
-| 9.4 | Describe (grid `1fr 290`): kind pills Something broke / Looks wrong / Idea; "What happened?" textarea (4 rows, 10,000 max, placeholder "What you were doing, and what went wrong."); "What did you expect? (optional)"; Screenshot (200×120 thumb, "Taken HH:MM:SS · w×h", "Shows your screen as it is…", Retake / Taking…; or "Couldn't take a screenshot. The report works without one."); "Want a reply? (optional: GitHub name or email)" "@your-name" | D | None |
-| 9.5 | Attached aside (`--main-bg` 45% tint, left rule): "Attached" and "n of 5"; checkboxes Screenshot / Fleet and system / Where you were / Connection / Fleet log with their details; an unticked one muted and struck through; footer `ShieldCheck` + "Folder paths, session names, branch names, tokens and email addresses in the text and the log are replaced before you review it. The screenshot isn't changed." | D | None (the kit has no checkbox) |
-| 9.6 | Footer: "About: <session title>" or "Not about a session"; Cancel; **Review what's sent** (disabled while the description is blank; spinner while preparing) | D | None |
+| 9.1 | Opened from Help (`from: "help"`), the palette (`report-problem`, "Tell the Fleet maintainers what went wrong."), a turn failure card ("This turn stopped early: <summary>", with the session), Electron's menu (n/a). `show` waits 200 ms for a menu to close and takes the screenshot first; no-op while open | store; IconRail 296; `use-commands.ts:783`; `ActivityStream.vue:126` | **Done (9Q)**: Help, the palette row and the failure card's Report this open it (`State::report_open`, the failure card starting the description with "This turn stopped early: <summary>"); no-op while open; the menu or palette is put away at once. There is no 200 ms wait: the screenshot is taken before the window opens (and there is none, 9.12). Electron's menu: n/a |
+| 9.2 | Frame: 820 wide, max height min(720, window - 32), `--panel-bg`, 1 px `--border`, radius 12, no close X of the kit's; overlay black 80%; Esc and the overlay close it, except while sending | D 280-420 | **Done (9Q)**: `view/report.rs` `dialog`: 820 wide (window less 32), at most min(720, window - 32) high, the body scrolls inside what is left (flex can't give it the rest, so `CHROME` is a measured constant), `--panel-bg`, 1 px border, radius 12, scrim 80%. Esc, the scrim and the X close it, not while sending |
+| 9.3 | Header (padding 16 20 12, rule under): "Report a problem" 15/600; `ShieldCheck` 13 `--running` + "Nothing leaves your machine until you send it." / "This is everything that will be sent." / "Sent to the Fleet maintainers."; steps "1 Describe › 2 Review" (pills, the active `--accent-dim`); close 26×26 | D | **Done (9Q)**: header, shield and the three sentences, "1 Describe › 2 Review" pills, close 26×26. Title and sub line heights follow the live client (1.2) |
+| 9.4 | Describe (grid `1fr 290`): kind pills Something broke / Looks wrong / Idea; "What happened?" textarea (4 rows, 10,000 max, placeholder "What you were doing, and what went wrong."); "What did you expect? (optional)"; Screenshot (200×120 thumb, "Taken HH:MM:SS · w×h", "Shows your screen as it is…", Retake / Taking…; or "Couldn't take a screenshot. The report works without one."); "Want a reply? (optional: GitHub name or email)" "@your-name" | D | **Done (9Q)**: kind pills, "What happened?" (4 rows), "What did you expect?", Screenshot (200×120 thumb, "Taken 09:14:33 PM · w×h", Retake / Taking…, or "Couldn't take a screenshot…"), "Want a reply?". Gaps: `maxlength` (10,000 / 2,000 / 200) is applied when the report is reviewed, not while typing; the thumb crops about the centre (Fleet's `object-position: top left`, `SurfaceFit::Fill` has no origin); the textarea has no resize handle |
+| 9.5 | Attached aside (`--main-bg` 45% tint, left rule): "Attached" and "n of 5"; checkboxes Screenshot / Fleet and system / Where you were / Connection / Fleet log with their details; an unticked one muted and struck through; footer `ShieldCheck` + "Folder paths, session names, branch names, tokens and email addresses in the text and the log are replaced before you review it. The screenshot isn't changed." | D | **Done (9Q)**: the aside with "n of 5", the five checkboxes (drawn here: the kit has none), muted and struck through when off, and the guard. Gap: with no screenshot Fleet draws the box ticked but disabled; native draws it unticked |
+| 9.6 | Footer: "About: <session title>" or "Not about a session"; Cancel; **Review what's sent** (disabled while the description is blank; spinner while preparing) | D | **Done (9Q)**: "About: <title>" / "Not about a session", Cancel, **Review what's sent** (off while the description is blank or a request runs, spinner while preparing; it calls piece P's `report_prepare` with the client facts: app, screen, the session's shown status, window, theme, "Live updates", private values). Review and Sent are drawn by piece R; until then a line says so. Gap: the connection facts "Subscribed" and "Open session" need the hub thread's topic counts and are not given |
 | 9.7 | `POST /api/reports/prepare` with the ticked parts and what the client knows (app "Desktop app <version> · <os>", screen name, the session's shown status, window size and scale, theme, connection facts for the live machine and the session's machine, private values: every machine's name and address and this Fleet's address) → `{title, body, log, labels, replacements, problems, canSend}` | L; `api/generated/schema.d.ts:2904-2936` | None |
 | 9.8 | Review (grid `180 1fr`): files report.md (label count pill), fleet.log, screenshot; Title input; "<n> private details replaced · 3 folders, 1 session name…" or "No private details found."; **Show what was removed** switch (originals struck in `--error-text` before each `‹kind-n›` label); "Left out: <item>. <reason>" rows; the mono preview (11.5/1.65) with labels on `--accent-dim`; the screenshot view with "Remove screenshot" | D | None |
 | 9.9 | Review footer: Back; "Only the Fleet maintainers will see this." or "Sending is off on this Fleet. Save it as a file instead."; **Save as file** (`POST /api/reports/file` → zip, name from `content-disposition`); **Send report** (`POST /api/reports/send` → `{id}`) | D | None |
 | 9.10 | Sent: a 34 px `--running` 15% circle with `Check`, "Report sent", "Only the Fleet maintainers can see it. If you talk to us about it, mention `<id>`.", "You left a contact, so a reply goes to <contact>."; Copy report id → "Copied"; Done | D | None |
 | 9.11 | Errors in the footer (`role=alert`): "Couldn't gather the report. Try again.", "Couldn't send the report. Try again, or use Save as file.", "Couldn't save the report."; the server's `error` wins | D | None |
-| 9.12 | Screenshot: Electron's `captureWindow` or a DOM render, 2 s timeout, 4 MB cap. Native needs the app's own frame as PNG; if Rune can't hand one to the app, ship "Couldn't take a screenshot" and write the smallest case into `docs/RUNE.md` | `lib/problem-report.ts` | Unknown: piece Q checks |
+| 9.12 | Screenshot: Electron's `captureWindow` or a DOM render, 2 s timeout, 4 MB cap. Native needs the app's own frame as PNG; if Rune can't hand one to the app, ship "Couldn't take a screenshot" and write the smallest case into `docs/RUNE.md` | `lib/problem-report.ts` | **Not possible today (9Q)**: Rune draws on the GPU and gives a running app no way to read its frame back (`docs/RUNE.md`). So `grab_frame()` returns nothing, Describe says "Couldn't take a screenshot. The report works without one." and the Screenshot part is off (4 of 5). The seam (`Shot`, the thumbnail, `data_url`, the `/send` field) is built and tested with a picture handed in, so a Rune that can is one function. Scenes show both states |
 
 ## Part 10: the landing rule and the home dashboard (`routes/index.tsx`, `components/dashboard/`)
 
@@ -299,7 +299,7 @@ Counts are `it(...)` cases. Ported tests keep Fleet's names (in Rust, `snake_cas
 | `use-update-notices.test.ts` (20), `use-dream-notices.test.ts` (6) | 26 | 16 (the server variant and dreams); the Electron-bridge cases with decision 1 |
 | `use-stale-window-notice.test.ts` | 5 | Not ported: not applicable (8.8) |
 | `lib/__tests__/problem-report.test.ts` | 5 | P |
-| `components/report/__tests__/ProblemReportDialog.test.ts` | 10 | P (3-5: the request), Q (1-2), R (6-10) |
+| `components/report/__tests__/ProblemReportDialog.test.ts` | 10 | P (3-5: the request), **Q done (1-2)**, R (6-10) |
 | `AuthGate`, `LoginPage`, `OnboardingGate` | none | S writes cases from reading |
 | `components/skills/__tests__/ImproveSkillDialog.test.ts` | 4 | U |
 
@@ -535,7 +535,7 @@ before N, O and U; P, Q, R; S; T, U; V when decided; W last.
   Gaps: the connection facts that need the hub's topic counts ("Subscribed", "Open session") are Q's to give, as is the session's shown
   status; `Client` takes them as given. Save as file writes to the home folder's `Downloads` (Fleet's browser download), not a dialog.
 
-### Piece Q: Report a problem: Describe, and the screenshot
+### Piece Q: Report a problem: Describe, and the screenshot — **done**
 
 - **Rows:** 9.1 (entry points: Help, palette, the failure card), 9.2, 9.3, 9.4, 9.5, 9.6, 9.12.
 - **Files:** new `src/view/report.rs` (frame, header, Describe, aside; a checkbox in `src/ui/controls.rs`),
@@ -544,6 +544,11 @@ before N, O and U; P, Q, R; S; T, U; V when decided; W last.
 - **Depends on:** B, P.
 - **Tests:** `ProblemReportDialog.test.ts` 1-2.
 - **Pictures:** Describe beside Fleet's (as `fleet-report-*.png` here), with and without a screenshot, both themes.
+- **Done:** rows 9.1-9.6 and 9.12 as above. `src/fleet/report_form.rs` (the form, `report_open` and the client facts), `src/view/report.rs`,
+  `src/mock/report.rs` (scenes `report-describe*`), `src/tests_report_describe.rs` (cases 1 and 2 under their names and 16 more),
+  the `image` icon. Pictures: `shots/parity/09q-report-describe/` (`fleet-report-describe.png` beside `report-describe.png`, dark,
+  and `fleet-report-describe-filled-light.png` beside `report-describe-filled-light.png`). The no-screenshot state is a scene only:
+  Fleet's own client always manages one. Not checked on Windows or macOS.
 
 ### Piece R: Report a problem: Review and Sent
 

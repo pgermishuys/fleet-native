@@ -390,7 +390,9 @@ pub fn all(s: &State) -> Vec<Command> {
             Fleet,
             None,
             &["bug", "issue", "feedback", "help", "report"],
-            Run::Waiting(9),
+            now(|s, _| {
+                s.report_open(crate::fleet::report::Source::Palette, None, "");
+            }),
         ),
         c(
             "start-without-mods",

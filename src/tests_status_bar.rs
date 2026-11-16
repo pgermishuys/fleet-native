@@ -237,7 +237,7 @@ fn report_a_problem_runs_the_command_and_closes_the_menu() {
     click(&mut rt, "rail-help");
     click(&mut rt, "help-pop-item0");
     assert_eq!(rt.state.ui.open, None);
-    assert!(rt.state.ui.toast.as_ref().is_some_and(|t| t.message.contains("Report a problem")), "the stub until the dialog is built");
+    assert!(rt.state.report.open, "the dialog opens (piece Q)");
 }
 
 #[test]
