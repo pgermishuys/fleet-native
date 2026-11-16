@@ -325,12 +325,17 @@ pub fn parse_created(path: &str, answer: Answer) -> Result<NewFolder, MakeFailur
         return Err(fail(Some(status), read_error(&body, FAILED.into())));
     }
     let v = json(&body).filter(|v| !v.is_null()).ok_or_else(|| fail(Some(status), FAILED.into()))?;
-    Ok(NewFolder {
-        path: text(&v, "path").unwrap_or_default(),
+    Ok(folder_from_value(&v))
+}
+
+/// A `NewFolder` as the server writes it (a create's answer, and a clone's `done` line).
+pub fn folder_from_value(v: &Value) -> NewFolder {
+    NewFolder {
+        path: text(v, "path").unwrap_or_default(),
         is_git_repo: v.get("isGitRepo").and_then(Value::as_bool) == Some(true),
         added_to_fleet: v.get("addedToFleet").and_then(Value::as_bool) == Some(true),
-        warning: text(&v, "warning").filter(|w| !w.is_empty()),
-    })
+        warning: text(v, "warning").filter(|w| !w.is_empty()),
+    }
 }
 
 // ─── Harnesses ──────────────────────────────────────────────────────────────

@@ -42,6 +42,22 @@ impl State {
         true
     }
 
+    /// `feed_call` for an answer that arrives in pieces: `call` gets the `Post` too, to hand each piece back as it comes.
+    pub(crate) fn feed_stream<T: Send + 'static>(
+        &self,
+        key: &str,
+        call: impl FnOnce(&str, &crate::fleet::link::Post) -> T + Send + 'static,
+        done: impl FnOnce(&mut State, &mut Tx, T) + Send + 'static,
+    ) -> bool {
+        let (Some(base), Some(link)) = (self.feed_base(key), &self.link) else { return false };
+        let post = link.post();
+        std::thread::spawn(move || {
+            let answer = call(&base, &post);
+            post.update(move |s, tx| done(s, tx, answer));
+        });
+        true
+    }
+
     /// Preferences of machine `key`: home's are the app's own, shared with the composer.
     pub fn prefs_for(&self, key: &str) -> Prefs {
         if key == HOME_MACHINE_KEY {

@@ -19,6 +19,8 @@ mod tests_asks;
 #[cfg(test)]
 mod tests_browser;
 #[cfg(test)]
+mod tests_folder_clone;
+#[cfg(test)]
 mod tests_folder_menu;
 #[cfg(test)]
 mod tests_folder_path;
@@ -1315,6 +1317,34 @@ pub fn spec() -> AppSpec<State> {
             ("new-session-folder-conflict-light", |s| {
                 s.dark = Some(false);
                 s.show_folder_menu(fleet::new_session::folder_menu::Scene::Conflict)
+            }),
+            ("new-session-folder-clone-pasted", |s| {
+                s.show_folder_menu(fleet::new_session::folder_menu::Scene::Clone(fleet::new_session::folder_menu::CloneScene::Pasted))
+            }),
+            ("new-session-folder-clone-pasted-light", |s| {
+                s.dark = Some(false);
+                s.show_folder_menu(fleet::new_session::folder_menu::Scene::Clone(fleet::new_session::folder_menu::CloneScene::Pasted))
+            }),
+            ("new-session-folder-clone-suggestions", |s| {
+                s.show_folder_menu(fleet::new_session::folder_menu::Scene::Clone(fleet::new_session::folder_menu::CloneScene::Suggestions))
+            }),
+            ("new-session-folder-clone-suggestions-light", |s| {
+                s.dark = Some(false);
+                s.show_folder_menu(fleet::new_session::folder_menu::Scene::Clone(fleet::new_session::folder_menu::CloneScene::Suggestions))
+            }),
+            ("new-session-folder-clone-running", |s| {
+                s.show_folder_menu(fleet::new_session::folder_menu::Scene::Clone(fleet::new_session::folder_menu::CloneScene::Running))
+            }),
+            ("new-session-folder-clone-running-light", |s| {
+                s.dark = Some(false);
+                s.show_folder_menu(fleet::new_session::folder_menu::Scene::Clone(fleet::new_session::folder_menu::CloneScene::Running))
+            }),
+            ("new-session-folder-clone-exists", |s| {
+                s.show_folder_menu(fleet::new_session::folder_menu::Scene::Clone(fleet::new_session::folder_menu::CloneScene::Exists))
+            }),
+            ("new-session-folder-clone-exists-light", |s| {
+                s.dark = Some(false);
+                s.show_folder_menu(fleet::new_session::folder_menu::Scene::Clone(fleet::new_session::folder_menu::CloneScene::Exists))
             }),
             // Component 8, piece B: the header drawn (the text of its rows, the banners).
             ("header-fork", |s| s.show_header(mock::header::Case::Fork, true, true)),

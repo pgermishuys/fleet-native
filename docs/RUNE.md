@@ -888,3 +888,12 @@ Nothing new about Rune. `Open` is `Copy`, so a menu on another machine's row can
 
 A context-menu row's label is one text run, so a machine's name in the mono face needs its own run: `ui::menu::Item::with_name` draws the label as two texts in a row, the second one truncating (`min_w(0.0)`), which gives Fleet's one-line, cut-short label. A key on the `context` panel's items is `<key>-item<n>` where `n` counts separators too.
 
+
+## New session, piece H (the folder menu's clone view)
+
+- `text_input` has no read-only mode (only an `aria-readonly` flag on any element). Fleet's repository box is read-only
+  while a clone runs; here it is drawn as plain text in the same frame for that time.
+- A native `<select>` can't be drawn from inside a popover, so the Location is a box that opens its own list under itself
+  (as in the list view); a headless test needs a `frame` between opening it and clicking an item, or the item isn't there yet.
+- A reply that arrives in pieces needs more than `Post::update` once: `feed_stream` hands the worker the `Post` so each of
+  git's progress lines is posted as it comes, in order.

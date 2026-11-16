@@ -209,11 +209,14 @@ fn a_path_of_its_own_offers_go_to_and_a_pasted_repository_offers_a_clone() {
 }
 
 #[test]
-fn a_row_that_needs_the_clone_view_says_so_and_leaves_the_menu_open() {
+fn the_clone_a_repository_row_opens_the_clone_view_in_the_same_menu() {
     let mut rt = opened();
     click(&mut rt, "new-session-folder-clone-form");
+    rt.frame(FRAME);
     assert!(rt.state.folder_menu_open());
-    assert!(rt.state.ui.toast.is_some());
+    assert_eq!(rt.state.folder_menu.view, crate::fleet::new_session::folder_menu::View::Clone);
+    assert!(rt.find("new-session-clone-repository").is_some());
+    assert!(rt.state.ui.toast.is_none());
 }
 
 #[test]

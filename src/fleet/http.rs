@@ -510,6 +510,21 @@ pub fn create_directory(base: &str, path: &str, git: bool, branch: Option<&str>)
     text_with("POST", base, "/api/directories", Some(&json!({ "path": path, "git": git, "branch": branch })))
 }
 
+/// `POST /api/directories/clone` `{repository, path}`: the status, and the body still to be read (newline-delimited JSON that
+/// ends in `done` or `error`). A clone takes as long as git does, so only connecting is timed.
+pub fn clone_directory(base: &str, repository: &str, path: &str) -> Result<(u16, Box<dyn std::io::Read + Send>), String> {
+    let agent: ureq::Agent =
+        builder().timeout_global(None).timeout_connect(Some(Duration::from_secs(15))).http_status_as_error(false).build().into();
+    let body = json!({ "repository": repository, "path": path });
+    let response = agent
+        .post(url(base, "/api/directories/clone"))
+        .header("content-type", "application/json")
+        .send(body.to_string())
+        .map_err(|e| e.to_string())?;
+    let status = response.status().as_u16();
+    Ok((status, Box::new(response.into_body().into_reader())))
+}
+
 /// `GET /api/harnesses`, or `?fresh=true` to have the machine check every harness again first.
 pub fn harness_list(base: &str, fresh: bool) -> Result<(u16, String), String> {
     text_with("GET", base, if fresh { "/api/harnesses?fresh=true" } else { "/api/harnesses" }, None)
