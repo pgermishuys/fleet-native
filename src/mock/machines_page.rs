@@ -52,6 +52,25 @@ impl State {
         });
     }
 
+    /// The machine switch of a view, closed or open, with the machines of the `Several` set and the open session on home.
+    pub fn show_machine_switch(&mut self, dark: bool, open: bool) {
+        self.show_machines(Case::Several, dark);
+        self.rail = crate::Rail::Settings;
+        self.machines.home = Some(info("home-id", "atlas", "all", 1, 2));
+        let mut choice = crate::fleet::machine_choice::MachineChoice::default();
+        choice.open = open;
+        self.machine_switch_scene = Some(choice);
+    }
+
+    /// With no other machine the switch is not drawn.
+    pub fn show_machine_switch_home_only(&mut self, dark: bool) {
+        self.show_machines(Case::Empty, dark);
+        self.machines.list.clear();
+        self.machines.others.clear();
+        self.rail = crate::Rail::Settings;
+        self.machine_switch_scene = Some(Default::default());
+    }
+
     /// Falcon's name in its field, selected, as Rename leaves it.
     pub fn show_machines_page_rename(&mut self, dark: bool) {
         self.show_machines_page(dark, false);

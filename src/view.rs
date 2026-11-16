@@ -38,6 +38,7 @@ pub mod machine_card;
 pub mod machine_group;
 pub mod machine_header;
 pub mod machine_picker;
+pub mod machine_switch;
 pub mod machines_page;
 mod marks;
 pub mod message;
@@ -104,6 +105,7 @@ pub fn root(s: &State, cx: &mut Cx<State>) -> El {
     cx.help_look(crate::ui::help_look(&t));
     let mut main = row().w_full().grow(1.0).min_h(0.0).padding(8.0).child(rail::rail(s, &t));
     main = match s.rail {
+        _ if s.machine_switch_scene.is_some() => main.child(machine_switch::scene_page(s, &t).ml(8.0)),
         _ if s.on_bare_page() => main.child(pages::page(s, &t).ml(8.0)),
         _ if s.gh_parts => main.child(gh::parts(&t).ml(8.0)),
         _ if s.gallery => main.child(crate::ui::gallery::view(s, &t).ml(8.0)),
