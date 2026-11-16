@@ -1162,3 +1162,9 @@ every scene as they were.
 - **No dashed border.** Fleet's bordered empty state is dashed; Rune's border is solid only, so the empty box is solid.
 - **A focusable element needs its own Enter and Space.** `on_press` alone opened a row on a click and on Space but not on Enter in a headless run, so the row has an `on_key` for both.
 - **Space arrives as `Key::Text(" ")`**, not a named key.
+## Component 17, piece O: a drag target that belongs to one group among many
+
+Rune's pointer drag finds the target with `Tx::element_at` and the keys on the path, so a second tree (another machine's) needs its own keys.
+Put the machine and the project in the key (`drop-mproject-<machine>~<project>`, `mpinned-<machine>`), and read the row a drag is over from
+the same path (`machine-session-<machine>-<id>`). Check the dragged row's machine against the target's machine when the drag moves: nothing
+in Rune stops a drop in the wrong tree. Nothing in Rune got in the way otherwise.

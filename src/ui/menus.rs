@@ -113,21 +113,41 @@ fn row_menu(s: &State, t: &Theme, session: &crate::mock::Session, machine: Optio
     )
 }
 
-/// The right-click menu of a project on another machine: Rename, which goes to that machine. New session, Move and Delete
-/// wait for component 7 and for the project actions to take a machine (docs/parity/17-machines.md, piece F).
+/// The right-click menu of a project on another machine (`ProjectGroup.vue`'s, the same items as home's): New session on that
+/// machine, Rename, Move up and Move down, Delete…. Every call goes to that machine.
 pub fn machine_project_context(s: &State, t: &Theme) -> Vec<El> {
     let Some((machine, id)) = s.machine_menu.clone() else { return Vec::new() };
     let busy = s.proj.pending;
-    super::menu::context_w(
-        t,
-        "pctx",
-        s.ui.point,
-        vec![Entry::Item(Item::new("Rename").icon(&PENCIL).shortcut("F2").disabled(busy).on(move |s: &mut State, tx: &mut Tx| {
+    let (m1, i1, m2, i2) = (machine.clone(), id.clone(), machine.clone(), id.clone());
+    let mut entries = vec![
+        Entry::Item(Item::new("New session").icon(&PLUS).disabled(busy).on(move |s: &mut State, _: &mut Tx| {
             s.ui.open = None;
-            s.start_machine_rename(&machine, &id, tx);
-        }))],
-        Some(196.0),
-    )
+            s.new_session_in_machine_project(&m1, &i1);
+        })),
+        Entry::Separator,
+        Entry::Item(Item::new("Rename").icon(&PENCIL).shortcut("F2").disabled(busy).on(move |s: &mut State, tx: &mut Tx| {
+            s.ui.open = None;
+            s.start_machine_rename(&m2, &i2, tx);
+        })),
+    ];
+    for (up, label, icon) in [(true, "Move up", &ARROW_UP), (false, "Move down", &ARROW_DOWN)] {
+        if s.can_move_machine_project(&machine, &id, up) {
+            let (m, i) = (machine.clone(), id.clone());
+            entries.push(Entry::Item(Item::new(label).icon(icon).disabled(busy).on(move |s: &mut State, tx: &mut Tx| {
+                s.ui.open = None;
+                s.move_machine_project(&m, &i, up, tx);
+            })));
+        }
+    }
+    entries.push(Entry::Separator);
+    entries.push(Entry::Item(Item::new("Delete\u{2026}").icon(&TRASH_2).destructive().disabled(busy).on(
+        move |s: &mut State, _: &mut Tx| {
+            s.ui.open = None;
+            let count = crate::view::machine_group::group_count(s, &machine, &id);
+            s.open_machine_delete(&machine, &id, count);
+        },
+    )));
+    super::menu::context_w(t, "pctx", s.ui.point, entries, Some(196.0))
 }
 
 /// A machine heading's right-click menu (`MachineHeader.vue`, `w-64`). Home's tree is the one the app works in ("live"):

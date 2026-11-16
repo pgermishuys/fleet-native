@@ -376,7 +376,7 @@ fn sessionspanel_renames_another_machines_project_on_that_machine_and_lists_that
     };
     right_click(&mut rt, "machine-project-m-falcon-p-lighthouse");
     assert!(rt.find("pctx-menu").is_some());
-    click(&mut rt, "pctx-item0");
+    click(&mut rt, "pctx-item2");
     assert!(rt.state.machine_project_renaming("m-falcon", "p-lighthouse"));
     assert!(!rt.state.project_renaming(0), "not home's project of the same place in the list");
     rt.update(|s, _| s.proj.edit = rune::TextEdit::new("Lamp house".to_string()));

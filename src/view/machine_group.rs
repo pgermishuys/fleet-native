@@ -2,6 +2,7 @@
 //! note and error line under it, its Pinned group and projects in its own order, and a row for each session as it last
 //! listed them. Pressing a row opens it; while the machine answers a row also renames (double-click, F2), has the
 //! right-click menu and its project renames from its header; while it doesn't, rows only open.
+use super::drop_zones;
 use super::machine_header::{Heading, machine_header};
 use super::project_header::{Header, editing as project_editing, project_header};
 use super::row_actions::{Buttons, actions};
@@ -10,11 +11,12 @@ use crate::State;
 use crate::fleet::groups::{LineageKind, Listed};
 use crate::fleet::machine_tree::{self, TreeGroup, TreeRow};
 use crate::fleet::machines::{Entry, MachineSessions};
+use crate::fleet::row_drag::{Over, machine_pinned_key, machine_project_key};
 use crate::fleet::row_status::{self, Dim, Glyph, RowItem};
 use crate::icons::{CHEVRON_RIGHT, PLUS};
 use crate::mock::Session;
 use crate::theme::{RADIUS_BTN, Theme, sans};
-use rune::{Align, Color, Cursor, El, Key, KeyEvent, Tx, col, el, icon, row, text};
+use rune::{Align, Color, Cursor, Drag, El, Key, KeyEvent, Phase, Tx, col, el, icon, row, text};
 
 /// The word on the right of a machine's heading when it has no count (`note`).
 pub fn note_of(state: Option<&MachineSessions>) -> Option<&'static str> {
@@ -25,12 +27,29 @@ pub fn note_of(state: Option<&MachineSessions>) -> Option<&'static str> {
     if state.loaded_at.is_none() && state.loading { Some("\u{2026}") } else { None }
 }
 
+/// How many sessions group `id` of a machine shows: the filtered rows, which is the count its Delete dialog gives (row 2.60).
+pub fn group_count(s: &State, machine: &str, id: &str) -> usize {
+    let Some(held) = s.machines.others.get(machine) else { return 0 };
+    let needle = s.filter.text.trim().to_lowercase();
+    machine_tree::build_hiding(&held.sessions, &held.projects, &needle, |x| s.hides(x))
+        .groups
+        .iter()
+        .find(|g| g.id == id)
+        .map_or(0, |g| g.count)
+}
+
 pub fn machine_group(s: &State, t: &Theme, clock: &RowClock, machine: &Entry, query: &str) -> El {
     let key = machine.key.as_str();
     let state = s.machines.others.get(key);
     let empty = MachineSessions::default();
     let held = state.unwrap_or(&empty);
-    let tree = machine_tree::build_hiding(&held.sessions, &held.projects, query, |x| s.hides(x));
+    let mut tree = machine_tree::build_hiding(&held.sessions, &held.projects, query, |x| s.hides(x));
+    // `showPinnedGroup`: Pinned also shows, empty, once a drag in this tree is under way, so there is a place to drop a pin.
+    if s.dragging_on() == Some(key) && query.is_empty() && !tree.groups.first().is_some_and(|g| g.pinned) {
+        let pinned =
+            TreeGroup { id: crate::fleet::groups::PINNED_GROUP_ID.into(), name: "Pinned".into(), pinned: true, count: 0, rows: vec![] };
+        tree.groups.insert(0, pinned);
+    }
     let down = held.error.is_some();
     let open = s.machine_is_open(key);
     let note = note_of(state);
@@ -90,7 +109,8 @@ fn group_of(
     first: bool,
 ) -> El {
     let key = machine.key.as_str();
-    let open = s.machine_project_is_open(key, &g.id);
+    let over = s.drag_over();
+    let open = s.machine_project_is_open(key, &g.id) || (g.pinned && g.rows.is_empty());
     let kind = if g.pinned { Header::Pinned } else { Header::Project };
     let (mkey, gid) = (key.to_string(), g.id.clone());
     let header_key = format!("machine-project-{key}-{}", g.id);
@@ -100,11 +120,12 @@ fn group_of(
         project_editing(s, t, header_key, open)
     } else {
         let (m, id) = (key.to_string(), g.id.clone());
-        let header = project_header(t, header_key, kind, &g.name, g.count, open, false)
+        let header = project_header(t, header_key, kind, &g.name, g.count, open, named)
             .on_press(move |s: &mut State| s.toggle_machine_project(&mkey, &gid));
         if named {
             let (m2, id2) = (m.clone(), id.clone());
             el().w_full()
+                .hover_group()
                 .on_secondary_press(move |s: &mut State, at, _: &mut Tx| {
                     s.ui.point = (at.x, at.y);
                     s.machine_menu = Some((m.clone(), id.clone()));
@@ -117,15 +138,26 @@ fn group_of(
                     }
                     false
                 }))
+                .child(plus(t, s, key, &g.id, &g.name))
         } else {
             header
         }
     };
-    let out = col().w_full().mt(if first { 0.0 } else { 10.0 }).child(header);
+    // `.project-header--drop-target`: the project a row of this machine is over, when it would go there.
+    let header = if over == Over::MProject(key.to_string(), g.id.clone()) {
+        header.outline(2.0, -2.0, t.accent).fill(t.accent.alpha(0.08))
+    } else {
+        header
+    };
+    let drop_key = if g.pinned { machine_pinned_key(key) } else { machine_project_key(key, &g.id) };
+    let out = col().key(drop_key).w_full().mt(if first { 0.0 } else { 10.0 }).child(header);
     if !open {
         return out;
     }
     let mut rows = col().w_full().pt(2.0);
+    if g.pinned && g.rows.is_empty() {
+        rows = rows.child(drop_zones::pinned_empty(t, matches!(&over, Over::MPinned(m, _) if m == key)));
+    }
     let mut hide_below: Option<usize> = None;
     for (n, r) in g.rows.iter().enumerate() {
         if let Some(depth) = hide_below {
@@ -141,6 +173,9 @@ fn group_of(
         }
         let caret = (!kids.is_empty()).then_some(shown);
         rows = rows.child(read_only_row(s, t, clock, machine, &sessions[r.index], r, caret, answering));
+    }
+    if g.pinned && !g.rows.is_empty() && matches!(&over, Over::MPinned(m, None) if m == key) {
+        rows = rows.child(drop_zones::pin_end_line(t, s.sidebar_w - 36.0));
     }
     // An unreachable machine's rows are the last ones it returned (`.machine-group--stale .session-item`): the rows dim, the
     // headings don't.
@@ -261,6 +296,16 @@ fn read_only_row(
             (machine.key.clone(), session.id.clone(), machine.key.clone(), session.id.clone(), machine.key.clone(), session.id.clone());
         line = line
             .help("Double-click to rename")
+            .opacity(if s.row_drag.as_ref().is_some_and(|d| d.id == session.id) { 0.4 } else { 1.0 })
+            .on_drag({
+                let (machine, id) = (machine.key.clone(), session.id.clone());
+                move |s: &mut State, d: &mut Drag, tx: &mut Tx| match d.phase {
+                    // The row's machine must be known before the first move asks where the drag may go.
+                    Phase::Down => s.machines.remember_sessions(&machine, std::slice::from_ref(&id)),
+                    Phase::Move => s.row_drag_move(&id, d.window_point(), tx),
+                    Phase::Up => s.row_drag_end(d.cancelled(), tx),
+                }
+            })
             .on_double_press_tx(move |s: &mut State, tx: &mut Tx| s.start_machine_row_rename(&m, &id, tx))
             // `handleRowKeydown`: F2 renames.
             .on_key(move |s: &mut State, ev: &KeyEvent, tx: &mut Tx| {
@@ -290,6 +335,9 @@ fn read_only_row(
     let buttons = if selecting { Buttons::default() } else { Buttons::of(session, !answering) };
     let line = tail(s, t, &key, session, &status, if answering { dim } else { Dim::None }, slots, buttons, line);
     let mut shell = el().w_full().py(1.0).hover_group().child(line);
+    if s.pin_line_before(&session.id) {
+        shell = shell.child(drop_zones::pin_line(t, s.sidebar_w - 36.0).absolute(10.0, -1.0));
+    }
     for button in actions(s, t, &key, session, &row_status::display_title(None, &session.title), buttons, Some(&machine.key)) {
         shell = shell.child(button);
     }
@@ -337,4 +385,30 @@ pub fn add_machine_row(t: &Theme) -> El {
         .on_press(|s: &mut State| s.add_machine())
         .child(icon(&PLUS, 13.0).color(t.muted.alpha(0.8)).group_color(t.text))
         .child(text("Add a machine").font(sans(12.0, 400.0, 1.3)).color(t.muted.alpha(0.8)).group_color(t.text))
+}
+
+/// `.project-new`: the + on a hovered project header of an answering machine; the page opens on that machine and project.
+fn plus(t: &Theme, s: &State, machine: &str, id: &str, name: &str) -> El {
+    let label = format!("New session in {name}");
+    let (m, p) = (machine.to_string(), id.to_string());
+    let plus = el()
+        .key(format!("machine-project-new-{machine}-{id}"))
+        .role("button")
+        .label(label.clone())
+        .help(label)
+        .size(22.0, 22.0)
+        .center()
+        .radius(6.0)
+        .pin(None, Some(2.0), Some(34.0), None)
+        .cursor(Cursor::Pointer)
+        .focus_ring(2.0, -1.0, t.accent)
+        .child(icon(&PLUS, 15.0).color(t.muted).group_color(t.accent_text));
+    if s.proj.pending {
+        plus.disabled(true).group_opacity(0.0, 0.5)
+    } else {
+        plus.group_opacity(0.0, 1.0)
+            .hover(t.wash(10.0))
+            .hover_group()
+            .on_press(move |s: &mut State| s.new_session_in_machine_project(&m, &p))
+    }
 }
