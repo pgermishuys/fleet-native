@@ -1168,3 +1168,15 @@ Rune's pointer drag finds the target with `Tx::element_at` and the keys on the p
 Put the machine and the project in the key (`drop-mproject-<machine>~<project>`, `mpinned-<machine>`), and read the row a drag is over from
 the same path (`machine-session-<machine>-<id>`). Check the dragged row's machine against the target's machine when the drag moves: nothing
 in Rune stops a drop in the wrong tree. Nothing in Rune got in the way otherwise.
+
+
+## Component 9, piece E (row actions, the filter, another machine)
+
+- **A hover-only strip beside a row**: put the row and the strip in a shell with `hover_group()`, pin the strip over the row's right
+  edge and give it `group_opacity(0.0, 1.0)`; the buttons stay in the tree at opacity 0, so a headless test clicks them by key.
+  Fleet's strip fades over a gradient; give the strip an opaque fill of the row's hover colour instead
+  (`Theme::mix(text, panel_bg, 0.05)`: the first colour is the one with the share).
+- **A press needs the element on screen**: a test window of 1280x760 cuts off a button below the fold, and a click there lands on nothing.
+  Run the button's own action from `rt.update` and check the key exists, or draw the scene taller.
+- **Hover in a script**: `scroll` with `"dy": 0` on a key, or `move` with a point, leaves the pointer over an element for a picture;
+  `secondary-click` on a key opens a right-click menu.

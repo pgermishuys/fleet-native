@@ -31,6 +31,8 @@ mod tests_context_tab;
 #[cfg(test)]
 mod tests_dashboard;
 #[cfg(test)]
+mod tests_dashboard_actions;
+#[cfg(test)]
 mod tests_draft_row;
 #[cfg(test)]
 mod tests_folder_clone;
@@ -409,6 +411,8 @@ pub struct State {
     pub live: bool,
     /// The rule that lands the first `/` of a start on Mission control (component 9, piece C).
     pub landing: fleet::dashboard::Landing,
+    /// What the home page keeps while it is shown: another machine's sessions, "Show N more" (piece E).
+    pub dash: fleet::dashboard_machine::Page,
 }
 
 /// The `--server` address, read once at start so `State::default` can tell it has one.
@@ -584,6 +588,7 @@ impl Default for State {
             no_fleet: false,
             live: false,
             landing: fleet::dashboard::Landing::at_start(true),
+            dash: Default::default(),
         };
         if live() {
             state.go_live(SERVER.get().is_none());
@@ -1248,6 +1253,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     let renamed = s.keep_rename(tx) | s.keep_row_rename(tx) | s.keep_header(now, tx);
     let found = s.find_poll(tx) | s.keep_questions(tx) | s.keep_allowed_flash(now, tx);
     let exported = s.export_poll(tx) | s.keep_setup_rows(now, tx) | s.keep_context(now, tx) | s.keep_machine_page(now, tx);
+    let exported = exported | s.keep_dashboard_machine(now, tx);
     // "Copied" on a message's button ends by itself.
     let copied = match &s.copied {
         Some((_, until)) if now >= *until => {
@@ -2027,6 +2033,12 @@ pub fn spec() -> AppSpec<State> {
             ("home-error-light", |s| s.show_home_scene(fleet::home::Scene::Error, false)),
             ("home-harness", |s| s.show_home_scene(fleet::home::Scene::Harness, true)),
             ("home-harness-light", |s| s.show_home_scene(fleet::home::Scene::Harness, false)),
+            ("home-more", |s| s.show_home_scene(fleet::home::Scene::Many, true)),
+            ("home-more-light", |s| s.show_home_scene(fleet::home::Scene::Many, false)),
+            ("home-filter-menu", |s| s.show_home_scene(fleet::home::Scene::Filter, true)),
+            ("home-filter-menu-light", |s| s.show_home_scene(fleet::home::Scene::Filter, false)),
+            ("home-machine", |s| s.show_home_scene(fleet::home::Scene::Machine, true)),
+            ("home-machine-light", |s| s.show_home_scene(fleet::home::Scene::Machine, false)),
             ("status-working", |s| s.show_status_hints(true, Some(mock::Status::Working))),
             ("status-working-light", |s| s.show_status_hints(false, Some(mock::Status::Working))),
             ("status-idle", |s| s.show_status_hints(true, Some(mock::Status::Idle))),

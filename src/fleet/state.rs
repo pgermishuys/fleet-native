@@ -92,9 +92,15 @@ impl State {
         let Some(row) = self.machines.others.get(machine).and_then(|m| m.sessions.iter().find(|s| s.id == id)).map(|s| s.row_copy()) else {
             return;
         };
-        self.machines.remember_sessions(machine, &[id.to_string()]);
+        self.open_machine_row(machine, row, tx);
+    }
+
+    /// `open_machine_session` for a row the caller holds: the home page's own list of another machine (`handleSessionSelect`).
+    pub fn open_machine_row(&mut self, machine: &str, row: crate::mock::Session, tx: &mut Tx) {
+        let id = row.id.clone();
+        self.machines.remember_sessions(machine, std::slice::from_ref(&id));
         self.store.upsert_elsewhere(machine, row);
-        self.go(store::Route::Session(id.to_string()));
+        self.go(store::Route::Session(id));
         self.after_open(tx);
     }
 

@@ -24,8 +24,26 @@ pub fn dropdown(s: &State, t: &Theme, name: &'static str) -> Vec<El> {
         "model" => selector(s, t, "model"),
         "help" => super::menu::dropdown_w(t, "help-pop", "rail-help", help(), Side::Right, Align::End, super::rem(14.0)),
         "more" => super::menu::dropdown_w(t, "more-pop", "more", more(s), Side::Bottom, Align::End, super::rem(14.0)),
+        "retention" => super::menu::dropdown_w(t, "retention-pop", "home-filter", retention(s), Side::Bottom, Align::End, super::rem(12.0)),
         _ => drop(t, "gallery-pop", "g-menu", gallery(s), Side::Bottom, Align::Start),
     }
+}
+
+/// The home page's "Show:" menu (`RetentionFilter.vue`, `w-48`): the three views of the list, a check after the one shown. The
+/// pick is the sidebar's too (`store.retention`).
+pub fn retention(s: &State) -> Vec<Entry> {
+    use crate::fleet::store::Retention;
+    [(Retention::Active, "active"), (Retention::Archived, "archived"), (Retention::All, "all")]
+        .into_iter()
+        .map(|(r, key)| {
+            Entry::Item(
+                Item::new(crate::view::dashboard::retention_label(r))
+                    .id(format!("retention-filter-option-{key}"))
+                    .end_check(s.store.retention == r)
+                    .on(move |s: &mut State, _: &mut Tx| s.pick_retention(r)),
+            )
+        })
+        .collect()
 }
 
 /// The rail's Help menu (`IconRail.vue`, `w-56`). Report a problem opens the dialog once piece Q builds it; What's new is
