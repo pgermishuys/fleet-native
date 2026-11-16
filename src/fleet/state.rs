@@ -215,6 +215,7 @@ impl State {
 
     /// The settings file was read (off the UI thread): the list and the panels take what it says.
     pub fn adopt_settings(&mut self, dir: std::path::PathBuf, stored: super::settings::Sidebar) {
+        self.notices.adopt_shown(stored.notices_shown());
         self.sidebar.adopt(dir, stored);
         self.seed_feeds_from_settings();
         self.sidebar_open = !self.sidebar.panel_collapsed();
@@ -226,6 +227,31 @@ impl State {
         if let Some(c) = self.open_id().and_then(|id| self.sidebar.remembered_right(&id)) {
             self.content_open = !c;
         }
+    }
+
+    /// Opens the next waiting notice's card at a quiet moment, expires notices, and keeps the shown ids in the settings
+    /// file. Until it is quiet, a waiting notice looks again every half second (`WAIT_POLL_MS`). True when something on
+    /// screen changed.
+    pub(crate) fn keep_notices(&mut self, now: f64, tx: &mut crate::Tx) -> bool {
+        use super::notices::WAIT_POLL_SECS;
+        use std::time::Duration;
+        let mut changed = self.notices.expire(now);
+        if self.notices.open().is_none() && self.notices.next_waiting().is_some() {
+            if self.quiet.is_quiet(now) {
+                self.notices.open_next();
+                changed = true;
+            } else {
+                tx.wake_after(Duration::from_secs_f64(WAIT_POLL_SECS));
+            }
+        }
+        if let Some(at) = self.notices.next_expiry() {
+            tx.wake_after(Duration::from_secs_f64((at - now).max(0.0)));
+        }
+        if let Some(ids) = self.notices.take_shown_save() {
+            self.sidebar.save_notices_shown(&ids);
+            self.save_settings();
+        }
+        changed
     }
 
     /// Writes the settings file on a thread, if it has a folder and something changed.

@@ -63,6 +63,7 @@ pub mod model;
 pub mod modes;
 pub mod new_project;
 pub mod new_session;
+pub mod notices;
 pub mod open_in;
 pub mod pages;
 pub mod pairing;

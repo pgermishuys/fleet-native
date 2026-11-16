@@ -1218,3 +1218,8 @@ in Rune stops a drop in the wrong tree. Nothing in Rune got in the way otherwise
   before it is joined to the downloads folder.
 - An answer that arrives after the report was closed must not bring it back: each request takes a generation from the state and the
   answer is dropped unless it still matches (`ReportState::finished`).
+## Component 9, piece K (notices and the quiet moment)
+
+- A key typed into a focused `text_input` is not a window `on_key` event unless the control passes it on, so "the user is typing" is read from `tx.focused()` inside `on_key` and from the draft text changing, not from every keydown.
+- `on_focus` and `on_visibility` hand a `Tx`: a handler that must act at once (open a waiting card on return) can call the same keeper the poll calls, instead of waiting for the next `wake_after`.
+- A scene's clock is the real one: `--snap --at 3.6` runs 3.6 s of frames, so a timed behaviour can be shown by two snaps either side of its time.
