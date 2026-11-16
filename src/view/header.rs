@@ -1,16 +1,17 @@
 //! The session header (ports `SessionDetailHeader.vue`'s title row and meta row; the banners under it are in
 //! `header_banners.rs`). What it says comes from `fleet::header::HeaderModel`; this file only draws it.
 //!
-//! Not here yet: rename, tags and the copy button (piece C), the toolbar's real actions (piece D), the fork dialog and the
-//! analytics popover (piece E), and the context chips between the text and the buttons (piece G).
+//! Not here yet: the toolbar's real actions (piece D), the fork dialog and the analytics popover (piece E), and the context
+//! chips between the text and the buttons (piece G). Rename, tags, the copy button and Restore now are `fleet::header_actions`.
 use super::parts::{status_glyph, tool_button};
 use crate::fleet::groups::LineageKind;
 use crate::fleet::header::{Checkout, HeaderModel, Indicator, MachineChip};
+use crate::fleet::header_actions::{TAG_FIELD, TITLE_FIELD};
 use crate::icons::*;
 use crate::mock::{Project, Session, Status};
-use crate::theme::{Theme, mono, sans};
-use crate::{State, interrupt};
-use rune::{Cursor, Cycle, El, Span, col, el, icon, rich, row, text};
+use crate::theme::{RADIUS_BTN, Theme, mono, sans};
+use crate::{State, Tx, interrupt};
+use rune::{Cursor, Cycle, El, Key, KeyEvent, Span, col, el, icon, rich, row, text, text_input};
 
 /// `@container session-detail-header (min-width: 48rem)`: the header's sides widen from 1rem to 1.25rem.
 const WIDE_AT: f32 = 672.0;
@@ -50,13 +51,8 @@ fn title_row(s: &State, t: &Theme, m: &HeaderModel, room: f32) -> El {
         // The row's slot is 8px; the glyph is centred in it with the gap the title row has.
         glyph
     });
-    let title = text(m.title.clone())
-        .key("session-title")
-        .font(sans(14.0, 600.0, 1.3).tracking(-0.07))
-        .color(t.text)
-        .truncate()
-        .shrink()
-        .min_w(0.0);
+    let editing = s.head.editing_title(&s.session().id);
+    let title = if editing { title_field(s, t) } else { title_text(t, m) };
     row()
         .w_full()
         .min_w(0.0)
@@ -64,7 +60,7 @@ fn title_row(s: &State, t: &Theme, m: &HeaderModel, room: f32) -> El {
         .gap(6.0)
         .children(glyph)
         .child(title)
-        .children(lineage_pill(s, t, m, room))
+        .children(if editing { None } else { lineage_pill(s, t, m, room) })
         .children(m.retry_note.as_ref().map(|note| {
             text(note.clone())
                 .key("session-retry-note")
@@ -76,7 +72,72 @@ fn title_row(s: &State, t: &Theme, m: &HeaderModel, room: f32) -> El {
                 .help(note.clone())
         }))
         .children(m.archived.then(|| badge(t, "session-archived-badge", "Archived")))
-        .children(m.checkout.as_ref().map(|c| checkout_chip(t, m, c)))
+        .children(m.checkout.as_ref().map(|c| checkout_chip(s, t, m, c)))
+}
+
+/// The title as text: a double-click or F2 renames it unless the session is archived (`session-detail-header__title--editable`).
+fn title_text(t: &Theme, m: &HeaderModel) -> El {
+    let title = text(m.title.clone())
+        .key("session-title")
+        .font(sans(14.0, 600.0, 1.3).tracking(-0.07))
+        .color(t.text)
+        .truncate()
+        .shrink()
+        .min_w(0.0);
+    if m.archived {
+        return title;
+    }
+    title
+        .ml(-6.0)
+        .px(6.0)
+        .radius(6.0)
+        .hover(t.wash(5.0))
+        .cursor(Cursor::Text)
+        .focusable(true)
+        .focus_ring(2.0, 0.0, t.accent)
+        .help("Double-click to rename")
+        .on_double_press_tx(|s: &mut State, tx: &mut Tx| s.start_header_rename(tx))
+        .on_key(|s: &mut State, ev: &KeyEvent, tx: &mut Tx| {
+            if ev.key == Key::Function(2) {
+                s.start_header_rename(tx);
+                return true;
+            }
+            false
+        })
+}
+
+/// `.session-detail-header__title-input`: the title's own size in its place, an accent border and a 3px ring.
+fn title_field(s: &State, t: &Theme) -> El {
+    text_input(&s.head.title_edit, sans(14.0, 600.0, 1.3).tracking(-0.07))
+        .key(TITLE_FIELD)
+        .label("Session name")
+        .placeholder("Session name", t.muted)
+        .single_line()
+        .color(t.text)
+        .caret(t.text, t.accent.alpha(0.35))
+        .grow(1.0)
+        .shrink()
+        .min_w(0.0)
+        .max_w(480.0)
+        .ml(-7.0)
+        .px(6.0)
+        .fill(t.card_bg)
+        .radius(6.0)
+        .border(1.0, t.accent)
+        .border_layout()
+        .focus_ring(3.0, 0.0, t.accent_dim)
+        .on_edit(|s: &mut State| &mut s.head.title_edit)
+        .on_input_key(|s: &mut State, ev: &KeyEvent, tx: &mut Tx| match ev.key {
+            Key::Enter => {
+                s.finish_header_rename(true, tx);
+                true
+            }
+            Key::Escape => {
+                s.finish_header_rename(false, tx);
+                true
+            }
+            _ => false,
+        })
 }
 
 /// `Badge variant="secondary"`.
@@ -124,8 +185,9 @@ fn spinner(color: rune::Color) -> El {
     icon(&LOADER_CIRCLE, 11.0).color(color).cycle(Cycle { period: 1.2, phase: 0.0, stops: &FADE, still: 1.0, fps: 30.0 })
 }
 
-/// The removed-checkout chip (`.session-detail-header__checkout`). Restore now is wired in piece C.
-fn checkout_chip(t: &Theme, m: &HeaderModel, c: &Checkout) -> El {
+/// The removed-checkout chip (`.session-detail-header__checkout`) and, after a failed restore, the server's sentence in red.
+fn checkout_chip(s: &State, t: &Theme, m: &HeaderModel, c: &Checkout) -> El {
+    let error = s.head.restore_error_of(&s.session().id).map(str::to_string);
     let quiet = *c == Checkout::Restored;
     let ink = if quiet { t.muted } else { t.status_waiting_text };
     let font = sans(11.0, 400.0, 1.3);
@@ -138,7 +200,7 @@ fn checkout_chip(t: &Theme, m: &HeaderModel, c: &Checkout) -> El {
         .radius(999.0)
         .border(1.0, t.idle.alpha(0.45))
         .border_layout()
-        .help(m.checkout_sentence.clone());
+        .help(error.clone().unwrap_or_else(|| m.checkout_sentence.clone()));
     chip = if quiet { chip.fill(rune::Color::TRANSPARENT) } else { chip.fill(t.idle.alpha(0.10)) };
     if *c == Checkout::Restoring {
         chip = chip.child(spinner(ink));
@@ -151,9 +213,12 @@ fn checkout_chip(t: &Theme, m: &HeaderModel, c: &Checkout) -> El {
                 .key("session-checkout-restore")
                 .cursor(Cursor::Pointer)
                 .label(word)
-                .on_press(|_: &mut State| {})
+                .on_press_tx(|s: &mut State, tx: &mut Tx| s.restore_checkout(tx))
                 .child(rich(word, vec![Span::new(0, word.len()).underline(t.text)]).font(font).color(t.text)),
         );
+    }
+    if let Some(error) = error {
+        chip = chip.child(text(error).key("session-checkout-error").font(font).color(t.error_text).label("Checkout restore failed"));
     }
     chip
 }
@@ -233,32 +298,125 @@ fn meta_row(s: &State, t: &Theme, m: &HeaderModel, session: &Session, project: &
             meta = meta.child(dot());
         }
         // The head gives way first, from its start; the folder's own name stays until the head is gone.
+        let full = if mock && m.directory.is_empty() { project.path.clone() } else { m.directory.clone() };
+        let copied = s.head.copied_until.is_some_and(|until| s.clock < until);
         meta = meta.child(
             row()
                 .key("session-directory")
                 .shrink()
                 .min_w(24.0)
-                .help(if mock { project.path.clone() } else { m.directory.clone() })
-                .child(text(head).font(path_font).color(t.muted.alpha(0.8)).truncate_head().shrink().min_w(0.0))
-                .child(text(leaf).font(path_font).color(t.muted.alpha(0.8))),
+                .center_y()
+                .gap(4.0)
+                .clip_rounded(0.0)
+                .hover_group()
+                .help(full.clone())
+                .child(text(head).font(path_font).color(t.muted.alpha(0.8)).group_color(t.text).truncate_head().shrink().min_w(0.0))
+                .child(text(leaf).font(path_font).color(t.muted.alpha(0.8)).group_color(t.text))
+                .child(copy_button(t, full, copied))
+                .children(copied.then(|| text("Copied").key("session-copied").font(sans(11.0, 500.0, 1.4)).color(t.muted))),
         );
     }
-    // Add a tag: tags are piece C's; the button stays as it was.
-    meta.child(
-        el().key("add-tag")
-            .ml(4.0)
-            .size(20.0, 20.0)
-            .center()
-            .radius(6.0)
-            .border(1.0, t.muted.alpha(0.45))
-            .border_dash(3.0, 2.0)
-            .hover_group()
-            .cursor(Cursor::Pointer)
-            .help("Add a tag")
-            .label("Add a tag")
-            .on_press(|_: &mut State| {})
-            .child(icon(&PLUS, 12.0).color(t.muted.alpha(0.7)).group_color(t.text)),
-    )
+    meta.child(tags_row(s, t, &m.tags))
+}
+
+/// `.session-detail-header__copy-path`: 20 square, shown while the path is hovered (always while "Copied" shows), a check in
+/// the running colour once the path is on the clipboard.
+fn copy_button(t: &Theme, path: String, copied: bool) -> El {
+    let button = el()
+        .key("session-copy-directory")
+        .size(20.0, 20.0)
+        .center()
+        .radius(RADIUS_BTN - 2.0)
+        .hover(t.wash(7.0))
+        .hover_group()
+        .cursor(Cursor::Pointer)
+        .focusable(true)
+        .focus_ring(2.0, 0.0, t.accent)
+        .help(path.clone())
+        .label("Copy folder path")
+        .on_press_tx(move |s: &mut State, tx: &mut Tx| s.copy_directory(&path, tx));
+    if copied {
+        return button.child(icon(&CHECK, 13.0).color(t.running_text));
+    }
+    el().group_opacity(0.0, 1.0).child(button.child(icon(&COPY, 13.0).color(t.muted).group_color(t.text)))
+}
+
+/// `.session-detail-header__tags-row`: an outline badge per tag with its ×, then the dashed + or the field.
+fn tags_row(s: &State, t: &Theme, tags: &[String]) -> El {
+    let adding = s.head.adding_tag_to(&s.session().id);
+    let mut line = row().key("session-tags").center_y().gap(4.0).ml(4.0);
+    for tag in tags {
+        let gone = tag.clone();
+        line = line.child(
+            row()
+                .key(format!("session-tag-{tag}"))
+                .center_y()
+                .gap(3.5)
+                .pl(8.0)
+                .pr(3.5)
+                .py(2.0)
+                .radius(6.0)
+                .border(1.0, t.border)
+                .border_layout()
+                .child(text(tag.clone()).font(sans(10.5, 600.0, 1.3)).color(t.text))
+                .child(
+                    el().key(format!("session-tag-remove-{tag}"))
+                        .px(1.75)
+                        .py(1.75)
+                        .hover_group()
+                        .cursor(Cursor::Pointer)
+                        .label(format!("Remove tag {tag}"))
+                        .on_press(move |s: &mut State| s.remove_tag(&gone))
+                        .child(icon(&X, 12.0).color(t.muted).group_color(t.text)),
+                ),
+        );
+    }
+    line.child(if adding { tag_field(s, t) } else { add_tag_button(t) })
+}
+
+fn add_tag_button(t: &Theme) -> El {
+    el().key("add-tag")
+        .size(20.0, 20.0)
+        .center()
+        .radius(RADIUS_BTN - 2.0)
+        .border(1.0, t.muted.alpha(0.45))
+        .border_dash(3.0, 2.0)
+        .hover_group()
+        .cursor(Cursor::Pointer)
+        .help("Add tag")
+        .label("Add tag")
+        .on_press_tx(|s: &mut State, tx: &mut Tx| s.start_adding_tag(tx))
+        .child(icon(&PLUS, 12.0).color(t.muted.alpha(0.7)).group_color(t.text))
+}
+
+/// `.session-detail-header__tag-input`: Enter and blur add, Escape cancels.
+fn tag_field(s: &State, t: &Theme) -> El {
+    text_input(&s.head.tag_edit, sans(12.0, 400.0, 1.3))
+        .key(TAG_FIELD)
+        .label("Tag name")
+        .placeholder("Tag name\u{2026}", t.muted)
+        .single_line()
+        .color(t.text)
+        .caret(t.text, t.accent.alpha(0.35))
+        .min_w(120.0)
+        .px(8.0)
+        .py(1.0)
+        .fill(t.card_bg)
+        .radius(RADIUS_BTN - 2.0)
+        .border(1.0, if s.head.tag_edit.focused { t.accent } else { t.border })
+        .border_layout()
+        .on_edit(|s: &mut State| &mut s.head.tag_edit)
+        .on_input_key(|s: &mut State, ev: &KeyEvent, _: &mut Tx| match ev.key {
+            Key::Enter => {
+                s.finish_adding_tag(true);
+                true
+            }
+            Key::Escape => {
+                s.finish_adding_tag(false);
+                true
+            }
+            _ => false,
+        })
 }
 
 /// `.session-detail-header__machine`, shown when the user has more than one machine.
