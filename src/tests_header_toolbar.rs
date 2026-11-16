@@ -303,24 +303,38 @@ fn rename_in_the_menu_starts_the_title_edit() {
 // ---- archive and restore --------------------------------------------------------------------------------------------------
 
 #[test]
-fn archive_sends_the_retention_and_the_session_is_archived() {
+fn archive_waits_for_undo_then_sends_the_retention_and_the_session_is_archived() {
     let mut live = Live::start(Case::Fork, None);
     live.rt.update(|s, tx| s.toolbar_archive(tx));
-    assert!(live.rt.state.toolbar_busy(), "the ⋯ spins while it is sent");
+    live.rt.frame(crate::tests::FRAME);
+    assert!(live.rt.state.archive.hides("a-open"), "the session leaves the list at once");
+    assert!(live.calls().is_empty(), "nothing is sent while Undo can still be pressed");
+    live.rt.frame(crate::fleet::archive_queue::UNDO_SECS + 0.1);
     live.wait("the archive", |l| l.rt.state.projects[0].sessions[0].row.archived);
     assert_eq!(
         live.calls(),
         [("PATCH".to_string(), "/api/sessions/a-open/retention".to_string(), json!({ "retentionStatus": "archived" }))]
     );
-    assert!(!live.rt.state.toolbar_busy());
 }
 
 #[test]
-fn a_refused_archive_says_so_in_a_toast_and_the_session_stays() {
+fn undo_after_the_header_archive_sends_nothing() {
+    let mut live = Live::start(Case::Fork, None);
+    live.rt.update(|s, tx| s.toolbar_archive(tx));
+    live.rt.update(|s, _| s.undo_archive());
+    live.rt.frame(crate::fleet::archive_queue::UNDO_SECS + 0.1);
+    assert!(live.calls().is_empty());
+    assert!(!live.rt.state.archive.hides("a-open"));
+    assert!(!live.rt.state.projects[0].sessions[0].row.archived);
+}
+
+#[test]
+fn a_refused_archive_says_so_and_the_session_stays() {
     let mut live = Live::start(Case::Fork, Some((500, "{}")));
     live.rt.update(|s, tx| s.toolbar_archive(tx));
-    live.wait("the refusal", |l| l.rt.state.ui.toast.is_some());
-    assert_eq!(live.rt.state.ui.toast.as_ref().unwrap().message, "Couldn't archive \"Try a smaller cache limit\".");
+    live.rt.frame(crate::fleet::archive_queue::UNDO_SECS + 0.1);
+    live.wait("the refusal", |l| l.rt.state.archive.error.is_some());
+    assert_eq!(live.rt.state.archive.error.as_deref(), Some("Couldn't archive \"Try a smaller cache limit\"."));
     assert!(!live.rt.state.projects[0].sessions[0].row.archived);
 }
 
