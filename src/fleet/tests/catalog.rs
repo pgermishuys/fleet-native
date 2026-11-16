@@ -18,7 +18,7 @@ use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 const FRAME: f64 = 1.0 / 60.0;
 
@@ -402,16 +402,8 @@ fn the_lists_load_on_opening_a_session_and_again_on_a_catalog_event_and_the_prom
         s.load_pickers();
         s.on_list(sessions::parse_list(&serde_json::from_str(&fixture("api-sessions.json")).unwrap(), 0), tx);
     });
-    let deadline = Instant::now() + Duration::from_secs(20);
     let step = |rt: &mut Runtime<State>, until: &dyn Fn(&State) -> bool, what: &str| {
-        while !until(&rt.state) {
-            assert!(Instant::now() < deadline, "{what}");
-            while let Ok(job) = queue.try_recv() {
-                rt.update(job);
-            }
-            rt.frame(FRAME);
-            std::thread::sleep(Duration::from_millis(10));
-        }
+        crate::test_wait::drive(rt, &queue, what, until, crate::test_wait::app_state);
     };
     let loaded =
         |s: &State| s.lists().agents_loaded && s.lists().models_loaded && !s.pickers.harnesses.is_empty() && s.pickers.prefs.fetched;

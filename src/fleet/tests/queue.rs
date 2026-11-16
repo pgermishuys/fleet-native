@@ -15,7 +15,6 @@ use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
 
 const FRAME: f64 = 1.0 / 60.0;
 
@@ -98,6 +97,21 @@ fn a_load_asked_for_before_an_event_is_older_than_it() {
     let g = q.begin_load("s");
     q.loaded("s", g, vec![item("loaded", "a load nothing overtook")]);
     assert_eq!(q.of("s"), [item("loaded", "a load nothing overtook")]);
+}
+
+// The flake on a slow runner: the load asked for when the session opened answers after the queue request did, with the
+// queue as it was before, and took the new item away again.
+#[test]
+fn a_load_asked_for_before_an_item_was_added_or_taken_back_does_not_undo_it() {
+    let mut q = super::super::queue::Queues::default();
+    let g = q.begin_load("s");
+    q.add("s", item("a", "added"));
+    q.loaded("s", g, vec![]);
+    assert_eq!(q.of("s"), [item("a", "added")]);
+    let g = q.begin_load("s");
+    q.remove("s", "a");
+    q.loaded("s", g, vec![item("a", "added")]);
+    assert!(q.of("s").is_empty());
 }
 
 // use-session-queue.test.ts: "reports why a message couldn't be queued"
@@ -560,15 +574,21 @@ impl Live {
 
     /// Runs the app until `until` holds.
     pub(super) fn wait(&mut self, until: &dyn Fn(&Live) -> bool, what: &str) {
-        let deadline = Instant::now() + Duration::from_secs(20);
-        while !until(self) {
-            assert!(Instant::now() < deadline, "{what}");
-            while let Ok(job) = self.jobs.try_recv() {
-                self.rt.update(job);
-            }
-            self.rt.frame(FRAME);
-            std::thread::sleep(Duration::from_millis(10));
-        }
+        crate::test_wait::until(
+            self,
+            what,
+            |l| {
+                if until(l) {
+                    return true;
+                }
+                while let Ok(job) = l.jobs.try_recv() {
+                    l.rt.update(job);
+                }
+                l.rt.frame(FRAME);
+                until(l)
+            },
+            |l| format!("{}; {} calls reached the fake server", crate::test_wait::app_state(&l.rt.state), l.calls().len()),
+        );
     }
 
     /// Every upload the server saw: its path, its type and its body.

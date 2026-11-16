@@ -258,10 +258,12 @@ fn it_keeps_looking_and_finds_a_fleet_that_starts_a_moment_after_the_window() {
     let dir = temp("late");
     let file = dir.join("data/fleet.instance.json");
     let url = server();
+    let looks = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let writer = {
-        let (file, url) = (file.clone(), url.clone());
+        let (file, url, looks) = (file.clone(), url.clone(), looks.clone());
         std::thread::spawn(move || {
-            std::thread::sleep(std::time::Duration::from_millis(400));
+            // After the search has looked a few times, however fast or slow the machine is.
+            crate::test_wait::until_true("the search to look a few times", || looks.load(std::sync::atomic::Ordering::SeqCst) >= 3);
             write(&file, &instance_json(&url));
         })
     };
@@ -272,6 +274,7 @@ fn it_keeps_looking_and_finds_a_fleet_that_starts_a_moment_after_the_window() {
         |looked| {
             assert_eq!(looked.len(), 1);
             missing += 1;
+            looks.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         },
     );
     writer.join().unwrap();

@@ -515,14 +515,13 @@ fn the_poll_reads_home_s_list_and_identity_then_each_machine_and_hands_them_to_t
     let mut rt = crate::tests::app();
     let _poll = crate::fleet::machine_poll::start(home, post);
 
-    let end = std::time::Instant::now() + std::time::Duration::from_secs(10);
-    while std::time::Instant::now() < end && rt.state.machines.others.get(FALCON_ID).is_none_or(|o| o.loaded_at.is_none()) {
-        while let Ok(job) = queue.try_recv() {
-            rt.update(job);
-        }
-        rt.frame(1.0 / 60.0);
-        std::thread::sleep(std::time::Duration::from_millis(10));
-    }
+    crate::test_wait::drive(
+        &mut rt,
+        &queue,
+        "the other machine's first answer",
+        |s| s.machines.others.get(FALCON_ID).is_some_and(|o| o.loaded_at.is_some()),
+        |s| format!("others {:?}", s.machines.others.keys().collect::<Vec<_>>()),
+    );
 
     let m = &rt.state.machines;
     assert_eq!(m.source, Source::Owner);

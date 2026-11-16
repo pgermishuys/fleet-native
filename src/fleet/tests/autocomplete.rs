@@ -247,7 +247,7 @@ use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 #[derive(Default)]
 pub(super) struct Seen {
@@ -370,15 +370,21 @@ impl Live {
     }
 
     pub(super) fn wait(&mut self, until: &dyn Fn(&Live) -> bool, what: &str) {
-        let deadline = Instant::now() + Duration::from_secs(20);
-        while !until(self) {
-            assert!(Instant::now() < deadline, "{what}");
-            while let Ok(job) = self.jobs.try_recv() {
-                self.rt.update(job);
-            }
-            self.rt.frame(FRAME);
-            std::thread::sleep(Duration::from_millis(10));
-        }
+        crate::test_wait::until(
+            self,
+            what,
+            |l| {
+                if until(l) {
+                    return true;
+                }
+                while let Ok(job) = l.jobs.try_recv() {
+                    l.rt.update(job);
+                }
+                l.rt.frame(FRAME);
+                until(l)
+            },
+            |l| format!("{}; {} calls reached the fake server", crate::test_wait::app_state(&l.rt.state), l.calls().len()),
+        );
     }
 
     pub(super) fn calls(&self) -> Vec<(String, String, Value)> {

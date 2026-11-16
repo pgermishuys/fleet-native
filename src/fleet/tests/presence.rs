@@ -252,7 +252,7 @@ impl Hub {
     /// The next presence or focus call, with which hub connection it came on.
     fn next(&self) -> (usize, String, Value) {
         loop {
-            let got = self.calls.recv_timeout(Duration::from_secs(20)).expect("the hub heard nothing in time");
+            let got = crate::test_wait::recv("what the hub should have heard", &self.calls);
             if got.1 == "SetPresenceAsync" || got.1 == "SetSessionFocusAsync" {
                 return got;
             }

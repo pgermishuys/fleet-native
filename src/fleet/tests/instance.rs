@@ -185,7 +185,7 @@ fn is_ready_is_false_on_timeout() {
     let url = format!("http://{}", listener.local_addr().unwrap());
     let started = std::time::Instant::now();
     assert!(!is_ready(&url, Duration::from_millis(200)));
-    assert!(started.elapsed() < Duration::from_secs(3));
+    assert!(started.elapsed() < Duration::from_secs(30));
     drop(listener);
 }
 

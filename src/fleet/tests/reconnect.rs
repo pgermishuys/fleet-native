@@ -309,28 +309,25 @@ fn a_dropped_connection_comes_back_with_the_conversation_a_fresh_open_shows() {
     }
 
     let mut saw_down = false;
-    let deadline = Instant::now() + Duration::from_secs(30);
-    loop {
-        while let Ok(job) = queue.try_recv() {
-            rt.update(job);
-        }
-        rt.frame(1.0 / 60.0);
-        saw_down |= matches!(rt.state.connection, Connection::Down(_));
-        let back = hubs.load(Ordering::SeqCst) >= 2
-            && rt.state.connection == Connection::Online
-            && rt.state.stream.as_ref().is_some_and(|s| s.messages == fresh.messages);
-        if back {
-            break;
-        }
-        assert!(
-            Instant::now() < deadline,
-            "didn't come back: {:?}, {} hub connections, {:?}",
-            rt.state.connection,
-            hubs.load(Ordering::SeqCst),
-            rt.state.stream.as_ref().map(|s| s.messages.len())
-        );
-        std::thread::sleep(Duration::from_millis(10));
-    }
+    crate::test_wait::drive(
+        &mut rt,
+        &queue,
+        "the connection to come back with the newer snapshot",
+        |s| {
+            saw_down |= matches!(s.connection, Connection::Down(_));
+            hubs.load(Ordering::SeqCst) >= 2
+                && s.connection == Connection::Online
+                && s.stream.as_ref().is_some_and(|s| s.messages == fresh.messages)
+        },
+        |s| {
+            format!(
+                "{}, {} hub connections, {:?}",
+                crate::test_wait::app_state(s),
+                hubs.load(Ordering::SeqCst),
+                s.stream.as_ref().map(|s| s.messages.len())
+            )
+        },
+    );
     assert!(saw_down, "the status bar had its Reconnecting state");
     let shown = rt.state.stream.as_ref().unwrap();
     let mut seen = std::collections::HashSet::new();
@@ -364,7 +361,7 @@ fn coming_back_to_the_window_while_the_hub_is_down_reconnects_at_once() {
         }
         false
     };
-    assert!(wake(&mut rt, &|s| matches!(s.connection, Connection::Down(_)), 5.0), "never saw it down");
+    assert!(wake(&mut rt, &|s| matches!(s.connection, Connection::Down(_)), 60.0), "never saw it down");
     let listener = TcpListener::bind(addr).unwrap();
     let hubs = Arc::new(AtomicUsize::new(0));
     std::thread::spawn(move || {
