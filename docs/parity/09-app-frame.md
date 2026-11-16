@@ -154,16 +154,16 @@ their pictures from scenes beside Fleet's client with the answers put in by Play
 | # | Element / behaviour | Source | Native today |
 |---|---|---|---|
 | 6.1 | Data: `GET /api/usage/limits` and `usage.limits`, reload on reconnect | UUL | Done (5F) |
-| 6.2 | Provider fields `accountKey`, `source`, `harnesses`, `readAt`, `credits {remaining, limit, used, unit}` | UP 31-47 | Missing on `ProviderUsage` |
+| 6.2 | Provider fields `accountKey`, `source`, `harnesses`, `readAt`, `credits {remaining, limit, used, unit}` | UP 31-47 | **Done in I**: `ProviderUsage` holds `account_key`, `source`, `harnesses`, `read_at` and `credits`; `credits_text` and `ai_credits_line` word the two lines |
 | 6.3 | Chip hidden with no providers; "Usage" (no bar) with providers but no readable window; else the tightest live window: `Gauge` 12, "<provider> <short label>" ("Claude 5 h", "GitHub Copilot org"), a 30×4 bar (track `currentColor` 22%), "<n>%"; tones quiet (no fill, `--muted`), warn (`--status-waiting` 14%, `--status-waiting-text`), used (`--error` 14%, `--error-text`); title and label "<provider>'s <label> is N% used; it resets <when>." | UL 60-85, 380-422 | `tightest_window` returns the window only; no chip; no `GAUGE` icon |
-| 6.4 | Labels: long ("5-hour limit", "Weekly limit", "Weekly Opus limit", "Weekly Sonnet limit", "Organization limit", "Primary limit", "Secondary limit"), short ("5 h", "week", "Opus week", "Sonnet week", "org", "primary", "secondary"); `resetLabel` "resets <formatWhen>" | `usage-limits.ts`, UP | Long labels done; short and reset missing |
+| 6.4 | Labels: long ("5-hour limit", "Weekly limit", "Weekly Opus limit", "Weekly Sonnet limit", "Organization limit", "Primary limit", "Secondary limit"), short ("5 h", "week", "Opus week", "Sonnet week", "org", "primary", "secondary"); `resetLabel` "resets <formatWhen>" | `usage-limits.ts`, UP | **Done in I**: `window_short_label`, `provider_window_label`, `provider_window_short_label`, `reset_label` (`fleet::usage_rules`); the pace tick and note (`expected_share`, `tick_percent`, `pace_note`) with them |
 | 6.5 | Popover: side top, align end, offset 8, width 380, max height 560, padding 12 14, radius `--radius-panel`, `--card-bg`, `--menu-shadow`, 12 px | UL 426-436 | None |
 | 6.6 | Per provider (12 px gap and a top rule between): name and account (muted) heading; "also on <machines>"; "read from <source>, last asked <time>" | UL 205-245 | None |
 | 6.7 | `ok`: a row per live window (grid `minmax(70,1fr) 90 36 112`, gap 8, padding 3 0; tone ink `--accent-text`/waiting/error; the label in `--text`): label, 6 px bar with the **pace tick** (2 px white with a 1 px black 45% ring, at the even share; title "An even share of this window by now: N%"), percent, reset; the **pace note** "Ahead of pace: at this rate it runs out about <duration> before it resets" (11 px waiting text); credits ("Credits: $7.60 left of $10.00", "$x used"); GitHub's "AI credits used this month: 307,846" (title "GitHub's count; it can run a few minutes behind.") | UL 246-300 | None |
 | 6.8 | States without bars: `not_allowed` ("Fleet found a sign-in in <source>. Allow it to ask <name> how much you've used? …" + **Allow** (accent, padding 3 12, radius 6), or "Open <machine> to allow it there." for another machine); `no_window` "Pay-per-token: no limits to show."; `signed_out` "Sign in again in <source>."; `unsupported` "Fleet can't read this sign-in yet."; else "Can't read this right now."; none at all "No provider sign-ins found." | UL 301-350 | None |
-| 6.9 | Allow: `POST /api/usage/limits/{provider}/allow` (revoke `DELETE`), then reload; the button is disabled while it runs | UUL 477-483 | None |
-| 6.10 | While open: `GET /api/usage/limits?watch=true` now and every 60 s, and the same on every other machine that answered its last check; their answers kept per machine (a failure keeps the last); with two or more machines, uppercase 10 px machine headings and an account shown once with "also on …" (`groupUsageByMachine`) | UUL 489-511, UL 40-55 | None |
-| 6.11 | `now` refreshes every minute and on open, so a window that resets drops off without a push | UL 57-59 | None |
+| 6.9 | Allow: `POST /api/usage/limits/{provider}/allow` (revoke `DELETE`), then reload; the button is disabled while it runs | UUL 477-483 | **Done in I (the state)**: `State::set_usage_allowed` (`POST`, or `DELETE` to revoke, no body), then the limits are read again; `Usage::allowing` is the disabled button; a refusal changes nothing. The button is J |
+| 6.10 | While open: `GET /api/usage/limits?watch=true` now and every 60 s, and the same on every other machine that answered its last check; their answers kept per machine (a failure keeps the last); with two or more machines, uppercase 10 px machine headings and an account shown once with "also on …" (`groupUsageByMachine`) | UUL 489-511, UL 40-55 | **Done in I (the state)**: `Usage::watch`/`unwatch` (counted: popovers share one timer), `keep_usage_watch` in the poll reads `?watch=true` at once and every 60 s, and each other machine that answered its last check (`usage_other_machines`) on its own thread with its own token; a failed answer keeps the last (`Usage::others`); `group_usage_by_machine`. The headings and "also on" lines are J |
+| 6.11 | `now` refreshes every minute and on open, so a window that resets drops off without a push | UL 57-59 | **Rules done in I** (every rule takes `now`; a window that reset is left out, tested). The popover redrawing each minute and on open is J (it calls `Usage::watch` on open and `unwatch` on close) |
 | 6.12 | On a phone a bottom sheet | UL 352-378 | Out of scope |
 
 ## Part 7: notices: the store, the card, the chips (`stores/notices.ts`, `NoticeCard.vue`, `NoticeChips.vue`)
@@ -287,9 +287,9 @@ Counts are `it(...)` cases. Ported tests keep Fleet's names (in Rust, `snake_cas
 | `components/layout/__tests__/RunningWorkCounter.test.ts` | 4 | G (the counts and order, as logic) and H (the view) |
 | `composables/__tests__/use-running-work.test.ts` | 12 | 10 done in 3K; G: the 2 `useRunningWorkAcrossSessions` cases |
 | `lib/__tests__/running-work.test.ts`, `use-session-stream.running-work.test.ts` | 11, 1 | Done in 3K (confirm in W) |
-| `lib/__tests__/usage-providers.test.ts` | 18 | 4 done (5F); I: the other 14 |
-| `lib/__tests__/usage-limits.test.ts` | 5 | I (short labels, reset label; the rest confirm 5F's) |
-| `composables/__tests__/use-usage-limits.test.ts` | 5 | I |
+| `lib/__tests__/usage-providers.test.ts` | 18 | 4 done (5F); the other 14 done in I (`fleet/tests/usage_rules.rs`, same names) |
+| `lib/__tests__/usage-limits.test.ts` | 5 | Done in I (`usage_rules.rs`: short labels, reset label; the rest confirm 5F's) |
+| `composables/__tests__/use-usage-limits.test.ts` | 5 | Done in I (against a fake server; the poll's clock is handed in) |
 | `components/layout/__tests__/UsageLimitsPopover.test.ts` | 14 | J (13; the phone sheet skipped) |
 | `stores/__tests__/notices.test.ts` | 9 | K |
 | `components/notices/__tests__/NoticeCard.test.ts` | 12 | K (1-3, as the gate), L (4-10), M ("sits in the bottom-right corner, lifted above a composer…", "links to the release notes": as a link that runs) |
@@ -441,6 +441,10 @@ before N, O and U; P, Q, R; S; T, U; V when decided; W last.
   `tightest_window` with its provider, `expected_share`, `pace_note`, `group_usage_by_machine`, credits lines),
   `src/fleet/usage.rs` (`?watch=true` every 60 s while watched, other machines' answers, allow and revoke, the
   `UsageLimitsChip` preference), `src/fleet/http.rs`, `src/mock.rs`, tests.
+- **Done:** all five rows' rules and state (the views are J). Pictures are non-visual: Fleet's own popover for a body put in by
+  Playwright, and the table the native rules give for it (`shots/parity/09i-usage-rules/`). Open, for J: the chip's own label
+  and title text, `readLine` ("read from X, last asked T"), the popover itself, the phone sheet (out of scope), `src/mock.rs`
+  gains no richer providers yet (nothing draws them until J).
 - **Depends on:** 5F, 17.
 - **Tests:** `usage-providers.test.ts` (the 14 not done), `usage-limits.test.ts` (5, confirming 5F's), 
   `use-usage-limits.test.ts` (5).

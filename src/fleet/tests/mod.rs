@@ -529,6 +529,7 @@ mod state;
 mod store;
 mod tls;
 mod usage;
+mod usage_rules;
 mod wire;
 mod work;
 

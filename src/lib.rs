@@ -1255,7 +1255,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     let renamed = s.keep_rename(tx) | s.keep_row_rename(tx) | s.keep_header(now, tx);
     let found = s.find_poll(tx) | s.keep_questions(tx) | s.keep_allowed_flash(now, tx);
     let exported = s.export_poll(tx) | s.keep_setup_rows(now, tx) | s.keep_context(now, tx) | s.keep_machine_page(now, tx);
-    let exported = exported | s.keep_dashboard_machine(now, tx);
+    let exported = exported | s.keep_dashboard_machine(now, tx) | s.keep_usage_watch(now, tx);
     // "Copied" on a message's button ends by itself.
     let copied = match &s.copied {
         Some((_, until)) if now >= *until => {

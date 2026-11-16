@@ -1192,3 +1192,10 @@ in Rune stops a drop in the wrong tree. Nothing in Rune got in the way otherwise
   before the picture. Scenes fed with recorded items (`mock::running`, fixed clock) hold the state; Fleet's own picture is taken live
   in the same run that starts the jobs.
 - No focus-ring API (Fleet's chip has `outline: 2px solid var(--running)` on `:focus-visible`): the chip shows none.
+## Component 9, piece I (usage rules and state)
+
+- Nothing in Rune got in the way: it is plain Rust. For the next one who tests a timer: the poll gets `now` as an argument, so a
+  test calls the `keep_*` method itself with 0, 10, 69 and 70 s instead of running a minute of frames.
+- `Link::start` also asks the server for `/api/machines`, the hub and plugins, so a fake server used as a link sees those too and
+  answers `/api/machines` with an empty list unless told; its poll then replaces any machines a test put in by hand. Give the fake the
+  machine list (and the other machine its sessions, projects and identity) rather than setting `machines.list`.
