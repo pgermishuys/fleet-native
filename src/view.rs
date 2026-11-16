@@ -46,6 +46,7 @@ pub mod new_session_refs;
 pub mod new_session_strip;
 pub mod open_in;
 pub mod pagepick;
+pub mod pages;
 mod parts;
 pub mod permission;
 pub mod pr_popover;
@@ -97,6 +98,7 @@ pub fn root(s: &State, cx: &mut Cx<State>) -> El {
     cx.help_look(crate::ui::help_look(&t));
     let mut main = row().w_full().grow(1.0).min_h(0.0).padding(8.0).child(rail::rail(s, &t));
     main = match s.rail {
+        _ if s.on_bare_page() => main.child(pages::page(s, &t).ml(8.0)),
         _ if s.gh_parts => main.child(gh::parts(&t).ml(8.0)),
         _ if s.gallery => main.child(crate::ui::gallery::view(s, &t).ml(8.0)),
         Rail::Sessions if s.sidebar_open => main.child(sessions::panel(s, &t).ml(8.0)).child(gutter(&t)).child(centre(s, &t)),

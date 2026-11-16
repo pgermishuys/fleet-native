@@ -44,6 +44,10 @@ impl State {
                 draft.project_id = project_id.clone();
             }
         }
+        // A page no rail owns also takes the window from the open conversation.
+        if matches!(route, Route::Welcome | Route::Repositories) && !matches!(self.route, Route::Welcome | Route::Repositories) {
+            self.keep_current_stream();
+        }
         self.route = route;
         if !was && is {
             self.read_folder_feeds();

@@ -69,6 +69,8 @@ mod tests_open_in;
 #[cfg(test)]
 mod tests_pages;
 #[cfg(test)]
+mod tests_pages_native;
+#[cfg(test)]
 mod tests_panel;
 #[cfg(test)]
 mod tests_pr_popover;
@@ -333,6 +335,8 @@ pub struct State {
     pub update: update::Update,
     /// The harness setup wizard (component 7, piece N).
     pub harness_setup: fleet::harness_setup::Setup,
+    /// The Repositories page (`/repositories`).
+    pub repos_page: fleet::repositories::Page,
     /// The conversation's scroll: whether it follows the end, where Rune last said the box was (`on_scroll_offset` may not
     /// change state, so it leaves it in the probe and `poll` reads it), and the message just jumped to.
     pub pin: conv::pin::Pin,
@@ -494,6 +498,7 @@ impl Default for State {
             export: Default::default(),
             update: Default::default(),
             harness_setup: Default::default(),
+            repos_page: Default::default(),
             pin: Default::default(),
             scroll_probe: Default::default(),
             scroll_seen: None,
@@ -1586,6 +1591,71 @@ pub fn spec() -> AppSpec<State> {
             ("new-session-no-harness-light", |s| {
                 s.dark = Some(false);
                 s.show_chip_scene(fleet::new_session::harness::Scene::NoHarness)
+            }),
+            // Component 7, piece P: the Welcome and Repositories pages.
+            ("welcome", |s| {
+                s.open_welcome_page();
+            }),
+            ("welcome-light", |s| {
+                s.dark = Some(false);
+                s.open_welcome_page();
+            }),
+            ("repositories", |s| {
+                s.now_ms = Some(mock::rows::NOW);
+                s.open_repositories_page();
+            }),
+            ("repositories-light", |s| {
+                s.dark = Some(false);
+                s.now_ms = Some(mock::rows::NOW);
+                s.open_repositories_page();
+            }),
+            ("repositories-empty", |s| {
+                s.now_ms = Some(mock::rows::NOW);
+                s.open_repositories_page();
+                s.repos_page.list.clear();
+            }),
+            ("repositories-empty-light", |s| {
+                s.dark = Some(false);
+                s.now_ms = Some(mock::rows::NOW);
+                s.open_repositories_page();
+                s.repos_page.list.clear();
+            }),
+            ("repositories-loading", |s| {
+                s.now_ms = Some(mock::rows::NOW);
+                s.open_repositories_page();
+                s.repos_page.loading = true;
+            }),
+            ("repositories-loading-light", |s| {
+                s.dark = Some(false);
+                s.now_ms = Some(mock::rows::NOW);
+                s.open_repositories_page();
+                s.repos_page.loading = true;
+            }),
+            ("repositories-refreshing", |s| {
+                s.now_ms = Some(mock::rows::NOW);
+                s.open_repositories_page();
+                s.repos_page.refreshing = true;
+            }),
+            ("repositories-refreshing-light", |s| {
+                s.dark = Some(false);
+                s.now_ms = Some(mock::rows::NOW);
+                s.open_repositories_page();
+                s.repos_page.refreshing = true;
+            }),
+            ("repositories-error", |s| {
+                s.now_ms = Some(mock::rows::NOW);
+                s.open_repositories_page();
+                s.repos_page.list.clear();
+                s.repos_page.scanned_at = None;
+                s.repos_page.error = Some("HTTP 500".into());
+            }),
+            ("repositories-error-light", |s| {
+                s.dark = Some(false);
+                s.now_ms = Some(mock::rows::NOW);
+                s.open_repositories_page();
+                s.repos_page.list.clear();
+                s.repos_page.scanned_at = None;
+                s.repos_page.error = Some("HTTP 500".into());
             }),
             // Component 7, piece K: the machine picker and More options.
             ("new-session-machine-one", |s| s.show_machine_scene(fleet::new_session::machines::Scene::One)),
