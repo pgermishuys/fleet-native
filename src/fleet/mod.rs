@@ -107,6 +107,7 @@ pub mod smart_links;
 pub mod state;
 pub mod status_hints;
 pub mod store;
+pub mod summary;
 pub mod tls;
 pub mod toolbar;
 pub mod topics;

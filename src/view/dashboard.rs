@@ -1,7 +1,7 @@
 //! The home page (`FleetDashboard.vue`, `PageHeader.vue`, `EmptyState.vue`, `ErrorNote.vue`, `routes/index.tsx`'s centre): the
 //! greeting and what needs the user, the harness banner, the loading, error and empty states, and the three sections of
 //! sessions, "Show N more" and the retention filter's menu. On another machine the same page draws that machine's sessions
-//! (read by `fleet::dashboard_machine`) with no row actions. The summary bar (F) is not drawn yet.
+//! (read by `fleet::dashboard_machine`) with no row actions.
 use super::dashboard_row::{At, dashboard_row};
 use super::session_row::RowClock;
 use crate::State;
@@ -288,6 +288,7 @@ pub fn page(s: &State, t: &Theme) -> El {
     {
         body = body.child(harness_banner(t, &reason));
     }
+    body = body.child(super::summary_bar::bar(s, t));
     let nothing = needs.is_empty() && working.is_empty() && recent.is_empty();
     // Another machine's list is asked for once the page is shown: until then it is loading, not empty.
     let other = s.dashboard_on_other().is_some();
