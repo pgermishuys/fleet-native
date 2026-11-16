@@ -165,13 +165,23 @@ jobs:
       - name: Check the package (macOS)
         if: runner.os == 'macOS'
         run: |
-          hdiutil attach dist/fleet-native-macos-arm64.dmg -mountpoint "$RUNNER_TEMP/dmg" -nobrowse -readonly
+          # GitHub's macOS runners sometimes answer "Resource temporarily unavailable": retry, show the last error.
+          retry() {
+            for i in 1 2 3 4 5; do
+              "$@" && return 0
+              echo "attempt $i failed: $*" >&2
+              sleep $((i * 3))
+            done
+            "$@"
+          }
+          retry hdiutil attach dist/fleet-native-macos-arm64.dmg -mountpoint "$RUNNER_TEMP/dmg" -nobrowse -readonly
           app="$RUNNER_TEMP/dmg/Fleet Native.app"
           test -L "$RUNNER_TEMP/dmg/Applications"
           plutil -lint "$app/Contents/Info.plist"
           codesign --verify --deep --strict --verbose=2 "$app"
           plutil -p "$app/Contents/Info.plist"
-          hdiutil detach "$RUNNER_TEMP/dmg"
+          for i in 1 2 3; do hdiutil detach "$RUNNER_TEMP/dmg" && exit 0; sleep $((i * 3)); done
+          hdiutil detach "$RUNNER_TEMP/dmg" -force
       - name: Check the package (Windows)
         if: runner.os == 'Windows'
         run: |
