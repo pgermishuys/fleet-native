@@ -21,6 +21,8 @@ mod tests_header;
 #[cfg(test)]
 mod tests_images;
 #[cfg(test)]
+mod tests_machines;
+#[cfg(test)]
 mod tests_new_session;
 #[cfg(test)]
 mod tests_pages;
@@ -176,6 +178,10 @@ pub struct State {
     pub quiet_machine: Option<String>,
     /// The other machines home lists and what is known of each (`fleet::machines`).
     pub machines: fleet::machines::Machines,
+    /// A parent session's children shown or hidden by its caret, by session id; the rest follow `opens_by_itself`.
+    pub machine_children: std::collections::HashMap<String, bool>,
+    /// The Add a machine row was pressed: the form opens when Settings has one (piece K).
+    pub add_machine_asked: bool,
     /// Where `machine-sessions.json` is kept; none until the data folder is known (and in pictures).
     pub machine_dir: Option<std::path::PathBuf>,
     /// The first read of the list has said which address schemes the machines use (decision 8).
@@ -332,6 +338,8 @@ impl Default for State {
             interrupt_acts: Default::default(),
             quiet_machine: None,
             machines: Default::default(),
+            machine_children: Default::default(),
+            add_machine_asked: false,
             machine_dir: None,
             machine_schemes_told: false,
             reasoning_open: Default::default(),
@@ -1173,6 +1181,14 @@ pub fn spec() -> AppSpec<State> {
                 s.dark = Some(false);
                 s.show_new_session_palette()
             }),
+            // Component 17, piece C: the machines in the session list.
+            ("machines", |s| s.show_machines(mock::machines::Case::Several, true)),
+            ("machines-light", |s| s.show_machines(mock::machines::Case::Several, false)),
+            ("machine-down", |s| s.show_machines(mock::machines::Case::Down, true)),
+            ("machine-down-light", |s| s.show_machines(mock::machines::Case::Down, false)),
+            ("machine-loading", |s| s.show_machines(mock::machines::Case::Loading, true)),
+            ("machine-long-name", |s| s.show_machines(mock::machines::Case::LongName, true)),
+            ("machine-empty", |s| s.show_machines(mock::machines::Case::Empty, true)),
             ("project-headers", |s| s.sample_headers = true),
             ("project-headers-light", |s| {
                 s.sample_headers = true;

@@ -817,3 +817,8 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 - **No CSS `margin: auto`.** The empty block is centred in the stage with `.center()` on the stage column and `w_full().max_w(640.0)` on the block; that matches Fleet's `margin: auto` while the block is narrower than the stage.
 - **A command key from `on_key` runs after the focused element.** `Ctrl+N` reaches the app's `on_key` only when nothing focused took it, which is what Fleet's `useKeyboardShortcut` does with editable targets, so no extra guard was needed.
 - **Moving the route is one function.** Rune has no router; the arriving and leaving rules of the draft hang on `State::go`, and any code that assigns `route` for another reason must go through it.
+
+## Machines, piece C (the machine part of the list)
+
+- `.opacity(0.6)` on a column dims everything inside it, so a down machine's rows are dimmed by wrapping only the rows (Fleet's `.session-item` rule leaves the project headings at full strength).
+- `rt.find(key)` finds an element even below the scroll area's edge, but a press there lands on whatever is drawn at that point: a test that presses a row at the foot of a long list must use a scene short enough to fit (the Add a machine test uses the `Down` case).

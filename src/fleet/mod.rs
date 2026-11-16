@@ -28,6 +28,8 @@ pub mod link;
 pub mod machine;
 pub mod machine_cache;
 pub mod machine_poll;
+pub mod machine_tree;
+pub mod machine_view;
 pub mod machines;
 pub mod model;
 pub mod modes;

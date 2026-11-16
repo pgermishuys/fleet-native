@@ -18,6 +18,8 @@ mod fold;
 pub mod history;
 pub mod image;
 pub mod interrupted;
+pub mod machine_group;
+pub mod machine_header;
 mod marks;
 pub mod message;
 pub mod new_session;
