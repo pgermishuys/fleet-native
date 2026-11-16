@@ -28,12 +28,18 @@ pub fn stream_status_of(status: StreamStatus) -> Status {
 
 /// The sessions the list holds, newest first. Archived, hidden and sub-agent sessions aren't listed here (the session
 /// list lane shows lineage and the Archived view). Pure, so it can run on a thread.
-pub fn parse_sessions(rows: &Value, _now_ms: i64) -> Vec<Session> {
+pub fn parse_sessions(rows: &Value, now_ms: i64) -> Vec<Session> {
+    parse_sessions_for(rows, now_ms, super::store::Retention::Active)
+}
+
+/// `parse_sessions` for a list asked for `retention`: the Archived view and "all" keep the archived rows the server sent.
+pub fn parse_sessions_for(rows: &Value, _now_ms: i64, retention: super::store::Retention) -> Vec<Session> {
+    let active_only = retention == super::store::Retention::Active;
     let mut listed: Vec<(i64, Session)> = Vec::new();
     for row in rows.as_array().into_iter().flatten() {
         let text = |k: &str| row.get(k).and_then(Value::as_str);
         if row.get("isHidden") == Some(&Value::Bool(true))
-            || text("retentionStatus").is_some_and(|r| r != "active")
+            || (active_only && text("retentionStatus").is_some_and(|r| r != "active"))
             || text("parentSessionId").is_some()
         {
             continue;

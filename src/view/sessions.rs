@@ -89,7 +89,8 @@ pub fn panel(s: &State, t: &Theme) -> El {
         live = live.child(banner(t, e));
     }
     // The draft shows in the group its session will land in: its project, else Ungrouped (`draftGroupIdFor`).
-    let draft = s.new_draft.row();
+    let archived_view = s.is_archived_view();
+    let draft = s.new_draft.row().filter(|_| !archived_view);
     let draft_at = draft.as_ref().and_then(|d| {
         let by_id = d.project_id.as_deref().and_then(|id| s.projects.iter().position(|p| p.id == id));
         by_id.or_else(|| s.projects.iter().position(|p| p.id == crate::fleet::groups::UNGROUPED_ID))
@@ -168,13 +169,13 @@ pub fn panel(s: &State, t: &Theme) -> El {
         Feedback::Error(e) => live = live.child(error_block(t, &e)),
         Feedback::Empty if s.no_fleet || s.is_refused() => {}
         Feedback::Empty => {
-            let (title, line) = empty_words(!needle.is_empty(), false);
+            let (title, line) = empty_words(!needle.is_empty(), archived_view);
             live = live.child(empty_state(t, title, line));
         }
         Feedback::None => {}
     }
     let machines = &s.machines;
-    let show_machines = machines.has_machines();
+    let show_machines = machines.has_machines() && !archived_view;
     let mut list = col().w_full().px(8.0).pb(12.0);
     if show_machines {
         // Home first, then the others in the order home lists them. Home has no group of its own: its tree is `live`.
@@ -212,10 +213,38 @@ pub fn panel(s: &State, t: &Theme) -> El {
             .hover(t.wash(5.0))
             .hover_group()
             .cursor(Cursor::Pointer)
-            .on_press(|_: &mut State| {})
+            .on_press(|s: &mut State| s.show_archived(true))
             .child(icon(&ARCHIVE, 13.0).color(t.muted).group_color(t.text))
             .child(text("Archived").font(sans(12.0, 400.0, 1.3)).color(t.muted).group_color(t.text)),
     );
+
+    // `.panel-archived-header`: one button back to the active list, in place of New session and New project.
+    let top = if archived_view {
+        row().w_full().pt(8.0).px(8.0).pb(4.0).child(
+            row()
+                .key("archived-back")
+                .h(30.0)
+                .px(8.0)
+                .gap(8.0)
+                .center_y()
+                .radius(8.0)
+                .hover(t.wash(5.0))
+                .cursor(Cursor::Pointer)
+                .on_press(|s: &mut State| s.show_archived(false))
+                .child(icon(&ARROW_LEFT, 14.0).color(t.muted))
+                .child(text("Archived sessions").font(sans(13.0, 600.0, 1.3)).color(t.text)),
+        )
+    } else {
+        row().w_full().pt(8.0).px(8.0).pb(8.0).gap(6.0).child(new_session).child(add_folder)
+    };
+    // The footer link is the active view's; the Archived view has none, and only the bar when rows are picked.
+    let footer = if s.selection.is_selecting() {
+        Some(selection_bar(s, t))
+    } else if archived_view {
+        None
+    } else {
+        Some(archived)
+    };
 
     col()
         .key("session-list")
@@ -223,10 +252,10 @@ pub fn panel(s: &State, t: &Theme) -> El {
         .w(s.sidebar_w)
         .h_full()
         .min_h(0.0)
-        .child(row().w_full().pt(8.0).px(8.0).pb(8.0).gap(6.0).child(new_session).child(add_folder))
+        .child(top)
         .child(filter)
         .child(col().key("sessions").w_full().grow(1.0).shrink().min_h(0.0).scroll(ScrollSpec { stick_bottom: false }).child(list))
-        .child(if s.selection.is_selecting() { selection_bar(s, t) } else { archived })
+        .children(footer)
 }
 
 /// `.sessions-feedback-state`: the first load.

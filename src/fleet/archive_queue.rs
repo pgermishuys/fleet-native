@@ -192,9 +192,15 @@ impl State {
         self.list_again(id);
     }
 
-    /// Whether the list leaves this row out: an archive is holding it back, or it is archived and the list shows active ones.
+    /// Whether the list leaves this row out: an archive is holding it back, or its retention isn't the one the list shows.
     pub fn hides(&self, session: &crate::mock::Session) -> bool {
-        self.archive.hides(&session.id) || (self.store.retention == store::Retention::Active && session.row.archived)
+        // `SessionsPanel`'s `sessions`: the Active list keeps active rows, the Archived view archived ones, All keeps both.
+        self.archive.hides(&session.id)
+            || match self.store.retention {
+                store::Retention::Active => session.row.archived,
+                store::Retention::Archived => !session.row.archived,
+                store::Retention::All => false,
+            }
     }
 
     /// The close on the error toast's X.

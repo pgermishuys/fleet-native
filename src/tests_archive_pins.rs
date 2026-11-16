@@ -17,20 +17,20 @@ use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
 /// One request a fake heard: method, path, body, bearer token.
-type Call = (String, String, Value, Option<String>);
-type Log = Arc<Mutex<Vec<Call>>>;
+pub(crate) type Call = (String, String, Value, Option<String>);
+pub(crate) type Log = Arc<Mutex<Vec<Call>>>;
 type Answer = Arc<dyn Fn(&str, &str) -> (u16, String) + Send + Sync>;
 
 /// A fake Fleet: what it heard (method, path, body, bearer token), what it answers, and a gate that holds the retention
 /// answer back while `hold` is set.
-struct Fake {
-    base: String,
-    heard: Log,
+pub(crate) struct Fake {
+    pub(crate) base: String,
+    pub(crate) heard: Log,
     hold: Arc<AtomicBool>,
 }
 
 impl Fake {
-    fn start(answer: impl Fn(&str, &str) -> (u16, String) + Send + Sync + 'static) -> Fake {
+    pub(crate) fn start(answer: impl Fn(&str, &str) -> (u16, String) + Send + Sync + 'static) -> Fake {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
         let heard: Log = Default::default();
@@ -51,7 +51,7 @@ impl Fake {
         Fake::start(|_, _| (200, "{}".into()))
     }
 
-    fn calls(&self, needle: &str) -> Vec<Call> {
+    pub(crate) fn calls(&self, needle: &str) -> Vec<Call> {
         self.heard.lock().unwrap().iter().filter(|c| c.1.contains(needle)).cloned().collect()
     }
 }
@@ -106,13 +106,13 @@ fn serve(stream: std::net::TcpStream, log: Log, gate: Arc<AtomicBool>, answer: A
 }
 
 /// The app with its home at `fake` and the jobs its threads hand back.
-struct Rig {
-    rt: Runtime<crate::State>,
+pub(crate) struct Rig {
+    pub(crate) rt: Runtime<crate::State>,
     jobs: Receiver<Job>,
 }
 
 impl Rig {
-    fn home(fake: &Fake) -> Rig {
+    pub(crate) fn home(fake: &Fake) -> Rig {
         let mut rt = app();
         let (tx, jobs) = channel::<Job>();
         let tx = Mutex::new(tx);
@@ -122,11 +122,11 @@ impl Rig {
         Rig { rt, jobs }
     }
 
-    fn wait(&mut self, what: &str, done: impl FnMut(&crate::State) -> bool) {
+    pub(crate) fn wait(&mut self, what: &str, done: impl FnMut(&crate::State) -> bool) {
         crate::test_wait::drive(&mut self.rt, &self.jobs, what, done, crate::test_wait::app_state);
     }
 
-    fn state(&self) -> &crate::State {
+    pub(crate) fn state(&self) -> &crate::State {
         &self.rt.state
     }
 }

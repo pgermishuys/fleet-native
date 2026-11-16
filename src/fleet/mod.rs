@@ -4,6 +4,7 @@
 //! own threads and hand results to the state.
 pub mod actions;
 pub mod archive_queue;
+pub mod archived_view;
 pub mod asks;
 pub mod attach;
 pub mod auth;
