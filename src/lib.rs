@@ -62,6 +62,8 @@ pub struct State {
     pub content_open: bool,
     /// What is remembered between runs: folded groups and the two side panels (`fleet::settings`).
     pub sidebar: fleet::settings::Sidebar,
+    /// The New session page's draft (in memory only, as Fleet's is).
+    pub new_draft: fleet::new_session::draft::DraftStore,
     /// A scene that shows one header of each kind above the list (the Pinned group isn't drawn until piece J).
     pub sample_headers: bool,
     /// The workspace sheet's measured width; 0 until its first layout.
@@ -262,6 +264,7 @@ impl Default for State {
             sidebar_w: view::SIDEBAR_W,
             content_open: false,
             sidebar: Default::default(),
+            new_draft: Default::default(),
             sample_headers: false,
             sheet_w: 0.0,
             drawn_dark: std::cell::Cell::new(true),

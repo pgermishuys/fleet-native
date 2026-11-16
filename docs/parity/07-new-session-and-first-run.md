@@ -1818,6 +1818,19 @@ Open: nothing in the piece. Pieces D-L read these types (`NewSessionState`, `Pla
 - **Pictures:** none (non-visual). Show the settings file Fleet-style (invented folders) after a
   scripted run, and the test names.
 
+Done: **A3.1-A3.12** (`draft.rs`: `DraftStore` with open/leave/set_machine/hand_off, the row, the held GitHub item; in memory only, as Fleet's), **A10.1-A10.3** (`harness_choice.rs`:
+`parse_harness_entries`, `Harnesses::{enabled, default_type, no_harness_reason, resolved_type, shows_picker}`), **A16.1-A16.11** (`defaults.rs`: `NewSessionDefaults`),
+**A18.1-A18.3** (the draft's machine rule; the chip and what asks the machine are D/E/C). **A21.170-A21.204 and A21.184-A21.190** are ported under their names in
+`src/fleet/new_session/tests_state.rs` (A21.177 "shared by every page" reads as a reload of the settings file: the file is the one place). Where it lives:
+the settings file (`settings.json`, `Sidebar`, the app's own folder, never Fleet's) holds `newSessionDefaults` under Fleet's own keys
+(`weave:new-session:defaults`, `…:<machine>`) and `defaultHarness` per machine (Fleet's `saved-per-machine`); `State::remember_new_session` and
+`remember_new_folder_root` write it on a thread; the draft is `State::new_draft`. Checked live: `GET /api/harnesses` of a scratch Fleet v0.72.0 reads into
+the entries (`live_harness_list_from_a_scratch_fleet`, `--ignored`): five harnesses, one ready and default, no picker, no reason; the file after a run is in the PR.
+Differences from Fleet, on purpose: the folder lists are plain path strings (piece C gives the scanned repositories); `Harnesses.preferred` is
+set by whoever reads the preference (piece C), and an `Option` of the other machine's saved one. A harness entry's `supports_profiles` is read for piece J.
+Open: nothing in the piece. Not done here: the page's watch that rewrites a draft's `harnessType` to `resolved_type` (piece D/J wires it), and applying
+`initial_folder` to a restored draft (A3.5, A3.6: the page, piece D).
+
 ### C. The page's data (threads)
 - **Creates/touches:** `src/fleet/new_session/feeds.rs`, `src/fleet/http.rs`, `src/mock.rs`
   (mock repositories, worktrees, branches, harnesses, profiles for scenes and tests).
