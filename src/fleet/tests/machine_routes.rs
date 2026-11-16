@@ -194,11 +194,13 @@ fn has_nothing_to_look_for_on_the_first_address() {
 
 #[test]
 fn a_token_leaves_the_address_it_came_from_and_goes_to_the_one_picked() {
-    let m = machine("routes-token", "http://127.0.0.1:9", &["http://127.0.0.1:9", "http://127.0.0.2:9"]);
-    auth::set_for("http://127.0.0.1:9", Some("studio-token-0123456789"));
-    routes::use_address(&m, "http://127.0.0.2:9");
-    assert!(auth::token_for("http://127.0.0.1:9").is_none(), "another Fleet taking the old address gets no token");
-    assert!(auth::token_for("http://127.0.0.2:9").is_some());
+    // Addresses no other test uses: `auth` is the process's, and tests run side by side.
+    let (old, new) = ("http://127.0.0.41:9", "http://127.0.0.42:9");
+    let m = machine("routes-token", old, &[old, new]);
+    auth::set_for(old, Some("studio-token-0123456789"));
+    routes::use_address(&m, new);
+    assert!(auth::token_for(old).is_none(), "another Fleet taking the old address gets no token");
+    assert!(auth::token_for(new).is_some());
 }
 
 // ─── probing, against real sockets ──────────────────────────────────────────────────────────────────────────────────

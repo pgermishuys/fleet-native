@@ -157,6 +157,9 @@ fn keeps_a_machines_link_between_calls_and_starts_a_new_one_when_its_address_mov
 
 #[test]
 fn archives_and_stops_a_session_opened_in_place_on_its_own_machine_from_outside_its_views() {
+    // Home's token is the process's: take it from the tests that set one, and start with none.
+    let _held = super::auth::HOME_TOKEN.lock().unwrap_or_else(|e| e.into_inner());
+    crate::fleet::auth::set(None);
     let (home, at_home) = fake_fleet();
     let (mini, at_mini) = fake_fleet();
     let (lab, at_lab) = fake_fleet();
