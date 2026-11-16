@@ -107,6 +107,8 @@ mod tests_row_menu;
 #[cfg(test)]
 mod tests_rows;
 #[cfg(test)]
+mod tests_running_counter;
+#[cfg(test)]
 mod tests_selection;
 #[cfg(test)]
 mod tests_session_header;
@@ -2695,6 +2697,26 @@ pub fn spec() -> AppSpec<State> {
             }),
             ("work-output-loading", |s| s.show_work(mock::work::Case::OutputLoading)),
             ("work-stop-refused", |s| s.show_work(mock::work::Case::StopRefused)),
+            ("running-closed", |s| s.show_running(mock::running::Case::One, false)),
+            ("running-closed-light", |s| {
+                s.dark = Some(false);
+                s.show_running(mock::running::Case::One, false)
+            }),
+            ("running-one", |s| s.show_running(mock::running::Case::One, true)),
+            ("running-one-light", |s| {
+                s.dark = Some(false);
+                s.show_running(mock::running::Case::One, true)
+            }),
+            ("running-many", |s| s.show_running(mock::running::Case::Many, true)),
+            ("running-many-light", |s| {
+                s.dark = Some(false);
+                s.show_running(mock::running::Case::Many, true)
+            }),
+            ("running-long-title", |s| s.show_running(mock::running::Case::LongTitle, true)),
+            ("running-long-title-light", |s| {
+                s.dark = Some(false);
+                s.show_running(mock::running::Case::LongTitle, true)
+            }),
             ("work-stop-refused-light", |s| {
                 s.dark = Some(false);
                 s.show_work(mock::work::Case::StopRefused)

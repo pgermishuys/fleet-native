@@ -109,7 +109,7 @@ pub fn bar(s: &State, t: &Theme) -> El {
             .pb(2.0)
             .child(hints)
             .child(spacer().min_w(0.0))
-            .child(session);
+            .child(end(s, t, session));
     }
     // `harnessType`, else Fleet's own stand-in; the invented sessions are opencode's.
     let harness = s.session().row.harness_type.clone().unwrap_or_else(|| if s.is_mock() { "opencode" } else { "claude-opus-4" }.into());
@@ -117,7 +117,26 @@ pub fn bar(s: &State, t: &Theme) -> El {
         .child(text(harness).font(mono(11.0, 500.0, 1.3)).color(t.muted))
         .child(text("|").font(label).color(t.border))
         .child(text(format!("{} tokens", thousands(s.session().tokens))).font(label.features("'tnum' 1")).color(t.muted));
-    row().key("status-bar").w_full().h(28.0).center_y().gap(10.0).px(12.0).pb(2.0).child(hints).child(spacer().min_w(0.0)).child(session)
+    row()
+        .key("status-bar")
+        .w_full()
+        .h(28.0)
+        .center_y()
+        .gap(10.0)
+        .px(12.0)
+        .pb(2.0)
+        .child(hints)
+        .child(spacer().min_w(0.0))
+        .child(end(s, t, session))
+}
+
+/// `status-bar__end`: running work first (more chips to come), then the session part.
+fn end(s: &State, t: &Theme, session: El) -> El {
+    let mut end = row().center_y().gap(10.0);
+    if let Some(chip) = super::running_counter::chip(s, t) {
+        end = end.child(chip);
+    }
+    end.child(session)
 }
 
 /// `.shortcut-hint:disabled`.

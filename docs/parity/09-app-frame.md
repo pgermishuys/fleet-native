@@ -143,11 +143,11 @@ their pictures from scenes beside Fleet's client with the answers put in by Play
 | # | Element / behaviour | Source | Native today |
 |---|---|---|---|
 | 5.1 | Data: `GET /api/work/running` (live machine) on start and reconnect, then `work.started/updated/ended` on `sessions`; keeps running items only; sorted by `startedAt` then id; grouped by session in first-appearance order | URW 340-382 | **Done (G)**: `ListWork` loads on start and reconnect and follows `work.*`; `running_sorted` (start, then id), `groups` (first appearance), `session_count`, `label`; `placed_work_groups` adds the open session first, the title ("Untitled session"), the place (workspace name, else project; "this session") and the instance id |
-| 5.2 | Hidden while nothing runs; no loading or error state | RWC 60 | — |
-| 5.3 | Chip: height 18, padding 0 8 0 7, radius 999, 11/500 tabular, `--running` 14% fill (24% on hover or open), `--running-text`; a 6 px `--running` dot; "N running in 1 session" / "N running in M sessions"; title "<label>: show what runs in the background" | RWC 24-28, 174-200 | None |
-| 5.4 | Popover: side top, align end, offset 6, width 460 (max window - 16), radius `--radius-card`, padding 6, gap 6, max height min(480, 70vh), scrolls; `aria-label` "Running in the background" | RWC 62-73, 233-241 | None |
-| 5.5 | Groups: the open session's first; header row (padding 6 8 4, radius 7, 12.5/600 `--text`, hover 5%): dot, title (ellipsis; "Untitled session"), "· this session" or "· <workspace or project>" (muted, 400, never shrinks); a click opens that session and closes the popover | RWC 30-56, 205-231 | None |
-| 5.6 | Rows: `BackgroundWorkRow` with `now` ticking (1 s in the first minute, then 1 min), Output, Open, Details, Events, Stop | RWC 108-116; `BackgroundWorkRow.vue` | **Done in G (the data and actions)**: `work_item` also searches `list_work`, and a Stop answer is applied to both lists; `conv::work_clock::next_tick_ms` is the clock over the list's items (a second in the first minute, then a minute; none while nothing runs). The row's `now` and the popover are H |
+| 5.2 | Hidden while nothing runs; no loading or error state | RWC 60 | **Done (H)**: `view::running_counter::chip` is `None` while the list is empty, and an open popover shuts when the last item ends (`shut_running_popover_if_idle`); no loading or error state |
+| 5.3 | Chip: height 18, padding 0 8 0 7, radius 999, 11/500 tabular, `--running` 14% fill (24% on hover or open), `--running-text`; a 6 px `--running` dot; "N running in 1 session" / "N running in M sessions"; title "<label>: show what runs in the background" | RWC 24-28, 174-200 | **Done (H)**: `chip` in `src/view/running_counter.rs`, drawn in `status::end` before the session part; fill `--running` 14%, 24% on hover and while open; Fleet's focus ring (2 px `--running`) has no Rune API, so the chip takes no ring (see `docs/RUNE.md`) |
+| 5.4 | Popover: side top, align end, offset 6, width 460 (max window - 16), radius `--radius-card`, padding 6, gap 6, max height min(480, 70vh), scrolls; `aria-label` "Running in the background" | RWC 62-73, 233-241 | **Done (H)**: `overlay`, anchored over the chip, side top, align end, offset 6; width 460 or the window less 16; scrolls past min(480, 70% of the window); label "Running in the background"; a press outside shuts it |
+| 5.5 | Groups: the open session's first; header row (padding 6 8 4, radius 7, 12.5/600 `--text`, hover 5%): dot, title (ellipsis; "Untitled session"), "· this session" or "· <workspace or project>" (muted, 400, never shrinks); a click opens that session and closes the popover | RWC 30-56, 205-231 | **Done (H)**: `group`: the open session first, dot, title (truncated), "· this session" or "· <place>"; a press opens that session and shuts the list (the Cmd/Ctrl/Shift-click new-tab case is a browser link, not ported) |
+| 5.6 | Rows: `BackgroundWorkRow` with `now` ticking (1 s in the first minute, then 1 min), Output, Open, Details, Events, Stop | RWC 108-116; `BackgroundWorkRow.vue` | **Done in G (the data and actions)**: `work_item` also searches `list_work`, and a Stop answer is applied to both lists; `conv::work_clock::next_tick_ms` is the clock over the list's items (a second in the first minute, then a minute; none while nothing runs). The row's `now` and the popover are H **Done (H)**: rows are `work_row` as the strip draws them; `keep_work_clock` ticks the list's times while it is open (`WorkStrip::list_changed`) |
 
 ## Part 6: usage limits (`UsageLimitsPopover.vue`, `lib/usage-providers.ts`, `lib/usage-limits.ts`, `use-usage-limits.ts`)
 
@@ -418,7 +418,7 @@ before N, O and U; P, Q, R; S; T, U; V when decided; W last.
   chip, the popover's rows) are H's. Fleet's "hidden while nothing runs" (5.2) is H's too: `label()` has no case for it.
   `fleet::tests::live::live_running_work` (ignored) prints the label and groups against a scratch Fleet.
 
-### Piece H: the running-work counter and its popover
+### Piece H: the running-work counter and its popover — **done**
 
 - **Rows:** 5.2, 5.3, 5.4, 5.5, 5.6 (drawn).
 - **Files:** new `src/view/running_counter.rs` (chip, popover with group headers, rows from `view::work::work_row`),
@@ -426,6 +426,13 @@ before N, O and U; P, Q, R; S; T, U; V when decided; W last.
 - **Depends on:** B, G.
 - **Tests:** `RunningWorkCounter.test.ts` (4) as view tests.
 - **Pictures:** the counter and its popover beside Fleet's (as `fleet-running-open-*.png` here), both themes.
+- **Done:** all of it (rows 5.2 to 5.6). Tests: `src/tests_running_counter.rs` ports `RunningWorkCounter.test.ts`'s four cases under their names and adds
+  the heading, the chip's look and the ticking times. Scenes: `running-closed`, `running-one`, `running-many`, `running-long-title` (+ `-light`).
+  Gaps: the focus ring (5.3, no Rune API); Fleet's popover sizes to `min(480px, 70vh)` and ours reads the window height Rune last reported
+  (`s.ui.sel.window`), 760 before the first report. Pictures: Fleet's states are made live (`fleet-running-*`, a scratch server
+  with `background-work` in four sessions); native ones are scenes, because the scripted model's 30 s job ends before a software-rendered
+  start finishes, and the live Fleet shows its Home page while the scenes show the open session's conversation, so the popover is beside
+  the same popover, not the same page.
 
 ### Piece I: usage limits: the rules and the state (plain Rust)
 

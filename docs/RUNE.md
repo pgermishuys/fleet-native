@@ -1180,3 +1180,15 @@ in Rune stops a drop in the wrong tree. Nothing in Rune got in the way otherwise
   Run the button's own action from `rt.update` and check the key exists, or draw the scene taller.
 - **Hover in a script**: `scroll` with `"dy": 0` on a key, or `move` with a point, leaves the pointer over an element for a picture;
   `secondary-click` on a key opens a right-click menu.
+
+
+## Component 9, piece H (the running-work counter)
+
+- A chip that opens an anchored list is the pull request pill's recipe: key the chip, `anchored(card, KEY, Side::Top, Align::End, 6.0)`
+  over a `scrim`, `focus_return(KEY)`, `modal(true, close)`. The list is the `Open::Popover("running")` state, so a work event that
+  empties the list has to shut it from the state side (`shut_running_popover_if_idle`): an overlay can't close itself in a view.
+- A fill that animates (hover to 24%) reads as an in-between colour in a test that clicks and looks at once: run ~30 frames first.
+- A software renderer outruns the scripted model's 30 s `background-work` job: a start of the app costs seconds and the job is gone
+  before the picture. Scenes fed with recorded items (`mock::running`, fixed clock) hold the state; Fleet's own picture is taken live
+  in the same run that starts the jobs.
+- No focus-ring API (Fleet's chip has `outline: 2px solid var(--running)` on `:focus-visible`): the chip shows none.

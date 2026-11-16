@@ -38,6 +38,8 @@ pub struct WorkStrip {
     ended_seen_at: HashMap<String, i64>,
     /// What the last frame showed, so the poll knows when a redraw is due.
     shown: Vec<String>,
+    /// The same for the status bar's list of work in every session.
+    shown_in_list: Vec<String>,
 }
 
 impl WorkStrip {
@@ -100,6 +102,12 @@ impl WorkStrip {
                 }
             })
             .min()
+    }
+
+    /// Records what the status bar's list shows now; true when a time on it reads differently from the last frame.
+    pub fn list_changed(&mut self, items: &[RunningWorkItem], now: i64) -> bool {
+        let shown = items.iter().map(|i| format!("{}|{}", i.id, time_text(i, now))).collect();
+        std::mem::replace(&mut self.shown_in_list, shown) != self.shown_in_list
     }
 
     /// Records what the strip shows now; true when it differs from the last frame.

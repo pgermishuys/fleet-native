@@ -26,13 +26,22 @@ impl State {
     /// row 4.7: it rests while nothing shows). True when the strip must redraw.
     pub fn keep_work_clock(&mut self, tx: &mut rune::Tx) -> bool {
         self.poll_work_outputs(tx);
-        let Some(stream) = &self.stream else { return false };
+        // The running-work list's times tick while it is open (`use-running-work`'s `now`).
+        let mut list_changed = false;
+        if self.ui.open == Some(crate::ui::Open::Popover("running")) {
+            let (items, now) = (self.list_work.running_sorted(), now_ms(self));
+            if let Some(next) = crate::conv::work_clock::next_tick_ms(&items, now) {
+                tx.wake_after(std::time::Duration::from_millis(next.max(50) as u64));
+            }
+            list_changed = self.work.list_changed(&items, now);
+        }
+        let Some(stream) = &self.stream else { return list_changed };
         let now = now_ms(self);
         self.work.observe(&stream.running_work, now);
         if let Some(next) = self.work.next_change_ms(&stream.running_work, now) {
             tx.wake_after(std::time::Duration::from_millis(next.max(50) as u64));
         }
-        self.work.changed(&stream.running_work, now)
+        self.work.changed(&stream.running_work, now) || list_changed
     }
 }
 
