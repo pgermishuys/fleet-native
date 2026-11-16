@@ -1011,6 +1011,7 @@ A context-menu row's label is one text run, so a machine's name in the mono face
 - **A headless app seeds invented harness lists and preferences**; a test of the first-launch rule clears `feeds.harnesses` and `pickers.prefs` before connecting, or the rule sees the invented ones as already read.
 - **A disabled button drawn with `opacity(0.5)` animates in**: a test that reads `ElementInfo.opacity` runs about 30 frames after the change first.
 - **`text(..)` is centred with `.align(Align::Center)`** (there is no `text_center`), and needs `.wrap()` and a width to centre across lines.
+
 ## Component 8, piece H (the pull request popover)
 
 - A row that wraps (`flex_wrap`) with a `grow(1)` row holding right-aligned text is `margin-left: auto` that drops onto its own line when the headline leaves no room; a spacer `el().grow(1.0)` doesn't, it stays on the first line and the text overflows.
@@ -1024,3 +1025,13 @@ A context-menu row's label is one text run, so a machine's name in the mono face
 - **Two quick clicks on one row in a test are a double press**, which starts the rename. Click a different row between them.
 - **`children(Option<El>)`** adds an element only when there is one; there is no `child_if`.
 
+
+
+## Component 7, piece O (the setup rows)
+
+- **No hover border.** `hover(color)` changes a fill only; CSS's `:hover { border-color }` (the row buttons, the install-place cards) has no equivalent, so the plain button gets a faint accent wash on hover instead.
+- **A wrapping row is sized by its text's longest line**, not by `flex: 1 1 220px`: `flex_wrap()` plus a grown text block wraps the actions below at any width where the subtitle's full line doesn't fit. Fleet's head wraps only when tile + 220 + the actions exceed the row, so `view::harness_setup_rows` makes that test from the labels' lengths and builds the one or two-line layout itself.
+- **A panel that must scroll when taller than the window** is `max_h(..)` on a column holding the body with `.scroll(ScrollSpec { stick_bottom: false })` and `min_h(0.0)`; the panel's own padding comes off the maximum by hand.
+- **A test can't see a radio's checked flag** (`ElementInfo` has none): read the state that drives it.
+- **Text won't break inside a long word** (a shell command): give the text's box a `max_w` and `.wrap().w_full()`; it breaks at spaces and at hyphens.
+- **A scripted scroll** is `{"type":"wheel","key":"<element>","dy":-330}` (negative scrolls down).

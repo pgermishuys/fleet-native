@@ -2164,6 +2164,21 @@ Checked on Linux (lavapipe); not on Windows or macOS (CI).
 - **Pictures:** native beside Fleet's, rows in each state on mock data (installed, not installed, needs update,
   failing) and the live rows on the scratch Fleet; both themes.
 
+- **Done (piece O).** `src/fleet/harness_setup_rows.rs` (the rows' state and rules: `rows`, `Action`, `Choice`, `Rows` with the pick, the active terminal, the failure and "Copied"; `start`, `close_setup_terminal`, the 3 s and 2 s timers from `poll`), `src/view/harness_setup_rows.rs`
+  (the drawing), `src/fleet/http.rs` (`GET /api/config/client`, `POST` and `DELETE /api/setup/terminals`), `HarnessEntry` gained `executable_path` and `setup`. The wizard's `leave` and `toReady` end the terminal (C12.40/41) and its harnesses step scrolls when taller than the window (C12.3).
+  Rows done: **C13.1-C13.3, C13.5, C13.6** (which rows, order, `fleetInstalls`), **C13.7-C13.33** (head, tile, name, Default, subtitle by state, chips, Download link, button, labels, primary and disabled looks), **C13.35-C13.44** (places,
+  pick logic, command), **C13.46-C13.49** (the Copilot strip and sign-in panel drawn, the notes), **C13.52-C13.55, C13.58-C13.66, C13.70-C13.73** (the terminal asked for, its bar, "Starting a terminal…", hint, found banner, checking, close, failure and Copy).
+  Tests in `src/tests_harness_setup_rows.rs` under Fleet's names (`HarnessSetupRows.test.ts`, all 14) plus a refused terminal, Copy, a second harness, a finished sign-in. Pictures: `shots/parity/07-new-session-o/` (live: the rows and the terminal under a row, beside Fleet's, both themes, from a scratch Fleet with no harness on its PATH; scenes: each state, the found banner, the failure, Copilot).
+  Gaps, each with its reason:
+  - **C13.4 the empty box**: not drawn as Fleet's 2px empty box; an empty list draws the 1px container with nothing in it (Fleet gap, not worth copying).
+  - **C13.57 the terminal widget**: component 13's. The shell is really asked for and ended on the server, but the body shows the command that would be typed, with Copy, and says so; the hint keeps Fleet's words. Nothing types into the shell.
+  - **C13.46/C13.83 the update strip and C13.48/C13.84 the sign-in panel**: Settings' (16). The install offer and a running download are drawn, the buttons show the kit's toast; no job states beyond "Updating…", no Cancel, Done, Try again or log.
+  - **C13.26 the Download link** opens the address with `Tx::open_url`; not tried (it would open a browser).
+  - **C13.30 hover border**: Rune has no hover border; a faint wash stands in (`docs/RUNE.md`). **C13.12 `overflow-wrap: anywhere`** for a long path: Rune breaks at spaces and hyphens only.
+  - **Wrapping of the head line (C13.7, C13.19)** is decided from label lengths (see `docs/RUNE.md`), so a very different font or a longer chip label may wrap a few pixels off Fleet.
+  - **Not live here**: Ready, Sign-in needed, Update needed, Not working and the found banner (a scratch Fleet with no program to install cannot make them; they are scenes). The live pictures hide the shell's host name in Fleet's terminal (a block over the prompt).
+  - Fleet's v0.72.0 release leaves `notes` empty for OpenCode 2 on a machine with no OpenCode 1; the scene shows the two notes of the checklist.
+
 ### P. The Welcome and Repositories pages
 - **Creates/touches:** `src/view/pages.rs` (new), `src/fleet/repositories.rs` (the call, sorted by name, "Last scan"),
   `src/view.rs` (`Route::Welcome`, `Route::Repositories`, no rail highlighted).
