@@ -29,6 +29,10 @@ pub(crate) struct Fake {
     pub(crate) finds: Vec<(String, String)>,
     /// What `GET /api/sessions` answers.
     pub(crate) sessions: Vec<Value>,
+    /// The (key, value) pairs `PUT /api/preferences/{key}` got.
+    pub(crate) preferences: Vec<(String, String)>,
+    /// What `GET /api/machines` lists.
+    machines: Vec<Value>,
 }
 
 pub(crate) type Shared = Arc<Mutex<Fake>>;
@@ -105,6 +109,13 @@ fn answer(mut stream: std::net::TcpStream, fake: Shared) {
         let files: Vec<String> =
             f.folder_files.get(&dir).map(|l| l.iter().filter(|p| p.contains(&q)).cloned().collect()).unwrap_or_default();
         (200, json!({ "directory": dir, "files": files }))
+    } else if method == "GET" && path.split('?').next() == Some("/api/machines") {
+        (200, json!({ "machines": fake.lock().unwrap().machines.clone() }))
+    } else if method == "PUT" && path.starts_with("/api/preferences/") {
+        let sent: Value = serde_json::from_slice(&body).unwrap_or(Value::Null);
+        let value = sent["value"].as_str().unwrap_or("").to_string();
+        fake.lock().unwrap().preferences.push((path.trim_start_matches("/api/preferences/").to_string(), value));
+        (200, json!({}))
     } else if method == "GET" && path.starts_with("/api/sessions") {
         (200, Value::Array(fake.lock().unwrap().sessions.clone()))
     } else {
@@ -125,7 +136,10 @@ pub(crate) struct Rig {
 }
 
 pub(crate) fn rig() -> Rig {
-    let fake: Shared = Default::default();
+    rig_with(Default::default())
+}
+
+fn rig_with(fake: Shared) -> Rig {
     let base = serve(fake.clone());
     let (jobs, queue) = channel::<Job>();
     let jobs = Mutex::new(jobs);
@@ -409,4 +423,52 @@ fn a_starter_fills_the_box_with_its_ellipsis_selected_and_sends_nothing() {
     assert!(r.message().ends_with('…') || r.message().contains('…'), "the starter's words are in the box: {:?}", r.message());
     assert_eq!(r.rt.state.new_box.edit.selected(), "…");
     assert!(r.posted().is_empty());
+}
+
+// ─── another machine (A21.101, A21.104) ─────────────────────────────────────────
+
+/// The rig, plus a second Fleet that home lists as a machine, and the page moved onto it.
+fn rig_on_another_machine() -> (Rig, Shared) {
+    let elsewhere: Shared = Default::default();
+    let base = serve(elsewhere.clone());
+    let falcon = json!({ "id": "m-falcon", "name": "falcon", "baseUrl": base, "os": "linux", "status": "online",
+        "addedAt": "2026-09-26T00:00:00Z", "token": "falcon-token", "addresses": [{ "url": base, "kind": "lan", "learned": false }] });
+    // Home lists it from its first answer on, as it does while the page is open.
+    let home: Shared = Default::default();
+    home.lock().unwrap().machines = vec![falcon];
+    let mut r = rig_with(home);
+    r.wait("home's machine list", |s| s.machines.list.len() == 1);
+    // A draft with something in it is kept while the box is rebuilt for the machine (A3.12).
+    r.text("Fix the login redirect");
+    r.rt.update(|s, _| {
+        s.pick_machine("m-falcon");
+        s.set_folder(Folder::Repository("/srv/falcon/rocket".into()), true);
+    });
+    r.rt.frame(FRAME);
+    r.rt.frame(FRAME);
+    (r, elsewhere)
+}
+
+#[test]
+fn machine_on_the_new_session_page_starts_the_session_on_the_machine_picked_and_opens_it() {
+    let (mut r, elsewhere) = rig_on_another_machine();
+    assert_eq!(r.rt.state.target_key(), "m-falcon");
+    r.send_and_wait();
+    assert_eq!(elsewhere.lock().unwrap().posted.len(), 1, "the machine picked got the request");
+    assert!(r.posted().is_empty(), "this machine got none");
+    assert!(!r.rt.state.on_new_session_page(), "the session opened: {:?}", r.rt.state.new_box.create_error);
+    assert_eq!(r.rt.state.machines.current_key(), "m-falcon");
+}
+
+#[test]
+fn machine_on_another_machine_starts_the_session_there_and_opens_it_in_place_its_row_kept_out_of_the_live_machines_list() {
+    let (mut r, _) = rig_on_another_machine();
+    r.send_and_wait();
+    let live = r.rt.state.projects.iter().flat_map(|p| p.sessions.iter()).any(|s| s.id == "ses-new");
+    assert!(!live, "the new row is not in this machine's own list");
+    assert_eq!(r.rt.state.machine_key_of("ses-new"), "m-falcon");
+    assert!(
+        r.rt.state.machines.others.get("m-falcon").is_some_and(|m| m.sessions.iter().any(|s| s.id == "ses-new")),
+        "it is on that machine's group"
+    );
 }

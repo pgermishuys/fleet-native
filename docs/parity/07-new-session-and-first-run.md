@@ -2040,7 +2040,7 @@ Checked on Linux (lavapipe); not on Windows or macOS (CI).
   Esc, Project/Title/Tags), `fleet/new_session/tests_machines.rs` (`formatRelative`, `formatDateTime`); A21.198-204 were done in B. Pictures:
   `shots/parity/07-new-session-k/` (Fleet's own client beside native, one machine and the "…" menu; three machines from mock data only, since the scratch Fleet has none).
   Gaps, each with its reason:
-  - **A21.101, A21.104, A21.105 and A18.4** (start on the picked machine, its row kept out of the live list, harness setup there) need the send: piece L.
+  - **A21.101, A21.104 and A18.4**: done in piece Q (`src/tests_new_send.rs`, a second fake Fleet that home lists). **A21.105** (harness setup there, in Settings) is component 16's.
   - **A18.5** (workflow starter hidden on another machine) is done in `starters.rs`; no change here.
   - **B5.18, B8.6 keys**: the menus use Rune's focus group (Up/Down, Esc); type-ahead is not there. The Project list is drawn as the app's Select (accent fill on the
     focused row), under the field, 4px away, as Fleet's popper does.
@@ -2210,6 +2210,24 @@ Checked on Linux (lavapipe); not on Windows or macOS (CI).
 - **Tests:** whatever the earlier pieces left open; Fleet's names not yet ported listed with the owner.
 - **Pictures:** the page and first run beside Fleet's, one of each, both themes; a short scripted video (`--video`)
   of creating a session.
+
+- **Done (piece Q, 16 November 2026).** The sweep read every row and every test name of Parts A-C against `src/`. What it built:
+  **A10.15** (the model sent is recorded under Recent once the create succeeds, while the page's own catalog is still the one read; `record_recent_model` now reads the page's lists), **A21.1/A2.15** (the box has the keyboard as the page opens, a test), **A21.101 and A21.104** (a session started on another machine goes to that machine, opens in place, and its row stays out of the live list; tests against a second fake Fleet).
+  Live on a scratch Fleet (v0.72.0, scripted model): a repository on a new worktree (picture and video, both themes; the session is made on its own branch under `demo-worktrees`, the first message shows at once and the reply streams), and no folder (a chat). A plain folder and a typed branch are covered by tests (`uses_a_typed_folder`, the branch cases of A21.12-21), not run live. Pictures: `shots/parity/07-new-session-q/`.
+  **Startup screen, written once more for component 9**: Fleet opens on `/` (the dashboard, `C17.1-17.4`), with one redirect to `/fleet` when the Labs preference is on. Native opens the first session, or the New session page when the list is empty. Replace it when components 23 (dashboard) and 9 (app frame) land.
+  **Rows still open, each with its owner:**
+  - **A6.1-A6.12, B10.1-B10.21, A21.46-A21.51, A21.206** (the `#` popup): component 21 (core keeps the trigger, `ItemPicker` and its registry).
+  - **A7.8, A7.10, A7.12** (preset-only send, folder limits, missing repository text): the preset code is M's and is tested over a fake item (A21.52-55); the real item arrives with 21.
+  - **A8.12, A9.7** (references and pictures in the sent bubble): component 3's message list.
+  - **A4.3 drag wash, A4.14, A4.15, C12.6, C12.9, B2.30** (accessibility roles, focus text): component 26.
+  - **A21.105, A14.7's other-machine branch, "Manage profiles", "Add a machine…", "Workspace settings", the update strip and sign-in panel (C13.46/48/83/84)**: Settings, component 16.
+  - **C13.57 the setup terminal widget**: component 13.
+  - **C14 onboarding, C17.5-17.8** (phone landing, the auth gate): cloud-only or component 9, see "What cannot be done".
+  - **C17.1-C17.4 the startup rule and landing redirect**: components 9 and 23. **C17.16 the dashboard banner**: component 23.
+  - **A20.23 telemetry**: not built, the app has none. **A3.10** (a folded group unfolds for a new draft) stays as noted.
+  - **A21.42** (cloud mode): the native app has no cloud mode.
+  **"Waiting" hand-offs still open**: the setup terminal (13), the sign-in panel and update strip (16), Add a machine and Manage profiles (16), Workspace settings (16), the GitHub `#` popup, clone suggestions and item preset (21), the dashboard as the startup screen (23).
+  **Not checked**: Windows and macOS pictures (CI draws them on `main`); Windows paths and `~` are covered by the `new-folder.ts` tests, not looked at on Windows.
 
 ## What cannot be done, and why
 

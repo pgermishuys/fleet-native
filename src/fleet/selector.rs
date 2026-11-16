@@ -161,7 +161,8 @@ impl State {
         let Some((provider, model)) = &pick.model else { return };
         let Some(harness) = self.harness_key() else { return };
         let selection_key = crate::composer::choice::key_for_model(&crate::composer::choice::ModelReference::new(provider, model));
-        let Some(key) = rules::star_key(&self.lists().models, &harness, &selection_key) else { return };
+        let (_, models, _) = self.selector_lists();
+        let Some(key) = rules::star_key(&models, &harness, &selection_key) else { return };
         let before = self.pickers.prefs.get(PREFERENCE_KEY).map(str::to_string);
         let current = self.model_picker();
         let next = current.record_recent(&key);

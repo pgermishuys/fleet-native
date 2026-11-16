@@ -425,3 +425,25 @@ fn no_harness_says_why_and_offers_to_set_one_up() {
     assert!(rt.state.harness_setup.is_open);
     assert_eq!(rt.state.harness_setup.step, crate::fleet::harness_setup::Step::Harnesses);
 }
+
+#[test]
+fn agent_and_model_a_session_started_with_a_model_lists_it_as_recent() {
+    // A10.15: `modelPicker.recordRecent` after a create that sent a model.
+    let mut r = crate::tests_new_send::rig();
+    set_harnesses_before_page(&mut r.rt);
+    seed_catalog(&mut r.rt, key("opencode", ROCKET, None), copilot_catalog());
+    r.rt.frame(FRAME);
+    r.rt.frame(FRAME);
+    pick(&mut r.rt, "model", "Claude Haiku 4.5");
+    r.text("Fix the login redirect");
+    r.send_and_wait();
+    let body = r.posted().remove(0);
+    assert_eq!(body["model"]["modelID"], "claude-haiku-4.5", "the request carried the model: {body}");
+    r.wait("the preference to be written", |s| {
+        s.pickers.prefs.get(crate::composer::groups::PREFERENCE_KEY).is_some_and(|v| v.contains("claude-haiku-4.5"))
+    });
+    let fake = r.fake.clone();
+    r.wait("the PUT to arrive", move |_| {
+        fake.lock().unwrap().preferences.iter().any(|(k, v)| k == "modelPicker" && v.contains("claude-haiku-4.5"))
+    });
+}
