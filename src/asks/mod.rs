@@ -3,6 +3,7 @@
 pub mod focus;
 pub mod permission;
 pub mod question;
+pub mod rules;
 pub mod wording;
 
 #[cfg(test)]

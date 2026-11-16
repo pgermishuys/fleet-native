@@ -215,7 +215,8 @@ fn toolbar(s: &State, t: &Theme, disabled: bool, mode: Mode) -> El {
             .child(if mode == Mode::Side { side_mode(t) } else { attach(t, disabled) })
             .child(chip("agent", s.agent_chip()))
             .child(chip("model", s.model_chip()))
-            .children(if disabled { None } else { s.effort_view().map(|v| effort_toggle(t, &v)) }),
+            .children(if disabled { None } else { s.effort_view().map(|v| effort_toggle(t, &v)) })
+            .children(if mode == Mode::Side { None } else { super::allowed::chip(s, t) }),
     };
     bar.child(interrupt_button(t, s.can_interrupt())).child(spacer()).children(crate::view::ring::button(s, t)).children(other).child(send)
 }

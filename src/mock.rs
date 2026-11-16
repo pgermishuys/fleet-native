@@ -17,6 +17,7 @@ pub mod parts;
 pub mod questions;
 pub mod ring;
 pub mod rows;
+pub mod rules;
 pub mod tools;
 pub mod update;
 pub mod work;

@@ -87,6 +87,10 @@ pub struct State {
     /// Every session's waiting permission asks as Fleet last said (component 4); the open session's are drawn after its
     /// messages (`open_asks`).
     pub asks: fleet::asks::Asks,
+    /// Every session's Allowed rules as Fleet last said (`fleet::rules`); the open session's are the chip's list.
+    pub rules: fleet::rules::Rules,
+    /// When the Allowed chip last grew, on `clock`: it flashes for `view::allowed::FLASH_SECS` after.
+    pub allowed_flash: Option<f64>,
     /// The question cards on screen and their picks (`fleet::questions`).
     pub questions: fleet::questions::Questions,
     /// An answer on its way, or why it failed, by ask id; and the asks whose card already took the keyboard.
@@ -277,6 +281,8 @@ impl Default for State {
             filter: TextEdit::new(""),
             draft: TextEdit::new(""),
             asks: Default::default(),
+            rules: Default::default(),
+            allowed_flash: None,
             questions: Default::default(),
             ask_acts: Default::default(),
             ask_seen: Default::default(),
@@ -987,7 +993,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     let scrolled = s.keep_scroll(tx);
     let pictures = s.keep_images(tx);
     let renamed = s.keep_rename(tx) | s.keep_row_rename(tx);
-    let found = s.find_poll(tx) | s.keep_questions(tx);
+    let found = s.find_poll(tx) | s.keep_questions(tx) | s.keep_allowed_flash(now, tx);
     let exported = s.export_poll(tx);
     // "Copied" on a message's button ends by itself.
     let copied = match &s.copied {
@@ -1005,6 +1011,17 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
 }
 
 impl State {
+    /// The Allowed chip's flash redraws until it has faded (row 5.2).
+    fn keep_allowed_flash(&mut self, now: f64, tx: &mut Tx) -> bool {
+        let Some(start) = self.allowed_flash else { return false };
+        if now - start >= view::allowed::FLASH_SECS {
+            self.allowed_flash = None;
+        } else {
+            tx.wake_after(std::time::Duration::from_millis(33));
+        }
+        true
+    }
+
     /// The list re-reads the clock every 30 s so "12m" becomes "13m" (`TICK_INTERVAL_MS`); true when it is time to
     /// redraw the rows. The first call only starts the wait.
     pub(crate) fn keep_row_ages(&mut self, now: f64, tx: &mut Tx) -> bool {
@@ -1529,6 +1546,31 @@ pub fn spec() -> AppSpec<State> {
             ("ask-long-light", |s| {
                 s.dark = Some(false);
                 s.show_ask(mock::asks::Case::Long)
+            }),
+            ("allowed-chip", |s| s.show_rules(mock::rules::Case::Chip)),
+            ("allowed-chip-light", |s| {
+                s.dark = Some(false);
+                s.show_rules(mock::rules::Case::Chip)
+            }),
+            ("allowed-one", |s| s.show_rules(mock::rules::Case::One)),
+            ("allowed-one-light", |s| {
+                s.dark = Some(false);
+                s.show_rules(mock::rules::Case::One)
+            }),
+            ("allowed-two", |s| s.show_rules(mock::rules::Case::Two)),
+            ("allowed-two-light", |s| {
+                s.dark = Some(false);
+                s.show_rules(mock::rules::Case::Two)
+            }),
+            ("allowed-broad", |s| s.show_rules(mock::rules::Case::Broad)),
+            ("allowed-broad-light", |s| {
+                s.dark = Some(false);
+                s.show_rules(mock::rules::Case::Broad)
+            }),
+            ("allowed-dormant", |s| s.show_rules(mock::rules::Case::Dormant)),
+            ("allowed-dormant-light", |s| {
+                s.dark = Some(false);
+                s.show_rules(mock::rules::Case::Dormant)
             }),
             ("screenshot", |s| s.show_images(mock::images::Case::Shot)),
             ("screenshot-light", |s| {
