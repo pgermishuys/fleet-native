@@ -53,6 +53,21 @@ pub struct Session {
 }
 
 impl Session {
+    /// The row alone, with no conversation: what another machine's list holds is kept as opened here.
+    pub fn row_copy(&self) -> Session {
+        Session {
+            id: self.id.clone(),
+            title: self.title.clone(),
+            status: self.status,
+            ago_secs: self.ago_secs,
+            branch: self.branch.clone(),
+            messages: Vec::new(),
+            tokens: self.tokens,
+            row: self.row.clone(),
+            listing: self.listing.clone(),
+        }
+    }
+
     /// The session was just used: its age starts again (and an invented session stops being N seconds old).
     pub fn touch(&mut self, now_ms: i64) {
         self.row.updated = now_ms;

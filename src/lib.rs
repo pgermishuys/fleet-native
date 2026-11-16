@@ -452,17 +452,22 @@ impl State {
     }
 
     pub fn session(&self) -> &Session {
-        self.project().sessions.get(self.open_at().1).unwrap_or(&self.blank.sessions[0])
+        let at = self.open_at();
+        if at.0 == fleet::store::ELSEWHERE {
+            return self.store.elsewhere_at(at.1).unwrap_or(&self.blank.sessions[0]);
+        }
+        self.project().sessions.get(at.1).unwrap_or(&self.blank.sessions[0])
     }
 
-    /// Where the open session is in the list now: (project, session), or `(usize::MAX, 0)` when none is open or it
-    /// isn't in the list. Derived from the route each time, never kept.
+    /// Where the open session is in the list now: (project, session), `(ELSEWHERE, n)` for the n-th session kept from
+    /// another machine, or `(usize::MAX, 0)` when none is open or it isn't anywhere. Derived from the route each time, never kept.
     pub fn open_at(&self) -> (usize, usize) {
         let fleet::store::Route::Session(id) = &self.route else { return (usize::MAX, 0) };
         self.projects
             .iter()
             .enumerate()
             .find_map(|(p, project)| project.sessions.iter().position(|s| &s.id == id).map(|i| (p, i)))
+            .or_else(|| self.store.elsewhere_index(id).map(|i| (fleet::store::ELSEWHERE, i)))
             .unwrap_or((usize::MAX, 0))
     }
 
@@ -936,6 +941,11 @@ pub fn send_as(s: &mut State, tx: &mut Tx, steer: bool) {
     let typed = s.draft.text.trim().to_string();
     let images = !s.held_images().is_empty();
     if typed.is_empty() && !images && s.terminal_lines().is_empty() {
+        return;
+    }
+    // A session on a machine that isn't answering can't be asked: the draft stays, and the machine is named.
+    if let Some(why) = s.machine_refusal() {
+        s.composer_error = Some(why);
         return;
     }
     // Terminal lines go in front of what was typed, as fenced blocks (`formatTerminalContext`).

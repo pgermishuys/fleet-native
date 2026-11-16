@@ -77,14 +77,37 @@ impl State {
     /// Opens a session in the list and, on a server, asks it for the conversation.
     pub fn open_session(&mut self, project: usize, session: usize, tx: &mut Tx) {
         self.set_open((project, session));
+        if let Some(p) = self.projects.get_mut(project) {
+            p.open = true;
+        }
+        self.after_open(tx);
+    }
+
+    /// Opens a session listed under another machine, in place: it is kept in `elsewhere` (newest 20) with its machine, which
+    /// is where every call about it goes from now on (`handleSessionSelect`, `rememberSessions`). A session the machine
+    /// doesn't list (a machine that's gone) opens nothing.
+    pub fn open_machine_session(&mut self, machine: &str, id: &str, tx: &mut Tx) {
+        let Some(row) = self.machines.others.get(machine).and_then(|m| m.sessions.iter().find(|s| s.id == id)).map(|s| s.row_copy()) else {
+            return;
+        };
+        self.machines.remember_sessions(machine, &[id.to_string()]);
+        self.store.upsert_elsewhere(machine, row);
+        self.go(store::Route::Session(id.to_string()));
+        self.after_open(tx);
+    }
+
+    /// What opening any session does once the route names it.
+    fn after_open(&mut self, tx: &mut Tx) {
         // The right panel comes back the way this session left it, else the way it was last left anywhere.
         if let Some(c) = self.open_id().and_then(|id| self.sidebar.remembered_right(&id)) {
             self.content_open = !c;
         }
         // The text area shows the new session's draft at once, not a frame later.
         self.keep_drafts(self.clock, tx);
-        if let Some(p) = self.projects.get_mut(project) {
-            p.open = true;
+        if let Some(id) = self.open_id() {
+            // The machine of the open session is the one you're on (`currentOpened`).
+            let key = self.machine_key_of(&id).to_string();
+            self.machines.set_current(&key);
         }
         if let Some(id) = self.open_id()
             && self.link.is_some()
@@ -523,8 +546,8 @@ impl State {
         let folded = fold_compaction_summaries(&stream.messages);
         let shown: Vec<&Msg> = stream.messages.iter().filter(|m| !folded.hidden.contains(&m.id)).collect();
         let summary_of = |m: &Msg| folded.summaries.get(&m.id).map(String::as_str);
-        let (p, i) = self.open_at();
-        let sent = self.projects.get(p).and_then(|p| p.sessions.get(i)).map(|s| s.id.clone()).unwrap_or_default();
+        let at = self.open_at();
+        let sent = self.session_at(at).map(|s| s.id.clone()).unwrap_or_default();
         // The prompts the conversation doesn't hold yet, after the delivered messages (`mergeMessagesByTimestamp`).
         let optimistic: Vec<Message> = self
             .prompts
@@ -538,7 +561,13 @@ impl State {
             })
             .collect();
         // Not `session_mut()`: that would borrow all of `self` while `stream` is still read.
-        let Some(session) = self.projects.get_mut(p).and_then(|p| p.sessions.get_mut(i)) else { return };
+        let Some(session) = (if at.0 == store::ELSEWHERE {
+            self.store.elsewhere_at_mut(at.1)
+        } else {
+            self.projects.get_mut(at.0).and_then(|p| p.sessions.get_mut(at.1))
+        }) else {
+            return;
+        };
         let n = shown.len();
         let same_shape = !finished_changed
             && session.messages.len() == n + optimistic.len()
@@ -660,7 +689,17 @@ impl State {
 
     pub(crate) fn session_mut(&mut self) -> Option<&mut crate::mock::Session> {
         let (p, i) = self.open_at();
+        if p == store::ELSEWHERE {
+            return self.store.elsewhere_at_mut(i);
+        }
         self.projects.get_mut(p)?.sessions.get_mut(i)
+    }
+
+    fn session_at(&self, at: (usize, usize)) -> Option<&crate::mock::Session> {
+        if at.0 == store::ELSEWHERE {
+            return self.store.elsewhere_at(at.1);
+        }
+        self.projects.get(at.0)?.sessions.get(at.1)
     }
 
     /// The open conversation is the harness's cached data, not live (`isPartial`).

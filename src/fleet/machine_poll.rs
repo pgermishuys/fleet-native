@@ -96,6 +96,7 @@ pub fn spawn_read(job: ReadJob, post: Post) {
                     if first || back {
                         eprintln!("fleet-native: machine {} listed {count} session(s)", job.name);
                     }
+                    s.refresh_elsewhere(&job.key);
                     s.save_machines();
                 }
                 Err(why) => {

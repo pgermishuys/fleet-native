@@ -12,7 +12,7 @@ use crate::fleet::row_status::{self, Dim, Glyph, RowItem};
 use crate::icons::{CHEVRON_RIGHT, PLUS};
 use crate::mock::Session;
 use crate::theme::{RADIUS_BTN, Theme, sans};
-use rune::{Align, Cursor, El, col, el, icon, row, text};
+use rune::{Align, Color, Cursor, El, Tx, col, el, icon, row, text};
 
 /// The word on the right of a machine's heading when it has no count (`note`).
 pub fn note_of(state: Option<&MachineSessions>) -> Option<&'static str> {
@@ -131,7 +131,7 @@ fn children_open(s: &State, sessions: &[Session], parent: &Session, kids: &[Tree
 }
 
 /// One session of another machine, as the list draws a row (`SessionItem.vue` in `MachineSessionsGroup`): no pin, archive, drag
-/// or rename, and it opens nothing yet.
+/// or rename; pressing it opens the session in place.
 #[allow(clippy::too_many_arguments)]
 fn read_only_row(
     s: &State,
@@ -144,9 +144,11 @@ fn read_only_row(
     answering: bool,
 ) -> El {
     let key = format!("{}-{}", machine.key, session.id);
+    // The open mark sits on the row of its own machine only (`openSessionMachineKey`).
+    let active = s.is_open_on(&machine.key, &session.id);
     let item = RowItem::of(session, clock.now);
     let status = row_status::row_status(&item, clock.now, clock.offset_secs, answering);
-    let dim = row_status::row_dim(&item, clock.now);
+    let dim = if active { Dim::None } else { row_status::row_dim(&item, clock.now) };
     // A working session on a machine that isn't answering shows no working glyph (its word says "Not answering").
     let glyph = match row_status::glyph(&item) {
         Glyph::Working | Glyph::Retry if !answering => Glyph::Quiet,
@@ -173,6 +175,7 @@ fn read_only_row(
     };
     // A child sits one level in from its parent (`--lineage-indent`).
     let indent = if at.depth == 0 { 6.0 } else { 25.0 + (at.depth as f32 - 1.0) * 16.0 };
+    let (machine_key, session_id) = (machine.key.clone(), session.id.clone());
     let mut line = row()
         .key(format!("machine-session-{key}"))
         .w_full()
@@ -182,15 +185,20 @@ fn read_only_row(
         .pl(indent)
         .pr(10.0)
         .radius(RADIUS_BTN)
-        .hover(t.wash(5.0))
+        .fill(if active { t.wash(9.0) } else { Color::TRANSPARENT })
+        .hover(if active { Color::TRANSPARENT } else { t.wash(5.0) })
         .hover_group()
+        .cursor(Cursor::Pointer)
+        .focusable(true)
+        .focus_ring(2.0, -2.0, t.accent)
+        .on_press_tx(move |s: &mut State, tx: &mut Tx| s.open_machine_session(&machine_key, &session_id, tx))
         .child(slot)
         .child(glyph)
         .child(
             text(row_status::display_title(None, &session.title))
                 .key(format!("machine-title-{key}"))
-                .font(sans(13.0, 400.0, 1.3))
-                .color(title_ink(t, false, dim))
+                .font(sans(13.0, if active { 500.0 } else { 400.0 }, 1.3))
+                .color(title_ink(t, active, dim))
                 .group_color(t.text)
                 .truncate()
                 .grow(1.0),

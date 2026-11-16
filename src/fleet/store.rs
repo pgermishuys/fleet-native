@@ -61,6 +61,9 @@ pub fn list_path(retention: Retention) -> String {
     format!("/api/sessions?limit={PAGE_SIZE}&offset=0{}", retention.query())
 }
 
+/// `open_at`'s project number for a session kept from another machine (the live list never reaches it).
+pub const ELSEWHERE: usize = usize::MAX - 1;
+
 /// How many sessions on other machines `elsewhere` keeps (`ELSEWHERE_KEPT`).
 pub const ELSEWHERE_KEPT: usize = 20;
 
@@ -120,7 +123,11 @@ impl SessionStore {
     }
 
     /// Keeps the row of a session on another machine that is open here, making it the newest (`upsertElsewhere`).
-    pub fn upsert_elsewhere(&mut self, machine: &str, session: Session) {
+    pub fn upsert_elsewhere(&mut self, machine: &str, mut session: Session) {
+        // A session opened before keeps the conversation it holds.
+        if let Some((_, old)) = self.elsewhere.iter_mut().find(|(_, s)| s.id == session.id) {
+            session.messages = std::mem::take(&mut old.messages);
+        }
         self.elsewhere.retain(|(_, s)| s.id != session.id);
         self.elsewhere.push((machine.to_string(), session));
         while self.elsewhere.len() > ELSEWHERE_KEPT {
@@ -136,6 +143,19 @@ impl SessionStore {
     /// The ids kept from other machines, oldest first.
     pub fn elsewhere_ids(&self) -> Vec<&str> {
         self.elsewhere.iter().map(|(_, s)| s.id.as_str()).collect()
+    }
+
+    /// Where a kept session is, for `open_at`'s place past the live list: its index, if it is kept.
+    pub fn elsewhere_index(&self, id: &str) -> Option<usize> {
+        self.elsewhere.iter().position(|(_, s)| s.id == id)
+    }
+
+    pub fn elsewhere_at(&self, index: usize) -> Option<&Session> {
+        self.elsewhere.get(index).map(|(_, s)| s)
+    }
+
+    pub fn elsewhere_at_mut(&mut self, index: usize) -> Option<&mut Session> {
+        self.elsewhere.get_mut(index).map(|(_, s)| s)
     }
 
     /// The machine a kept session is on.
