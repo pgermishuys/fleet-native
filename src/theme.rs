@@ -281,6 +281,11 @@ impl Theme {
         ]
     }
 
+    /// `.selection-bar`'s `box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.35)`, a literal in `SessionsPanel.vue` (both themes).
+    pub fn selection_shadow(&self) -> Shadow {
+        Shadow { x: 0.0, y: 12.0, blur: 32.0, spread: -12.0, color: Color::BLACK.alpha(0.35), inset: false }
+    }
+
     /// `.ns-pop`'s `box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.35)`, a literal in `new-session.css` (the same in both themes).
     pub fn pop_shadow(&self) -> Shadow {
         Shadow { x: 0.0, y: 16.0, blur: 40.0, spread: -12.0, color: Color::BLACK.alpha(0.35), inset: false }

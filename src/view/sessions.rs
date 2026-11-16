@@ -3,9 +3,9 @@
 use super::machine_group::{add_machine_row, machine_group};
 use super::machine_header::{Heading, machine_header};
 use super::project_header::{Header, project_header, project_shell};
+use super::selection_bar::selection_bar;
 use super::session_row::session_row;
 use crate::State;
-use crate::fleet::groups::{matching_sessions, session_matches_query};
 use crate::fleet::panel::{Feedback, banner_copy, empty_words, feedback};
 use crate::icons::*;
 use crate::mock::Session;
@@ -95,20 +95,35 @@ pub fn panel(s: &State, t: &Theme) -> El {
         by_id.or_else(|| s.projects.iter().position(|p| p.id == crate::fleet::groups::UNGROUPED_ID))
     });
     let mut placed = false;
+    let layout = s.home_layout();
     // What the live machine's heading counts: the sessions the filter leaves.
-    let mut shown = 0;
+    let shown = layout.shown();
     let mut first = true;
-    for (p, project) in s.projects.iter().enumerate() {
-        // A project whose name matches keeps all its sessions; a group with no match and another name is dropped.
-        let matches = |session: &Session| session_matches_query(session, &needle, &s.project_load.projects);
-        let Some(kept) = matching_sessions(&project.name, &project.sessions, &needle, matches) else { continue };
-        let rows: Vec<(usize, &Session)> =
-            kept.into_iter().map(|i| (i, &project.sessions[i])).filter(|(_, session)| !s.hides(session)).collect();
-        // Fleet builds the Ungrouped group only while it holds a session.
-        if rows.is_empty() && project.id == crate::fleet::groups::UNGROUPED_ID {
+    // `showPinnedGroup`: while it has sessions (the drag that shows it empty is piece S's). It is above the projects and its
+    // rows leave their own.
+    if !layout.pinned.is_empty() {
+        let open = s.home_pinned_open();
+        let header = project_header(t, "pinned".into(), Header::Pinned, "Pinned", layout.pinned.len(), open, false)
+            .on_press(|s: &mut State| s.toggle_home_pinned());
+        let mut group = col().key("pinned-group").w_full().child(header);
+        if open {
+            let mut body = col().w_full().pt(2.0);
+            for &(p, i) in &layout.pinned {
+                body = body.child(session_row(s, t, &clock, p, i, &s.projects[p].sessions[i]));
+            }
+            group = group.child(body);
+        }
+        live = live.child(group);
+        first = false;
+    }
+    for g in &layout.groups {
+        let (p, project) = (g.p, &s.projects[g.p]);
+        let rows: Vec<(usize, &Session)> = g.rows.iter().map(|&i| (i, &project.sessions[i])).collect();
+        // Fleet builds the Ungrouped group only while it holds a session, and Scratch too (its sessions may all be pinned).
+        if rows.is_empty() && (project.id == crate::fleet::groups::UNGROUPED_ID || project.kind != crate::fleet::groups::ProjectKind::User)
+        {
             continue;
         }
-        let rows_len = rows.len();
         let kind = if project.id == crate::fleet::groups::UNGROUPED_ID { Header::Ungrouped } else { Header::Project };
         let header = if kind == Header::Project {
             project_shell(s, t, p, rows.len())
@@ -116,7 +131,6 @@ pub fn panel(s: &State, t: &Theme) -> El {
             project_header(t, format!("project-{p}"), kind, &project.name, rows.len(), project.open, false)
                 .on_press(move |s: &mut State| s.toggle_project(p))
         };
-        shown += rows_len;
         let mut group = col().w_full().mt(if first { 0.0 } else { 10.0 }).child(header);
         first = false;
         // A folded project stays folded while a filter is typed: Fleet's `expanded` doesn't know the query.
@@ -212,7 +226,7 @@ pub fn panel(s: &State, t: &Theme) -> El {
         .child(row().w_full().pt(8.0).px(8.0).pb(8.0).gap(6.0).child(new_session).child(add_folder))
         .child(filter)
         .child(col().key("sessions").w_full().grow(1.0).shrink().min_h(0.0).scroll(ScrollSpec { stick_bottom: false }).child(list))
-        .child(archived)
+        .child(if s.selection.is_selecting() { selection_bar(s, t) } else { archived })
 }
 
 /// `.sessions-feedback-state`: the first load.

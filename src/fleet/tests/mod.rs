@@ -517,6 +517,7 @@ mod row_status;
 mod rows;
 mod rules;
 mod scroll;
+mod selection;
 mod selector;
 mod settings;
 mod state;

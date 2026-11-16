@@ -7,7 +7,7 @@ use super::row_actions::{Buttons, actions};
 use crate::fleet::actions::RENAME_FIELD;
 use crate::fleet::row_chips::{self, Checks, PrBadge, PrState};
 use crate::fleet::row_status::{self, Dim, Glyph, RowItem, RowStatus, Tone};
-use crate::icons::{CHEVRON_RIGHT, GIT_MERGE, GIT_PULL_REQUEST, GIT_PULL_REQUEST_CLOSED, GIT_PULL_REQUEST_DRAFT, LOADER_CIRCLE};
+use crate::icons::{CHECK, CHEVRON_RIGHT, GIT_MERGE, GIT_PULL_REQUEST, GIT_PULL_REQUEST_CLOSED, GIT_PULL_REQUEST_DRAFT, LOADER_CIRCLE};
 use crate::mock::Session;
 use crate::theme::{RADIUS_BTN, Theme, mono, sans};
 use crate::{State, Tx};
@@ -149,11 +149,15 @@ pub fn session_row_with(s: &State, t: &Theme, clock: &RowClock, p: usize, i: usi
     let dim = if active { Dim::None } else { row_status::row_dim(&item, clock.now) };
     let key = format!("{p}-{i}");
 
+    // Picking rows swaps the glyph for a checkbox in the same slot (`.session-check`).
+    let selecting = s.selection.is_selecting_on(None);
+    let picked = selecting && s.selection.is_selected(&session.id);
     let glyph = match glyph_el(t, row_status::glyph(&item)) {
         Some(g) => g.key(format!("session-glyph-{key}")).help(status.description.clone()),
         // Nothing live: the empty slot keeps titles on one left edge.
         None => el().size(8.0, 8.0).key(format!("session-slot-{key}")),
     };
+    let glyph = if selecting { check_box(t, &key, picked) } else { glyph };
     if s.row_renaming(p, i) {
         return el().w_full().py(1.0).child(editing(s, t, format!("session-{key}"), glyph));
     }
@@ -167,13 +171,28 @@ pub fn session_row_with(s: &State, t: &Theme, clock: &RowClock, p: usize, i: usi
         .pl(6.0)
         .pr(10.0)
         .radius(RADIUS_BTN)
-        .fill(if active { t.wash(9.0) } else { Color::TRANSPARENT })
-        .hover(if active { Color::TRANSPARENT } else { t.wash(5.0) })
+        .fill(if picked {
+            t.accent_dim
+        } else if active {
+            t.wash(9.0)
+        } else {
+            Color::TRANSPARENT
+        })
+        .hover(if picked {
+            t.accent_dim
+        } else if active {
+            Color::TRANSPARENT
+        } else {
+            t.wash(5.0)
+        })
         .cursor(Cursor::Pointer)
         .focusable(true)
         .focus_ring(2.0, -2.0, t.accent)
         .help("Double-click to rename")
-        .on_press_tx(move |s: &mut State, tx: &mut Tx| s.open_session(p, i, tx))
+        .on_press_tx({
+            let id = session.id.clone();
+            move |s: &mut State, tx: &mut Tx| s.press_row(&id, None, move |s, tx| s.open_session(p, i, tx), tx)
+        })
         .on_double_press_tx(move |s: &mut State, tx: &mut Tx| s.start_row_rename(p, i, tx))
         // `handleRowKeydown`: F2 renames.
         .on_key(move |s: &mut State, ev: &KeyEvent, tx: &mut Tx| {
@@ -195,12 +214,14 @@ pub fn session_row_with(s: &State, t: &Theme, clock: &RowClock, p: usize, i: usi
             text(title.clone())
                 .key(format!("session-title-{key}"))
                 .font(sans(13.0, if active { 500.0 } else { 400.0 }, 1.3))
-                .color(title_ink(t, active, dim))
+                // A picked row has full contrast, like the open one (`.session-item--dim-n:not(.session-item--selected)`).
+                .color(if picked { t.text } else { title_ink(t, active, dim) })
                 .group_color(t.text)
                 .truncate()
                 .grow(1.0),
         );
-    let buttons = Buttons::of(session, false);
+    // The buttons give way to the checkbox while rows are picked (`canPin && !isSelecting`).
+    let buttons = if selecting { Buttons::default() } else { Buttons::of(session, false) };
     line = tail(s, t, &key, session, &status, dim, slots, buttons, line);
     // The shell holds the pointer for the buttons beside the row: they show while it is over either.
     let mut shell = el().w_full().py(1.0).hover_group().child(line);
@@ -208,6 +229,22 @@ pub fn session_row_with(s: &State, t: &Theme, clock: &RowClock, p: usize, i: usi
         shell = shell.child(button);
     }
     shell
+}
+
+/// `.session-check`: 14 square in the glyph's 8px slot (3px of margin each side), a 1.5px muted ring, the accent filled with a
+/// check once picked.
+pub fn check_box(t: &Theme, key: &str, picked: bool) -> El {
+    let b = el()
+        .key(format!("session-check-{key}"))
+        .size(14.0, 14.0)
+        .mx(-3.0)
+        .center()
+        .radius(4.0)
+        .border(1.5, if picked { t.accent } else { t.muted.alpha(0.7) });
+    if picked {
+        return b.fill(t.accent).child(icon(&CHECK, 10.0).color(t.primary_fg));
+    }
+    b
 }
 
 /// `handleRowKeydown`: Alt+Up and Alt+Down move a pinned row's pin one place.

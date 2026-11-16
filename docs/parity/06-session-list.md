@@ -1658,6 +1658,19 @@ Pictures, Fleet's own client (left) beside native, one scratch Fleet v0.72.0: th
 ![error, dark](../../shots/parity/06-session-list/piece-i/scene-archive-error.png)
 ![error, light](../../shots/parity/06-session-list/piece-i/scene-archive-error-light.png)
 
+## Piece J, built (16 November 2026)
+
+The Pinned group and bulk selection. `src/fleet/selection.rs` (the `session-selection` store: picks in pick order, anchor, machine, visible orders), `src/fleet/home_layout.rs` (which rows the live list shows and in which group: pinned split, filter, hidden; shared by the view and the selection), `src/fleet/bulk.rs` (`press_row`, `sync_selection`, `archive_selected`, `restore_selected`, two scenes' setup), `src/view/selection_bar.rs`. `sessions.rs` draws the Pinned group above the projects (header key `pinned`, fold kept under `project:home:pinned`); rows are drawn from `home_layout`. Rows (home's and another machine's) pick with Ctrl/Cmd-click, Shift-click ranges, plain click once something is picked; a checkbox replaces the glyph, the hover buttons give way, a picked row has `--accent-dim` and full contrast. Tests: `src/fleet/tests/selection.rs` (the five `session-selection` cases under their names, plus three) and `src/tests_selection.rs` (22).
+
+Done: **1.43** (group, order, fold; shown while it has sessions), **1.48-1.53**, **1.54-1.58**, **1.59** (Restore: tested with the retention switched; the Archived view is piece K), **1.89, 1.90** (view), **2.10, 2.11** (now live), **3.61, 3.62** (`!isSelecting`), **3.70**, **1.50** (visible order: Pinned, then open groups, only while the machine's tree is open). Run against a scratch Fleet v0.72.0: the Pinned group from two real pins matches Fleet's.
+
+Open, with reasons: **1.43** the empty Pinned group during a drag (piece S). **1.52** Esc clears only while rows are picked and then doesn't interrupt. **1.53** switching to the Archived view clears: piece K. The selection prunes on the clock (100 ms while picking) because a press changes the list after that frame's poll; a count may show the old number for a moment. The check mark is 10 px but Fleet's 3 px stroke can't be set on a Rune icon. Selection by keyboard (Space on a row) is not in Fleet. `--script` has no modifier keys, so the live native picture shows the Pinned group only; the selection pictures put Fleet's live client beside the native scene (different invented data). **Not checked:** Windows and macOS (CI), a real Ctrl-click with a mouse (the tests send the modifier through Rune's input).
+
+![pinned, dark](../../shots/parity/06-session-list/piece-j/pair-pinned-dark.png)
+![pinned, light](../../shots/parity/06-session-list/piece-j/pair-pinned-light.png)
+![selection, dark](../../shots/parity/06-session-list/piece-j/pair-selection-dark.png)
+![selection, light](../../shots/parity/06-session-list/piece-j/pair-selection-light.png)
+
 ## Pieces, in build order
 
 Twenty pull requests, each a fresh session working from this file alone. Sizes are Rust lines with

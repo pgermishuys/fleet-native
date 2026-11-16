@@ -5,7 +5,7 @@
 use super::machine_header::{Heading, machine_header};
 use super::project_header::{Header, editing as project_editing, project_header};
 use super::row_actions::{Buttons, actions};
-use super::session_row::{RowClock, Slots, editing, glyph_el, move_pin_key, tail, title_ink};
+use super::session_row::{RowClock, Slots, check_box, editing, glyph_el, move_pin_key, tail, title_ink};
 use crate::State;
 use crate::fleet::groups::{LineageKind, Listed};
 use crate::fleet::machine_tree::{self, TreeGroup, TreeRow};
@@ -188,6 +188,10 @@ fn read_only_row(
         Some(g) => g.key(format!("machine-glyph-{key}")).help(status.description.clone()),
         None => el().size(8.0, 8.0).key(format!("machine-slot-{key}")),
     };
+    // Rows are picked within their own machine's tree, and only while it answers (`canSelect`).
+    let selecting = answering && s.selection.is_selecting_on(Some(&machine.key));
+    let picked = selecting && s.selection.is_selected(&session.id);
+    let glyph = if selecting { check_box(t, &key, picked) } else { glyph };
     if answering && s.machine_row_renaming(&session.id) {
         return el().w_full().py(1.0).child(editing(s, t, format!("machine-session-{key}"), glyph));
     }
@@ -218,19 +222,36 @@ fn read_only_row(
         .pl(indent)
         .pr(10.0)
         .radius(RADIUS_BTN)
-        .fill(if active { t.wash(9.0) } else { Color::TRANSPARENT })
-        .hover(if active { Color::TRANSPARENT } else { t.wash(5.0) })
+        .fill(if picked {
+            t.accent_dim
+        } else if active {
+            t.wash(9.0)
+        } else {
+            Color::TRANSPARENT
+        })
+        .hover(if picked {
+            t.accent_dim
+        } else if active {
+            Color::TRANSPARENT
+        } else {
+            t.wash(5.0)
+        })
         .cursor(Cursor::Pointer)
         .focusable(true)
         .focus_ring(2.0, -2.0, t.accent)
-        .on_press_tx(move |s: &mut State, tx: &mut Tx| s.open_machine_session(&machine_key, &session_id, tx))
+        .on_press_tx(move |s: &mut State, tx: &mut Tx| {
+            let open_key = machine_key.clone();
+            let open_id = session_id.clone();
+            let open = move |s: &mut State, tx: &mut Tx| s.open_machine_session(&open_key, &open_id, tx);
+            if answering { s.press_row(&session_id, Some(&machine_key), open, tx) } else { open(s, tx) }
+        })
         .child(slot)
         .child(glyph)
         .child(
             text(row_status::display_title(None, &session.title))
                 .key(format!("machine-title-{key}"))
                 .font(sans(13.0, if active { 500.0 } else { 400.0 }, 1.3))
-                .color(title_ink(t, active, dim))
+                .color(if picked { t.text } else { title_ink(t, active, dim) })
                 .group_color(t.text)
                 .truncate()
                 .grow(1.0),
@@ -267,7 +288,7 @@ fn read_only_row(
     };
     let slots = Slots { step_note: None, kind_label: label };
     // A machine that isn't answering can't be asked: no buttons.
-    let buttons = Buttons::of(session, !answering);
+    let buttons = if selecting { Buttons::default() } else { Buttons::of(session, !answering) };
     let line = tail(s, t, &key, session, &status, if answering { dim } else { Dim::None }, slots, buttons, line);
     let mut shell = el().w_full().py(1.0).hover_group().child(line);
     for button in actions(s, t, &key, session, &row_status::display_title(None, &session.title), buttons, Some(&machine.key)) {

@@ -55,6 +55,8 @@ mod tests_row_actions;
 #[cfg(test)]
 mod tests_rows;
 #[cfg(test)]
+mod tests_selection;
+#[cfg(test)]
 mod tests_session_header;
 #[cfg(test)]
 mod tests_starters;
@@ -120,6 +122,8 @@ pub struct State {
     /// The archive waiting for Undo, and what failed (`fleet::archive_queue`); the pin error (`fleet::pins`).
     pub archive: fleet::archive_queue::ArchiveQueue,
     pub pins: fleet::pins::Pins,
+    /// The rows picked in the list for a bulk archive (`session-selection`).
+    pub selection: fleet::selection::Selection,
     /// The header's own edits: its title, a tag being typed, "Copied", a checkout being put back.
     pub head: fleet::header_actions::HeaderUi,
     /// What the window shows: the open session by its id, so a refetch, a filter or a pin doesn't move it.
@@ -343,6 +347,7 @@ impl Default for State {
             act: Default::default(),
             archive: Default::default(),
             pins: Default::default(),
+            selection: Default::default(),
             head: Default::default(),
             route: fleet::store::Route::Session(fleet::store::invented_id(0, 0)),
             store: Default::default(),
@@ -1148,6 +1153,7 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     let aged = s.keep_row_ages(now, tx);
     s.keep_drafts(now, tx);
     let archiving = s.keep_archive(now, tx);
+    let picked = s.sync_selection(tx);
     if s.prompts.expire(now) {
         s.sync_open();
         return true;
@@ -1163,7 +1169,7 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         }
         None => false,
     };
-    if archiving || plain {
+    if archiving || plain || picked {
         return true;
     }
     match s.reply {
@@ -1204,6 +1210,9 @@ fn on_key(s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool {
     } else if ev.is_command('l') && ev.mods.shift {
         // Not a Fleet shortcut: a quick way to see both themes in the prototype.
         s.dark = Some(!s.drawn_dark.get());
+    } else if ev.key == Key::Escape && s.selection.is_selecting() {
+        // `handleSelectionKeydown`: Esc lets the picked rows go, and only that.
+        s.selection.clear();
     } else if ev.key == Key::Escape {
         interrupt(s);
     } else {
@@ -1665,6 +1674,17 @@ pub fn spec() -> AppSpec<State> {
             ("row-rename-light", |s| {
                 s.dark = Some(false);
                 s.show_row_rename(0, 1)
+            }),
+            // Piece J: the Pinned group, and three rows picked with the bar.
+            ("pinned-group", |s| s.show_pinned()),
+            ("pinned-group-light", |s| {
+                s.dark = Some(false);
+                s.show_pinned();
+            }),
+            ("selection", |s| s.show_selection()),
+            ("selection-light", |s| {
+                s.dark = Some(false);
+                s.show_selection();
             }),
             // Piece I: an archive waiting for Undo with three of its six seconds left, and the toast a failure leaves.
             ("archive-undo", |s| s.show_archive_pending("mock.0.1", 3.0)),
