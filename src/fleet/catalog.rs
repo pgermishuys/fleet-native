@@ -473,6 +473,7 @@ impl State {
             if let Ok(body) = result {
                 s.pickers.prefs.adopt(&body);
                 s.landing_check();
+                s.settle_rail();
                 s.settle_pickers(tx);
                 s.harness_setup_check();
             }

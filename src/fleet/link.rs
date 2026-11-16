@@ -77,6 +77,8 @@ pub struct Link {
     cmds: Sender<Cmd>,
     /// The thread that reads the other machines (`machine_poll`).
     machines: Sender<super::machine_poll::Cmd>,
+    /// Keeps the `/api/plugins` poll running (`plugin_poll`); the poll ends when the last clone of the link is gone.
+    _plugins: Option<Sender<()>>,
     post: Post,
 }
 
@@ -97,7 +99,8 @@ impl Link {
         let (b, p) = (base.clone(), post.clone());
         std::thread::spawn(move || run(super::settings::HOME_MACHINE_KEY.to_string(), b, rx, p));
         let machines = super::machine_poll::start(base.clone(), post.clone());
-        Link { base, key: super::settings::HOME_MACHINE_KEY.to_string(), cmds, machines, post }
+        let plugins = super::plugin_poll::start(base.clone(), post.clone(), super::plugin_poll::EVERY);
+        Link { base, key: super::settings::HOME_MACHINE_KEY.to_string(), cmds, machines, _plugins: Some(plugins), post }
     }
 
     /// A link to another machine (`key` is its id): the same hub and calls, aimed at that machine's address, which the
@@ -109,7 +112,7 @@ impl Link {
         std::thread::spawn(move || run(k, b, rx, p));
         // Nothing reads the other end: a machine link has no machine poll, and its sends are dropped.
         let (machines, _) = channel();
-        Link { base, key, machines, cmds, post }
+        Link { base, key, machines, cmds, _plugins: None, post }
     }
 
     pub fn is_home(&self) -> bool {

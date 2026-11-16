@@ -305,7 +305,7 @@ pub fn all(s: &State) -> Vec<Command> {
             View,
             Some(md("B")),
             &["panel", "list"],
-            now(|s, _| s.sidebar_open = !s.sidebar_open),
+            now(|s, _| s.set_sidebar_open(!s.sidebar_open)),
         ),
         c(
             "toggle-right-panel",

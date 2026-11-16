@@ -65,7 +65,7 @@ pub mod project_menu;
 mod prose;
 pub mod question;
 pub mod queued;
-mod rail;
+pub mod rail;
 mod reasoning;
 mod recap;
 mod right_rail;
@@ -111,7 +111,7 @@ pub fn root(s: &State, cx: &mut Cx<State>) -> El {
         _ if s.on_bare_page() => main.child(pages::page(s, &t).ml(8.0)),
         _ if s.gh_parts => main.child(gh::parts(&t).ml(8.0)),
         _ if s.gallery => main.child(crate::ui::gallery::view(s, &t).ml(8.0)),
-        Rail::Sessions if s.sidebar_open => main.child(sessions::panel(s, &t).ml(8.0)).child(gutter(&t)).child(centre(s, &t)),
+        Rail::Sessions if s.context_panel_shown() => main.child(sessions::panel(s, &t).ml(8.0)).child(gutter(&t)).child(centre(s, &t)),
         Rail::Sessions => main.child(centre(s, &t).ml(8.0)),
         // Component 16 builds Settings; until then its rail opens the one page that exists (docs/parity/17-machines.md, decision 7).
         Rail::Settings => main.child(machines_page::page(s, &t).ml(8.0)),
@@ -179,6 +179,9 @@ fn gutter(t: &Theme) -> El {
 /// says, and says plainly that this prototype stops at the Sessions shell.
 fn notice(t: &Theme, which: Rail) -> El {
     let (name, glyph): (&str, &'static Icon) = match which {
+        Rail::Fleet => ("Fleet", &crate::icons::RADAR),
+        Rail::Board => ("Board", &crate::icons::LAYOUT_GRID),
+        Rail::Jobs => ("Jobs", &crate::icons::LIST_TODO),
         Rail::Workflows => ("Workflows", &crate::icons::WORKFLOW),
         Rail::Automations => ("Automations", &crate::icons::ZAP),
         Rail::Analytics => ("Analytics", &crate::icons::CHART_COLUMN),
