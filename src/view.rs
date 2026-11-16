@@ -21,6 +21,7 @@ pub mod folder_menu;
 pub mod folder_menu_clone;
 pub mod folder_menu_path;
 pub mod fork;
+pub mod gh;
 pub mod harness_picker;
 pub mod header;
 pub mod header_banners;
@@ -85,6 +86,7 @@ pub fn root(s: &State, cx: &mut Cx<State>) -> El {
     cx.help_look(crate::ui::help_look(&t));
     let mut main = row().w_full().grow(1.0).min_h(0.0).padding(8.0).child(rail::rail(s, &t));
     main = match s.rail {
+        _ if s.gh_parts => main.child(gh::parts(&t).ml(8.0)),
         _ if s.gallery => main.child(crate::ui::gallery::view(s, &t).ml(8.0)),
         Rail::Sessions if s.sidebar_open => main.child(sessions::panel(s, &t).ml(8.0)).child(gutter(&t)).child(centre(s, &t)),
         Rail::Sessions => main.child(centre(s, &t).ml(8.0)),

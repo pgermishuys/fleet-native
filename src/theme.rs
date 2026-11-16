@@ -1,6 +1,7 @@
 //! Fleet's design tokens, copied from `client/src/assets/main.css` (`:root` is dark,
 //! `:root[data-theme="light"]` is light). Rune's windows blend in sRGB as CSS does, so the
 //! `rgba()` and `color-mix()` values carry over as they are.
+use crate::fleet::pr_state::PrState;
 use rune::tok::TextStyle;
 use rune::{Color, Shadow};
 
@@ -167,6 +168,41 @@ impl Theme {
 
     pub fn diff_del_text(&self) -> Color {
         self.error_text
+    }
+
+    /// `--pr-open`, `--pr-draft`, `--pr-blocked`, `--pr-merged` and `--pr-closed`: a pull request's colour by state.
+    pub fn pr_tone(&self, state: PrState) -> Color {
+        match state {
+            PrState::Open => self.running,
+            PrState::Draft => self.muted,
+            PrState::Blocked => self.idle,
+            PrState::Merged => self.queued,
+            PrState::Closed => self.error,
+        }
+    }
+
+    /// `--pr-open-text` and the rest: the same colours as ink that reads on the page (a draft stays `--pr-draft`).
+    pub fn pr_tone_text(&self, state: PrState) -> Color {
+        match state {
+            PrState::Open => self.running_text,
+            PrState::Draft => self.muted,
+            PrState::Blocked => self.status_waiting_text,
+            PrState::Merged => self.queued_text,
+            PrState::Closed => self.error_text,
+        }
+    }
+
+    /// `--check-pass` (`var(--running)`), `--check-fail` (`var(--error)`) and `--check-pending` (`var(--status-waiting)`).
+    pub fn check_pass(&self) -> Color {
+        self.running
+    }
+
+    pub fn check_fail(&self) -> Color {
+        self.error
+    }
+
+    pub fn check_pending(&self) -> Color {
+        self.idle
     }
 
     /// `color-mix(in srgb, var(--text) N%, transparent)`: Fleet's hover and selection washes.

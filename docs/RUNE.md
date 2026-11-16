@@ -977,3 +977,10 @@ A context-menu row's label is one text run, so a machine's name in the mono face
 - **`min_h(64.0)` on the text input, not on `auto_grow`, gives Fleet's "room for two lines"** (`auto_grow(field, 2, 7)` alone sizes to the text).
 - **A headless click on a text input focuses it, and `Key::Text` then types**; Enter reaches `on_submit` and Shift+Enter inserts a newline with no extra code.
 - **A script's clock is virtual but a thread's answer is real time.** A live run that clicks a row the instant a menu opens can find nothing there; give a live script seconds between a call and its result.
+
+## Component 8, piece F (smart links, the small GitHub parts)
+
+- No turning animation: `Cycle` only moves opacity, so a spinning icon (`CheckIcon` pending) fades in and out like the other spinners here.
+- A ring like `box-shadow: 0 0 0 2px bg, 0 0 0 3.5px ring` is two `box_shadow` calls with `spread`, the wider one first; it takes no layout room, as in CSS.
+- A bar of segments sized by `flex-grow` is `el().grow(n)` children in a row with `clip_rounded` on the row.
+- A fake server for a test of a request: the hub's own negotiate `POST` reaches it too, so filter calls by path before counting them.

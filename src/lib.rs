@@ -249,6 +249,10 @@ pub struct State {
     pub dragging: bool,
     /// Each session's queue as Fleet last said it (`fleet::queue`).
     pub queue: fleet::queue::Queues,
+    /// Smart links, GitHub's pull requests and issues attached to sessions (`fleet::smart_links`).
+    pub smart_links: fleet::smart_links::SmartLinks,
+    /// The `gh-parts` scene: the small GitHub parts on one page (`view::gh::parts`).
+    pub gh_parts: bool,
     /// What the `/`, `@` and `$` lists are made from, and the popup they open (`fleet::finder`, `fleet::autocomplete`).
     pub finder: fleet::finder::Finder,
     pub auto: fleet::autocomplete::Auto,
@@ -397,6 +401,8 @@ impl Default for State {
             retry_acts: Default::default(),
             retry_seen: 0,
             queue: Default::default(),
+            smart_links: Default::default(),
+            gh_parts: false,
             finder: Default::default(),
             auto: Default::default(),
             interrupt_acts: Default::default(),
@@ -802,6 +808,17 @@ impl State {
         self.now_ms = Some(mock::rows::NOW);
         self.projects = vec![mock::rows::chips()];
         self.set_open((0, 4));
+    }
+
+    /// The session list's pull request badges drawn from smart links over the wire's shape, not from a badge written on the
+    /// row (`mock::links`; piece F of component 8).
+    fn show_pr_badges_from_links(&mut self, dark: bool) {
+        self.show_row_chips(dark);
+        let wires = mock::links::chips_links(&self.projects[0]);
+        for session in &mut self.projects[0].sessions {
+            session.row.pr = None;
+        }
+        self.smart_links.header_links_loaded(&wires);
     }
 
     /// The queue scenes: the working session, its harness and what it waits for.
@@ -1655,6 +1672,16 @@ pub fn spec() -> AppSpec<State> {
             // Piece C of the session list: a row for every status, in both themes.
             ("row-statuses", |s| s.show_row_statuses(true)),
             ("row-statuses-light", |s| s.show_row_statuses(false)),
+            ("pr-badges-links", |s| s.show_pr_badges_from_links(true)),
+            ("pr-badges-links-light", |s| s.show_pr_badges_from_links(false)),
+            ("gh-parts", |s| {
+                s.dark = Some(true);
+                s.gh_parts = true
+            }),
+            ("gh-parts-light", |s| {
+                s.dark = Some(false);
+                s.gh_parts = true
+            }),
             ("row-chips", |s| s.show_row_chips(true)),
             ("row-chips-light", |s| s.show_row_chips(false)),
             // The row's status as the reducer derives it from a snapshot with a sub-agent.
@@ -2697,6 +2724,7 @@ fn connect_to(handle: &rune::AppHandle<State>, url: String) {
         s.no_fleet = false;
         s.link = Some(link);
         s.load_pickers();
+        s.load_smart_links();
     });
 }
 

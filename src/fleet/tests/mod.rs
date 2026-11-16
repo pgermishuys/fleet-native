@@ -520,6 +520,7 @@ mod scroll;
 mod selection;
 mod selector;
 mod settings;
+mod smart_links;
 mod state;
 mod store;
 mod tls;

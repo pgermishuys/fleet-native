@@ -276,8 +276,9 @@ pub fn tail(
         let chip = running_chip(t, &key, session.row.running_work);
         line = line.child(if buttons.two() { chip.group_opacity(1.0, 0.0) } else { chip });
     }
-    if let Some(pr) = &session.row.pr {
-        let badge = pr_badge(t, &key, pr);
+    // A row's own badge (mock data) first, else the one its session's pull request link gives.
+    if let Some(pr) = session.row.pr.clone().or_else(|| s.smart_links.pr_badge(&session.id)) {
+        let badge = pr_badge(t, &key, &pr);
         line = line.child(if buttons.two() { badge.group_opacity(1.0, 0.0) } else { badge });
     }
     let progress = row_chips::progress_view(session.row.progress.as_ref(), status.tone);

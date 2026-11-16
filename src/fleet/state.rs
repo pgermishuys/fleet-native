@@ -54,6 +54,7 @@ impl State {
             self.on_catalog_event(event);
             self.on_feeds_event(event);
             self.on_usage_event(event);
+            self.on_smart_link_event(topic, event);
             self.on_queue_event(event);
             self.on_ask_event(topic, event);
             self.on_rules_event(event);
@@ -160,6 +161,7 @@ impl State {
     pub fn on_reconnected_for(&mut self, key: &str) {
         if key == super::settings::HOME_MACHINE_KEY {
             self.load_pickers();
+            self.load_smart_links();
         }
         let open = self.open_id().filter(|id| self.target_of(id).is_some_and(|t| t.key == key));
         let open_here = open.is_some();
