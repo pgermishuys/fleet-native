@@ -112,6 +112,13 @@ impl State {
         self.set_open((1, 0));
     }
 
+    pub(crate) fn show_draft_row_starting(&mut self) {
+        self.show_new_session(true);
+        if let Some(draft) = self.new_draft.draft_mut() {
+            draft.is_starting = true;
+        }
+    }
+
     pub(crate) fn show_new_session_palette(&mut self) {
         self.ui.open = Some(crate::ui::Open::Palette);
         self.ui.palette.query = rune::TextEdit::new("new session");

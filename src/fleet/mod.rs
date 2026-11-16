@@ -19,6 +19,7 @@ pub mod context_chips;
 pub mod context_tab;
 pub mod delegations;
 pub mod discover;
+pub mod drafts;
 pub mod events;
 pub mod export;
 pub mod family;

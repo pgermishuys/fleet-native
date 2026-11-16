@@ -487,6 +487,7 @@ mod catalog;
 mod composables;
 mod delegations;
 mod discover;
+mod drafts;
 mod events;
 mod export;
 mod files;

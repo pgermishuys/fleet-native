@@ -29,6 +29,18 @@ pub fn side_main_draft_key(session: &str) -> String {
     format!("side-main.{session}")
 }
 
+/// `appendDraftReference`: the reference and one space at the end, a space before it unless the text is empty or already ends
+/// in whitespace.
+pub fn with_reference(text: &str, reference: &str) -> String {
+    let gap = if text.is_empty() || text.ends_with(char::is_whitespace) { "" } else { " " };
+    format!("{text}{gap}{reference} ")
+}
+
+/// `appendDraftText`: a blank draft becomes `add`; otherwise `add` follows the old text after a blank line.
+pub fn with_text(text: &str, add: &str) -> String {
+    if text.trim().is_empty() { add.to_string() } else { format!("{}\n\n{add}", text.trim_end()) }
+}
+
 /// What is picked for the next prompt in a session; kept in memory only.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Choice {

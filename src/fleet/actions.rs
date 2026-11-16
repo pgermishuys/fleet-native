@@ -267,6 +267,8 @@ impl State {
         let mut projects = std::mem::take(&mut self.projects);
         self.store.remove(&mut projects, &mut self.route, id);
         self.on_list(projects, tx);
+        // Its unsent text, its side conversations' and its history go with it (`clearStoredDraftsOf`).
+        self.forget_drafts_of(id);
         // Out of that machine's list at once, before its next read.
         if let Some(m) = self.machines.others.get_mut(&key) {
             m.sessions.retain(|s| s.id != id);

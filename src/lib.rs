@@ -27,6 +27,8 @@ mod tests_chips;
 #[cfg(test)]
 mod tests_context_tab;
 #[cfg(test)]
+mod tests_draft_row;
+#[cfg(test)]
 mod tests_folder_clone;
 #[cfg(test)]
 mod tests_folder_menu;
@@ -1326,6 +1328,12 @@ pub fn spec() -> AppSpec<State> {
             ("new-session-draft-light", |s| {
                 s.dark = Some(false);
                 s.show_new_session(true)
+            }),
+            // Piece P of the session list: the row once Enter is pressed ("Starting…").
+            ("draft-row-starting", |s| s.show_draft_row_starting()),
+            ("draft-row-starting-light", |s| {
+                s.dark = Some(false);
+                s.show_draft_row_starting()
             }),
             ("new-session-palette", |s| s.show_new_session_palette()),
             ("new-session-palette-light", |s| {
