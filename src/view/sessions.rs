@@ -166,6 +166,7 @@ pub fn panel(s: &State, t: &Theme) -> El {
             name: &home.name,
             unreachable: false,
             note: None,
+            why: None,
             expanded: Some(open),
             count: Some(shown),
             menu: true,

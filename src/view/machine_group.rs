@@ -41,6 +41,7 @@ pub fn machine_group(s: &State, t: &Theme, clock: &RowClock, machine: &Entry, qu
             name: &machine.name,
             unreachable: down,
             note,
+            why: s.machines.why(key),
             expanded: Some(open),
             count: Some(tree.count),
             menu: true,

@@ -498,6 +498,8 @@ mod history;
 mod instance;
 mod live;
 mod machine;
+mod machine_diagnosis;
+mod machine_routes;
 mod machines;
 mod modes;
 mod ordering;

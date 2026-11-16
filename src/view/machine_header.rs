@@ -1,6 +1,7 @@
 //! A machine's heading in the session list (`MachineHeader.vue`): chevron (when it folds), a dot that says the machine
 //! answers, its name in coral, and one note on the right. The right-click menu is `ui::menus::machine_heading_context`; the
 //! tooltip on a down note is piece H's. Home's heading is this too, only it has no group of its own to fold (its tree is the list's).
+use crate::fleet::machine_diagnosis::Diagnosis;
 use crate::icons::CHEVRON_DOWN;
 use crate::theme::{Theme, mono, sans};
 use crate::{State, Tx};
@@ -13,6 +14,8 @@ pub struct Heading<'a> {
     pub unreachable: bool,
     /// "…", "unreachable" or "unreachable · cached"; it replaces the count.
     pub note: Option<&'a str>,
+    /// Why the machine isn't answering, when Fleet knows: a tooltip on the note, the headline then what to try.
+    pub why: Option<&'a Diagnosis>,
     /// `Some` makes the heading a button with a chevron; `None` is a plain row that lines its dot up with the others.
     pub expanded: Option<bool>,
     pub count: Option<usize>,
@@ -34,7 +37,16 @@ pub fn machine_header(t: &Theme, h: Heading) -> El {
     let note = match (h.note, h.count) {
         (Some(note), _) => {
             let ink = if h.unreachable { t.error_text } else { t.muted.alpha(0.8) };
-            Some(text(note.to_string()).key(format!("{}-note", h.key)).font(note_font).color(ink))
+            let mut note = text(note.to_string()).key(format!("{}-note", h.key)).font(note_font).color(ink);
+            // A tooltip only when something says why (`v-if="note && why"`). Rune's tooltip has its own delay and width
+            // (docs/RUNE.md); the headline and the way forward are its two rows.
+            if let Some(why) = h.why {
+                note = note.help(wrapped(&why.headline));
+                if !why.next.is_empty() {
+                    note = note.help_row(wrapped(&why.next));
+                }
+            }
+            Some(note)
         }
         (None, Some(n)) => Some(text(n.to_string()).key(format!("{}-note", h.key)).font(note_font).color(t.muted.alpha(0.8))),
         (None, None) => None,
@@ -59,4 +71,24 @@ pub fn machine_header(t: &Theme, h: Heading) -> El {
         line = line.child(note);
     }
     line
+}
+
+/// Fleet's tooltip is at most 224 px wide (`max-w-64`). Rune's tooltip look is one for the whole window, so the words are
+/// broken here, about as wide as 224 px holds at 12 px.
+fn wrapped(words: &str) -> String {
+    const WIDTH: usize = 30;
+    let mut out = String::new();
+    let mut line = 0;
+    for word in words.split_whitespace() {
+        if line > 0 && line + 1 + word.chars().count() > WIDTH {
+            out.push('\n');
+            line = 0;
+        } else if line > 0 {
+            out.push(' ');
+            line += 1;
+        }
+        out.push_str(word);
+        line += word.chars().count();
+    }
+    out
 }

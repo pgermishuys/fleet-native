@@ -7,6 +7,7 @@
 //! time per machine, so a machine that is slow never holds the others.
 use super::http;
 use super::link::{Post, now_ms};
+use super::machine_diagnosis::Diagnosis;
 use super::machines::{Answer, Info, ReadJob, parse_machine_list, read_machine};
 use super::refresh::Refresh;
 use crate::State;
@@ -67,12 +68,18 @@ fn read_home(base: &str, post: &Post) {
         for job in s.machines.begin_reads() {
             spawn_read(job, again.clone());
         }
+        // A machine can have failed before home's list was read, when there was no one to ask why.
+        let down: Vec<String> = s.machines.list.iter().map(|m| m.id.clone()).filter(|k| s.machines.wants_diagnosis(k)).collect();
+        for key in down {
+            spawn_diagnose(base_of(s), key, again.clone());
+        }
     });
 }
 
 /// `readMachine`: the machine's sessions, projects and identity in one go, each call with the machine's own token.
 pub(crate) fn read_one(job: &ReadJob) -> Result<super::machines::Read, String> {
-    let get = |path: &str| -> Answer { http::get_page(&job.base, path) };
+    // A call that can't reach the machine is tried once more at another of its addresses (`fetchOnMachine`).
+    let get = |path: &str| -> Answer { super::machine_routes::get_on(&job.machine, path) };
     let (sessions, projects, identity) = std::thread::scope(|scope| {
         let projects = scope.spawn(|| get("/api/projects"));
         let identity = scope.spawn(|| get("/api/machine"));
@@ -83,9 +90,32 @@ pub(crate) fn read_one(job: &ReadJob) -> Result<super::machines::Read, String> {
     read_machine(&job.name, sessions, projects, identity, now_ms())
 }
 
+fn base_of(s: &State) -> String {
+    s.link.as_ref().map(|l| l.base.clone()).unwrap_or_default()
+}
+
+/// `diagnose`: asks home to look at why a machine isn't answering (`POST /api/machines/{id}/check`). The answer is kept only
+/// while the machine's error still stands; when home can't say either the tooltip has nothing to show.
+pub fn spawn_diagnose(home: String, key: String, post: Post) {
+    if home.is_empty() {
+        return;
+    }
+    std::thread::spawn(move || {
+        let said = http::post(&home, &format!("/api/machines/{}/check", http::escape(&key)), &serde_json::json!({}))
+            .ok()
+            .and_then(|b| b.get("diagnosis").and_then(Diagnosis::from_json));
+        post.update(move |s, _| s.machines.set_diagnosis(&key, said));
+    });
+}
+
 pub fn spawn_read(job: ReadJob, post: Post) {
     std::thread::spawn(move || {
         let result = read_one(&job);
+        // A machine on a lower address looks for a better one, once a minute, while it answers.
+        if result.is_ok() {
+            super::machine_routes::look_for_better(&job.machine);
+        }
+        let again = post.clone();
         post.update(move |s, _| {
             // One line when something changes (first list, back, away, another reason), not one per poll.
             match result {
@@ -104,6 +134,9 @@ pub fn spawn_read(job: ReadJob, post: Post) {
                         eprintln!("fleet-native: machine {}: {why}", job.name);
                     }
                     s.machines.mark_unreachable(&job.key, why);
+                    if s.machines.wants_diagnosis(&job.key) {
+                        spawn_diagnose(base_of(s), job.key.clone(), again);
+                    }
                 }
             }
         });
