@@ -1199,3 +1199,4 @@ in Rune stops a drop in the wrong tree. Nothing in Rune got in the way otherwise
 - `Link::start` also asks the server for `/api/machines`, the hub and plugins, so a fake server used as a link sees those too and
   answers `/api/machines` with an empty list unless told; its poll then replaces any machines a test put in by hand. Give the fake the
   machine list (and the other machine its sessions, projects and identity) rather than setting `machines.list`.
+- **A poll that must stop when its page is covered keys off the route and the rail, not the route alone** (component 9, piece F): a rail pressed from Home leaves the route at Home and only swaps what is drawn, so the summary bar's reads stop on `route == Home && rail == Sessions`. `wake_after(1 s)` from `poll` is enough to run 30 s and 5 min timers; no thread sleeps.

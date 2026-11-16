@@ -87,6 +87,7 @@ pub mod smart_link_row;
 pub mod starters;
 mod status;
 pub mod subagent_row;
+pub mod summary_bar;
 pub mod toolcard;
 pub mod toolrow;
 pub mod update;

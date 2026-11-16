@@ -88,7 +88,7 @@ fn serve(stream: std::net::TcpStream, log: Log, gate: Arc<AtomicBool>, answer: A
             std::thread::sleep(std::time::Duration::from_millis(5));
         }
         answer(&method, &path)
-    } else if path.starts_with("/api/sessions?") {
+    } else if path.starts_with("/api/sessions?") || path.starts_with("/api/fleet/") || path.starts_with("/api/analytics/") {
         log.lock().unwrap().push((method.clone(), path.clone(), body, token));
         answer(&method, &path)
     } else if path.starts_with("/api/machines") {

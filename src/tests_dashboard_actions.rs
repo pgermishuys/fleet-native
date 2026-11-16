@@ -168,7 +168,7 @@ fn eight_or_fewer_have_no_show_more() {
 
 // ---- another machine's page (FleetDashboard.machine.test.ts) ---------------------------------------------------------------
 
-const FALCON: &str = "ffffffffffffffffffffffffffffffff";
+pub(crate) const FALCON: &str = "ffffffffffffffffffffffffffffffff";
 
 fn rows(path: &str) -> String {
     let row = |id: &str, title: &str| {
@@ -181,7 +181,7 @@ fn rows(path: &str) -> String {
 }
 
 /// The app with home at one fake and falcon at another, the window working on falcon.
-fn on_falcon(falcon: &Fake) -> (Rig, Fake) {
+pub(crate) fn on_falcon(falcon: &Fake) -> (Rig, Fake) {
     let body =
         json!({ "machines": [{"id": FALCON, "name": "falcon", "baseUrl": falcon.base, "token": "falcon-token-0123456789"}] }).to_string();
     let listed = body.clone();

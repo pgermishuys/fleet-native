@@ -119,6 +119,8 @@ mod tests_starters;
 #[cfg(test)]
 mod tests_status_bar;
 #[cfg(test)]
+mod tests_summary_bar;
+#[cfg(test)]
 mod tests_workspace;
 mod theme;
 pub mod ui;
@@ -415,6 +417,8 @@ pub struct State {
     pub landing: fleet::dashboard::Landing,
     /// What the home page keeps while it is shown: another machine's sessions, "Show N more" (piece E).
     pub dash: fleet::dashboard_machine::Page,
+    /// The summary bar's numbers while the page is shown (piece F).
+    pub bar: fleet::summary::Bar,
 }
 
 /// The `--server` address, read once at start so `State::default` can tell it has one.
@@ -591,6 +595,7 @@ impl Default for State {
             live: false,
             landing: fleet::dashboard::Landing::at_start(true),
             dash: Default::default(),
+            bar: Default::default(),
         };
         if live() {
             state.go_live(SERVER.get().is_none());
@@ -1255,7 +1260,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     let renamed = s.keep_rename(tx) | s.keep_row_rename(tx) | s.keep_header(now, tx);
     let found = s.find_poll(tx) | s.keep_questions(tx) | s.keep_allowed_flash(now, tx);
     let exported = s.export_poll(tx) | s.keep_setup_rows(now, tx) | s.keep_context(now, tx) | s.keep_machine_page(now, tx);
-    let exported = exported | s.keep_dashboard_machine(now, tx) | s.keep_usage_watch(now, tx);
+    let exported = exported | s.keep_dashboard_machine(now, tx) | s.keep_usage_watch(now, tx) | s.keep_summary(now, tx);
     // "Copied" on a message's button ends by itself.
     let copied = match &s.copied {
         Some((_, until)) if now >= *until => {
