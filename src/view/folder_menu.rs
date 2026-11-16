@@ -148,6 +148,7 @@ fn list(s: &State, t: &Theme) -> El {
             hint: None,
             tag: None,
             no_mark: false,
+            mono_title: false,
         };
         let at = i;
         c = c.child(

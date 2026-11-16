@@ -2034,6 +2034,20 @@ Checked on Linux (lavapipe); not on Windows or macOS (CI).
   - **Hidden agents**: the page's catalog parser already drops them (5D), so `keep_offered` never sees one.
   - **The agent and model chips need the folder's catalog**: with no server the mock answers for every folder, so scenes show them.
 
+- **Done (piece K).** Rows B5.1-B5.17, B5.19 (component 17 polls), B8.1-B8.10, A18.1-A18.3, A18.6 are built (`src/fleet/new_session/{machines,more}.rs`,
+  `src/view/{machine_picker,more_options}.rs`). The machines are component 17's `State::machines`; no second reader. `target_key` now follows the
+  machine the app is on, not only `home`. Tests: `src/tests_machine_more.rs` (A21.95-98, A21.99/100/102/103 in part, A21.11, the unreachable row,
+  Esc, Project/Title/Tags), `fleet/new_session/tests_machines.rs` (`formatRelative`, `formatDateTime`); A21.198-204 were done in B. Pictures:
+  `shots/parity/07-new-session-k/` (Fleet's own client beside native, one machine and the "…" menu; three machines from mock data only, since the scratch Fleet has none).
+  Gaps, each with its reason:
+  - **A21.101, A21.104, A21.105 and A18.4** (start on the picked machine, its row kept out of the live list, harness setup there) need the send: piece L.
+  - **A18.5** (workflow starter hidden on another machine) is done in `starters.rs`; no change here.
+  - **B5.18, B8.6 keys**: the menus use Rune's focus group (Up/Down, Esc); type-ahead is not there. The Project list is drawn as the app's Select (accent fill on the
+    focused row), under the field, 4px away, as Fleet's popper does.
+  - **liveReachable**: the app has no separate check of the live machine yet, so the live row always says `Working here`; another machine's reachability is component 17's reads.
+  - **Add a machine…** goes to Settings and toasts (component 16 draws the form); `add_machine_asked` records the request.
+
+
 ### K. The machine picker and More options
 - **Creates/touches:** `src/view/{machine_picker,more_options}.rs` (new), `src/fleet/new_session/machines.rs`
   (the chip's data: a list of `MachineRow` from mock data; component 17 fills it).

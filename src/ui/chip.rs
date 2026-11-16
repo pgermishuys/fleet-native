@@ -26,6 +26,8 @@ pub struct Chip {
     /// `ns-chip__hint` inside the label: muted words before (`from `) and after (` · no fetch`) it, weight 400.
     head: Option<String>,
     tail: Option<String>,
+    /// The last mark instead of the chevron (the "…" chip's ellipsis).
+    trailing: Option<&'static Icon>,
 }
 
 impl Chip {
@@ -46,6 +48,7 @@ impl Chip {
             tag: false,
             head: None,
             tail: None,
+            trailing: None,
         }
     }
     pub fn glyph(mut self, g: &'static Icon) -> Self {
@@ -97,6 +100,10 @@ impl Chip {
     }
     pub fn tail(mut self, words: Option<String>) -> Self {
         self.tail = words;
+        self
+    }
+    pub fn trailing(mut self, g: &'static Icon) -> Self {
+        self.trailing = Some(g);
         self
     }
     pub fn label_font(mut self, font: rune::tok::TextStyle) -> Self {
@@ -161,7 +168,7 @@ impl Chip {
                 spans.push(rune::Span::new(whole.len() - tail.len(), whole.len()).weight(400.0).color(t.muted));
             }
             chip = chip.child(rich(whole, spans).font(font).color(ink).truncate().shrink());
-        } else {
+        } else if !self.label.is_empty() {
             chip = chip.child(text(self.label).font(font).color(ink).truncate().shrink());
         }
         if self.tag {
@@ -180,7 +187,10 @@ impl Chip {
         if let Some(hint) = self.hint {
             chip = chip.child(text(hint).font(sans(12.5, 400.0, 1.2)).color(t.muted));
         }
-        chip.child(mark(&crate::icons::CHEVRON_DOWN, 12.0, 0.5))
+        match self.trailing {
+            Some(g) => chip.child(mark(g, 14.0, 1.0)),
+            None => chip.child(mark(&crate::icons::CHEVRON_DOWN, 12.0, 0.5)),
+        }
     }
 }
 
@@ -237,6 +247,8 @@ pub struct Option_ {
     pub tag: Option<String>,
     /// No mark column at all (the harness and profile rows are `1fr 14px`).
     pub no_mark: bool,
+    /// The title in JetBrains Mono 12px (the machine rows' names).
+    pub mono_title: bool,
 }
 
 impl Option_ {
@@ -254,6 +266,7 @@ impl Option_ {
             hint: None,
             tag: None,
             no_mark: false,
+            mono_title: false,
         }
     }
 }
@@ -287,7 +300,7 @@ pub fn option(t: &Theme, o: Option_, lead: Option<El>, on_press: impl Fn(&mut St
     if !o.no_mark {
         r = r.child(el().w(16.0).center().children(lead));
     }
-    let font = sans(13.0, 400.0, 1.3);
+    let font = if o.mono_title { mono(12.0, 400.0, 1.3) } else { sans(13.0, 400.0, 1.3) };
     let title = match (o.bold, o.tag) {
         (_, Some(tag)) => {
             let spans = vec![rune::Span::new(o.title.len(), o.title.len() + tag.len()).weight(400.0).size(11.5).color(t.muted)];
