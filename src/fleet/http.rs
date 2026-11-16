@@ -253,9 +253,16 @@ pub fn setup_terminal_close(base: &str, id: &str) -> Result<(), String> {
     text_with("DELETE", base, &format!("/api/setup/terminals/{}", escape(id)), None).map(drop)
 }
 
-/// `GET /api/usage/limits`.
-pub fn usage_limits(base: &str) -> Result<Value, String> {
-    get(base, "/api/usage/limits")
+/// `GET /api/usage/limits`, with `?watch=true` while the popover is open: the server then asks any provider it last
+/// asked more than a minute ago.
+pub fn usage_limits(base: &str, watch: bool) -> Result<Value, String> {
+    get(base, &super::usage::limits_path(watch))
+}
+
+/// `POST /api/usage/limits/{provider}/allow` (or `DELETE` to revoke): no body.
+pub fn usage_allow(base: &str, provider: &str, allowed: bool) -> Result<(), String> {
+    let path = super::usage::allow_path(provider);
+    if allowed { read(agent().post(url(base, &path)).send_empty()).map(|_| ()) } else { delete(base, &path).map(|_| ()) }
 }
 
 /// `GET /api/harnesses/usage`.
