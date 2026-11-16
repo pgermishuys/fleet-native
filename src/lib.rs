@@ -29,6 +29,8 @@ mod tests_chips;
 #[cfg(test)]
 mod tests_context_tab;
 #[cfg(test)]
+mod tests_dashboard;
+#[cfg(test)]
 mod tests_draft_row;
 #[cfg(test)]
 mod tests_folder_clone;
@@ -2011,8 +2013,18 @@ pub fn spec() -> AppSpec<State> {
                 s.dark = Some(false);
                 s.ui.open = Some(ui::Open::Menu("help"));
             }),
-            ("home", |s| s.show_home(true)),
-            ("home-light", |s| s.show_home(false)),
+            ("home", |s| s.show_home_scene(fleet::home::Scene::Mock, true)),
+            ("home-light", |s| s.show_home_scene(fleet::home::Scene::Mock, false)),
+            ("home-needs-you", |s| s.show_home_scene(fleet::home::Scene::Three, true)),
+            ("home-needs-you-light", |s| s.show_home_scene(fleet::home::Scene::Three, false)),
+            ("home-empty", |s| s.show_home_scene(fleet::home::Scene::Empty, true)),
+            ("home-empty-light", |s| s.show_home_scene(fleet::home::Scene::Empty, false)),
+            ("home-loading", |s| s.show_home_scene(fleet::home::Scene::Loading, true)),
+            ("home-loading-light", |s| s.show_home_scene(fleet::home::Scene::Loading, false)),
+            ("home-error", |s| s.show_home_scene(fleet::home::Scene::Error, true)),
+            ("home-error-light", |s| s.show_home_scene(fleet::home::Scene::Error, false)),
+            ("home-harness", |s| s.show_home_scene(fleet::home::Scene::Harness, true)),
+            ("home-harness-light", |s| s.show_home_scene(fleet::home::Scene::Harness, false)),
             ("status-working", |s| s.show_status_hints(true, Some(mock::Status::Working))),
             ("status-working-light", |s| s.show_status_hints(false, Some(mock::Status::Working))),
             ("status-idle", |s| s.show_status_hints(true, Some(mock::Status::Idle))),

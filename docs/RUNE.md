@@ -1156,3 +1156,9 @@ every scene as they were.
   `on_hover_change` in `State`, and draw the bubble as an overlay with `anchored(.., Side::Right, Align::Center, gap)`
   against the button's key. A test reads the overlay with `rt.find("rail-tip")` after `pointer_move`.
 - Overlay entrance: `anchored` fades and scales it in; there is no per-element fade or slide, so Fleet's 4 px slide is left out.
+
+## Component 9, piece D (the home page)
+
+- **No dashed border.** Fleet's bordered empty state is dashed; Rune's border is solid only, so the empty box is solid.
+- **A focusable element needs its own Enter and Space.** `on_press` alone opened a row on a click and on Space but not on Enter in a headless run, so the row has an `on_key` for both.
+- **Space arrives as `Key::Text(" ")`**, not a named key.
