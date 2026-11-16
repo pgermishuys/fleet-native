@@ -135,6 +135,43 @@ pub fn machine_project_context(s: &State, t: &Theme) -> Vec<El> {
     )
 }
 
+/// A machine heading's right-click menu (`MachineHeader.vue`, `w-64`). Home's tree is the one the app works in ("live"):
+/// New session and New project plain, no Work here. Another machine's items say "on <name>", are off while it isn't
+/// answering, and Work here (always on) makes it the machine you're on.
+pub fn machine_heading_context(s: &State, t: &Theme) -> Vec<El> {
+    let Some((key, _)) = s.machine_menu.clone() else { return Vec::new() };
+    super::menu::context_w(t, "mctx", s.ui.point, machine_heading_entries(s, key), Some(super::rem(16.0)))
+}
+
+/// The rows of `machine_heading_context` for machine `key`.
+pub fn machine_heading_entries(s: &State, key: String) -> Vec<Entry> {
+    let live = key == crate::fleet::settings::HOME_MACHINE_KEY;
+    let name = s.machines.entries().into_iter().find(|e| e.key == key).map(|e| e.name).unwrap_or_default();
+    let off = !live && !s.machines.is_answering(&key);
+    let named = |item: Item, before: &str| if live { item } else { item.with_name(before, &name) };
+    let (k1, k2, k3) = (key.clone(), key.clone(), key);
+    let mut entries = vec![
+        Entry::Item(
+            named(Item::new("New session"), "New session on")
+                .icon(&PLUS)
+                .disabled(off)
+                .on(move |s: &mut State, _: &mut Tx| s.new_session_on(&k1)),
+        ),
+        // The dialog is component 6's piece O.
+        Entry::Item(
+            named(Item::new("New project"), "New project on")
+                .icon(&FOLDER_PLUS)
+                .disabled(true)
+                .on(move |s: &mut State, _: &mut Tx| s.new_project_on(&k2)),
+        ),
+    ];
+    if !live {
+        entries.push(Entry::Separator);
+        entries.push(Entry::Item(Item::new("Work here").icon(&MONITOR).on(move |s: &mut State, _: &mut Tx| s.work_here(&k3))));
+    }
+    entries
+}
+
 /// A project header's right-click menu (`ProjectGroup.vue`).
 pub fn project_context(s: &State, t: &Theme, p: usize) -> Vec<El> {
     crate::view::project_menu::context(s, t, p)

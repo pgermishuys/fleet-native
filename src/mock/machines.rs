@@ -177,4 +177,10 @@ impl State {
         self.ui.point = (120.0, y);
         self.ui.open = Some(crate::ui::Open::MachineContext);
     }
+
+    /// The right-click menu on a machine's heading: `key` is `home`, `m-falcon` or `m-harbor` (away) in the `Several` set.
+    pub fn show_machine_heading_menu_scene(&mut self, dark: bool, key: &str, y: f32) {
+        self.show_machines(Case::Several, dark);
+        self.show_machine_heading_menu(key, 120.0, y);
+    }
 }

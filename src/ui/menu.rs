@@ -3,7 +3,7 @@
 //! modal; the look is Fleet's.
 use super::overlay::{anchored, scrim};
 use super::rem;
-use crate::theme::{RADIUS_BTN, RADIUS_CARD, Theme, sans};
+use crate::theme::{RADIUS_BTN, RADIUS_CARD, Theme, mono, sans};
 use crate::{State, Tx};
 use rune::{Align, Cursor, El, Icon, Side, col, el, icon, row, text};
 use std::rc::Rc;
@@ -35,6 +35,8 @@ pub struct Item {
     pub mark: Mark,
     pub sub: Option<Vec<Entry>>,
     pub run: Option<Action>,
+    /// The label ends in a machine's name, drawn in mono 11.5 px / 600 (`machine-header__menu-name`): where it starts.
+    pub name_at: Option<usize>,
 }
 
 impl Item {
@@ -48,6 +50,7 @@ impl Item {
             mark: Mark::None,
             sub: None,
             run: None,
+            name_at: None,
         }
     }
     pub fn icon(mut self, i: &'static Icon) -> Self {
@@ -72,6 +75,12 @@ impl Item {
     }
     pub fn submenu(mut self, entries: Vec<Entry>) -> Self {
         self.sub = Some(entries);
+        self
+    }
+    /// "`before` `name`" with the name in the machine-name type; one line, a long name cut short.
+    pub fn with_name(mut self, before: &str, name: &str) -> Self {
+        self.label = format!("{before} {name}");
+        self.name_at = Some(before.len() + 1);
         self
     }
     pub fn on(mut self, f: impl Fn(&mut State, &mut Tx) + 'static) -> Self {
@@ -131,7 +140,18 @@ fn row_el(t: &Theme, key: String, it: Item, closes: bool) -> El {
     if let Some(g) = it.icon {
         e = e.child(icon(g, rem(0.875)).color(glyph_ink).group_color(if it.destructive { t.destructive } else { t.text }));
     }
-    e = e.child(text(it.label).font(sans(13.0, 400.0, 1.3)).color(ink).grow(1.0));
+    e = match it.name_at {
+        Some(at) => e.child(
+            row()
+                .grow(1.0)
+                .min_w(0.0)
+                .gap(rem(0.25))
+                .center_y()
+                .child(text(it.label[..at - 1].to_string()).font(sans(13.0, 400.0, 1.3)).color(ink))
+                .child(text(it.label[at..].to_string()).font(mono(11.5, 600.0, 1.3)).color(ink).truncate().min_w(0.0)),
+        ),
+        None => e.child(text(it.label).font(sans(13.0, 400.0, 1.3)).color(ink).grow(1.0)),
+    };
     if let Some(s) = it.shortcut {
         e = e.child(shortcut_chip(t, &s).ml(rem(0.5)));
     }

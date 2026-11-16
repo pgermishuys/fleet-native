@@ -43,6 +43,7 @@ pub fn machine_group(s: &State, t: &Theme, clock: &RowClock, machine: &Entry, qu
             note,
             expanded: Some(open),
             count: Some(tree.count),
+            menu: true,
         },
     )
     .on_press(move |s: &mut State| s.toggle_machine(&id));

@@ -168,6 +168,7 @@ pub fn panel(s: &State, t: &Theme) -> El {
             note: None,
             expanded: Some(open),
             count: Some(shown),
+            menu: true,
         };
         list = list.child(machine_header(t, heading).on_press(|s: &mut State| s.toggle_machine(crate::fleet::settings::HOME_MACHINE_KEY)));
         if open {
