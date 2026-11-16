@@ -49,6 +49,14 @@ fn serve(cert: (&[u8], &[u8]), connections: usize) -> (String, thread::JoinHandl
                 }
             }
             let text = String::from_utf8_lossy(&head).to_string();
+            // The body too, even though it is ignored: the client may send it after the head, and a socket closed with
+            // unread bytes is reset (macOS then throws away the reply the client hasn't read yet).
+            let length = text
+                .lines()
+                .find_map(|l| l.to_ascii_lowercase().strip_prefix("content-length:").and_then(|v| v.trim().parse::<usize>().ok()))
+                .unwrap_or(0);
+            let mut body = vec![0u8; length];
+            let _ = tls.read_exact(&mut body);
             seen.push(text.lines().next().unwrap_or("").to_string());
             if text.to_ascii_lowercase().contains("upgrade: websocket") {
                 // Replay the head to tungstenite's server side through a stream that has already read it.
