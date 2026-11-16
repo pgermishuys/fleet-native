@@ -228,6 +228,7 @@ impl State {
             move |base| parse_harnesses(http::harness_list(base, fresh)),
             move |s, _, r| {
                 s.feeds.harnesses.entry(machine).or_default().finish(seq, fresh, now_ms(), r);
+                s.settle_choices();
             },
         );
     }
@@ -242,6 +243,7 @@ impl State {
             move |s, _, r| {
                 if let Some(list) = r {
                     s.feeds.profiles.insert((machine, harness), list);
+                    s.settle_choices();
                 }
             },
         );
@@ -306,6 +308,7 @@ impl State {
                 if let Some(feed) = s.feeds.catalogs.get_mut(&machine) {
                     feed.finish(seq, now_ms(), r);
                 }
+                s.settle_choices();
             },
         );
     }

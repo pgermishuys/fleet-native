@@ -2020,6 +2020,20 @@ Checked on Linux (lavapipe); not on Windows or macOS (CI).
 - **Pictures:** native beside Fleet's, the harness, profile, agent and model menus open (the scratch
   Fleet has OpenCode only; use mock data for a second harness and say so), both themes.
 
+- **Done (piece J).** Rows B6.1-B6.12, B7.1-B7.6, A10.1-A10.14 are built (`src/fleet/new_session/harness.rs`, `src/view/{harness_picker,profile_picker}.rs`,
+  `toolbar_chips` in `src/view/new_session_strip.rs`), and A11.7-A11.12 stay with the pieces that own them. The agent and model chips reuse component 5's
+  selector menu and chip (`view::composer::selector_chip`, `fleet/selector.rs` now reads the draft's catalog on the page), and `describe_defaults`,
+  `keep_offered`, `model_from_key` of 5C over the folder's catalog. Tests: `src/tests_chips.rs` (A21.5-10, A21.22-29 under their names, plus the menus and
+  the no-harness notice), `fleet/new_session/tests_harness.rs` (`profileSummary` and `parseJsonc`). Pictures: `shots/parity/07-new-session-j/`.
+  Gaps, each with its reason:
+  - **The chips sit under a blank slot, not in the box's toolbar**: the frame and toolbar are piece L's (A4); the chips move into it there.
+  - **A10.15 (record the recent model) and the sending of the choices** are piece L's; `State::sent_choices` is what L builds the request from.
+  - **The wizard** (`fixNoHarness` on the live machine) is piece N, another machine's Settings is component 16: the link says so in a toast.
+  - **"Manage profiles"** opens Settings in Fleet; Settings isn't built (component 16), so it toasts.
+  - **The harness chip and a second harness can't be made on the scratch Fleet** (OpenCode only is installed): the harness menu is shown from a scene only.
+  - **Hidden agents**: the page's catalog parser already drops them (5D), so `keep_offered` never sees one.
+  - **The agent and model chips need the folder's catalog**: with no server the mock answers for every folder, so scenes show them.
+
 ### K. The machine picker and More options
 - **Creates/touches:** `src/view/{machine_picker,more_options}.rs` (new), `src/fleet/new_session/machines.rs`
   (the chip's data: a list of `MachineRow` from mock data; component 17 fills it).

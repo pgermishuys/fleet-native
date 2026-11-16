@@ -6,6 +6,8 @@ use crate::ui::chip::Chip;
 use crate::{State, Tx};
 use rune::{El, el, row, text};
 
+use crate::fleet::catalog::Chip as SelectorChip;
+
 /// `.new-session__strip-separator`: 1 by 14, `--border`, 3px either side.
 fn separator(t: &Theme) -> El {
     el().w(1.0).h(14.0).mx(3.0).fill(t.border)
@@ -59,4 +61,60 @@ pub fn plan_line(s: &State, t: &Theme) -> El {
         });
     }
     line
+}
+
+/// The harness, profile, agent and model chips, which Fleet puts in the message box's toolbar after the attach button
+/// (`NewSessionComposer.vue`'s `#toolbar`). The box and its frame are piece L's; until then they sit at the box's foot.
+pub fn toolbar_chips(s: &State, t: &Theme) -> El {
+    let mut r = row().key("new-session-toolbar").w_full().items_center().gap(2.0).pt(4.0).px(8.0).pb(8.0);
+    if s.shows_harness_picker() {
+        r = r.child(super::harness_picker::chip(s, t));
+    }
+    if s.shows_profile_picker() {
+        r = r.child(super::profile_picker::chip(s, t));
+    }
+    if s.offers_agent_and_model() {
+        let open = s.ui.open;
+        let chip = |label: String| SelectorChip { label, help: None };
+        r = r.child(super::composer::selector_chip(t, open, "agent", chip(s.page_agent_chip()))).child(super::composer::selector_chip(
+            t,
+            open,
+            "model",
+            chip(s.page_model_chip()),
+        ));
+    }
+    r
+}
+
+/// `.new-session__no-harness`: why no session can start yet, with the link that fixes it (`fixNoHarness`). It sits above the box,
+/// in the idle colour at 10% with a 35% border.
+pub fn no_harness_notice(s: &State, t: &Theme) -> Option<El> {
+    let (reason, action) = s.no_harness_notice()?;
+    let spans = vec![rune::Span::new(0, action.len()).color(t.accent_text).underline(t.accent_text)];
+    let fix = row()
+        .key("new-session-no-harness-fix")
+        .role("button")
+        .label(action.clone())
+        .cursor(rune::Cursor::Pointer)
+        .focus_ring(2.0, 0.0, t.accent)
+        .on_press_tx(|s: &mut State, tx: &mut Tx| s.fix_no_harness(tx))
+        .child(rune::rich(action, spans).font(sans(12.0, 500.0, 1.5)).color(t.accent_text));
+    Some(
+        row()
+            .key("new-session-no-harness")
+            .role("status")
+            .w_full()
+            .flex_wrap()
+            .items_center()
+            .gap(10.0)
+            .px(12.0)
+            .py(10.0)
+            .mb(10.0)
+            .radius(crate::theme::RADIUS_CARD)
+            .fill(t.idle.alpha(0.10))
+            .border(1.0, t.idle.alpha(0.35))
+            .border_layout()
+            .child(text(reason).font(sans(12.0, 400.0, 1.5)).color(t.text))
+            .child(fix),
+    )
 }

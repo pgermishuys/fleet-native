@@ -171,6 +171,8 @@ impl State {
             d.workspace = workspace;
         }
         self.close_picker_menu();
+        // An existing worktree is asked about as it is.
+        self.settle_choices();
     }
 
     pub fn close_picker_menu(&mut self) {

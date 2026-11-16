@@ -86,5 +86,6 @@ impl State {
         draft.folder = Some(folder);
         draft.workspace = workspace;
         self.read_folder_feeds();
+        self.settle_choices();
     }
 }

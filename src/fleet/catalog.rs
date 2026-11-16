@@ -194,7 +194,7 @@ impl EffortView {
 }
 
 /// What `Catalog`'s once-only fallback needs: the lists as the choice logic's own shape.
-fn catalog_of(agents: &[AgentOption], models: &[ModelOption]) -> Catalog {
+pub(crate) fn catalog_of(agents: &[AgentOption], models: &[ModelOption]) -> Catalog {
     let mut providers: Vec<CatalogProvider> = Vec::new();
     for m in models {
         match providers.iter_mut().find(|p| p.id == m.provider_id) {

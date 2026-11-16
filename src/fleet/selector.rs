@@ -1,6 +1,7 @@
 //! What the open selector menu (agent or model) holds and does: the filter, the highlighted row, where the rows are
 //! on screen, and the picks and stars it makes. Ports the script half of `SelectorDropdown.vue`, `ModelSelector.vue`
 //! and `AgentSelector.vue`; the rules are in `composer/selector.rs`, the drawing in `view/selector.rs`.
+use crate::composer::choice::{AgentOption, DefaultLabels, ModelOption};
 use crate::composer::groups::{ModelPicker, PREFERENCE_KEY};
 use crate::composer::selector::{self as rules, Item, Section, Shown};
 use crate::{State, Tx};
@@ -31,6 +32,10 @@ impl State {
     /// `harnessType`: stars and sections need the session's harness. The invented sessions have none and show an
     /// OpenCode-like one so scenes and tests draw the whole menu.
     pub fn harness_key(&self) -> Option<String> {
+        // On the New session page the menus are about the harness the draft would start on.
+        if self.on_new_session_page() {
+            return Some(self.resolved_harness()).filter(|h| !h.is_empty());
+        }
         match self.session().row.harness_type.clone() {
             Some(h) => Some(h),
             None if self.is_mock() => Some("opencode".into()),
@@ -42,14 +47,23 @@ impl State {
         ModelPicker::parse(self.pickers.prefs.get(PREFERENCE_KEY).unwrap_or(""))
     }
 
+    /// What the menus list: the open session's agents and models, or on the New session page the folder's catalog.
+    fn selector_lists(&self) -> (Vec<AgentOption>, Vec<ModelOption>, DefaultLabels) {
+        if self.on_new_session_page() {
+            return (self.page_agents(), self.page_models(), self.page_default_labels());
+        }
+        let lists = self.lists();
+        (lists.agents.clone(), lists.models.clone(), self.default_labels())
+    }
+
     /// The rows the menu `name` lists, flat, and in sections when the model picker has a harness.
     pub fn selector_data(&self, name: &str) -> (Vec<Item>, Option<Vec<Section>>) {
-        let (lists, labels) = (self.lists(), self.default_labels());
+        let (agents, models, labels) = self.selector_lists();
         if name == "agent" {
-            return (rules::agent_items(rules::default_item(&labels.agent_label, &labels.agent_description, false), &lists.agents), None);
+            return (rules::agent_items(rules::default_item(&labels.agent_label, &labels.agent_description, false), &agents), None);
         }
         let default = rules::default_item(&labels.model_label, &labels.model_description, true);
-        rules::model_items(default, &lists.models, self.harness_key().as_deref(), &self.model_picker(), true)
+        rules::model_items(default, &models, self.harness_key().as_deref(), &self.model_picker(), true)
     }
 
     /// What is drawn now, rows numbered.
@@ -65,6 +79,10 @@ impl State {
 
     /// The id of the row picked now (`v-model`): "" is Default.
     pub fn selector_selected(&self, name: &str) -> String {
+        if self.on_new_session_page() {
+            let d = self.new_draft.draft();
+            return d.map(|d| if name == "agent" { d.agent.clone() } else { d.model.clone() }).unwrap_or_default();
+        }
         let choice = self.choice();
         if name == "agent" { choice.agent } else { choice.model }
     }
@@ -121,6 +139,15 @@ impl State {
     /// A click on a row: sets the draft's pick, closes the menu and clears the filter.
     pub fn pick_selector(&mut self, name: &str, id: &str, tx: &mut Tx) {
         self.close_selector();
+        if self.on_new_session_page() {
+            if name == "agent" {
+                self.pick_page_agent(id);
+            } else {
+                self.pick_page_model(id);
+            }
+            self.settle_choices();
+            return;
+        }
         if name == "agent" {
             self.pick_agent(id, tx);
         } else {
@@ -148,7 +175,8 @@ impl State {
     /// picks the row nor closes the menu.
     pub fn toggle_star(&mut self, selection_key: &str) {
         let Some(harness) = self.harness_key() else { return };
-        let Some(key) = rules::star_key(&self.lists().models, &harness, selection_key) else { return };
+        let (_, models, _) = self.selector_lists();
+        let Some(key) = rules::star_key(&models, &harness, selection_key) else { return };
         let before = self.pickers.prefs.get(PREFERENCE_KEY).map(str::to_string);
         let next = self.model_picker().toggle_favourite(&key);
         self.put_preference(PREFERENCE_KEY, &next.to_json(), before);

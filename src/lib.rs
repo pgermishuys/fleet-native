@@ -21,6 +21,8 @@ mod tests_asks;
 #[cfg(test)]
 mod tests_browser;
 #[cfg(test)]
+mod tests_chips;
+#[cfg(test)]
 mod tests_folder_clone;
 #[cfg(test)]
 mod tests_folder_menu;
@@ -95,6 +97,8 @@ pub struct State {
     /// The folder menu under the box: its search text, highlighted row and Location.
     pub folder_menu: fleet::new_session::folder_menu::FolderMenu,
     pub pickers_ns: fleet::new_session::workspace::PickerMenus,
+    /// What the harness, profile, agent and model chips have asked and applied (piece J).
+    pub chips: fleet::new_session::harness::ChipState,
     /// What the New session page has read from its machine: repositories, detail, harnesses, catalog, naming.
     pub feeds: fleet::new_session::feed_state::Feeds,
     /// A scene that shows one header of each kind above the list (the Pinned group isn't drawn until piece J).
@@ -326,6 +330,7 @@ impl Default for State {
             starters: Default::default(),
             folder_menu: Default::default(),
             pickers_ns: Default::default(),
+            chips: Default::default(),
             feeds: mock::feeds(),
             sample_headers: false,
             sheet_w: 0.0,
@@ -1390,6 +1395,37 @@ pub fn spec() -> AppSpec<State> {
             ("new-session-base-nothing-light", |s| {
                 s.dark = Some(false);
                 s.show_picker_scene(fleet::new_session::workspace::Scene::BaseNothing)
+            }),
+            // Component 7, piece J: the harness, profile, agent and model chips.
+            ("new-session-chips", |s| s.show_chip_scene(fleet::new_session::harness::Scene::Chips)),
+            ("new-session-chips-light", |s| {
+                s.dark = Some(false);
+                s.show_chip_scene(fleet::new_session::harness::Scene::Chips)
+            }),
+            ("new-session-harness-menu", |s| s.show_chip_scene(fleet::new_session::harness::Scene::Harness)),
+            ("new-session-harness-menu-light", |s| {
+                s.dark = Some(false);
+                s.show_chip_scene(fleet::new_session::harness::Scene::Harness)
+            }),
+            ("new-session-profile-menu", |s| s.show_chip_scene(fleet::new_session::harness::Scene::Profile)),
+            ("new-session-profile-menu-light", |s| {
+                s.dark = Some(false);
+                s.show_chip_scene(fleet::new_session::harness::Scene::Profile)
+            }),
+            ("new-session-agent-menu", |s| s.show_chip_scene(fleet::new_session::harness::Scene::Agent)),
+            ("new-session-agent-menu-light", |s| {
+                s.dark = Some(false);
+                s.show_chip_scene(fleet::new_session::harness::Scene::Agent)
+            }),
+            ("new-session-model-menu", |s| s.show_chip_scene(fleet::new_session::harness::Scene::Model)),
+            ("new-session-model-menu-light", |s| {
+                s.dark = Some(false);
+                s.show_chip_scene(fleet::new_session::harness::Scene::Model)
+            }),
+            ("new-session-no-harness", |s| s.show_chip_scene(fleet::new_session::harness::Scene::NoHarness)),
+            ("new-session-no-harness-light", |s| {
+                s.dark = Some(false);
+                s.show_chip_scene(fleet::new_session::harness::Scene::NoHarness)
             }),
             ("new-session-plan-new", |s| s.show_picker_scene(fleet::new_session::workspace::Scene::PlanNew)),
             ("new-session-plan-new-light", |s| {
