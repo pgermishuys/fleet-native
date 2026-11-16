@@ -137,6 +137,7 @@ impl State {
         for item in to_items(Some(body)).into_iter().filter(is_running) {
             self.list_work.items.insert(item.id.clone(), item);
         }
+        self.shut_running_popover_if_idle();
     }
 
     /// `work.started`, `.updated` and `.ended` on any topic.
@@ -145,6 +146,14 @@ impl State {
             && let Some(item) = super::work::to_item(item)
         {
             self.list_work.apply(item);
+            self.shut_running_popover_if_idle();
+        }
+    }
+
+    /// Fleet's popover lives inside `v-if="running.length > 0"`: when the last item ends, the list goes with it.
+    fn shut_running_popover_if_idle(&mut self) {
+        if self.list_work.is_empty() && self.ui.open == Some(crate::ui::Open::Popover("running")) {
+            self.ui.open = None;
         }
     }
 }

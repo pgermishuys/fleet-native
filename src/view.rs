@@ -74,6 +74,7 @@ mod right_rail;
 pub mod ring;
 pub mod ring_popover;
 pub mod row_actions;
+pub mod running_counter;
 pub mod scroll;
 pub mod selection_bar;
 pub mod selector;
