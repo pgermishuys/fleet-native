@@ -330,6 +330,11 @@ pub fn rules(base: &str, session: &str) -> Result<(u16, Value), String> {
     status_of("GET", base, &format!("/api/sessions/{session}/permission-rules"))
 }
 
+/// `GET /api/sessions/{id}/canvases`: the canvases the agent keeps for the session (`use-server-canvases.ts`).
+pub fn canvases(base: &str, session: &str) -> Result<(u16, Value), String> {
+    status_of("GET", base, &format!("/api/sessions/{session}/canvases"))
+}
+
 /// `DELETE /api/sessions/{id}/permission-rules/{ruleId}`: removes one rule.
 pub fn rule_remove(base: &str, session: &str, rule: &str) -> Result<(u16, Value), String> {
     status_of("DELETE", base, &format!("/api/sessions/{session}/permission-rules/{rule}"))

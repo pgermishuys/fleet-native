@@ -188,11 +188,11 @@ An ask with `handoff` set (an agent wants to send work to a machine set to Ask).
 
 | # | Row | Source | Native today |
 |---|---|---|---|
-| 6.1 | Shown (not in a side conversation) while the session's `activityStatus` is `waiting_input` and one of its page canvases has `page.choice.status === "waiting"` | PPC, `composables/use-waiting-page.ts` | None |
-| 6.2 | Card: row, gap 10, margin-top 10, padding 12, the amber border and fill of 1.1; `PanelsTopLeft` 16px `--status-waiting`; title "Pick on the page" (13px/600); line "<page title> · or type a message to answer instead" (12px `--muted`, ellipsis, margin-top 2); "Open page" button (padding 4 10, border 1px `--border`, `--radius-btn`, 12px; hover `--accent-dim`) | PPC | None |
-| 6.3 | Open page shows the page's canvas in the content panel (`server.canvasId` or the canvas id) | PPC, `ActivityStream.handleShowCanvas` | None; hand-off: pages are component 14 |
-| 6.4 | A waiting choice is live only while the session is in a turn (`isChoiceLive`: waiting and activity not idle); a Fleet restart leaves "waiting" behind | `lib/page-choice.ts` | None |
-| 6.5 | Where the page and its choice come from: the session's canvases (`GET` of its canvases and `session.pages`), component 14's store | `stores/canvases.ts`, `lib/server-canvas.ts` | Event type read; no canvas store |
+| 6.1 | Shown (not in a side conversation) while the session's `activityStatus` is `waiting_input` and one of its page canvases has `page.choice.status === "waiting"` | PPC, `composables/use-waiting-page.ts` | Done (piece F): `State::waiting_page` (`fleet::pages`), shown through `view::pagepick::shown`, which hides it for a side conversation (the side stream, component 15, passes `true`; the main stream is the only one drawn today). |
+| 6.2 | Card: row, gap 10, margin-top 10, padding 12, the amber border and fill of 1.1; `PanelsTopLeft` 16px `--status-waiting`; title "Pick on the page" (13px/600); line "<page title> · or type a message to answer instead" (12px `--muted`, ellipsis, margin-top 2); "Open page" button (padding 4 10, border 1px `--border`, `--radius-btn`, 12px; hover `--accent-dim`) | PPC | Done (piece F): `view::pagepick`, same sizes and tints as Fleet's card; drawn beside Fleet's own live, both themes. |
+| 6.3 | Open page shows the page's canvas in the content panel (`server.canvasId` or the canvas id) | PPC, `ActivityStream.handleShowCanvas` | Done as far as this component goes (piece F): `State::open_page` sets `page_target` and opens the content panel; the page's tab is component 14's. |
+| 6.4 | A waiting choice is live only while the session is in a turn (`isChoiceLive`: waiting and activity not idle); a Fleet restart leaves "waiting" behind | `lib/page-choice.ts` | Done (piece F): `is_choice_live`, tested under `page-choice.test.ts`'s case; a restart's stale "waiting" with the session idle draws no card. |
+| 6.5 | Where the page and its choice come from: the session's canvases (`GET` of its canvases and `session.pages`), component 14's store | `stores/canvases.ts`, `lib/server-canvas.ts` | Done (piece F): `fleet::pages` loads `GET /api/sessions/{id}/canvases` on open and reconnect and follows `canvas.updated`/`canvas.closed` (never back a version); `session.pages` is only a count and plays no part. `waiting_page` is the one function component 14's store replaces. |
 
 ### 7. Data, routes and events
 
@@ -214,7 +214,7 @@ An ask with `handoff` set (an agent wants to send work to a machine set to Ask).
 
 | # | Row | Source | Native today |
 |---|---|---|---|
-| 8.1 | Order under the messages: load-older row, messages (with their question cards inside), **permission cards**, **page-pick card**, mod drafts, interrupted card, working line. The permission and page-pick cards take `margin 0 auto 16`, `max-width 760`, full width (class `activity-permission`) | `ActivityStream.vue` 880-896; `docs/parity/03` row 1.x | Permission slot done (piece B): after the messages, `max-width 760`, 16 below; the page-pick card's slot is piece F's. |
+| 8.1 | Order under the messages: load-older row, messages (with their question cards inside), **permission cards**, **page-pick card**, mod drafts, interrupted card, working line. The permission and page-pick cards take `margin 0 auto 16`, `max-width 760`, full width (class `activity-permission`) | `ActivityStream.vue` 880-896; `docs/parity/03` row 1.x | Permission slot done (piece B): after the messages, `max-width 760`, 16 below; page-pick card slot done (piece F), after the permission cards. |
 | 8.2 | A question card sits inside its message after the tool list; `questionParts` are kept apart from tools and never folded away | `MessageBubble.vue` 328, `docs/parity/03` 2.30, 1.26 | Done (piece D): `view::conversation::message_row` draws it after the message's parts; a question call has no tool row. |
 | 8.3 | While a question or ask waits, the working line reads "Needs input" with the diamond (component 3, 1.80), the session row shows "Needs input", the header says so | `WorkingIndicator`, `ActivityStream.isWaitingForInput` | Row done; line is component 3 |
 | 8.4 | The composer is not locked while a card waits: typing a message answers a page pick, and a message queues as usual | PPC text, Composer | Composer is component 5 |
@@ -324,12 +324,18 @@ for what talks to the server, with Fleet's tests ported under the same names.
 - 5.4: the level is read from the preferences the app loads at start and on reconnect, and again when the popover opens (Fleet's panel mounts only when opened, and its store reads once); no new request. Settings (component 16) will write the same map.
 - Chip sits in the toolbar after the effort toggle; component 5's final toolbar keeps that slot.
 
-### F. Page-pick card
+### F. Page-pick card — done
 - **Rows:** 6.1-6.5, 8.1 (its slot).
 - **Files:** `src/view/pagepick.rs`, `src/fleet/pages.rs` (the minimum of `session.pages` and the session's canvas list that says a choice is waiting and live; component 14 owns the rest), `src/fleet/tests/pages.rs`, `src/mock.rs`, `src/lib.rs`.
 - **Depends on:** A (box shared). Needs the page canvas data: if it isn't there, read the canvases from `GET /api/sessions/{id}/canvases` (check the route in weave-fleet at the time) and keep it behind one function component 14 replaces. ~350 lines. **Stop and ask the orchestrator** if reading canvases needs more than that.
 - **Tests to port:** none in Fleet for the card itself; port `isChoiceLive`'s cases from `lib/__tests__/page-choice.test.ts` (the live half) and add: card shows only while waiting and live, hides for a side conversation, "Open page" sets the target.
 - **Pictures:** `show-page` live: the card under the conversation in both apps, dark and light; the same session after a restart (stale "waiting", idle: no card).
+
+**Done in F (rows 6.1-6.5, 8.1's slot; pictures `shots/parity/04f-page-pick/`, native beside Fleet's own client, both themes, from a live run of `show-page` with the scripted model; `scene-*` are the scenes, including the stale state).** Gaps, with reasons:
+- Stale state after a restart (6.4) is a scene only: the scratch Fleet was not restarted; the rule is tested (`fleet::tests::pages`, `tests_pages`).
+- Fleet draws the page's tab in the content panel and a "Waiting for your pick" tool row; native shows the collapsed rail and the plain tool row (components 14 and 3).
+- Browser canvases in the same list are ignored here; component 14 owns them.
+- Side conversation: no second stream exists yet, so "hides for a side conversation" is the pure `pagepick::shown(.., in_side)`, tested.
 
 ### G. Sweep
 - **Rows:** whatever is open: 1.20, 1.24, 3.16 long texts and sizes under 520 px, 4.x remaining, 8.3-8.4 once components 3 and 5 are in, and a pass over every row marked "None".
