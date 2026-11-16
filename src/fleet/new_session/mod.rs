@@ -18,7 +18,9 @@ pub mod naming;
 pub mod page;
 pub mod path;
 pub mod pattern;
+pub mod places;
 pub mod plan;
+pub mod refs;
 pub mod request;
 pub mod send;
 pub mod starters;
@@ -39,5 +41,7 @@ mod tests_harness;
 mod tests_machines;
 #[cfg(test)]
 mod tests_path;
+#[cfg(test)]
+mod tests_places;
 #[cfg(test)]
 mod tests_state;

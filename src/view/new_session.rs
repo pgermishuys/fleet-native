@@ -91,6 +91,7 @@ fn composer(s: &State, t: &Theme) -> El {
             .children(notice)
             .child(super::new_session_box::frame(s, t))
             .child(super::new_session_strip::strip(s, t))
+            .children(super::new_session_refs::folder_notice(s, t))
             .child(super::new_session_strip::plan_line(s, t)),
     )
 }

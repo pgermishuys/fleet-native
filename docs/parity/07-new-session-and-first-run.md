@@ -2111,6 +2111,21 @@ Checked on Linux (lavapipe); not on Windows or macOS (CI).
 - **Pictures:** native beside Fleet's for `@` and a pasted image; the preset chip drawn from the fake
   source (no Fleet counterpart without GitHub; say so).
 
+- **Done (piece M).** `src/fleet/new_session/refs.rs` (the box's `@` on component 5's engine: `Lists` with no session, the picks kept under the draft's row, the file search and sessions asked of the
+  target machine, the folder-change lookups, the initial source taken), `places.rs` (`ItemPicker`, its registry, `find_hash_trigger`, `remove_trigger`, `repository_for_preset`), `src/view/new_session_refs.rs` (the
+  preset chip, the folder line), `attach.rs` generalised to the page's row. Rows done: **A4.21** (paperclip only where the harness takes pictures), **A5.8-A5.12's `@` and reference keys, paste, drop**,
+  **A7.1-A7.7, A7.9, A7.11**, **A8.1-A8.11, A8.13** (A8.2's session note by the harness's `supportsFleetTools`), **A9.1-A9.6**, **A13.3/A13.6** (references and pictures sent, forgotten after), **A19.1-A19.2**
+  (the place; nothing in core names GitHub but the id string the preset carries), **A4.11, A4.13, A4.16**. Tests in `src/tests_new_refs.rs` and `tests_places.rs`: A21.37-38, 52-59 (A21.52-55 over a fake
+  preset and a fake `ItemPicker`), A21.82-84 were done with F. Pictures: `shots/parity/07-new-session-m/` (live against a scratch Fleet: `@` and a picture, beside Fleet's own; scenes for the chip and the folder line).
+  Gaps, each with its reason:
+  - **A6.2-A6.10, B10 (the `#` popup, its keys, Esc, Shift+Enter "open its session", the GitHub search and the repository from the remotes)**: component 21's. Core offers the trigger, `search` and `pick_item`; with
+    no host registered `#` stays text. A21.46-51 and A21.206 are 21's too.
+  - **A8.12 and A9.7 (the references as chips and the pictures in the sent bubble)**: the seeded prompt (`SentPrompt`) carries no references or images and the message list draws no reference chips (component 3). The
+    first message shows its words only.
+  - **A4.3 dragging a picture over the box**: the frame takes the drop; no `--dragging` wash like the session composer's yet. **A4.14, A4.15 (aria)**: component 26.
+  - Fleet's picture shows the file's name; a pasted picture is `image.png` as in Fleet (the live picture pastes, Fleet's picks a file).
+  - **A21.37's paste** is tested through `add_files` (a file) as the clipboard path needs a platform clipboard; the paste handler shares it.
+
 ### N. The harness setup wizard
 - **Creates/touches:** `src/view/harness_setup.rs` (new), `src/fleet/harness_setup.rs` (the open rule and the
   done flag), `src/ui/dialog.rs` (reuse).

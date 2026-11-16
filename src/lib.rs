@@ -47,6 +47,8 @@ mod tests_machine_more;
 #[cfg(test)]
 mod tests_machines;
 #[cfg(test)]
+mod tests_new_refs;
+#[cfg(test)]
 mod tests_new_send;
 #[cfg(test)]
 mod tests_new_session;
@@ -1109,7 +1111,11 @@ fn end_tools(session: &mut Session) {
 }
 
 fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
-    let composer_changed = s.keep_composer_state(now) | s.keep_autocomplete(now, tx) | s.keep_attachments(tx) | s.keep_new_message(tx);
+    let composer_changed = s.keep_composer_state(now)
+        | s.keep_autocomplete(now, tx)
+        | s.keep_attachments(tx)
+        | s.keep_new_message(tx)
+        | s.keep_new_mentions(now, tx);
     let scrolled = s.keep_scroll(tx);
     let pictures = s.keep_images(tx);
     let renamed = s.keep_rename(tx) | s.keep_row_rename(tx) | s.keep_header(now, tx);
@@ -1309,6 +1315,16 @@ pub fn spec() -> AppSpec<State> {
             ("new-session-box-error-light", |s| {
                 s.dark = Some(false);
                 s.show_new_session_send(fleet::new_session::send::SendScene::Refused)
+            }),
+            ("new-session-preset", |s| s.show_new_session_refs(fleet::new_session::refs::RefsScene::Preset)),
+            ("new-session-preset-light", |s| {
+                s.dark = Some(false);
+                s.show_new_session_refs(fleet::new_session::refs::RefsScene::Preset)
+            }),
+            ("new-session-notice", |s| s.show_new_session_refs(fleet::new_session::refs::RefsScene::Notice)),
+            ("new-session-notice-light", |s| {
+                s.dark = Some(false);
+                s.show_new_session_refs(fleet::new_session::refs::RefsScene::Notice)
             }),
             ("new-session-folder", |s| s.show_new_session_strip(Some(new_session_scene_folder()), false, false)),
             ("new-session-folder-light", |s| {

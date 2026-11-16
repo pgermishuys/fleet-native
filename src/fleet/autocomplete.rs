@@ -26,6 +26,8 @@ pub struct Popup {
     pub skill_hint: String,
     pub session_note: &'static str,
     pub empty_text: Option<String>,
+    /// What the files' group label says beside it (`in {folder}` on the New session page).
+    pub file_hint: Option<String>,
 }
 
 #[derive(Default)]
@@ -75,7 +77,7 @@ impl State {
 
     /// The sessions the `@` list can offer: the list's own, with the fetched ones (archived, sub-agents) behind them. What the
     /// list holds wins, since its status is live; it keeps no `updated`, so a fetched copy gives that.
-    fn mentionable_sessions(&self) -> Vec<SessionItem> {
+    pub(crate) fn mentionable_sessions(&self) -> Vec<SessionItem> {
         let mut fetched: Vec<SessionItem> = if self.link.is_some() {
             self.finder.sessions.sessions.clone()
         } else {
@@ -208,6 +210,9 @@ impl State {
 
     /// A click on a row (`onSelect`), or on a folder's chevron (`onOpenFolder`): the text area keeps its focus.
     pub fn autocomplete_pick(&mut self, value: &str, open_folder: bool, tx: &mut Tx) {
+        if self.on_new_session_page() {
+            return self.new_autocomplete_pick(value, open_folder, tx);
+        }
         let edit = self.with_autocomplete(|engine, ctx| {
             let disabled = engine.items(ctx).iter().any(|i| i.value == value && i.disabled_reason.is_some());
             if disabled {
@@ -298,6 +303,7 @@ impl State {
                     session_note: "",
                     empty_text: skill_open.then(|| format!("No skill named “{q}”. It stays as text.")),
                     query: q,
+                    file_hint: None,
                 }
             });
             (popup, query, mention_open)

@@ -38,6 +38,7 @@ pub fn popup(s: &State, t: &Theme, p: &Popup, width: f32) -> El {
         }
         let mut section = col().w_full().items_stretch().mt(if first { 0.0 } else { 2.0 });
         first = false;
+        let hint = hint.or(if group == Group::File { p.file_hint.as_deref() } else { None });
         section = section.child(group_label(t, label, hint, group));
         for (index, item) in rows {
             section = section.child(option(s, t, p, index, item, Some(&item.value) == p.selected.as_ref()));

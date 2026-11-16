@@ -70,7 +70,8 @@ impl State {
     /// remembered workspace, anything else a new one.
     pub fn set_folder(&mut self, folder: Folder, chosen: bool) {
         let workspace = match &folder {
-            Folder::Repository(path) => {
+            // An attached item always starts in a new worktree (A7.11).
+            Folder::Repository(path) if !self.new_draft.draft().is_some_and(|d| d.github_preset.is_some()) => {
                 let machine = self.target_key();
                 self.sidebar.new_session_defaults(&machine).workspace_for(path, None)
             }
