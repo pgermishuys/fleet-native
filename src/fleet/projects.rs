@@ -163,12 +163,12 @@ impl State {
         self.projects.get(p).is_some_and(|project| self.proj.rename.as_ref().is_some_and(|r| r.id == project.id))
     }
 
-    /// The + and the menu's New session (`handleNewSessionRequest`). The page that starts it is component 7's.
-    pub fn new_session_in(&mut self, p: usize, tx: &mut Tx) {
+    /// The + and the menu's New session (`handleNewSessionRequest`). Opens the New session page for that project.
+    pub fn new_session_in(&mut self, p: usize, _tx: &mut Tx) {
         let Some(project) = self.projects.get(p).filter(|_| !self.proj.pending) else { return };
-        let (id, name) = (project.id.clone(), project.name.clone());
-        self.proj.new_session_in = Some(id);
-        self.toast(format!("New session in {name} isn't in the native app yet (component 7 of the port)."), None, 4.0, tx);
+        let id = project.id.clone();
+        self.proj.new_session_in = Some(id.clone());
+        self.open_new_session_page(Some(id));
     }
 
     /// Rename starts from the menu or F2 (`startRename`): the name is selected and has focus.

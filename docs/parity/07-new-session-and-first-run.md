@@ -1885,6 +1885,23 @@ The page that calls these (and `Feeds::detail`/`worktrees` cancel on leaving) is
 - **Pictures:** native beside Fleet's, the page with an empty stage, 1280×760, both themes; the list with
   its Draft row; the palette showing the row live.
 
+Done: **A1.1, A1.3-A1.9, A1.11 (the shown line), A2.1, A2.2, A2.4, A2.5, A2.6, A2.7, A2.8, A2.10, A2.16, A2.17, A3.3-A3.5, A3.9, A3.10, A13.12 (the row says "Starting…" while `is_starting`)**.
+`Route::NewSession { project_id }` (`fleet::store`); `State::go` is the one place the route changes, so arriving opens the draft and leaving applies Fleet's drop rule (`fleet/new_session/page.rs`);
+the page (`view/new_session.rs`): the 56 px header with "New session" and the "Not started" pill, the stage with the centred empty block, no content panel and no second gutter, the open session
+cleared on entry (its conversation is kept, so coming back starts from it). Entry points: the list's button, a project's + and the project menu's New session (a kept draft moves to that project; a plain
+open keeps its own, A3.5), the Draft row (`view/draft_row.rs`: pencil, the title or "New session", "Draft" or "Starting…", in the draft's project group above its sessions, Ungrouped when the project is unknown,
+heading the list when no group can hold it), the palette's "New session" (live, no "waiting on 7" tail) with Ctrl+N (Cmd+N on macOS; Shift+N is not it), "New session in this folder" (A2.6: disabled with no open
+session, `POST /api/sessions/{id}/new-in-folder` on a thread, errors swallowed, opens the session once the list has it). The empty-list rule from Decisions: a list with no session opens the page, not a session
+(`on_list`); a list refresh leaves the page where it is. Tests (`src/tests_new_session.rs`): A21.43, A21.94, one per entry point, the draft row's title, place and click, the empty-list rule, `new-in-folder`.
+New icon: `pencil-line` (README's command). Pictures: `shots/parity/07-new-session-d/`.
+Open, with reasons: **A21.1** (the cursor in the message box) is piece L's, there is no box yet; **A1.2** (the page rebuilt when the machine changes) waits for K; **A1.10** (starters line) is E's;
+**A2.3** (target machine) is K's; **A2.9, A2.11-A2.14** belong to the machine heading (17), the dashboard (23), GitHub (21) and the wizard (N); **A1.12-A1.20, A14.9** are E and L. The message box and chips are a
+blank slot of the right height, so the stage's centre sits where Fleet's does once they exist. **A2.5**: the shortcut is Ctrl/Cmd+N and not user-rebindable yet (component 9). **A2.6**: the new row is
+not added to the list before the refetch, so it appears when the list read returns (Fleet upserts it at once); the palette's order for this row moved after "Export raw messages" (it was before it).
+**A3.10**: Fleet opens the draft's group when a draft lands in it; here the group shows the draft row even while folded and doesn't unfold. **A3.8** (initial GitHub source) is M's.
+Checked on Linux (lavapipe), one scratch Fleet v0.72.0 for Fleet's own pictures; not on Windows or macOS (CI). Compared: the header, pill and empty line sit where Fleet's do (Fleet's title
+is about 3 px wider at 2x); the draft row matches Fleet's (position, pencil, "Draft"); Fleet's sub-line shows starters because the scratch Fleet has them on, which is piece E.
+
 ### E. The strip, chips, the popover shell and the starters
 - **Creates/touches:** `src/view/new_session_strip.rs` (new), `src/ui/chip.rs` (new: the picker chip,
   its hover, open and disabled looks, `B11`), `src/theme.rs` (tokens), `src/view/starters.rs` (new).

@@ -92,6 +92,8 @@ pub struct DraftStore {
     /// Boxes on the page now. A rebuilt box opens before the one it replaces leaves, so for a moment there are two.
     open_boxes: usize,
     count: usize,
+    /// A session made by "New session in this folder", to open when the list has it.
+    pub open_after_list: Option<String>,
 }
 
 impl DraftStore {

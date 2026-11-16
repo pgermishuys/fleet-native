@@ -16,6 +16,8 @@ pub enum Route {
     None,
     /// `/sessions/<id>`.
     Session(String),
+    /// `/sessions/new?projectId=`: the New session page (component 7).
+    NewSession { project_id: Option<String> },
 }
 
 /// Ids of the invented sessions start with this; the server never hears of them.

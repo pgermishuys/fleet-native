@@ -10,6 +10,7 @@ mod compaction;
 pub mod composer;
 pub mod conversation;
 pub mod diff;
+pub mod draft_row;
 pub mod export;
 pub mod failure;
 pub mod find;
@@ -19,6 +20,7 @@ pub mod image;
 pub mod interrupted;
 mod marks;
 pub mod message;
+pub mod new_session;
 pub mod pagepick;
 mod parts;
 pub mod permission;
@@ -64,8 +66,8 @@ pub fn root(s: &State, cx: &mut Cx<State>) -> El {
     let mut main = row().w_full().grow(1.0).min_h(0.0).padding(8.0).child(rail::rail(s, &t));
     main = match s.rail {
         _ if s.gallery => main.child(crate::ui::gallery::view(s, &t).ml(8.0)),
-        Rail::Sessions if s.sidebar_open => main.child(sessions::panel(s, &t).ml(8.0)).child(gutter(&t)).child(sheet::sheet(s, &t)),
-        Rail::Sessions => main.child(sheet::sheet(s, &t).ml(8.0)),
+        Rail::Sessions if s.sidebar_open => main.child(sessions::panel(s, &t).ml(8.0)).child(gutter(&t)).child(centre(s, &t)),
+        Rail::Sessions => main.child(centre(s, &t).ml(8.0)),
         other => main.child(notice(&t, other).ml(8.0)),
     };
     // The window's size, for the selector menu's width and height caps (`100vw - 16px`, `60vh`).
@@ -75,6 +77,11 @@ pub fn root(s: &State, cx: &mut Cx<State>) -> El {
         }
     });
     rune_kit::root(frame, crate::ui::overlays(s, &t))
+}
+
+/// What fills the rest of the row beside the list: the session sheet, or the New session page (no content panel, A1.6).
+fn centre(s: &State, t: &Theme) -> El {
+    if s.on_new_session_page() { new_session::page(s, t) } else { sheet::sheet(s, t) }
 }
 
 /// The resize handle between the session list and the sheet: 8px wide in the 16px between them.

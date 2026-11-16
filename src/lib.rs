@@ -21,6 +21,8 @@ mod tests_header;
 #[cfg(test)]
 mod tests_images;
 #[cfg(test)]
+mod tests_new_session;
+#[cfg(test)]
 mod tests_pages;
 #[cfg(test)]
 mod tests_panel;
@@ -450,10 +452,11 @@ impl State {
 
     /// Makes the session at (project, session) the open one; a place with no session leaves none open.
     pub fn set_open(&mut self, at: (usize, usize)) {
-        self.route = match self.projects.get(at.0).and_then(|p| p.sessions.get(at.1)) {
+        let route = match self.projects.get(at.0).and_then(|p| p.sessions.get(at.1)) {
             Some(s) => fleet::store::Route::Session(s.id.clone()),
             None => fleet::store::Route::None,
         };
+        self.go(route);
     }
 
     /// Every session in list order, for the previous/next keys.
@@ -1121,6 +1124,9 @@ fn on_key(s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool {
         s.step(-1, tx);
     } else if ev.is_command(']') {
         s.step(1, tx);
+    } else if ev.is_command('n') && !ev.mods.shift {
+        // `Cmd+N` on macOS, `Ctrl+N` elsewhere (A2.5): the page for a session in no project in particular.
+        s.open_new_session_page(None);
     } else if ev.is_command('l') && ev.mods.shift {
         // Not a Fleet shortcut: a quick way to see both themes in the prototype.
         s.dark = Some(!s.drawn_dark.get());
@@ -1151,6 +1157,22 @@ pub fn spec() -> AppSpec<State> {
             // Discovery found no Fleet: the status bar says where it looked and how to name one.
             ("no-fleet-found", |s| s.notice = Some(fleet::discover::sample_not_found())),
             ("content-open", |s| s.content_open = true),
+            // Piece D of the New session page: the page with an empty stage, the list's Draft row, and the palette's live row.
+            ("new-session", |s| s.show_new_session(false)),
+            ("new-session-light", |s| {
+                s.dark = Some(false);
+                s.show_new_session(false)
+            }),
+            ("new-session-draft", |s| s.show_new_session(true)),
+            ("new-session-draft-light", |s| {
+                s.dark = Some(false);
+                s.show_new_session(true)
+            }),
+            ("new-session-palette", |s| s.show_new_session_palette()),
+            ("new-session-palette-light", |s| {
+                s.dark = Some(false);
+                s.show_new_session_palette()
+            }),
             ("project-headers", |s| s.sample_headers = true),
             ("project-headers-light", |s| {
                 s.sample_headers = true;

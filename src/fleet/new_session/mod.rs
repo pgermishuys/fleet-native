@@ -7,6 +7,7 @@ pub mod feed_state;
 pub mod feeds;
 pub mod harness_choice;
 pub mod naming;
+pub mod page;
 pub mod pattern;
 pub mod plan;
 pub mod request;
