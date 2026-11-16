@@ -129,3 +129,12 @@ fn the_arrow_rules_wrap_and_know_only_the_buttons() {
     assert!(takes_focus(Some("composer"), "composer", 0));
     assert!(takes_focus(None, "composer", 0));
 }
+
+// Row 8.4: a waiting card doesn't lock the composer; what is typed goes to the draft and the card stays.
+#[test]
+fn typing_while_a_card_waits_is_the_composers() {
+    let mut rt = shown(Case::Command);
+    crate::tests::typed(&mut rt, "hello");
+    assert_eq!(rt.state.draft.text, "hello");
+    assert!(has(&rt, "permission-card"), "the card is still waiting");
+}
