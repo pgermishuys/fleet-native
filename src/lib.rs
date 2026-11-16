@@ -21,6 +21,8 @@ mod tests_browser;
 #[cfg(test)]
 mod tests_folder_menu;
 #[cfg(test)]
+mod tests_folder_path;
+#[cfg(test)]
 mod tests_header;
 #[cfg(test)]
 mod tests_images;
@@ -1257,6 +1259,54 @@ pub fn spec() -> AppSpec<State> {
             ("new-session-folder-chip-long-light", |s| {
                 s.dark = Some(false);
                 s.show_folder_menu(fleet::new_session::folder_menu::Scene::LongName)
+            }),
+            // Component 7, piece G: the folder menu's path view.
+            ("new-session-folder-path", |s| {
+                s.show_folder_menu(fleet::new_session::folder_menu::Scene::Path(fleet::new_session::folder_menu::PathScene::Open))
+            }),
+            ("new-session-folder-path-light", |s| {
+                s.dark = Some(false);
+                s.show_folder_menu(fleet::new_session::folder_menu::Scene::Path(fleet::new_session::folder_menu::PathScene::Open))
+            }),
+            ("new-session-folder-path-create", |s| {
+                s.show_folder_menu(fleet::new_session::folder_menu::Scene::Path(fleet::new_session::folder_menu::PathScene::Create))
+            }),
+            ("new-session-folder-path-create-light", |s| {
+                s.dark = Some(false);
+                s.show_folder_menu(fleet::new_session::folder_menu::Scene::Path(fleet::new_session::folder_menu::PathScene::Create))
+            }),
+            ("new-session-folder-path-create-deep", |s| {
+                s.show_folder_menu(fleet::new_session::folder_menu::Scene::Path(fleet::new_session::folder_menu::PathScene::CreateDeep))
+            }),
+            ("new-session-folder-path-create-deep-light", |s| {
+                s.dark = Some(false);
+                s.show_folder_menu(fleet::new_session::folder_menu::Scene::Path(fleet::new_session::folder_menu::PathScene::CreateDeep))
+            }),
+            ("new-session-folder-path-invalid", |s| {
+                s.show_folder_menu(fleet::new_session::folder_menu::Scene::Path(fleet::new_session::folder_menu::PathScene::Invalid))
+            }),
+            ("new-session-folder-path-invalid-light", |s| {
+                s.dark = Some(false);
+                s.show_folder_menu(fleet::new_session::folder_menu::Scene::Path(fleet::new_session::folder_menu::PathScene::Invalid))
+            }),
+            ("new-session-folder-path-exists", |s| {
+                s.show_folder_menu(fleet::new_session::folder_menu::Scene::Path(fleet::new_session::folder_menu::PathScene::Exists))
+            }),
+            ("new-session-folder-path-exists-light", |s| {
+                s.dark = Some(false);
+                s.show_folder_menu(fleet::new_session::folder_menu::Scene::Path(fleet::new_session::folder_menu::PathScene::Exists))
+            }),
+            ("new-session-folder-path-outside", |s| {
+                s.show_folder_menu(fleet::new_session::folder_menu::Scene::Path(fleet::new_session::folder_menu::PathScene::Outside))
+            }),
+            ("new-session-folder-path-outside-light", |s| {
+                s.dark = Some(false);
+                s.show_folder_menu(fleet::new_session::folder_menu::Scene::Path(fleet::new_session::folder_menu::PathScene::Outside))
+            }),
+            ("new-session-folder-conflict", |s| s.show_folder_menu(fleet::new_session::folder_menu::Scene::Conflict)),
+            ("new-session-folder-conflict-light", |s| {
+                s.dark = Some(false);
+                s.show_folder_menu(fleet::new_session::folder_menu::Scene::Conflict)
             }),
             // Component 17, piece C: the machines in the session list.
             ("machines", |s| s.show_machines(mock::machines::Case::Several, true)),

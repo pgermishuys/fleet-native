@@ -205,6 +205,8 @@ pub struct Option_ {
     pub highlighted: bool,
     /// The part of the title in bold (`Create` **`clients/portal`**).
     pub bold: Option<String>,
+    /// A key hint in the last column instead of the check (`.ns-folder-kbd`: the path view's highlighted row).
+    pub hint: Option<String>,
 }
 
 impl Option_ {
@@ -219,6 +221,7 @@ impl Option_ {
             disabled: false,
             highlighted: false,
             bold: None,
+            hint: None,
         }
     }
 }
@@ -264,5 +267,16 @@ pub fn option(t: &Theme, o: Option_, lead: Option<El>, on_press: impl Fn(&mut St
         words = words.child(text(detail).font(font).color(t.muted).truncate());
     }
     r = r.child(words);
+    if let Some(hint) = o.hint {
+        // `.ns-folder-kbd`: padding `0 4px`, 1px border, radius 4, 10.5px, line-height 16.
+        return r.child(
+            row()
+                .px(4.0)
+                .radius(4.0)
+                .border(1.0, t.border)
+                .border_layout()
+                .child(text(hint).font(sans(10.5, 400.0, 16.0 / 10.5)).color(t.muted)),
+        );
+    }
     r.child(el().w(14.0).center().children(o.checked.then(|| icon(&crate::icons::CHECK, 14.0).color(t.accent))))
 }

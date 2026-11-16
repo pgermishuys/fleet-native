@@ -7,9 +7,11 @@ pub mod feed_state;
 pub mod feeds;
 pub mod folder;
 pub mod folder_menu;
+pub mod folder_path;
 pub mod harness_choice;
 pub mod naming;
 pub mod page;
+pub mod path;
 pub mod pattern;
 pub mod plan;
 pub mod request;
@@ -22,5 +24,7 @@ mod tests;
 mod tests_feeds;
 #[cfg(test)]
 mod tests_folder;
+#[cfg(test)]
+mod tests_path;
 #[cfg(test)]
 mod tests_state;

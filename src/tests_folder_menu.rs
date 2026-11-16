@@ -209,9 +209,9 @@ fn a_path_of_its_own_offers_go_to_and_a_pasted_repository_offers_a_clone() {
 }
 
 #[test]
-fn a_row_that_needs_the_path_or_clone_view_says_so_and_leaves_the_menu_open() {
+fn a_row_that_needs_the_clone_view_says_so_and_leaves_the_menu_open() {
     let mut rt = opened();
-    click(&mut rt, "new-session-folder-path");
+    click(&mut rt, "new-session-folder-clone-form");
     assert!(rt.state.folder_menu_open());
     assert!(rt.state.ui.toast.is_some());
 }
