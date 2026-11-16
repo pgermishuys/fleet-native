@@ -1,8 +1,7 @@
 //! Ports the chips under the New session box (`NewSessionComposer.vue`'s `.new-session__strip`, rows A11, B11.17): the
 //! machine chip, a separator, the folder chip, and the workspace, base and "…" chips as their pieces land. Each chip is
 //! `ui::chip::Chip`; what a chip opens is its picker's piece (the toast says which until it is built).
-use crate::fleet::new_session::request::{Folder, Workspace};
-use crate::icons::*;
+use crate::fleet::new_session::request::Workspace;
 use crate::theme::{Theme, mono, sans};
 use crate::ui::chip::Chip;
 use crate::{State, Tx};
@@ -27,29 +26,6 @@ fn machine(s: &State, t: &Theme) -> El {
     })
 }
 
-/// The folder chip (`FolderPicker.vue`'s trigger): a mark for the kind of folder, its name, a chevron; the accent-tinted
-/// border while nothing is chosen. Its menu is pieces F-H.
-fn folder(s: &State, t: &Theme) -> El {
-    let chosen = s.new_draft.draft().and_then(|d| d.folder.as_ref());
-    let glyph = match chosen {
-        Some(Folder::None) => &MESSAGE_SQUARE,
-        Some(Folder::Directory(_)) => &FOLDER,
-        _ => &FOLDER_GIT_2,
-    };
-    let path = match chosen {
-        Some(Folder::Repository(p) | Folder::Directory(p)) => Some(p.clone()),
-        _ => None,
-    };
-    Chip::new("new-session-folder-chip", s.folder_label(chosen))
-        .glyph(glyph)
-        .attention(chosen.is_none())
-        .help(path)
-        .disabled(starting(s))
-        .view(t, |s: &mut State, tx: &mut Tx| {
-            s.toast("The folder menu isn't in the native app yet (component 7, pieces F-H).".into(), None, 4.0, tx);
-        })
-}
-
 fn starting(s: &State) -> bool {
     s.new_draft.draft().is_some_and(|d| d.is_starting)
 }
@@ -61,7 +37,7 @@ pub fn strip(s: &State, t: &Theme) -> El {
     if chips.machine {
         r = r.child(machine(s, t)).child(separator(t));
     }
-    r.child(folder(s, t))
+    r.child(super::folder_menu::trigger(s, t))
 }
 
 /// `.new-session__plan`: what Enter will do, in one muted 12px line under the chips (`min-height: 22px`, `4px 11px 0`); a path

@@ -2,7 +2,7 @@
 //! B11.1-B11.14). One look for the machine, folder, workspace, base, harness, profile and "…" pickers and the starters menu.
 use crate::State;
 use crate::theme::{RADIUS_BTN, RADIUS_CARD, Theme, mono, sans};
-use rune::{Cursor, El, Icon, col, el, icon, row, text};
+use rune::{Cursor, El, Icon, col, el, icon, rich, row, text};
 
 /// What a chip shows, in order: a leading mark, the label, a hint, a chevron (B11.6).
 pub struct Chip {
@@ -19,6 +19,10 @@ pub struct Chip {
     disabled: bool,
     help: Option<String>,
     label_font: Option<rune::tok::TextStyle>,
+    /// A spinner in place of the glyph (a clone for this folder runs).
+    busy: bool,
+    /// `ns-chip__new`: the small `new` tag after the label.
+    tag: bool,
 }
 
 impl Chip {
@@ -35,6 +39,8 @@ impl Chip {
             disabled: false,
             help: None,
             label_font: None,
+            busy: false,
+            tag: false,
         }
     }
     pub fn glyph(mut self, g: &'static Icon) -> Self {
@@ -72,6 +78,14 @@ impl Chip {
         self.help = text;
         self
     }
+    pub fn busy(mut self, on: bool) -> Self {
+        self.busy = on;
+        self
+    }
+    pub fn new_tag(mut self, on: bool) -> Self {
+        self.tag = on;
+        self
+    }
     pub fn label_font(mut self, font: rune::tok::TextStyle) -> Self {
         self.label_font = Some(font);
         self
@@ -107,7 +121,16 @@ impl Chip {
         }
         // The glyph and chevron are `--muted` and turn to `--text` with the chip's hover; the label is always `--text`.
         let mark = |g: &'static Icon, size: f32, opacity: f32| icon(g, size).color(t.muted).group_color(t.text).opacity(opacity);
-        if let Some(color) = self.dot {
+        if self.busy {
+            static FADE: [(f32, f32); 3] = [(0.0, 1.0), (0.5, 0.35), (1.0, 1.0)];
+            chip = chip.child(icon(&crate::icons::LOADER_CIRCLE, 14.0).color(t.muted).cycle(rune::Cycle {
+                period: 1.2,
+                phase: 0.0,
+                stops: &FADE,
+                still: 1.0,
+                fps: 30.0,
+            }));
+        } else if let Some(color) = self.dot {
             chip = chip.child(el().size(7.0, 7.0).radius(999.0).fill(color));
         } else if let Some(g) = self.glyph {
             chip = chip.child(mark(g, 14.0, 1.0));
@@ -115,6 +138,19 @@ impl Chip {
         let ink = self.ink.unwrap_or(t.text);
         let font = self.label_font.unwrap_or(sans(12.5, 500.0, 1.2));
         chip = chip.child(text(self.label).font(font).color(ink).truncate().shrink());
+        if self.tag {
+            // `.ns-chip__new`: 10px/600 on a 16px line, `0 4px`, 4px radius, `--running` at 14%.
+            chip = chip.child(
+                row()
+                    .key("new-session-folder-new")
+                    .px(4.0)
+                    .h(16.0)
+                    .center_y()
+                    .radius(4.0)
+                    .fill(t.running.alpha(0.14))
+                    .child(text("new").font(sans(10.0, 600.0, 1.6)).color(t.running_text)),
+            );
+        }
         if let Some(hint) = self.hint {
             chip = chip.child(text(hint).font(sans(12.5, 400.0, 1.2)).color(t.muted));
         }
@@ -165,11 +201,25 @@ pub struct Option_ {
     pub mono_detail: bool,
     pub checked: bool,
     pub disabled: bool,
+    /// The folder menu's highlighted row (`[data-highlighted]`): the same wash as hover.
+    pub highlighted: bool,
+    /// The part of the title in bold (`Create` **`clients/portal`**).
+    pub bold: Option<String>,
 }
 
 impl Option_ {
     pub fn new(key: impl Into<String>, title: impl Into<String>) -> Option_ {
-        Option_ { key: key.into(), icon: None, title: title.into(), detail: None, mono_detail: false, checked: false, disabled: false }
+        Option_ {
+            key: key.into(),
+            icon: None,
+            title: title.into(),
+            detail: None,
+            mono_detail: false,
+            checked: false,
+            disabled: false,
+            highlighted: false,
+            bold: None,
+        }
     }
 }
 
@@ -195,9 +245,20 @@ pub fn option(t: &Theme, o: Option_, lead: Option<El>, on_press: impl Fn(&mut St
     } else {
         r = r.hover(wash).focus_highlight(wash).on_press_tx(on_press);
     }
+    if o.highlighted && !o.disabled {
+        r = r.fill(wash);
+    }
     let lead = lead.or_else(|| o.icon.map(|g| icon(g, 14.0).color(t.muted)));
     r = r.child(el().w(16.0).center().children(lead));
-    let mut words = col().grow(1.0).min_w(0.0).child(text(o.title).font(sans(13.0, 400.0, 1.3)).color(t.text).truncate());
+    let font = sans(13.0, 400.0, 1.3);
+    let title = match o.bold {
+        Some(bold) => {
+            let spans = vec![rune::Span::new(o.title.len() + 1, o.title.len() + 1 + bold.len()).weight(600.0)];
+            rich(format!("{} {bold}", o.title), spans).font(font).color(t.text).truncate()
+        }
+        None => text(o.title).font(font).color(t.text).truncate(),
+    };
+    let mut words = col().grow(1.0).min_w(0.0).child(title);
     if let Some(detail) = o.detail {
         let font = if o.mono_detail { mono(11.0, 400.0, 1.3) } else { sans(11.5, 400.0, 1.3) };
         words = words.child(text(detail).font(font).color(t.muted).truncate());

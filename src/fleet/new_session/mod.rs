@@ -5,6 +5,8 @@ pub mod draft;
 pub mod feed_calls;
 pub mod feed_state;
 pub mod feeds;
+pub mod folder;
+pub mod folder_menu;
 pub mod harness_choice;
 pub mod naming;
 pub mod page;
@@ -18,5 +20,7 @@ pub mod strip;
 mod tests;
 #[cfg(test)]
 mod tests_feeds;
+#[cfg(test)]
+mod tests_folder;
 #[cfg(test)]
 mod tests_state;
