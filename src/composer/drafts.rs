@@ -312,11 +312,13 @@ pub fn write_file(dir: &Path, json: &str) -> std::io::Result<()> {
 }
 
 static ASKED: AtomicU64 = AtomicU64::new(0);
-static WRITTEN: Mutex<u64> = Mutex::new(0);
+/// The last write asked for, per folder: a newer write to another folder must not make an older one to this folder look stale.
+static WRITTEN: Mutex<Option<std::collections::HashMap<PathBuf, u64>>> = Mutex::new(None);
 
 /// Writes unless a later write already went out, so a slow thread never puts older text over newer.
-fn write_in_order(mine: u64, dir: &Path, json: &str) {
-    let mut written = WRITTEN.lock().unwrap_or_else(|e| e.into_inner());
+pub(crate) fn write_in_order(mine: u64, dir: &Path, json: &str) {
+    let mut guard = WRITTEN.lock().unwrap_or_else(|e| e.into_inner());
+    let written = guard.get_or_insert_with(Default::default).entry(dir.to_path_buf()).or_insert(0);
     if mine > *written {
         *written = mine;
         let _ = write_file(dir, json);

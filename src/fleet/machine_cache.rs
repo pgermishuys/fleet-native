@@ -113,17 +113,39 @@ pub fn write(dir: &Path, text: &str) -> std::io::Result<()> {
 }
 
 static ASKED: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-static WRITTEN: std::sync::Mutex<u64> = std::sync::Mutex::new(0);
+/// The last write asked for, per folder: a newer write to another folder must not make an older one to this folder look stale.
+static WRITTEN: std::sync::Mutex<Option<HashMap<PathBuf, u64>>> = std::sync::Mutex::new(None);
+
+pub(crate) fn write_in_order(mine: u64, dir: &Path, text: &str) {
+    let mut guard = WRITTEN.lock().unwrap_or_else(|e| e.into_inner());
+    let written = guard.get_or_insert_with(Default::default).entry(dir.to_path_buf()).or_insert(0);
+    if mine > *written {
+        *written = mine;
+        let _ = write(dir, text);
+    }
+}
 
 /// Writes on a thread; a write asked for before one already written is dropped, so a slow thread never puts an older
 /// list over a newer one. A failure is dropped too: without the cache an away machine just shows no rows.
 pub fn spawn_save(dir: PathBuf, text: String) {
     let mine = ASKED.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
-    std::thread::spawn(move || {
-        let mut written = WRITTEN.lock().unwrap_or_else(|e| e.into_inner());
-        if mine > *written {
-            *written = mine;
-            let _ = write(&dir, &text);
-        }
-    });
+    std::thread::spawn(move || write_in_order(mine, &dir, &text));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_newer_write_to_another_folder_does_not_drop_an_older_one_to_this_folder() {
+        let base = std::env::temp_dir().join(format!("fleet-native-mc-order-{}", std::process::id()));
+        let (here, there) = (base.join("here"), base.join("there"));
+        write_in_order(u64::MAX - 1, &there, "{}");
+        write_in_order(u64::MAX - 5, &here, "{\"kept\":true}");
+        assert!(std::fs::read_to_string(here.join(FILE)).is_ok_and(|j| j.contains("kept")));
+        // The same folder still drops an older write.
+        write_in_order(u64::MAX - 6, &here, "{\"older\":true}");
+        assert!(std::fs::read_to_string(here.join(FILE)).is_ok_and(|j| j.contains("kept")));
+        let _ = std::fs::remove_dir_all(base);
+    }
 }

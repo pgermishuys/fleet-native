@@ -444,3 +444,17 @@ fn a_damaged_picks_entry_loses_only_the_picks() {
     assert_eq!(stored.picks["b"].files(), ["@x/"]);
     assert!(stored.picks["b"].sessions().is_empty(), "a session with no id is dropped");
 }
+
+#[test]
+fn a_newer_draft_write_to_another_folder_does_not_drop_an_older_one_to_this_folder() {
+    use crate::composer::drafts;
+    let base = std::env::temp_dir().join(format!("fleet-native-drafts-order-{}", std::process::id()));
+    let (here, there) = (base.join("here"), base.join("there"));
+    drafts::write_in_order(u64::MAX - 1, &there, "{}");
+    drafts::write_in_order(u64::MAX - 5, &here, "{\"kept\":true}");
+    assert!(std::fs::read_to_string(here.join(drafts::FILE)).is_ok_and(|j| j.contains("kept")));
+    // The same folder still drops an older write.
+    drafts::write_in_order(u64::MAX - 6, &here, "{\"older\":true}");
+    assert!(std::fs::read_to_string(here.join(drafts::FILE)).is_ok_and(|j| j.contains("kept")));
+    let _ = std::fs::remove_dir_all(base);
+}
