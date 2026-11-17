@@ -41,6 +41,13 @@ impl State {
                 // Widened with the list folded, so every tab fits and the badges show.
                 self.sidebar_open = false;
                 self.right.widened = true;
+                // One agent running, as the work the Agents tab counts.
+                let session = self.canvas_session();
+                let running = serde_json::json!([{
+                    "id": "scene-agent", "sessionId": session, "workId": "w1", "kind": "subagent", "title": "general",
+                    "label": "Migrate the cache", "status": "running", "background": true, "startedAt": "2026-10-04T10:00:00Z",
+                }]);
+                self.agents_history.insert(session, crate::fleet::work::to_items(Some(&running)));
                 self.canvases.agents_running = 1;
                 self.edit_canvases(|c, id| {
                     c.open(id, CanvasKind::Progress);
