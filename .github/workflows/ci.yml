@@ -36,12 +36,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Two packages to build; the Vulkan software driver to draw pictures on a runner with no GPU.
+      # Three packages to build (WebKitGTK for the web views over page tabs); the Vulkan software driver to draw pictures on a
+      # runner with no GPU; a virtual display, X input and a screen grabber for the web view walk.
       - name: Linux packages
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libxkbcommon-dev libwayland-dev mesa-vulkan-drivers
+          sudo apt-get install -y libxkbcommon-dev libwayland-dev libwebkit2gtk-4.1-dev mesa-vulkan-drivers xvfb xdotool ffmpeg
 
       - name: Rust (rust-toolchain.toml)
         run: rustup show
@@ -65,6 +66,7 @@ jobs:
         run: cargo clippy --all-targets --locked -- -D warnings
 
       - name: Test
+        id: test
         run: cargo test --locked
 
       # Pull requests draw on Linux only: on Windows and macOS the software renderer already uses every
@@ -85,6 +87,25 @@ jobs:
         run: |
           cargo build --locked
           bash scripts/update-check.sh target/debug/fleet-native
+
+      # A web view is a native window, so no scene can draw it: the app runs in a real window on an invented page canvas served
+      # from tests/fixtures/web, with real OS input, and grabs the whole screen after each step (scripts/web-walk.sh).
+      # macOS clicks and types with cliclick, if the runner lets a process send input.
+      - name: Web view walk
+        if: always() && steps.test.outcome != 'skipped'
+        timeout-minutes: 12
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then brew install cliclick >/dev/null || true; fi
+          cargo build --locked
+          bash scripts/web-walk.sh target/debug/fleet-native shots/out-web
+
+      - name: Upload the web view walk
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-walk-${{ matrix.name }}
+          path: shots/out-web/
+          if-no-files-found: warn
 
       - name: Upload the pictures
         if: always()
@@ -125,7 +146,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libxkbcommon-dev libwayland-dev
+          sudo apt-get install -y libxkbcommon-dev libwayland-dev libwebkit2gtk-4.1-dev
 
       - name: Rust (rust-toolchain.toml)
         run: rustup show

@@ -101,16 +101,16 @@ Owner: `14` = this component, with the piece; another number = that component. "
 
 | # | Row | Source | Native today | Owner |
 |---|---|---|---|---|
-| 14.1 | A web view is a child of the Rune window: `App::on_window` hands the native handle (again after the window is remade), `with_raw_handle` lends it to `WebViewBuilder::build_as_child`; one web view per web tab, keyed by tab id | research spike | None | 14 A |
-| 14.2 | It is placed from its body's `El::on_layout` (window points = wry's logical size): it follows the gutter drag, a window resize, Widen's 200 ms ease, the panel opening and closing, and the narrow layout's panel over the conversation | spike; `AppShell.vue` | None | 14 A (gutter, resize), D (the rest) |
-| 14.3 | It is on screen only while its tab is the active tab of the open panel, on the Sessions route, of the open session; otherwise it is moved out of the window (decision 6) | PC/BC mounted only when active | None | 14 A, D |
-| 14.4 | Hidden while a Rune overlay is open over it (decision 7); back where it was, with its page as it was, when it closes | spike | None | 14 A (`ui.open`), D (all) |
-| 14.5 | Linux: `gtk::init()` before the first web view; GTK's loop turned from `poll` every 16 ms while any web view exists, not at all otherwise | spike | None | 14 A |
-| 14.6 | Windows: the UI thread is a single-threaded COM apartment before WebView2 starts | spike | None | 14 A |
-| 14.7 | Keyboard: a click in the page gives it the keys; a press anywhere in Rune takes them back (decision 8), per system | spike (Windows, Linux tried) | None | 14 A (shown), D (all of Rune's focusable things) |
+| 14.1 | A web view is a child of the Rune window: `App::on_window` hands the native handle (again after the window is remade), `with_raw_handle` lends it to `WebViewBuilder::build_as_child`; one web view per web tab, keyed by tab id | research spike | **Done (A):** `web::platform`: `on_window` keeps the handle, `build_as_child` makes the view when the tab is first shown, one per tab id | 14 A |
+| 14.2 | It is placed from its body's `El::on_layout` (window points = wry's logical size): it follows the gutter drag, a window resize, Widen's 200 ms ease, the panel opening and closing, and the narrow layout's panel over the conversation | spike; `AppShell.vue` | **Done (A) for the gutter and a window resize**: the frame's `on_layout` → `set_bounds` (Linux walk, CI grabs). Widen, the narrow layout and the panel toggle are D's | 14 A (gutter, resize), D (the rest) |
+| 14.3 | It is on screen only while its tab is the active tab of the open panel, on the Sessions route, of the open session; otherwise it is moved out of the window (decision 6) | PC/BC mounted only when active | **Done (A)** for the route, the panel and the page target (`web::wanted`, tests in `tests_web.rs`); session switches are D's | 14 A, D |
+| 14.4 | Hidden while a Rune overlay is open over it (decision 7); back where it was, with its page as it was, when it closes | spike | **Done (A)** for `ui.open` (`Wanted::Hidden`; the palette over the page in the walk, the page back with its script still running); the other overlays are D's | 14 A (`ui.open`), D (all) |
+| 14.5 | Linux: `gtk::init()` before the first web view; GTK's loop turned from `poll` every 16 ms while any web view exists, not at all otherwise | spike | **Done (A):** `gtk::init` in `on_window`; `poll` turns GTK every 16 ms while a view exists, not at all before | 14 A |
+| 14.6 | Windows: the UI thread is a single-threaded COM apartment before WebView2 starts | spike | **Done (A):** `CoInitializeEx(APARTMENTTHREADED)` in `on_window` (CI) | 14 A |
+| 14.7 | Keyboard: a click in the page gives it the keys; a press anywhere in Rune takes them back (decision 8), per system | spike (Windows, Linux tried) | **Shown (A):** the host script tells the app when the page takes focus (IPC `{"host":"focus"}`); Rune's focus is blurred; when a Rune element takes focus again the host calls `focus_parent` (Windows and macOS, not Linux). Linux walk: page got "tides", the composer "harbour". Windows and macOS: see the CI grabs in the PR | 14 A (shown), D (all of Rune's focusable things) |
 | 14.8 | Fleet's shortcuts while the page has the keys: none reach the app (as Fleet) | iframe behaviour | n/a | 14 D (checked, written down) |
-| 14.9 | The fallback panel when no web view can be made (decision 9): words, **Open in browser**; drawn by headless runs and scenes | ours | None | 14 A |
-| 14.10 | Before the page draws, the area is white (`.page-canvas__frame { background: #fff; color-scheme: light }`), not the theme's ground | PC, BC, HR | None | 14 A |
+| 14.9 | The fallback panel when no web view can be made (decision 9): words, **Open in browser**; drawn by headless runs and scenes | ours | **Done (A):** `view::page_tab` fallback, scene `page-tab-fallback`; what headless runs draw | 14 A |
+| 14.10 | Before the page draws, the area is white (`.page-canvas__frame { background: #fff; color-scheme: light }`), not the theme's ground | PC, BC, HR | **Done (A)** in Rune (`Theme::page_frame`) and wry (`with_background_color` white). **Open on Linux:** WebKitGTK's view is black until its first paint (about 1-2 s on a software renderer); GTK's container, which wry doesn't expose | 14 A |
 | 14.11 | Scale: bounds right at 100 %, 150 % and 200 % (Windows' scale setting, Retina) | spike risk | None | 14 D (100 % in CI; others by hand, or "not checked") |
 | 14.12 | A page's `alert`/`confirm`/`prompt` (`allow-modals`) show as the system's dialogs | PC sandbox | None | 14 D (per system, written down) |
 | 14.13 | Pop-ups and downloads go to the system browser (decision 12) | PC sandbox | None | 14 D |
@@ -122,14 +122,14 @@ Owner: `14` = this component, with the piece; another number = that component. "
 
 | # | Row | Source | Native today | Owner |
 |---|---|---|---|---|
-| 14.20 | `shownPage(state)`: `pageId`, `entry`, `source`, `files`, `bytes`, `shownAt`, `warnings` (strings only), `label` (non-empty), `choice` (`readPageChoice`); missing ones empty | SC | Only `choice` (`fleet/pages.rs`) | 14 A (address fields), C (all) |
-| 14.21 | Address: `/pages/{pageId}/{entry}`, the id and each segment of `entry` percent-encoded, on the session's machine | SC `pageAddress` | None | 14 A |
+| 14.20 | `shownPage(state)`: `pageId`, `entry`, `source`, `files`, `bytes`, `shownAt`, `warnings` (strings only), `label` (non-empty), `choice` (`readPageChoice`); missing ones empty | SC | Address fields **done (A):** `fleet::web_page::shown_page` (`pageId`, `entry`, `source`, `shownAt`), held on `PageCanvas::page`; the rest is C's | 14 A (address fields), C (all) |
+| 14.21 | Address: `/pages/{pageId}/{entry}`, the id and each segment of `entry` percent-encoded, on the session's machine | SC `pageAddress` | **Done (A):** `page_address`, `page_url` on home's base (another machine's base is 14.16, C) | 14 A |
 | 14.22 | Bar: 40 px, padding 0 8, gap 2, border-bottom `--border`. Reload icon button (28×28, `RotateCw` 14, `--muted`, hover `--accent-dim` and `--text`, title and label "Reload") | PC | None | 14 C |
 | 14.23 | Source: the `label` if set (12 px, `--text`, 500), else the file name (`source`'s last part, or `entry`) then the whole `source` in mono 11.5 `--muted` with an ellipsis; margin 0 4, gap 8, tooltip the label or source | PC | None | 14 C |
 | 14.24 | **Open in a new tab** (`ExternalLink` 14): the page's address in the system browser | PC `openOutside` | None | 14 C |
 | 14.25 | Warnings, when any: a list labelled "Links that won't load", 12 px `--text`, padding 8 12, gap 4, border-bottom, ground `--status-waiting` at 8 %; each with `TriangleAlert` 13 in `--status-waiting` | PC | None | 14 C |
-| 14.26 | The page area: `--panel-bg` behind a white web view filling it | PC | None | 14 A |
-| 14.27 | Loads again when the agent shows it again (a new `shownAt`) and on Reload; not on any other redraw | PC `frameKey` | None | 14 A (shownAt), C (Reload) |
+| 14.26 | The page area: `--panel-bg` behind a white web view filling it | PC | **Done (A):** `--panel-bg` holding the white frame the view covers | 14 A |
+| 14.27 | Loads again when the agent shows it again (a new `shownAt`) and on Reload; not on any other redraw | PC `frameKey` | **Done (A)** for `shownAt`: the load key `{pageId}:{shownAt}`; a new one calls `load_url`. Reload is C's | 14 A (shownAt), C (Reload) |
 | 14.28 | Theme on load: `window.name` = `fleet:` + `{"place":"tab","appearance":…,"variables":{…}}`; then `fleet:theme` `{appearance, variables}` after each change | PT `pageFrameName`, `pageThemeMessage` | None | 14 B |
 | 14.29 | The variables: `--fleet-bg` ← `--panel-bg`, `-surface` ← `--card-bg`, `-text`, `-muted`, `-border`, `-accent`, `-accent-surface` ← `--accent-dim`, `-accent-text` ← `--primary-foreground`, `-success` ← `--running`, `-warning` ← `--idle`, `-danger` ← `--error`, `-info` ← `--complete`, `-radius` ← `--radius-card`, `-font-sans`, `-font-mono`, `--fleet-chart-1..5` (dark `#6366f1 #d95926 #199e70 #c98500 #d55181`, light first `#5B6EC7`), `--fleet-font-size` (14px); appearance `dark`/`light` | PT `FROM_APP`, `CHART_SERIES`, `readPageTheme` | None | 14 B |
 | 14.30 | Messages read (`readPageMessage`): `fleet:page-reply` (text non-blank, ≤ 65,536 chars), `fleet:page-state` (JSON ≤ 262,144 chars), `fleet:page-hello`, `fleet:page-choice` (value string, non-blank, ≤ 16,000; summary string or none, trimmed, else the value; over 200 chars cut to 199 + `…`); a bad pick becomes `fleet:page-choice-refused` with Fleet's three sentences; anything else, and a refusal sent by the page itself, is ignored | PB | None | 14 B |
@@ -203,7 +203,7 @@ Owner: `14` = this component, with the piece; another number = that component. "
 | # | State | Where | Owner |
 |---|---|---|---|
 | 14.100 | Page tab: loading (white), loaded, a label instead of a source, a long source path, three warnings, each choice-bar state, a failed send | page-tab scenes (the web area as the fallback panel) + live pictures | 14 C |
-| 14.101 | Page tab, no web view possible (fallback) | scene `page-tab-fallback` | 14 A |
+| 14.101 | Page tab, no web view possible (fallback) | scene `page-tab-fallback` | **Done (A)** |
 | 14.102 | Browser tab: loading, a page, an address error, starting with output, exited with code, stopped, build failed with output open, three ports, another machine (both wordings), agent's tab banners | scenes + live | 14 H, I, J |
 | 14.103 | Document tab: markdown, HTML, a long title | scenes | 14 E |
 | 14.104 | The page card in a conversation, full size open | scenes + live | 14 F |
@@ -268,6 +268,17 @@ Pictures: Linux (Xvfb) and the CI grabs from Windows and macOS: the scratch Flee
 page after a gutter drag and after a resize, a Rune menu open with the page hidden, the page back with its state, the keyboard steps; the
 fallback scene in both themes. **If a system can't host it**, stop and report with the pictures: that system gets the fallback (decision 9)
 and the owner decides whether the component goes on. Write every finding into `docs/RUNE.md` (focus per system, re-show, scale).
+
+**Piece A done (17 November 2026).** What it came to:
+- The scratch Fleet's `show-page` page loads live in the panel on Linux (Xvfb), at the address `page_url` gives, beside Fleet's own
+  client (`shots/parity/14-web-content/A/`). It draws in Fleet's dark theme already: the server's injected variables default to it.
+- The walk is a step of CI's `check` job on all three systems (`scripts/web-walk.sh`, `src/web/demo.rs`, uploaded as `web-walk-<system>`),
+  not a job of its own: it reuses the job's debug build instead of building the app a second time on each system.
+- The gutter step sets the dragged width (`RightPanel::width`) rather than dragging with the OS pointer: the web view follows the
+  panel's layout either way, and a real drag is one more thing to script per system.
+- The host script reaches the app over wry's IPC from a page served with Fleet's `sandbox` CSP (opaque origin) on Linux; piece B
+  stands on that. Windows and macOS: see the PR's CI grabs and its log lines (`web: heard from …`).
+- Open from A: 14.10 on Linux (black until WebKit's first paint); the rest of 14.2, 14.3, 14.4 and 14.7 are D's, as planned.
 
 **B. The page bridge and the theme** (plain Rust plus the injected script). Rows 14.28–14.33.
 Files: `src/web/page_bridge.rs` (`read_page_message`, kept states, `read_page_size`, the limits), `src/web/page_theme.rs` (`PageTheme` from

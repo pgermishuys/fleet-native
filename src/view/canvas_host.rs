@@ -169,6 +169,11 @@ fn body(s: &State, t: &Theme) -> El {
         Some(CanvasKind::Progress) => super::progress_tab::progress_tab(s, t),
         Some(CanvasKind::Changes) => super::changes::changes_body(s, t),
         Some(CanvasKind::Turns) => super::turns::turns_tab(s, t),
+        // Component 14's page tab, from the server canvas the tab carries.
+        Some(CanvasKind::Page) => match crate::web::wanted::page_tab(s) {
+            Some((_, page)) => super::page_tab::body(s, t, &page),
+            None => stand_in(t, CanvasKind::Page),
+        },
         Some(kind) => stand_in(t, kind),
         None => el(),
     };
