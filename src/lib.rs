@@ -137,6 +137,8 @@ mod tests_settings_appearance_page;
 #[cfg(test)]
 mod tests_settings_general;
 #[cfg(test)]
+mod tests_settings_harnesses;
+#[cfg(test)]
 mod tests_settings_kit;
 #[cfg(test)]
 mod tests_settings_labs;
@@ -1337,7 +1339,8 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_usage_watch(now, tx)
         | s.keep_summary(now, tx)
         | s.keep_settings_anchor(tx)
-        | s.keep_memory(tx);
+        | s.keep_memory(tx)
+        | s.keep_harnesses_page(tx);
     // "Copied" on a message's button ends by itself.
     let copied = match &s.copied {
         Some((_, until)) if now >= *until => {
@@ -1663,6 +1666,18 @@ pub fn spec() -> AppSpec<State> {
             ("settings-appearance-open", |s| appearance_scene(s, true, |a| a.thinking = conv::gist::Thinking::Open)),
             ("settings-appearance-hidden", |s| appearance_scene(s, true, |a| a.thinking = conv::gist::Thinking::Hidden)),
             ("settings-appearance-xl", |s| appearance_scene(s, true, |a| a.font_size = fleet::settings::appearance::FontSize::Xl)),
+            ("settings-harnesses", |s| s.show_harnesses(true, mock::harnesses::Case::Mixed, None)),
+            ("settings-harnesses-light", |s| s.show_harnesses(false, mock::harnesses::Case::Mixed, None)),
+            ("settings-harnesses-signin", |s| s.show_harnesses(true, mock::harnesses::Case::Mixed, Some("copilot"))),
+            ("settings-harnesses-signin-light", |s| s.show_harnesses(false, mock::harnesses::Case::Mixed, Some("copilot"))),
+            ("settings-harnesses-off", |s| s.show_harnesses(true, mock::harnesses::Case::ClaudeOff, Some("claude-code"))),
+            ("settings-harnesses-off-light", |s| s.show_harnesses(false, mock::harnesses::Case::ClaudeOff, Some("claude-code"))),
+            ("settings-harnesses-missing", |s| s.show_harnesses(true, mock::harnesses::Case::Mixed, Some("pi"))),
+            ("settings-harnesses-missing-light", |s| s.show_harnesses(false, mock::harnesses::Case::Mixed, Some("pi"))),
+            ("settings-harnesses-open", |s| {
+                s.show_harnesses(true, mock::harnesses::Case::Mixed, None);
+                s.ui.open = Some(ui::Open::Select("default-harness"));
+            }),
             ("settings-machine", |s| settings_machine_scene(s, true, "general", None, false)),
             ("settings-machine-light", |s| settings_machine_scene(s, false, "general", None, false)),
             ("settings-machine-open", |s| settings_machine_scene(s, true, "general", None, true)),

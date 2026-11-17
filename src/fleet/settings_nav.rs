@@ -149,6 +149,8 @@ pub struct SettingsNav {
     /// Preference keys whose save is under way: their switch shows the spinner and doesn't press (`saving`).
     pub saving: std::collections::BTreeSet<String>,
     pub demo: crate::view::settings::kit_scene::Demo,
+    /// What Harnesses keeps: the machine it asked, the checks under way, the switch being saved.
+    pub harnesses: crate::fleet::settings::harnesses::HarnessesPage,
     /// The machine Settings shows (`use-settings-machine.ts`): the one you're on until the menu's switch picks another.
     pub choice: crate::fleet::machine_choice::MachineChoice,
     /// What Memory read from the machine shown, while the page is open.

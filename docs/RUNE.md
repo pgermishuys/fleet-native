@@ -1357,3 +1357,9 @@ against the same restart opens no card (`tap` then fails with "no element"). Emp
   the field takes `min_h` from the line count (wrapped lines counted at about 76 characters) and sits in a scrolling box with `max_h`.
 - An answer from a thread can come back after the dialog closed or opened for another skill, so each request carries a ticket and an
   older ticket's answer changes nothing.
+
+## Component 16, piece G (Harnesses)
+
+- **No `aria-selected`**: a tab is marked with `.checked(on)`; a test reads which tab is shown from `State`, since `ElementInfo` has no checked field.
+- **No hover underline or hover text colour on its own**: a tab's text takes `hover_group()` on the row and `group_color` on the text; a link that only underlines on hover stays plain.
+- **A link inside a sentence** is a wrapping row of the text, the link element and the full stop: it breaks between them, not inside the text.

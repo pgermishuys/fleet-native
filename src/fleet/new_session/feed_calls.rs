@@ -218,6 +218,11 @@ impl State {
     /// The harness list: a plain read is shared with one already running; `fresh` makes the machine check every harness
     /// again first (Check again, a harness that just changed).
     pub fn read_harnesses(&mut self, key: &str, fresh: bool) {
+        self.read_harnesses_then(key, fresh, |_| {});
+    }
+
+    /// `read_harnesses`, and `after` runs once the answer (or its failure) is in.
+    pub fn read_harnesses_then(&mut self, key: &str, fresh: bool, after: impl FnOnce(&mut State) + Send + 'static) {
         if self.feed_base(key).is_none() {
             return;
         }
@@ -230,6 +235,7 @@ impl State {
                 s.feeds.harnesses.entry(machine).or_default().finish(seq, fresh, now_ms(), r);
                 s.settle_choices();
                 s.harness_setup_check();
+                after(s);
             },
         );
     }

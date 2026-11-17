@@ -116,7 +116,7 @@ fn says_which_pages_ask_the_machine_which_belong_to_the_app_and_which_come_later
 
 #[test]
 fn puts_a_chip_beside_the_title_naming_the_machine_or_this_app() {
-    let mut rt = settings("harnesses", Case::Several);
+    let mut rt = settings("permissions", Case::Several);
     rt.update(|s, _| s.machines.set_current("m-falcon"));
     pick(&mut rt, "m-harbor");
     assert_eq!(words(&rt, "settings-machine-chip"), "harbor");
