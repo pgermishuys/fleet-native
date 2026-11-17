@@ -175,3 +175,35 @@ fn a_session_that_already_had_content_on_load_does_not_pop_open() {
     s.note_session_content("full", true);
     assert_eq!(s.remembered_right("full"), Some(true), "never seen empty, so no first change");
 }
+
+#[test]
+fn opening_changes_to_review_gives_the_panel_the_review_width_and_another_tab_takes_it_back() {
+    let mut rt = open();
+    rt.update(|s, _| s.route = crate::fleet::store::Route::Session("ses-a".into()));
+    rt.update(|s, _| s.sheet_w = 1300.0);
+    assert_eq!(rt.state.right_shown_w(), 360.0);
+    rt.update(|s, _| {
+        s.edit_canvases(|c, id| c.open_changes(id, Some("src/a.rs")));
+    });
+    assert!(rt.state.right.review);
+    assert_eq!(rt.state.right_shown_w(), 780.0, "60% of the sheet");
+    rt.update(|s, _| {
+        s.edit_canvases(|c, id| c.activate(id, "files"));
+    });
+    assert!(!rt.state.right.review);
+    assert_eq!(rt.state.right_shown_w(), 360.0);
+}
+
+#[test]
+fn widen_is_kept_for_the_next_run_and_adopted_from_the_file() {
+    let mut rt = open();
+    rt.update(|s, tx| s.toggle_widened(tx));
+    assert!(rt.state.right.widened);
+    assert!(rt.state.sidebar.canvas_widened());
+    let mut rt = open();
+    let mut saved = Sidebar::default();
+    saved.save_canvas_widened(true);
+    let dir = std::env::temp_dir().join("fleet-native-widen-adopt");
+    rt.update(|s, _| s.adopt_settings(dir, Sidebar::parse(&saved.to_json())));
+    assert!(rt.state.right.widened, "the panel starts as it was left");
+}

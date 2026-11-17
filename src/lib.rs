@@ -304,6 +304,8 @@ pub struct State {
     pub rules: fleet::rules::Rules,
     /// Every session's page canvases as Fleet last said (`fleet::pages`); the page-pick card reads the open session's.
     pub pages: fleet::pages::Pages,
+    /// Every session's panel tabs (`fleet::canvases`, component 10).
+    pub canvases: fleet::canvases::Canvases,
     /// The page canvas "Open page" asked the content panel to show; the tab is component 14's.
     pub page_target: Option<String>,
     /// When the Allowed chip last grew, on `clock`: it flashes for `view::allowed::FLASH_SECS` after.
@@ -583,6 +585,7 @@ impl Default for State {
             asks: Default::default(),
             rules: Default::default(),
             pages: Default::default(),
+            canvases: Default::default(),
             page_target: None,
             allowed_flash: None,
             questions: Default::default(),

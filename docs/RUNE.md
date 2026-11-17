@@ -1482,3 +1482,10 @@ Plain Rust, no view, so nothing new about Rune. For the next piece that draws th
   selected text then comes with its path and range (`TextSelection::texts`), so the handler can map the texts to line
   numbers. Fleet's Split selects down one column only. Here that means one selection group per column, so Split is
   drawn as two columns of fixed-height rows side by side, not as rows that each hold both sides.
+
+## Component 10, piece A (the tab model)
+
+Nothing new about Rune: the piece is plain Rust. Two things to know for the pieces after it. Lucide 1.0 renamed `FileJson` to
+`FileBraces`, so `tools/gen-icons.py` takes `file-braces` (Fleet's client still says `FileJson`; the picture is the same). And
+`State::open_id` is `None` for the mock sessions, so `State::edit_canvases` does nothing on them: a scene that needs tabs must set
+a real route first (or use `Canvases` directly).
