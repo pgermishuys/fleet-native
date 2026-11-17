@@ -262,8 +262,8 @@ fn shows_a_harness_s_own_switches_on_by_the_default_it_sends_until_the_user_sets
     r.put("copilot.hydrafusion", "true");
     assert_eq!(r.rt.state.harness_prefs().get("copilot.hydrafusion"), Some("true"));
     // Saving lists every harness again.
-    let fresh = r.fake.lock().unwrap().fresh;
-    assert!(fresh >= 2, "the page checked again after the save: {fresh}");
+    let fake = r.fake.clone();
+    r.wait("the list asked again after the save", move |_| fake.lock().unwrap().fresh >= 2);
 }
 
 #[test]
