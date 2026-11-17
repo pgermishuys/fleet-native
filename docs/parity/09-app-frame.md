@@ -191,7 +191,7 @@ their pictures from scenes beside Fleet's client with the answers put in by Play
 | 8.4 | **What's new after an update** (server variant) and "Updated to …" quiet chip | `use-update-notices.ts` 235-300 | Component 16 (needs release notes and Settings → Updates & about) |
 | 8.5 | **Dream** notices ("Fleet updated <repo>'s notes", See what changed → Settings → Memory) | `use-dream-notices.ts` | Component 16 (Memory and Dreaming) |
 | 8.6 | "Couldn't change mods" | `use-start-without-mods.ts` | Component 22 |
-| 8.7 | "<skill> is now your version N" with Undo | `ImproveSkillDialog.vue` 136-163 | 12.x (here) |
+| 8.7 | "<skill> is now your version N" with Undo | `ImproveSkillDialog.vue` 136-163 | **Done (U)**: sparkles icon, countdown, 8 s, Undo puts back the version before (`PUT …/active`); a failure reads "Couldn't undo it" and the server's words |
 | 8.8 | Stale window ("This window is still running the old version. Reload…") | `use-stale-window-notice.ts` | Not applicable: native loads no web bundle from the server |
 | 8.9 | Desktop app updates through the Electron bridge (ready: "Fleet X is ready", Restart / Later, the working-sessions warning; available: Download) | `use-update-notices.ts` 60-230 | Electron only; see 8.10 |
 | 8.10 | **Native's self-updater** (component 25) shows an item and a dialog, not a card. Fleet's equivalent is 8.9's card and chip. Whether the updater moves onto the notice card is **the owner's call** (open decision 1); until then 4.13 stays | `src/update/`, `view/update.rs` | Open decision |
@@ -246,10 +246,10 @@ their pictures from scenes beside Fleet's client with the answers put in by Play
 | # | Element / behaviour | Source | Native today |
 |---|---|---|---|
 | 12.1 | "Improve" on a finished skill tool card whose skill is built in (`GET /api/skills/built-in` names them); testid `tool-card-improve` | `ToolCard.vue:256-265`, `use-activity-messages.ts:157` | **Done (T)**: key `tool-<id>-improve`; the list loads on the first snapshot with a skill call; the press sets `skills.improving` (the dialog is U) |
-| 12.2 | Dialog (max 588): "Improve <name>" with "Fleet's" / "Yours · vN" pill; "Say what it should do differently. …"; "What should it do differently?" (3 rows, 2,000 max, Ctrl/⌘ Enter asks); "What the model reads": the skill and the note (always), "What you asked, and the reply", "The tool calls in that turn", "The whole conversation, from a copy of this session", each "~N tokens", total "Asked once, on this session's model"; **Propose a change** / "Asking the model…" | ISD | None |
+| 12.2 | Dialog (max 588): "Improve <name>" with "Fleet's" / "Yours · vN" pill; "Say what it should do differently. …"; "What should it do differently?" (3 rows, 2,000 max, Ctrl/⌘ Enter asks); "What the model reads": the skill and the note (always), "What you asked, and the reply", "The tool calls in that turn", "The whole conversation, from a copy of this session", each "~N tokens", total "Asked once, on this session's model"; **Propose a change** / "Asking the model…" | ISD | **Done (U)**: `view::improve_skill` on `fleet::improve` (588 wide, 88% high, the pill, the note with Ctrl/⌘ Enter, the five lines of "What the model reads" with `~N tokens` and the total, Propose a change / "Asking the model…"). **Gaps:** the note's 2,000 limit is applied when it is asked, not as the user types; Fleet's own pictures can't be made live (a scratch Fleet has no built-in skill run, and the dialog opens only from one), so the stages are drawn from scenes |
 | 12.3 | `POST /api/skills/built-in/{name}/improve` `{sessionId, note, context?, wholeConversation?}` → proposal; failure back to the form with the server's words | `skill-versions.ts:125` | **Done (T)**: `fleet::skills` (`skill_ask`, 300 s wait, the server's `error` text; `skill_keep`, `skill_switch`, `improve_turn`, `estimate_tokens`); nothing calls them until U |
-| 12.4 | Proposal: the note quoted, `SkillDiff` (mono 11.5 header, "+N −N", max 340, "No differences."), "The question used N tokens (M from the cache)."; Change the note, Edit by hand / Show the diff, **Keep it** (`POST …/versions`) then the notice 8.7 with Undo (`PUT …/active`) | ISD, SkillDiff | **Diff done (T)**: `view::skill_diff`, header, `+N −N`, 340 max, "No differences."; **gap:** a long line scrolls sideways, Fleet wraps it (the diff's number column and code are rows of one fixed height). The proposal text, Change the note, Edit by hand and Keep it are U |
-| 12.5 | Editing by hand: Fleet uses CodeMirror; native uses the kit's textarea (mono), said so | `ProfileConfigEditor.vue` | — |
+| 12.4 | Proposal: the note quoted, `SkillDiff` (mono 11.5 header, "+N −N", max 340, "No differences."), "The question used N tokens (M from the cache)."; Change the note, Edit by hand / Show the diff, **Keep it** (`POST …/versions`) then the notice 8.7 with Undo (`PUT …/active`) | ISD, SkillDiff | **Diff done (T)**: `view::skill_diff`, header, `+N −N`, 340 max, "No differences."; **gap:** a long line scrolls sideways, Fleet wraps it (the diff's number column and code are rows of one fixed height). **Done (U)**: the note quoted, the diff, "The question used N tokens (M from the cache).", Change the note, Edit by hand / Show the diff, Keep it (off while the text equals what the change was made to), then notice 8.7 |
+| 12.5 | Editing by hand: Fleet uses CodeMirror; native uses the kit's textarea (mono), said so | `ProfileConfigEditor.vue` | **Done (U)**: mono text field in a scrolling box (max 340); no syntax colours, a flagged difference |
 | 12.6 | Editor and History dialogs | `SkillEditorDialog.vue`, `SkillHistoryDialog.vue` | Component 16 |
 
 ## What stays out of reach, and why
@@ -301,7 +301,7 @@ Counts are `it(...)` cases. Ported tests keep Fleet's names (in Rust, `snake_cas
 | `lib/__tests__/problem-report.test.ts` | 5 | P |
 | `components/report/__tests__/ProblemReportDialog.test.ts` | 10 | P (3-5: the request), **Q done (1-2)**, **R done (6-10)** |
 | `AuthGate`, `LoginPage`, `OnboardingGate` | none | S writes cases from reading |
-| `components/skills/__tests__/ImproveSkillDialog.test.ts` | 4 | U |
+| `components/skills/__tests__/ImproveSkillDialog.test.ts` | 4 | **Done (U)**, `tests_improve_skill.rs`, same names (the refusal's words are the fake server's) |
 
 ## Open decisions (the owner's)
 
@@ -628,7 +628,7 @@ before N, O and U; P, Q, R; S; T, U; V when decided; W last.
 - **Pictures:** a skill tool card with Improve, and a `SkillDiff`, from scenes beside Fleet's (a scratch Fleet has no
   built-in skill run: say so).
 
-### Piece U: Improve a skill: the dialog
+### Piece U: Improve a skill: the dialog — **done**
 
 - **Rows:** 12.2, 12.4, 12.5, 8.7.
 - **Files:** new `src/view/improve_skill.rs`, scenes for compose, asking, proposal, editing, error, tests.

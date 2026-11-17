@@ -16,6 +16,7 @@ pub mod frame;
 pub mod groups;
 pub mod header;
 pub mod images;
+pub mod improve;
 pub mod links;
 pub mod long;
 pub mod machines;

@@ -174,9 +174,9 @@ fn the_skill_diff_says_its_file_counts_the_lines_and_says_when_nothing_differs()
 
 // ── A fake Fleet ────────────────────────────────────────────────────────────────────────────────────────────────────
 
-type Heard = Arc<Mutex<Vec<(String, String, Value)>>>;
+pub(crate) type Heard = Arc<Mutex<Vec<(String, String, Value)>>>;
 
-fn fake() -> (String, Heard) {
+pub(crate) fn fake() -> (String, Heard) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("a port");
     let base = format!("http://{}", listener.local_addr().unwrap());
     let heard: Heard = Default::default();
@@ -214,6 +214,12 @@ fn fake() -> (String, Heard) {
                 log.lock().unwrap().push((method.clone(), path.clone(), posted.clone()));
                 let skill = json!({"name": "tidy-docs", "description": "d", "enabled": true, "version": 1, "versions": [{}]});
                 let (status, reply) = match (method.as_str(), path.as_str()) {
+                    ("GET", "/api/skills/built-in/tidy-docs") => (
+                        200,
+                        json!({"name": "tidy-docs", "description": "d", "enabled": true, "fleetContent": "a\n", "yourContent": null,
+                            "version": null, "versions": []})
+                        .to_string(),
+                    ),
                     ("GET", "/api/skills/built-in") => (200, json!([{"name": "tidy-docs", "enabled": true}]).to_string()),
                     ("POST", "/api/skills/built-in/tidy-docs/improve") if posted["note"] == "refuse" => {
                         (422, json!({"error": "The model is busy."}).to_string())
@@ -240,7 +246,7 @@ fn fake() -> (String, Heard) {
     (base, heard)
 }
 
-fn rig(base: String) -> (Runtime<State>, Receiver<Job>) {
+pub(crate) fn rig(base: String) -> (Runtime<State>, Receiver<Job>) {
     let (jobs, queue) = channel::<Job>();
     let jobs = Mutex::new(jobs);
     let post = Post::new(move |job| {
@@ -252,7 +258,7 @@ fn rig(base: String) -> (Runtime<State>, Receiver<Job>) {
     (rt, queue)
 }
 
-fn calls(heard: &Heard, method: &str, needle: &str) -> Vec<(String, String, Value)> {
+pub(crate) fn calls(heard: &Heard, method: &str, needle: &str) -> Vec<(String, String, Value)> {
     heard.lock().unwrap().iter().filter(|c| c.0 == method && c.1.contains(needle)).cloned().collect()
 }
 

@@ -57,6 +57,8 @@ mod tests_header_toolbar;
 #[cfg(test)]
 mod tests_images;
 #[cfg(test)]
+mod tests_improve_skill;
+#[cfg(test)]
 mod tests_lineage;
 #[cfg(test)]
 mod tests_machine_addresses;
@@ -2708,6 +2710,22 @@ pub fn spec() -> AppSpec<State> {
                 s.open_settings("general", None);
                 s.skills.demo_diff = true;
             }),
+            ("improve-skill-fresh", |s| s.show_improve(mock::improve::Case::Fresh, true)),
+            ("improve-skill-fresh-light", |s| s.show_improve(mock::improve::Case::Fresh, false)),
+            ("improve-skill-filled", |s| s.show_improve(mock::improve::Case::Filled, true)),
+            ("improve-skill-filled-light", |s| s.show_improve(mock::improve::Case::Filled, false)),
+            ("improve-skill-whole", |s| s.show_improve(mock::improve::Case::Whole, true)),
+            ("improve-skill-whole-light", |s| s.show_improve(mock::improve::Case::Whole, false)),
+            ("improve-skill-asking", |s| s.show_improve(mock::improve::Case::Asking, true)),
+            ("improve-skill-asking-light", |s| s.show_improve(mock::improve::Case::Asking, false)),
+            ("improve-skill-proposal", |s| s.show_improve(mock::improve::Case::Proposal, true)),
+            ("improve-skill-proposal-light", |s| s.show_improve(mock::improve::Case::Proposal, false)),
+            ("improve-skill-editing", |s| s.show_improve(mock::improve::Case::Editing, true)),
+            ("improve-skill-editing-light", |s| s.show_improve(mock::improve::Case::Editing, false)),
+            ("improve-skill-refused", |s| s.show_improve(mock::improve::Case::Refused, true)),
+            ("improve-skill-refused-light", |s| s.show_improve(mock::improve::Case::Refused, false)),
+            ("improve-skill-kept", |s| s.show_improve(mock::improve::Case::Kept, true)),
+            ("improve-skill-kept-light", |s| s.show_improve(mock::improve::Case::Kept, false)),
             ("tool-states", |s| s.show_conversation(mock::tools::of_each_status())),
             ("tool-states-light", |s| {
                 s.dark = Some(false);

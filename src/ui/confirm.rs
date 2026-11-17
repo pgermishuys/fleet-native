@@ -126,11 +126,19 @@ pub(crate) fn spinner(ink: Color) -> El {
     icon(&LOADER_CIRCLE, 14.0).color(ink).cycle(Cycle { period: 1.2, phase: 0.0, stops: &FADE, still: 1.0, fps: 30.0 })
 }
 
-/// `ErrorNote`: what went wrong in medium weight, the server's reason under it.
-fn error_note(t: &Theme, message: &str, reason: &str) -> El {
+/// `ErrorNote`: what went wrong in medium weight, the server's reason under it. With no reason the message is the error
+/// itself, in regular weight.
+pub(crate) fn error_note(t: &Theme, key: &str, message: &str, reason: Option<&str>) -> El {
     let font = |w| sans(rem(0.875), w, 1.43);
+    let mut words = col()
+        .shrink()
+        .min_w(0.0)
+        .child(text(message.to_string()).font(font(if reason.is_some() { 500.0 } else { 400.0 })).color(t.error_text).wrap());
+    if let Some(reason) = reason {
+        words = words.child(text(reason.to_string()).font(font(400.0)).color(t.error_text).wrap().mt(2.0));
+    }
     row()
-        .key("confirm-error")
+        .key(key.to_string())
         .role("alert")
         .w_full()
         .gap(rem(0.5))
@@ -142,13 +150,7 @@ fn error_note(t: &Theme, message: &str, reason: &str) -> El {
         .border_layout()
         .fill(t.error.alpha(0.1))
         .child(icon(&CIRCLE_ALERT, 16.0).color(t.error_text).mt(1.0))
-        .child(
-            col()
-                .shrink()
-                .min_w(0.0)
-                .child(text(message.to_string()).font(font(500.0)).color(t.error_text).wrap())
-                .child(text(reason.to_string()).font(font(400.0)).color(t.error_text).wrap().mt(2.0)),
-        )
+        .child(words)
 }
 
 /// The dialog and its scrim, to mount over the window; `None` while nothing is asked.
@@ -158,7 +160,7 @@ pub fn view(s: &State, t: &Theme) -> Option<Vec<El>> {
         .gap(rem(0.25))
         .child(text(c.subject.clone()).key("confirm-subject").font(sans(rem(0.875), 500.0, 1.4)).color(t.text).wrap().w_full())
         .child(text(c.body.clone()).key("confirm-body").font(sans(rem(0.875), 400.0, 1.4)).color(t.muted).wrap().w_full());
-    let body = c.error.iter().map(|why| error_note(t, &c.error_message, why)).collect();
+    let body = c.error.iter().map(|why| error_note(t, "confirm-error", &c.error_message, Some(why))).collect();
     // The dialog opens with focus on Cancel when the action is destructive (`onOpenAutoFocus`).
     let start = |e: El, first: bool| if first { e.autofocus() } else { e };
     let cancel = start(button(t, Variant::Outline, Size::Default, None, "Cancel").key(CONFIRM_CANCEL), c.destructive);

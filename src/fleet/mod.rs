@@ -39,6 +39,7 @@ pub mod home;
 pub mod home_layout;
 pub mod http;
 pub mod images;
+pub mod improve;
 pub mod instance;
 pub mod interrupted;
 pub mod lineage;
