@@ -306,6 +306,8 @@ pub struct State {
     pub pages: fleet::pages::Pages,
     /// Every session's panel tabs (`fleet::canvases`, component 10).
     pub canvases: fleet::canvases::Canvases,
+    /// Each opened session's progress detail (`fleet::progress_feed`): the Progress tab and the strip read it.
+    pub progress: fleet::progress_feed::ProgressFeed,
     /// The page canvas "Open page" asked the content panel to show; the tab is component 14's.
     pub page_target: Option<String>,
     /// When the Allowed chip last grew, on `clock`: it flashes for `view::allowed::FLASH_SECS` after.
@@ -586,6 +588,7 @@ impl Default for State {
             rules: Default::default(),
             pages: Default::default(),
             canvases: Default::default(),
+            progress: Default::default(),
             page_target: None,
             allowed_flash: None,
             questions: Default::default(),
@@ -2540,6 +2543,9 @@ pub fn spec() -> AppSpec<State> {
             ("context-tab-links", |s| s.show_context_tab_scene(mock::context_tab::Case::Links, true)),
             ("progress-strip", |s| s.show_progress_strip(3, 7, Some("Write the migration"), true)),
             ("progress-strip-light", |s| s.show_progress_strip(3, 7, Some("Write the migration"), false)),
+            ("progress-strip-plan", |s| s.show_progress_strip_plan(2, true)),
+            ("progress-strip-plan-light", |s| s.show_progress_strip_plan(2, false)),
+            ("progress-strip-plan-done", |s| s.show_progress_strip_plan(5, true)),
             ("progress-strip-done", |s| s.show_progress_strip(7, 7, None, true)),
             ("progress-strip-done-light", |s| s.show_progress_strip(7, 7, None, false)),
             ("context-tab-links-light", |s| s.show_context_tab_scene(mock::context_tab::Case::Links, false)),

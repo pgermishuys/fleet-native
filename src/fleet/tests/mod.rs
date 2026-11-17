@@ -511,6 +511,7 @@ mod modes;
 mod ordering;
 mod pages;
 mod presence;
+mod progress;
 mod prompts;
 mod questions;
 mod queue;

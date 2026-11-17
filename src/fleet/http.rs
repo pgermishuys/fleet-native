@@ -403,6 +403,11 @@ pub fn rules(base: &str, session: &str) -> Result<(u16, Value), String> {
     status_of("GET", base, &format!("/api/sessions/{session}/permission-rules"))
 }
 
+/// `GET /api/sessions/{id}/progress`: the session's progress detail, or 204 for none (`stores/session-progress.ts`).
+pub fn progress(base: &str, session: &str) -> Result<(u16, Value), String> {
+    status_of("GET", base, &format!("/api/sessions/{session}/progress"))
+}
+
 /// `GET /api/sessions/{id}/canvases`: the canvases the agent keeps for the session (`use-server-canvases.ts`).
 pub fn canvases(base: &str, session: &str) -> Result<(u16, Value), String> {
     status_of("GET", base, &format!("/api/sessions/{session}/canvases"))

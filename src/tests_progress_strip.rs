@@ -20,18 +20,21 @@ fn shown(done: u32, total: u32, current: Option<&str>) -> Runtime<crate::State> 
 #[test]
 fn heads_the_line_with_todos_and_names_the_todo_in_hand() {
     let p = todos(3, 7, Some("Write the migration"));
-    assert_eq!(line::heading(&p), "Todos");
-    assert_eq!(line::current_line(&p), "Write the migration");
+    assert_eq!(line::heading(&p, None), "Todos");
+    assert_eq!(line::current_line(&p, None), "Write the migration");
 }
 
 #[test]
 fn says_every_todo_is_done_when_none_is_named() {
-    assert_eq!(line::current_line(&todos(7, 7, None)), "Every todo is done");
+    assert_eq!(line::current_line(&todos(7, 7, None), None), "Every todo is done");
 }
 
 #[test]
 fn labels_the_strip_with_the_counts_the_line_and_where_it_leads() {
-    assert_eq!(line::label(&todos(3, 7, Some("Write the migration"))), "3 of 7 todos done. Write the migration. Open the Progress tab");
+    assert_eq!(
+        line::label(&todos(3, 7, Some("Write the migration")), None),
+        "3 of 7 todos done. Write the migration. Open the Progress tab"
+    );
 }
 
 #[test]

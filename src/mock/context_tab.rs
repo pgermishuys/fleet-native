@@ -200,4 +200,59 @@ impl State {
         self.projects[0].sessions[0].row.progress =
             Some(crate::fleet::row_chips::Progress { kind: "todos".into(), done, total, current: current.map(str::to_string) });
     }
+
+    /// The strip in its plan form (rows 9.2-9.4): the open session has a markdown checklist, `ticked` of its five steps
+    /// done, and the line names the step after them.
+    pub fn show_progress_strip_plan(&mut self, ticked: usize, dark: bool) {
+        use crate::fleet::progress::{Plan, PlanGroup, PlanStep, ProgressDetail};
+        self.show_context_tab_scene(Case::Links, dark);
+        let step = |n: usize, title: &str| PlanStep {
+            key: n.to_string(),
+            number: Some(n.to_string()),
+            title: title.into(),
+            checked: n <= ticked,
+            sub_done: 0,
+            sub_total: 0,
+            ticked_at: (n <= ticked).then(|| "2026-11-17T09:30:00Z".to_string()),
+            ticked_in_message_id: None,
+        };
+        let plan = Plan {
+            path: ".weave/plans/paging.md".into(),
+            title: Some("Page the order list".into()),
+            tracked_since: "2026-11-17T09:00:00Z".into(),
+            groups: vec![
+                PlanGroup {
+                    title: Some("Server".into()),
+                    steps: vec![step(1, "Add `limit` and `cursor` to the query"), step(2, "Return the next cursor")],
+                },
+                PlanGroup {
+                    title: Some("Client".into()),
+                    steps: vec![
+                        step(3, "Read `nextCursor` in the list"),
+                        step(4, "Load the next page on scroll"),
+                        step(5, "Show a spinner at the end"),
+                    ],
+                },
+            ],
+        };
+        let summary = crate::fleet::row_chips::Progress {
+            kind: "plan".into(),
+            done: ticked as u32,
+            total: 5,
+            current: plan.groups.iter().flat_map(|g| &g.steps).find(|s| !s.checked).map(|s| s.title.clone()),
+        };
+        self.projects[0].sessions[0].row.progress = Some(summary.clone());
+        let id = self.projects[0].sessions[0].id.clone();
+        self.progress.set(
+            &id,
+            Some(ProgressDetail {
+                session_id: id.clone(),
+                summary,
+                todos: vec![],
+                updated_at: "2026-11-17T09:31:00Z".into(),
+                plan: Some(plan),
+                subagents: vec![],
+            }),
+        );
+    }
 }

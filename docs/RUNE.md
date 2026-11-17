@@ -1489,3 +1489,6 @@ Nothing new about Rune: the piece is plain Rust. Two things to know for the piec
 `FileBraces`, so `tools/gen-icons.py` takes `file-braces` (Fleet's client still says `FileJson`; the picture is the same). And
 `State::open_id` is `None` for the mock sessions, so `State::edit_canvases` does nothing on them: a scene that needs tabs must set
 a real route first (or use `Canvases` directly).
+## Component 10, piece F (Progress data)
+
+- **Nothing new about Rune.** The piece is plain Rust. One lesson in the app's own terms: keep a detail drawn while it is marked stale (`ProgressFeed`'s `fresh` flag) instead of deleting it, so a view never draws its empty state between a summary and the detail that follows it.
