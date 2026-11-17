@@ -145,6 +145,8 @@ mod tests_settings_harness_install;
 #[cfg(test)]
 mod tests_settings_harness_profiles;
 #[cfg(test)]
+mod tests_settings_harness_sign_in;
+#[cfg(test)]
 mod tests_settings_harnesses;
 #[cfg(test)]
 mod tests_settings_kit;
@@ -1917,6 +1919,28 @@ pub fn spec() -> AppSpec<State> {
             ("harness-strip-downloading-light", |s| s.show_strip(false, mock::harnesses::Strip::Downloading)),
             ("harness-strip-refused", |s| s.show_strip(true, mock::harnesses::Strip::Refused)),
             ("harness-strip-refused-light", |s| s.show_strip(false, mock::harnesses::Strip::Refused)),
+            ("settings-providers-before", |s| s.show_providers(true, mock::harnesses::Providers::Before)),
+            ("settings-providers-before-light", |s| s.show_providers(false, mock::harnesses::Providers::Before)),
+            ("settings-providers-asking", |s| s.show_providers(true, mock::harnesses::Providers::Asking)),
+            ("settings-providers-asking-light", |s| s.show_providers(false, mock::harnesses::Providers::Asking)),
+            ("settings-providers-many", |s| s.show_providers(true, mock::harnesses::Providers::Many)),
+            ("settings-providers-many-light", |s| s.show_providers(false, mock::harnesses::Providers::Many)),
+            ("settings-providers-confirm", |s| s.show_providers(true, mock::harnesses::Providers::Confirm)),
+            ("settings-providers-confirm-light", |s| s.show_providers(false, mock::harnesses::Providers::Confirm)),
+            ("settings-providers-search", |s| s.show_providers(true, mock::harnesses::Providers::Search)),
+            ("settings-providers-search-light", |s| s.show_providers(false, mock::harnesses::Providers::Search)),
+            ("settings-providers-nomatch", |s| s.show_providers(true, mock::harnesses::Providers::NoMatch)),
+            ("settings-providers-nomatch-light", |s| s.show_providers(false, mock::harnesses::Providers::NoMatch)),
+            ("settings-providers-switched", |s| s.show_providers(true, mock::harnesses::Providers::Switched)),
+            ("settings-providers-switched-light", |s| s.show_providers(false, mock::harnesses::Providers::Switched)),
+            ("settings-providers-refused", |s| s.show_providers(true, mock::harnesses::Providers::Refused)),
+            ("settings-providers-refused-light", |s| s.show_providers(false, mock::harnesses::Providers::Refused)),
+            ("settings-providers-failed", |s| s.show_providers(true, mock::harnesses::Providers::Failed)),
+            ("settings-providers-failed-light", |s| s.show_providers(false, mock::harnesses::Providers::Failed)),
+            ("settings-providers-copilot-in", |s| s.show_providers(true, mock::harnesses::Providers::CopilotIn)),
+            ("settings-providers-copilot-in-light", |s| s.show_providers(false, mock::harnesses::Providers::CopilotIn)),
+            ("settings-providers-copilot-out", |s| s.show_providers(true, mock::harnesses::Providers::CopilotOut)),
+            ("settings-providers-copilot-out-light", |s| s.show_providers(false, mock::harnesses::Providers::CopilotOut)),
             ("settings-profiles-none", |s| s.show_profiles(true, mock::harnesses::Profiles::None)),
             ("settings-profiles-none-light", |s| s.show_profiles(false, mock::harnesses::Profiles::None)),
             ("settings-profiles-loading", |s| s.show_profiles(true, mock::harnesses::Profiles::Loading)),

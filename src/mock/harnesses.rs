@@ -5,6 +5,7 @@ use crate::fleet::new_session::feeds::Profile;
 use crate::fleet::new_session::harness_choice::{Card, HarnessEntry, HarnessSetting};
 use crate::fleet::settings::HOME_MACHINE_KEY;
 use crate::fleet::settings::harness_profiles::{Check, Editing};
+use crate::fleet::settings::harness_sign_in::{Connection, Provider, SignIns};
 
 /// How the harnesses are doing in a scene.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -395,5 +396,116 @@ impl State {
         if case == Strip::Refused {
             self.settings.harnesses.strips.error = Some(("copilot".into(), "GitHub Copilot is already being updated.".into()));
         }
+    }
+}
+
+/// What the Providers group shows in a scene.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Providers {
+    /// OpenCode 2 turned off: the intro and "Show providers".
+    Before,
+    /// Asked, no answer yet.
+    Asking,
+    /// Anthropic signed in twice and through the environment, and four more to sign in to, with the harness's note.
+    Many,
+    /// "Sign out?" asked on a sign-in.
+    Confirm,
+    /// A word typed in the search.
+    Search,
+    /// A word that matches nothing.
+    NoMatch,
+    /// After "Use this one".
+    Switched,
+    /// A sign-out the harness refused.
+    Refused,
+    /// The list couldn't be read: the error and "Try again".
+    Failed,
+    /// GitHub Copilot, signed in: one provider, so no search.
+    CopilotIn,
+    /// GitHub Copilot, not signed in yet.
+    CopilotOut,
+}
+
+fn connection(kind: &str, id: &str, label: &str, active: bool) -> Connection {
+    Connection { kind: kind.into(), id: id.into(), label: label.into(), active }
+}
+
+fn provider(id: &str, name: &str, connections: Vec<Connection>) -> Provider {
+    let methods = vec![serde_json::json!({"type": "key", "label": "API key", "fields": []})];
+    Provider { id: id.into(), name: name.into(), methods, connections }
+}
+
+/// OpenCode 2's providers: Anthropic signed in (a work key in use, a personal one, and a variable of Fleet's environment) and
+/// four to sign in to.
+pub fn sign_ins() -> SignIns {
+    SignIns {
+        note: Some("These sign-ins belong to Fleet's separate OpenCode 2 install and are kept in its own database.".into()),
+        providers: vec![
+            provider(
+                "anthropic",
+                "Anthropic",
+                vec![
+                    connection("credential", "cred_work", "Work", true),
+                    connection("credential", "cred_home", "Personal", false),
+                    connection("env", "EXAMPLE_API_KEY", "EXAMPLE_API_KEY", false),
+                ],
+            ),
+            provider("azure", "Azure", vec![]),
+            provider("google", "Google", vec![]),
+            provider("openai", "OpenAI", vec![]),
+            provider("openrouter", "OpenRouter", vec![]),
+        ],
+    }
+}
+
+fn copilot_list(signed_in: bool) -> SignIns {
+    let connections = if signed_in { vec![connection("credential", "cred_gh", "octo-dev", true)] } else { vec![] };
+    SignIns { note: None, providers: vec![provider("github-copilot", "GitHub Copilot", connections)] }
+}
+
+impl State {
+    /// Settings → Harnesses on a harness's tab, scrolled to Providers, with `case` in it.
+    pub fn show_providers(&mut self, dark: bool, case: Providers) {
+        let copilot = matches!(case, Providers::CopilotIn | Providers::CopilotOut);
+        let (kind, tab) = match case {
+            Providers::Before => ("claude-code", Case::ClaudeOff),
+            _ if copilot => ("copilot", Case::Mixed),
+            _ => ("opencode2", Case::Mixed),
+        };
+        self.show_harnesses(dark, tab, Some(kind));
+        let machine = HOME_MACHINE_KEY;
+        let panel = &mut self.settings.harnesses.sign_in;
+        let list = match case {
+            Providers::Before | Providers::Asking | Providers::Failed => None,
+            Providers::CopilotIn => Some(copilot_list(true)),
+            Providers::CopilotOut => Some(copilot_list(false)),
+            Providers::Switched => {
+                let mut list = sign_ins();
+                for c in &mut list.providers[0].connections {
+                    c.active = c.id == "cred_home";
+                }
+                Some(list)
+            }
+            _ => Some(sign_ins()),
+        };
+        panel.scene(machine, kind, list, case != Providers::Before);
+        match case {
+            Providers::Before => {}
+            Providers::Asking => {
+                panel.requested = true;
+                panel.loading = true;
+            }
+            Providers::Failed => {
+                panel.requested = true;
+                panel.error = Some("OpenCode 2 isn't answering.".into());
+            }
+            Providers::Confirm => panel.confirming = Some("cred_home".into()),
+            Providers::Search => panel.query.replace_text("o"),
+            Providers::NoMatch => panel.query.replace_text("zzz"),
+            Providers::Switched => panel.notice = Some("Anthropic now uses Personal.".into()),
+            Providers::Refused => panel.error = Some("That sign-in is locked.".into()),
+            Providers::Many | Providers::CopilotIn | Providers::CopilotOut => {}
+        }
+        self.open_harness(kind, Some("providers"));
     }
 }

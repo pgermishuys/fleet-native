@@ -133,6 +133,8 @@ pub struct HarnessesPage {
     pub strips: super::harness_update::Strips,
     /// GitHub Copilot's path field (`HarnessPathField`).
     pub path: super::harness_path::PathField,
+    /// Providers: the lists and what the panel of the shown harness is doing (`HarnessSignInPanel`).
+    pub sign_in: super::harness_sign_in::Panel,
 }
 
 impl Eq for HarnessesPage {}
@@ -209,7 +211,7 @@ impl State {
             // The label's clock runs every 15 s.
             tx.wake_after(Duration::from_secs(15));
         }
-        let profiles = self.keep_profiles_panel() | self.limit_profile_name() | self.keep_harness_path();
+        let profiles = self.keep_profiles_panel() | self.limit_profile_name() | self.keep_harness_path() | self.keep_sign_in_panel();
         if self.settings.harnesses.asked.as_deref() == Some(machine.as_str()) {
             return profiles;
         }
