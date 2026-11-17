@@ -20,6 +20,7 @@ pub mod links;
 pub mod long;
 pub mod machines;
 pub mod machines_page;
+pub mod memory;
 pub mod notices;
 pub mod pages;
 pub mod parts;
