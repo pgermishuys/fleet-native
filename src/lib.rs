@@ -129,6 +129,8 @@ mod tests_session_header;
 #[cfg(test)]
 mod tests_settings_appearance;
 #[cfg(test)]
+mod tests_settings_appearance_page;
+#[cfg(test)]
 mod tests_settings_general;
 #[cfg(test)]
 mod tests_settings_kit;
@@ -1467,6 +1469,18 @@ fn new_session_scene_folder() -> fleet::new_session::request::Folder {
 }
 
 /// The General scenes' second state: each switch the other way round from its default, and the first More open.
+fn code_theme(key: &str) -> fleet::settings::code_themes::CodeThemeSelection {
+    fleet::settings::code_themes::CodeThemeSelection::parse(key).expect("a code theme")
+}
+
+/// A scene of Settings → Appearance: the window dark or light and some of what it keeps changed, with nothing written to disk.
+fn appearance_scene(s: &mut State, dark: bool, change: impl FnOnce(&mut fleet::settings::appearance::Appearance)) {
+    s.dark = Some(dark);
+    s.open_settings("appearance", None);
+    s.sidebar.update_appearance(change);
+    s.apply_appearance_scene();
+}
+
 fn flip_general(s: &mut State) {
     for switch in [
         fleet::settings::switches::STARTERS,
@@ -1514,6 +1528,16 @@ pub fn spec() -> AppSpec<State> {
                 s.open_settings("general", None);
                 s.ui.open = Some(ui::Open::Select("large-pastes"));
             }),
+            // Piece F: Appearance with its defaults, with Monokai (on a light window it is unavailable and Match theme shows), and with
+            // each Thinking option other than the default.
+            ("settings-appearance", |s| appearance_scene(s, true, |_| {})),
+            ("settings-appearance-light", |s| appearance_scene(s, false, |_| {})),
+            ("settings-appearance-monokai", |s| appearance_scene(s, true, |a| a.code_theme = code_theme("monokai"))),
+            ("settings-appearance-monokai-light", |s| appearance_scene(s, false, |a| a.code_theme = code_theme("monokai"))),
+            ("settings-appearance-github-light", |s| appearance_scene(s, false, |a| a.code_theme = code_theme("github"))),
+            ("settings-appearance-open", |s| appearance_scene(s, true, |a| a.thinking = conv::gist::Thinking::Open)),
+            ("settings-appearance-hidden", |s| appearance_scene(s, true, |a| a.thinking = conv::gist::Thinking::Hidden)),
+            ("settings-appearance-xl", |s| appearance_scene(s, true, |a| a.font_size = fleet::settings::appearance::FontSize::Xl)),
             ("settings-kit", |s| {
                 s.dark = Some(true);
                 s.open_settings("general", None);

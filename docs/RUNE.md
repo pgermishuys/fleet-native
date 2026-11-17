@@ -1299,3 +1299,10 @@ in Rune stops a drop in the wrong tree. Nothing in Rune got in the way otherwise
 - `on_layout` reports window points, so the card, composer and chip rects can be compared directly; it reports again only on change,
   so a composer that leaves the tree keeps its last rect (guard it by the route).
 - A hidden (`opacity(0.0)`) element still takes layout and reports `on_layout`: how the card learns where its chip will be.
+
+## Component 16, piece F (Appearance page)
+
+- **`Cx::zoom(k)` is a run-time page zoom**, set on every run of the view (`view::root`). It is how font size scales the whole window; `ui::rem` stays a `const fn`. `Runtime::find` and pointer input are both in the zoomed view's points, and a click after a zoom change needs the layout to settle first (a test runs about 30 frames).
+- **`Color::alpha(a)` sets the alpha, it doesn't multiply it.** Fleet's `border-border/60` is `t.border.alpha(t.border.a * 0.6)`; `.alpha(0.6)` on a translucent border draws a white line.
+- **`ElementInfo` has no checked or disabled flags**, so a test reads a picked card by its fill and a disabled one by its 50% opacity.
+- **A page taller than the headless window** needs `rt.set_viewport((w, h), 1.0)` before a test clicks its lower rows; the anchor scroll isn't applied by frames alone.

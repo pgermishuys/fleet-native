@@ -148,7 +148,6 @@ fn the_settings_rail_draws_the_menu_beside_the_page_and_opens_on_general() {
 fn a_menu_entry_opens_its_page_with_its_title_and_line_and_the_note() {
     let mut rt = shown();
     for page in [
-        Page::Appearance,
         Page::Harnesses,
         Page::Permissions,
         Page::Skills,
