@@ -201,6 +201,8 @@ mod tests_status_bar;
 #[cfg(test)]
 mod tests_summary_bar;
 #[cfg(test)]
+mod tests_turns;
+#[cfg(test)]
 mod tests_update_notices;
 #[cfg(test)]
 mod tests_updates;
@@ -317,6 +319,8 @@ pub struct State {
     pub canvases: fleet::canvases::Canvases,
     /// Each opened session's progress detail (`fleet::progress_feed`): the Progress tab and the strip read it.
     pub progress: fleet::progress_feed::ProgressFeed,
+    /// The Turns tab: its filter, what is open, and the turns derived from the conversation (`fleet::turns_tab`).
+    pub turns_tab: fleet::turns_tab::TurnsTab,
     /// The open session's changed files (`fleet::diffs`): Changes, the tab's count and the file tree's marks read it.
     pub diffs: fleet::diffs::Diffs,
     /// The contents of the files Changes shows, one request per file (`fleet::diff_contents`).
@@ -605,6 +609,7 @@ impl Default for State {
             server_loads: Default::default(),
             canvases: Default::default(),
             progress: Default::default(),
+            turns_tab: Default::default(),
             diffs: Default::default(),
             diff_contents: Default::default(),
             page_target: None,
@@ -1481,6 +1486,7 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     s.clock = now;
     let strip = s.keep_strip(tx);
     s.keep_progress_tab();
+    let strip = s.keep_turns_tab() | strip;
     if s.keep_notices(now, tx) {
         return true;
     }
@@ -2584,6 +2590,22 @@ pub fn spec() -> AppSpec<State> {
             ("context-tab-error", |s| s.show_context_tab_scene(mock::context_tab::Case::Error, true)),
             ("context-tab-error-light", |s| s.show_context_tab_scene(mock::context_tab::Case::Error, false)),
             ("context-tab-links", |s| s.show_context_tab_scene(mock::context_tab::Case::Links, true)),
+            ("turns", |s| s.show_turns_tab(mock::turns::Case::Main, true)),
+            ("turns-light", |s| s.show_turns_tab(mock::turns::Case::Main, false)),
+            ("turns-diff", |s| s.show_turns_tab(mock::turns::Case::Diff, true)),
+            ("turns-diff-light", |s| s.show_turns_tab(mock::turns::Case::Diff, false)),
+            ("turns-filter", |s| s.show_turns_tab(mock::turns::Case::Filter, true)),
+            ("turns-filter-light", |s| s.show_turns_tab(mock::turns::Case::Filter, false)),
+            ("turns-filter-empty", |s| s.show_turns_tab(mock::turns::Case::FilterEmpty, true)),
+            ("turns-filter-empty-light", |s| s.show_turns_tab(mock::turns::Case::FilterEmpty, false)),
+            ("turns-empty", |s| s.show_turns_tab(mock::turns::Case::Empty, true)),
+            ("turns-empty-light", |s| s.show_turns_tab(mock::turns::Case::Empty, false)),
+            ("turns-loading", |s| s.show_turns_tab(mock::turns::Case::Loading, true)),
+            ("turns-loading-light", |s| s.show_turns_tab(mock::turns::Case::Loading, false)),
+            ("turns-older", |s| s.show_turns_tab(mock::turns::Case::Older, true)),
+            ("turns-older-light", |s| s.show_turns_tab(mock::turns::Case::Older, false)),
+            ("turns-narrow", |s| s.show_turns_tab(mock::turns::Case::Narrow, true)),
+            ("turns-narrow-light", |s| s.show_turns_tab(mock::turns::Case::Narrow, false)),
             ("progress-plan", |s| s.show_progress_tab(mock::progress::Case::Plan, true)),
             ("progress-plan-light", |s| s.show_progress_tab(mock::progress::Case::Plan, false)),
             ("progress-plan-flat", |s| s.show_progress_tab(mock::progress::Case::Flat, true)),

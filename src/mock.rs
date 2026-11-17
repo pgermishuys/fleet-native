@@ -43,6 +43,7 @@ pub mod running;
 pub mod sign_in;
 pub mod storage;
 pub mod tools;
+pub mod turns;
 pub mod update;
 pub mod updates_machines;
 pub mod updates_page;

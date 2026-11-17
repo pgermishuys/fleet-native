@@ -1042,6 +1042,19 @@ call ids. `FileStat` has an optional `status`; `DelegationStatus::wire()`; `conv
 
 ### Piece J: the Turns tab drawn
 
+**Done.** Rows 4.1-4.20, 4.23-4.49, 4.51, 4.62, 4.64 and 6.12 are drawn in `src/view/turns.rs` and `src/view/turn_detail.rs`, with their state in
+`src/fleet/turns_tab.rs`; `src/tests_turns.rs` has Fleet's two `TurnsCanvas` cases under their names and the rules read from Part 4.
+Gaps, each with its reason:
+
+- **4.15** a plain column, not `virtual_rows`: only the open turns build their detail, and a row is one small subtree. Not measured at 500 turns on real hardware.
+- **4.50** the 150 ms eases: out of reach (see above). The caret turns at once.
+- **4.62** turns are derived by `keep_turns_tab` every frame the tab is shown, from a hash of the message count, the last two messages, the delegations and the diff counts, with `EditCache` keeping the parsed calls. A reply streaming into an older message than the last two would be missed; the reducer only edits the last.
+- **4.63** no request of its own: the file counts come from `State.diffs` (piece D's `/diffs` list, asked for the content panel), not from a call made only while a whole-file write exists. Fleet's rule saves a request on sessions with no whole-file write; here the list is asked for anyway.
+- **4.64** the model names come from the session's catalog, which the scenes don't fill, so a scene shows the bare model id.
+- **4.49** the summary bar's totals sit at the left when they wrap to a second line (docs/RUNE.md).
+- **4.65** component 26.
+- Live check: Fleet v0.72.0 shows no counts for a whole-file write until its `/diffs` answer arrives; native follows `State.diffs`. The scratch Fleet's `edit-file` waited for permission ("ask"), so the live pictures use `write-file`'s turn for the diff; the edit's diff is from a scene.
+
 - **Rows:** 4.1-4.20, 4.23-4.51, 4.62-4.64, 6.12.
 - **Files:** new `src/view/turns.rs` (summary bar, list states, row, detail, file rows with `view::diff::diff_view`, chips,
   "Show this turn in the chat", older; the detail in `src/view/turn_detail.rs` if past about 500 lines); new

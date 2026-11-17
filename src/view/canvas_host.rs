@@ -168,6 +168,7 @@ fn body(s: &State, t: &Theme) -> El {
         Some(CanvasKind::Context) => super::context_tab::context_tab(s, t),
         Some(CanvasKind::Progress) => super::progress_tab::progress_tab(s, t),
         Some(CanvasKind::Changes) => super::changes::changes_body(s, t),
+        Some(CanvasKind::Turns) => super::turns::turns_tab(s, t),
         Some(kind) => stand_in(t, kind),
         None => el(),
     };
