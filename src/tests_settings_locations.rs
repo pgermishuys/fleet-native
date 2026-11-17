@@ -171,7 +171,9 @@ impl Rig {
         all.iter().filter(|e| e.path.starts_with(&it.path)).filter_map(|e| e.text.clone()).collect::<Vec<_>>().join("")
     }
     fn heard(&self) -> Vec<(String, String)> {
-        self.fake.lock().unwrap().heard.iter().map(|(m, p, _)| (m.clone(), p.clone())).collect()
+        // The Worktrees and Storage cards share the page and read on their own schedule; these tests are about Locations.
+        let other = |p: &str| p.starts_with("/api/storage/") || p.starts_with("/api/worktrees/");
+        self.fake.lock().unwrap().heard.iter().filter(|(_, p, _)| !other(p)).map(|(m, p, _)| (m.clone(), p.clone())).collect()
     }
     fn key(&mut self, key: Key) {
         self.rt.key(KeyEvent { key, mods: Mods::default() });

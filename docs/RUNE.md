@@ -1406,3 +1406,11 @@ Plain Rust, no view, so nothing new about Rune. For the next piece that draws th
 
 - **Nothing new about Rune.** The sweep found no row that Rune blocks beyond the ones already written down: no frame read-back for a window screenshot (9Q), no pressed tint or focus path for the rail's tooltip and the hints (A, B), no fade on an anchored overlay.
 - **A background-work picture is a race**: the scripted model's `background-work` runs about 30 s, and a native start costs 5 s or more on a software renderer. Start the session, then the app, tap the counter in the script at 6 s, and take the picture at the mark after it; a script that taps at 3 s finds no counter yet.
+
+## Component 16, piece AC (Folders: Storage)
+
+- **The app's clock follows the frames**: `State::clock` is set from the runtime's time on every poll, so a test that adds to it is overwritten. To age a cache entry, run `rt.frame(seconds)`.
+- **No "is it on screen" signal**: Rune can't tell a view that its element has scrolled into view (Fleet uses an `IntersectionObserver` so the Storage card measures folder sizes only once seen). Sizes start when Folders opens; the decision is in `docs/parity/16-settings.md`, Part 10 notes.
+- **One-sided borders** are `border_sides([top, right, bottom, left], colour).border_layout()` (the rules between the preview's rows).
+- **A snapshot doesn't scroll to an anchor** (`--snap` takes the first frames), so a scene of a card below the fold uses a tall `--size`.
+

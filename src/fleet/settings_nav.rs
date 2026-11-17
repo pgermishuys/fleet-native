@@ -159,6 +159,10 @@ pub struct SettingsNav {
     pub locations: crate::fleet::settings::locations::LocationsPage,
     /// What Folders' Worktrees card read from the machine shown: the user's layer, the fields and the sample.
     pub naming: crate::fleet::settings::naming_draft::NamingPage,
+    /// What Folders' Storage card read: the checkouts, their sizes, the preview and the report of a clean.
+    pub storage: crate::fleet::settings::storage::StoragePage,
+    /// Folder sizes measured lately, per machine; they outlive the page so a return to Folders reuses them.
+    pub storage_sizes: crate::fleet::settings::storage::SizeCache,
     /// Memory's search, add and edit forms and its folds.
     pub memory_ui: crate::fleet::settings::memory_notes::MemoryUi,
 }
