@@ -451,7 +451,7 @@ fn templates(v: Option<&Value>) -> Templates {
 }
 
 /// `extractApiError`: `detail`, `error`, `title`, `message`, else `fallback`.
-fn extract_error(body: &str, fallback: &str) -> String {
+pub(crate) fn extract_error(body: &str, fallback: &str) -> String {
     let said = json(body).and_then(|b| ["detail", "error", "title", "message"].iter().find_map(|k| text(&b, k)));
     said.unwrap_or_else(|| fallback.to_string())
 }

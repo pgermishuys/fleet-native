@@ -19,6 +19,8 @@ pub mod memory;
 pub mod memory_actions;
 pub mod memory_events;
 pub mod memory_notes;
+pub mod naming_actions;
+pub mod naming_draft;
 pub mod switches;
 
 use super::new_session::defaults::{DEFAULTS_KEY, NewSessionDefaults, defaults_key};

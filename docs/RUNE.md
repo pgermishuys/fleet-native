@@ -1393,3 +1393,11 @@ Plain Rust, no view, so nothing new about Rune. For the next piece that draws th
   ran past the card's right edge in a `row().wrap()` with `w_full` and a left padding, even with `shrink().min_w(0.0)`. The card now packs the
   buttons into lines itself (`action_lines`, by estimated width: 6 px a letter plus 20 px of padding and a 6 px gap) and draws one row a line.
   The estimate agreed with Fleet's own wrap for these three labels; a long label could break a line early or late.
+
+
+## Component 16, piece AB (Folders: Worktrees)
+
+- **A test window that fits a long page**: `App::new(spec()).headless_runtime((1280.0, 1900.0), Env::new(true, 1.0))`, then `frame(0.0)` and `frame(FRAME)`. In the usual 760-high window a control below the fold is never hit by `click`.
+- **Rich text with a monospace run** is `rich(body, vec![Span::new(a, b).mono().size(..)])`.
+- **No hover border**: `.hover(c)` is a fill only, so Fleet's `hover:border-accent/45` on the token chips isn't drawn.
+
