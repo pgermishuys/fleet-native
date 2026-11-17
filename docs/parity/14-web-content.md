@@ -272,6 +272,9 @@ and the owner decides whether the component goes on. Write every finding into `d
 **Piece A done (17 November 2026).** What it came to:
 - The scratch Fleet's `show-page` page loads live in the panel on Linux (Xvfb), at the address `page_url` gives, beside Fleet's own
   client (`shots/parity/14-web-content/A/`). It draws in Fleet's dark theme already: the server's injected variables default to it.
+- It mounts on component 10's canvas host (piece 10B merged while A was built), not on `sheet.rs`: **Open page** adds a Page tab to
+  `fleet::canvases` (id = the canvas id, its title) and activates it, and `view::canvas_host::body` draws `page_tab::body` for an
+  active Page tab. Component 10's piece C, which lists a session's server canvases as tabs, takes over adding the tab.
 - The walk is a step of CI's `check` job on all three systems (`scripts/web-walk.sh`, `src/web/demo.rs`, uploaded as `web-walk-<system>`),
   not a job of its own: it reuses the job's debug build instead of building the app a second time on each system.
 - The gutter step sets the dragged width (`RightPanel::width`) rather than dragging with the OS pointer: the web view follows the
