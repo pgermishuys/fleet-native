@@ -36,6 +36,9 @@ pub mod updates;
 pub mod updates_app;
 pub mod updates_fleet;
 pub mod updates_harnesses;
+pub mod updates_machines;
+pub mod updates_strip;
+pub mod updates_version;
 
 use super::machines_page;
 use crate::State;

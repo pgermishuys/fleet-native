@@ -172,6 +172,10 @@ pub struct UpdatesFeed {
     pub checking: bool,
     /// What each machine last reported to this device.
     pub last_seen: LastSeen,
+    /// The settings file's copy has been read in.
+    last_seen_loaded: bool,
+    /// The machine whose "Updates:" list is open on the Machines group.
+    pub rule_open: Option<String>,
     /// The machine whose harnesses and preferences the open page has asked for.
     pub asked: Option<String>,
     /// The rollout has been read and is followed, while the page is open.
@@ -187,6 +191,13 @@ pub struct RowContext<'a> {
     pub chosen: Option<UpdateRule>,
     pub overrides: &'a std::collections::BTreeMap<String, UpdateRule>,
     pub last_seen: &'a LastSeen,
+}
+
+impl UpdatesFeed {
+    /// A scene has no settings file to read in.
+    pub fn last_seen_loaded_for_scene(&mut self) {
+        self.last_seen_loaded = true;
+    }
 }
 
 impl Machines {
@@ -282,6 +293,19 @@ impl State {
         self.machines.update_rows(&cx)
     }
 
+    /// The rule chosen for every machine, from home's preferences (`FleetUpdateRule`).
+    pub fn chosen_update_rule(&self) -> Option<UpdateRule> {
+        parse_chosen_rule(self.pickers.prefs.get(UPDATE_RULE_DEFAULT_KEY))
+    }
+
+    /// The newest time any machine looked for a release (`checkedAt`).
+    pub fn updates_checked_at(&self) -> Option<String> {
+        let entries = self.machines.entries();
+        super::newest_checked_at(
+            entries.iter().map(|e| e.info.as_ref().and_then(|i| i.update.as_ref()).and_then(|u| u.checked_at.as_deref())),
+        )
+    }
+
     /// Notes what each machine reported, so one that can't be reached still says what it ran. True when the note changed and
     /// is worth writing to the settings file.
     pub fn note_machine_versions(&mut self) -> bool {
@@ -313,6 +337,10 @@ impl State {
             self.updates.asked = Some(key.clone());
             self.read_harnesses(&key, false);
             self.read_preferences(&key);
+            // The update rules are kept on home, whichever machine the page shows.
+            if key != HOME_MACHINE_KEY {
+                self.load_preferences();
+            }
             changed = true;
         }
         let notes = self.updates.releases.entry(key.clone()).or_default();
@@ -330,7 +358,15 @@ impl State {
                 link.refresh_machines();
             }
         }
+        if !self.updates.last_seen_loaded {
+            self.updates.last_seen_loaded = true;
+            let mut kept = self.sidebar.machine_versions().clone();
+            kept.0.extend(std::mem::take(&mut self.updates.last_seen.0));
+            self.updates.last_seen = kept;
+        }
         if self.note_machine_versions() {
+            self.sidebar.save_machine_versions(&self.updates.last_seen);
+            self.save_settings();
             changed = true;
         }
         let _ = tx;

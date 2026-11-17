@@ -1469,3 +1469,8 @@ Plain Rust, no view, so nothing new about Rune. For the next piece that draws th
 
 - **A form inside a `scroll()` list is clipped by it**: a button below the list's `max_h` is in the element tree but `rt.find` gives a point outside what is drawn, so a click lands on nothing. A test reaches it by `rt.wheel` over the list first (`scroll_to` in `src/tests_settings_harness_flow.rs`).
 - **`on_edit` for boxes made at run time** (one per field a provider sends) takes a closure with a captured index into a `Vec` and a spare `TextEdit` for the frame after the vec went away: `State::flow_edit_mut`.
+## Component 16, piece W (Updates & about: Machines)
+
+- **A right-pushed item in a wrapping row, with a growing sibling:** `grow(1.0)` on the item itself and `justify_end()` (no spacer) right-aligns it whether it shares the line or wraps onto its own, as `margin-left: auto` does. With another item that also grows (a headline), give the right-hand item `grow(0.001)` so the headline keeps the space.
+- **A paragraph beside a button in a wrapping row:** put the rich text in a `col().w(0.0).grow(1.0).min_w(256.0)` with the text `w_full()`; a text element left as a direct child measures at its one-line width and runs under its neighbours (the same as piece J's note), and `basis` doesn't exist, so `w(0).grow(1).min_w(n)` is Fleet's `flex: 1 1 n`.
+- **A test that clicks after a rig with a fake Fleet:** the fake's empty harness list opens the first-run overlay (see piece K); close it and run a frame before each click, and use the tall window (`app_tall`) because a click can't reach below the first screen.

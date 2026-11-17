@@ -86,6 +86,8 @@ pub struct Sidebar {
     appearance: appearance::Appearance,
     /// The harness picked for "Dream now", one for the install, not per machine (`weave:dreaming-harness`).
     dreaming_harness: Option<String>,
+    /// The version each machine last reported to this device (`fleet.machineVersions`), for one that stops answering.
+    machine_versions: super::updates::LastSeen,
     dir: Option<PathBuf>,
     dirty: bool,
 }
@@ -131,6 +133,9 @@ impl Sidebar {
             s.notices_shown = ids.iter().filter_map(|v| v.as_str().map(String::from)).collect();
         }
         s.appearance = appearance::Appearance::parse(&root);
+        if let Some(map) = root.get("machineVersions") {
+            s.machine_versions = super::updates::LastSeen::parse(&map.to_string());
+        }
         s.dreaming_harness = root.get("dreamingHarness").and_then(Value::as_str).filter(|h| !h.is_empty()).map(str::to_string);
         s
     }
@@ -157,6 +162,9 @@ impl Sidebar {
         self.appearance.write(&mut root);
         if let Some(h) = &self.dreaming_harness {
             root["dreamingHarness"] = json!(h);
+        }
+        if !self.machine_versions.0.is_empty() {
+            root["machineVersions"] = serde_json::from_str(&self.machine_versions.to_json()).unwrap_or_default();
         }
         serde_json::to_string_pretty(&root).unwrap_or_default()
     }
@@ -280,6 +288,19 @@ impl Sidebar {
     pub fn save_notices_shown(&mut self, ids: &[String]) {
         if self.notices_shown != ids {
             self.notices_shown = ids.to_vec();
+            self.dirty = true;
+        }
+    }
+
+    /// The versions machines last reported to this device.
+    pub fn machine_versions(&self) -> &super::updates::LastSeen {
+        &self.machine_versions
+    }
+
+    /// Keeps the versions machines reported.
+    pub fn save_machine_versions(&mut self, seen: &super::updates::LastSeen) {
+        if self.machine_versions != *seen {
+            self.machine_versions = seen.clone();
             self.dirty = true;
         }
     }
