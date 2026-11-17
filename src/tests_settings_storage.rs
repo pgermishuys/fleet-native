@@ -48,6 +48,11 @@ struct Fake {
 
 type Shared = Arc<Mutex<Fake>>;
 
+/// The answer to a clean, read in a statement of its own so the lock is let go before the match arms take it again.
+fn take_cleaned(fake: &Shared) -> Option<(u16, String)> {
+    fake.lock().unwrap().cleaned.clone()
+}
+
 fn serve(fake: Shared) -> String {
     let listener = TcpListener::bind("127.0.0.1:0").expect("a port");
     let base = format!("http://{}", listener.local_addr().expect("an address"));
@@ -113,9 +118,10 @@ fn answer(mut stream: std::net::TcpStream, fake: Shared) {
             let bytes = if id == "w2" { GB } else { 2 * GB };
             (200, json!({ "bytes": bytes.to_string(), "complete": f.complete.unwrap_or(true) }).to_string())
         }
-        ("POST", "/api/storage/worktrees/clean") => match fake.lock().unwrap().cleaned.clone() {
+        ("POST", "/api/storage/worktrees/clean") => match take_cleaned(&fake) {
             Some(reply) => reply,
             None => {
+                fake.lock().unwrap().checkouts.remove(0);
                 let kept = row("w2", "pocket-notes", "Fix note sync", "keep", "A terminal is open in it.");
                 (200, json!({ "removed": [list()[0].clone()], "kept": [kept] }).to_string())
             }
@@ -229,6 +235,8 @@ fn removes_the_would_remove_checkouts_and_reports_what_went_and_what_stayed() {
     r.press("storage-preview");
     r.press("storage-confirm");
     r.wait("the clean to finish", |s| !s.settings.storage.cleaning && s.settings.storage.report.is_some());
+    // The server drops the removed checkout, so the second read's answer is the one with four left.
+    r.wait("the second read's answer", |s| s.settings.storage.checkouts.len() == 4);
     r.measured();
 
     let body =
