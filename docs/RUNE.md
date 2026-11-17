@@ -1589,3 +1589,15 @@ What the app's own host stands on, at `f1f54ce` (the research spike's findings h
 - **A glyph wider than its box** (the 12 px check in the 8 px mark column) is a 12 px box with margin -2 on each side; negative margins work in a row.
 - **A box that is `w_full` with a left margin** overflows its parent (as in 12D): put it in a `w_full` row with `pl` and let the box `grow(1.0)`.
 
+
+## Component 14, piece B (the page bridge and the theme)
+
+Nothing in Rune was needed. Learned about the web view:
+
+- **`window.postMessage` can be replaced in WebKitGTK** from a document-start script, so Fleet's own script in a page
+  (`parent.postMessage(...)`, with `parent === window` at top level) lands in the wrapper without any change to Fleet's file. The
+  wrapper has to keep the original: a message *to* the page goes in through a function that calls it, or the wrapper swallows it.
+- **`evaluate_script` and the init script run in the page's own world**, so a page's `message` listener hears what
+  `__fleetDeliver` posts, and Fleet's script accepts it (`event.source === parent`).
+- A wry IPC handler runs on the UI thread, so it can call `AppHandle::update` and, inside that, `evaluate_script` on the same view.
+- With a real window, a theme key (Ctrl+Shift+L) needs the keyboard on Rune, not in the composer's text: click something first.

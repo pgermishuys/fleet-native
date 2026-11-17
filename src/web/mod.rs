@@ -5,6 +5,9 @@
 //! every frame `State::keep_web` compares what is wanted with what was last done, and moves, loads or hides the views when
 //! they differ. Headless runs, scenes and builds without the `web` feature never get a window handle, so they draw the
 //! fallback panel instead (decision 9).
+pub mod inject;
+pub mod page_bridge;
+pub mod page_theme;
 pub mod wanted;
 
 #[cfg(all(feature = "web", not(target_arch = "wasm32")))]
@@ -29,6 +32,10 @@ pub struct Host {
     pub mock_base: Option<String>,
     /// A click in the page gave it the keyboard (it told us over IPC); Rune has none until one of its elements takes it.
     pub page_has_keys: bool,
+    /// What pages saved with `fleet:page-state`, kept for the app's run (row 14.31).
+    pub kept: page_bridge::KeptStates,
+    /// The theme the pages were last given, so a change is sent once (row 14.28).
+    pub theme: Option<page_theme::PageTheme>,
     /// What `keep_web` last did, so an unchanged frame touches nothing native.
     pub applied: Option<Wanted>,
     /// The CI walk, while it runs (`demo`).
@@ -43,16 +50,6 @@ impl Host {
     }
 }
 
-/// The script every page gets at document start: it tells the app when the page takes the keyboard. Piece B adds the
-/// page bridge (decision 3) beside it.
-pub const HOST_SCRIPT: &str = r#"(function () {
-  if (window.__fleetHost) return;
-  window.__fleetHost = true;
-  var send = function (kind) { try { window.ipc.postMessage(JSON.stringify({ host: kind })); } catch (e) {} };
-  window.addEventListener("focus", function () { send("focus"); }, true);
-  window.addEventListener("DOMContentLoaded", function () { send("loaded"); });
-})();"#;
-
 impl crate::State {
     /// From `poll`, every frame: the native views follow `wanted`. True when the view must draw again (a web view
     /// couldn't be made, so the fallback shows).
@@ -63,6 +60,38 @@ impl crate::State {
         {
             let _ = tx;
             false
+        }
+    }
+}
+
+impl crate::State {
+    /// The theme pages are given: the colours being drawn now and the root font size (`usePageTheme`).
+    pub fn page_theme(&self) -> page_theme::PageTheme {
+        page_theme::read_page_theme(&crate::theme::Theme::of(self.drawn_dark.get()), self.sidebar.appearance().font_size.px())
+    }
+
+    /// A Fleet message from the page of tab `tab` (rows 14.30 to 14.33): what to hand back to that page, if anything. Only
+    /// the page tab on screen is heard, so a page that has gone, or another one, changes nothing (`event.source` in Fleet).
+    pub fn hear_page(&mut self, tab: &str, data: &serde_json::Value, tx: &mut rune::Tx) -> Option<serde_json::Value> {
+        let (shown, page) = wanted::page_tab(self)?;
+        if shown != tab {
+            return None;
+        }
+        match page_bridge::read_page_message(data)? {
+            page_bridge::PageMessage::Hello => Some(self.web.kept.state_message(&page.page_id).to_json()),
+            page_bridge::PageMessage::State { state } => {
+                self.web.kept.keep(&page.page_id, state);
+                None
+            }
+            // Nothing is sent: the text goes under what's typed and the user sends it.
+            page_bridge::PageMessage::Reply { text } => {
+                let session = self.canvas_session();
+                self.append_draft_text(&session, &text);
+                tx.focus("composer", false);
+                None
+            }
+            // Only Fleet's bar sends a pick (piece C); one from the page itself isn't taken.
+            page_bridge::PageMessage::Choice { .. } | page_bridge::PageMessage::ChoiceRefused { .. } => None,
         }
     }
 }
