@@ -149,6 +149,8 @@ pub struct SettingsNav {
     /// Preference keys whose save is under way: their switch shows the spinner and doesn't press (`saving`).
     pub saving: std::collections::BTreeSet<String>,
     pub demo: crate::view::settings::kit_scene::Demo,
+    /// The machine Settings shows (`use-settings-machine.ts`): the one you're on until the menu's switch picks another.
+    pub choice: crate::fleet::machine_choice::MachineChoice,
 }
 
 impl SettingsNav {
@@ -173,9 +175,18 @@ impl SettingsNav {
 }
 
 impl State {
+    /// `resetSettingsMachine` where Fleet makes the Settings route: coming to Settings from another rail forgets a machine
+    /// picked on an earlier visit, so it opens on the machine you're on. Moving between Settings' pages doesn't.
+    pub fn enter_settings(&mut self) {
+        if self.rail != crate::Rail::Settings {
+            self.settings.choice.reset();
+        }
+        self.rail = crate::Rail::Settings;
+    }
+
     /// Opens Settings on a page: the rail, and the page by its id or an old id. Every entry point goes through here.
     pub fn open_settings(&mut self, id: &str, anchor: Option<&str>) {
-        self.rail = crate::Rail::Settings;
+        self.enter_settings();
         self.settings.set(id, anchor);
         if self.settings.page == Page::General {
             self.refresh_preferences();

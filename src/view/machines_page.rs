@@ -220,7 +220,7 @@ pub fn content(s: &State, t: &Theme) -> El {
         rows.push(super::add_machine::added(t, name));
     }
     rows.extend(s.machine_cards().iter().map(|c| card(s, t, c)));
-    let header = super::settings::page_header(t, &crate::fleet::settings_nav::Page::Machines);
+    let header = super::settings::page_header(s, t, &crate::fleet::settings_nav::Page::Machines);
     col()
         .key("machines-page-body")
         .w_full()

@@ -125,7 +125,7 @@ pub fn all(s: &State) -> Vec<Command> {
             Navigation,
             None,
             &["preferences", "config"],
-            now(|s, _| s.rail = Rail::Settings),
+            now(|s, _| s.enter_settings()),
         ),
         c(
             "add-machine",

@@ -242,6 +242,9 @@ impl crate::State {
     /// A press on a rail button: it becomes the rail, and its address takes the window back from `/welcome` and
     /// `/repositories`. A shortcut into Settings leaves the rail the route sets, which is Settings here too.
     pub fn press_rail(&mut self, rail: Rail) {
+        if rail == Rail::Settings {
+            self.enter_settings();
+        }
         self.rail = rail;
         // Sessions' address is `/`: home, with nothing selected (piece C).
         if self.on_bare_page() || rail == Rail::Sessions {

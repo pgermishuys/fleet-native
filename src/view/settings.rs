@@ -6,6 +6,7 @@ pub mod appearance_cards;
 pub mod general;
 pub mod kit;
 pub mod kit_scene;
+pub mod machine_header;
 
 use super::machines_page;
 use crate::State;
@@ -85,15 +86,19 @@ pub fn menu(s: &State, t: &Theme) -> El {
         .h_full()
         .min_h(0.0)
         .child(row().pt(4.0).child(row().px(16.0).pt(14.0).pb(10.0).child(heading(t, "Settings"))))
+        .children(machine_header::menu_switch(s, t))
         .child(col().w_full().grow(1.0).shrink().min_h(0.0).scroll(ScrollSpec { stick_bottom: false }).child(nav))
 }
 
 /// `PageHeader`: the title (21, 600) and the line under it.
-pub fn page_header(t: &Theme, page: &Page) -> El {
+pub fn page_header(s: &State, t: &Theme, page: &Page) -> El {
+    let title = text(page.title()).font(sans(rem(1.5), 600.0, 1.25).tracking(-0.525)).color(t.text);
+    // The title row's meta slot: gap 10, the chip of the machine the page shows (`PageHeader`, `SettingsPage`).
+    let title_row = row().wrap().center_y().gap(10.0).child(title).children(machine_header::title_chip(s, t, page));
     col()
         .key("settings-header")
         .w_full()
-        .child(text(page.title()).font(sans(rem(1.5), 600.0, 1.25).tracking(-0.525)).color(t.text))
+        .child(title_row)
         .child(row().mt(4.0).child(text(page.line()).font(sans(rem(0.875), 400.0, 1.5)).color(t.muted)))
 }
 
@@ -112,7 +117,9 @@ fn not_yet(t: &Theme, page: &Page) -> El {
 /// The detail: the raised sheet, one scroll for the page, a column of `gap-6` (21).
 pub fn detail(s: &State, t: &Theme) -> El {
     let page = &s.settings.page;
-    let body = if s.settings.demo_open {
+    let body = if s.settings_comes_later() {
+        col().w_full().gap(21.0).child(page_header(s, t, page)).child(machine_header::later(s, t, page))
+    } else if s.settings.demo_open {
         kit_scene::content(s, t)
     } else if *page == Page::General {
         general::content(s, t)
@@ -121,7 +128,7 @@ pub fn detail(s: &State, t: &Theme) -> El {
     } else if *page == Page::Machines {
         machines_page::content(s, t)
     } else {
-        col().w_full().gap(21.0).child(page_header(t, page)).child(not_yet(t, page))
+        col().w_full().gap(21.0).child(page_header(s, t, page)).child(not_yet(t, page))
     };
     col()
         .key("settings-detail")

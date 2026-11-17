@@ -188,7 +188,7 @@ pub fn content(s: &State, t: &Theme) -> El {
         .key("general-section")
         .w_full()
         .gap(21.0)
-        .child(super::super::settings::page_header(t, &crate::fleet::settings_nav::Page::General))
+        .child(super::super::settings::page_header(s, t, &crate::fleet::settings_nav::Page::General))
         .child(kit::group(t, "new-sessions", "New sessions", None, new_sessions))
         .child(kit::group(t, "away", "While you're away", None, away))
         .child(kit::group(t, "rail", "Rail and status bar", None, rail))

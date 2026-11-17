@@ -137,6 +137,8 @@ mod tests_settings_general;
 #[cfg(test)]
 mod tests_settings_kit;
 #[cfg(test)]
+mod tests_settings_machine;
+#[cfg(test)]
 mod tests_settings_nav;
 #[cfg(test)]
 mod tests_smart_link_card;
@@ -1486,6 +1488,17 @@ fn appearance_scene(s: &mut State, dark: bool, change: impl FnOnce(&mut fleet::s
     s.apply_appearance_scene();
 }
 
+/// A scene of Settings with other machines listed: on `page`, the app on home unless `pick` names another, the switch's menu
+/// open or closed.
+fn settings_machine_scene(s: &mut State, dark: bool, page: &str, pick: Option<&str>, open: bool) {
+    s.show_settings_machines(dark);
+    s.open_settings(page, None);
+    if let Some(key) = pick {
+        s.settings.choice.pick(key);
+    }
+    s.settings.choice.open = open;
+}
+
 fn flip_general(s: &mut State) {
     for switch in [
         fleet::settings::switches::STARTERS,
@@ -1543,6 +1556,14 @@ pub fn spec() -> AppSpec<State> {
             ("settings-appearance-open", |s| appearance_scene(s, true, |a| a.thinking = conv::gist::Thinking::Open)),
             ("settings-appearance-hidden", |s| appearance_scene(s, true, |a| a.thinking = conv::gist::Thinking::Hidden)),
             ("settings-appearance-xl", |s| appearance_scene(s, true, |a| a.font_size = fleet::settings::appearance::FontSize::Xl)),
+            ("settings-machine", |s| settings_machine_scene(s, true, "general", None, false)),
+            ("settings-machine-light", |s| settings_machine_scene(s, false, "general", None, false)),
+            ("settings-machine-open", |s| settings_machine_scene(s, true, "general", None, true)),
+            ("settings-machine-open-light", |s| settings_machine_scene(s, false, "general", None, true)),
+            ("settings-machine-falcon", |s| settings_machine_scene(s, true, "general", Some("m-falcon"), false)),
+            ("settings-machine-appearance", |s| settings_machine_scene(s, true, "appearance", Some("m-falcon"), false)),
+            ("settings-machine-falcon-light", |s| settings_machine_scene(s, false, "general", Some("m-falcon"), false)),
+            ("settings-machine-appearance-light", |s| settings_machine_scene(s, false, "appearance", Some("m-falcon"), false)),
             ("settings-kit", |s| {
                 s.dark = Some(true);
                 s.open_settings("general", None);
