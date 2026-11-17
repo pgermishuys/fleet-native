@@ -122,7 +122,7 @@ Owner: `14` = this component, with the piece; another number = that component. "
 
 | # | Row | Source | Native today | Owner |
 |---|---|---|---|---|
-| 14.20 | `shownPage(state)`: `pageId`, `entry`, `source`, `files`, `bytes`, `shownAt`, `warnings` (strings only), `label` (non-empty), `choice` (`readPageChoice`); missing ones empty | SC | Address fields **done (A):** `fleet::web_page::shown_page` (`pageId`, `entry`, `source`, `shownAt`), held on `PageCanvas::page`; the rest is C's | 14 A (address fields), C (all) |
+| 14.20 | `shownPage(state)`: `pageId`, `entry`, `source`, `files`, `bytes`, `shownAt`, `warnings` (strings only), `label` (non-empty), `choice` (`readPageChoice`); missing ones empty | SC | Address fields **done (A):** `fleet::web_page::shown_page` (`pageId`, `entry`, `source`, `shownAt`), read from the page tab's server state (`CanvasInstance::server`, 10C); the rest is C's | 14 A (address fields), C (all) |
 | 14.21 | Address: `/pages/{pageId}/{entry}`, the id and each segment of `entry` percent-encoded, on the session's machine | SC `pageAddress` | **Done (A):** `page_address`, `page_url` on home's base (another machine's base is 14.16, C) | 14 A |
 | 14.22 | Bar: 40 px, padding 0 8, gap 2, border-bottom `--border`. Reload icon button (28×28, `RotateCw` 14, `--muted`, hover `--accent-dim` and `--text`, title and label "Reload") | PC | None | 14 C |
 | 14.23 | Source: the `label` if set (12 px, `--text`, 500), else the file name (`source`'s last part, or `entry`) then the whole `source` in mono 11.5 `--muted` with an ellipsis; margin 0 4, gap 8, tooltip the label or source | PC | None | 14 C |
@@ -272,9 +272,9 @@ and the owner decides whether the component goes on. Write every finding into `d
 **Piece A done (17 November 2026).** What it came to:
 - The scratch Fleet's `show-page` page loads live in the panel on Linux (Xvfb), at the address `page_url` gives, beside Fleet's own
   client (`shots/parity/14-web-content/A/`). It draws in Fleet's dark theme already: the server's injected variables default to it.
-- It mounts on component 10's canvas host (piece 10B merged while A was built), not on `sheet.rs`: **Open page** adds a Page tab to
-  `fleet::canvases` (id = the canvas id, its title) and activates it, and `view::canvas_host::body` draws `page_tab::body` for an
-  active Page tab. Component 10's piece C, which lists a session's server canvases as tabs, takes over adding the tab.
+- It mounts on component 10's canvas host (pieces 10B and 10C merged while A was built), not on `sheet.rs`: a page canvas is a tab
+  that carries its server state (10C), `view::canvas_host::body` draws `page_tab::body` for an active Page tab, and `web::wanted`
+  reads the same tab. **Open page** is 10C's `focus_server_canvas`.
 - The walk is a step of CI's `check` job on all three systems (`scripts/web-walk.sh`, `src/web/demo.rs`, uploaded as `web-walk-<system>`),
   not a job of its own: it reuses the job's debug build instead of building the app a second time on each system.
 - The gutter step sets the dragged width (`RightPanel::width`) rather than dragging with the OS pointer: the web view follows the
