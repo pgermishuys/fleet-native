@@ -669,6 +669,9 @@ fn on_opencode_2_enter_steers_and_ctrl_enter_or_the_queue_button_waits() {
     live.working();
     typed(&mut live.rt, "also check the tests");
     press(&mut live.rt, Key::Enter, ctrl());
+    // Each request goes out on its own thread, so the second must wait until the first has reached the server or the two
+    // can arrive in either order.
+    live.wait(&|l| l.calls().len() == 2, "the first queue request");
     live.working();
     typed(&mut live.rt, "and the docs");
     click(&mut live.rt, "prompt-queue-button");
