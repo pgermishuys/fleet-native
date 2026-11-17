@@ -185,7 +185,9 @@ fn asks_another_machines_status_and_notes_when_settings_shows_it_never_home() {
 fn update_machines_now_posts_the_rollout_to_home_and_follows_what_the_hub_pushes() {
     let mut r = rig("0.59.0", None, false);
     r.rt.update(|s, _| s.start_rollout(Vec::new()));
-    r.wait("the rollout post", |s| s.updates.rollout.is_some());
+    // The page's own read of the rollout fills `rollout` too, so wait for the post itself.
+    let home = r.home.clone();
+    r.wait("the rollout post", move |_| posted_rollout(&home));
     let posts: Vec<_> = r.heard(&r.home).into_iter().filter(|(m, p, _)| m == "POST" && p == "/api/update/rollout").collect();
     assert_eq!(posts.len(), 1);
     assert_eq!(serde_json::from_str::<Value>(&posts[0].2).unwrap(), json!({ "machineIds": [] }));
@@ -200,11 +202,17 @@ fn update_machines_now_posts_the_rollout_to_home_and_follows_what_the_hub_pushes
     assert!(!r.rt.state.updates.rollout.as_ref().unwrap().running());
 }
 
+/// Whether home has heard the rollout post (the fake logs a request as it arrives, before the app has its answer).
+fn posted_rollout(home: &Shared) -> bool {
+    home.lock().unwrap().heard.iter().any(|(m, p, _)| m == "POST" && p == "/api/update/rollout")
+}
+
 #[test]
 fn a_restart_of_one_other_machine_is_a_rollout_of_that_machine_alone() {
     let mut r = rig("0.59.0", None, false);
     r.rt.update(|s, _| s.restart_machine("m-harbor", None, None));
-    r.wait("the post", |s| s.updates.rollout.is_some());
+    let home = r.home.clone();
+    r.wait("the post", move |_| posted_rollout(&home));
     let body = r.heard(&r.home).into_iter().find(|(m, p, _)| m == "POST" && p == "/api/update/rollout").expect("a post").2;
     assert_eq!(serde_json::from_str::<Value>(&body).unwrap(), json!({ "machineIds": ["m-harbor"] }));
 }
