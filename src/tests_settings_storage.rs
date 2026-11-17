@@ -93,7 +93,10 @@ fn answer(mut stream: std::net::TcpStream, fake: Shared) {
     let body = String::from_utf8_lossy(&buf[body_at..]).to_string();
     let mut first = head.lines().next().unwrap_or("").split(' ');
     let (method, path) = (first.next().unwrap_or("").to_string(), first.next().unwrap_or("").to_string());
-    fake.lock().unwrap().heard.push((method.clone(), path.clone(), body.clone()));
+    // The live-events link negotiates in the background at any moment; it is not what a test asks about.
+    if !path.starts_with("/hubs/") {
+        fake.lock().unwrap().heard.push((method.clone(), path.clone(), body.clone()));
+    }
     let (status, reply) = match (method.as_str(), path.as_str()) {
         ("GET", "/api/storage/worktrees") => {
             let f = fake.lock().unwrap();

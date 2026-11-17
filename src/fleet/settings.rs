@@ -406,10 +406,12 @@ pub fn write_file(dir: &Path, json: &str) -> std::io::Result<()> {
 }
 
 static ASKED: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-static WRITTEN: std::sync::Mutex<u64> = std::sync::Mutex::new(0);
+/// The last write asked for, per folder: a newer write to another folder must not make an older one to this folder look stale.
+static WRITTEN: std::sync::Mutex<Option<std::collections::HashMap<PathBuf, u64>>> = std::sync::Mutex::new(None);
 
-fn write_in_order(mine: u64, dir: &Path, json: &str) {
-    let mut written = WRITTEN.lock().unwrap_or_else(|e| e.into_inner());
+pub(crate) fn write_in_order(mine: u64, dir: &Path, json: &str) {
+    let mut guard = WRITTEN.lock().unwrap_or_else(|e| e.into_inner());
+    let written = guard.get_or_insert_with(Default::default).entry(dir.to_path_buf()).or_insert(0);
     if mine > *written {
         *written = mine;
         let _ = write_file(dir, json);

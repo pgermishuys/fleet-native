@@ -2,20 +2,18 @@
 //! `use-agent-browser-settings.ts`, so these are ours (rows 6.38 and 6.40 to 6.53), against a fake Fleet that answers the browser's
 //! settings and records every `PUT /api/agent-browser/settings` body.
 use crate::fleet::settings::browser::{LOAD_ERROR, Pages, SAVE_ERROR};
-use crate::tests_settings_permissions::{Rig, rig};
+use crate::tests_settings_permissions::{Rig, rig, rig_with};
 use serde_json::{Value, json};
 
 impl Rig {
-    /// The rig with the browser reading as `pages` and `scripts` (the page reads it again once these are set).
+    /// The rig with the browser reading as `pages` and `scripts`. They are set before the page opens, so its one read hears them:
+    /// a second read in flight could land later and replace a refusal's error or a change.
     fn browser(on: bool, pages: &str, scripts: bool) -> Rig {
-        let mut r = rig(&[], on);
-        {
-            let mut f = r.fake.lock().unwrap();
+        let mut r = rig_with(&[], on, |f| {
             f.browser_pages = pages.to_string();
             f.browser_scripts = scripts;
-        }
+        });
         r.go_to_browser();
-        r.rt.update(|s, _| s.read_browser("home"));
         r.wait("the browser's settings", move |s| {
             let c = s.browser_copy();
             !c.loading
@@ -121,10 +119,8 @@ fn puts_the_old_settings_back_and_says_so_when_a_save_is_refused() {
 
 #[test]
 fn says_so_when_the_settings_can_t_be_read_and_keeps_the_defaults() {
-    let mut r = rig(&[], true);
+    let mut r = rig_with(&[], true, |f| f.browser_garbage = true);
     r.go_to_browser();
-    r.fake.lock().unwrap().browser_garbage = true;
-    r.rt.update(|s, _| s.read_browser("home"));
     r.wait("the unreadable answer", |s| s.browser_copy().error.is_some());
     assert_eq!(r.words("browser-error"), LOAD_ERROR);
     let c = r.rt.state.browser_copy();
@@ -135,6 +131,8 @@ fn says_so_when_the_settings_can_t_be_read_and_keeps_the_defaults() {
 fn waits_for_the_machine_before_the_controls_work() {
     let mut r = rig(&[], true);
     r.go_to_browser();
+    // The page's own read must be answered first, or its reply would clear the loading state set below.
+    r.wait("the page's read", |s| !s.browser_copy().loading);
     r.rt.update(|s, _| s.settings.browser.entry("home".into()).or_default().loading = true);
     r.frames();
     r.click("browser-scripts-switch");
