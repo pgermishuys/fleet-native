@@ -14,7 +14,7 @@ use crate::conv::background::{AgentRow, delegation_of};
 use crate::conv::card::{Toggle, is_open};
 use crate::conv::tools::{Category, ToolIcon, ToolStatus, format_call_duration, get_tool, is_shell_row};
 use crate::icons::*;
-use crate::theme::{Theme, mono, sans};
+use crate::theme::{RADIUS_BTN, Theme, mono, sans};
 use rune::{Cursor, El, Icon, el, icon, row, text};
 use std::f32::consts::FRAC_PI_2;
 
@@ -68,7 +68,10 @@ pub fn tool_entry(t: &Theme, s: &State, part: &Part) -> El {
     let open = is_open(tool, body, s.inline_diffs, s.tool_open.get(id.as_str()).copied());
     let under = body.initially_collapsed;
     let key = id.clone();
-    let header = tool_row(t, id, tool, detail, *status, *state).on_press(move |s: &mut State| {
+    // A finished call that loaded one of Fleet's built-in skills offers Improve (`withImprove`).
+    let improve = (get_tool(tool).category == Category::Skill && *status == ToolStatus::Completed && s.skills.is_built_in(detail))
+        .then(|| (detail.clone(), id.clone()));
+    let header = tool_row(t, id, tool, detail, *status, *state, improve).on_press(move |s: &mut State| {
         s.tool_open.insert(key.clone(), Toggle { open: !open, under });
     });
     let mut card = rune::col().w_full().child(header);
@@ -95,7 +98,29 @@ fn status_word(word: &'static str, ink: rune::Color) -> El {
     text(word).font(sans(11.0, 500.0, 1.3).tracking(0.22)).color(ink)
 }
 
-pub fn tool_row(t: &Theme, id: &str, kind: &str, detail: &str, status: ToolStatus, state: ToolState) -> El {
+/// `.tool-header__show` as Improve: accent text, 1x8 padding, a wash on hover. The press opens Improve for the skill
+/// and doesn't open or close the card under it.
+fn improve_button(t: &Theme, id: &str, skill: String, tool_id: String) -> El {
+    el().key(format!("tool-{id}-improve"))
+        .label(format!("Improve {skill}"))
+        .cursor(Cursor::Pointer)
+        .px(8.0)
+        .py(1.0)
+        .radius(RADIUS_BTN - 2.0)
+        .hover(t.accent_dim)
+        .on_press(move |s: &mut State| s.skill_improve_open(&skill, &tool_id))
+        .child(text("Improve").font(sans(12.0, 500.0, 1.3)).color(t.accent_text))
+}
+
+pub fn tool_row(
+    t: &Theme,
+    id: &str,
+    kind: &str,
+    detail: &str,
+    status: ToolStatus,
+    state: ToolState,
+    improve: Option<(String, String)>,
+) -> El {
     let tool = get_tool(kind);
     // Reads are quieter than commands and edits.
     let (weight, ink) = if tool.category == Category::Read { (400.0, t.muted) } else { (500.0, t.text) };
@@ -133,6 +158,9 @@ pub fn tool_row(t: &Theme, id: &str, kind: &str, detail: &str, status: ToolStatu
     } else {
         line.child(text(shown.to_string()).font(mono(12.0, 400.0, 1.3)).color(t.muted).truncate().grow(1.0))
     };
+    if let Some((skill, tool_id)) = improve {
+        line = line.child(improve_button(t, id, skill, tool_id));
+    }
     match status {
         ToolStatus::Running => line.child(pulse(t.running)),
         ToolStatus::Background => line.child(row().gap(6.0).center_y().child(status_word("BACKGROUND", t.running)).child(pulse(t.running))),

@@ -334,7 +334,12 @@ fn status_with(method: &str, base: &str, path: &str, body: Option<&Value>) -> Re
 
 /// `status_with` that hands back the body as it came, for a caller that reads the server's reason out of it.
 pub fn text_with(method: &str, base: &str, path: &str, body: Option<&Value>) -> Result<(u16, String), String> {
-    let agent: ureq::Agent = builder().timeout_global(Some(Duration::from_secs(15))).http_status_as_error(false).build().into();
+    text_within(method, base, path, body, 15)
+}
+
+/// `text_with` that waits `seconds` for the answer: a call that asks a model (Improve a skill) takes far longer than 15.
+pub fn text_within(method: &str, base: &str, path: &str, body: Option<&Value>, seconds: u64) -> Result<(u16, String), String> {
+    let agent: ureq::Agent = builder().timeout_global(Some(Duration::from_secs(seconds))).http_status_as_error(false).build().into();
     let target = url(base, path);
     let json = || body.map_or("{}".to_string(), Value::to_string);
     let response = match method {

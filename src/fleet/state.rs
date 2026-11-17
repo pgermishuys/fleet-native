@@ -428,6 +428,13 @@ impl State {
             self.working_since = self.clock;
         }
         self.prompts.on_messages(id, &state.messages);
+        // A skill call in the conversation needs the list of built-in skills to know whether it offers Improve.
+        let calls_skill = state.messages.iter().flat_map(|m| &m.parts).any(
+            |p| matches!(p, super::model::PartData::Tool { tool, .. } if crate::conv::tools::get_tool(tool).category == crate::conv::tools::Category::Skill),
+        );
+        if calls_skill {
+            self.skills_ensure_loaded();
+        }
         self.stream = Some(state);
         self.stream_of = Some(id.to_string());
         // A snapshot after a reconnect leaves a reader where they are; only the first one of a session starts at the end.

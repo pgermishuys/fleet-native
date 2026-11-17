@@ -64,6 +64,15 @@ fn run_key(key: &str, lines: usize, id: &str) -> String {
 
 /// `.diff-view`. `key` names the box (and its expanders) for tests and for what is expanded.
 pub fn diff_view(t: &Theme, s: &State, key: &str, lines: &[DiffLine]) -> El {
+    boxed_diff(t, s, key, lines, true)
+}
+
+/// The same rows with no border or rounded corners of their own, for a box that draws its own (the skill diff).
+pub fn bare_diff(t: &Theme, s: &State, key: &str, lines: &[DiffLine]) -> El {
+    boxed_diff(t, s, key, lines, false)
+}
+
+fn boxed_diff(t: &Theme, s: &State, key: &str, lines: &[DiffLine], boxed: bool) -> El {
     let tint = tints(t);
     let open = |id: &str| s.diff_open.contains(&run_key(key, lines.len(), id));
     let expanded: std::collections::HashSet<String> = rows(lines, &Default::default())
@@ -130,15 +139,7 @@ pub fn diff_view(t: &Theme, s: &State, key: &str, lines: &[DiffLine]) -> El {
             }
         }
     }
-    row()
-        .key(key.to_string())
-        .w_full()
-        .fill(t.panel_bg)
-        .radius(RADIUS_CARD)
-        .border(1.0, t.border)
-        .border_layout()
-        .clip_rounded(RADIUS_CARD)
-        .label("Diff view")
-        .child(numbers)
-        .child(el().key(format!("{key}-code")).grow(1.0).min_w(0.0).scroll_x().child(code))
+    let frame = row().key(key.to_string()).w_full().fill(t.panel_bg).label("Diff view");
+    let frame = if boxed { frame.radius(RADIUS_CARD).border(1.0, t.border).border_layout().clip_rounded(RADIUS_CARD) } else { frame };
+    frame.child(numbers).child(el().key(format!("{key}-code")).grow(1.0).min_w(0.0).scroll_x().child(code))
 }

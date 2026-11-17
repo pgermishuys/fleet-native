@@ -109,6 +109,7 @@ pub mod settings;
 pub mod settings_nav;
 pub mod sign_in;
 pub mod signalr;
+pub mod skills;
 pub mod smart_link_card;
 pub mod smart_link_feed;
 pub mod smart_links;

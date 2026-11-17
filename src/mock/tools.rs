@@ -192,6 +192,25 @@ pub fn of_diffs(ids: &[&str]) -> Vec<crate::view::conversation::Message> {
     ])
 }
 
+/// Calls of skills: two built in (one finished, one still running), and one of the user's own.
+pub fn of_skills() -> Vec<crate::view::conversation::Message> {
+    let skill = |id: &str, name: &str, status: &str| call(id, "skill", status, json!({"name": name}), json!({}));
+    conversation(vec![
+        message(
+            "u1",
+            "user",
+            1,
+            vec![json!({"type": "text", "id": "u1-t", "text": "Bring the docs up to date with the new totals code."})],
+        ),
+        message(
+            "a1",
+            "assistant",
+            2,
+            vec![skill("k1", "tidy-docs", "completed"), skill("k2", "release-notes", "running"), skill("k3", "my-checklist", "completed")],
+        ),
+    ])
+}
+
 impl State {
     /// Opens the cards of `of_output` the picture shows, and widens the long one when asked.
     pub fn open_cards(&mut self, ids: &[&str], wide: &[&str]) {

@@ -88,6 +88,7 @@ pub mod settings;
 mod sheet;
 mod shell;
 pub mod sign_in;
+pub mod skill_diff;
 pub mod smart_link_card;
 pub mod smart_link_row;
 pub mod starters;

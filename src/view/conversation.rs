@@ -308,7 +308,14 @@ pub fn stream(t: &Theme, session: &Session, plan: &FoldPlan, partial: bool, olde
                     frame,
                     s.lists().models.len(),
                     fold_key(kept),
-                    (failure, agent_row::key(s, msg), image::key(s, &msg.parts), browser_steps::key(s, &msg.parts), question::key(s, msg)),
+                    (
+                        failure,
+                        agent_row::key(s, msg),
+                        image::key(s, &msg.parts),
+                        browser_steps::key(s, &msg.parts),
+                        question::key(s, msg),
+                        improvable(s, msg),
+                    ),
                     (s.is_shown(&msg.id), s.find_row_key(&msg.id)),
                 ),
                 || message_row(&theme, &md, msg, (kept, after_tool), streaming, s, (frame.0, frame.1)),
@@ -441,6 +448,21 @@ fn read_groups(msg: &Message) -> Vec<String> {
         }
     }
     ids
+}
+
+/// Which skill calls of the message offer Improve: the list of built-in skills can arrive after the row was drawn, and the row
+/// is reused (`memo`) until this changes. Empty for a message with no skill call.
+fn improvable(s: &State, msg: &Message) -> Vec<bool> {
+    use crate::conv::tools::{Category, ToolStatus, get_tool};
+    msg.parts
+        .iter()
+        .filter_map(|p| match p {
+            Part::Tool { tool, detail, status, .. } if get_tool(tool).category == Category::Skill => {
+                Some(*status == ToolStatus::Completed && s.skills.is_built_in(detail))
+            }
+            _ => None,
+        })
+        .collect()
 }
 
 /// Which of a message's read groups and tool cards the user opened, widened or showed all of the diff of: part of the row's memo key. Nothing
