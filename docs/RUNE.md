@@ -1496,3 +1496,8 @@ a real route first (or use `Canvases` directly).
 ## Component 12, piece A (the changes list)
 
 - **Nothing new about Rune.** The piece is plain Rust. For the pieces after it: a timer on the UI side is a thread that sleeps and posts back (`Link::off_thread` with a sleeping call), as the 250 ms edit window does; `Diffs` hands out a `Ticket` per request and drops an answer whose ticket is no longer current, so a test drives the rules with no thread at all and only a few cases need the fake server.
+
+## Component 10, piece I (Turns, the logic)
+
+- **Nothing new about Rune.** The piece is plain Rust. For piece J: derive the turns off the frame path and keep an `EditCache`
+  on `State`, so a long session parses each call once. A global cache (as Fleet has) shares call ids between parallel tests.

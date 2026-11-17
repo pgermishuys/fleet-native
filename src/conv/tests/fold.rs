@@ -206,18 +206,14 @@ fn write_turn() -> Vec<ListMessage> {
     ]
 }
 fn stats() -> FileStats {
-    [
-        ("src/notes.ts".to_string(), FileStat { additions: 11, deletions: 2 }),
-        ("test/notes.test.ts".to_string(), FileStat { additions: 14, deletions: 1 }),
-    ]
-    .into()
+    [("src/notes.ts".to_string(), FileStat::new(11, 2)), ("test/notes.test.ts".to_string(), FileStat::new(14, 1))].into()
 }
 
 #[test]
 fn counts_the_files_real_change_from_the_session_diff_not_every_line_written() {
     let out = with_file_stats(&write_turn(), Some(&stats()), Some("/work/demo"), None);
-    assert_eq!(out[1].tools[1].diff_stat, Some(FileStat { additions: 11, deletions: 2 }));
-    assert_eq!(out[1].tools[2].diff_stat, Some(FileStat { additions: 14, deletions: 1 }));
+    assert_eq!(out[1].tools[1].diff_stat, Some(FileStat::new(11, 2)));
+    assert_eq!(out[1].tools[2].diff_stat, Some(FileStat::new(14, 1)));
 }
 
 #[test]
@@ -229,7 +225,7 @@ fn draws_no_counts_while_the_session_diff_isnt_loaded_rather_than_a_wrong_plus_2
 #[test]
 fn counts_a_file_the_session_diff_doesnt_list_as_unchanged() {
     let out = with_file_stats(&write_turn(), Some(&FileStats::new()), Some("/work/demo"), None);
-    assert_eq!(out[1].tools[1].diff_stat, Some(FileStat { additions: 0, deletions: 0 }));
+    assert_eq!(out[1].tools[1].diff_stat, Some(FileStat::new(0, 0)));
 }
 
 #[test]
@@ -330,7 +326,7 @@ mod past_turns_keep_what_they_changed {
         m
     }
     fn readme(additions: u32, deletions: u32) -> FileStats {
-        [("README.md".to_string(), FileStat { additions, deletions })].into()
+        [("README.md".to_string(), FileStat::new(additions, deletions))].into()
     }
 
     #[test]
@@ -342,7 +338,7 @@ mod past_turns_keep_what_they_changed {
     fn uses_the_snapshot_the_server_took_as_the_turn_ended_whatever_todays_diff_says() {
         let snapshots = [TurnStatsSnapshot { ended_at: 3500, files: readme(3, 1) }];
         let out = with_file_stats(&timed(two()), Some(&readme(0, 3)), Some("/work/demo"), Some(&snapshots));
-        assert_eq!(stat_of(&out), Some(FileStat { additions: 3, deletions: 1 }));
+        assert_eq!(stat_of(&out), Some(FileStat::new(3, 1)));
     }
 
     #[test]
@@ -356,7 +352,7 @@ mod past_turns_keep_what_they_changed {
     fn a_snapshot_that_lists_no_such_file_means_the_turn_left_it_unchanged() {
         let m = timed(two())[..2].to_vec();
         let out = with_file_stats(&m, None, Some("/work/demo"), Some(&[TurnStatsSnapshot { ended_at: 3100, files: FileStats::new() }]));
-        assert_eq!(stat_of(&out), Some(FileStat { additions: 0, deletions: 0 }));
+        assert_eq!(stat_of(&out), Some(FileStat::new(0, 0)));
     }
 
     #[test]
@@ -385,7 +381,7 @@ mod a_write_rows_counts_come_from_its_own_turns_snapshot {
     fn snap(ended_at: i64, files: &[(&str, u32, u32)]) -> TurnStatsSnapshot {
         TurnStatsSnapshot {
             ended_at,
-            files: files.iter().map(|&(p, additions, deletions)| (p.to_string(), FileStat { additions, deletions })).collect(),
+            files: files.iter().map(|&(p, additions, deletions)| (p.to_string(), FileStat::new(additions, deletions))).collect(),
         }
     }
     fn snapshots() -> Vec<TurnStatsSnapshot> {
@@ -395,13 +391,13 @@ mod a_write_rows_counts_come_from_its_own_turns_snapshot {
     #[test]
     fn counts_a_new_file_written_in_a_turn_that_follows_close_behind_the_last_one_not_plus_0_minus_0_from_the_turn_before() {
         let out = with_file_stats(&turns(), None, Some("/work/demo"), Some(&snapshots()));
-        assert_eq!(out.iter().find(|m| m.id == "a2").unwrap().tools[0].diff_stat, Some(FileStat { additions: 3, deletions: 0 }));
+        assert_eq!(out.iter().find(|m| m.id == "a2").unwrap().tools[0].diff_stat, Some(FileStat::new(3, 0)));
     }
 
     #[test]
     fn keeps_the_earlier_turn_on_its_own_snapshot() {
         let out = with_file_stats(&turns(), None, Some("/work/demo"), Some(&snapshots()));
-        assert_eq!(out.iter().find(|m| m.id == "a1").unwrap().tools[0].diff_stat, Some(FileStat { additions: 1, deletions: 0 }));
+        assert_eq!(out.iter().find(|m| m.id == "a1").unwrap().tools[0].diff_stat, Some(FileStat::new(1, 0)));
     }
 }
 

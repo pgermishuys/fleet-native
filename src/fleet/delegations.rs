@@ -26,6 +26,17 @@ impl DelegationStatus {
         }
     }
 
+    /// The word the server sends, which the Turns tab's sub-agent chips show as it is.
+    pub fn wire(self) -> &'static str {
+        match self {
+            Self::Pending => "pending",
+            Self::Running => "running",
+            Self::Completed => "completed",
+            Self::Error => "error",
+            Self::Cancelled => "cancelled",
+        }
+    }
+
     /// Pending and running are the active ones; the rest are over.
     pub fn active(self) -> bool {
         matches!(self, Self::Pending | Self::Running)

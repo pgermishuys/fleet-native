@@ -14,6 +14,16 @@ pub fn format_duration(ms: i64) -> String {
     if seconds < 60 { format!("{seconds} s") } else { minutes_text(ms) }
 }
 
+/// `formatDuration(ms)` with seconds: "45 s", "3 min 20 s", "1 h 05 min". For a tooltip, and the Turns tab's "took".
+pub fn format_duration_exact(ms: i64) -> String {
+    let seconds = ms.max(0) / 1000;
+    if (60..3600).contains(&seconds) {
+        let (m, s) = (seconds / 60, seconds % 60);
+        return if s == 0 { format!("{m} min") } else { format!("{m} min {s:02} s") };
+    }
+    format_duration(ms)
+}
+
 /// How often an elapsed time of `ms` needs to tick to stay right: every second in its first minute, then every
 /// minute (`elapsedTickMs`).
 pub fn elapsed_tick_ms(ms: i64) -> i64 {
