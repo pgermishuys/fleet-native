@@ -34,7 +34,9 @@ fn harness_row(s: &State, t: &Theme, all: &Harnesses, h: &HarnessEntry) -> El {
         r = r.child(choices(s, t, h));
     }
     if h.fleet_installs() {
-        r = r.child(update_strip(t, h));
+        if let Some(strip) = crate::view::settings::harness_update::view(s, t, h, crate::fleet::settings::HOME_MACHINE_KEY) {
+            r = r.child(strip);
+        }
         if h.setup_state() == "sign-in-required" {
             r = r.child(sign_in_panel(t, h));
         }
@@ -268,25 +270,6 @@ fn notes(t: &Theme, h: &HarnessEntry) -> El {
 
 fn hand_off(_what: &'static str) -> impl Fn(&mut State, &mut Tx) + 'static {
     move |s: &mut State, _: &mut Tx| s.open_settings("harnesses", None)
-}
-
-fn update_strip(t: &Theme, h: &HarnessEntry) -> El {
-    let working = matches!(h.setup.update_phase.as_deref(), Some("waiting" | "running"));
-    let head = if working { format!("Updating {}…", h.display_name) } else { format!("{} isn't installed.", h.display_name) };
-    let plan = h.setup.install_plan.clone().unwrap_or_default();
-    let mut words = col().grow(1.0).min_w(0.0).gap(2.0).child(text(head).font(sans(13.0, 600.0, 1.4)).color(t.text));
-    if !working {
-        words = words.child(text(plan).font(sans(13.0, 400.0, 1.4)).color(t.muted).wrap().w_full());
-    }
-    let mut r = row().w_full().items_center().gap(12.0).child(words);
-    r = r.child(if working {
-        spinner(t)
-    } else {
-        button(t, true, Some(&DOWNLOAD), "Install")
-            .key(format!("harness-setup-update-install-{}", h.kind))
-            .on_press_tx(hand_off("Installing it"))
-    });
-    el_box(t, 8.0, 14.0, 12.0).key(format!("harness-update-{}", h.kind)).child(r)
 }
 
 fn sign_in_panel(t: &Theme, h: &HarnessEntry) -> El {

@@ -210,3 +210,190 @@ impl State {
         self.open_harness("opencode2", Some("profiles"));
     }
 }
+
+/// What the Install panel and the Copilot path field show in a scene (component 16, piece J).
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Install {
+    /// OpenCode 2 installed, with its folders, a note and the sign-in command.
+    Installed,
+    /// Not installed, with two places to put it.
+    TwoPlaces,
+    /// Not installed, one installer.
+    OneInstaller,
+    /// What is there stopped working: the installer again.
+    Broken,
+    /// Copilot: Fleet found weave-copilot.
+    PathFound,
+    /// Copilot: Fleet couldn't find it and says why.
+    PathReason,
+    /// Copilot: a path was typed and Fleet refused to save it.
+    PathError,
+}
+
+fn folder(label: &str, path: &str) -> crate::fleet::harness_setup_rows::Folder {
+    crate::fleet::harness_setup_rows::Folder { label: label.into(), path: path.into() }
+}
+
+fn choice(
+    id: &str,
+    label: &str,
+    description: &str,
+    command: &str,
+    recommended: bool,
+    program: &str,
+) -> crate::fleet::harness_setup_rows::Choice {
+    crate::fleet::harness_setup_rows::Choice {
+        id: id.into(),
+        label: label.into(),
+        description: description.into(),
+        command: command.into(),
+        recommended,
+        folders: vec![folder("Program", program)],
+    }
+}
+
+const SEPARATE: &str = "curl -fsSL https://opencode.ai/v2/install | HOME=/home/you/.weave/harnesses/opencode2 bash -s -- --no-modify-path";
+
+impl State {
+    /// Settings → Harnesses on the tab the case is about.
+    pub fn show_install(&mut self, dark: bool, case: Install) {
+        let copilot = matches!(case, Install::PathFound | Install::PathReason | Install::PathError);
+        self.show_harnesses(dark, Case::Mixed, Some(if copilot { "copilot" } else { "opencode2" }));
+        let feed = self.feeds.harnesses.entry(HOME_MACHINE_KEY.to_string()).or_default();
+        let h = &mut feed.harnesses.all[if copilot { 2 } else { 0 }];
+        if copilot {
+            h.state = "ready".into();
+            if case == Install::PathReason {
+                h.state = "not-installed".into();
+                h.available = false;
+                h.version = None;
+                h.executable_path = None;
+                h.reason = Some("GitHub Copilot isn't installed: Fleet couldn't find weave-copilot on PATH.".into());
+            }
+            if case == Install::PathError {
+                self.settings.harnesses.path.draft = rune::TextEdit::new("/opt/nowhere/weave-copilot");
+                self.settings.harnesses.path.error = Some("Fleet couldn't save the path to weave-copilot.".into());
+            }
+            return;
+        }
+        h.setup.mode = Some("In its own folder".into());
+        h.setup.sign_in_command = Some("OPENCODE_CONFIG_DIR=/c opencode2 auth login".into());
+        h.setup.notes = vec!["OpenCode 2 keeps its own provider sign-ins here.".into()];
+        h.setup.folders = vec![
+            folder("Program", "/home/you/.weave/harnesses/opencode2/.opencode/bin"),
+            folder("Settings", "/home/you/.weave/harnesses/opencode2/config"),
+            folder("Sessions", "/home/you/.weave/harnesses/opencode2/data/opencode.db"),
+        ];
+        h.setup.install_command = Some(SEPARATE.into());
+        match case {
+            Install::TwoPlaces | Install::OneInstaller | Install::Broken => {
+                h.state = if case == Install::Broken { "not-working" } else { "not-installed" }.into();
+                h.available = false;
+                if case != Install::Broken {
+                    h.version = None;
+                    h.executable_path = None;
+                }
+                h.reason = Some("OpenCode 2 isn't installed: Fleet couldn't find it on this machine.".into());
+                if case == Install::TwoPlaces {
+                    h.setup.install_choices = vec![
+                        choice(
+                            "separate",
+                            "In its own folder",
+                            "OpenCode 1 can be installed next to it at any time.",
+                            SEPARATE,
+                            true,
+                            "/home/you/.weave/harnesses/opencode2/.opencode/bin",
+                        ),
+                        choice(
+                            "default",
+                            "As your main opencode",
+                            "Installing OpenCode 1 later replaces OpenCode 2.",
+                            "curl -fsSL https://opencode.ai/v2/install | bash",
+                            false,
+                            "/home/you/.opencode/bin",
+                        ),
+                    ];
+                }
+            }
+            _ => {}
+        }
+        h.card.describes_install = true;
+    }
+}
+
+/// What an update strip shows in a scene.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Strip {
+    Offer,
+    TooOld,
+    Waiting,
+    Running,
+    Succeeded,
+    Failed,
+    Install,
+    Downloading,
+    Refused,
+}
+
+impl State {
+    /// The setup wizard's rows with GitHub Copilot (the one Fleet installs itself) in each state of its update.
+    pub fn show_strip(&mut self, dark: bool, case: Strip) {
+        use crate::fleet::harness_setup::Scene;
+        use crate::fleet::settings::harness_update::{Job, Update};
+        self.dark = Some(dark);
+        self.show_harness_setup_scene(Scene::RowsCopilot);
+        let plan = "Fleet downloads weave-copilot 0.2.2 and the Copilot CLI 1.0.105 from GitHub into ~/.weave/runtimes/copilot.";
+        let job = |phase: &str, message: Option<&str>| Job {
+            phase: phase.into(),
+            working_sessions: 2,
+            message: message.map(str::to_string),
+            from_version: Some("0.2.1".into()),
+            output: None,
+        };
+        let mut update = Update { install_plan: Some(plan.into()), latest_version: Some("0.2.2".into()), ..Update::default() };
+        let (mut state, mut version) = ("ready", Some("0.2.1"));
+        match case {
+            Strip::Offer | Strip::Refused => update.available = true,
+            Strip::TooOld => {
+                update.available = true;
+                state = "update-needed";
+            }
+            Strip::Waiting => update.job = Some(job("waiting", None)),
+            Strip::Running => update.job = Some(job("running", Some("Updating weave-copilot to 0.2.2\u{2026}"))),
+            Strip::Succeeded => update.job = Some(job("succeeded", Some("Updated weave-copilot from 0.2.1 to 0.2.2."))),
+            Strip::Failed => {
+                let mut failed = job(
+                    "failed",
+                    Some("The update failed (exit code 1). weave-copilot is still on 0.2.1. Run it yourself: weave-copilot update"),
+                );
+                failed.output = Some(
+                    "error: could not replace /home/you/.weave/runtimes/copilot/weave-copilot\nPermission denied (os error 13)".into(),
+                );
+                update.job = Some(failed);
+                update.command = Some("weave-copilot update".into());
+            }
+            Strip::Install | Strip::Downloading => {
+                (state, version) = ("not-installed", None);
+                update.can_install = true;
+                update.available = false;
+                if case == Strip::Downloading {
+                    update.job = Some(job("running", Some("Downloading the Copilot CLI 1.0.105\u{2026} 42%")));
+                }
+            }
+        }
+        if let Some(feed) = self.feeds.harnesses.get_mut(HOME_MACHINE_KEY) {
+            let h = &mut feed.harnesses.all[1];
+            h.state = state.into();
+            h.available = state == "ready";
+            h.version = version.map(str::to_string);
+            h.reason = (state == "update-needed").then(|| "Fleet needs weave-copilot 0.2.0 or newer. You have 0.1.4.".into());
+            if state == "update-needed" {
+                h.version = Some("0.1.4".into());
+            }
+            h.card.update = update;
+        }
+        if case == Strip::Refused {
+            self.settings.harnesses.strips.error = Some(("copilot".into(), "GitHub Copilot is already being updated.".into()));
+        }
+    }
+}

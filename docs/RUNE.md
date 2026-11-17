@@ -1443,3 +1443,11 @@ Plain Rust, no view, so nothing new about Rune. For the next piece that draws th
 - **A started `Link` reads home's machines at once**, so a test that seeds `machines` and then sets `s.link` is overwritten by the fake's answer. Wait for the first read to land (`machines.list` empty), then seed again.
 - **A choice that is disabled while it saves is ignored when a test clicks it before the answer is handled**: wait for the saving flag to clear before the next click.
 
+
+
+## Component 16, piece J (Harnesses: Install panel, Copilot path, update strip)
+
+- **A wrapping row's text needs `.shrink().min_w(0.0)`**: a long message in a `flex_wrap` row with buttons beside it otherwise keeps its full width and runs under them; a mono command box in a card needs the same on the box or it overflows the card.
+- **No CSS grid**: `fit-content(15em) 1fr` is a label column sized from the longest label's character count.
+- **`cargo test` of this crate peaks near 3 GB in rustc**: under a 3000M cap it is OOM-killed (exit 143, nothing printed); `CARGO_BUILD_JOBS=1` and a 3500M cap built it.
+- **A click can't reach below the first screen**: a test of a control further down the page calls the state method and checks the element exists.

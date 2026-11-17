@@ -193,7 +193,16 @@ fn heading(s: &State, t: &Theme, h: &HarnessEntry) -> El {
     row().w_full().items_start().justify_between().gap(14.0).child(left).child(row().center_y().gap(7.0).child(enabled_label).child(switch))
 }
 
-/// "Its version and updates are on Updates & about." with the link.
+/// "Its version and updates are on Updates & about." with the link, and under it the Install panel of a harness that describes
+/// its install (`data-setting-group="version"`, a `grid gap-2`).
+fn version_group(s: &State, t: &Theme, h: &HarnessEntry) -> El {
+    let mut group = col().key("harness-version-group").w_full().gap(7.0).child(version_line(t));
+    if let Some(install) = super::harness_install::panel(s, t, h) {
+        group = group.child(install);
+    }
+    group
+}
+
 fn version_line(t: &Theme) -> El {
     let font = sans(rem(0.75), 400.0, 1.33);
     row()
@@ -278,6 +287,10 @@ fn slots(s: &State, t: &Theme, h: &HarnessEntry) -> (Vec<El>, Vec<El>) {
     if h.supports_profiles {
         after.push(super::harness_profiles::section(s, t, &h.kind, &h.display_name, h.card.profile_note.as_deref()));
     }
+    // GitHub Copilot runs weave-copilot, which Fleet finds on PATH unless the user names it.
+    if h.kind == "copilot" {
+        after.push(super::harness_path::field(s, t, h));
+    }
     (Vec::new(), after)
 }
 
@@ -289,7 +302,7 @@ fn panel(s: &State, t: &Theme, h: &HarnessEntry) -> El {
         .w_full()
         .gap(21.0)
         .child(heading(s, t, h))
-        .child(version_line(t))
+        .child(version_group(s, t, h))
         .children(before)
         .child(may_do(s, t, h))
         .children(after);

@@ -65,6 +65,8 @@ pub struct Card {
     pub profile_note: Option<String>,
     /// `presentation.permissionModes`: what each level (`ask`, `edits`, `all`) means to the harness, in its own words.
     pub permission_modes: std::collections::BTreeMap<String, String>,
+    /// `update`: a newer version, an install Fleet can do, and the job running it (`HarnessUpdateStrip`).
+    pub update: crate::fleet::settings::harness_update::Update,
 }
 
 impl Card {
@@ -102,6 +104,7 @@ impl Card {
                 .and_then(Value::as_object)
                 .map(|m| m.iter().filter_map(|(k, v)| Some((k.clone(), v.as_str()?.to_string()))).collect())
                 .unwrap_or_default(),
+            update: crate::fleet::settings::harness_update::Update::parse(h),
         }
     }
 }
