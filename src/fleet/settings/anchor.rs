@@ -34,6 +34,11 @@ pub fn targets(page: &Page) -> &'static [(&'static str, &'static str)] {
             ("font-size", "settings-row-font-size"),
             ("thinking", "settings-row-thinking"),
         ],
+        Page::Harnesses => &[
+            ("default-harness", "settings-group-default-harness"),
+            ("may-do", "settings-anchor-may-do"),
+            ("harness-settings", "settings-group-harness-settings"),
+        ],
         _ => &[],
     }
 }

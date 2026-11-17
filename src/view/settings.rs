@@ -4,6 +4,7 @@
 pub mod appearance;
 pub mod appearance_cards;
 pub mod general;
+pub mod harnesses;
 pub mod kit;
 pub mod kit_scene;
 pub mod labs;
@@ -138,6 +139,8 @@ pub fn detail(s: &State, t: &Theme) -> El {
         appearance::content(s, t)
     } else if *page == Page::Memory {
         memory::content(s, t)
+    } else if *page == Page::Harnesses {
+        harnesses::content(s, t)
     } else if *page == Page::Machines {
         machines_page::content(s, t)
     } else {

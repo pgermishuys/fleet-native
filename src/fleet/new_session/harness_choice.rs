@@ -30,6 +30,70 @@ pub struct HarnessEntry {
     pub executable_path: Option<String>,
     /// What the setup rows offer: installer, sign-in, download, places, notes, icon, pitch (piece O).
     pub setup: Setup,
+    /// What the Harnesses page in Settings reads (component 16, piece G).
+    pub card: Card,
+}
+
+/// One switch a harness describes for itself (`HarnessSetting`).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct HarnessSetting {
+    pub key: String,
+    pub label: String,
+    pub description: String,
+    /// Whether it is on while the preference is unset.
+    pub default: bool,
+}
+
+/// The fields of `HarnessInfo` only Settings reads: how the harness describes itself, when Fleet last checked and what Fleet
+/// can hand it.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Card {
+    /// The version of a program the harness drives (GitHub Copilot's CLI).
+    pub cli_version: Option<String>,
+    /// When Fleet last checked the harnesses (ISO); missing from a Fleet that checks on every request.
+    pub checked_at: Option<String>,
+    /// `presentation.eyebrow` and `presentation.description`.
+    pub eyebrow: Option<String>,
+    pub description: Option<String>,
+    pub settings: Vec<HarnessSetting>,
+    pub supports_permission_levels: bool,
+    pub supports_agent_browser: bool,
+    pub supports_provider_sign_in: bool,
+    /// `setup.mode` is there: the harness describes how it is installed here (OpenCode 2).
+    pub describes_install: bool,
+}
+
+impl Card {
+    fn parse(h: &Value) -> Card {
+        let text = |p: &str| h.pointer(p).and_then(Value::as_str).filter(|s| !s.is_empty()).map(str::to_string);
+        let flag = |p: &str| h.pointer(p).and_then(Value::as_bool) == Some(true);
+        let settings = h
+            .get("settings")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(|v| {
+                let field = |k: &str| v.get(k).and_then(Value::as_str).unwrap_or_default().to_string();
+                Some(HarnessSetting {
+                    key: v.get("key")?.as_str()?.to_string(),
+                    label: field("label"),
+                    description: field("description"),
+                    default: v.get("default").and_then(Value::as_bool) == Some(true),
+                })
+            })
+            .collect();
+        Card {
+            cli_version: text("/cliVersion"),
+            checked_at: text("/checkedAt"),
+            eyebrow: text("/presentation/eyebrow"),
+            description: text("/presentation/description"),
+            settings,
+            supports_permission_levels: flag("/capabilities/supportsPermissionLevels"),
+            supports_agent_browser: flag("/capabilities/supportsAgentBrowser"),
+            supports_provider_sign_in: flag("/capabilities/supportsProviderSignIn"),
+            describes_install: h.pointer("/setup/mode").is_some_and(|m| !m.is_null()),
+        }
+    }
 }
 
 impl HarnessEntry {
@@ -74,6 +138,7 @@ pub fn parse_harness_entries(body: &Value) -> Vec<HarnessEntry> {
                 version: text("version"),
                 executable_path: text("executablePath"),
                 setup: Setup::parse(h),
+                card: Card::parse(h),
             })
         })
         .collect()
