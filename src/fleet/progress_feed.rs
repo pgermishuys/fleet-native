@@ -2,6 +2,7 @@
 //! `composables/use-session-progress.ts`, `composables/use-session-progress-updates.ts`): loaded once from the session's own
 //! machine, kept current by `progress.updated` on its topic, and dropped when a row summary on the `sessions` topic shows it
 //! is out of date. Progress is extra information: a failed request is not shown and is asked again on the next view.
+use super::canvases::CanvasKind;
 use super::events::{Event, Kind};
 use super::http;
 use super::progress::{ProgressDetail, parse_detail};
@@ -24,6 +25,8 @@ struct Slot {
 pub struct ProgressFeed {
     by_session: HashMap<String, Slot>,
     loading: HashSet<String>,
+    /// Groups the user opened or folded, by session and group key (Fleet keeps one map for every session; see the checklist).
+    folds: HashMap<(String, String), bool>,
 }
 
 impl ProgressFeed {
@@ -76,6 +79,17 @@ impl ProgressFeed {
         self.loading.insert(session.to_string())
     }
 
+    /// Whether a group is open now: what the user chose, else `default` (`openGroups`).
+    pub fn group_open(&self, session: &str, key: &str, default: bool) -> bool {
+        self.folds.get(&(session.to_string(), key.to_string())).copied().unwrap_or(default)
+    }
+
+    /// A click on a group head flips it from what it shows now.
+    pub fn toggle_group(&mut self, session: &str, key: &str, default: bool) {
+        let open = self.group_open(session, key, default);
+        self.folds.insert((session.to_string(), key.to_string()), !open);
+    }
+
     /// For a scene: the session has exactly this.
     pub fn set(&mut self, session: &str, detail: Option<ProgressDetail>) {
         self.by_session.insert(session.to_string(), Slot { detail, fresh: true });
@@ -83,6 +97,16 @@ impl ProgressFeed {
 }
 
 impl State {
+    /// The Progress tab is added the first time the open session has something to count (`introduce`, `total > 0`); after
+    /// that, closing it keeps it closed. Called every frame: it does nothing once the tab was introduced.
+    pub fn keep_progress_tab(&mut self) {
+        let Some(p) = self.session().row.progress.as_ref() else { return };
+        if p.total == 0 || self.open_canvases().introduced.contains(&CanvasKind::Progress) {
+            return;
+        }
+        self.edit_canvases(|c, session| c.introduce(session, CanvasKind::Progress));
+    }
+
     /// `ensureLoaded`: asks the session's own machine for its progress, off the UI thread. `force` asks again.
     pub fn ensure_progress_loaded(&mut self, session: &str, force: bool) {
         let Some(link) = self.link_for(session) else { return };
