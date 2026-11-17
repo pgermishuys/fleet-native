@@ -143,6 +143,8 @@ mod tests_settings_machine;
 #[cfg(test)]
 mod tests_settings_memory;
 #[cfg(test)]
+mod tests_settings_memory_notes;
+#[cfg(test)]
 mod tests_settings_nav;
 #[cfg(test)]
 mod tests_sign_in;
@@ -1608,6 +1610,25 @@ pub fn spec() -> AppSpec<State> {
             ("settings-memory-loading-light", |s| memory_scene(s, false, |p| *p = loading_page(p))),
             ("settings-memory-error", |s| memory_scene(s, true, |p| *p = failed_page(p))),
             ("settings-memory-error-light", |s| memory_scene(s, false, |p| *p = failed_page(p))),
+            // Component 16, piece Q: the notes, long ones, search older notes on, the expired fold, adding, editing, a search, Clear all, none.
+            ("settings-memory-notes", |s| mock::memory::scene(s, true, mock::memory::Variant::Notes)),
+            ("settings-memory-notes-light", |s| mock::memory::scene(s, false, mock::memory::Variant::Notes)),
+            ("settings-memory-notes-long", |s| mock::memory::scene(s, true, mock::memory::Variant::Long)),
+            ("settings-memory-notes-long-light", |s| mock::memory::scene(s, false, mock::memory::Variant::Long)),
+            ("settings-memory-search-on", |s| mock::memory::scene(s, true, mock::memory::Variant::SearchOn)),
+            ("settings-memory-search-on-light", |s| mock::memory::scene(s, false, mock::memory::Variant::SearchOn)),
+            ("settings-memory-expired-open", |s| mock::memory::scene(s, true, mock::memory::Variant::ExpiredOpen)),
+            ("settings-memory-expired-open-light", |s| mock::memory::scene(s, false, mock::memory::Variant::ExpiredOpen)),
+            ("settings-memory-adding", |s| mock::memory::scene(s, true, mock::memory::Variant::Adding)),
+            ("settings-memory-adding-light", |s| mock::memory::scene(s, false, mock::memory::Variant::Adding)),
+            ("settings-memory-editing", |s| mock::memory::scene(s, true, mock::memory::Variant::Editing)),
+            ("settings-memory-editing-light", |s| mock::memory::scene(s, false, mock::memory::Variant::Editing)),
+            ("settings-memory-filtered", |s| mock::memory::scene(s, true, mock::memory::Variant::Filtered)),
+            ("settings-memory-filtered-light", |s| mock::memory::scene(s, false, mock::memory::Variant::Filtered)),
+            ("settings-memory-confirm-clear", |s| mock::memory::scene(s, true, mock::memory::Variant::ConfirmClear)),
+            ("settings-memory-confirm-clear-light", |s| mock::memory::scene(s, false, mock::memory::Variant::ConfirmClear)),
+            ("settings-memory-empty", |s| mock::memory::scene(s, true, mock::memory::Variant::Empty)),
+            ("settings-memory-empty-light", |s| mock::memory::scene(s, false, mock::memory::Variant::Empty)),
             ("settings-general-flipped", |s| {
                 s.dark = Some(true);
                 s.open_settings("general", None);

@@ -1340,3 +1340,11 @@ against the same restart opens no card (`tap` then fails with "no element"). Emp
 ## Component 16, piece T (Labs)
 
 - `ElementInfo` has no `disabled` flag. A test reads a disabled switch from its `opacity` (the kit fades it to 0.6) or by pressing it and seeing nothing happen.
+## Component 16, piece Q (Memory's notes)
+
+- **Long unbroken text** wraps with `.wrap_anywhere()` (`overflow-wrap: anywhere`); plain `.wrap()` breaks at spaces only and a long token runs out of its card.
+- **A text area's Enter and Esc** are `.on_submit` (Enter; Shift+Enter still adds a line) and `.on_input_key` (Esc). A text area does not take focus when it appears: a test clicks it first, as Fleet's user does.
+- **`maxlength`** has no Rune equivalent. `State::limit_memory_fields` cuts the text each frame from `poll`, so a paste past 400 characters is cut one frame late.
+- **Hover colour on a child** (Fleet's `.memory-link` text goes from muted to `--text` on hover) can't be set from the parent; the link keeps its muted colour and the focus outline is drawn.
+- **A dashed border** (`EmptyState bordered`) is `.border(..).border_layout().border_dash(3.0, 3.0)`.
+- **A popup select anchored to a keyed trigger** needs one more arm in `ui::mod`'s `Open::Select(name)` match; the choice closes it with `s.ui.open = None`.

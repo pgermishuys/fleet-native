@@ -153,6 +153,8 @@ pub struct SettingsNav {
     pub choice: crate::fleet::machine_choice::MachineChoice,
     /// What Memory read from the machine shown, while the page is open.
     pub memory: crate::fleet::settings::memory::MemoryPage,
+    /// Memory's search, add and edit forms and its folds.
+    pub memory_ui: crate::fleet::settings::memory_notes::MemoryUi,
 }
 
 impl SettingsNav {
