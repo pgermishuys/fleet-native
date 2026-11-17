@@ -112,13 +112,13 @@ Files tab, each in both themes.
 
 | # | Element / behaviour | Source | Native today |
 |---|---|---|---|
-| 3.1 | `buildReview(diffLines, context = 3)`: no changes → no items; changes whose context would touch or overlap (gap ≤ 6) form one hunk; a hunk has 3 lines of context each side; the unchanged runs between and after are folds (`fold-<start>`, `hidden`, the lines); hunks are `hunk-<n>` with `from`/`to` indices, `startLine` (first non-removed line's new number, else old, else 1) | DR 120-163 | None |
-| 3.2 | A hunk's name: the nearest line at or above its start that isn't a removal, isn't blank, doesn't start with whitespace or `}`, `)`, `]`; trimmed, cut to 63 chars + "…" past 64 | DR 107-118 | None |
-| 3.3 | `wordMarks(from, to)`: tokens (`\s+`, `[A-Za-z0-9_$]+`, any other char); the shared head and tail tokens are left out; nothing marked when they share nothing, or the change covers more than 70 % of the longer line; a side with nothing of its own gets none | DR 43-77 | None |
-| 3.4 | Each run of removals followed by a run of additions pairs them in order and marks each pair; a hunk over 600 lines is a rewrite and gets no marks | DR 80-97, 142-143 | None |
-| 3.5 | `splitRows`: context on both sides; a run of removals beside the run of additions after it, the shorter side padded with nothing | DR 167-189 | None |
-| 3.6 | `markedSegments(content, marks)`: the line in plain and marked pieces | DR 192-208 | None |
-| 3.7 | `textWithRangeReverted(diffLines, {from,to}, trailingNewline, raw?)`: added lines inside the range dropped, removed lines inside come back, everything else as the file has it now; with `raw` (before and after as read) every line keeps the ending it had in its own file (CRLF, LF, CR, mixed), a line that lost its ending takes the file's most common one, the last line ends as the file ends now, and a BOM stays | DR 210-275 | None |
+| 3.1 | `buildReview(diffLines, context = 3)`: no changes → no items; changes whose context would touch or overlap (gap ≤ 6) form one hunk; a hunk has 3 lines of context each side; the unchanged runs between and after are folds (`fold-<start>`, `hidden`, the lines); hunks are `hunk-<n>` with `from`/`to` indices, `startLine` (first non-removed line's new number, else old, else 1) | DR 120-163 | Done in piece B (`conv::review`, 17 November 2026) |
+| 3.2 | A hunk's name: the nearest line at or above its start that isn't a removal, isn't blank, doesn't start with whitespace or `}`, `)`, `]`; trimmed, cut to 63 chars + "…" past 64 | DR 107-118 | Done in piece B (`conv::review`, 17 November 2026) |
+| 3.3 | `wordMarks(from, to)`: tokens (`\s+`, `[A-Za-z0-9_$]+`, any other char); the shared head and tail tokens are left out; nothing marked when they share nothing, or the change covers more than 70 % of the longer line; a side with nothing of its own gets none | DR 43-77 | Done in piece B (`conv::review`, 17 November 2026) |
+| 3.4 | Each run of removals followed by a run of additions pairs them in order and marks each pair; a hunk over 600 lines is a rewrite and gets no marks | DR 80-97, 142-143 | Done in piece B (`conv::review`, 17 November 2026) |
+| 3.5 | `splitRows`: context on both sides; a run of removals beside the run of additions after it, the shorter side padded with nothing | DR 167-189 | Done in piece B (`conv::review`, 17 November 2026) |
+| 3.6 | `markedSegments(content, marks)`: the line in plain and marked pieces | DR 192-208 | Done in piece B (`conv::review`, 17 November 2026) |
+| 3.7 | `textWithRangeReverted(diffLines, {from,to}, trailingNewline, raw?)`: added lines inside the range dropped, removed lines inside come back, everything else as the file has it now; with `raw` (before and after as read) every line keeps the ending it had in its own file (CRLF, LF, CR, mixed), a line that lost its ending takes the file's most common one, the last line ends as the file ends now, and a BOM stays | DR 210-275 | Done in piece B (`conv::review`, 17 November 2026) |
 
 ## Part 4: the Changes body's states (`ChangesCanvas.vue`)
 
@@ -331,6 +331,8 @@ rendered HTML (a card with Open).
   else a test run and a log of `State.diffs` as the scripted model edits (say which).
 
 ### Piece B: the review model (plain Rust, no view)
+
+- **Done (17 November 2026):** rows 3.1-3.7, `src/conv/review.rs`, `src/conv/tests/review.rs`: `diff-review.test.ts`'s 13 under the same names plus cases for the hunk's start line, a cut name, the 600-line rewrite, the 70 % rule and a lone CR. Marks are byte offsets (Fleet's are UTF-16); the 70 % rule counts UTF-16 units as Fleet does. `split_rows` borrows its lines. Not done: the printout beside Fleet's own hunks for the scratch Fleet's `paginate.py` (the model draws nothing; the PR shows an invented file's printout, and the 13 ported tests are the parity check).
 
 - **Rows:** 3.1-3.7.
 - **Files:** new `src/conv/review.rs` (`ReviewLine` over `conv::diff::DiffLine` with `index` and `marks`, `ReviewItem`

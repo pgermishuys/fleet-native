@@ -1515,3 +1515,7 @@ Nothing new about Rune: the piece is plain Rust. Two things to know for the piec
   close button: 1.0 at rest on the active tab, 0.0 on the others).
 - **Mock sessions have no server id**, so `State::canvas_session()` is the open session's id on a server and the shown session's id
   otherwise; `edit_canvases` and `open_canvases` use it, so scenes and tests can change tabs without a route.
+
+## Component 12, piece B (the review model)
+
+Nothing about Rune: plain Rust. One thing for the pieces that draw it: word marks are byte offsets into a line's content, so a view slices with `marked_segments` and never counts characters.
