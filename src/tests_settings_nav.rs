@@ -153,9 +153,9 @@ fn a_menu_entry_opens_its_page_with_its_title_and_line_and_the_note() {
         assert_eq!(rt.state.settings.page, page);
         let words: String = rt.elements().iter().filter_map(|e| e.text.clone()).collect();
         assert!(words.contains(page.title()) && words.contains(page.line()), "{}", page.title());
-        // Memory (component 16, piece P) is built; the others still say so.
+        // Memory (piece P) and Folders (piece AA) are built; the others still say so.
         let says_not_yet = words.contains(&format!("{} isn't in the native app yet.", page.title()));
-        assert_eq!(says_not_yet, page != Page::Memory, "{}", page.title());
+        assert_eq!(says_not_yet, !matches!(page, Page::Memory | Page::Folders), "{}", page.title());
     }
 }
 

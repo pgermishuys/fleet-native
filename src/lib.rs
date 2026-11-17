@@ -143,6 +143,8 @@ mod tests_settings_kit;
 #[cfg(test)]
 mod tests_settings_labs;
 #[cfg(test)]
+mod tests_settings_locations;
+#[cfg(test)]
 mod tests_settings_machine;
 #[cfg(test)]
 mod tests_settings_memory;
@@ -1346,7 +1348,8 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_settings_anchor(tx)
         | s.keep_memory(tx)
         | s.keep_harnesses_page(tx)
-        | s.keep_updates(now, tx);
+        | s.keep_updates(now, tx)
+        | s.keep_locations(tx);
     // "Copied" on a message's button ends by itself.
     let copied = match &s.copied {
         Some((_, until)) if now >= *until => {
@@ -1559,6 +1562,27 @@ fn failed_page(p: &fleet::settings::memory::MemoryPage) -> fleet::settings::memo
     }
 }
 
+/// Settings → Folders as a scene: the page open on the invented locations, marked as already read.
+fn locations_scene(s: &mut State, dark: bool, change: impl FnOnce(&mut fleet::settings::locations::LocationsPage)) {
+    s.dark = Some(dark);
+    s.open_settings("folders", None);
+    let key = s.settings.choice.key(&s.machines).to_string();
+    let mut page = fleet::settings::locations::LocationsPage {
+        roots: mock::locations::roots(),
+        loaded_for: Some(key),
+        request: 1,
+        ..Default::default()
+    };
+    change(&mut page);
+    s.settings.locations = page;
+}
+
+/// The folder browser open on `path` (the roots for none).
+fn browse_scene(s: &mut State, dark: bool, path: Option<&str>) {
+    locations_scene(s, dark, |p| p.browse = Some(mock::locations::browse(path)));
+    s.ui.open = Some(ui::Open::Popover("locations-browse"));
+}
+
 /// Settings → Labs for a scene: every experiment on (Memory too), another machine listed, or neither.
 fn labs_scene(s: &mut State, dark: bool, machines: bool, all_on: bool) {
     s.dark = Some(dark);
@@ -1613,6 +1637,34 @@ pub fn spec() -> AppSpec<State> {
             }),
             // Piece D: General with every switch the other way round and the first More open; the Large pastes list open.
             // Component 16, piece P: Memory off, on (the lists come with the next piece), still loading, and a failed read.
+            ("settings-folders-list", |s| locations_scene(s, true, |_| {})),
+            ("settings-folders-list-light", |s| locations_scene(s, false, |_| {})),
+            ("settings-folders-empty", |s| locations_scene(s, true, |p| p.roots.clear())),
+            ("settings-folders-empty-light", |s| locations_scene(s, false, |p| p.roots.clear())),
+            ("settings-folders-error", |s| locations_scene(s, true, |p| p.error = Some("Couldn't load your locations.".into()))),
+            ("settings-folders-error-light", |s| locations_scene(s, false, |p| p.error = Some("Couldn't load your locations.".into()))),
+            ("settings-folders-loading", |s| locations_scene(s, true, |p| p.loading = true)),
+            ("settings-folders-loading-light", |s| locations_scene(s, false, |p| p.loading = true)),
+            ("settings-folders-adding", |s| {
+                locations_scene(s, true, |p| {
+                    p.path = rune::TextEdit::new("/srv/more-code");
+                    p.adding = true;
+                })
+            }),
+            ("settings-folders-adding-light", |s| {
+                locations_scene(s, false, |p| {
+                    p.path = rune::TextEdit::new("/srv/more-code");
+                    p.adding = true;
+                })
+            }),
+            ("settings-folders-add-error", |s| locations_scene(s, true, |p| p.add_error = Some("Enter the folder to add.".into()))),
+            ("settings-folders-add-error-light", |s| locations_scene(s, false, |p| p.add_error = Some("Enter the folder to add.".into()))),
+            ("settings-folders-removing", |s| locations_scene(s, true, |p| p.removing = Some("loc-1".into()))),
+            ("settings-folders-removing-light", |s| locations_scene(s, false, |p| p.removing = Some("loc-1".into()))),
+            ("settings-folders-browse-roots", |s| browse_scene(s, true, None)),
+            ("settings-folders-browse-roots-light", |s| browse_scene(s, false, None)),
+            ("settings-folders-browse-folder", |s| browse_scene(s, true, Some("/work"))),
+            ("settings-folders-browse-folder-light", |s| browse_scene(s, false, Some("/work"))),
             ("settings-memory-off", |s| memory_scene(s, true, |_| {})),
             ("settings-memory-off-light", |s| memory_scene(s, false, |_| {})),
             ("settings-memory-on", |s| memory_scene(s, true, |p| p.overview.as_mut().expect("an overview").enabled = true)),

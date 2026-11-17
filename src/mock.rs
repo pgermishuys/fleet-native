@@ -19,6 +19,7 @@ pub mod header;
 pub mod images;
 pub mod improve;
 pub mod links;
+pub mod locations;
 pub mod long;
 pub mod machines;
 pub mod machines_page;

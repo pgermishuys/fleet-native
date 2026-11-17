@@ -149,6 +149,7 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
         Some(Open::Popover("context")) => crate::view::ring_popover::overlay(s, t),
         Some(Open::Popover("allowed")) => crate::view::allowed::overlay(s, t),
         Some(Open::Popover("starters")) => crate::view::starters::menu(t),
+        Some(Open::Popover("locations-browse")) => crate::view::settings::folders_browse::overlay(s, t),
         Some(Open::Popover("folder")) => crate::view::folder_menu::overlay(s, t),
         Some(Open::Popover("workspace")) => crate::view::workspace_picker::overlay(s, t),
         Some(Open::Popover("base")) => crate::view::base_picker::overlay(s, t),

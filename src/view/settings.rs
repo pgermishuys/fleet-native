@@ -3,6 +3,9 @@
 //! one note (decision 1 of docs/parity/16-settings.md); Machines is component 17's page.
 pub mod appearance;
 pub mod appearance_cards;
+pub mod folders;
+pub mod folders_browse;
+pub mod folders_locations;
 pub mod general;
 pub mod harnesses;
 pub mod kit;
@@ -141,6 +144,8 @@ pub fn detail(s: &State, t: &Theme) -> El {
         memory::content(s, t)
     } else if *page == Page::Harnesses {
         harnesses::content(s, t)
+    } else if *page == Page::Folders {
+        folders::content(s, t)
     } else if *page == Page::Machines {
         machines_page::content(s, t)
     } else {

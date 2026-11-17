@@ -551,6 +551,17 @@ pub fn add_workspace_root(base: &str, path: &str) -> Result<(u16, String), Strin
     text_with("POST", base, "/api/workspace-roots", Some(&json!({ "path": path })))
 }
 
+/// `DELETE /api/workspace-roots/{id}`.
+pub fn remove_workspace_root(base: &str, id: &str) -> Result<(u16, String), String> {
+    text_with("DELETE", base, &format!("/api/workspace-roots/{}", query_value(id)), None)
+}
+
+/// `GET /api/directories[?path=&unconstrained=true]`: the folders in `path`, or the machine's roots with no path.
+pub fn browse_directory(base: &str, path: Option<&str>) -> Result<(u16, String), String> {
+    let query = path.map_or_else(String::new, |p| format!("path={}&", query_value(p)));
+    text_with("GET", base, &format!("/api/directories?{query}unconstrained=true"), None)
+}
+
 /// `GET /api/directories/defaults`.
 pub fn directory_defaults(base: &str) -> Result<(u16, String), String> {
     text_with("GET", base, "/api/directories/defaults", None)
