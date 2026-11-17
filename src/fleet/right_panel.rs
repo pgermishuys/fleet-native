@@ -25,11 +25,13 @@ pub struct RightPanel {
     pub review: bool,
     /// The gutter was dragged once: the width is the user's own from then on (`userSizedPanel`).
     pub user_sized: bool,
+    /// What the panel's watcher last told the sidebar (`watch([...])` only fires on a change): the session and whether it had content.
+    pub noted: Option<(String, bool)>,
 }
 
 impl Default for RightPanel {
     fn default() -> Self {
-        Self { width: DEFAULT_W, widened: false, review: false, user_sized: false }
+        Self { width: DEFAULT_W, widened: false, review: false, user_sized: false, noted: None }
     }
 }
 
@@ -100,5 +102,49 @@ impl crate::State {
         if let Some(collapsed) = self.sidebar.remembered_right(&id) {
             self.content_open = !collapsed;
         }
+    }
+}
+
+impl crate::State {
+    /// What the open session has for the panel to show (`panelHasContent` over the panel's own inputs).
+    pub fn panel_content_now(&self, id: &str) -> bool {
+        let tabs = self.open_canvases();
+        let progress = self.session().row.progress.as_ref().is_some_and(|p| p.total > 0);
+        super::canvases::panel_has_content(super::canvases::PanelContent {
+            changed_files: self.diffs.files().len(),
+            canvases: &tabs.canvases,
+            progress,
+            context: self.has_context(id),
+            agents: self.canvases.agents_running > 0,
+            changes_failed: self.diffs.error.is_some(),
+        })
+    }
+
+    /// Something is attached to the session, or an automation started it (`hasContext`).
+    pub fn has_context(&self, id: &str) -> bool {
+        !self.smart_links.visible_links(id).is_empty() || self.session().row.origin.as_ref().is_some_and(|o| o.source_type == "automation")
+    }
+
+    /// The panel's watchers (`SessionsV2RightPanel.vue`), called every frame: the Context tab is added, without focus, the
+    /// first time the session has something attached; and once `/diffs` has loaded, the panel tells the sidebar whether the
+    /// session has anything to show, which opens an empty session's panel by itself the first time it does. Only a change
+    /// of the answer is passed on, as Fleet's `watch` does, so a panel the user shut isn't opened again.
+    pub fn keep_panel_content(&mut self) {
+        let Some(id) = self.open_id() else { return };
+        if self.session().id != id {
+            return;
+        }
+        if self.has_context(&id) && !self.open_canvases().introduced.contains(&super::canvases::CanvasKind::Context) {
+            self.edit_canvases(|c, session| c.introduce(session, super::canvases::CanvasKind::Context));
+        }
+        if !self.diffs.has_loaded || self.diffs.session() != id {
+            return;
+        }
+        let has = self.panel_content_now(&id);
+        if self.right.noted.as_ref().is_some_and(|(s, h)| *s == id && *h == has) {
+            return;
+        }
+        self.right.noted = Some((id, has));
+        self.note_panel_content(has);
     }
 }

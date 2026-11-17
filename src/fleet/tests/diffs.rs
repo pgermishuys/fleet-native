@@ -425,25 +425,71 @@ fn a_turn_ending_on_the_open_session_asks_at_once() {
 }
 
 #[test]
-fn edits_gather_in_one_window_and_a_closed_panel_only_goes_stale() {
+fn edits_gather_in_one_window_even_while_the_panel_is_folded() {
     let mut live = Live::start();
     live.wait("the first list", |s, _| s.diffs.has_loaded);
     live.rt.update(|s, _| s.content_open = false);
-    for _ in 0..3 {
-        live.files_changed();
-    }
-    live.rt.update(|s, _| assert!(s.diffs.is_stale && !s.diffs.is_loading()));
-    // Opening the panel catches up with one request.
     live.seen.lock().unwrap().answer = crate::mock::diffs::unchanged().to_string();
-    live.rt.update(|s, _| {
-        s.content_open = true;
-        s.diffs_wanted_changed();
-    });
-    live.wait("the catch-up", |s, asked| asked == 2 && !s.diffs.is_stale && s.diffs.files().is_empty());
-    // Three edits inside one window are one request at its end.
-    live.seen.lock().unwrap().answer = crate::mock::diffs::changed().to_string();
+    // The desktop's panel has no `isWanted`: a folded panel still learns of the change, three edits in one request.
     for _ in 0..3 {
         live.files_changed();
     }
-    live.wait("the window's request", |s, asked| asked == 3 && s.diffs.files().len() == 4);
+    live.wait("the window's request", |s, asked| asked == 2 && s.diffs.files().is_empty() && !s.diffs.is_stale);
+    assert_eq!(live.seen.lock().unwrap().asked.len(), 2);
+}
+
+// ─── the panel opening by itself, and the Changes count ───────────────────
+
+#[test]
+fn the_panel_stays_folded_for_a_session_with_nothing_to_show_and_opens_on_its_first_change() {
+    let mut live = Live::start();
+    live.seen.lock().unwrap().answer = crate::mock::diffs::unchanged().to_string();
+    live.wait("the empty list", |s, _| s.diffs.has_loaded);
+    live.rt.frame(1.0 / 60.0);
+    assert!(!live.rt.state.content_open, "nothing to show: the panel is folded");
+    live.seen.lock().unwrap().answer = crate::mock::diffs::changed().to_string();
+    live.files_changed();
+    live.wait("the change", |s, _| s.diffs.files().len() == 4);
+    live.rt.frame(1.0 / 60.0);
+    assert!(live.rt.state.content_open, "its first change opens it");
+    live.rt.update(|s, _| s.set_content_open(false));
+    live.rt.frame(1.0 / 60.0);
+    assert!(!live.rt.state.content_open, "the user's choice is kept, though the session still has changes");
+}
+
+#[test]
+fn a_session_that_already_had_changes_when_the_app_loaded_is_not_opened() {
+    let mut live = Live::start();
+    live.rt.update(|s, _| s.sidebar.set_right_collapsed(None, true));
+    live.wait("the list", |s, _| s.diffs.has_loaded);
+    live.rt.frame(1.0 / 60.0);
+    assert_eq!(live.rt.state.diffs.files().len(), 4);
+    assert!(!live.rt.state.content_open, "it was never seen empty, so there is no first change");
+}
+
+#[test]
+fn the_context_tab_is_added_without_focus_the_first_time_an_automation_started_the_session() {
+    let mut live = Live::start();
+    live.wait("the list", |s, _| s.diffs.has_loaded);
+    let id = live.id.clone();
+    assert!(!live.rt.state.open_canvases().ids().contains(&"context"));
+    live.rt.update(move |s, _| {
+        let found = s.projects.iter_mut().flat_map(|p| p.sessions.iter_mut()).find(|x| x.id == id).unwrap();
+        found.row.origin = Some(super::super::rows::Origin {
+            source_type: "automation".into(),
+            title: Some("Nightly".into()),
+            resource_url: None,
+            resource_id: None,
+            provider_id: String::new(),
+        });
+    });
+    live.rt.frame(1.0 / 60.0);
+    let tabs = live.rt.state.open_canvases();
+    assert_eq!(tabs.ids().first().copied(), Some("context"), "added first");
+    assert_eq!(tabs.active_id, "changes", "without taking focus");
+    live.rt.update(|s, _| {
+        s.edit_canvases(|c, id| c.close(id, "context"));
+    });
+    live.rt.frame(1.0 / 60.0);
+    assert!(!live.rt.state.open_canvases().ids().contains(&"context"), "closed once, it stays closed");
 }

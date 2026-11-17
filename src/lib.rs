@@ -1494,6 +1494,7 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     let strip = s.keep_strip(tx);
     s.keep_progress_tab();
     let strip = s.keep_turns_tab() | strip;
+    s.keep_panel_content();
     if s.keep_notices(now, tx) {
         return true;
     }

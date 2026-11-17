@@ -107,8 +107,8 @@ fn tab(s: &State, t: &Theme, canvas: &CanvasInstance, active: bool) -> El {
 fn badge(s: &State, t: &Theme, canvas: &CanvasInstance) -> Option<El> {
     let counted = |n: String| text(n).font(sans(12.0, 500.0, 1.3)).color(t.muted).group_color(t.text);
     if canvas.kind == CanvasKind::Changes {
-        // The changed-file count arrives with the session's diffs (piece D).
-        return None;
+        let n = s.diffs.files().len();
+        return (n > 0).then(|| counted(n.to_string()).key("canvas-tab-changes-count"));
     }
     Some(match s.tab_badge(&canvas.id)? {
         Badge::Attention(label) => el().role("img").label(label).size(7.0, 7.0).min_w(7.0).radius(3.5).fill(t.error),
