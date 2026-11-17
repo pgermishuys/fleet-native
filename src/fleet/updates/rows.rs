@@ -424,3 +424,8 @@ pub fn describe_version_line(row: &UpdateRow, rollout: Option<&Rollout>) -> Vers
 pub fn newest_checked_at<'a>(times: impl IntoIterator<Item = Option<&'a str>>) -> Option<String> {
     times.into_iter().flatten().filter_map(|t| Some((parse_iso_ms(t)?, t))).max_by_key(|(ms, _)| *ms).map(|(_, t)| t.to_string())
 }
+
+/// Machines other than home that can restart into what they downloaded (`readyMachines`).
+pub fn ready_machines(rows: &[UpdateRow]) -> usize {
+    rows.iter().filter(|r| !r.is_home && matches!(r.restart, Some(RestartOffer::Button { .. }))).count()
+}

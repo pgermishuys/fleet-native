@@ -5,7 +5,6 @@
 use crate::fleet::events::{Event, Kind};
 use crate::fleet::link::{Job, Link, Post};
 use crate::fleet::state::Topic;
-use crate::tests::app;
 use crate::{Rail, State, test_wait};
 use rune::Runtime;
 use serde_json::{Value, json};
@@ -15,17 +14,17 @@ use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
 #[derive(Default)]
-struct Fake {
+pub(crate) struct Fake {
     /// Every call heard: method, path and body.
-    heard: Vec<(String, String, String)>,
-    machines: Vec<Value>,
-    version: String,
-    refuse_rollout: Option<(u16, String)>,
+    pub(crate) heard: Vec<(String, String, String)>,
+    pub(crate) machines: Vec<Value>,
+    pub(crate) version: String,
+    pub(crate) refuse_rollout: Option<(u16, String)>,
     /// `GET /api/machine` fails with a 503 this many times first (the Fleet is restarting).
-    down_for: u32,
+    pub(crate) down_for: u32,
 }
 
-type Shared = Arc<Mutex<Fake>>;
+pub(crate) type Shared = Arc<Mutex<Fake>>;
 
 fn serve(fake: Shared) -> String {
     let listener = TcpListener::bind("127.0.0.1:0").expect("a port");
@@ -90,10 +89,10 @@ fn answer(mut stream: std::net::TcpStream, fake: Shared) {
     let _ = stream.write_all(out.as_bytes());
 }
 
-struct Rig {
-    rt: Runtime<State>,
-    queue: Receiver<Job>,
-    home: Shared,
+pub(crate) struct Rig {
+    pub(crate) rt: Runtime<State>,
+    pub(crate) queue: Receiver<Job>,
+    pub(crate) home: Shared,
 }
 
 fn link_to(base: String) -> (Link, Receiver<Job>) {
@@ -103,14 +102,14 @@ fn link_to(base: String) -> (Link, Receiver<Job>) {
 }
 
 /// A connected app on Updates & about, with `other` listed as a second machine when given.
-fn rig(version: &str, other: Option<(&Shared, &str)>, pick_other: bool) -> Rig {
+pub(crate) fn rig(version: &str, other: Option<(&Shared, &str)>, pick_other: bool) -> Rig {
     let home: Shared = Default::default();
     home.lock().unwrap().version = version.into();
     if let Some((_, base)) = other {
         home.lock().unwrap().machines = vec![json!({ "id": "m-harbor", "name": "harbor", "baseUrl": base, "token": "t-harbor" })];
     }
     let (link, queue) = link_to(serve(home.clone()));
-    let mut rt = app();
+    let mut rt = crate::tests::app_tall();
     let base = other.map(|(_, b)| b.to_string());
     rt.update(move |s, _| {
         s.link = Some(link);
@@ -130,13 +129,13 @@ fn rig(version: &str, other: Option<(&Shared, &str)>, pick_other: bool) -> Rig {
 }
 
 impl Rig {
-    fn wait(&mut self, what: &str, done: impl FnMut(&State) -> bool) {
+    pub(crate) fn wait(&mut self, what: &str, done: impl FnMut(&State) -> bool) {
         test_wait::drive(&mut self.rt, &self.queue, what, done, |s| format!("{:?}", s.updates));
     }
-    fn heard(&self, fake: &Shared) -> Vec<(String, String, String)> {
+    pub(crate) fn heard(&self, fake: &Shared) -> Vec<(String, String, String)> {
         fake.lock().unwrap().heard.clone()
     }
-    fn did(&self, fake: &Shared, method: &str, path: &str) -> bool {
+    pub(crate) fn did(&self, fake: &Shared, method: &str, path: &str) -> bool {
         self.heard(fake).iter().any(|(m, p, _)| m == method && p == path)
     }
 }

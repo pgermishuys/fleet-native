@@ -179,6 +179,8 @@ mod tests_settings_storage;
 #[cfg(test)]
 mod tests_settings_updates;
 #[cfg(test)]
+mod tests_settings_updates_machines;
+#[cfg(test)]
 mod tests_sign_in;
 #[cfg(test)]
 mod tests_skills;
@@ -1889,6 +1891,27 @@ pub fn spec() -> AppSpec<State> {
             ("settings-updates-failed-light", |s| s.show_updates(false, mock::updates_page::Case::Failed)),
             ("settings-updates-managed", |s| s.show_updates(true, mock::updates_page::Case::Managed)),
             ("settings-updates-managed-light", |s| s.show_updates(false, mock::updates_page::Case::Managed)),
+            ("settings-updates-machines-available", |s| s.show_updates_machines(true, mock::updates_machines::Case::Available)),
+            ("settings-updates-machines-available-light", |s| s.show_updates_machines(false, mock::updates_machines::Case::Available)),
+            ("settings-updates-machines-current", |s| s.show_updates_machines(true, mock::updates_machines::Case::Current)),
+            ("settings-updates-machines-current-light", |s| s.show_updates_machines(false, mock::updates_machines::Case::Current)),
+            ("settings-updates-machines-none", |s| s.show_updates_machines(true, mock::updates_machines::Case::NoRelease)),
+            ("settings-updates-machines-none-light", |s| s.show_updates_machines(false, mock::updates_machines::Case::NoRelease)),
+            ("settings-updates-machines-rolling", |s| s.show_updates_machines(true, mock::updates_machines::Case::Rolling)),
+            ("settings-updates-machines-rolling-light", |s| s.show_updates_machines(false, mock::updates_machines::Case::Rolling)),
+            ("settings-updates-machines-finished", |s| s.show_updates_machines(true, mock::updates_machines::Case::Finished)),
+            ("settings-updates-machines-finished-light", |s| s.show_updates_machines(false, mock::updates_machines::Case::Finished)),
+            ("settings-updates-machines-rolled-back", |s| s.show_updates_machines(true, mock::updates_machines::Case::RolledBack)),
+            ("settings-updates-machines-rolled-back-light", |s| s.show_updates_machines(false, mock::updates_machines::Case::RolledBack)),
+            ("settings-updates-machines-rule", |s| {
+                s.show_updates_machines(true, mock::updates_machines::Case::Available);
+                s.ui.open = Some(ui::Open::Select("update-default-rule"));
+            }),
+            ("settings-updates-machines-own-rule", |s| {
+                s.show_updates_machines(true, mock::updates_machines::Case::Available);
+                s.updates.rule_open = Some("m-falcon".into());
+                s.ui.open = Some(ui::Open::Select("update-machine-rule"));
+            }),
             ("settings-permissions", |s| s.show_permissions(true, mock::permissions::Case::Defaults, None)),
             ("settings-permissions-light", |s| s.show_permissions(false, mock::permissions::Case::Defaults, None)),
             ("settings-permissions-custom", |s| s.show_permissions(true, mock::permissions::Case::Custom, None)),
