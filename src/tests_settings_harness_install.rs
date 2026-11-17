@@ -271,6 +271,8 @@ fn saves_the_typed_path_and_checks_again_and_shows_what_fleet_found() {
     let mut r = rig(json!([copilot(false)]));
     assert!(r.text_of("harness-path-reason").contains("couldn't find weave-copilot"));
     r.fake.lock().unwrap().harnesses = json!([copilot(true)]);
+    // The saved path (none) is read into the box once; typing before that would be replaced, as in Fleet.
+    r.wait("the saved path to be read", |s| s.settings.harnesses.path.synced.is_some());
     // The field sits below the first screen of Copilot's tab, where a click can't reach: type and press the way the keys do.
     assert!(r.info("harness-path-input").is_some() && r.info("harness-path-check").is_some());
     r.rt.update(|s, _| s.settings.harnesses.path.draft = rune::TextEdit::new("/opt/weave-copilot"));
