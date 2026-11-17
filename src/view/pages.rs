@@ -47,15 +47,15 @@ pub fn version_text() -> String {
 
 // ─── Welcome ────────────────────────────────────────────────────────────────
 
-fn welcome(s: &State, t: &Theme) -> El {
-    // `h-18 w-18` (63px) with 10.5px of padding round a `contain` picture; the file is 511×234.
+/// The logo in its tile, on the Welcome page and the sign-in page alike: `h-18 w-18` (63px) with 10.5px of padding round a
+/// `contain` picture; the file is 511×234.
+pub fn logo_tile(s: &State, t: &Theme, key: &str) -> El {
     let inner = 42.0;
     let mut logo = el().size(inner, inner * 234.0 / 511.0);
     if let Some(image) = &s.logo {
         logo = logo.pixels(image.pixels());
     }
-    let tile = el()
-        .key("welcome-logo")
+    el().key(key.to_string())
         .label("Weave logo")
         .size(63.0, 63.0)
         .center()
@@ -64,7 +64,11 @@ fn welcome(s: &State, t: &Theme) -> El {
         .border_layout()
         .fill(t.card_bg)
         .box_shadow(Shadow { x: 0.0, y: 12.0, blur: 32.0, spread: 0.0, color: Color::BLACK.alpha(0.2), inset: false })
-        .child(logo);
+        .child(logo)
+}
+
+fn welcome(s: &State, t: &Theme) -> El {
+    let tile = logo_tile(s, t, "welcome-logo");
     let centred = |e: El| e.align(Align::Center);
     let column = col()
         .w(392.0)

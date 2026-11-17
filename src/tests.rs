@@ -41,6 +41,11 @@ fn every_scene_draws_a_frame() {
         let mut rt = app();
         rt.update(|s, _| scene(s));
         rt.frame(FRAME);
+        // Fleet's login page is a page of its own, with no rail or status bar.
+        if name.starts_with("sign-in") {
+            assert!(rt.find("sign-in-page").is_some(), "scene {name} lost the page");
+            continue;
+        }
         assert!(rt.find("rail-sessions").is_some(), "scene {name} lost the rail");
         assert!(rt.find("status-bar").is_some(), "scene {name} lost the status bar");
     }

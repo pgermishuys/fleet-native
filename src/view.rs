@@ -87,6 +87,7 @@ mod sessions;
 pub mod settings;
 mod sheet;
 mod shell;
+pub mod sign_in;
 pub mod smart_link_card;
 pub mod smart_link_row;
 pub mod starters;
@@ -118,6 +119,10 @@ pub fn root(s: &State, cx: &mut Cx<State>) -> El {
     // Font size (Appearance): Fleet sets the root size, 13 to 16 px against 14; the window scales as a page zoom does.
     cx.zoom(s.sidebar.appearance().font_size.px() / 14.0);
     cx.help_look(crate::ui::help_look(&t));
+    // Fleet's login page is a page of its own: no rail, no status bar.
+    if s.sign_in.open {
+        return rune_kit::root(sign_in::page(s, &t), crate::ui::overlays(s, &t));
+    }
     let mut main = row().w_full().grow(1.0).min_h(0.0).padding(8.0).child(rail::rail(s, &t));
     main = match s.rail {
         _ if s.machine_switch_scene.is_some() => main.child(machine_switch::scene_page(s, &t).ml(8.0)),

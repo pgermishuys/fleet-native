@@ -141,6 +141,8 @@ mod tests_settings_machine;
 #[cfg(test)]
 mod tests_settings_nav;
 #[cfg(test)]
+mod tests_sign_in;
+#[cfg(test)]
 mod tests_smart_link_card;
 #[cfg(test)]
 mod tests_starters;
@@ -348,6 +350,8 @@ pub struct State {
     pub add_machine_asked: bool,
     /// Settings → Machines: the rename and token fields, what is busy, the access of this machine (`fleet::machine_actions`).
     pub machine_page: fleet::machine_actions::Page,
+    /// The sign-in page, open while the home Fleet is asking for a token (`fleet::sign_in`).
+    pub sign_in: fleet::sign_in::SignIn,
     /// The `machine-switch` scene's choice (the views that own a real one are components 16 and 18-23).
     pub machine_switch_scene: Option<fleet::machine_choice::MachineChoice>,
     /// Where `machine-sessions.json` is kept; none until the data folder is known (and in pictures).
@@ -575,6 +579,7 @@ impl Default for State {
             terminals_allowed: None,
             add_machine_asked: false,
             machine_page: Default::default(),
+            sign_in: Default::default(),
             machine_switch_scene: None,
             machine_dir: None,
             machine_schemes_told: false,
@@ -2236,6 +2241,15 @@ pub fn spec() -> AppSpec<State> {
             // Piece M: how a machine is reached.
             ("machines-page-addresses", |s| s.show_machines_page_addresses(true)),
             ("machines-page-addresses-light", |s| s.show_machines_page_addresses(false)),
+            // Component 9, piece S: the sign-in page.
+            ("sign-in", |s| s.show_sign_in(true, mock::sign_in::Case::Empty)),
+            ("sign-in-light", |s| s.show_sign_in(false, mock::sign_in::Case::Empty)),
+            ("sign-in-checking", |s| s.show_sign_in(true, mock::sign_in::Case::Checking)),
+            ("sign-in-typed", |s| s.show_sign_in(true, mock::sign_in::Case::Typed)),
+            ("sign-in-signing", |s| s.show_sign_in(true, mock::sign_in::Case::Signing)),
+            ("sign-in-invalid", |s| s.show_sign_in(true, mock::sign_in::Case::Invalid)),
+            ("sign-in-invalid-light", |s| s.show_sign_in(false, mock::sign_in::Case::Invalid)),
+            ("sign-in-browser", |s| s.show_sign_in(true, mock::sign_in::Case::Browser)),
             // Piece K: the Add a machine form.
             ("add-machine", |s| s.show_add_machine(true, AddCase::Empty)),
             ("add-machine-light", |s| s.show_add_machine(false, AddCase::Empty)),
