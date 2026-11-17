@@ -11,6 +11,7 @@ pub mod confirm;
 pub mod controls;
 pub mod dialog;
 pub mod directory_picker;
+pub mod empty_state;
 pub mod gallery;
 pub mod menu;
 pub mod menus;

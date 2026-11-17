@@ -162,6 +162,8 @@ pub struct Diffs {
     /// The first answer (or failure) has arrived: until then an empty list means "not known yet".
     pub has_loaded: bool,
     pub is_stale: bool,
+    /// Copy command was pressed (`copied` in ChangesCanvas): it stays "Copied" until the body is mounted again.
+    pub copied_fix: bool,
     request_id: u64,
     /// The newest request still on its way.
     in_flight: Option<u64>,
@@ -334,6 +336,21 @@ impl Diffs {
 }
 
 impl State {
+    /// Copy command (`copyFixCommand`): nothing to copy, nothing happens; "Copied" shows once the clipboard has the command.
+    pub fn copy_fix_command(&mut self, tx: &mut rune::Tx) {
+        let Some(command) = self.diffs.refusal.as_ref().map(|r| r.fix_command.clone()).filter(|c| !c.is_empty()) else { return };
+        tx.copy(command);
+        self.diffs.copied_fix = true;
+    }
+
+    /// Try again: ask for the list again (`retry`); it does nothing while a request is on its way.
+    pub fn retry_diffs(&mut self) {
+        if self.diffs.is_loading() {
+            return;
+        }
+        self.refetch_diffs();
+    }
+
     /// Whether anything shows the diffs: the content panel (`isWanted`).
     fn diffs_wanted(&self) -> bool {
         self.content_open

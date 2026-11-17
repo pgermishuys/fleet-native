@@ -39,7 +39,7 @@ fn shows_changes_and_files_tabs_with_changes_active() {
     let rt = open();
     assert_eq!(rt.state.open_canvases().ids(), ["changes", "files"]);
     assert_eq!(rt.state.active_canvas(), "changes");
-    assert!(has(&rt, "canvas-stand-in"), "Changes' body is component 12's, so a stand-in names it");
+    assert!(has(&rt, "changes-canvas"), "Changes' body is piece D's of component 12");
 }
 
 #[test]

@@ -129,6 +129,11 @@ pub(crate) fn spinner(ink: Color) -> El {
 /// `ErrorNote`: what went wrong in medium weight, the server's reason under it. With no reason the message is the error
 /// itself, in regular weight.
 pub(crate) fn error_note(t: &Theme, key: &str, message: &str, reason: Option<&str>) -> El {
+    error_note_with(t, key, message, reason, None)
+}
+
+/// `ErrorNote` with its `@retry` listener: `action` (a Try again button) sits under the words.
+pub(crate) fn error_note_with(t: &Theme, key: &str, message: &str, reason: Option<&str>, action: Option<El>) -> El {
     let font = |w| sans(rem(0.875), w, 1.43);
     let mut words = col()
         .shrink()
@@ -136,6 +141,9 @@ pub(crate) fn error_note(t: &Theme, key: &str, message: &str, reason: Option<&st
         .child(text(message.to_string()).font(font(if reason.is_some() { 500.0 } else { 400.0 })).color(t.error_text).wrap());
     if let Some(reason) = reason {
         words = words.child(text(reason.to_string()).font(font(400.0)).color(t.error_text).wrap().mt(2.0));
+    }
+    if let Some(action) = action {
+        words = words.child(action.mt(8.0));
     }
     row()
         .key(key.to_string())

@@ -10,6 +10,7 @@ pub mod autocomplete;
 pub mod base_picker;
 pub mod browser_steps;
 pub mod canvas_host;
+pub mod changes;
 mod compaction;
 pub mod composer;
 pub mod context_tab;
