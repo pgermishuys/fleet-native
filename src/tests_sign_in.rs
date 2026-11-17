@@ -93,7 +93,11 @@ fn opens_the_page_when_the_fleet_refuses_and_asks_what_it_offers() {
 fn the_page_opens_once_for_one_refusal() {
     let mut rig = Rig::refused(vec![status("")]);
     rig.offered();
-    rig.rt.update(|s, _| s.sign_in.error = Some("kept".into()));
+    // The hub's own failures may have landed while waiting; pin the state to "refused" without going through the page.
+    rig.rt.update(|s, _| {
+        s.connection = Connection::Refused;
+        s.sign_in.error = Some("kept".into());
+    });
     rig.rt.update(|s, _| s.set_connection("home", Connection::Refused));
     assert_eq!(rig.rt.state.sign_in.error.as_deref(), Some("kept"), "the same refusal again changes nothing");
     assert_eq!(rig.home.seen("GET", "/api/auth/status").len(), 1);
