@@ -238,6 +238,8 @@ impl State {
         use super::notices::WAIT_POLL_SECS;
         use std::time::Duration;
         self.keep_memory_undo();
+        self.keep_restart_buttons();
+        self.keep_restart_notice();
         let mut changed = self.notices.expire(now);
         if self.notices.open().is_none() && self.notices.next_waiting().is_some() {
             if self.quiet.is_quiet(now) {

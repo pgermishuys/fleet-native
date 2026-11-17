@@ -378,6 +378,11 @@ pub fn interruption_continue(base: &str, session: &str) -> Result<(u16, Value), 
     status_of("POST", base, &format!("/api/sessions/{session}/interruption/continue"))
 }
 
+/// `POST /api/sessions/interruptions/stop-automatic`: Stop all, while Fleet continues cut-off sessions by itself.
+pub fn stop_automatic(base: &str) -> Result<(u16, Value), String> {
+    status_of("POST", base, "/api/sessions/interruptions/stop-automatic")
+}
+
 /// `DELETE /api/sessions/{id}/interruption`: Dismiss.
 pub fn interruption_dismiss(base: &str, session: &str) -> Result<(u16, Value), String> {
     status_of("DELETE", base, &format!("/api/sessions/{session}/interruption"))

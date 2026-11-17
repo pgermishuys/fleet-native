@@ -89,3 +89,45 @@ pub fn lifted(s: &mut State) {
     s.content_open = false;
     show(s, Case::Plain);
 }
+
+/// A Fleet restart that cut sessions off, through the real rule: the rows carry the interruptions, the notice is built from
+/// them, and its card opens now. `auto` is Fleet continuing them by itself.
+pub fn restarted(s: &mut State, auto: bool) {
+    use crate::fleet::rows::Interruption;
+    let titles = [
+        "Fix pagination",
+        "Write the release notes",
+        "Tidy the settings page",
+        "Speed up the list",
+        "Check the export",
+        "Rename the helpers",
+        "Add a retry",
+    ];
+    s.projects[0].sessions = titles
+        .iter()
+        .enumerate()
+        .map(|(i, title)| {
+            let mut session = crate::mock::Session {
+                id: format!("restart-{i}"),
+                title: (*title).into(),
+                status: crate::mock::Status::Idle,
+                ago_secs: Some(60),
+                branch: "main".into(),
+                messages: Vec::new(),
+                tokens: 0,
+                row: Default::default(),
+                listing: Default::default(),
+            };
+            session.row.interrupted = Some(Interruption {
+                at: "2026-11-16T09:00:00Z".into(),
+                waiting: i == 1 && !auto,
+                last_call: None,
+                changed_files: None,
+                auto: auto && i < 3,
+            });
+            session
+        })
+        .collect();
+    s.keep_restart_notice();
+    s.notices.open_next();
+}

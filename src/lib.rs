@@ -111,6 +111,8 @@ mod tests_report_describe;
 #[cfg(test)]
 mod tests_report_review;
 #[cfg(test)]
+mod tests_restart_notice;
+#[cfg(test)]
 mod tests_right_panel;
 #[cfg(test)]
 mod tests_row_actions;
@@ -403,6 +405,8 @@ pub struct State {
     /// The "Remembered" notices' payloads, for Undo (piece M), and where the card, the composer and the chips sit (the lift, the settle).
     pub memory: fleet::memory_notice::MemoryNotices,
     pub place: fleet::notice_place::Place,
+    /// The Fleet restarted notice's count and the sessions its buttons reach (piece N).
+    pub restart: fleet::restart_notice::RestartNotice,
     /// When the list last re-read the clock for its ages (`use-relative-time.ts`), on `clock`; `None` before the first.
     pub row_tick: Option<f64>,
     /// The agent and model lists, the harness list, the preferences and the effort memory (`fleet::catalog`).
@@ -581,6 +585,7 @@ impl Default for State {
             notices: Default::default(),
             quiet: Default::default(),
             memory: Default::default(),
+            restart: Default::default(),
             place: Default::default(),
             row_tick: None,
             stream: None,
@@ -2910,6 +2915,16 @@ pub fn spec() -> AppSpec<State> {
             ("notice-chip-light", |s| {
                 s.dark = Some(false);
                 mock::notices::settled(s)
+            }),
+            ("notice-restart", |s| mock::notices::restarted(s, false)),
+            ("notice-restart-light", |s| {
+                s.dark = Some(false);
+                mock::notices::restarted(s, false)
+            }),
+            ("notice-restart-auto", |s| mock::notices::restarted(s, true)),
+            ("notice-restart-auto-light", |s| {
+                s.dark = Some(false);
+                mock::notices::restarted(s, true)
             }),
             ("notice-lift", |s| mock::notices::lifted(s)),
             ("notice-lift-light", |s| {
