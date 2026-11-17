@@ -63,6 +63,15 @@ impl PermissionLevel {
         }
     }
 
+    /// The preference's value: what `parse` reads.
+    pub fn value(self) -> &'static str {
+        match self {
+            PermissionLevel::Ask => "ask",
+            PermissionLevel::Edits => "edits",
+            PermissionLevel::All => "all",
+        }
+    }
+
     /// `PERMISSION_LEVEL_NAMES`.
     pub fn name(self) -> &'static str {
         match self {

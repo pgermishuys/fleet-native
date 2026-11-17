@@ -15,17 +15,19 @@ use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
 #[derive(Default)]
-struct Fake {
-    harnesses: Value,
-    prefs: HashMap<String, String>,
-    puts: Vec<(String, String)>,
-    refuse: Vec<String>,
-    lists: usize,
-    fresh: usize,
+pub(crate) struct Fake {
+    pub harnesses: Value,
+    pub prefs: HashMap<String, String>,
+    pub puts: Vec<(String, String)>,
+    pub refuse: Vec<String>,
+    pub lists: usize,
+    pub fresh: usize,
+    /// What `GET /api/agent-browser/settings` says `enabled` is.
+    pub browser_on: bool,
 }
-type Shared = Arc<Mutex<Fake>>;
+pub(crate) type Shared = Arc<Mutex<Fake>>;
 
-fn serve(fake: Shared) -> String {
+pub(crate) fn serve(fake: Shared) -> String {
     let listener = TcpListener::bind("127.0.0.1:0").expect("a port");
     let base = format!("http://{}", listener.local_addr().expect("an address"));
     std::thread::spawn(move || {
@@ -71,7 +73,7 @@ fn answer(mut stream: std::net::TcpStream, fake: Shared) {
     } else if method == "GET" && path == "/api/preferences" {
         ("200 OK", json!(f.prefs))
     } else if method == "GET" && path == "/api/agent-browser/settings" {
-        ("200 OK", json!({"enabled": false, "pages": "session", "scripts": false}))
+        ("200 OK", json!({"enabled": f.browser_on, "pages": "session", "scripts": false}))
     } else if method == "PUT" && path.starts_with("/api/preferences/") {
         let key = path.trim_start_matches("/api/preferences/").replace("%2E", ".");
         let value = serde_json::from_slice::<Value>(&body).ok().and_then(|v| v["value"].as_str().map(str::to_string)).unwrap_or_default();
@@ -93,7 +95,7 @@ fn answer(mut stream: std::net::TcpStream, fake: Shared) {
     let _ = stream.write_all(out.as_bytes());
 }
 
-fn info(kind: &str, name: &str, state: &str, extra: Value) -> Value {
+pub(crate) fn info(kind: &str, name: &str, state: &str, extra: Value) -> Value {
     let mut h = json!({
         "type": kind, "displayName": name, "available": state == "ready" || state == "sign-in-required", "userEnabled": true, "state": state,
         "reason": if state == "not-installed" { json!(format!("{name} isn't installed.")) } else { Value::Null },

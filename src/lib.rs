@@ -163,6 +163,8 @@ mod tests_settings_nav;
 #[cfg(test)]
 mod tests_settings_nightly;
 #[cfg(test)]
+mod tests_settings_permissions;
+#[cfg(test)]
 mod tests_settings_storage;
 #[cfg(test)]
 mod tests_sign_in;
@@ -1366,6 +1368,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_settings_anchor(tx)
         | s.keep_memory(tx)
         | s.keep_harnesses_page(tx)
+        | s.keep_permissions_page(tx)
         | s.keep_updates(now, tx)
         | s.keep_locations(tx)
         | s.keep_dreaming(now, tx)
@@ -1860,6 +1863,14 @@ pub fn spec() -> AppSpec<State> {
                 s.show_harnesses(true, mock::harnesses::Case::Mixed, None);
                 s.ui.open = Some(ui::Open::Select("default-harness"));
             }),
+            ("settings-permissions", |s| s.show_permissions(true, mock::permissions::Case::Defaults, None)),
+            ("settings-permissions-light", |s| s.show_permissions(false, mock::permissions::Case::Defaults, None)),
+            ("settings-permissions-custom", |s| s.show_permissions(true, mock::permissions::Case::Custom, None)),
+            ("settings-permissions-custom-light", |s| s.show_permissions(false, mock::permissions::Case::Custom, None)),
+            ("settings-permissions-edits", |s| s.show_permissions(true, mock::permissions::Case::Edits, None)),
+            ("settings-permissions-edits-light", |s| s.show_permissions(false, mock::permissions::Case::Edits, None)),
+            ("settings-permissions-chip", |s| s.show_permissions(true, mock::permissions::Case::Custom, Some("chip"))),
+            ("settings-permissions-add", |s| s.show_permissions(true, mock::permissions::Case::Defaults, Some("add"))),
             ("settings-profiles-none", |s| s.show_profiles(true, mock::harnesses::Profiles::None)),
             ("settings-profiles-none-light", |s| s.show_profiles(false, mock::harnesses::Profiles::None)),
             ("settings-profiles-loading", |s| s.show_profiles(true, mock::harnesses::Profiles::Loading)),

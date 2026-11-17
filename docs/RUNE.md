@@ -1429,3 +1429,11 @@ Plain Rust, no view, so nothing new about Rune. For the next piece that draws th
 - **A test that presses something far down a page needs a tall window**: elements below the 760-px window are not found by a click. `tests::app_tall()` is 1280 x 1900.
 - **No time zone name without a crate**: Unix gives it in `TZ` or the `/etc/localtime` link; Windows has none, so none is sent.
 - **Building the lib tests can pass 3000 MB** with incremental compilation: `CARGO_INCREMENTAL=0 cargo test -j1` stays under the cap.
+
+## Component 16, piece M (What agents can do: levels, Edit files, Run commands)
+
+- **A dashed pill border works** (`border(..).border_layout().border_dash(3.0, 3.0)` with `radius(999.0)`): the fixed chip and "+ exception" use it, so row 6.20's "dashed" needs no workaround.
+- **No inline element in a wrapped line**: Fleet's "Needs you" is a glyph and a bold word in one coloured run. A `rich` span colours and weighs the word, and the glyph is the diamond character in that colour.
+- **`Open::Select` takes a `&'static str`**, so a select that exists once per chip needs the chip kept in `State` (`settings.permissions.chip`) and one open name for all of them.
+- **Linking the lib tests passed 3000 MB again**: `cargo test -j1 --config 'profile.dev.package.fleet-native.debug=0'` stays under the cap and only rebuilds this crate.
+

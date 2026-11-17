@@ -149,6 +149,8 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
         Some(Open::Select("dream-budget")) => crate::view::settings::dream_nightly::budget_list(s, t),
         Some(Open::Select("dreaming-harness")) => crate::view::settings::dreaming_panel::harness_list(s, t),
         Some(Open::Select("memory-repository")) => crate::view::settings::memory_notes::repository_list(s, t),
+        Some(Open::Select("permission-chip")) => crate::view::settings::permissions::chip_list(s, t),
+        Some(Open::Select("permission-add")) => crate::view::settings::permissions::add_list(s, t),
         Some(Open::Select("default-harness")) => crate::view::settings::harnesses::default_list(s, t),
         Some(Open::Select(name)) => gallery::select_content(s, t, name),
         Some(Open::Popover("context")) => crate::view::ring_popover::overlay(s, t),

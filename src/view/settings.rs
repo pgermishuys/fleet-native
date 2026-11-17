@@ -24,6 +24,7 @@ pub mod memory_clear;
 pub mod memory_expired;
 pub mod memory_notes;
 pub mod memory_row;
+pub mod permissions;
 
 use super::machines_page;
 use crate::State;
@@ -151,6 +152,8 @@ pub fn detail(s: &State, t: &Theme) -> El {
         memory::content(s, t)
     } else if *page == Page::Harnesses {
         harnesses::content(s, t)
+    } else if *page == Page::Permissions {
+        permissions::content(s, t)
     } else if *page == Page::Folders {
         folders::content(s, t)
     } else if *page == Page::Machines {
