@@ -1378,3 +1378,11 @@ Plain Rust, no view, so nothing new about Rune. For the next piece that draws th
 - **Text that shows only while its row is hovered** (Fleet's `opacity-0 group-hover:opacity-100` Select) is a transparent colour with `.group_color(muted)` on the text and `.hover_group()` on the row.
 - **Enter in a single-line field** is `.on_submit`, as for a text area; a test clicks the field, then sends `Key::Text`, then `Key::Enter`.
 - **`El` has no `.p(..)`**: all-round padding is `.padding(..)`.
+
+
+## Component 16, piece R (Dreaming's panel)
+
+- **Strikethrough** is `El::strikes([(start, end, None)])` over byte ranges of a `text` (or `rich`); with `.opacity(0.7)` it draws Fleet's `line-through opacity-70` replaced note, wrapped lines included.
+- **A busy poll on the app clock**: `poll` gets `now`; keep a `next_poll` in the state, start the read when `now >= next_poll`, and `tx.wake_after` the time left so the window wakes with nothing else moving. A test runs `rt.frame(3.5)` to pass the three seconds.
+- **A test reading an element's text** joins the text of every element whose path starts with the keyed element's path; a key that is a prefix of another key (`dream-skipped` and `dream-skipped-list`) pulls the other's text in. Name the keys apart.
+- **A progress line with a link inside it** (`Dreaming… reading 3 sessions` and a button) is a wrapping `row` of a text and a pressable text; Fleet's inline text and button wrap together, ours wrap as two items.

@@ -143,6 +143,7 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
         Some(Open::MachineProjectMenu) => menus::machine_project_context(s, t),
         Some(Open::MachineHeadingMenu) => menus::machine_heading_context(s, t),
         Some(Open::Select("large-pastes")) => crate::view::settings::general::large_pastes_list(s, t),
+        Some(Open::Select("dreaming-harness")) => crate::view::settings::dreaming_panel::harness_list(s, t),
         Some(Open::Select("memory-repository")) => crate::view::settings::memory_notes::repository_list(s, t),
         Some(Open::Select("default-harness")) => crate::view::settings::harnesses::default_list(s, t),
         Some(Open::Select(name)) => gallery::select_content(s, t, name),
