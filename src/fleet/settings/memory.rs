@@ -339,6 +339,8 @@ pub struct MemoryPage {
     pub request: u64,
     /// The Dreaming panel's state (`DreamingPanel.vue`), dropped with the page.
     pub dreaming: super::dreaming::DreamingPage,
+    /// The "Dream each night" row's state (`DreamNightly.vue`), dropped with the page.
+    pub nightly: super::dream_nightly::NightlyPage,
 }
 
 impl MemoryPage {

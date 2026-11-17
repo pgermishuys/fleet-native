@@ -27,7 +27,7 @@ fn words(error: String) -> String {
 
 impl State {
     /// The link to the machine Settings shows, or none when there is no Fleet to ask.
-    fn dreaming_link(&self) -> Option<Link> {
+    pub fn dreaming_link(&self) -> Option<Link> {
         let key = self.settings.choice.key(&self.machines).to_string();
         self.link_for_machine(&key).filter(|_| self.settings_target().is_some())
     }

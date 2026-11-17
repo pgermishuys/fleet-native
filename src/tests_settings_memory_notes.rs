@@ -3,7 +3,7 @@
 //! cancels in both text areas, one action at a time. The server is a fake that keeps the notes it is given and changes
 //! them as the real one does.
 use crate::fleet::link::{Job, Link, Post};
-use crate::tests::{FRAME, app, click};
+use crate::tests::{FRAME, click};
 use crate::{Rail, State, test_wait};
 use rune::{Key, KeyEvent, Mods, Runtime};
 use serde_json::{Value, json};
@@ -171,7 +171,7 @@ fn rig(setup: impl FnOnce(&mut Fake)) -> Rig {
     let (jobs, queue) = channel::<Job>();
     let jobs = Mutex::new(jobs);
     let link = Link::start(base, Post::new(move |job| drop(jobs.lock().unwrap().send(job))));
-    let mut rt = app();
+    let mut rt = crate::tests::app_tall();
     rt.update(move |s, _| {
         s.link = Some(link);
         s.rail = Rail::Settings;

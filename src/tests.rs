@@ -16,6 +16,14 @@ pub(crate) fn app() -> Runtime<State> {
     rt
 }
 
+/// A window tall enough to hold a whole Settings page, for the tests that press things far down it.
+pub(crate) fn app_tall() -> Runtime<State> {
+    let mut rt = App::new(spec()).headless_runtime((1280.0, 1900.0), Env::new(true, 1.0));
+    rt.frame(0.0);
+    rt.frame(FRAME);
+    rt
+}
+
 pub(crate) fn click(rt: &mut Runtime<State>, key: &str) {
     let (x, y) = rt.find(key).unwrap_or_else(|| panic!("no element keyed {key:?}"));
     rt.pointer_move(x, y);

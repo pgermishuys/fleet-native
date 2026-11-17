@@ -161,6 +161,8 @@ mod tests_settings_naming;
 #[cfg(test)]
 mod tests_settings_nav;
 #[cfg(test)]
+mod tests_settings_nightly;
+#[cfg(test)]
 mod tests_settings_storage;
 #[cfg(test)]
 mod tests_sign_in;
@@ -440,6 +442,7 @@ pub struct State {
     pub quiet: fleet::notices::Quiet,
     /// The "Remembered" notices' payloads, for Undo (piece M), and where the card, the composer and the chips sit (the lift, the settle).
     pub memory: fleet::memory_notice::MemoryNotices,
+    pub dream_notices: fleet::dream_notice::DreamNotices,
     /// Settings → Updates & about: each machine's status and notes, the rollout, the restart (`fleet::updates::feed`).
     pub updates: fleet::updates::feed::UpdatesFeed,
     pub place: fleet::notice_place::Place,
@@ -626,6 +629,7 @@ impl Default for State {
             notices: Default::default(),
             quiet: Default::default(),
             memory: Default::default(),
+            dream_notices: Default::default(),
             updates: Default::default(),
             restart: Default::default(),
             update_notices: Default::default(),
@@ -1365,6 +1369,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_updates(now, tx)
         | s.keep_locations(tx)
         | s.keep_dreaming(now, tx)
+        | s.keep_nightly(tx)
         | s.keep_naming(now, tx)
         | s.keep_storage(tx);
     // "Copied" on a message's button ends by itself.
@@ -1801,6 +1806,16 @@ pub fn spec() -> AppSpec<State> {
             ("settings-dreaming-rewritten-merged-light", |s| mock::dreaming::scene(s, false, mock::dreaming::Variant::RewrittenMerged)),
             ("settings-dreaming-error", |s| mock::dreaming::scene(s, true, mock::dreaming::Variant::Error)),
             ("settings-dreaming-error-light", |s| mock::dreaming::scene(s, false, mock::dreaming::Variant::Error)),
+            ("settings-dream-nightly-off", |s| mock::dreaming::nightly_scene(s, true, mock::dreaming::NightlyVariant::Off)),
+            ("settings-dream-nightly-off-light", |s| mock::dreaming::nightly_scene(s, false, mock::dreaming::NightlyVariant::Off)),
+            ("settings-dream-nightly-on", |s| mock::dreaming::nightly_scene(s, true, mock::dreaming::NightlyVariant::On)),
+            ("settings-dream-nightly-on-light", |s| mock::dreaming::nightly_scene(s, false, mock::dreaming::NightlyVariant::On)),
+            ("settings-dream-nightly-paused", |s| mock::dreaming::nightly_scene(s, true, mock::dreaming::NightlyVariant::Paused)),
+            ("settings-dream-nightly-paused-light", |s| mock::dreaming::nightly_scene(s, false, mock::dreaming::NightlyVariant::Paused)),
+            ("settings-dream-nightly-load-failed", |s| mock::dreaming::nightly_scene(s, true, mock::dreaming::NightlyVariant::LoadFailed)),
+            ("settings-dream-nightly-load-failed-light", |s| {
+                mock::dreaming::nightly_scene(s, false, mock::dreaming::NightlyVariant::LoadFailed)
+            }),
             ("settings-general-flipped", |s| {
                 s.dark = Some(true);
                 s.open_settings("general", None);
@@ -3279,6 +3294,11 @@ pub fn spec() -> AppSpec<State> {
             ("notice-remembered-light", |s| {
                 s.dark = Some(false);
                 mock::notices::remembered(s)
+            }),
+            ("notice-dream", |s| mock::notices::dreamed(s)),
+            ("notice-dream-light", |s| {
+                s.dark = Some(false);
+                mock::notices::dreamed(s)
             }),
             ("notice-chip", |s| mock::notices::settled(s)),
             ("notice-chip-light", |s| {

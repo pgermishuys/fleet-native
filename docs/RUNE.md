@@ -1421,3 +1421,11 @@ Plain Rust, no view, so nothing new about Rune. For the next piece that draws th
 - **`on_input_key` sees Ctrl/⌘ S and Tab before the field**: returning true keeps Tab from leaving the field, so Tab can insert two spaces with `TextEdit::insert`.
 - **The caret's line is `TextEdit::focus` (a byte offset) counted in `\n`s**; the box needs no layout for its active line number.
 - **A test must let the page settle before it presses a button in a row that just opened**: after the press that opens an editor, the layout moves for a few frames and `rt.find` gives a place the pointer doesn't hit yet (`element_at` named the page, not the button). Run ~30 frames, and give the headless window `set_viewport((1280, 2600), 1.0)` so the editor's buttons are in view.
+
+
+## Component 16, piece S (Dreaming: the nightly row and notice)
+
+- **No time field.** The time is a `text_input` that takes `HH:MM` (also `H:MM` and `HHMM`) and commits on Enter or when it loses focus (the poll sees `focused` go false); the browser's spinners and the OS's 12/24-hour display can't be matched.
+- **A test that presses something far down a page needs a tall window**: elements below the 760-px window are not found by a click. `tests::app_tall()` is 1280 x 1900.
+- **No time zone name without a crate**: Unix gives it in `TZ` or the `/etc/localtime` link; Windows has none, so none is sent.
+- **Building the lib tests can pass 3000 MB** with incremental compilation: `CARGO_INCREMENTAL=0 cargo test -j1` stays under the cap.

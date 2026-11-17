@@ -3,7 +3,7 @@
 //! error that clears, and one action at a time. The server is a fake that keeps one dream and changes it as the real one does.
 use crate::fleet::link::{Job, Link, Post};
 use crate::fleet::new_session::harness_choice::{HarnessEntry, Harnesses};
-use crate::tests::{FRAME, app, click};
+use crate::tests::{FRAME, click};
 use crate::{Rail, State, test_wait};
 use rune::Runtime;
 use serde_json::{Value, json};
@@ -18,6 +18,8 @@ struct Fake {
     /// Answer the dreams list with a refusal this many times.
     refuse_lists: usize,
     memory_on: bool,
+    /// What the nightly row's read gets; none is a refusal.
+    nightly: Value,
     heard: Vec<(String, String, Value)>,
 }
 
@@ -35,7 +37,7 @@ fn dream(status: &str, changes: Vec<Value>) -> Value {
             "changes": changes, "runId": "run-1", "tokens": 48200, "since": null })
 }
 
-fn read_body(stream: &mut std::net::TcpStream) -> (String, Value) {
+pub(crate) fn read_body(stream: &mut std::net::TcpStream) -> (String, Value) {
     let mut buf = Vec::new();
     let mut chunk = [0u8; 4096];
     let (head_end, length) = loop {
@@ -79,6 +81,7 @@ fn answer(mut stream: std::net::TcpStream, fake: Shared) {
         ("GET", ["api", "memory", "notes"]) => {
             (200, json!({ "repository": "/work/lantern", "repositoryNotes": [], "machineNotes": [], "tokens": 0, "expiredNotes": [] }))
         }
+        ("GET", ["api", "memory", "dreaming", "nightly"]) => (200, f.nightly.clone()),
         ("GET", ["api", "memory", "dreams"]) => {
             if f.refuse_lists > 0 {
                 f.refuse_lists -= 1;
@@ -123,6 +126,7 @@ fn rig(setup: impl FnOnce(&mut Fake)) -> Rig {
     {
         let mut f = fake.lock().unwrap();
         f.memory_on = true;
+        f.nightly = json!({ "enabled": false, "time": "03:00", "budgetTokens": 300000 });
         setup(&mut f);
     }
     let listener = TcpListener::bind("127.0.0.1:0").expect("a port");
@@ -137,7 +141,7 @@ fn rig(setup: impl FnOnce(&mut Fake)) -> Rig {
     let (jobs, queue) = channel::<Job>();
     let jobs = Mutex::new(jobs);
     let link = Link::start(base, Post::new(move |job| drop(jobs.lock().unwrap().send(job))));
-    let mut rt = app();
+    let mut rt = crate::tests::app_tall();
     rt.update(move |s, _| {
         s.link = Some(link);
         s.rail = Rail::Settings;
@@ -367,9 +371,9 @@ fn starts_a_dream_on_the_chosen_harness_and_shows_it_running() {
 
 #[test]
 fn dream_now_follows_the_nightly_harness_until_one_is_picked_here() {
-    let mut r = rig(|_| {});
+    let mut r = rig(|f| f.nightly = json!({ "enabled": true, "harnessType": "claude-code", "time": "03:00", "budgetTokens": 300000 }));
     r.dreamed();
-    r.rt.update(|s, _| s.settings.memory.dreaming.nightly_harness = Some("claude-code".into()));
+    r.settle("the panel to hear the row's harness", |s| s.settings.memory.dreaming.nightly_harness.is_some());
     r.press("dream-now");
     assert_eq!(r.heard("POST", "/api/memory/dreams")[0].1["harnessType"], "claude-code");
 }

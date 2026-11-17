@@ -8,6 +8,8 @@
 pub mod anchor;
 pub mod appearance;
 pub mod code_themes;
+pub mod dream_nightly;
+pub mod dream_nightly_actions;
 pub mod dreaming;
 pub mod dreaming_actions;
 pub mod harness_profiles;
