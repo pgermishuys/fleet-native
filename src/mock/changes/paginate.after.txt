@@ -1,0 +1,39 @@
+"""Splits a list of rows into pages."""
+
+DEFAULT_SIZE = 20
+
+
+def page_1(rows, size=DEFAULT_SIZE):
+    """Page 1 of the rows."""
+    start = 0 * size
+    return rows[start:start + size]
+
+
+def page_2(rows, size=DEFAULT_SIZE):
+    """Page 2 of the rows."""
+    start = 1 * size
+    return rows[start:start + size]
+
+
+def page_3(rows, size=DEFAULT_SIZE):
+    """Page 3 of the rows."""
+    start = 2 * size
+    return rows[start:start + size]
+
+
+def last_page(total, size=DEFAULT_SIZE):
+    """The index of the last page."""
+    last = (total + size - 1) // size - 1
+    if last < 0:
+        last = 0
+    return last
+
+
+def first_page(rows, size=DEFAULT_SIZE):
+    """Page 0 of the rows."""
+    return rows[:size]
+
+
+def page_count(total, size=DEFAULT_SIZE):
+    """How many pages total rows need."""
+    return last_page(total, size) + 1

@@ -99,6 +99,7 @@ pub mod report_form;
 pub mod repositories;
 pub mod restart_notice;
 pub mod retry;
+pub mod review;
 pub mod right_panel;
 pub mod routing;
 pub mod row_chips;

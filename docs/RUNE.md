@@ -1575,3 +1575,10 @@ What the app's own host stands on, at `f1f54ce` (the research spike's findings h
   create default EGL display") and the view stays black; with Mesa's EGL but no `libGLESv2.so.2` the app itself aborts when the
   first view is made. A distribution's `libwebkit2gtk-4.1-0` brings both. Under Xvfb with no GPU Mesa falls back to llvmpipe
   and says so on stderr (`DRI3 error`, `/dev/dri` permission), which is harmless.
+
+## Component 12, piece E (the review's header and file sections)
+
+- **`sticky_top(0.0)` on a card's header** inside a `scroll()` column is Fleet's `position: sticky; top: -12px` inside the body's padding: it holds the header at the viewport's top while the card scrolls under it, and releases it at the card's end. Nothing more was needed.
+- **A control that is `display: none` until hover takes no room in CSS; `group_opacity(0, 1)` keeps its room.** In a header that must give its path the width, pin the control (`pin(None, Some(top), Some(right), None)`) over the header's right end with the hover colour as its fill, so it takes no room while hidden. A row with a hidden-but-present child squeezed the path's `truncate()` to nothing and let the file name run into the counts.
+- **A pressed state has no accessibility field of its own** (`aria-pressed`): `checked(on)` on a `role("button")` is the nearest; a test reads the state it came from (`State.review`), since `ElementInfo` has no `checked`.
+- **`rt.elements()` still lists an element that is leaving** (faded out): a test that reads text after a state changes filters `!e.exiting`, or reads the old words.

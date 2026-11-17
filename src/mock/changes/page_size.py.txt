@@ -1,0 +1,17 @@
+"""How many rows a page holds."""
+
+DEFAULT_PAGE_SIZE = 20
+MAX_PAGE_SIZE = 100
+
+
+def clamp_page_size(requested):
+    """Keeps a requested page size between 1 and the maximum."""
+    if requested is None:
+        return DEFAULT_PAGE_SIZE
+    return max(1, min(int(requested), MAX_PAGE_SIZE))
+
+
+def page_count(total_rows, page_size):
+    """The number of pages needed for total_rows."""
+    size = clamp_page_size(page_size)
+    return (total_rows + size - 1) // size
