@@ -3,14 +3,15 @@
 //! current todo, and `done/total`. Muted until hovered; a click opens the Progress tab.
 use super::progress_ring::progress_ring;
 use crate::State;
+use crate::fleet::progress::Plan;
 use crate::fleet::progress_line as line;
 use crate::fleet::row_chips::Progress;
 use crate::theme::{Theme, sans};
 use rune::{Cursor, El, el, row, text};
 
 /// The strip for `progress`, or nothing while it has no items or its tab is open (`visible`).
-pub fn strip(s: &State, t: &Theme, progress: &Progress) -> El {
-    let tip = line::label(progress);
+pub fn strip(s: &State, t: &Theme, progress: &Progress, plan: Option<&Plan>) -> El {
+    let tip = line::label(progress, plan);
     let fill = line::fraction(progress);
     let mut bar = row().w_full().h(1.0).absolute(0.0, -1.0);
     if fill > 0.0 {
@@ -42,13 +43,13 @@ pub fn strip(s: &State, t: &Theme, progress: &Progress) -> El {
                 .gap(6.0)
                 .center_y()
                 .child(
-                    text(format!("{} ·", line::heading(progress)))
+                    text(format!("{} ·", line::heading(progress, plan)))
                         .font(sans(12.0, 400.0, 1.3))
                         .color(t.muted)
                         .group_color(t.text)
                         .truncate(),
                 )
-                .child(text(line::current_line(progress)).font(sans(12.0, 400.0, 1.3)).color(t.text).truncate().grow(1.0).min_w(0.0)),
+                .child(text(line::current_line(progress, plan)).font(sans(12.0, 400.0, 1.3)).color(t.text).truncate().grow(1.0).min_w(0.0)),
         )
         .child(text(format!("{}/{}", progress.done, progress.total)).font(sans(12.0, 400.0, 1.3)).color(t.muted).group_color(t.text))
 }
@@ -56,5 +57,6 @@ pub fn strip(s: &State, t: &Theme, progress: &Progress) -> El {
 /// The strip for the open session, or nothing.
 pub fn slot(s: &State, t: &Theme) -> Option<El> {
     let progress = line::visible(s.session().row.progress.as_ref(), s.context.tab)?;
-    Some(strip(s, t, progress))
+    let plan = s.progress.of(&s.session().id).and_then(|d| d.plan.as_ref());
+    Some(strip(s, t, progress, plan))
 }

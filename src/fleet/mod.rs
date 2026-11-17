@@ -79,6 +79,8 @@ pub mod pr_popover;
 pub mod pr_state;
 pub mod prefs;
 pub mod presence;
+pub mod progress;
+pub mod progress_feed;
 pub mod progress_line;
 pub mod projects;
 pub mod prompts;
