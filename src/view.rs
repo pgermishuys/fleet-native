@@ -65,6 +65,7 @@ pub mod pr_popover;
 pub mod profile_picker;
 pub mod progress_ring;
 pub mod progress_strip;
+pub mod progress_tab;
 pub mod project_dialogs;
 pub mod project_header;
 pub mod project_menu;

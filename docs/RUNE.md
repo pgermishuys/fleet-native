@@ -1528,3 +1528,5 @@ Nothing about Rune: plain Rust. One thing for the pieces that draw it: word mark
 
 - **Nothing new about Rune.** The piece is plain Rust. For piece L: a row's own session stream needs a side stream (watch the child, hand
   its snapshot over), because a watched topic's snapshot isn't given to `State`; `summarize_agent_activity` takes the reduced messages.
+
+- **A "now" ring outside a clipped box** (Progress flow bar): the segment clips its fill with `clip_rounded`, so the ring is a 1.5-spread `Shadow` on an unclipped wrapper around it. Inline code in a wrapped title and the sub-count are spans of one `rich` text (`mono().size(11).bg(colour, 3)`); a `Span` can't add margin, so the count follows two spaces.

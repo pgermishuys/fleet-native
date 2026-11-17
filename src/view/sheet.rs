@@ -88,9 +88,13 @@ pub fn sheet(s: &State, t: &Theme) -> El {
     sheet.child(right_rail::gutter(t)).child(super::canvas_host::host(s, t, false).w(s.right_shown_w()).min_w(rp::MIN_W))
 }
 
-/// The collapsed content panel (`CollapsedRightRail.vue`), counting the session's plan.
+/// The collapsed content panel (`CollapsedRightRail.vue`), counting the session's progress (`progress.done` of
+/// `progress.total`). With no server there is no progress to read, so the invented session keeps its invented plan.
 fn collapsed_rail(s: &State, t: &Theme, session: &Session) -> El {
-    let (steps, pending) = plan(session);
+    if let Some(p) = session.row.progress.as_ref() {
+        return right_rail::rail(s, t, p.done as usize, p.total as usize);
+    }
+    let (steps, pending) = if s.open_id().is_none() { plan(session) } else { (Vec::new(), 0) };
     right_rail::rail(s, t, steps.len() - pending, steps.len())
 }
 

@@ -101,6 +101,8 @@ mod tests_panel;
 #[cfg(test)]
 mod tests_pr_popover;
 #[cfg(test)]
+mod tests_progress;
+#[cfg(test)]
 mod tests_progress_strip;
 #[cfg(test)]
 mod tests_project;
@@ -1472,6 +1474,7 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     let ticked = now.floor() != s.clock.floor();
     s.clock = now;
     let strip = s.keep_strip(tx);
+    s.keep_progress_tab();
     if s.keep_notices(now, tx) {
         return true;
     }
@@ -2553,6 +2556,16 @@ pub fn spec() -> AppSpec<State> {
             ("context-tab-error", |s| s.show_context_tab_scene(mock::context_tab::Case::Error, true)),
             ("context-tab-error-light", |s| s.show_context_tab_scene(mock::context_tab::Case::Error, false)),
             ("context-tab-links", |s| s.show_context_tab_scene(mock::context_tab::Case::Links, true)),
+            ("progress-plan", |s| s.show_progress_tab(mock::progress::Case::Plan, true)),
+            ("progress-plan-light", |s| s.show_progress_tab(mock::progress::Case::Plan, false)),
+            ("progress-plan-flat", |s| s.show_progress_tab(mock::progress::Case::Flat, true)),
+            ("progress-plan-flat-light", |s| s.show_progress_tab(mock::progress::Case::Flat, false)),
+            ("progress-plan-done", |s| s.show_progress_tab(mock::progress::Case::Done, true)),
+            ("progress-plan-done-light", |s| s.show_progress_tab(mock::progress::Case::Done, false)),
+            ("progress-todos", |s| s.show_progress_tab(mock::progress::Case::Todos, true)),
+            ("progress-todos-light", |s| s.show_progress_tab(mock::progress::Case::Todos, false)),
+            ("progress-empty", |s| s.show_progress_tab(mock::progress::Case::Empty, true)),
+            ("progress-empty-light", |s| s.show_progress_tab(mock::progress::Case::Empty, false)),
             ("progress-strip", |s| s.show_progress_strip(3, 7, Some("Write the migration"), true)),
             ("progress-strip-light", |s| s.show_progress_strip(3, 7, Some("Write the migration"), false)),
             ("progress-strip-plan", |s| s.show_progress_strip_plan(2, true)),
