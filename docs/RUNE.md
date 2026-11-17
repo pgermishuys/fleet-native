@@ -1466,3 +1466,6 @@ Plain Rust, no view, so nothing new about Rune. For the next piece that draws th
 - **`El` has no `shrink_0`**: a child doesn't shrink unless it asks with `.shrink()`.
 - **No loop to wait on in a checker thread.** The updater's checker sleeps on an `mpsc` channel with `recv_timeout`, so a press of "Check for updates" wakes it at once instead of waiting out four hours; the sender lives in `State` and the thread keeps working if it is dropped.
 - **A flexible bar needs weights, not a percent width.** Rune has no percent width; a track of `row()` with two children `w(0).grow(done)` and `w(0).grow(100 - done)` draws a bar that follows its container (`view/settings/updates.rs::bar`).
+
+- **A form inside a `scroll()` list is clipped by it**: a button below the list's `max_h` is in the element tree but `rt.find` gives a point outside what is drawn, so a click lands on nothing. A test reaches it by `rt.wheel` over the list first (`scroll_to` in `src/tests_settings_harness_flow.rs`).
+- **`on_edit` for boxes made at run time** (one per field a provider sends) takes a closure with a captured index into a `Vec` and a spare `TextEdit` for the frame after the vec went away: `State::flow_edit_mut`.

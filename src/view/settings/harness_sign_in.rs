@@ -1,6 +1,6 @@
 //! Settings → Harnesses → Providers (`HarnessSignInPanel.vue`): the head, the intro or the asking line, the harness's note, the
 //! notice, the Signed in group with each sign-in and its buttons, and the search with the providers still to sign in to. The
-//! flow a provider's Sign in opens (`HarnessSignInFlow`) is piece L's: its slot is [`flow_slot`]. Sizes are the component's own
+//! flow a provider's Sign in opens (`HarnessSignInFlow`) is `harness_sign_in_flow.rs`, drawn in [`flow_slot`]. Sizes are the component's own
 //! styles, in CSS pixels.
 use crate::State;
 use crate::fleet::settings::harness_sign_in::{Connection, Provider};
@@ -95,9 +95,9 @@ fn intro(t: &Theme, kind: &str, name: &str) -> El {
         }))
 }
 
-/// Where `HarnessSignInFlow` goes under a provider (piece L); nothing is drawn until then.
-fn flow_slot(_s: &State, _t: &Theme, _kind: &str, _provider: &Provider) -> Option<El> {
-    None
+/// `HarnessSignInFlow` under a provider (piece L's `harness_sign_in_flow`).
+fn flow_slot(s: &State, t: &Theme, kind: &str, provider: &Provider) -> Option<El> {
+    super::harness_sign_in_flow::flow(s, t, kind, provider)
 }
 
 fn group_title(t: &Theme, words: &str) -> El {
