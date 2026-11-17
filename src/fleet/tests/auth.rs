@@ -128,6 +128,8 @@ fn a_fleet_that_needs_a_token_is_refused_once_and_then_reached_with_one() {
     let note = rt.state.connection_note().unwrap();
     assert!(note.contains("needs an access token") && note.contains("--token") && note.contains(&base), "{note}");
     assert!(!note.contains(SECRET));
+    // The sign-in page asks what the Fleet offers, once; that is not a reconnect.
+    assert!(pump(&mut rt, &queue, 10.0, |s| s.sign_in.open && s.sign_in.options != crate::fleet::sign_in::Options::Loading));
     let knocks = seen.lock().unwrap().len();
     pump(&mut rt, &queue, 2.5, |_| false);
     assert_eq!(seen.lock().unwrap().len(), knocks, "no reconnect loop");
