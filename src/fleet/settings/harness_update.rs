@@ -305,7 +305,8 @@ impl State {
 impl State {
     /// The run of the strips' timers, from `poll`: "Copied" ends, and the Harnesses page follows an update that waits or runs.
     pub fn keep_harness_strips(&mut self, now: f64, tx: &mut Tx) -> bool {
-        let on_page = self.rail == crate::Rail::Settings && self.settings.page == crate::fleet::settings_nav::Page::Harnesses;
+        let on_page = self.rail == crate::Rail::Settings
+            && matches!(self.settings.page, crate::fleet::settings_nav::Page::Harnesses | crate::fleet::settings_nav::Page::Updates);
         let machine = self.harness_machine();
         self.keep_harness_copied(now, tx) | self.keep_update_poll(&machine, on_page, now, tx)
     }

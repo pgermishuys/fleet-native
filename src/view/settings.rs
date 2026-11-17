@@ -31,6 +31,10 @@ pub mod memory_notes;
 pub mod memory_row;
 pub mod permissions;
 pub mod permissions_rows;
+pub mod updates;
+pub mod updates_app;
+pub mod updates_fleet;
+pub mod updates_harnesses;
 
 use super::machines_page;
 use crate::State;
@@ -90,9 +94,40 @@ fn entry(s: &State, t: &Theme, page: &Page) -> El {
         .focus_ring(2.0, 2.0, t.accent)
         .child(icon(glyph(page), 16.0).color(ink))
         .child(text(page.title()).font(sans(rem(0.85714), 500.0, 1.4)).color(ink))
+        .children(if *page == Page::Updates { updates_marks(s, t) } else { Vec::new() })
         .on_press(move |s: &mut State| s.open_settings(&to, None));
     it = if on { it.fill(t.mix(t.accent, t.panel_bg, 0.12)) } else { it.hover(t.main_bg) };
     it
+}
+
+/// The dot and the badge on Updates & about: the dot while the shown machine has an update out, coming down or ready (accent,
+/// or the idle colour once it is ready), and a count of the other machines that can update. The first of them takes the right
+/// edge (`ml-auto`), the badge follows it (`ml-1.5`).
+fn updates_marks(s: &State, t: &Theme) -> Vec<El> {
+    use crate::fleet::settings::updates_page::{Dot, menu_dot, waiting_label};
+    let key = s.settings.choice.key(&s.machines);
+    let dot = menu_dot(s.updates.status.get(key).and_then(|st| st.status.as_ref()));
+    let waiting = crate::fleet::updates::rows::summarize_rows(&s.update_rows()).waiting;
+    let mut marks = Vec::new();
+    if dot.is_some() || waiting > 0 {
+        marks.push(rune::el().grow(1.0).w(0.0));
+    }
+    if let Some(d) = dot {
+        let ink = if d == Dot::Idle { t.idle } else { t.accent };
+        marks.push(rune::el().key("updates-dot").role("img").label("Update available").size(8.0, 8.0).radius(4.0).fill(ink));
+    }
+    if waiting > 0 {
+        let badge = row()
+            .key("updates-badge")
+            .label(waiting_label(waiting))
+            .ml(if dot.is_some() { 5.25 } else { 0.0 })
+            .px(5.25)
+            .radius(1000.0)
+            .fill(t.accent)
+            .child(text(waiting.to_string()).font(sans(rem(0.71429), 600.0, 1.6)).color(t.primary_fg));
+        marks.push(badge);
+    }
+    marks
 }
 
 /// `SettingsNavPanel`: "SETTINGS", then a labelled group per heading. It sits on the window's own colour, like the session list.
@@ -161,6 +196,8 @@ pub fn detail(s: &State, t: &Theme) -> El {
         harnesses::content(s, t)
     } else if *page == Page::Permissions {
         permissions::content(s, t)
+    } else if *page == Page::Updates {
+        updates::content(s, t)
     } else if *page == Page::Folders {
         folders::content(s, t)
     } else if *page == Page::Machines {

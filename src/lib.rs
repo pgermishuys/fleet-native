@@ -175,6 +175,8 @@ mod tests_settings_permissions_more;
 #[cfg(test)]
 mod tests_settings_storage;
 #[cfg(test)]
+mod tests_settings_updates;
+#[cfg(test)]
 mod tests_sign_in;
 #[cfg(test)]
 mod tests_skills;
@@ -1872,6 +1874,18 @@ pub fn spec() -> AppSpec<State> {
                 s.show_harnesses(true, mock::harnesses::Case::Mixed, None);
                 s.ui.open = Some(ui::Open::Select("default-harness"));
             }),
+            ("settings-updates-uptodate", |s| s.show_updates(true, mock::updates_page::Case::UpToDate)),
+            ("settings-updates-uptodate-light", |s| s.show_updates(false, mock::updates_page::Case::UpToDate)),
+            ("settings-updates-available", |s| s.show_updates(true, mock::updates_page::Case::Available)),
+            ("settings-updates-available-light", |s| s.show_updates(false, mock::updates_page::Case::Available)),
+            ("settings-updates-downloading", |s| s.show_updates(true, mock::updates_page::Case::Downloading)),
+            ("settings-updates-downloading-light", |s| s.show_updates(false, mock::updates_page::Case::Downloading)),
+            ("settings-updates-staged", |s| s.show_updates(true, mock::updates_page::Case::Staged)),
+            ("settings-updates-staged-light", |s| s.show_updates(false, mock::updates_page::Case::Staged)),
+            ("settings-updates-failed", |s| s.show_updates(true, mock::updates_page::Case::Failed)),
+            ("settings-updates-failed-light", |s| s.show_updates(false, mock::updates_page::Case::Failed)),
+            ("settings-updates-managed", |s| s.show_updates(true, mock::updates_page::Case::Managed)),
+            ("settings-updates-managed-light", |s| s.show_updates(false, mock::updates_page::Case::Managed)),
             ("settings-permissions", |s| s.show_permissions(true, mock::permissions::Case::Defaults, None)),
             ("settings-permissions-light", |s| s.show_permissions(false, mock::permissions::Case::Defaults, None)),
             ("settings-permissions-custom", |s| s.show_permissions(true, mock::permissions::Case::Custom, None)),

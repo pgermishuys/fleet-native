@@ -52,6 +52,16 @@ pub struct Update {
     pub phase: Phase,
     /// How the threads reach the state; set when the app starts the checker. Without it (tests, pictures) nothing is fetched.
     post: Option<Post>,
+    /// The build this app is, once the checker runs (`None`: a `dev` build or a platform with no download, which never checks).
+    pub running: Option<u64>,
+    /// A look at `latest.json` is under way.
+    pub checking: bool,
+    /// Why the last look failed, until one works.
+    pub check_error: Option<String>,
+    /// When the last look worked (ms since the epoch).
+    pub checked_ms: Option<i64>,
+    /// Wakes the checker now: Settings' "Check for updates".
+    pub wake: Option<std::sync::mpsc::Sender<()>>,
 }
 
 impl Update {
@@ -72,6 +82,30 @@ impl State {
             return;
         }
         self.update.available = Some(Available { build: found.build, date: manifest::date_words(&found.built_at), asset: asset.clone() });
+    }
+
+    /// A look at `latest.json` ended: a newer build becomes the offer, a failure is remembered for the Updates page.
+    pub fn update_checked(&mut self, now_ms: i64, result: Result<Manifest, String>) {
+        self.update.checking = false;
+        match result {
+            Ok(found) => {
+                self.update.check_error = None;
+                self.update.checked_ms = Some(now_ms);
+                self.update_found(&found);
+            }
+            Err(why) => self.update.check_error = Some(why),
+        }
+    }
+
+    /// "Check for updates" (Settings → Updates & about): the checker looks now, not in four hours. Ignored while one runs.
+    pub fn update_check_now(&mut self) {
+        if self.update.checking || self.update.busy() {
+            return;
+        }
+        let Some(wake) = &self.update.wake else { return };
+        if wake.send(()).is_ok() {
+            self.update.checking = true;
+        }
     }
 
     pub fn update_open(&mut self) {
@@ -169,21 +203,25 @@ pub fn start_checker(handle: &AppHandle<State>) {
         return;
     }
     let post = Post::from_handle(handle.clone());
+    let (wake, woken) = std::sync::mpsc::channel::<()>();
     {
         let post = post.clone();
-        handle.update(move |s, _| s.update.post = Some(post));
+        handle.update(move |s, _| {
+            s.update.post = Some(post);
+            s.update.running = manifest::running_build();
+            s.update.wake = Some(wake);
+        });
     }
     let base = install::release_url(|k| std::env::var(k).ok());
     std::thread::spawn(move || {
         loop {
-            let wait = match install::fetch_manifest(&base) {
-                Ok(found) => {
-                    post.update(move |s, _| s.update_found(&found));
-                    EVERY
-                }
-                Err(_) => RETRY,
-            };
-            std::thread::sleep(wait);
+            let found = install::fetch_manifest(&base);
+            let wait = if found.is_ok() { EVERY } else { RETRY };
+            post.update(move |s, _| s.update_checked(crate::fleet::link::now_ms(), found));
+            // Waits out the interval, or is woken by a press of "Check for updates".
+            if let Err(std::sync::mpsc::RecvTimeoutError::Disconnected) = woken.recv_timeout(wait) {
+                std::thread::sleep(wait);
+            }
         }
     });
 }

@@ -33,6 +33,7 @@ pub mod permissions_more;
 pub mod storage;
 pub mod storage_actions;
 pub mod switches;
+pub mod updates_page;
 
 use super::new_session::defaults::{DEFAULTS_KEY, NewSessionDefaults, defaults_key};
 use serde_json::{Value, json};
