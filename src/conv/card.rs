@@ -68,6 +68,8 @@ pub struct ToolBody {
     pub initially_collapsed: bool,
     /// The screenshot Fleet kept for the call, which shows under it even while the row is folded.
     pub screenshot: Option<super::image_sniff::Shot>,
+    /// A canvas the call opened or changed, which the row offers to show; never for a retired diagram call.
+    pub canvas_id: Option<String>,
 }
 
 /// The card's diff lines (`cardDiffLines`, then `withFileEdit`'s fallback for write kinds).
@@ -77,6 +79,14 @@ fn card_diff(tool: &str, state: &Value) -> Vec<DiffLine> {
         return harness;
     }
     file_edits_of(tool, state).into_iter().next().map(|e| e.diff).unwrap_or_default()
+}
+
+/// `metadata.canvasId`, unless the call is a retired diagram tool (`toToolCardItem`).
+pub fn canvas_id_of(tool: &str, state: &Value) -> Option<String> {
+    if super::tools::is_retired_canvas_tool(tool) {
+        return None;
+    }
+    state.pointer("/metadata/canvasId").and_then(Value::as_str).filter(|c| !c.is_empty()).map(str::to_string)
 }
 
 pub fn tool_body(tool: &str, title: &str, state: &Value) -> ToolBody {
@@ -97,6 +107,7 @@ pub fn tool_body(tool: &str, title: &str, state: &Value) -> ToolBody {
         header,
         initially_collapsed: state.get("status").and_then(Value::as_str) != Some("error"),
         screenshot: super::image_sniff::tool_screenshot(state),
+        canvas_id: canvas_id_of(tool, state),
     }
 }
 

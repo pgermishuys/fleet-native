@@ -77,7 +77,13 @@ impl State {
     /// Closes a tab; the one that takes its place shows (`close`). Changes can't be closed.
     pub fn close_tab(&mut self, id: &str, tx: &mut Tx) {
         let id = id.to_string();
-        self.edit_canvases(|c, session| c.close(session, &id));
+        // A server canvas also tells the server, which sends `canvas.closed` to the other clients.
+        match self.open_canvases().canvases.iter().find(|c| c.id == id).and_then(|c| c.server.clone()) {
+            Some(server) => self.close_server_canvas(&server.canvas_id),
+            None => {
+                self.edit_canvases(|c, session| c.close(session, &id));
+            }
+        }
         self.reveal_active(tx);
     }
 

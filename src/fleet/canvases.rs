@@ -132,11 +132,76 @@ pub struct CanvasInstance {
     pub title: Option<String>,
     /// A file tab's path.
     pub file: Option<String>,
+    /// A browser or page tab's canvas on the server: what 14's body reads.
+    pub server: Option<ServerTab>,
+}
+
+/// What a server canvas's tab keeps of it: the id the server knows it by, its version (an older one never replaces a newer
+/// one) and its state, which the body reads (`CanvasInstance.server`, `.browser`, `.page`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ServerTab {
+    pub canvas_id: String,
+    pub version: i64,
+    pub state: serde_json::Value,
+}
+
+/// A canvas the server keeps for a session (`ServerCanvasSnapshot`). Only a browser or a page is shown.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ServerCanvas {
+    pub id: String,
+    pub kind: CanvasKind,
+    pub title: String,
+    pub version: i64,
+    pub state: serde_json::Value,
+}
+
+/// `GET .../canvases` items and `canvas.updated` payloads share these fields. A kind this client doesn't show (the retired
+/// `diagram` and `sequence`, an unknown one) is `None`, so it is left out of the list and of events (`isServerCanvasKind`).
+pub fn read_server_canvas(item: &serde_json::Value) -> Option<ServerCanvas> {
+    let kind = match item.get("kind").and_then(serde_json::Value::as_str)? {
+        "browser" => CanvasKind::Browser,
+        "page" => CanvasKind::Page,
+        _ => return None,
+    };
+    let id = item.get("canvasId").and_then(serde_json::Value::as_str).filter(|s| !s.is_empty())?;
+    Some(ServerCanvas {
+        id: id.to_string(),
+        kind,
+        title: item.get("title").and_then(serde_json::Value::as_str).unwrap_or_default().to_string(),
+        version: item.get("version").and_then(serde_json::Value::as_i64).unwrap_or(0),
+        state: item.get("state").cloned().unwrap_or(serde_json::Value::Null),
+    })
+}
+
+/// The tab's id (`serverCanvasTabId`).
+pub fn server_tab_id(canvas_id: &str) -> String {
+    format!("canvas:{canvas_id}")
+}
+
+impl ServerCanvas {
+    fn instance(&self) -> CanvasInstance {
+        CanvasInstance {
+            id: server_tab_id(&self.id),
+            kind: self.kind,
+            payload: None,
+            title: Some(plain_terminal_text(&self.title)),
+            file: None,
+            server: Some(ServerTab { canvas_id: self.id.clone(), version: self.version, state: self.state.clone() }),
+        }
+    }
+}
+
+/// A server canvas event on a session's topic (`CanvasEvent`).
+#[derive(Clone, Debug, PartialEq)]
+pub enum CanvasEvent {
+    Updated(ServerCanvas),
+    Focused(String),
+    Closed(String),
 }
 
 impl CanvasInstance {
     pub fn built_in(kind: CanvasKind) -> Self {
-        Self { id: kind.slug().to_string(), kind, payload: None, title: None, file: None }
+        Self { id: kind.slug().to_string(), kind, payload: None, title: None, file: None, server: None }
     }
 
     /// Changes is the one tab that can't be closed (`FIXED_CANVAS_IDS`).
@@ -406,6 +471,50 @@ impl Canvases {
             }
         });
         closed
+    }
+
+    /// Replaces the session's server canvases with a freshly loaded list, oldest first. Other tabs keep their place; each server
+    /// tab already open is redrawn in place or removed when the list lacks it; new ones go at the end. The active tab stays
+    /// if it is still there, else the first one is (`setServerCanvases`).
+    pub fn set_server_canvases(&mut self, session: &str, list: Vec<ServerCanvas>) {
+        let mut loaded: Vec<CanvasInstance> = list.iter().map(ServerCanvas::instance).collect();
+        self.edit(session, |s| {
+            let mut tabs = Vec::new();
+            for tab in std::mem::take(&mut s.canvases) {
+                if tab.server.is_none() {
+                    tabs.push(tab);
+                } else if let Some(at) = loaded.iter().position(|l| l.id == tab.id) {
+                    tabs.push(loaded.remove(at));
+                }
+            }
+            tabs.extend(loaded);
+            if !tabs.iter().any(|c| c.id == s.active_id)
+                && let Some(first) = tabs.first()
+            {
+                s.active_id = first.id.clone();
+            }
+            s.canvases = tabs;
+        });
+    }
+
+    /// `canvas.updated` adds the tab at the end without taking focus, or redraws it in place; `canvas.focused` brings it
+    /// forward; `canvas.closed` removes it, and a second close is nothing (`applyCanvasEvent`).
+    pub fn apply_canvas_event(&mut self, session: &str, event: CanvasEvent) {
+        match event {
+            CanvasEvent::Updated(canvas) => {
+                let next = canvas.instance();
+                self.edit(session, |s| match s.canvases.iter().position(|c| c.id == next.id) {
+                    None => s.canvases.push(next),
+                    // Events can overtake a list loaded earlier; never go back a version.
+                    Some(at) if s.canvases[at].server.as_ref().is_some_and(|k| k.version > canvas.version) => {}
+                    Some(at) => s.canvases[at] = next,
+                });
+            }
+            CanvasEvent::Focused(id) => self.activate(session, &server_tab_id(&id)),
+            CanvasEvent::Closed(id) => {
+                self.close(session, &server_tab_id(&id));
+            }
+        }
     }
 
     /// The conversation's visuals, oldest first (`setKnownVisuals`).

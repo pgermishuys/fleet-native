@@ -423,6 +423,16 @@ pub fn canvases(base: &str, session: &str) -> Result<(u16, Value), String> {
     status_of("GET", base, &format!("/api/sessions/{session}/canvases"))
 }
 
+/// `DELETE /api/sessions/{id}/canvases/{canvasId}`: closes a server canvas (`closeServerCanvas`).
+pub fn canvas_close(base: &str, session: &str, canvas: &str) -> Result<(u16, Value), String> {
+    status_of("DELETE", base, &format!("/api/sessions/{session}/canvases/{}", escape(canvas)))
+}
+
+/// `POST /api/sessions/{id}/canvases/{canvasId}/focus`: brings a canvas forward, reopening a closed one (`focusServerCanvas`).
+pub fn canvas_focus(base: &str, session: &str, canvas: &str) -> Result<(u16, Value), String> {
+    status_of("POST", base, &format!("/api/sessions/{session}/canvases/{}/focus", escape(canvas)))
+}
+
 /// `DELETE /api/sessions/{id}/permission-rules/{ruleId}`: removes one rule.
 pub fn rule_remove(base: &str, session: &str, rule: &str) -> Result<(u16, Value), String> {
     status_of("DELETE", base, &format!("/api/sessions/{session}/permission-rules/{rule}"))

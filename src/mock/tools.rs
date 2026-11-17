@@ -211,6 +211,35 @@ pub fn of_skills() -> Vec<crate::view::conversation::Message> {
     ])
 }
 
+/// Calls that opened a canvas: a finished one (Show), one that failed and one still running (nothing), and the retired
+/// diagram calls (a quiet "Diagram retired").
+pub fn of_canvases() -> Vec<crate::view::conversation::Message> {
+    let opened = |id: &str, tool: &str, status: &str, input: Value| {
+        call(
+            id,
+            tool,
+            status,
+            input,
+            json!({"title": "Totals demo \u{b7} http://localhost:5173/", "output": "Running npm run dev in the demo folder.", "metadata": {"canvasId": "cv_1", "version": 1}}),
+        )
+    };
+    conversation(vec![
+        message("u1", "user", 1, vec![json!({"type": "text", "id": "u1-t", "text": "Start the demo and show me the order totals."})]),
+        message(
+            "a1",
+            "assistant",
+            2,
+            vec![
+                opened("k1", "fleet_app_start", "completed", json!({"command": "npm run dev", "title": "Totals demo"})),
+                opened("k2", "fleet_app_start", "error", json!({"command": "npm run dev", "title": "Totals demo"})),
+                call("k3", "fleet_app_start", "running", json!({"command": "npm run dev", "title": "Totals demo"}), json!({})),
+                opened("k4", "fleet_canvas_open", "completed", json!({"kind": "diagram", "title": "Request path"})),
+                opened("k5", "mcp__fleet__fleet_canvas_patch", "completed", json!({"title": "Request path"})),
+            ],
+        ),
+    ])
+}
+
 impl State {
     /// Opens the cards of `of_output` the picture shows, and widens the long one when asked.
     pub fn open_cards(&mut self, ids: &[&str], wide: &[&str]) {

@@ -674,6 +674,11 @@ pub fn is_read_call(kind: &str) -> bool {
     get_tool(kind).category == Category::Read
 }
 
+/// The call drew a diagram or sequence canvas, which Fleet no longer keeps; any harness's name for it (`isRetiredCanvasTool`).
+pub fn is_retired_canvas_tool(kind: &str) -> bool {
+    matches!(get_tool(kind).name.as_str(), "fleet_canvas_open" | "fleet_canvas_patch")
+}
+
 pub fn is_write_call(kind: &str) -> bool {
     get_tool(kind).file_write.is_some()
 }
