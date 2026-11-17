@@ -169,6 +169,8 @@ mod tests_status_bar;
 #[cfg(test)]
 mod tests_summary_bar;
 #[cfg(test)]
+mod tests_update_notices;
+#[cfg(test)]
 mod tests_updates;
 #[cfg(test)]
 mod tests_usage_popover;
@@ -437,6 +439,7 @@ pub struct State {
     pub place: fleet::notice_place::Place,
     /// The Fleet restarted notice's count and the sessions its buttons reach (piece N).
     pub restart: fleet::restart_notice::RestartNotice,
+    pub update_notices: fleet::update_notices::UpdateNotices,
     /// When the list last re-read the clock for its ages (`use-relative-time.ts`), on `clock`; `None` before the first.
     pub row_tick: Option<f64>,
     /// The agent and model lists, the harness list, the preferences and the effort memory (`fleet::catalog`).
@@ -619,6 +622,7 @@ impl Default for State {
             memory: Default::default(),
             updates: Default::default(),
             restart: Default::default(),
+            update_notices: Default::default(),
             place: Default::default(),
             row_tick: None,
             stream: None,
@@ -3198,6 +3202,21 @@ pub fn spec() -> AppSpec<State> {
             ("notice-restart-auto-light", |s| {
                 s.dark = Some(false);
                 mock::notices::restarted(s, true)
+            }),
+            ("notice-update", |s| mock::notices::machine_updated(s)),
+            ("notice-update-light", |s| {
+                s.dark = Some(false);
+                mock::notices::machine_updated(s)
+            }),
+            ("notice-update-chip", |s| mock::notices::machines_can_update(s, false)),
+            ("notice-update-chip-light", |s| {
+                s.dark = Some(false);
+                mock::notices::machines_can_update(s, false)
+            }),
+            ("notice-update-rollout", |s| mock::notices::machines_can_update(s, true)),
+            ("notice-update-rollout-light", |s| {
+                s.dark = Some(false);
+                mock::notices::machines_can_update(s, true)
             }),
             ("notice-lift", |s| mock::notices::lifted(s)),
             ("notice-lift-light", |s| {

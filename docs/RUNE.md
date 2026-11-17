@@ -1372,6 +1372,7 @@ against the same restart opens no card (`tap` then fails with "no element"). Emp
 ## Component 16, piece U (Updates: data and requests)
 
 Plain Rust, no view, so nothing new about Rune. For the next piece that draws these rows: `describe_version_line` returns the line's text and tone with `rule_menu`, so the page picks Rune's `menu` or `segments` for the per-machine rule (no native `<select>`), and a rollout narrative is one `Text` run per sentence.
+
 ## Component 16, piece AA (Folders: Locations)
 
 - **A popover over a keyed button** is an `Open::Popover(name)` arm in `ui::overlays`, anchored with `overlay::anchored(.., key, Side::Bottom, Align::End, 4.0)` and a `scrim`; with no room below it flips above and covers the button's row.
@@ -1386,3 +1387,9 @@ Plain Rust, no view, so nothing new about Rune. For the next piece that draws th
 - **A busy poll on the app clock**: `poll` gets `now`; keep a `next_poll` in the state, start the read when `now >= next_poll`, and `tx.wake_after` the time left so the window wakes with nothing else moving. A test runs `rt.frame(3.5)` to pass the three seconds.
 - **A test reading an element's text** joins the text of every element whose path starts with the keyed element's path; a key that is a prefix of another key (`dream-skipped` and `dream-skipped-list`) pulls the other's text in. Name the keys apart.
 - **A progress line with a link inside it** (`Dreaming… reading 3 sessions` and a button) is a wrapping `row` of a text and a pressable text; Fleet's inline text and button wrap together, ours wrap as two items.
+## Component 9, piece O (machine update notices)
+
+- **A wrapping row doesn't move a whole button down.** The notice card's three buttons ("What's new", "Change the rule", "Dismiss")
+  ran past the card's right edge in a `row().wrap()` with `w_full` and a left padding, even with `shrink().min_w(0.0)`. The card now packs the
+  buttons into lines itself (`action_lines`, by estimated width: 6 px a letter plus 20 px of padding and a 6 px gap) and draws one row a line.
+  The estimate agreed with Fleet's own wrap for these three labels; a long label could break a line early or late.
