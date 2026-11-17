@@ -45,6 +45,11 @@ pub fn start(s: &mut State, base: String, tx: &mut Tx) {
     s.open_page(TAB);
     s.web.walk = Some(Walk { step: 0, due: s.clock + 15.0, busy: false });
     tx.resize_window_instant((1000.0, 680.0));
+    // A Windows runner's screen is 1024 by 768 and the window opens part off it: put it in the corner, so every grab holds all of it.
+    #[cfg(windows)]
+    if let Some(app) = super::platform::app() {
+        app.set_position((0, 0));
+    }
 }
 
 /// From `poll`: takes the step's picture once it is due.

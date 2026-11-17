@@ -42,7 +42,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libxkbcommon-dev libwayland-dev libwebkit2gtk-4.1-dev mesa-vulkan-drivers xvfb xdotool ffmpeg
+          sudo apt-get install -y libxkbcommon-dev libwayland-dev libwebkit2gtk-4.1-dev libxkbcommon-x11-0 mesa-vulkan-drivers xvfb xdotool ffmpeg
 
       - name: Rust (rust-toolchain.toml)
         run: rustup show
