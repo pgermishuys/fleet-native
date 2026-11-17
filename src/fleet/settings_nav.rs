@@ -153,6 +153,8 @@ pub struct SettingsNav {
     pub harnesses: crate::fleet::settings::harnesses::HarnessesPage,
     /// What What agents can do keeps: the machine it asked and the exception list that is open.
     pub permissions: crate::fleet::settings::permissions::PermissionsPage,
+    /// The agent browser's settings, one copy per machine (`use-agent-browser-settings.ts`).
+    pub browser: std::collections::HashMap<String, crate::fleet::settings::browser::Copy>,
     /// The machine Settings shows (`use-settings-machine.ts`): the one you're on until the menu's switch picks another.
     pub choice: crate::fleet::machine_choice::MachineChoice,
     /// What Memory read from the machine shown, while the page is open.

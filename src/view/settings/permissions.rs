@@ -1,6 +1,6 @@
 //! Settings → What agents can do (`PermissionsSection.vue`): the intro, and one bordered card of rows. This file draws the first
 //! two, Edit files and Run commands & go online, with the chips of the harnesses that differ from the default; the rows after
-//! them (messages, machines, nobody watching), the Browser group and the fine print are pieces N and O. Sizes are Fleet's scoped
+//! them (messages, machines, nobody watching) and the fine print are piece N's, the Browser group (`browser.rs`) piece O's. Sizes are Fleet's scoped
 //! CSS px (`.reach-*`).
 use super::{kit, permissions_rows as rows};
 use crate::State;
@@ -240,6 +240,7 @@ pub fn content(s: &State, t: &Theme) -> El {
         .child(super::super::settings::page_header(s, t, &crate::fleet::settings_nav::Page::Permissions))
         .child(intro(t))
         .child(card(s, t))
+        .child(super::browser::section(s, t))
         .child(rows::fine_print(t))
 }
 

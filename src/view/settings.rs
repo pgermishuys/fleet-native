@@ -3,6 +3,7 @@
 //! one note (decision 1 of docs/parity/16-settings.md); Machines is component 17's page.
 pub mod appearance;
 pub mod appearance_cards;
+pub mod browser;
 pub mod dream_changes;
 pub mod dream_nightly;
 pub mod dreaming_panel;
@@ -37,7 +38,7 @@ use crate::fleet::settings_nav::Page;
 use crate::icons::*;
 use crate::theme::{RADIUS_BTN, RADIUS_PANEL, Theme, sans};
 use crate::ui::rem;
-use rune::{Cursor, El, Icon, ScrollSpec, col, el, icon, row, text};
+use rune::{Cursor, El, Icon, ScrollSpec, col, icon, row, text};
 
 /// The menu's groups, in Fleet's order (`coreGroups`); Plugins is its own group under them.
 const GROUPS: [(&str, &[Page]); 5] = [
@@ -137,7 +138,8 @@ fn not_yet(t: &Theme, page: &Page) -> El {
         .child(text(format!("{} isn't in the native app yet.", page.title())).font(sans(rem(0.875), 400.0, 1.5)).color(t.muted))
 }
 
-/// The detail: the raised sheet, one scroll for the page, a column of `gap-6` (21).
+/// The detail: the raised sheet, one scroll for the page, a column of `gap-6` (21). The page's own column is the scroll box:
+/// inside a plain scroll box a single child column was squeezed to the window's height and the page never scrolled.
 pub fn detail(s: &State, t: &Theme) -> El {
     let page = &s.settings.page;
     let body = if s.skills.demo_diff {
@@ -176,7 +178,5 @@ pub fn detail(s: &State, t: &Theme) -> El {
         .border_layout()
         .radius(RADIUS_PANEL)
         .clip_rounded(RADIUS_PANEL)
-        .child(
-            el().w_full().grow(1.0).min_h(0.0).scroll(ScrollSpec { stick_bottom: false }).key("settings-scroll").child(body.padding(24.0)),
-        )
+        .child(body.padding(24.0).scroll(ScrollSpec { stick_bottom: false }).w_full().grow(1.0).min_h(0.0))
 }

@@ -215,14 +215,15 @@ fn says_whether_agents_get_the_browser_on_run_commands_and_opens_the_browser_gro
     let mut r = rig(&[], true);
     assert_eq!(r.words("reach-browser-chip"), "BrowserOn, not in Pi");
     r.click("reach-browser-chip");
-    assert_eq!(r.rt.state.settings.anchor.as_deref(), Some("browser"));
+    // The group is drawn now, so the page scrolls to it and lets the anchor go (`tests_settings_browser` looks at the scroll).
+    assert_eq!(r.rt.state.settings.anchor, None);
     assert_eq!(r.rt.state.settings.page, crate::fleet::settings_nav::Page::Permissions);
 }
 
 #[test]
 fn shows_the_browser_as_off_when_agents_can_t_use_it() {
     let mut r = rig(&[], false);
-    r.wait("the browser's answer", |s| s.settings.harnesses.browser_off);
+    r.wait("the browser's answer", |s| s.browser_off());
     assert_eq!(r.words("reach-browser-chip"), "BrowserOff");
 }
 

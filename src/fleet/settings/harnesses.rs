@@ -125,8 +125,6 @@ pub struct HarnessesPage {
     /// The harness switch being saved (its preference key), and the last save that failed (`savingSetting`, `settingError`).
     pub saving: Option<String>,
     pub error: Option<(String, String)>,
-    /// The machine shown says Fleet's agent browser is off (it is on until the machine says otherwise).
-    pub browser_off: bool,
     /// Profiles: the editor that is open, the notice, the reads under way (`HarnessProfilesPanel`).
     pub profiles: super::harness_profiles::Panel,
     /// The update strips' request, error and "Copied" (`HarnessUpdateStrip`).
@@ -195,7 +193,7 @@ impl State {
         }
         let prefs = self.harness_prefs();
         let level = PermissionLevel::of(Some(&h.kind), |k| prefs.get(k).map(str::to_string));
-        let browser = if h.card.supports_agent_browser && !self.settings.harnesses.browser_off { "" } else { ", without the browser" };
+        let browser = if h.card.supports_agent_browser && !self.browser_off() { "" } else { ", without the browser" };
         format!("Runs at {}{browser}.", level.name())
     }
 
@@ -217,7 +215,6 @@ impl State {
         }
         self.settings.harnesses.asked = Some(machine.clone());
         self.settings.harnesses.error = None;
-        self.settings.harnesses.browser_off = false;
         self.check_harnesses_again();
         self.read_preferences(&machine);
         self.read_browser_switch(&machine);
@@ -239,18 +236,7 @@ impl State {
     }
 
     pub(crate) fn read_browser_switch(&mut self, machine: &str) {
-        let key = machine.to_string();
-        self.feed_call(
-            machine,
-            |base| http::text_with("GET", base, "/api/agent-browser/settings", None).ok().filter(|(s, _)| (200..300).contains(s)),
-            move |s, _, answer| {
-                let Some((_, body)) = answer else { return };
-                let enabled = serde_json::from_str::<serde_json::Value>(&body).ok().and_then(|v| v.get("enabled")?.as_bool());
-                if let (Some(on), true) = (enabled, s.harness_machine() == key) {
-                    s.settings.harnesses.browser_off = !on;
-                }
-            },
-        );
+        self.read_browser(machine);
     }
 
     /// Whether the machine's preferences are still on their way: the page's switches wait for them.

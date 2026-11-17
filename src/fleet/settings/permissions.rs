@@ -234,7 +234,7 @@ impl State {
 
     /// The Browser chip's state (`browserChip`): whether agents get Fleet's browser on this machine.
     pub fn permission_browser_chip(&self) -> String {
-        if self.settings.harnesses.browser_off {
+        if self.browser_off() {
             return "Off".to_string();
         }
         let all = self.permission_harnesses();
@@ -261,7 +261,6 @@ impl State {
             return false;
         }
         self.settings.permissions.asked = Some(machine.clone());
-        self.settings.harnesses.browser_off = false;
         self.read_preferences(&machine);
         self.read_harnesses(&machine, false);
         self.read_browser_switch(&machine);
