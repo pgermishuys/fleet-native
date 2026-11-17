@@ -62,7 +62,8 @@ impl Capabilities {
     }
 }
 
-/// What `GET /api/machine` says a machine is (`MachineInfo`). The `update` block is Settings' (component 16).
+/// What `GET /api/machine` says a machine is (`MachineInfo`). The `update` block feeds Settings → Updates & about
+/// (`fleet::updates`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Info {
     pub id: String,
@@ -79,6 +80,8 @@ pub struct Info {
     pub public_url: Option<String>,
     /// Missing (None) for a Fleet too old to say what it can run.
     pub capabilities: Option<Capabilities>,
+    /// Where the machine is with Fleet updates; None from a Fleet older than the field.
+    pub update: Option<super::updates::MachineUpdate>,
 }
 
 impl Info {
@@ -99,6 +102,7 @@ impl Info {
             web_app: v.get("webApp").and_then(Value::as_bool),
             public_url: v.get("publicUrl").and_then(Value::as_str).map(str::to_string),
             capabilities: v.get("capabilities").and_then(Capabilities::from_json),
+            update: v.get("update").and_then(super::updates::MachineUpdate::from_json),
         })
     }
 }

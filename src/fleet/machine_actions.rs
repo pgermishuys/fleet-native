@@ -503,6 +503,7 @@ fn blank_info() -> Info {
         web_app: None,
         public_url: None,
         capabilities: None,
+        update: None,
     }
 }
 

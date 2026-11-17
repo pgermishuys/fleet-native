@@ -1,0 +1,20 @@
+up to date	up to date | Fleet 0.59.1 | up to date | menu true | -
+update out	0.59.1 is out, not downloaded yet | Fleet 0.59.0 | 0.59.1 is out, not downloaded yet | menu true | -
+downloading	downloading 0.59.1… | Fleet 0.59.0 | downloading 0.59.1… | menu true | -
+staged, idle rule	0.59.1 downloaded · waiting for a restart | Fleet 0.59.0 | 0.59.1 downloaded · updates itself in a minute | menu true | Restart into 0.59.1
+staged, busy	0.59.1 downloaded · busy: 2 sessions working or waiting for you | Fleet 0.59.0 | 0.59.1 downloaded · updates itself when its 2 sessions finish | menu true | Restart when idle
+staged, ask	0.59.1 downloaded · waiting for a restart | Fleet 0.59.0 | 0.59.1 downloaded · waiting for you to restart it | menu true | Restart into 0.59.1
+staged, overnight	0.59.1 downloaded · waiting for a restart | Fleet 0.59.0 | 0.59.1 downloaded · updates itself tonight, 02:00–05:00 | menu true | Restart into 0.59.1
+cannot restart	0.59.1 downloaded · waiting for a restart | Fleet 0.59.0 | 0.59.1 downloaded · managed by systemd | menu true | no button: managed by systemd
+unreachable	can't be reached | Fleet 0.58.2 | can't be reached · last seen on 0.58.2 | menu false | -
+rolled back	0.59.2 didn't start here (it exited with code 1 before it was ready) · went back to 0.59.0 | Fleet 0.59.0 | 0.59.2 didn't start here (it exited with code 1 before it was ready) · went back to 0.59.0 | menu true | -
+check failed	couldn't check for updates | Fleet 0.59.0 | couldn't check for updates | menu true | -
+not checked	not checked yet | Fleet 0.59.0 | not checked yet | menu false | -
+release: none	 Fleet hasn't found a release yet.
+release: current	 Every machine that can be reached is on Fleet 0.59.1. Checked 4 minutes ago.
+release: none downloaded	Fleet 0.59.1 is out. 2 machines can update; they aren't downloaded yet.
+release: some	Fleet 0.59.1 is out. 2 of 3 machines that can update have it downloaded and switch when they restart.
+release: all	Fleet 0.59.1 is out. 3 machines have it downloaded and switch when they restart.
+rollout	Updating machines to 0.59.1, one at a time. | active Some("falcon") | heron is done. falcon is waiting for 2 sessions; kestrel is next. osprey can't be reached, so it'll be skipped.
+chip	Some("↑ 3 machines can update") | Some("Updating machines · 2 of 4")
+outcome	Some("kestrel didn't start on 0.59.1 and went back to 0.59.0. kestrel and osprey were left alone.")

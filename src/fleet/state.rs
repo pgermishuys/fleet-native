@@ -56,6 +56,7 @@ impl State {
             self.on_usage_event(event);
             self.on_smart_link_event(topic, event);
             self.on_memory_event(topic, event);
+            self.on_update_event(topic, event);
             self.on_list_work_event(event);
             self.on_queue_event(event);
             self.on_ask_event(topic, event);
