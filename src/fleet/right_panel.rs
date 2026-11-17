@@ -89,6 +89,7 @@ impl crate::State {
             tx.motion_curve(rune::Curve::tween(WIDEN_SECS, rune::Easing::cubic(0.2, 0.8, 0.2, 1.0)));
         }
         self.right.widened = widened;
+        self.sidebar.save_canvas_widened(widened);
     }
 
     /// The open session has something to show in the panel, or nothing yet (`noteSessionContent`). A session that was empty

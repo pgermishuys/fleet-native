@@ -234,7 +234,7 @@ fn single_line(text: &str) -> String {
 }
 
 /// Cut a terminal escape sequence (`ESC [ params intermediates final`) out of the text.
-fn strip_ansi(text: &str) -> String {
+pub(crate) fn strip_ansi(text: &str) -> String {
     let chars: Vec<char> = text.chars().collect();
     let mut out = String::with_capacity(text.len());
     let mut i = 0;

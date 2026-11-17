@@ -223,6 +223,7 @@ impl State {
         self.apply_appearance();
         self.seed_feeds_from_settings();
         self.sidebar_open = !self.sidebar.panel_collapsed();
+        self.right.widened = self.sidebar.canvas_widened();
         for project in &mut self.projects {
             if self.sidebar.is_group_collapsed(&fold_key(project)) {
                 project.open = false;

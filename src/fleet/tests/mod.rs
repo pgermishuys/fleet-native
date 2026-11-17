@@ -482,6 +482,7 @@ mod asks;
 mod attach;
 mod auth;
 mod autocomplete;
+mod canvases;
 mod cards;
 mod catalog;
 mod composables;
