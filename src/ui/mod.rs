@@ -207,6 +207,9 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
     if let Some(report) = crate::view::report::dialog(s, t) {
         layer.extend(report);
     }
+    if let Some(improve) = crate::view::improve_skill::dialog(s, t) {
+        layer.extend(improve);
+    }
     if let Some(update) = crate::view::update::dialog(s, t) {
         layer.extend(update);
     }

@@ -278,6 +278,8 @@ pub struct Skills {
     pub saved: Option<Result<BuiltInSkill, String>>,
     /// Scene only: draw the skill diff in place of a Settings page.
     pub demo_diff: bool,
+    /// The Improve dialog (piece U).
+    pub dialog: super::improve::ImproveDialog,
 }
 
 impl Skills {
@@ -304,7 +306,7 @@ pub fn parse_saved(v: &Value) -> Option<BuiltInSkill> {
     Some(skill)
 }
 
-fn answer(fallback: &str, got: Result<(u16, String), String>) -> Result<Value, String> {
+pub(super) fn answer(fallback: &str, got: Result<(u16, String), String>) -> Result<Value, String> {
     let (status, body) = got.map_err(|_| fallback.to_string())?;
     if !(200..300).contains(&status) {
         return Err(read_error(&body, fallback.to_string()));
@@ -342,39 +344,64 @@ impl State {
     pub fn skill_improve_open(&mut self, skill: &str, tool_id: &str) {
         self.skills.improving = Some(Improving { skill: skill.into(), tool_id: tool_id.into() });
         self.skills.proposal = None;
+        self.improve_open(skill, tool_id);
     }
 
     /// Asks the model for a better skill (`improveSkill`). A refusal comes back with the server's words.
     pub fn skill_ask(&mut self, name: &str, request: &ImproveRequest) {
+        self.skill_ask_for(name, request, 0);
+    }
+
+    /// The same for the dialog's ticket, which hears the answer (`improve_asked`); ticket 0 is nobody's.
+    pub(super) fn skill_ask_for(&mut self, name: &str, request: &ImproveRequest, ticket: u32) {
         let fallback = format!("Couldn't ask for a better {name}.");
         self.skills.proposal = None;
         let Some(link) = self.link.clone() else {
             self.skills.proposal = Some(Err(fallback));
+            self.improve_asked(ticket);
             return;
         };
         self.skills.asking = true;
         let (path, body) = (format!("{}/improve", at(name)), improve_body(request));
         link.off_thread(
             move |base| answer(&fallback, http::text_within("POST", base, &path, Some(&body), 300)),
-            |s, _, result| {
+            move |s, _, result| {
                 s.skills.asking = false;
                 s.skills.proposal =
                     Some(result.and_then(|v| parse_proposal(&v).ok_or_else(|| "The model's answer had no skill in it.".to_string())));
+                s.improve_asked(ticket);
             },
         );
     }
 
     /// Keeps a proposal as the user's next version (`saveSkillVersion`).
     pub fn skill_keep(&mut self, name: &str, content: &str, note: Option<&str>, session_id: Option<&str>) {
+        self.skill_keep_for(name, content, note, session_id, 0, None);
+    }
+
+    /// The same for the dialog's ticket, which hears the answer (`improve_kept`); ticket 0 is nobody's.
+    pub(super) fn skill_keep_for(
+        &mut self,
+        name: &str,
+        content: &str,
+        note: Option<&str>,
+        session_id: Option<&str>,
+        ticket: u32,
+        previous: Option<u32>,
+    ) {
         let fallback = format!("Couldn't save your version of {name}.");
         let Some(link) = self.link.clone() else {
             self.skills.saved = Some(Err(fallback));
+            self.improve_kept(ticket, previous);
             return;
         };
         let (path, body) = (format!("{}/versions", at(name)), save_body(content, note, session_id));
         link.off_thread(
             move |base| answer(&fallback, http::text_with("POST", base, &path, Some(&body))),
-            |s, _, result| s.skills.saved = Some(result.and_then(|v| parse_saved(&v).ok_or_else(|| "No skill came back.".to_string()))),
+            move |s, _, result| {
+                s.skills.saved = Some(result.and_then(|v| parse_saved(&v).ok_or_else(|| "No skill came back.".to_string())));
+                s.improve_kept(ticket, previous);
+            },
         );
     }
 

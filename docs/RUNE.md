@@ -1348,3 +1348,12 @@ against the same restart opens no card (`tap` then fails with "no element"). Emp
 - **Hover colour on a child** (Fleet's `.memory-link` text goes from muted to `--text` on hover) can't be set from the parent; the link keeps its muted colour and the focus outline is drawn.
 - **A dashed border** (`EmptyState bordered`) is `.border(..).border_layout().border_dash(3.0, 3.0)`.
 - **A popup select anchored to a keyed trigger** needs one more arm in `ui::mod`'s `Open::Select(name)` match; the choice closes it with `s.ui.open = None`.
+
+## Component 9, piece U (Improve a skill: the dialog)
+
+- A text field takes its keys before the frame does: Ctrl/Cmd+Enter in the note has to be asked through `on_input_key` on the field, not
+  `on_key`, which the field never reaches for Enter.
+- `text_input` neither clips nor scrolls its text, and a fixed `h` lets a long text draw out of its box. For a hand edit of a long file
+  the field takes `min_h` from the line count (wrapped lines counted at about 76 characters) and sits in a scrolling box with `max_h`.
+- An answer from a thread can come back after the dialog closed or opened for another skill, so each request carries a ticket and an
+  older ticket's answer changes nothing.

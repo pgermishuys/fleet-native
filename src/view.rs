@@ -36,6 +36,7 @@ pub mod header_banners;
 pub mod header_context;
 pub mod history;
 pub mod image;
+pub mod improve_skill;
 pub mod interrupted;
 pub mod machine_addresses;
 pub mod machine_card;
