@@ -220,14 +220,20 @@ fn says_no_release_was_found_when_no_machine_knows_of_one() {
     assert!(!has(&rt, "update-default-rule") && !has(&rt, "updates-rule-hint"), "no rule to choose until a release is out");
 }
 
+/// Puts the machines in and draws. The fake Fleet answers a machine list with none, so a later read would take them away:
+/// each test presses what it needs before it waits for anything.
+fn seed(r: &mut crate::tests_updates::Rig, home: Value, mini: Value) {
+    r.rt.update(move |s, _| put_machines(s, home, mini));
+    r.rt.frame(1.0 / 60.0);
+    r.rt.frame(1.0 / 60.0);
+}
+
 // ─── what the plan adds ──────────────────────────────────────────────────────────
 
 #[test]
 fn a_rule_choice_writes_fleet_update_rule_and_a_machines_override_writes_the_overrides_and_default_removes_it() {
     let mut r = rig("0.59.0", None, false);
-    r.rt.update(|s, _| put_machines(s, downloaded(), downloaded()));
-    r.rt.frame(1.0 / 60.0);
-    r.rt.frame(1.0 / 60.0);
+    seed(&mut r, downloaded(), downloaded());
     // The strip's list: Only overnight.
     r.rt.update(|s, _| s.harness_setup.close());
     r.rt.frame(1.0 / 60.0);
@@ -250,9 +256,7 @@ fn a_rule_choice_writes_fleet_update_rule_and_a_machines_override_writes_the_ove
 #[test]
 fn update_machines_now_posts_the_rollout_and_follows_it() {
     let mut r = rig("0.59.0", None, false);
-    r.rt.update(|s, _| put_machines(s, current(), downloaded()));
-    r.rt.frame(1.0 / 60.0);
-    r.rt.frame(1.0 / 60.0);
+    seed(&mut r, current(), downloaded());
     r.rt.update(|s, _| s.harness_setup.close());
     r.rt.frame(1.0 / 60.0);
     click(&mut r.rt, "updates-update-machines");
@@ -274,31 +278,26 @@ fn update_machines_now_posts_the_rollout_and_follows_it() {
 #[test]
 fn restart_on_another_machine_is_a_rollout_of_that_machine_and_on_home_posts_apply() {
     let mut r = rig("0.59.0", None, false);
-    r.rt.update(|s, _| put_machines(s, downloaded(), downloaded()));
-    r.rt.frame(1.0 / 60.0);
-    r.rt.frame(1.0 / 60.0);
+    seed(&mut r, downloaded(), downloaded());
+    // Home's own button is off while its sessions work: a press does nothing.
     r.rt.update(|s, _| s.harness_setup.close());
     r.rt.frame(1.0 / 60.0);
+    click(&mut r.rt, "update-restart-home");
+    assert!(r.rt.state.updates.restarting.is_none());
+    // Another machine's is a rollout of that machine alone.
     click(&mut r.rt, "update-restart-m-mini");
     let home = r.home.clone();
     r.wait("home to hear the rollout of one", move |_| {
         home.lock().unwrap().heard.iter().any(|(m, p, b)| m == "POST" && p == "/api/update/rollout" && b.contains("m-mini"))
     });
-    r.rt.update(|s, _| s.harness_setup.close());
-    // Home's own button is off while its sessions work (and while a rollout runs): a press does nothing.
-    click(&mut r.rt, "update-restart-home");
-    r.rt.frame(1.0 / 60.0);
     assert!(!r.did(&r.home, "POST", "/api/update/apply"));
-    assert!(r.rt.state.updates.restarting.is_none());
 }
 
 #[test]
 fn shows_the_servers_words_when_a_rollout_is_refused() {
     let mut r = rig("0.59.0", None, false);
     r.home.lock().unwrap().refuse_rollout = Some((409, r#"{"error":"A rollout is already running."}"#.into()));
-    r.rt.update(|s, _| put_machines(s, current(), downloaded()));
-    r.rt.frame(1.0 / 60.0);
-    r.rt.frame(1.0 / 60.0);
+    seed(&mut r, current(), downloaded());
     click(&mut r.rt, "updates-update-machines");
     r.wait("the refusal", |s| s.updates.action_error.is_some());
     r.rt.frame(1.0 / 60.0);
