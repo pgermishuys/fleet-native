@@ -23,6 +23,8 @@ pub const RESTART_CONTINUE_AUTO: Switch = Switch { key: "RestartContinueAuto", d
 pub const RETRY_AFTER_LIMITS: Switch = Switch { key: "RetryAfterLimits", default_on: true };
 /// On unless turned off.
 pub const USAGE_LIMITS_CHIP: Switch = Switch { key: "UsageLimitsChip", default_on: true };
+/// Off unless turned on: agents keep notes (Settings → Memory). The server writes it when the switch there is pressed.
+pub const MEMORY: Switch = Switch { key: super::memory::MEMORY_PREFERENCE_KEY, default_on: false };
 /// Off unless turned on.
 pub const BOARD: Switch = Switch { key: "features.board.enabled", default_on: false };
 

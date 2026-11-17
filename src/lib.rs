@@ -139,6 +139,8 @@ mod tests_settings_kit;
 #[cfg(test)]
 mod tests_settings_machine;
 #[cfg(test)]
+mod tests_settings_memory;
+#[cfg(test)]
 mod tests_settings_nav;
 #[cfg(test)]
 mod tests_sign_in;
@@ -1319,8 +1321,12 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     let renamed = s.keep_rename(tx) | s.keep_row_rename(tx) | s.keep_header(now, tx);
     let found = s.find_poll(tx) | s.keep_questions(tx) | s.keep_allowed_flash(now, tx);
     let exported = s.export_poll(tx) | s.keep_setup_rows(now, tx) | s.keep_context(now, tx) | s.keep_machine_page(now, tx);
-    let exported =
-        exported | s.keep_dashboard_machine(now, tx) | s.keep_usage_watch(now, tx) | s.keep_summary(now, tx) | s.keep_settings_anchor(tx);
+    let exported = exported
+        | s.keep_dashboard_machine(now, tx)
+        | s.keep_usage_watch(now, tx)
+        | s.keep_summary(now, tx)
+        | s.keep_settings_anchor(tx)
+        | s.keep_memory(tx);
     // "Copied" on a message's button ends by itself.
     let copied = match &s.copied {
         Some((_, until)) if now >= *until => {
@@ -1504,6 +1510,35 @@ fn settings_machine_scene(s: &mut State, dark: bool, page: &str, pick: Option<&s
     s.settings.choice.open = open;
 }
 
+/// Memory as a scene: the page open on invented data, marked as already read so the page doesn't read it again over
+/// the state the scene sets up.
+fn memory_scene(s: &mut State, dark: bool, change: impl FnOnce(&mut fleet::settings::memory::MemoryPage)) {
+    s.dark = Some(dark);
+    s.open_settings("memory", None);
+    let key = s.settings.choice.key(&s.machines).to_string();
+    let mut page = fleet::settings::memory::MemoryPage {
+        overview: Some(mock::memory::overview()),
+        notes: Some(mock::memory::notes()),
+        repository: Some(mock::memory::REPOSITORY.into()),
+        loaded_for: Some(key),
+        ..Default::default()
+    };
+    change(&mut page);
+    s.settings.memory = page;
+}
+
+fn loading_page(p: &fleet::settings::memory::MemoryPage) -> fleet::settings::memory::MemoryPage {
+    fleet::settings::memory::MemoryPage { loaded_for: p.loaded_for.clone(), loading: true, ..Default::default() }
+}
+
+fn failed_page(p: &fleet::settings::memory::MemoryPage) -> fleet::settings::memory::MemoryPage {
+    fleet::settings::memory::MemoryPage {
+        loaded_for: p.loaded_for.clone(),
+        error: Some("Couldn't load memory.".into()),
+        ..Default::default()
+    }
+}
+
 fn flip_general(s: &mut State) {
     for switch in [
         fleet::settings::switches::STARTERS,
@@ -1536,6 +1571,15 @@ pub fn spec() -> AppSpec<State> {
                 s.open_settings("general", None)
             }),
             // Piece D: General with every switch the other way round and the first More open; the Large pastes list open.
+            // Component 16, piece P: Memory off, on (the lists come with the next piece), still loading, and a failed read.
+            ("settings-memory-off", |s| memory_scene(s, true, |_| {})),
+            ("settings-memory-off-light", |s| memory_scene(s, false, |_| {})),
+            ("settings-memory-on", |s| memory_scene(s, true, |p| p.overview.as_mut().expect("an overview").enabled = true)),
+            ("settings-memory-on-light", |s| memory_scene(s, false, |p| p.overview.as_mut().expect("an overview").enabled = true)),
+            ("settings-memory-loading", |s| memory_scene(s, true, |p| *p = loading_page(p))),
+            ("settings-memory-loading-light", |s| memory_scene(s, false, |p| *p = loading_page(p))),
+            ("settings-memory-error", |s| memory_scene(s, true, |p| *p = failed_page(p))),
+            ("settings-memory-error-light", |s| memory_scene(s, false, |p| *p = failed_page(p))),
             ("settings-general-flipped", |s| {
                 s.dark = Some(true);
                 s.open_settings("general", None);

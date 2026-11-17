@@ -7,6 +7,7 @@ pub mod general;
 pub mod kit;
 pub mod kit_scene;
 pub mod machine_header;
+pub mod memory;
 
 use super::machines_page;
 use crate::State;
@@ -125,6 +126,8 @@ pub fn detail(s: &State, t: &Theme) -> El {
         general::content(s, t)
     } else if *page == Page::Appearance {
         appearance::content(s, t)
+    } else if *page == Page::Memory {
+        memory::content(s, t)
     } else if *page == Page::Machines {
         machines_page::content(s, t)
     } else {

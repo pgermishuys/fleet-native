@@ -243,6 +243,16 @@ Built in `src/fleet/settings/machine_scope.rs` (`follows`, the app's chip word, 
 - **Difference from Fleet:** "live" is home (the Fleet the app is connected to), as in Fleet; "Show atlas's General" picks it. Fleet's pictures show session counts from the scratch Fleets' own data; native's from invented mock data.
 - **Fleet's tests ported under their names:** "names the machine on a page that comes later and offers the live machine's page" (`SettingsPage.test.ts`), "follows a pick until Settings opens again, then starts from the machine you're on" (extended to the entry points), the menu-header placement. Ours: which pages follow, the chip words, the target follows the pick, a forgotten pick falls back.
 
+### Piece P: done (17 November 2026)
+
+Built in `src/fleet/settings/memory.rs` (the types, `parse_overview` and `parse_notes`, every `/api/memory*` request as a `Request`, `memory_error`, `estimate_note_tokens`, `life_label`, `found_label`, `kind_label`, `memory_place`, `MemoryPage`), `memory_actions.rs` (`keep_memory` reads the page when it opens or the machine changes and drops it when it is left; `toggle_memory`; `begin_memory_action`; `dreaming_enabled`), `memory_events.rs` (`parse_saved`, `dreamed_id`), `src/view/settings/memory.rs`, `src/mock/memory.rs`, the `coins` icon, scenes `settings-memory-off`, `-on`, `-loading`, `-error` (+ `-light`).
+
+- **Done:** 9.1-9.7, 9.24, 9.25 (the payloads are read; the notice keeps its own smaller reader), 9.26 (`open_memory` already set the repository; the page now reads it once and falls back to the first listed), 9.27 (`State::dreaming_enabled` reads the `Memory` preference, set from the overview's answer when the machine is home).
+- **Open, with reason:** the Memory preference of another machine is not read (the app's preference store is home's); Dreaming's panel is piece R, so nothing asks for it yet. On: only the switch and the Harnesses card show, the toolbar and lists are Q's.
+- **Difference from Fleet:** the error line has Fleet's current alert icon; the v0.72.0 client served by the scratch Fleet predates it and draws none. With no server the page reads `mock::memory` and the switch only changes it.
+- **Fleet's tests ported under their names:** "is off until the user turns it on, and says what turning it on costs and who reads the notes", "is off while Memory is off, whatever a leftover Dreaming preference says", "is on whenever Memory is on, with no Dreaming preference". Ours: loading, the server's words and each fallback, a refused switch, one action at a time, `openMemory`'s repository, reading again on return, requests go to the machine shown and never home, and unit tests for the words and request bodies.
+- **Pictures:** `shots/parity/16-memory-p/` (`fleet-*` beside `native-*`: off, on, loading, error, both themes). On shows the lists in Fleet and not yet here.
+
 ### Requests, events and preferences
 
 The shell itself asks nothing: the menu reads the plugin registry (Part 11), the update status (Part 13) and the Mods

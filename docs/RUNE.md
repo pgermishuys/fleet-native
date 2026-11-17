@@ -1322,3 +1322,9 @@ against the same restart opens no card (`tap` then fails with "no element"). Emp
 
 - **There is a password field after all.** At the pinned rev `TextEdit::new(String::new()).secure()` makes `text_input` draw one bullet per character, keep no undo history, hide the text from `Debug` (`[redacted]`) and wipe its buffer when replaced (`replace_text`) or dropped. The note under component 17, piece J ("no masked mode") is out of date: the New token field on Settings → Machines can use it too.
 - **A secure field's text is not in a test's element tree**: `rt.elements()` shows the bullets, so "the token is never drawn" can be asserted on what the tree holds.
+
+## Component 16, piece P (Memory page)
+
+- **A page that reads a machine on a thread** is kept by a `poll` hook (`keep_memory`) that compares the machine key it asked with the one Settings shows, so opening the page, switching machine and coming back all use one path. A scene sets `loaded_for` to the current key, or the hook reads over the state the scene made.
+- **A test of "the request went to the other machine"** needs home's fake `GET /api/machines` to list that machine with a token; otherwise home's own poll empties the list and the pick falls back to home.
+- **Two equal columns** are `w(0.0).grow(1.0).min_w(0.0)` on each cell; there is no `basis`.
