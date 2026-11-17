@@ -118,7 +118,10 @@ fn not_yet(t: &Theme, page: &Page) -> El {
 /// The detail: the raised sheet, one scroll for the page, a column of `gap-6` (21).
 pub fn detail(s: &State, t: &Theme) -> El {
     let page = &s.settings.page;
-    let body = if s.settings_comes_later() {
+    let body = if s.skills.demo_diff {
+        // Scene only: the skill diff before the dialog that shows it is built (piece U).
+        super::skill_diff::demo(s, t)
+    } else if s.settings_comes_later() {
         col().w_full().gap(21.0).child(page_header(s, t, page)).child(machine_header::later(s, t, page))
     } else if s.settings.demo_open {
         kit_scene::content(s, t)

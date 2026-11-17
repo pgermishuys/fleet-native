@@ -145,6 +145,8 @@ mod tests_settings_nav;
 #[cfg(test)]
 mod tests_sign_in;
 #[cfg(test)]
+mod tests_skills;
+#[cfg(test)]
 mod tests_smart_link_card;
 #[cfg(test)]
 mod tests_starters;
@@ -293,6 +295,8 @@ pub struct State {
     pub link: Option<Link>,
     /// The row menu's Open in submenu: the tools and key files it shows (`fleet::open_in`).
     pub open_in: fleet::open_in::OpenIn,
+    /// Fleet's built-in skills and Improve a skill's state (`fleet::skills`).
+    pub skills: fleet::skills::Skills,
     /// The links to the other machines, started when a session there needs one (`fleet::routing`).
     pub links: fleet::routing::Links,
     pub connection: Connection,
@@ -551,6 +555,7 @@ impl Default for State {
             logo: None,
             link: None,
             open_in: Default::default(),
+            skills: Default::default(),
             links: Default::default(),
             connection: Connection::Connecting,
             open_reads: Default::default(),
@@ -1554,6 +1559,13 @@ fn flip_general(s: &mut State) {
     }
     s.pickers.prefs.set(composer::attached::LARGE_PASTES_KEY, "attach");
     s.settings.more_open.insert("starters".into());
+}
+
+/// Piece T of component 9: a finished call of a built-in skill offers Improve; one of another skill, and one still running, don't.
+fn skill_scene(s: &mut State, dark: bool) {
+    s.dark = Some(dark);
+    s.show_conversation(mock::tools::of_skills());
+    s.skills.list = Some(fleet::skills::mock_skills());
 }
 
 pub fn spec() -> AppSpec<State> {
@@ -2639,6 +2651,18 @@ pub fn spec() -> AppSpec<State> {
                 s.dark = Some(false);
                 s.show_conversation(mock::tools::of_diffs(&["x1"]));
                 s.inline_diffs = true;
+            }),
+            ("tool-skill-improve", |s| skill_scene(s, true)),
+            ("tool-skill-improve-light", |s| skill_scene(s, false)),
+            ("skill-diff", |s| {
+                s.dark = Some(true);
+                s.open_settings("general", None);
+                s.skills.demo_diff = true;
+            }),
+            ("skill-diff-light", |s| {
+                s.dark = Some(false);
+                s.open_settings("general", None);
+                s.skills.demo_diff = true;
             }),
             ("tool-states", |s| s.show_conversation(mock::tools::of_each_status())),
             ("tool-states-light", |s| {

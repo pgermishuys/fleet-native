@@ -1328,3 +1328,11 @@ against the same restart opens no card (`tap` then fails with "no element"). Emp
 - **A page that reads a machine on a thread** is kept by a `poll` hook (`keep_memory`) that compares the machine key it asked with the one Settings shows, so opening the page, switching machine and coming back all use one path. A scene sets `loaded_for` to the current key, or the hook reads over the state the scene made.
 - **A test of "the request went to the other machine"** needs home's fake `GET /api/machines` to list that machine with a token; otherwise home's own poll empties the list and the pick falls back to home.
 - **Two equal columns** are `w(0.0).grow(1.0).min_w(0.0)` on each cell; there is no `basis`.
+
+## Component 9, piece T (Improve a skill: data, diff, button)
+
+- A conversation row is reused through `memo` until its key changes, so anything a row reads from outside its message (here the list of built-in
+  skills, which can arrive after the row was drawn) has to be part of that key (`conversation::improvable`), or the row stays as first drawn.
+- A button inside a pressable row takes the press alone: the card under the row did not open or close.
+- The skill diff can't wrap a long line as Fleet's does: wrapped text has no fixed height, and the diff keeps its number column level with
+  the code by giving both columns rows of one height.
