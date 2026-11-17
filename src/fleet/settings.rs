@@ -9,6 +9,8 @@ pub mod anchor;
 pub mod appearance;
 pub mod code_themes;
 pub mod harnesses;
+pub mod locations;
+pub mod locations_actions;
 pub mod machine_scope;
 pub mod memory;
 pub mod memory_actions;
