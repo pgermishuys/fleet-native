@@ -101,12 +101,12 @@ Files tab, each in both themes.
 
 | # | Element / behaviour | Source | Native today |
 |---|---|---|---|
-| 2.1 | `GET /api/sessions/{id}/diffs/file?path=…` answers one `FileDiffItem` with `before` and `after` (git asked about that file only, weave-fleet #942) | UFDC 85-100 | None |
-| 2.2 | An entry per path: `loading`, `ready` (the item) or `error` (`HTTP <status>` or the message) | UFDC 6-9 | None |
-| 2.3 | Each path is fetched for a **version** (`status:additions:deletions`); a newer version replaces a request still waiting, and an answer for an older version is dropped. `load` does nothing when that version is already there; `reload` always asks again | UFDC 77-114 | None |
-| 2.4 | A cache of the last 200 answers by machine, session and path: a reopened panel or a session switched back to draws at once, and is still fetched again quietly and replaced | UFDC 11-28, 80-83 | None |
-| 2.5 | At most 4 file requests at once per machine; the rest queue (a long list, as find loads, can't hold up the app's other requests) | UFDC 30-58 | None |
-| 2.6 | One session's file never shows in another | UFDC test 3 | None |
+| 2.1 | `GET /api/sessions/{id}/diffs/file?path=…` answers one `FileDiffItem` with `before` and `after` (git asked about that file only, weave-fleet #942) | UFDC 85-100 | Done in piece C (`fleet::diff_contents`, 17 November 2026); `http::diff_file`, the path escaped |
+| 2.2 | An entry per path: `loading`, `ready` (the item) or `error` (`HTTP <status>` or the message) | UFDC 6-9 | Done in piece C (`fleet::diff_contents`, 17 November 2026) |
+| 2.3 | Each path is fetched for a **version** (`status:additions:deletions`); a newer version replaces a request still waiting, and an answer for an older version is dropped. `load` does nothing when that version is already there; `reload` always asks again | UFDC 77-114 | Done in piece C (`fleet::diff_contents`, 17 November 2026); `version_of` is `status:additions:deletions`, `reload` adds `#n` |
+| 2.4 | A cache of the last 200 answers by machine, session and path: a reopened panel or a session switched back to draws at once, and is still fetched again quietly and replaced | UFDC 11-28, 80-83 | Done in piece C (`fleet::diff_contents`, 17 November 2026); the cache is by machine, session and path; a switched-away session's late answer is cached but not shown |
+| 2.5 | At most 4 file requests at once per machine; the rest queue (a long list, as find loads, can't hold up the app's other requests) | UFDC 30-58 | Done in piece C (`fleet::diff_contents`, 17 November 2026); a queued request replaced while it waited is skipped when a place frees (a request for a session switched away from, still queued, is dropped, where Fleet's dead instance would still fetch it) |
+| 2.6 | One session's file never shows in another | UFDC test 3 | Done in piece C (`fleet::diff_contents`, 17 November 2026); `Contents` holds the open session's entries only |
 
 ## Part 3: the review model (`lib/diff-review.ts`)
 
@@ -344,6 +344,8 @@ rendered HTML (a card with Open).
   `src/paginate.py` diff beside the hunks Fleet draws for it.
 
 ### Piece C: one file's contents (plain Rust, no view)
+
+- **Done (17 November 2026):** rows 2.1-2.6, `src/fleet/diff_contents.rs` (`Contents` on `State.diff_contents`: pure rules, plus `State::load_diff_file` / `reload_diff_file` on threads), `src/fleet/tests/diff_contents.rs`: `use-file-diff-contents.test.ts`'s 3 under the same names plus the rules (versions, reload, errors, per-machine places, the 200 cache) and a run over a fake server with a 12-file change (never more than 4 at once). Piece D calls `load_diff_file` when a section opens and `reload_diff_file` for Try again.
 
 - **Rows:** 2.1-2.6.
 - **Files:** new `src/fleet/diff_contents.rs` (entries by path, versions, `load`, `reload`, the 200-entry cache by

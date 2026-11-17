@@ -413,6 +413,11 @@ pub fn diffs(base: &str, session: &str) -> Result<(u16, Value), String> {
     status_of("GET", base, &format!("/api/sessions/{session}/diffs"))
 }
 
+/// `GET /api/sessions/{id}/diffs/file?path=`: one file's item with its `before` and `after` (`use-file-diff-contents.ts`).
+pub fn diff_file(base: &str, session: &str, path: &str) -> Result<(u16, Value), String> {
+    status_of("GET", base, &format!("/api/sessions/{session}/diffs/file?path={}", query_value(path)))
+}
+
 /// `GET /api/sessions/{id}/canvases`: the canvases the agent keeps for the session (`use-server-canvases.ts`).
 pub fn canvases(base: &str, session: &str) -> Result<(u16, Value), String> {
     status_of("GET", base, &format!("/api/sessions/{session}/canvases"))

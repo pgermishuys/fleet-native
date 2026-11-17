@@ -1520,6 +1520,10 @@ Nothing new about Rune: the piece is plain Rust. Two things to know for the piec
 
 Nothing about Rune: plain Rust. One thing for the pieces that draw it: word marks are byte offsets into a line's content, so a view slices with `marked_segments` and never counts characters.
 
+## Component 12, piece C (one file's contents)
+
+- **Nothing new about Rune.** Plain Rust. For piece D: call `State::load_diff_file(session, &file)` when a section opens (it ignores a version already there) and read `State.diff_contents.entry(path)`. The pure `Contents` hands out `Request`s; a request freed a place hands the next one back from `finish`, so the thread half is a loop of two functions.
+
 ## Component 10, piece K (Agents data)
 
 - **Nothing new about Rune.** The piece is plain Rust. For piece L: a row's own session stream needs a side stream (watch the child, hand

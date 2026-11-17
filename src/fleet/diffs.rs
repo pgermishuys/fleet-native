@@ -62,6 +62,15 @@ fn parse_item(v: &Value) -> Option<FileDiff> {
     })
 }
 
+/// One file's answer (`GET .../diffs/file`): the item itself, with the path asked for when the server leaves it out.
+pub(super) fn parse_file(body: &Value, path: &str) -> FileDiff {
+    let mut body = body.clone();
+    if body.get("file").is_none() && body.is_object() {
+        body["file"] = Value::String(path.to_string());
+    }
+    parse_item(&body).unwrap_or_else(|| FileDiff { file: path.to_string(), ..Default::default() })
+}
+
 /// What the changes are compared with (`SessionDiffBase`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Base {

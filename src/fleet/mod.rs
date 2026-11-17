@@ -23,6 +23,7 @@ pub mod context_tab;
 pub mod dashboard;
 pub mod dashboard_machine;
 pub mod delegations;
+pub mod diff_contents;
 pub mod diffs;
 pub mod discover;
 pub mod drafts;
