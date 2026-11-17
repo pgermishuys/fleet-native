@@ -1372,6 +1372,7 @@ against the same restart opens no card (`tap` then fails with "no element"). Emp
 ## Component 16, piece U (Updates: data and requests)
 
 Plain Rust, no view, so nothing new about Rune. For the next piece that draws these rows: `describe_version_line` returns the line's text and tone with `rule_menu`, so the page picks Rune's `menu` or `segments` for the per-machine rule (no native `<select>`), and a rollout narrative is one `Text` run per sentence.
+
 ## Component 16, piece AA (Folders: Locations)
 
 - **A popover over a keyed button** is an `Open::Popover(name)` arm in `ui::overlays`, anchored with `overlay::anchored(.., key, Side::Bottom, Align::End, 4.0)` and a `scrim`; with no room below it flips above and covers the button's row.
