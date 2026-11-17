@@ -1363,3 +1363,7 @@ against the same restart opens no card (`tap` then fails with "no element"). Emp
 - **No `aria-selected`**: a tab is marked with `.checked(on)`; a test reads which tab is shown from `State`, since `ElementInfo` has no checked field.
 - **No hover underline or hover text colour on its own**: a tab's text takes `hover_group()` on the row and `group_color` on the text; a link that only underlines on hover stays plain.
 - **A link inside a sentence** is a wrapping row of the text, the link element and the full stop: it breaks between them, not inside the text.
+
+## Component 16, piece U (Updates: data and requests)
+
+Plain Rust, no view, so nothing new about Rune. For the next piece that draws these rows: `describe_version_line` returns the line's text and tone with `rule_menu`, so the page picks Rune's `menu` or `segments` for the per-machine rule (no native `<select>`), and a rollout narrative is one `Text` run per sentence.

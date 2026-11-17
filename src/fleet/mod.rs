@@ -121,6 +121,7 @@ pub mod summary;
 pub mod tls;
 pub mod toolbar;
 pub mod topics;
+pub mod updates;
 pub mod uploads;
 pub mod usage;
 pub mod usage_chip;

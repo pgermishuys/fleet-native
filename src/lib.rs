@@ -163,6 +163,8 @@ mod tests_status_bar;
 #[cfg(test)]
 mod tests_summary_bar;
 #[cfg(test)]
+mod tests_updates;
+#[cfg(test)]
 mod tests_usage_popover;
 #[cfg(test)]
 mod tests_workspace;
@@ -424,6 +426,8 @@ pub struct State {
     pub quiet: fleet::notices::Quiet,
     /// The "Remembered" notices' payloads, for Undo (piece M), and where the card, the composer and the chips sit (the lift, the settle).
     pub memory: fleet::memory_notice::MemoryNotices,
+    /// Settings → Updates & about: each machine's status and notes, the rollout, the restart (`fleet::updates::feed`).
+    pub updates: fleet::updates::feed::UpdatesFeed,
     pub place: fleet::notice_place::Place,
     /// The Fleet restarted notice's count and the sessions its buttons reach (piece N).
     pub restart: fleet::restart_notice::RestartNotice,
@@ -607,6 +611,7 @@ impl Default for State {
             notices: Default::default(),
             quiet: Default::default(),
             memory: Default::default(),
+            updates: Default::default(),
             restart: Default::default(),
             place: Default::default(),
             row_tick: None,
@@ -1340,7 +1345,8 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_summary(now, tx)
         | s.keep_settings_anchor(tx)
         | s.keep_memory(tx)
-        | s.keep_harnesses_page(tx);
+        | s.keep_harnesses_page(tx)
+        | s.keep_updates(now, tx);
     // "Copied" on a message's button ends by itself.
     let copied = match &s.copied {
         Some((_, until)) if now >= *until => {
