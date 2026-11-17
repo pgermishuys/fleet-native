@@ -3,7 +3,7 @@
 use crate::fleet::auth::{self, bearer, explicit_token, hub_query, is_refusal, split_token};
 use crate::fleet::link::{Connection, Link, Post};
 use crate::tests::app;
-use std::io::{Read, Write};
+use std::io::Write;
 use std::net::TcpListener;
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
@@ -54,9 +54,9 @@ fn fake_fleet() -> (String, Seen) {
     let log = seen.clone();
     std::thread::spawn(move || {
         for mut stream in listener.incoming().flatten() {
-            let mut buf = [0u8; 4096];
-            let n = stream.read(&mut buf).unwrap_or(0);
-            let text = String::from_utf8_lossy(&buf[..n]).to_string();
+            // The whole request, body included: closing with the POST's body unread makes Windows reset the connection under
+            // the client, which then retries, and the retry is a second knock on the hub.
+            let text = crate::tests::read_request(&mut stream);
             let line = text.lines().next().unwrap_or("").to_string();
             let with = text.to_lowercase().contains(&format!("authorization: bearer {SECRET}").to_lowercase());
             // The WebSocket asks with the token in the URL instead of a header.
@@ -179,9 +179,7 @@ fn recording_server() -> (String, Arc<Mutex<Vec<String>>>) {
     let log = seen.clone();
     std::thread::spawn(move || {
         for mut stream in listener.incoming().flatten() {
-            let mut buf = [0u8; 4096];
-            let n = stream.read(&mut buf).unwrap_or(0);
-            log.lock().unwrap().push(String::from_utf8_lossy(&buf[..n]).to_lowercase());
+            log.lock().unwrap().push(crate::tests::read_request(&mut stream).to_lowercase());
             let _ =
                 stream.write_all(b"HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: 2\r\nconnection: close\r\n\r\n{}");
         }
