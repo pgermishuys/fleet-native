@@ -17,6 +17,8 @@ mod tests;
 #[cfg(test)]
 mod tests_add_machine;
 #[cfg(test)]
+mod tests_agents_tab;
+#[cfg(test)]
 pub(crate) mod tests_archive_pins;
 #[cfg(test)]
 mod tests_archived;
@@ -326,6 +328,8 @@ pub struct State {
     pub progress: fleet::progress_feed::ProgressFeed,
     /// The Turns tab: its filter, what is open, and the turns derived from the conversation (`fleet::turns_tab`).
     pub turns_tab: fleet::turns_tab::TurnsTab,
+    /// The Agents tab: the open row, the Earlier fold and the output read once (`fleet::agents_tab`).
+    pub agents_tab: fleet::agents_tab::AgentsTab,
     /// The open session's changed files (`fleet::diffs`): Changes, the tab's count and the file tree's marks read it.
     pub diffs: fleet::diffs::Diffs,
     /// The contents of the files Changes shows, one request per file (`fleet::diff_contents`).
@@ -619,6 +623,7 @@ impl Default for State {
             canvases: Default::default(),
             progress: Default::default(),
             turns_tab: Default::default(),
+            agents_tab: Default::default(),
             diffs: Default::default(),
             diff_contents: Default::default(),
             review: Default::default(),
@@ -1500,6 +1505,7 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     s.keep_progress_tab();
     let strip = s.keep_turns_tab() | strip;
     s.keep_panel_content();
+    s.keep_agents_tab(tx);
     if s.keep_notices(now, tx) {
         return true;
     }
@@ -2607,6 +2613,20 @@ pub fn spec() -> AppSpec<State> {
             ("context-tab-error", |s| s.show_context_tab_scene(mock::context_tab::Case::Error, true)),
             ("context-tab-error-light", |s| s.show_context_tab_scene(mock::context_tab::Case::Error, false)),
             ("context-tab-links", |s| s.show_context_tab_scene(mock::context_tab::Case::Links, true)),
+            ("agents", |s| s.show_agents_tab(mock::agents_tab::Case::Main, true)),
+            ("agents-light", |s| s.show_agents_tab(mock::agents_tab::Case::Main, false)),
+            ("agents-earlier", |s| s.show_agents_tab(mock::agents_tab::Case::Earlier, true)),
+            ("agents-earlier-light", |s| s.show_agents_tab(mock::agents_tab::Case::Earlier, false)),
+            ("agents-parent", |s| s.show_agents_tab(mock::agents_tab::Case::Parent, true)),
+            ("agents-parent-light", |s| s.show_agents_tab(mock::agents_tab::Case::Parent, false)),
+            ("agents-refused", |s| s.show_agents_tab(mock::agents_tab::Case::Refused, true)),
+            ("agents-refused-light", |s| s.show_agents_tab(mock::agents_tab::Case::Refused, false)),
+            ("agents-inside", |s| s.show_agents_tab(mock::agents_tab::Case::Inside, true)),
+            ("agents-inside-light", |s| s.show_agents_tab(mock::agents_tab::Case::Inside, false)),
+            ("agents-long", |s| s.show_agents_tab(mock::agents_tab::Case::Long, true)),
+            ("agents-long-light", |s| s.show_agents_tab(mock::agents_tab::Case::Long, false)),
+            ("agents-empty", |s| s.show_agents_tab(mock::agents_tab::Case::Empty, true)),
+            ("agents-empty-light", |s| s.show_agents_tab(mock::agents_tab::Case::Empty, false)),
             ("turns", |s| s.show_turns_tab(mock::turns::Case::Main, true)),
             ("turns-light", |s| s.show_turns_tab(mock::turns::Case::Main, false)),
             ("turns-diff", |s| s.show_turns_tab(mock::turns::Case::Diff, true)),

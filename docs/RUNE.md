@@ -1582,3 +1582,10 @@ What the app's own host stands on, at `f1f54ce` (the research spike's findings h
 - **A control that is `display: none` until hover takes no room in CSS; `group_opacity(0, 1)` keeps its room.** In a header that must give its path the width, pin the control (`pin(None, Some(top), Some(right), None)`) over the header's right end with the hover colour as its fill, so it takes no room while hidden. A row with a hidden-but-present child squeezed the path's `truncate()` to nothing and let the file name run into the counts.
 - **A pressed state has no accessibility field of its own** (`aria-pressed`): `checked(on)` on a `role("button")` is the nearest; a test reads the state it came from (`State.review`), since `ElementInfo` has no `checked`.
 - **`rt.elements()` still lists an element that is leaving** (faded out): a test that reads text after a state changes filters `!e.exiting`, or reads the old words.
+
+## Component 10, piece L (the Agents tab)
+
+- **A grid with a sub line across columns 2 and 3** (`8px 1fr auto`) is two rows here: the first line holds the mark, name and state word, the second is indented 18 px. The state word sits on the first line, as in Fleet.
+- **A glyph wider than its box** (the 12 px check in the 8 px mark column) is a 12 px box with margin -2 on each side; negative margins work in a row.
+- **A box that is `w_full` with a left margin** overflows its parent (as in 12D): put it in a `w_full` row with `pl` and let the box `grow(1.0)`.
+

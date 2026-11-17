@@ -2,6 +2,7 @@
 use crate::view::conversation::{Message, Part, ToolState};
 
 pub mod agents;
+pub mod agents_tab;
 pub mod asks;
 pub mod browser;
 pub mod canvas_host;
