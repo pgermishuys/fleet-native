@@ -165,6 +165,8 @@ mod tests_settings_nightly;
 #[cfg(test)]
 mod tests_settings_permissions;
 #[cfg(test)]
+mod tests_settings_permissions_more;
+#[cfg(test)]
 mod tests_settings_storage;
 #[cfg(test)]
 mod tests_sign_in;
@@ -1869,6 +1871,15 @@ pub fn spec() -> AppSpec<State> {
             ("settings-permissions-custom-light", |s| s.show_permissions(false, mock::permissions::Case::Custom, None)),
             ("settings-permissions-edits", |s| s.show_permissions(true, mock::permissions::Case::Edits, None)),
             ("settings-permissions-edits-light", |s| s.show_permissions(false, mock::permissions::Case::Edits, None)),
+            ("settings-permissions-machines", |s| s.show_permissions(true, mock::permissions::Case::Machines, None)),
+            ("settings-permissions-machines-light", |s| s.show_permissions(false, mock::permissions::Case::Machines, None)),
+            ("settings-permissions-elsewhere", |s| s.show_permissions(true, mock::permissions::Case::Elsewhere, None)),
+            ("settings-permissions-machine-chip", |s| s.show_permissions(true, mock::permissions::Case::Machines, Some("machine"))),
+            ("settings-permissions-machine-add", |s| s.show_permissions(true, mock::permissions::Case::Machines, Some("machine-add"))),
+            ("settings-permissions-vega-ask", |s| s.show_permissions(true, mock::permissions::Case::VegaAsk, None)),
+            ("settings-permissions-vega-ask-light", |s| s.show_permissions(false, mock::permissions::Case::VegaAsk, None)),
+            ("settings-permissions-vega-always", |s| s.show_permissions(true, mock::permissions::Case::VegaAlways, None)),
+            ("settings-permissions-vega-always-light", |s| s.show_permissions(false, mock::permissions::Case::VegaAlways, None)),
             ("settings-permissions-chip", |s| s.show_permissions(true, mock::permissions::Case::Custom, Some("chip"))),
             ("settings-permissions-add", |s| s.show_permissions(true, mock::permissions::Case::Defaults, Some("add"))),
             ("settings-profiles-none", |s| s.show_profiles(true, mock::harnesses::Profiles::None)),

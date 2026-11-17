@@ -1437,3 +1437,9 @@ Plain Rust, no view, so nothing new about Rune. For the next piece that draws th
 - **`Open::Select` takes a `&'static str`**, so a select that exists once per chip needs the chip kept in `State` (`settings.permissions.chip`) and one open name for all of them.
 - **Linking the lib tests passed 3000 MB again**: `cargo test -j1 --config 'profile.dev.package.fleet-native.debug=0'` stays under the cap and only rebuilds this crate.
 
+## Component 16, piece N (What agents can do: messages, machines, nobody watching)
+
+- **An inline code span inside a wrapped paragraph works with `Span::mono().size(..).bg(colour, pad)`**: `<code>` needs no element.
+- **A started `Link` reads home's machines at once**, so a test that seeds `machines` and then sets `s.link` is overwritten by the fake's answer. Wait for the first read to land (`machines.list` empty), then seed again.
+- **A choice that is disabled while it saves is ignored when a test clicks it before the answer is handled**: wait for the saving flag to clear before the next click.
+

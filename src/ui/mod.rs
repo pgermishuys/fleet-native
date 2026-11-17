@@ -150,6 +150,8 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
         Some(Open::Select("dreaming-harness")) => crate::view::settings::dreaming_panel::harness_list(s, t),
         Some(Open::Select("memory-repository")) => crate::view::settings::memory_notes::repository_list(s, t),
         Some(Open::Select("permission-chip")) => crate::view::settings::permissions::chip_list(s, t),
+        Some(Open::Select("permission-machine")) => crate::view::settings::permissions_rows::machine_list(s, t),
+        Some(Open::Select("permission-machine-add")) => crate::view::settings::permissions_rows::machine_add_list(s, t),
         Some(Open::Select("permission-add")) => crate::view::settings::permissions::add_list(s, t),
         Some(Open::Select("default-harness")) => crate::view::settings::harnesses::default_list(s, t),
         Some(Open::Select(name)) => gallery::select_content(s, t, name),

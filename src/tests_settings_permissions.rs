@@ -72,13 +72,13 @@ fn list() -> Value {
     ])
 }
 
-struct Rig {
-    rt: Runtime<State>,
-    queue: Receiver<Job>,
-    fake: Shared,
+pub(crate) struct Rig {
+    pub(crate) rt: Runtime<State>,
+    pub(crate) queue: Receiver<Job>,
+    pub(crate) fake: Shared,
 }
 
-fn rig(prefs: &[(&str, &str)], browser_on: bool) -> Rig {
+pub(crate) fn rig(prefs: &[(&str, &str)], browser_on: bool) -> Rig {
     let fake: Shared = Arc::new(Mutex::new(Fake {
         harnesses: list(),
         prefs: prefs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect(),
@@ -109,32 +109,32 @@ fn rig(prefs: &[(&str, &str)], browser_on: bool) -> Rig {
 }
 
 impl Rig {
-    fn wait(&mut self, what: &str, done: impl FnMut(&State) -> bool) {
+    pub(crate) fn wait(&mut self, what: &str, done: impl FnMut(&State) -> bool) {
         test_wait::drive(&mut self.rt, &self.queue, what, done, |s| format!("{:?}", s.settings.permissions));
         self.frames();
     }
-    fn frames(&mut self) {
+    pub(crate) fn frames(&mut self) {
         self.rt.frame(FRAME);
         self.rt.frame(FRAME);
     }
-    fn info(&self, key: &str) -> Option<rune::ElementInfo> {
+    pub(crate) fn info(&self, key: &str) -> Option<rune::ElementInfo> {
         self.rt.elements().into_iter().find(|e| e.key.as_deref() == Some(key) && !e.exiting)
     }
-    fn click(&mut self, key: &str) {
+    pub(crate) fn click(&mut self, key: &str) {
         crate::tests::click(&mut self.rt, key);
         self.frames();
     }
     /// A segment is on when it has a fill.
-    fn on(&self, key: &str) -> bool {
+    pub(crate) fn on(&self, key: &str) -> bool {
         self.info(key).unwrap_or_else(|| panic!("no element keyed {key:?}")).fill.a > 0.0
     }
-    fn words(&self, key: &str) -> String {
+    pub(crate) fn words(&self, key: &str) -> String {
         let all = self.rt.elements();
         let at = all.iter().position(|e| e.key.as_deref() == Some(key)).unwrap_or_else(|| panic!("no element keyed {key:?}"));
         let prefix = all[at].path.clone();
         all.iter().filter(|e| e.path.starts_with(&prefix)).filter_map(|e| e.text.clone()).collect::<Vec<_>>().join("")
     }
-    fn put(&mut self, key: &str, value: &str) {
+    pub(crate) fn put(&mut self, key: &str, value: &str) {
         let fake = self.fake.clone();
         let (k, v) = (key.to_string(), value.to_string());
         self.wait(&format!("{key} = {value} to reach Fleet"), move |_| fake.lock().unwrap().puts.contains(&(k.clone(), v.clone())));

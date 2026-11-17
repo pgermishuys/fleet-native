@@ -40,6 +40,13 @@ pub fn targets(page: &Page) -> &'static [(&'static str, &'static str)] {
             ("profiles", "settings-group-profiles"),
             ("harness-settings", "settings-group-harness-settings"),
         ],
+        Page::Permissions => &[
+            ("edit-files", "reach-row-edits"),
+            ("run-commands", "reach-row-commands"),
+            ("session-messages", "reach-row-messages"),
+            ("other-machines", "reach-row-machines"),
+            ("unattended-runs", "reach-row-unattended"),
+        ],
         Page::Folders => &[("storage", "settings-anchor-storage")],
         _ => &[],
     }

@@ -25,6 +25,7 @@ pub mod memory_expired;
 pub mod memory_notes;
 pub mod memory_row;
 pub mod permissions;
+pub mod permissions_rows;
 
 use super::machines_page;
 use crate::State;

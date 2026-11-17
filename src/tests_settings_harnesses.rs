@@ -24,6 +24,8 @@ pub(crate) struct Fake {
     pub fresh: usize,
     /// What `GET /api/agent-browser/settings` says `enabled` is.
     pub browser_on: bool,
+    /// Every `PUT /api/machines/{id}`: the id and the `agentWork` it sent. One whose id is in `refuse` is turned down.
+    pub machine_puts: Vec<(String, String)>,
 }
 pub(crate) type Shared = Arc<Mutex<Fake>>;
 
@@ -74,6 +76,16 @@ fn answer(mut stream: std::net::TcpStream, fake: Shared) {
         ("200 OK", json!(f.prefs))
     } else if method == "GET" && path == "/api/agent-browser/settings" {
         ("200 OK", json!({"enabled": f.browser_on, "pages": "session", "scripts": false}))
+    } else if method == "PUT" && path.starts_with("/api/machines/") {
+        let id = path.trim_start_matches("/api/machines/").to_string();
+        let work =
+            serde_json::from_slice::<Value>(&body).ok().and_then(|v| v["agentWork"].as_str().map(str::to_string)).unwrap_or_default();
+        f.machine_puts.push((id.clone(), work.clone()));
+        if f.refuse.contains(&id) {
+            ("500 Internal Server Error", json!({ "error": "The server said no." }))
+        } else {
+            ("200 OK", json!({ "agentWork": work }))
+        }
     } else if method == "PUT" && path.starts_with("/api/preferences/") {
         let key = path.trim_start_matches("/api/preferences/").replace("%2E", ".");
         let value = serde_json::from_slice::<Value>(&body).ok().and_then(|v| v["value"].as_str().map(str::to_string)).unwrap_or_default();

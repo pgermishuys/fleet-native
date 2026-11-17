@@ -892,6 +892,18 @@ Built in `src/fleet/settings/permissions.rs` (`Reach`, `reach_of`, `level_with`,
 - **Fleet's tests ported under their names:** all of `permission-reach.test.ts`; from `PermissionsSection.test.ts`: "keeps today's defaults ..." (the Edit files and Run commands half), "saves Edit files Ask as the ask level, which makes commands ask too", "saves Run commands Ask as the edits level: edits still run", "lists a harness at a level of its own ...", "adds an exception from + exception ...", "says whether agents get the browser on Run commands, and opens the Browser group from it" (the anchor is set; the scroll is O's), "shows the browser as off when agents can't use it". Ours: the default tag, a refused save is put back, a turned-off harness isn't listed, "No harness here can use it", and the page asks the machine Settings shows.
 - **Difference from Fleet:** the chip's select is a trigger and a popup (`ui::select`), as decided; the "Needs you" glyph is the diamond character in the same colour (a wrapped line can't hold an element); the Browser chip's hover is a fill, not a border colour. The chip's row has the 1px dashed border (`border_dash`), which 6.20 thought Rune couldn't do.
 
+### Piece N: done (17 November 2026)
+
+**Followed:** weave-fleet `main` (17 November 2026), `PermissionsSection.vue`'s rows 3 to 5 and the fine print; nothing in them differs from this checklist. The scratch server is v0.72.0 and serves a client that draws the same.
+
+Built in `src/fleet/settings/permissions_more.rs` (`Unattended`, the messages choice, the machine exceptions and candidates, the "runs at" word, the writes), `src/view/settings/permissions_rows.rs` (the three rows, the machine chips and their two lists, the fine print), the `settings-permissions-machines*`, `-elsewhere`, `-machine-chip`, `-machine-add` and `-vega-*` scenes, `src/tests_settings_permissions_more.rs`, and the page's row anchors (`edit-files`, `run-commands`, `session-messages`, `other-machines`, `unattended-runs`) in `anchor::targets`.
+
+- **Done:** 6.25 to 6.37 and 6.39. 6.34: opening the page on the live machine asks home for its machines again (`refresh_machines`: the list, home's identity, each machine's settings); the app already polls every 15 s, and another machine's page asks for none of it.
+- **Open:** 6.38 (the Browser group and its anchor) is O's.
+- **Fleet's tests ported under their names:** "lists the rows in order ...", "turns messages between sessions on ...", "says nowhere else that a change waits for new sessions", "lists machines set to Always or Never as exceptions ...", "points to Machines when there's no other machine", "keeps unattended runs allowed until told otherwise". Ours: anything else reads as Allow, a refused machine change says so under the row and the next try clears it, another machine's page names where the list is.
+- **Differences from Fleet:** the chip's select is a trigger and a popup, as decided; the machine error is the Machines page's per-machine error (one place), shown under this row for the listed machines; a machine's error stays until the next try on either page.
+- **Pictures:** a scratch Fleet can pair one machine (a second scratch Fleet), so Fleet's pictures show it at Ask and at Always; Never and several machines are from scenes only, as are "another machine shown" and the open lists (Fleet's are the browser's own select popups).
+
 ### Requests, events and preferences (Part 6)
 
 - `GET /api/preferences` (map of key to text) and `PUT /api/preferences/{key}` `{value}`: `PermissionLevel` (`ask`/`edits`/`all`, unset = `all`), `PermissionLevel.<harness type>` (same values, `""` clears), `PermissionUnattended` (`all`/`same`/`deny`, unset = `all`), `SessionMessages` (`"true"` = on, unset = off).

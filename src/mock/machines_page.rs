@@ -7,7 +7,7 @@ use crate::fleet::machines::{AgentWork, Info};
 use serde_json::json;
 
 /// What a machine says about itself on `GET /api/machine`, with the harnesses it has.
-fn info(id: &str, name: &str, level: &str, working: u32, needs_you: u32) -> Info {
+pub(super) fn info(id: &str, name: &str, level: &str, working: u32, needs_you: u32) -> Info {
     Info::from_json(&json!({
         "id": id, "name": name, "hostName": name, "os": "linux", "version": "0.72.0", "apiVersion": 1, "authMode": "token",
         "remoteReachable": true, "requiresToken": true,
