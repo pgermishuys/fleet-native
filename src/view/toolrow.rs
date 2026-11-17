@@ -12,7 +12,7 @@ use super::toolcard;
 use crate::State;
 use crate::conv::background::{AgentRow, delegation_of};
 use crate::conv::card::{Toggle, is_open};
-use crate::conv::tools::{Category, ToolIcon, ToolStatus, format_call_duration, get_tool, is_shell_row};
+use crate::conv::tools::{Category, ToolIcon, ToolStatus, format_call_duration, get_tool, is_retired_canvas_tool, is_shell_row};
 use crate::icons::*;
 use crate::theme::{RADIUS_BTN, Theme, mono, sans};
 use rune::{Cursor, El, Icon, el, icon, row, text};
@@ -71,7 +71,7 @@ pub fn tool_entry(t: &Theme, s: &State, part: &Part) -> El {
     // A finished call that loaded one of Fleet's built-in skills offers Improve (`withImprove`).
     let improve = (get_tool(tool).category == Category::Skill && *status == ToolStatus::Completed && s.skills.is_built_in(detail))
         .then(|| (detail.clone(), id.clone()));
-    let header = tool_row(t, id, tool, detail, *status, *state, improve).on_press(move |s: &mut State| {
+    let header = tool_row(t, id, tool, detail, *status, *state, improve, body.canvas_id.clone()).on_press(move |s: &mut State| {
         s.tool_open.insert(key.clone(), Toggle { open: !open, under });
     });
     let mut card = rune::col().w_full().child(header);
@@ -112,6 +112,20 @@ fn improve_button(t: &Theme, id: &str, skill: String, tool_id: String) -> El {
         .child(text("Improve").font(sans(12.0, 500.0, 1.3)).color(t.accent_text))
 }
 
+/// `.tool-header__show`: the canvas the call opened comes forward and the panel opens. Doesn't open or close the card.
+fn show_button(t: &Theme, id: &str, canvas: String) -> El {
+    el().key(format!("tool-{id}-show"))
+        .label("Show")
+        .cursor(Cursor::Pointer)
+        .px(8.0)
+        .py(1.0)
+        .radius(RADIUS_BTN - 2.0)
+        .hover(t.accent_dim)
+        .on_press(move |s: &mut State| s.show_server_canvas(&canvas))
+        .child(text("Show").font(sans(12.0, 500.0, 1.3)).color(t.accent_text))
+}
+
+#[allow(clippy::too_many_arguments)]
 pub fn tool_row(
     t: &Theme,
     id: &str,
@@ -120,6 +134,7 @@ pub fn tool_row(
     status: ToolStatus,
     state: ToolState,
     improve: Option<(String, String)>,
+    canvas: Option<String>,
 ) -> El {
     let tool = get_tool(kind);
     // Reads are quieter than commands and edits.
@@ -158,6 +173,16 @@ pub fn tool_row(
     } else {
         line.child(text(shown.to_string()).font(mono(12.0, 400.0, 1.3)).color(t.muted).truncate().grow(1.0))
     };
+    if status == ToolStatus::Completed {
+        // Where Show was, the diagram the call drew is gone (`.tool-header__retired`).
+        if is_retired_canvas_tool(kind) {
+            line = line.child(
+                text("Diagram retired").key(format!("tool-{id}-retired")).font(sans(12.0, 400.0, 1.3)).color(t.muted).px(8.0).py(1.0),
+            );
+        } else if let Some(canvas) = canvas {
+            line = line.child(show_button(t, id, canvas));
+        }
+    }
     if let Some((skill, tool_id)) = improve {
         line = line.child(improve_button(t, id, skill, tool_id));
     }

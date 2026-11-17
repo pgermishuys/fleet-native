@@ -1530,3 +1530,10 @@ Nothing about Rune: plain Rust. One thing for the pieces that draw it: word mark
   its snapshot over), because a watched topic's snapshot isn't given to `State`; `summarize_agent_activity` takes the reduced messages.
 
 - **A "now" ring outside a clipped box** (Progress flow bar): the segment clips its fill with `clip_rounded`, so the ring is a 1.5-spread `Shadow` on an unclipped wrapper around it. Inline code in a wrapped title and the sub-count are spans of one `rich` text (`mono().size(11).bg(colour, 3)`); a `Span` can't add margin, so the count follows two spaces.
+
+## Component 10, piece C (server canvases)
+
+- **Nothing new about Rune.** For a test of a request made off the UI thread: record `(method, path)` in the fake server *before* it
+  answers and wait for that with `test_wait::recv`; hold an answer back with a channel to test events that arrive during a load.
+- **A scripted run against a live Fleet** closes a server tab with `canvas-tab-close-<tab id>`, which only exists while the tab is
+  active; a DELETE really closes the canvas on the server, so re-focus it (`POST .../canvases/{id}/focus`) before each run.

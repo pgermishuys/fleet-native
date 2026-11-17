@@ -3,10 +3,8 @@
 //! by a read of it and `waiting_page` is the one function the card calls. Ports `lib/page-choice.ts` (`readPageChoice`,
 //! `isChoiceLive`), the page half of `lib/server-canvas.ts` and `composables/use-waiting-page.ts`.
 //!
-//! They load when a session opens and after a reconnect (`GET /api/sessions/{id}/canvases`); `canvas.updated` carries a whole
-//! canvas and `canvas.closed` removes one. (`session.pages` is only a count for the session row, so it plays no part here.)
-use super::events::{Event, Kind};
-use super::http;
+//! They load when a session opens and after a reconnect, and `canvas.updated` / `canvas.closed` keep them (`server_canvases.rs`,
+//! which feeds the tabs from the same load and events). (`session.pages` is only a count for the session row, so it plays no part here.)
 use crate::State;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -151,50 +149,5 @@ impl State {
             .iter()
             .find(|c| c.choice.as_ref().is_some_and(|choice| choice.status == ChoiceStatus::Waiting))
             .filter(|c| is_choice_live(c.choice.as_ref(), Some(self.open_activity())))
-    }
-
-    /// "Open page" (`handleShowCanvas`): the page's tab is the one the content panel shows. The tab itself is component 14's;
-    /// until it exists the target is only kept.
-    pub fn open_page(&mut self, canvas: &str) {
-        self.page_target = Some(canvas.to_string());
-        self.set_content_open(true);
-    }
-
-    /// `canvas.updated` and `canvas.closed` on a session's topic.
-    pub fn on_pages_event(&mut self, event: &Event) {
-        let Event::Other(kind, payload) = event else { return };
-        let Some(session) = payload.get("sessionId").and_then(Value::as_str) else { return };
-        match kind {
-            Kind::CanvasUpdated => {
-                if let Some(canvas) = read_page_canvas(payload) {
-                    self.pages.updated(session, canvas);
-                }
-            }
-            Kind::CanvasClosed => {
-                if let Some(id) = payload.get("canvasId").and_then(Value::as_str) {
-                    self.pages.closed(session, id);
-                }
-            }
-            _ => {}
-        }
-    }
-
-    /// Loads the session's page canvases when it opens and after a reconnect. A failed load is not shown.
-    pub fn load_pages(&mut self, session: &str) {
-        let Some(link) = self.link_for(session) else { return };
-        let generation = self.pages.begin_load(session);
-        let id = session.to_string();
-        let asked = id.clone();
-        link.off_thread(
-            move |base| http::canvases(base, &asked),
-            move |s, _, result| {
-                if let Ok((status, body)) = result
-                    && (200..300).contains(&status)
-                {
-                    let list = body.as_array().map(|a| a.iter().filter_map(read_page_canvas).collect()).unwrap_or_default();
-                    s.pages.loaded(&id, generation, list);
-                }
-            },
-        );
     }
 }

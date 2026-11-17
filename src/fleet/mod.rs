@@ -112,6 +112,7 @@ pub mod scroll;
 pub mod selection;
 pub mod selector;
 pub mod send_to_agent;
+pub mod server_canvases;
 pub mod session_commands;
 pub mod sessions;
 pub mod settings;

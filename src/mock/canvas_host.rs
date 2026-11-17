@@ -54,6 +54,7 @@ impl State {
                     payload: None,
                     title: Some("Release notes for the image cache, second draft".into()),
                     file: None,
+                    server: None,
                 });
                 self.canvases.replace(&id, tabs);
             }

@@ -528,6 +528,7 @@ mod rules;
 mod scroll;
 mod selection;
 mod selector;
+mod server_canvases;
 mod settings;
 mod smart_links;
 mod state;

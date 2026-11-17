@@ -27,6 +27,8 @@ mod tests_browser;
 #[cfg(test)]
 mod tests_canvas_host;
 #[cfg(test)]
+mod tests_canvas_show;
+#[cfg(test)]
 mod tests_chips;
 #[cfg(test)]
 mod tests_context_tab;
@@ -308,6 +310,7 @@ pub struct State {
     pub rules: fleet::rules::Rules,
     /// Every session's page canvases as Fleet last said (`fleet::pages`); the page-pick card reads the open session's.
     pub pages: fleet::pages::Pages,
+    pub server_loads: fleet::server_canvases::Loads,
     /// Every session's panel tabs (`fleet::canvases`, component 10).
     pub canvases: fleet::canvases::Canvases,
     /// Each opened session's progress detail (`fleet::progress_feed`): the Progress tab and the strip read it.
@@ -597,6 +600,7 @@ impl Default for State {
             asks: Default::default(),
             rules: Default::default(),
             pages: Default::default(),
+            server_loads: Default::default(),
             canvases: Default::default(),
             progress: Default::default(),
             diffs: Default::default(),
@@ -1727,6 +1731,18 @@ fn skill_scene(s: &mut State, dark: bool) {
     s.dark = Some(dark);
     s.show_conversation(mock::tools::of_skills());
     s.skills.list = Some(fleet::skills::mock_skills());
+}
+
+/// Piece C of component 10: the tool card's Show and "Diagram retired", with the page the first call opened as a tab.
+fn tool_show_scene(s: &mut State, dark: bool) {
+    s.dark = Some(dark);
+    s.show_conversation(mock::tools::of_canvases());
+    let id = s.canvas_session();
+    let page = serde_json::json!({"canvasId": "cv_1", "kind": "page", "title": "Totals demo", "version": 1, "state": {}});
+    if let Some(canvas) = fleet::canvases::read_server_canvas(&page) {
+        s.canvases.apply_canvas_event(&id, fleet::canvases::CanvasEvent::Updated(canvas));
+    }
+    s.set_content_open(true);
 }
 
 pub fn spec() -> AppSpec<State> {
@@ -3045,6 +3061,8 @@ pub fn spec() -> AppSpec<State> {
             ("code-theme-github-light", |s| s.show_code_theme(Sel::Scheme(CodeThemeId::Github), false)),
             ("code-theme-darcula-light", |s| s.show_code_theme(Sel::Scheme(CodeThemeId::Darcula), false)),
             ("find-marks-closed-turn", |s| s.show_find_marks(0, false)),
+            ("tool-show", |s| tool_show_scene(s, true)),
+            ("tool-show-light", |s| tool_show_scene(s, false)),
             ("tool-rows", |s| s.show_conversation(mock::tools::of_each_kind())),
             ("tool-rows-light", |s| {
                 s.dark = Some(false);
