@@ -511,6 +511,8 @@ pub struct State {
     pub header_details: std::collections::HashMap<String, fleet::header::Detail>,
     /// Titles of parent sessions the list doesn't hold, read once (`useSessionTitle`).
     pub parent_titles: std::collections::HashMap<String, String>,
+    /// Each session's work as the Agents tab kept it, ended items included (`use-session-lineage.ts`' history).
+    pub agents_history: std::collections::HashMap<String, Vec<fleet::work::RunningWorkItem>>,
     /// Find in this conversation: the bar, the query and the hits (`conv::find`, `fleet::find`).
     pub find: conv::find::Find,
     /// Stands in for the open session while the list is empty.
@@ -704,6 +706,7 @@ impl Default for State {
             browser: Default::default(),
             header_details: Default::default(),
             parent_titles: Default::default(),
+            agents_history: Default::default(),
             find: Default::default(),
             blank: Project {
                 id: String::new(),

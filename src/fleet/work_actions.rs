@@ -29,7 +29,11 @@ fn parse_page(body: &Value) -> Option<Page> {
 
 impl State {
     fn work_item(&self, id: &str) -> Option<&RunningWorkItem> {
-        self.running_work().iter().find(|i| i.id == id).or_else(|| self.list_work.get(id))
+        self.running_work()
+            .iter()
+            .find(|i| i.id == id)
+            .or_else(|| self.list_work.get(id))
+            .or_else(|| self.agents_history.values().flatten().find(|i| i.id == id))
     }
 
     /// Stop (`stopWork`): a second press while one is out is refused. The answer is the item ended; it is applied at
@@ -61,6 +65,7 @@ impl State {
                 if let Some(item) = to_item(&body) {
                     // The item may be the open session's or another's (the status bar's list): both places take it.
                     self.list_work.apply(item.clone());
+                    self.keep_in_agents_history(&item);
                     if let Some(stream) = self.stream.as_mut() {
                         apply_item(&mut stream.running_work, item);
                     }
