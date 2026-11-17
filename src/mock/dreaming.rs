@@ -230,3 +230,74 @@ pub fn scene(s: &mut crate::State, dark: bool, variant: Variant) {
     s.settings.memory_ui = Default::default();
     s.settings.memory = page;
 }
+
+// ─── The nightly row ────────────────────────────────────────────────────────
+
+/// The invented answer for "Dream each night" when the app has no Fleet: switched off, as a new install is.
+pub fn nightly() -> crate::fleet::settings::dream_nightly::Nightly {
+    crate::fleet::settings::dream_nightly::Nightly {
+        enabled: false,
+        automation_id: None,
+        paused: false,
+        time: "03:00".into(),
+        time_zone: None,
+        harness_type: None,
+        model: None,
+        budget_tokens: 300_000,
+        next_run_at: None,
+        recent: vec![],
+    }
+}
+
+#[derive(Clone, Copy)]
+pub enum NightlyVariant {
+    Off,
+    On,
+    Paused,
+    /// The read failed and there is no answer: the error with Try again stands where the row would be.
+    LoadFailed,
+}
+
+/// Settings → Memory with the nightly row in one of its states, the dreaming panel under it.
+pub fn nightly_scene(s: &mut crate::State, dark: bool, variant: NightlyVariant) {
+    use crate::composer::choice::ModelOption;
+    use crate::fleet::new_session::feeds::Catalog;
+    scene(s, dark, Variant::LastNight);
+    let page = &mut s.settings.memory;
+    page.nightly.asked = Some(page.request);
+    // Fleet's picture has no dream to show under the row, so the panel is the bare header here too.
+    page.dreaming.dream = None;
+    page.dreaming.was_busy = false;
+    let mut view = nightly();
+    match variant {
+        NightlyVariant::Off => {}
+        NightlyVariant::On | NightlyVariant::Paused => {
+            view.enabled = true;
+            view.time = "03:30".into();
+            view.harness_type = Some("opencode2".into());
+            view.model = Some("anthropic/sonnet".into());
+            view.budget_tokens = 500_000;
+            if matches!(variant, NightlyVariant::Paused) {
+                view.paused = true;
+            }
+            view.automation_id = Some("automation-dreaming".into());
+            page.nightly.catalog_for = Some("opencode2".into());
+            page.nightly.catalog = Some(Catalog {
+                supported: true,
+                models: vec![
+                    ModelOption::new("anthropic", "Anthropic", "sonnet", "Claude Sonnet"),
+                    ModelOption::new("anthropic", "Anthropic", "haiku", "Claude Haiku"),
+                ],
+                ..Default::default()
+            });
+        }
+        NightlyVariant::LoadFailed => {
+            page.nightly.error = Some("Nightly dreaming is unavailable.".into());
+        }
+    }
+    if !matches!(variant, NightlyVariant::LoadFailed) {
+        page.nightly.time_shown = view.time.clone();
+        page.nightly.time = rune::TextEdit::new(view.time.clone());
+        page.nightly.nightly = Some(view);
+    }
+}

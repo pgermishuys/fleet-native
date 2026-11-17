@@ -56,6 +56,7 @@ impl State {
             self.on_usage_event(event);
             self.on_smart_link_event(topic, event);
             self.on_memory_event(topic, event);
+            self.on_dream_event(topic, event);
             self.on_update_event(topic, event);
             self.on_list_work_event(event);
             self.on_queue_event(event);
@@ -239,6 +240,8 @@ impl State {
         use super::notices::WAIT_POLL_SECS;
         use std::time::Duration;
         self.keep_memory_undo();
+        self.keep_dream_notices();
+        self.keep_dream_buttons();
         self.keep_skill_undo();
         self.keep_restart_buttons();
         self.keep_restart_notice();

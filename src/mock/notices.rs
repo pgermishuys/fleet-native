@@ -77,6 +77,25 @@ pub fn remembered(s: &mut State) {
     s.notices.open_next();
 }
 
+/// A night's dream that ended, as `memory.dreamed` carries it: Memory is on, and the card goes through the real event path.
+pub fn dreamed(s: &mut State) {
+    use crate::fleet::events::{Event, Kind};
+    s.pickers.prefs.set("Memory", "true");
+    let change = |id: &str, kind: &str| {
+        serde_json::json!({ "id": id, "kind": kind, "list": "repository", "noteId": format!("note-{id}"), "text": "A note.", "replaced": [],
+            "why": "Seen twice.", "sessions": [], "ofSessions": 0, "quote": null, "reason": null, "undone": false })
+    };
+    let sessions: Vec<_> =
+        (0..14).map(|i| serde_json::json!({ "id": format!("s{i}"), "title": format!("Session {i}"), "harnessType": null })).collect();
+    let payload = serde_json::json!({
+        "id": "dream-scene", "repository": "/work/example", "repositoryName": "example", "sessionId": null, "harnessType": "opencode2",
+        "status": "done", "error": null, "started": "2026-11-17T03:00:00Z", "finished": "2026-11-17T03:09:00Z", "readSessions": sessions,
+        "changes": [change("a", "added"), change("b", "rewritten"), change("c", "merged"), change("d", "kept")],
+        "runId": "run-scene", "tokens": 48200, "since": null });
+    s.dispatch(&crate::fleet::state::Topic::Sessions, &[Event::Other(Kind::MemoryDreamed, payload)]);
+    s.notices.open_next();
+}
+
 /// The card, already settled: only its chip in the status bar.
 pub fn settled(s: &mut State) {
     s.notices.post(notice(Case::Plain), s.clock);

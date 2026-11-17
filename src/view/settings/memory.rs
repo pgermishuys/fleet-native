@@ -180,8 +180,8 @@ pub fn card(s: &State, t: &Theme) -> El {
         if !page.enabled() {
             card = card.child(facts(page, t));
         } else if page.notes.is_some() {
-            // Dreaming's nightly row (piece S) goes between the toolbar and the panel.
             card = card.child(super::memory_notes::toolbar(s, t));
+            card = card.children(super::dream_nightly::nightly(s, t));
             if s.shows_dreaming() {
                 card = card.child(super::dreaming_panel::panel(s, t));
             }

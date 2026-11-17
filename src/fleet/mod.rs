@@ -22,6 +22,7 @@ pub mod dashboard_machine;
 pub mod delegations;
 pub mod discover;
 pub mod drafts;
+pub mod dream_notice;
 pub mod events;
 pub mod export;
 pub mod family;
