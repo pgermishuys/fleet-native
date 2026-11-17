@@ -308,6 +308,8 @@ pub struct State {
     pub canvases: fleet::canvases::Canvases,
     /// Each opened session's progress detail (`fleet::progress_feed`): the Progress tab and the strip read it.
     pub progress: fleet::progress_feed::ProgressFeed,
+    /// The open session's changed files (`fleet::diffs`): Changes, the tab's count and the file tree's marks read it.
+    pub diffs: fleet::diffs::Diffs,
     /// The page canvas "Open page" asked the content panel to show; the tab is component 14's.
     pub page_target: Option<String>,
     /// When the Allowed chip last grew, on `clock`: it flashes for `view::allowed::FLASH_SECS` after.
@@ -589,6 +591,7 @@ impl Default for State {
             pages: Default::default(),
             canvases: Default::default(),
             progress: Default::default(),
+            diffs: Default::default(),
             page_target: None,
             allowed_flash: None,
             questions: Default::default(),

@@ -84,18 +84,18 @@ Files tab, each in both themes.
 
 | # | Element / behaviour | Source | Native today |
 |---|---|---|---|
-| 1.1 | `GET /api/sessions/{id}/diffs` on the session's machine answers `{ diffs: FileDiffItem[], available, base?, refusal? }` (a bare array from an old server counts as available). `FileDiffItem`: `file`, `before`, `after` (empty in the list: contents come per file, 2.1), `additions`, `deletions`, `status` (`added`, `deleted`, `modified`), `isBinary`/`binary`, `isTruncated`/`truncated` | UD 70-140, client.ts 325-355 | None |
-| 1.2 | `base`: `{ kind: "branch", branch, commit }` (where the folder's branch left the main branch) or `{ kind: "session" }` (the folder as the session found it). Kept while `baseKey` (`branch:<commit>` or `session`) doesn't move | UD 46-50, 131-132 | None |
-| 1.3 | `refusal`: `{ message, fixCommand }` when git refuses the folder (another user owns it) | UD 130, client.ts 343 | None |
-| 1.4 | State per session: `diffs`, `byFile`, `available`, `refusal`, `base`, `isLoading`, `hasLoaded` (the first answer or failure arrived: until then an empty list means "not known yet"), `isStale`, `error` (`HTTP <status>` or the thrown message) | UD 10-33 | None |
-| 1.5 | The list is replaced only when its key (file, status, counts per file) changed, so what derives from it doesn't redo on every edit event | UD 41-44, 127-128 | None |
-| 1.6 | Another session: everything resets at once (empty, not loaded, not stale, no error); an answer for an older request is dropped (`requestId`) | UD 197-211, 120-123 | None |
-| 1.7 | `join`: a request for the same machine and session already on its way is shared (opening a session: the page and the panel both ask); after an edit or a revert the caller asks afresh | UD 89-105 | None |
-| 1.8 | Events on the session's topic: `turn.ended` for this session fetches at once; `files.changed` for this session opens a 250 ms window and fetches at its end, edits inside it join it (not pushed back); one refresh at a time, and one still running when the window ends is followed by exactly one more | UD 161-193, 223-245 | None (both events are read by component 2) |
-| 1.9 | `isWanted`: while nothing shows the diffs (the panel closed), a file change only marks the list stale; it loads when the panel opens and the list is stale | UD 161-166, 213-221; `sessions.$id.tsx` 145-148 | None |
-| 1.10 | The session opening asks once (`join`) | `sessions.$id.tsx` 186-195, `SessionsV2RightPanel` 76-84 | None |
-| 1.11 | What the list feeds elsewhere: the Changes tab's count (`diffs.length`, component 10), `panelHasContent`'s `changedFiles` and `changesFailed` (component 10), the file tree's changed marks and the file tab's diff (component 11) | `CanvasHost.vue` 63, 358; `panel-content.ts`; `FileBrowserPanel.vue` 27-33 | None; the seam is `State.diffs` (piece A) |
-| 1.12 | `diffBaseLabel`: branch → "Compared with `<branch or main>`", the short commit (7), tooltip "What this branch changes since it left main at `abc1234`, committed or not. Rebasing onto main or pulling it doesn't add other people's work."; session → "Since this session started", tooltip "This folder isn't on a branch of its own, so its changes are compared with how it was when the session started." | `lib/diff-base.ts` | None |
+| 1.1 | `GET /api/sessions/{id}/diffs` on the session's machine answers `{ diffs: FileDiffItem[], available, base?, refusal? }` (a bare array from an old server counts as available). `FileDiffItem`: `file`, `before`, `after` (empty in the list: contents come per file, 2.1), `additions`, `deletions`, `status` (`added`, `deleted`, `modified`), `isBinary`/`binary`, `isTruncated`/`truncated` | UD 70-140, client.ts 325-355 | Done in piece A (`fleet::diffs`, 17 November 2026) |
+| 1.2 | `base`: `{ kind: "branch", branch, commit }` (where the folder's branch left the main branch) or `{ kind: "session" }` (the folder as the session found it). Kept while `baseKey` (`branch:<commit>` or `session`) doesn't move | UD 46-50, 131-132 | Done in piece A (`fleet::diffs`, 17 November 2026) |
+| 1.3 | `refusal`: `{ message, fixCommand }` when git refuses the folder (another user owns it) | UD 130, client.ts 343 | Done in piece A (`fleet::diffs`, 17 November 2026) |
+| 1.4 | State per session: `diffs`, `byFile`, `available`, `refusal`, `base`, `isLoading`, `hasLoaded` (the first answer or failure arrived: until then an empty list means "not known yet"), `isStale`, `error` (`HTTP <status>` or the thrown message) | UD 10-33 | Done in piece A (`fleet::diffs`, 17 November 2026) |
+| 1.5 | The list is replaced only when its key (file, status, counts per file) changed, so what derives from it doesn't redo on every edit event | UD 41-44, 127-128 | Done in piece A (`fleet::diffs`, 17 November 2026) |
+| 1.6 | Another session: everything resets at once (empty, not loaded, not stale, no error); an answer for an older request is dropped (`requestId`) | UD 197-211, 120-123 | Done in piece A (`fleet::diffs`, 17 November 2026) |
+| 1.7 | `join`: a request for the same machine and session already on its way is shared (opening a session: the page and the panel both ask); after an edit or a revert the caller asks afresh | UD 89-105 | Done in piece A (`fleet::diffs`, 17 November 2026) |
+| 1.8 | Events on the session's topic: `turn.ended` for this session fetches at once; `files.changed` for this session opens a 250 ms window and fetches at its end, edits inside it join it (not pushed back); one refresh at a time, and one still running when the window ends is followed by exactly one more | UD 161-193, 223-245 | Done in piece A (`fleet::diffs`, 17 November 2026); `files.changed` and `turn.ended` on the open session's topic, the window ends on a thread |
+| 1.9 | `isWanted`: while nothing shows the diffs (the panel closed), a file change only marks the list stale; it loads when the panel opens and the list is stale | UD 161-166, 213-221; `sessions.$id.tsx` 145-148 | Done in piece A (`fleet::diffs`, 17 November 2026); `isWanted` is `content_open` (the phone tray has no desktop counterpart) |
+| 1.10 | The session opening asks once (`join`) | `sessions.$id.tsx` 186-195, `SessionsV2RightPanel` 76-84 | Done in piece A (`fleet::diffs`, 17 November 2026); `after_open` asks (joined), and a reconnect asks afresh |
+| 1.11 | What the list feeds elsewhere: the Changes tab's count (`diffs.length`, component 10), `panelHasContent`'s `changedFiles` and `changesFailed` (component 10), the file tree's changed marks and the file tab's diff (component 11) | `CanvasHost.vue` 63, 358; `panel-content.ts`; `FileBrowserPanel.vue` 27-33 | Seam done: `State.diffs`; the readers are 10's and 11's |
+| 1.12 | `diffBaseLabel`: branch → "Compared with `<branch or main>`", the short commit (7), tooltip "What this branch changes since it left main at `abc1234`, committed or not. Rebasing onto main or pulling it doesn't add other people's work."; session → "Since this session started", tooltip "This folder isn't on a branch of its own, so its changes are compared with how it was when the session started." | `lib/diff-base.ts` | Done in piece A (`fleet::diffs`, 17 November 2026); `diff_base_label`, words identical (drawn in piece D) |
 
 ## Part 2: one file's contents (`use-file-diff-contents.ts`)
 
@@ -234,7 +234,7 @@ Files tab, each in both themes.
 | # | Element / behaviour | Source | Native today |
 |---|---|---|---|
 | 13.1 | A focus request (`reviewFocus { path, seq }`, set by component 10's `open_changes(path)`): once that file is in the list, open its section, mark it near, and scroll it to the top smoothly; each request once (`seq`) | CR 682-704 | None |
-| 13.2 | The Changes tab's count and the panel's "has content" read `State.diffs` (1.11) | `CanvasHost.vue` 358; `panel-content.ts` | None |
+| 13.2 | The Changes tab's count and the panel's "has content" read `State.diffs` (1.11) | `CanvasHost.vue` 358; `panel-content.ts` | Data side done in piece A (`State.diffs`: `files()`, `has_loaded`); the count and `panel_has_content` are 10's |
 | 13.3 | Open file (6.4) asks component 11 to open the path in a kept tab on its Diff view | CR 90-93 | None (until 11's file tab exists, the button is drawn disabled with the tooltip "Opening files comes with the file viewer") |
 
 ## Part 14: find in files (`FindInFilesResults.vue`, `FileBrowserPanel.vue` contents half, `use-find-text.ts`, `lib/find-text.ts`)
@@ -309,6 +309,8 @@ pieces M, O and P call into it, and until it exists the calls are drawn disabled
 rendered HTML (a card with Open).
 
 ### Piece A: the changes list (plain Rust, no view)
+
+- **Done (17 November 2026):** rows 1.1-1.12 and 13.2 (data side), `src/fleet/diffs.rs`, `src/fleet/tests/diffs.rs`, `src/mock/diffs.rs` (tests only until a scene needs it). `use-diffs.test.ts`'s 11 are ported under the same names plus the cases for `diff_base_label`, a refusal, a bare array and a failure. Left to later pieces: the count on the tab (10) and drawing the base label (D).
 
 - **Rows:** 1.1-1.12, 13.2 (the data side).
 - **Component 10 builds first** (agreed 17 November 2026): its first data piece makes a minimal `src/fleet/diffs.rs`

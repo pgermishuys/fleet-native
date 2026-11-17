@@ -64,6 +64,7 @@ impl State {
             self.on_rules_event(event);
             self.on_pages_event(event);
             self.on_progress_event(topic, event);
+            self.on_diffs_event(topic, event);
             for (only, listener) in &mut self.subscribers.0 {
                 if only.is_none() || *only == kind {
                     listener(topic, event);
@@ -144,6 +145,7 @@ impl State {
             self.load_rules(&id);
             self.load_pages(&id);
             self.ensure_progress_loaded(&id, false);
+            self.diffs_open(&id);
             self.load_retry(&id);
             self.load_interruption(&id);
             self.load_browser(&id);
@@ -185,6 +187,7 @@ impl State {
             self.load_rules(&id);
             self.load_pages(&id);
             self.ensure_progress_loaded(&id, true);
+            self.refetch_diffs();
             self.load_retry(&id);
             self.load_interruption(&id);
             self.load_browser(&id);
@@ -205,6 +208,7 @@ impl State {
     /// Opens or closes the right panel and remembers it for the open session (`setRightPanelCollapsed`).
     pub fn set_content_open(&mut self, open: bool) {
         self.content_open = open;
+        self.diffs_wanted_changed();
         let id = self.open_id();
         self.sidebar.set_right_collapsed(id.as_deref(), !open);
         self.save_settings();

@@ -6,6 +6,8 @@ pub mod asks;
 pub mod browser;
 pub mod context;
 pub mod context_tab;
+#[cfg(test)]
+pub mod diffs;
 pub mod dreaming;
 pub mod export;
 pub mod failure;
