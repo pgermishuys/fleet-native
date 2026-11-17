@@ -21,6 +21,25 @@ pub const COPIED_SECS: f64 = 1.5;
 pub const TERMINAL_COLS: u32 = 100;
 pub const TERMINAL_ROWS: u32 = 14;
 
+/// A folder an install uses (`HarnessFolder`): "Program", "Settings", "Sessions" and where.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Folder {
+    pub label: String,
+    pub path: String,
+}
+
+impl Folder {
+    fn parse_all(v: &Value) -> Vec<Folder> {
+        let text = |f: &Value, k: &str| f.get(k).and_then(Value::as_str).unwrap_or_default().to_string();
+        v.get("folders")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .map(|f| Folder { label: text(f, "label"), path: text(f, "path") })
+            .collect()
+    }
+}
+
 /// One place a harness can be installed (`HarnessInstallChoice`).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Choice {
@@ -29,6 +48,7 @@ pub struct Choice {
     pub description: String,
     pub command: String,
     pub recommended: bool,
+    pub folders: Vec<Folder>,
 }
 
 /// What the server says about setting a harness up (`HarnessInfo.setup`, `presentation`, and the bits of `update` the rows read).
@@ -39,6 +59,10 @@ pub struct Setup {
     pub download_url: Option<String>,
     pub install_choices: Vec<Choice>,
     pub notes: Vec<String>,
+    /// `mode`: how it is installed here, in a few words ("In its own folder"); the Settings install panel shows for one that has it.
+    pub mode: Option<String>,
+    /// The folders the install uses (program, settings, data).
+    pub folders: Vec<Folder>,
     /// `presentation.icon`: `terminal`, `hexagon`, `infinity` or `plug`.
     pub icon: Option<String>,
     /// `presentation.pitch`: the line shown while it isn't installed.
@@ -69,6 +93,7 @@ impl Setup {
                         description: text(c, "description").unwrap_or_default(),
                         command: text(c, "command").unwrap_or_default(),
                         recommended: c.get("recommended").and_then(Value::as_bool) == Some(true),
+                        folders: Folder::parse_all(c),
                     })
                 })
                 .collect(),
@@ -79,6 +104,8 @@ impl Setup {
                 .flatten()
                 .filter_map(|n| n.as_str().map(str::to_string))
                 .collect(),
+            mode: text(setup, "mode"),
+            folders: Folder::parse_all(setup),
             icon: h.pointer("/presentation/icon").and_then(Value::as_str).map(str::to_string),
             pitch: h.pointer("/presentation/pitch").and_then(Value::as_str).filter(|s| !s.is_empty()).map(str::to_string),
             install_plan: h.pointer("/update/installPlan").and_then(Value::as_str).filter(|s| !s.is_empty()).map(str::to_string),

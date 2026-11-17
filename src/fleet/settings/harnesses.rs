@@ -116,7 +116,7 @@ pub fn relative(at: i64, now: i64, offset_secs: i64) -> String {
 }
 
 /// What the page keeps: the machine it last asked, what is on its way, and the one switch being saved.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct HarnessesPage {
     /// The machine the page asked when it opened; a different one under the Settings switch is asked again.
     pub asked: Option<String>,
@@ -129,7 +129,13 @@ pub struct HarnessesPage {
     pub browser_off: bool,
     /// Profiles: the editor that is open, the notice, the reads under way (`HarnessProfilesPanel`).
     pub profiles: super::harness_profiles::Panel,
+    /// The update strips' request, error and "Copied" (`HarnessUpdateStrip`).
+    pub strips: super::harness_update::Strips,
+    /// GitHub Copilot's path field (`HarnessPathField`).
+    pub path: super::harness_path::PathField,
 }
+
+impl Eq for HarnessesPage {}
 
 /// A switch is on as saved; unset (or empty), it is what the harness says its default is (`isSettingOn`).
 pub fn setting_on(setting: &HarnessSetting, prefs: &Prefs) -> bool {
@@ -203,7 +209,7 @@ impl State {
             // The label's clock runs every 15 s.
             tx.wake_after(Duration::from_secs(15));
         }
-        let profiles = self.keep_profiles_panel() | self.limit_profile_name();
+        let profiles = self.keep_profiles_panel() | self.limit_profile_name() | self.keep_harness_path();
         if self.settings.harnesses.asked.as_deref() == Some(machine.as_str()) {
             return profiles;
         }

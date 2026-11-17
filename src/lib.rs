@@ -141,6 +141,8 @@ mod tests_settings_general;
 #[cfg(test)]
 mod tests_settings_harness_editor;
 #[cfg(test)]
+mod tests_settings_harness_install;
+#[cfg(test)]
 mod tests_settings_harness_profiles;
 #[cfg(test)]
 mod tests_settings_harnesses;
@@ -1371,6 +1373,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_memory(tx)
         | s.keep_harnesses_page(tx)
         | s.keep_permissions_page(tx)
+        | s.keep_harness_strips(now, tx)
         | s.keep_updates(now, tx)
         | s.keep_locations(tx)
         | s.keep_dreaming(now, tx)
@@ -1882,6 +1885,38 @@ pub fn spec() -> AppSpec<State> {
             ("settings-permissions-vega-always-light", |s| s.show_permissions(false, mock::permissions::Case::VegaAlways, None)),
             ("settings-permissions-chip", |s| s.show_permissions(true, mock::permissions::Case::Custom, Some("chip"))),
             ("settings-permissions-add", |s| s.show_permissions(true, mock::permissions::Case::Defaults, Some("add"))),
+            ("settings-harness-install-installed", |s| s.show_install(true, mock::harnesses::Install::Installed)),
+            ("settings-harness-install-installed-light", |s| s.show_install(false, mock::harnesses::Install::Installed)),
+            ("settings-harness-install-two", |s| s.show_install(true, mock::harnesses::Install::TwoPlaces)),
+            ("settings-harness-install-two-light", |s| s.show_install(false, mock::harnesses::Install::TwoPlaces)),
+            ("settings-harness-install-one", |s| s.show_install(true, mock::harnesses::Install::OneInstaller)),
+            ("settings-harness-install-one-light", |s| s.show_install(false, mock::harnesses::Install::OneInstaller)),
+            ("settings-harness-install-broken", |s| s.show_install(true, mock::harnesses::Install::Broken)),
+            ("settings-harness-install-broken-light", |s| s.show_install(false, mock::harnesses::Install::Broken)),
+            ("settings-harness-path-found", |s| s.show_install(true, mock::harnesses::Install::PathFound)),
+            ("settings-harness-path-found-light", |s| s.show_install(false, mock::harnesses::Install::PathFound)),
+            ("settings-harness-path-reason", |s| s.show_install(true, mock::harnesses::Install::PathReason)),
+            ("settings-harness-path-reason-light", |s| s.show_install(false, mock::harnesses::Install::PathReason)),
+            ("settings-harness-path-error", |s| s.show_install(true, mock::harnesses::Install::PathError)),
+            ("settings-harness-path-error-light", |s| s.show_install(false, mock::harnesses::Install::PathError)),
+            ("harness-strip-offer", |s| s.show_strip(true, mock::harnesses::Strip::Offer)),
+            ("harness-strip-offer-light", |s| s.show_strip(false, mock::harnesses::Strip::Offer)),
+            ("harness-strip-too-old", |s| s.show_strip(true, mock::harnesses::Strip::TooOld)),
+            ("harness-strip-too-old-light", |s| s.show_strip(false, mock::harnesses::Strip::TooOld)),
+            ("harness-strip-waiting", |s| s.show_strip(true, mock::harnesses::Strip::Waiting)),
+            ("harness-strip-waiting-light", |s| s.show_strip(false, mock::harnesses::Strip::Waiting)),
+            ("harness-strip-running", |s| s.show_strip(true, mock::harnesses::Strip::Running)),
+            ("harness-strip-running-light", |s| s.show_strip(false, mock::harnesses::Strip::Running)),
+            ("harness-strip-succeeded", |s| s.show_strip(true, mock::harnesses::Strip::Succeeded)),
+            ("harness-strip-succeeded-light", |s| s.show_strip(false, mock::harnesses::Strip::Succeeded)),
+            ("harness-strip-failed", |s| s.show_strip(true, mock::harnesses::Strip::Failed)),
+            ("harness-strip-failed-light", |s| s.show_strip(false, mock::harnesses::Strip::Failed)),
+            ("harness-strip-install", |s| s.show_strip(true, mock::harnesses::Strip::Install)),
+            ("harness-strip-install-light", |s| s.show_strip(false, mock::harnesses::Strip::Install)),
+            ("harness-strip-downloading", |s| s.show_strip(true, mock::harnesses::Strip::Downloading)),
+            ("harness-strip-downloading-light", |s| s.show_strip(false, mock::harnesses::Strip::Downloading)),
+            ("harness-strip-refused", |s| s.show_strip(true, mock::harnesses::Strip::Refused)),
+            ("harness-strip-refused-light", |s| s.show_strip(false, mock::harnesses::Strip::Refused)),
             ("settings-profiles-none", |s| s.show_profiles(true, mock::harnesses::Profiles::None)),
             ("settings-profiles-none-light", |s| s.show_profiles(false, mock::harnesses::Profiles::None)),
             ("settings-profiles-loading", |s| s.show_profiles(true, mock::harnesses::Profiles::Loading)),

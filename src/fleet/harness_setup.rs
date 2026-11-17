@@ -202,6 +202,7 @@ fn opencode2() -> HarnessEntry {
                 description: "Fleet runs it from a folder of its own, with its own settings and sessions. OpenCode 1 can be installed next to it at any time.".into(),
                 command: separate.into(),
                 recommended: true,
+                folders: Vec::new(),
             },
             Choice {
                 id: "default".into(),
@@ -209,6 +210,7 @@ fn opencode2() -> HarnessEntry {
                 description: "OpenCode 2's usual install, added to your PATH. Installing OpenCode 1 later replaces OpenCode 2.".into(),
                 command: "curl -fsSL https://opencode.ai/v2/install | bash".into(),
                 recommended: false,
+                folders: Vec::new(),
             },
         ],
         notes: vec!["OpenCode 1 is installed here, so OpenCode 2 goes into a folder of its own.".into(), "OpenCode 2 keeps its own provider sign-ins here.".into()],
@@ -277,6 +279,8 @@ impl State {
                 copilot.setup.install_command = None;
                 copilot.setup.pitch = Some("GitHub's coding agent. Needs a GitHub Copilot subscription.".into());
                 copilot.setup.install_plan = Some("Fleet downloads weave-copilot 0.2.2 and the Copilot CLI 1.0.105 from GitHub.".into());
+                copilot.card.update.can_install = true;
+                copilot.card.update.install_plan = copilot.setup.install_plan.clone();
                 all = vec![opencode, copilot];
             }
             _ => {}
