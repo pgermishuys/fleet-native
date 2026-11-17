@@ -2,10 +2,12 @@
 //! harness's profiles, the default, and the requests that make, change and remove them. A profile written here is the one the
 //! new-session box's chip lists: both read `feeds.profiles` (B5.158). The editor in a row is piece I's; this holds the state
 //! that says which one is open.
+mod editor;
 mod jsonc;
 #[cfg(test)]
 mod tests;
 
+pub use editor::{Busy, Draft, MAX_NAME_CHARS, UNTITLED, saved_words};
 pub use jsonc::{NEW_PROFILE_CONTENT, parse_jsonc, profile_summary};
 
 use crate::State;
@@ -23,11 +25,13 @@ pub enum Editing {
 
 /// What the panel keeps: the editor that is open, the line it says after one closes, a failed change of the default, and which
 /// harness's profiles are being read or couldn't be.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Panel {
     /// The harness the three below belong to; another harness's tab shows none of them (each tab is its own panel in Fleet).
     pub harness: String,
     pub editing: Option<Editing>,
+    /// The open editor's form: its two boxes, what it is busy with and what the harness said.
+    pub draft: Option<Draft>,
     pub notice: Option<String>,
     pub list_error: Option<String>,
     asking: HashSet<(String, String)>,
@@ -41,6 +45,9 @@ pub enum Load {
     Failed,
     Loaded,
 }
+
+// A text edit is equal to itself.
+impl Eq for Panel {}
 
 impl Panel {
     /// The panel as `harness`'s tab shows it: the editor and the lines are `harness`'s own, or nothing.
@@ -120,7 +127,14 @@ impl Check {
         }
         let v: Value = serde_json::from_str(body).unwrap_or_default();
         let text = |k: &str| v.get(k).and_then(Value::as_str).map(str::to_string);
-        Check { ok: v.get("ok").and_then(Value::as_bool) == Some(true), error: text("error"), details: text("details") }
+        // Fleet sends the details as a list of lines; one line as a string is read too.
+        let details = match v.get("details") {
+            Some(Value::Array(lines)) => Some(lines.iter().filter_map(Value::as_str).collect::<Vec<_>>().join("\n")),
+            Some(Value::String(line)) => Some(line.clone()),
+            _ => None,
+        }
+        .filter(|d| !d.is_empty());
+        Check { ok: v.get("ok").and_then(Value::as_bool) == Some(true), error: text("error"), details }
     }
 }
 
@@ -183,6 +197,12 @@ impl State {
     pub fn open_profile_editor(&mut self, harness: &str, editing: Editing) {
         let panel = &mut self.settings.harnesses.profiles;
         panel.mine(harness);
+        let profile = match &editing {
+            Editing::Edit(id) => self.harness_profiles(harness).into_iter().find(|p| &p.id == id),
+            Editing::New(_) => None,
+        };
+        let panel = &mut self.settings.harnesses.profiles;
+        panel.draft = Some(Draft::open(&editing, profile.as_ref().map(|p| (p.name.as_str(), p.content.as_str()))));
         panel.editing = Some(editing);
         panel.notice = None;
         panel.list_error = None;
@@ -193,6 +213,7 @@ impl State {
         let panel = &mut self.settings.harnesses.profiles;
         panel.mine(harness);
         panel.editing = None;
+        panel.draft = None;
         if message.is_some() {
             panel.notice = message;
         }

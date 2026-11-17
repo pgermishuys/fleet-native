@@ -1414,3 +1414,10 @@ Plain Rust, no view, so nothing new about Rune. For the next piece that draws th
 - **One-sided borders** are `border_sides([top, right, bottom, left], colour).border_layout()` (the rules between the preview's rows).
 - **A snapshot doesn't scroll to an anchor** (`--snap` takes the first frames), so a scene of a card below the fold uses a tall `--size`.
 
+
+## Component 16, piece I (the code box)
+
+- **No code editor, so the box is a mono multi-line `text_input` in a scroll with a column of numbers beside it** (`ui::code_box`). The text wraps (`text_input` always wraps; there is no unwrapped multi-line field), so the numbers go by lines of the text and the ones under a wrapped line sit a row too high. No colours while typing, no bracket matching or closing.
+- **`on_input_key` sees Ctrl/⌘ S and Tab before the field**: returning true keeps Tab from leaving the field, so Tab can insert two spaces with `TextEdit::insert`.
+- **The caret's line is `TextEdit::focus` (a byte offset) counted in `\n`s**; the box needs no layout for its active line number.
+- **A test must let the page settle before it presses a button in a row that just opened**: after the press that opens an editor, the layout moves for a few frames and `rt.find` gives a place the pointer doesn't hit yet (`element_at` named the page, not the button). Run ~30 frames, and give the headless window `set_viewport((1280, 2600), 1.0)` so the editor's buttons are in view.

@@ -5,6 +5,7 @@
 pub mod age;
 pub mod button;
 pub mod chip;
+pub mod code_box;
 pub mod commands;
 pub mod confirm;
 pub mod controls;

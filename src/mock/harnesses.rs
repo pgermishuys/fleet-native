@@ -4,7 +4,7 @@ use crate::State;
 use crate::fleet::new_session::feeds::Profile;
 use crate::fleet::new_session::harness_choice::{Card, HarnessEntry, HarnessSetting};
 use crate::fleet::settings::HOME_MACHINE_KEY;
-use crate::fleet::settings::harness_profiles::Editing;
+use crate::fleet::settings::harness_profiles::{Check, Editing};
 
 /// How the harnesses are doing in a scene.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -51,6 +51,10 @@ pub fn harnesses(checked_at: &str) -> Vec<HarnessEntry> {
     opencode.version = Some("2.0.6".into());
     opencode.executable_path = Some("/usr/local/bin/opencode2".into());
     opencode.supports_profiles = true;
+    opencode.card.profile_note = Some(
+        "Fleet hands this to OpenCode 2 as `OPENCODE_CONFIG`, on top of your own opencode.json. Fleet's own settings (every tool allowed, the Fleet plugin) still apply after it. Keep API keys out of it: sign in to providers in OpenCode 2 itself, or refer to a variable Fleet runs with as `{env:NAME}`. Sessions on a profile run on an OpenCode 2 server of their own, which stops after a few minutes unused."
+            .into(),
+    );
     let mut claude = entry(
         "claude-code",
         "Claude Code",
@@ -117,6 +121,14 @@ pub enum Profiles {
     Edit,
     /// Three, after "Set default" on the second.
     Chosen,
+    /// The editor of the one that doesn't read: the note about its text.
+    EditBroken,
+    /// The first one's editor after Test passed.
+    TestOk,
+    /// The first one's editor after Test failed, with the harness's lines.
+    TestFailed,
+    /// The first one's editor, Delete pressed once.
+    DeleteAsk,
 }
 
 fn profile(id: &str, name: &str, content: &str, default: bool, open: u32) -> Profile {
@@ -129,7 +141,7 @@ pub fn profiles() -> Vec<Profile> {
         profile(
             "p-work",
             "Work",
-            "{\n  // Models through the company gateway\n  \"model\": \"gateway/large\",\n  \"provider\": { \"gateway\": {} },\n  \"mcp\": { \"docs\": {}, \"tickets\": {} },\n}",
+            "{\n  // Models through the company gateway\n  \"model\": \"gateway/large\",\n  \"mcp\": { \"docs\": { \"type\": \"remote\", \"url\": \"https://docs.example.test/mcp\" } },\n}",
             true,
             0,
         ),
@@ -158,7 +170,14 @@ impl State {
                 self.feeds.profiles.remove(&key);
                 self.settings.harnesses.profiles.mark_failed(key);
             }
-            Profiles::Three | Profiles::New | Profiles::Edit | Profiles::Chosen => {
+            Profiles::Three
+            | Profiles::New
+            | Profiles::Edit
+            | Profiles::Chosen
+            | Profiles::EditBroken
+            | Profiles::TestOk
+            | Profiles::TestFailed
+            | Profiles::DeleteAsk => {
                 let mut list = profiles();
                 if case == Profiles::Chosen {
                     list = crate::fleet::settings::harness_profiles::with_default(&list, Some("p-local"));
@@ -170,6 +189,22 @@ impl State {
             Profiles::New => self.open_profile_editor("opencode2", Editing::New(None)),
             Profiles::Edit => self.open_profile_editor("opencode2", Editing::Edit("p-work".into())),
             Profiles::Chosen => self.settings.harnesses.profiles.notice = Some("New sessions start with Local only.".into()),
+            Profiles::EditBroken => self.open_profile_editor("opencode2", Editing::Edit("p-draft".into())),
+            Profiles::TestOk | Profiles::TestFailed | Profiles::DeleteAsk => {
+                self.open_profile_editor("opencode2", Editing::Edit("p-work".into()));
+                if let Some(d) = self.settings.harnesses.profiles.draft.as_mut() {
+                    d.confirming_delete = case == Profiles::DeleteAsk;
+                    d.result = match case {
+                        Profiles::TestOk => Some(Check { ok: true, ..Check::default() }),
+                        Profiles::TestFailed => Some(Check {
+                            ok: false,
+                            error: Some("OpenCode 2 couldn't load this profile: unknown key \"provider.gateway.url\".".into()),
+                            details: Some("line 4, column 22: expected a string\nline 5: \"mcp\" has no entry named \"docs\"".into()),
+                        }),
+                        _ => None,
+                    };
+                }
+            }
             _ => {}
         }
         self.open_harness("opencode2", Some("profiles"));
