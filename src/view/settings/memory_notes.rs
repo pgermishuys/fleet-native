@@ -13,7 +13,7 @@ use std::rc::Rc;
 
 // ─── Buttons ────────────────────────────────────────────────────────────────
 
-fn pressable(e: El, key: String, label: &str, disabled: bool, press: impl Fn(&mut State) + 'static) -> El {
+pub fn pressable(e: El, key: String, label: &str, disabled: bool, press: impl Fn(&mut State) + 'static) -> El {
     e.key(key).role("button").label(label.to_string()).focusable(true).cursor(Cursor::Pointer).disabled(disabled).on_press(press)
 }
 

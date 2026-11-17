@@ -135,6 +135,8 @@ mod tests_settings_appearance;
 #[cfg(test)]
 mod tests_settings_appearance_page;
 #[cfg(test)]
+mod tests_settings_dreaming;
+#[cfg(test)]
 mod tests_settings_general;
 #[cfg(test)]
 mod tests_settings_harness_profiles;
@@ -1351,7 +1353,8 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_memory(tx)
         | s.keep_harnesses_page(tx)
         | s.keep_updates(now, tx)
-        | s.keep_locations(tx);
+        | s.keep_locations(tx)
+        | s.keep_dreaming(now, tx);
     // "Copied" on a message's button ends by itself.
     let copied = match &s.copied {
         Some((_, until)) if now >= *until => {
@@ -1694,6 +1697,22 @@ pub fn spec() -> AppSpec<State> {
             ("settings-memory-confirm-clear-light", |s| mock::memory::scene(s, false, mock::memory::Variant::ConfirmClear)),
             ("settings-memory-empty", |s| mock::memory::scene(s, true, mock::memory::Variant::Empty)),
             ("settings-memory-empty-light", |s| mock::memory::scene(s, false, mock::memory::Variant::Empty)),
+            ("settings-dreaming-last-night", |s| mock::dreaming::scene(s, true, mock::dreaming::Variant::LastNight)),
+            ("settings-dreaming-last-night-light", |s| mock::dreaming::scene(s, false, mock::dreaming::Variant::LastNight)),
+            ("settings-dreaming-flags", |s| mock::dreaming::scene(s, true, mock::dreaming::Variant::Flags)),
+            ("settings-dreaming-flags-light", |s| mock::dreaming::scene(s, false, mock::dreaming::Variant::Flags)),
+            ("settings-dreaming-flag-editing", |s| mock::dreaming::scene(s, true, mock::dreaming::Variant::FlagEditing)),
+            ("settings-dreaming-flag-editing-light", |s| mock::dreaming::scene(s, false, mock::dreaming::Variant::FlagEditing)),
+            ("settings-dreaming-running", |s| mock::dreaming::scene(s, true, mock::dreaming::Variant::Running)),
+            ("settings-dreaming-running-light", |s| mock::dreaming::scene(s, false, mock::dreaming::Variant::Running)),
+            ("settings-dreaming-failed", |s| mock::dreaming::scene(s, true, mock::dreaming::Variant::Failed)),
+            ("settings-dreaming-failed-light", |s| mock::dreaming::scene(s, false, mock::dreaming::Variant::Failed)),
+            ("settings-dreaming-evidence", |s| mock::dreaming::scene(s, true, mock::dreaming::Variant::Evidence)),
+            ("settings-dreaming-evidence-light", |s| mock::dreaming::scene(s, false, mock::dreaming::Variant::Evidence)),
+            ("settings-dreaming-rewritten-merged", |s| mock::dreaming::scene(s, true, mock::dreaming::Variant::RewrittenMerged)),
+            ("settings-dreaming-rewritten-merged-light", |s| mock::dreaming::scene(s, false, mock::dreaming::Variant::RewrittenMerged)),
+            ("settings-dreaming-error", |s| mock::dreaming::scene(s, true, mock::dreaming::Variant::Error)),
+            ("settings-dreaming-error-light", |s| mock::dreaming::scene(s, false, mock::dreaming::Variant::Error)),
             ("settings-general-flipped", |s| {
                 s.dark = Some(true);
                 s.open_settings("general", None);

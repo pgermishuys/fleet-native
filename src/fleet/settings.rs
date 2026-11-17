@@ -8,6 +8,8 @@
 pub mod anchor;
 pub mod appearance;
 pub mod code_themes;
+pub mod dreaming;
+pub mod dreaming_actions;
 pub mod harness_profiles;
 pub mod harnesses;
 pub mod locations;
@@ -68,6 +70,8 @@ pub struct Sidebar {
     notices_shown: Vec<String>,
     /// The Appearance page's choices (`weave:theme`, `weave:code-theme`, `weave:font-size`, `weave:thinking`).
     appearance: appearance::Appearance,
+    /// The harness picked for "Dream now", one for the install, not per machine (`weave:dreaming-harness`).
+    dreaming_harness: Option<String>,
     dir: Option<PathBuf>,
     dirty: bool,
 }
@@ -113,6 +117,7 @@ impl Sidebar {
             s.notices_shown = ids.iter().filter_map(|v| v.as_str().map(String::from)).collect();
         }
         s.appearance = appearance::Appearance::parse(&root);
+        s.dreaming_harness = root.get("dreamingHarness").and_then(Value::as_str).filter(|h| !h.is_empty()).map(str::to_string);
         s
     }
 
@@ -136,6 +141,9 @@ impl Sidebar {
             root["noticesShown"] = json!(self.notices_shown);
         }
         self.appearance.write(&mut root);
+        if let Some(h) = &self.dreaming_harness {
+            root["dreamingHarness"] = json!(h);
+        }
         serde_json::to_string_pretty(&root).unwrap_or_default()
     }
 
@@ -274,6 +282,18 @@ impl Sidebar {
             None => self.default_harness.remove(machine).is_some(),
         };
         self.dirty |= changed;
+    }
+
+    /// The harness last picked for "Dream now".
+    pub fn dreaming_harness(&self) -> Option<&str> {
+        self.dreaming_harness.as_deref()
+    }
+
+    pub fn save_dreaming_harness(&mut self, harness: &str) {
+        if self.dreaming_harness.as_deref() != Some(harness) {
+            self.dreaming_harness = Some(harness.to_string());
+            self.dirty = true;
+        }
     }
 
     /// The repositories a machine last listed (`readSaved("repositories", key)`); none the first time.

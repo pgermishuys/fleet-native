@@ -3,6 +3,8 @@
 //! one note (decision 1 of docs/parity/16-settings.md); Machines is component 17's page.
 pub mod appearance;
 pub mod appearance_cards;
+pub mod dream_changes;
+pub mod dreaming_panel;
 pub mod folders;
 pub mod folders_browse;
 pub mod folders_locations;

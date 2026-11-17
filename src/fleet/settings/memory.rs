@@ -322,7 +322,7 @@ pub fn kind_label(kind: &str) -> &'static str {
 
 /// What Settings → Memory holds while it is open (`MemorySection.vue`'s refs). Dropped when the page is left, so coming back
 /// reads the machine again, as the page mounting does.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct MemoryPage {
     pub overview: Option<Overview>,
     pub notes: Option<Notes>,
@@ -337,6 +337,8 @@ pub struct MemoryPage {
     pub loaded_for: Option<String>,
     /// Numbers each read so one a newer read has overtaken is dropped when it arrives.
     pub request: u64,
+    /// The Dreaming panel's state (`DreamingPanel.vue`), dropped with the page.
+    pub dreaming: super::dreaming::DreamingPage,
 }
 
 impl MemoryPage {
@@ -349,3 +351,6 @@ impl MemoryPage {
         self.enabled() && self.notes.is_some()
     }
 }
+
+// The Dreaming panel holds a text edit, which is equal to itself.
+impl Eq for MemoryPage {}

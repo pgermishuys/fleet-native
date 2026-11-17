@@ -266,6 +266,11 @@ impl State {
         }
     }
 
+    /// A dream changed notes (it ended, or a change was undone or settled): the lists are read again.
+    pub fn memory_read_notes_again(&mut self) {
+        self.run_memory(vec![], Reread::Everything, Done::Nothing);
+    }
+
     /// The repository select (`watch(repository)`): the notes of the new one are read under the lock.
     pub fn memory_choose_repository(&mut self, path: &str) {
         let page = &mut self.settings.memory;
