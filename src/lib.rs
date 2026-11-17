@@ -159,6 +159,8 @@ mod tests_settings_naming;
 #[cfg(test)]
 mod tests_settings_nav;
 #[cfg(test)]
+mod tests_settings_storage;
+#[cfg(test)]
 mod tests_sign_in;
 #[cfg(test)]
 mod tests_skills;
@@ -1361,7 +1363,8 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_updates(now, tx)
         | s.keep_locations(tx)
         | s.keep_dreaming(now, tx)
-        | s.keep_naming(now, tx);
+        | s.keep_naming(now, tx)
+        | s.keep_storage(tx);
     // "Copied" on a message's button ends by itself.
     let copied = match &s.copied {
         Some((_, until)) if now >= *until => {
@@ -1589,6 +1592,29 @@ fn locations_scene(s: &mut State, dark: bool, change: impl FnOnce(&mut fleet::se
     s.settings.locations = page;
 }
 
+/// Settings → Folders scrolled to the Storage card, read: the invented checkouts, measured, or what `change` makes of the page.
+fn storage_scene(s: &mut State, dark: bool, change: impl FnOnce(&mut fleet::settings::storage::StoragePage)) {
+    locations_scene(s, dark, |_| {});
+    s.open_settings("folders", Some("storage"));
+    let key = s.settings.choice.key(&s.machines).to_string();
+    let mut page = fleet::settings::storage::StoragePage { loaded_for: Some(key), run: 1, ..Default::default() };
+    page.adopt(mock::storage::listing(), mock::storage::sizes());
+    change(&mut page);
+    s.now_ms = Some(1_789_000_000_000);
+    s.settings.storage = page;
+}
+
+/// The invented clean's answer: the first checkout gone, the second kept because a terminal is open in it.
+fn storage_reported(p: &mut fleet::settings::storage::StoragePage) {
+    let removed = p.checkouts[0].clone();
+    let mut kept = p.checkouts[1].clone();
+    kept.reason = "A terminal is open in it.".into();
+    p.report_sizes = p.sizes.clone();
+    p.checkouts.remove(0);
+    p.checkouts[0].verdict = fleet::settings::storage::Verdict::Keep;
+    p.report = Some(fleet::settings::storage::Report { removed: vec![removed], kept: vec![kept, p.checkouts[1].clone()] });
+}
+
 /// Settings → Folders with the Worktrees card read: Fleet's defaults, or the fields `change` sets, marked as already read.
 fn naming_scene(s: &mut State, dark: bool, change: impl FnOnce(&mut fleet::settings::naming_draft::NamingPage)) {
     locations_scene(s, dark, |_| {});
@@ -1672,6 +1698,26 @@ pub fn spec() -> AppSpec<State> {
             }),
             // Piece D: General with every switch the other way round and the first More open; the Large pastes list open.
             // Component 16, piece P: Memory off, on (the lists come with the next piece), still loading, and a failed read.
+            ("settings-storage", |s| storage_scene(s, true, |_| {})),
+            ("settings-storage-light", |s| storage_scene(s, false, |_| {})),
+            ("settings-storage-arriving", |s| {
+                storage_scene(s, true, |p| {
+                    p.sizes.remove("w3");
+                })
+            }),
+            ("settings-storage-arriving-light", |s| {
+                storage_scene(s, false, |p| {
+                    p.sizes.remove("w3");
+                })
+            }),
+            ("settings-storage-preview", |s| storage_scene(s, true, |p| p.previewing = true)),
+            ("settings-storage-preview-light", |s| storage_scene(s, false, |p| p.previewing = true)),
+            ("settings-storage-cleaning", |s| storage_scene(s, true, |p| (p.previewing, p.cleaning) = (true, true))),
+            ("settings-storage-cleaning-light", |s| storage_scene(s, false, |p| (p.previewing, p.cleaning) = (true, true))),
+            ("settings-storage-report", |s| storage_scene(s, true, storage_reported)),
+            ("settings-storage-report-light", |s| storage_scene(s, false, storage_reported)),
+            ("settings-storage-nothing", |s| storage_scene(s, true, |p| p.checkouts.retain(|c| c.workspace_id == "w5"))),
+            ("settings-storage-nothing-light", |s| storage_scene(s, false, |p| p.checkouts.retain(|c| c.workspace_id == "w5"))),
             ("settings-worktrees", |s| naming_scene(s, true, |_| {})),
             ("settings-worktrees-light", |s| naming_scene(s, false, |_| {})),
             ("settings-worktrees-filled", |s| naming_scene(s, true, naming_filled)),

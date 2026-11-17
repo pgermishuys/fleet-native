@@ -35,6 +35,7 @@ pub mod rows;
 pub mod rules;
 pub mod running;
 pub mod sign_in;
+pub mod storage;
 pub mod tools;
 pub mod update;
 pub mod usage;

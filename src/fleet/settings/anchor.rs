@@ -40,6 +40,7 @@ pub fn targets(page: &Page) -> &'static [(&'static str, &'static str)] {
             ("profiles", "settings-group-profiles"),
             ("harness-settings", "settings-group-harness-settings"),
         ],
+        Page::Folders => &[("storage", "settings-anchor-storage")],
         _ => &[],
     }
 }

@@ -288,7 +288,7 @@ Built in `src/fleet/settings/harnesses.rs` (state and labels, `Status`, summary 
 Built in `src/fleet/settings/locations.rs` (roots, the browse answer, breadcrumbs, `run`: the change, then the list, then a scan), `locations_actions.rs` (the page's reads on the machine Settings shows, Refresh, Add, Remove, Browse), `src/view/settings/folders.rs`, `folders_locations.rs`, `folders_browse.rs`, `src/mock/locations.rs`, `http::remove_workspace_root` and `http::browse_directory`, scenes `settings-folders-list`, `-empty`, `-error`, `-loading`, `-adding`, `-add-error`, `-removing`, `-browse-roots`, `-browse-folder` (+ `-light`).
 
 - **Done:** 10.1, 10.2 (the page asks the machine shown; tested against a second machine), 10.4-10.21. Rows 10.5-10.6: Refresh only re-reads. 10.15: Remove then list then scan, "Removing…" on its own row, a refusal replaces the list. 10.18: Browse opens on the machine's roots, unconstrained, with crumbs, search, Select and "Use this directory". 10.19: trimmed path, box cleared on success, "Enter the folder to add." with no call.
-- **Open, with reason:** 10.3 (the Storage anchor) is piece AC's, with its card. The Worktrees and Storage cards (10.22-10.53) are AB and AC. The Locations spinner shows after the change is answered, not between the change and the list (one thread runs the three calls). The popover's hover colour on a row's border and Select's reveal use Rune's group colour; no hover border (out of reach, Part 10).
+- **Open, with reason:** the Worktrees and Storage cards (10.22-10.53) are AB and AC (AC done). The Locations spinner shows after the change is answered, not between the change and the list (one thread runs the three calls). The popover's hover colour on a row's border and Select's reveal use Rune's group colour; no hover border (out of reach, Part 10).
 - **Differences from Fleet:** the scratch Fleet's v0.72.0 client draws the empty state's title and line smaller than `main`'s `EmptyState`; native follows the source. Fleet's pictures show the Worktrees card under Folders (AB). Fleet's browse picture lists the scratch machine's real root folders (`/run`, `/sys`), native an invented tree. A server error body is read for its `error` text, where Fleet's `String(apiError)` would print `[object Object]`.
 - **Tests:** native only (Fleet has none): `src/tests_settings_locations.rs`, 29 cases: list and chips, no Remove for an environment root, Missing on disk, empty, error words and fallback, a long path, Refresh does not scan, the call order of Add and Remove, trimmed body, empty add, Enter adds, refused add and remove, Browse (roots, into a folder, Use, Select, search), the machine shown, a re-read on coming back, the invented list with no Fleet.
 - **Pictures:** `shots/parity/16-aa-folders-locations/` (`fleet-*` beside `native-*`, both themes). Fleet's list, empty, error and loading are the scratch server's own client with `GET /api/workspace-roots` answered by Playwright with the same invented roots the scenes use (the scratch server has no environment root); its Browse picture is live.
@@ -1991,7 +1991,7 @@ native app yet" note (decision 1) and adds its scenes to `spec()`.
 | **Z** | Harnesses: the Weave config dialog | 5.130-5.142 | Y, I | Part 5, local H | ~650 |
 | **AA** | Folders: Locations (done 17 Nov) | 10.1-10.21 | B, C | Part 10-11, 10-A | ~500 |
 | **AB** | Folders: Worktree naming (done 17 Nov) | 10.22-10.34 | AA | Part 10-11, 10-B | ~400 |
-| **AC** | Folders: Storage | 10.3, 10.35-10.53 | AA | Part 10-11, 10-C | ~600 |
+| **AC** | Folders: Storage (done 17 Nov) | 10.3, 10.35-10.53 | AA | Part 10-11, 10-C | ~600 |
 | **AD** | Plugins: the table, the switches, the overview and a plugin's page; the menu's Plugins count, fold and children | 1.15, 1.16, 11.1-11.34, 11.57-11.59 | B | Part 10-11, 11-A and 11-B | ~700 |
 | **AE** | Plugins: the Mods and Built-in skills entries, and the Mods runtime panel | 11.19, 11.50-11.53, 8.130-8.134 | AD | Part 10-11, 11-C; Part 8 rows 8.130-8.134 | ~600 |
 | **AF** | Plugins: GitHub, the connection page | 11.35-11.37, 11.40-11.49 | AD | Part 10-11, 11-D | ~650 |
@@ -2098,3 +2098,14 @@ file under about 500 lines.
 - A live run on a scratch Fleet through every page, and with a second scratch Fleet the machine switch on each page.
 - Fleet's tests: every case named in this file ported or given its reason.
 - Pictures of every page beside Fleet's, both themes, under `shots/parity/16-settings/sweep/`.
+
+### Piece AC: done (17 November 2026)
+
+Built in `src/fleet/settings/storage.rs` (checkouts, `sum_of` and its labels, plurals, the report, the size cache with its 5-minute TTL on the app's clock, the page the card keeps), `storage_actions.rs` (the read, the pool of three size walks, Preview, the clean and the report, all on the machine Settings shows), `src/view/settings/folders_storage.rs`, `src/mock/storage.rs` (the invented checkouts when there is no Fleet; a clean there only edits that list), the anchor `storage` in `anchor.rs`, scenes `settings-storage`, `-arriving`, `-preview`, `-cleaning`, `-report`, `-nothing` (+ `-light`). Byte labels use component 6's `format_bytes`.
+
+- **Done:** 10.3, 10.35-10.53. Errors use the server's `detail`/`error`/`title`/`message` (`extract_error`), not Fleet's `String(apiError)`.
+- **Decision taken, owner may change it (10.39):** Rune has no "on screen" signal, so sizes start when the Folders page opens (counts first), still three at a time and removable folders first. Fleet's sixth test ("waits to measure until the section is on screen") is ported as: nothing is measured while Folders isn't open, and counts show "— in 5 checkouts" before sizes arrive.
+- **Differences from Fleet:** the sizes' number format is a fixed `.` decimal (component 6's helper). The Storage card's hover on Preview/Cancel is a fill only (no hover border, Rune).
+- **Tests:** `src/tests_settings_storage.rs`, 14 cases: Fleet's six under their names (the sixth as above), plus the read and clean error lines, the anchor, `sum_of` labels, the size cache and the list parser. All against a fake server with invented checkouts.
+- **Pictures:** `shots/parity/16-ac-storage/` (`fleet-*` beside `native-*`, six states, both themes, 1280 by 2100). Fleet's side is the scratch Fleet's own client with the three storage calls answered by Playwright with invented checkouts (`harbor-api`, `lumen-site`), because a scratch Fleet has no sessions archived for 7 days. Native is drawn from the matching scenes. The server is v0.72.0; the card is unchanged on `main`.
+
