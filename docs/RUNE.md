@@ -1537,3 +1537,7 @@ Nothing about Rune: plain Rust. One thing for the pieces that draw it: word mark
   answers and wait for that with `test_wait::recv`; hold an answer back with a channel to test events that arrive during a load.
 - **A scripted run against a live Fleet** closes a server tab with `canvas-tab-close-<tab id>`, which only exists while the tab is
   active; a DELETE really closes the canvas on the server, so re-focus it (`POST .../canvases/{id}/focus`) before each run.
+## Component 12, piece D (the Changes body's states)
+
+- **No whole-text select on press** (`user-select: all` on the fix command): the command is `selectable(true)`, so a drag or double-click selects it, but one click does not select it all. Copy command is the way to take it whole.
+- **A margin on a full-width element overflows its parent**: Fleet's `m-3` on the error note is a wrapper with padding around a `w_full` note; `mx`/`my` on the note itself pushed it past the panel's right edge.

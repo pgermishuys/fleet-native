@@ -95,7 +95,7 @@ Files tab, each in both themes.
 | 1.9 | `isWanted`: while nothing shows the diffs (the panel closed), a file change only marks the list stale; it loads when the panel opens and the list is stale | UD 161-166, 213-221; `sessions.$id.tsx` 145-148 | Done in piece A (`fleet::diffs`, 17 November 2026); `isWanted` is `content_open` (the phone tray has no desktop counterpart) |
 | 1.10 | The session opening asks once (`join`) | `sessions.$id.tsx` 186-195, `SessionsV2RightPanel` 76-84 | Done in piece A (`fleet::diffs`, 17 November 2026); `after_open` asks (joined), and a reconnect asks afresh |
 | 1.11 | What the list feeds elsewhere: the Changes tab's count (`diffs.length`, component 10), `panelHasContent`'s `changedFiles` and `changesFailed` (component 10), the file tree's changed marks and the file tab's diff (component 11) | `CanvasHost.vue` 63, 358; `panel-content.ts`; `FileBrowserPanel.vue` 27-33 | Seam done: `State.diffs`; the readers are 10's and 11's |
-| 1.12 | `diffBaseLabel`: branch → "Compared with `<branch or main>`", the short commit (7), tooltip "What this branch changes since it left main at `abc1234`, committed or not. Rebasing onto main or pulling it doesn't add other people's work."; session → "Since this session started", tooltip "This folder isn't on a branch of its own, so its changes are compared with how it was when the session started." | `lib/diff-base.ts` | Done in piece A (`fleet::diffs`, 17 November 2026); `diff_base_label`, words identical (drawn in piece D) |
+| 1.12 | `diffBaseLabel`: branch → "Compared with `<branch or main>`", the short commit (7), tooltip "What this branch changes since it left main at `abc1234`, committed or not. Rebasing onto main or pulling it doesn't add other people's work."; session → "Since this session started", tooltip "This folder isn't on a branch of its own, so its changes are compared with how it was when the session started." | `lib/diff-base.ts` | Done in piece A (`fleet::diffs`, 17 November 2026); `diff_base_label`, words identical (drawn in piece D: **done**, 17 November 2026) |
 
 ## Part 2: one file's contents (`use-file-diff-contents.ts`)
 
@@ -124,14 +124,14 @@ Files tab, each in both themes.
 
 | # | Element / behaviour | Source | Native today |
 |---|---|---|---|
-| 4.1 | The body fills the tab: a column, `overflow:hidden` | CC 112-118 | None |
-| 4.2 | The base line, only while there are no changes: 12 px `--muted`, padding `10px 16px 0`, gap 6; `git-branch` (branch) or `history` (session) icon 12 at `--muted` 75 %; the label; the short commit in mono 11.5 at `--muted` 80 %; the tooltip is the label's detail (1.12) | CC 43-61, 121-142 | None |
-| 4.3 | Loading: "Loading changes…", 13 px `--muted`, padding `14px 18px`, until the first answer (`hasLoaded`) | CC 62-68, 144-149 | None |
-| 4.4 | Load failed (no changes and an error): `ErrorNote` "Couldn't load the changes." with the reason and **Try again** (disabled while it runs), margin 12 (`m-3`). **Newer than v0.72.0** (v0.72.0 drew its own block with "Trying…") | CC 69-77 | None |
-| 4.5 | Git refused the folder: the server's message; "To let git read it, run this once:" in `--muted`; the command in a mono 12 box (padding `6px 8px`, 1px `--border`, fill `--muted` 10 %, wraps anywhere, selects whole); a **Copy command** button (min height 28, padding `4px 12px`, 1px `--border`) that reads "Copied" after copying | CC 78-100, 151-189 | None |
-| 4.6 | Empty: `EmptyState compact` with the `git-compare` icon, "No changes on this branch yet" (branch) or "No changes in this session yet". **Newer than v0.72.0** (was a plain line with a full stop) | CC 101-106 | None |
-| 4.7 | Otherwise the review (parts 5-12) | CC 107-110 | None |
-| 4.8 | Both themes; long refusal message and command wrap | CC css | None |
+| 4.1 | The body fills the tab: a column, `overflow:hidden` | CC 112-118 | Done in piece D (17 November 2026), `src/view/changes.rs` |
+| 4.2 | The base line, only while there are no changes: 12 px `--muted`, padding `10px 16px 0`, gap 6; `git-branch` (branch) or `history` (session) icon 12 at `--muted` 75 %; the label; the short commit in mono 11.5 at `--muted` 80 %; the tooltip is the label's detail (1.12) | CC 43-61, 121-142 | Done in piece D (17 November 2026), `src/view/changes.rs` |
+| 4.3 | Loading: "Loading changes…", 13 px `--muted`, padding `14px 18px`, until the first answer (`hasLoaded`) | CC 62-68, 144-149 | Done in piece D (17 November 2026), `src/view/changes.rs` |
+| 4.4 | Load failed (no changes and an error): `ErrorNote` "Couldn't load the changes." with the reason and **Try again** (disabled while it runs), margin 12 (`m-3`). **Newer than v0.72.0** (v0.72.0 drew its own block with "Trying…") | CC 69-77 | Done in piece D (17 November 2026), `src/view/changes.rs` |
+| 4.5 | Git refused the folder: the server's message; "To let git read it, run this once:" in `--muted`; the command in a mono 12 box (padding `6px 8px`, 1px `--border`, fill `--muted` 10 %, wraps anywhere, selects whole); a **Copy command** button (min height 28, padding `4px 12px`, 1px `--border`) that reads "Copied" after copying | CC 78-100, 151-189 | Done in piece D. Gap: the command box selects by drag, not whole on one click (Rune has no select-all-on-press; `docs/RUNE.md`) |
+| 4.6 | Empty: `EmptyState compact` with the `git-compare` icon, "No changes on this branch yet" (branch) or "No changes in this session yet". **Newer than v0.72.0** (was a plain line with a full stop) | CC 101-106 | Done in piece D (17 November 2026), `src/view/changes.rs` |
+| 4.7 | Otherwise the review (parts 5-12) | CC 107-110 | Done in piece D as the slot; a stand-in line until piece E draws the review |
+| 4.8 | Both themes; long refusal message and command wrap | CC css | Done in piece D (17 November 2026), `src/view/changes.rs` |
 
 ## Part 5: the review's header (`ChangesReview.vue` 736-822)
 
@@ -356,6 +356,8 @@ rendered HTML (a card with Open).
   once).
 
 ### Piece D: the Changes body's states
+
+- **Done (17 November 2026):** rows 4.1-4.8, 1.12 drawn. `src/view/changes.rs`, `ui::empty_state::compact`, `ui::confirm::error_note_with` (Try again), `State::retry_diffs` / `copy_fix_command`, scenes `changes-{loading,failed,refused,empty-session,empty-branch}` (+ `-light`), `src/tests_changes.rs` (the 7 of `ChangesCanvas.test.ts`, same names). Pictures in `shots/parity/12d-changes-states/`: Fleet's own client with `/diffs` answered by Playwright routes (failed, refused, loading, branch, session) beside the scenes. The Fleet client picture of Loading is Fleet's own too. While Try again runs the note is gone (the error clears when a request starts, as in Fleet), so "disabled while it runs" is never seen.
 
 - **Rows:** 4.1-4.8, 1.12 (drawn).
 - **Files:** new `src/view/changes.rs` (the body: base line, loading, `ErrorNote` with Try again, the refusal with Copy

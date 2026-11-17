@@ -29,6 +29,8 @@ mod tests_canvas_host;
 #[cfg(test)]
 mod tests_canvas_show;
 #[cfg(test)]
+mod tests_changes;
+#[cfg(test)]
 mod tests_chips;
 #[cfg(test)]
 mod tests_context_tab;
@@ -2565,6 +2567,16 @@ pub fn spec() -> AppSpec<State> {
             ("analytics-empty-light", |s| s.show_toolbar(mock::header::Case::Fork, false, fleet::toolbar::Scene::AnalyticsEmpty)),
             ("context-chips", |s| s.show_chips(mock::context::Case::Chips, true)),
             ("context-chips-light", |s| s.show_chips(mock::context::Case::Chips, false)),
+            ("changes-loading", |s| s.show_changes_scene(mock::changes::Case::Loading, true)),
+            ("changes-loading-light", |s| s.show_changes_scene(mock::changes::Case::Loading, false)),
+            ("changes-failed", |s| s.show_changes_scene(mock::changes::Case::Failed, true)),
+            ("changes-failed-light", |s| s.show_changes_scene(mock::changes::Case::Failed, false)),
+            ("changes-refused", |s| s.show_changes_scene(mock::changes::Case::Refused, true)),
+            ("changes-refused-light", |s| s.show_changes_scene(mock::changes::Case::Refused, false)),
+            ("changes-empty-session", |s| s.show_changes_scene(mock::changes::Case::EmptySession, true)),
+            ("changes-empty-session-light", |s| s.show_changes_scene(mock::changes::Case::EmptySession, false)),
+            ("changes-empty-branch", |s| s.show_changes_scene(mock::changes::Case::EmptyBranch, true)),
+            ("changes-empty-branch-light", |s| s.show_changes_scene(mock::changes::Case::EmptyBranch, false)),
             ("context-tab-empty", |s| s.show_context_tab_scene(mock::context_tab::Case::Empty, true)),
             ("context-tab-empty-light", |s| s.show_context_tab_scene(mock::context_tab::Case::Empty, false)),
             ("context-tab-loading", |s| s.show_context_tab_scene(mock::context_tab::Case::Loading, true)),
