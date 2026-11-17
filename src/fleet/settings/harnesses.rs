@@ -230,7 +230,7 @@ impl State {
         self.settings.harnesses.checking > 0
     }
 
-    fn read_browser_switch(&mut self, machine: &str) {
+    pub(crate) fn read_browser_switch(&mut self, machine: &str) {
         let key = machine.to_string();
         self.feed_call(
             machine,

@@ -28,6 +28,7 @@ pub mod memory;
 pub mod notices;
 pub mod pages;
 pub mod parts;
+pub mod permissions;
 pub mod questions;
 pub mod report;
 pub mod ring;

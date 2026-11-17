@@ -63,6 +63,8 @@ pub struct Card {
     pub describes_install: bool,
     /// `presentation.profileNote`: what the harness says about a profile's config, with `code` in backticks.
     pub profile_note: Option<String>,
+    /// `presentation.permissionModes`: what each level (`ask`, `edits`, `all`) means to the harness, in its own words.
+    pub permission_modes: std::collections::BTreeMap<String, String>,
 }
 
 impl Card {
@@ -95,6 +97,11 @@ impl Card {
             supports_provider_sign_in: flag("/capabilities/supportsProviderSignIn"),
             describes_install: h.pointer("/setup/mode").is_some_and(|m| !m.is_null()),
             profile_note: text("/presentation/profileNote"),
+            permission_modes: h
+                .pointer("/presentation/permissionModes")
+                .and_then(Value::as_object)
+                .map(|m| m.iter().filter_map(|(k, v)| Some((k.clone(), v.as_str()?.to_string()))).collect())
+                .unwrap_or_default(),
         }
     }
 }
