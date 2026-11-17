@@ -489,6 +489,7 @@ mod catalog;
 mod composables;
 mod dashboard;
 mod delegations;
+mod diff_contents;
 mod diffs;
 mod discover;
 mod drafts;
