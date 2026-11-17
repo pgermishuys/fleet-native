@@ -1,0 +1,45 @@
+<!doctype html>
+<!-- An invented page for the web view walk (component 14, piece A): served by `python3 -m http.server` from tests/fixtures/web
+     at the address the app gives a page canvas (/pages/walk/index.html). Its script ticks, so a picture shows it kept running
+     while it was hidden; the dashed border shows where the page's own edges are. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tide planner</title>
+<style>
+  html, body { margin: 0; height: 100%; }
+  body { box-sizing: border-box; border: 3px dashed #0e7490; padding: 16px 18px; font: 14px/1.45 system-ui, sans-serif;
+         color: #0f172a; background: #f0f9ff; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  p { margin: 0 0 12px; color: #334155; }
+  .row { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+  input { flex: 1; font: inherit; padding: 6px 8px; border: 1px solid #94a3b8; border-radius: 6px; background: #fff; }
+  input:focus { outline: 2px solid #0e7490; }
+  button { font: inherit; padding: 6px 12px; border: 0; border-radius: 6px; background: #0e7490; color: #fff; }
+  .card { padding: 8px 10px; margin-bottom: 6px; border-radius: 6px; background: #e0f2fe; }
+  .ticks { font-variant-numeric: tabular-nums; color: #0e7490; font-weight: 600; }
+</style>
+</head>
+<body>
+  <h1>Tide planner</h1>
+  <p>The page's script has run for <span id="ticks" class="ticks">0</span> ticks. Focus: <b id="focus">not yet</b>.</p>
+  <div class="row">
+    <input id="note" placeholder="A field on the page" autocomplete="off">
+    <button id="add" type="button">Add a tide card</button>
+  </div>
+  <div id="cards"><div class="card">High water 06:12, 4.1 m</div></div>
+  <script>
+    var ticks = 0;
+    setInterval(function () { document.getElementById("ticks").textContent = String(++ticks); }, 250);
+    var note = document.getElementById("note");
+    note.addEventListener("focus", function () { document.getElementById("focus").textContent = "the page's field"; });
+    note.addEventListener("blur", function () { document.getElementById("focus").textContent = "elsewhere"; });
+    document.getElementById("add").addEventListener("click", function () {
+      var card = document.createElement("div");
+      card.className = "card";
+      card.textContent = "Low water " + (12 + document.querySelectorAll(".card").length) + ":40, 0.6 m";
+      document.getElementById("cards").appendChild(card);
+    });
+  </script>
+</body>
+</html>

@@ -161,6 +161,12 @@ impl Theme {
         self.idle
     }
 
+    /// `.page-canvas__frame { background: #fff }`: a page's frame before the page draws, white in both themes (a literal in
+    /// Fleet too: pages without a background of their own expect a white one).
+    pub fn page_frame(&self) -> Color {
+        Color::WHITE
+    }
+
     /// `var(--warning, #b45309)`: weave-fleet's main.css defines no `--warning`, so Fleet always draws the fallback. It tints
     /// an Allowed rule that covers every use of a tool.
     pub fn warning(&self) -> Color {

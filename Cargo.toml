@@ -33,6 +33,19 @@ tar = { version = "0.4", default-features = false }
 zip = { version = "2", default-features = false, features = ["deflate"] }
 tungstenite = { version = "0.28", default-features = false, features = ["handshake"] }
 
+# The system web view (WebView2, WKWebView, WebKitGTK) as a child of the window, for page canvases (component 14, `src/web/`).
+# `--no-default-features` builds without it: every page then shows the "can't be shown inside the app" panel.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+wry = { version = "0.57", optional = true }
+
+# WebKitGTK runs on GTK's main loop, which the app turns from `poll`; wry needs `gtk::init` before its first web view.
+[target.'cfg(target_os = "linux")'.dependencies]
+gtk = { version = "0.18", optional = true }
+
+[features]
+default = ["web"]
+web = ["dep:wry", "dep:gtk", "dep:windows"]
+
 # The pid check of the instance file (`kill(pid, 0)`); already in Cargo.lock through Rune.
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
@@ -41,6 +54,8 @@ libc = "0.2"
 # old one after exit). The dance has traps (a locked file, a path that moves), so a small maintained crate does it.
 [target.'cfg(windows)'.dependencies]
 self-replace = "1"
+# WebView2 needs the UI thread in a single-threaded COM apartment. Rune already builds this crate.
+windows = { version = "0.62", features = ["Win32_System_Com"], optional = true }
 
 # Windows icon and version information (build.rs). Build time only: nothing of it is in the exe.
 [target.'cfg(windows)'.build-dependencies]

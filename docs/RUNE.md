@@ -1548,3 +1548,30 @@ Nothing about Rune: plain Rust. One thing for the pieces that draw it: word mark
 - **A container query** is `on_layout` writing the width into `State` (`turns_tab.width`) and the view reading it, so the 300 px rule lands one frame late, as elsewhere.
 - **A row that wraps and pushes one child right** (`margin-left: auto` in a wrapping flex row) has no equivalent: a `grow(1.0)` spacer takes the free space on a line, but when the totals wrap to a second line they sit at the left, where Fleet's sit at the right of their line only while they fit beside the others.
 - **A diff opening under a click**: the list lays out a frame after a diff opens, so a test that clicks the next row needs two frames first.
+
+
+## Component 14, piece A (a web view over a page tab)
+
+What the app's own host stands on, at `f1f54ce` (the research spike's findings held in the real app):
+
+- **`App::on_window` is the only way in.** It runs on the UI thread with a `WindowHandle` that can be cloned and kept, so the
+  web view is made later, when its tab is first shown (`with_raw_handle` → `WebViewBuilder::build_as_child`). It never runs in
+  headless tooling, which is how `--snap`, `--script` and tests get the fallback panel without a flag.
+- **Where to place a native view: `poll`.** `poll` runs before every frame, and an `on_layout` report is a state change that
+  makes another frame, so comparing "what is wanted" with "what was last done" in `poll` places the view one frame after
+  layout and hides it in the same frame a handler opened a menu. Nothing native is touched in a frame where nothing changed.
+- **Taking the keyboard back without a Rune hook**: `Tx::focused()` read in `poll`. When the page reports focus (its own
+  script over wry's IPC), the app calls `tx.blur()`; the next time `tx.focused()` is `Some`, a Rune element took focus, and
+  the host hands the keyboard back (`focus_parent`, Windows and macOS). A press on something Rune doesn't focus (a button)
+  is still missed: that needs the "a press landed anywhere" hook `docs/research/web-content.md` asks for.
+- **Where the keyboard went, with real input on each system** (the CI walk): Linux (X11 with no window manager) moves it with
+  the click by itself; Windows and macOS keep it in the web view until `focus_parent`, after which the page's field hears `blur`
+  and Rune's composer gets the keys. macOS runners take real input from `cliclick` (`brew install cliclick`), which the research
+  spike didn't have.
+- **A window resized from outside before its first frame stopped drawing** under Xvfb with no window manager
+  (`xdotool windowsize` while the first frame was still being made: the window stayed black, clicks did nothing). Resized after
+  the first frame, it was fine. Not chased further: no real desktop does that.
+- **Linux: WebKitGTK 2.52 needs EGL and GLES even to draw in software.** Without an EGL vendor its web process aborts ("Could not
+  create default EGL display") and the view stays black; with Mesa's EGL but no `libGLESv2.so.2` the app itself aborts when the
+  first view is made. A distribution's `libwebkit2gtk-4.1-0` brings both. Under Xvfb with no GPU Mesa falls back to llvmpipe
+  and says so on stderr (`DRI3 error`, `/dev/dri` permission), which is harmless.

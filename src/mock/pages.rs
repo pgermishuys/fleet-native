@@ -29,14 +29,30 @@ impl State {
         if let Some(session) = self.projects.first_mut().and_then(|p| p.sessions.first_mut()) {
             session.status = if matches!(case, Case::Waiting) { Status::NeedsInput } else { Status::Idle };
         }
-        let canvas = json!({
-            "canvasId": "page_1", "kind": "page", "title": "Layouts for pocket-notes", "version": 3,
-            "state": {"pageId": "p1", "entry": "index.html", "choice": {"callId": "call_1", "status": "waiting", "at": "2026-10-07T01:50:00Z"}},
-        });
-        self.pages.set("mock.0.0", read_page_canvas(&canvas).into_iter().collect());
+        self.pages.set("mock.0.0", read_page_canvas(&page_canvas()).into_iter().collect());
         self.now_ms = Some(super::failure::NOW);
         self.stream = Some(state);
         self.stream_of = None;
         self.sync_open();
     }
+}
+
+impl State {
+    /// The same page opened in the panel (component 14, piece A), with a Fleet to open it from in the system's browser.
+    pub fn show_page_fallback(&mut self) {
+        self.show_page_pick(Case::Waiting);
+        self.web.mock_base = Some("http://127.0.0.1:6411".into());
+        // The server would list the canvas, so it is a tab (component 10, piece C).
+        let tabs = crate::fleet::canvases::read_server_canvas(&page_canvas()).into_iter().collect();
+        self.canvases.set_server_canvases("mock.0.0", tabs);
+        self.open_page("page_1");
+    }
+}
+
+/// The page canvas the scenes' agent showed, as the server sends it.
+fn page_canvas() -> serde_json::Value {
+    json!({
+        "canvasId": "page_1", "kind": "page", "title": "Layouts for pocket-notes", "version": 3,
+        "state": {"pageId": "p1", "entry": "index.html", "choice": {"callId": "call_1", "status": "waiting", "at": "2026-10-07T01:50:00Z"}},
+    })
 }

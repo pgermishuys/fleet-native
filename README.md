@@ -31,10 +31,15 @@ cargo run --release   # to feel how fast it is
 ```
 
 - **macOS and Windows** need nothing else (on Windows, the Visual Studio C++ build tools that
-  rustup asks for).
-- **Linux** needs two development packages to build, and one library to open a window:
-  `sudo apt-get install libxkbcommon-dev libwayland-dev libxkbcommon-x11-0`
-  (Fedora: `dnf install libxkbcommon-devel wayland-devel libxkbcommon-x11`).
+  rustup asks for). Pages agents show are drawn by the system's web view: WKWebView on macOS, WebView2 on
+  Windows (part of Windows 11 and current Windows 10; elsewhere Microsoft's WebView2 runtime).
+- **Linux** needs three development packages to build, and two libraries to open a window:
+  `sudo apt-get install libxkbcommon-dev libwayland-dev libwebkit2gtk-4.1-dev libxkbcommon-x11-0`
+  (Fedora: `dnf install libxkbcommon-devel wayland-devel webkit2gtk4.1-devel libxkbcommon-x11`).
+  WebKitGTK shows pages in an X11 window (or XWayland); on Wayland alone a page says it can't be shown
+  and offers to open it in the browser.
+- `cargo build --no-default-features` leaves the web view out (no WebKitGTK needed): every page then
+  offers to open in the browser instead.
 
 ### Try it
 
@@ -68,7 +73,8 @@ These builds are **unsigned**:
   Applications and choose **Open** (then **Open** again), or run
   `xattr -dr com.apple.quarantine "/Applications/Fleet Native.app"` once. The app is ad hoc signed so Apple
   silicon runs it, but not notarised.
-- **Linux:** unpack and run `./fleet-native`; it needs `libxkbcommon-x11-0` on X11. For a launcher entry with an
+- **Linux:** unpack and run `./fleet-native`; it needs `libxkbcommon-x11-0` on X11 and WebKitGTK
+  (`libwebkit2gtk-4.1-0`). For a launcher entry with an
   icon, copy the two files beside the program:
 
   ```sh

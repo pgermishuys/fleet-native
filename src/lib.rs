@@ -209,11 +209,14 @@ mod tests_updates;
 #[cfg(test)]
 mod tests_usage_popover;
 #[cfg(test)]
+mod tests_web;
+#[cfg(test)]
 mod tests_workspace;
 mod theme;
 pub mod ui;
 pub mod update;
 pub mod view;
+pub mod web;
 
 use conv::tools::ToolStatus;
 use fleet::link::{Connection, Link, Post};
@@ -327,6 +330,8 @@ pub struct State {
     pub diff_contents: fleet::diff_contents::Contents,
     /// The page canvas "Open page" asked the content panel to show; the tab is component 14's.
     pub page_target: Option<String>,
+    /// The web views over page tabs: where the page area is, and whether this window can host one (`web`).
+    pub web: web::Host,
     /// When the Allowed chip last grew, on `clock`: it flashes for `view::allowed::FLASH_SECS` after.
     pub allowed_flash: Option<f64>,
     /// The question cards on screen and their picks (`fleet::questions`).
@@ -613,6 +618,7 @@ impl Default for State {
             diffs: Default::default(),
             diff_contents: Default::default(),
             page_target: None,
+            web: Default::default(),
             allowed_flash: None,
             questions: Default::default(),
             ask_acts: Default::default(),
@@ -1433,7 +1439,8 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         }
         None => false,
     };
-    poll_rest(s, now, tx) || composer_changed || copied || scrolled || pictures || found || exported || renamed
+    let web = s.keep_web(tx);
+    poll_rest(s, now, tx) || composer_changed || copied || scrolled || pictures || found || exported || renamed || web
 }
 
 impl State {
@@ -3387,6 +3394,12 @@ pub fn spec() -> AppSpec<State> {
                 s.show_page_pick(mock::pages::Case::Waiting)
             }),
             ("page-pick-stale", |s| s.show_page_pick(mock::pages::Case::Stale)),
+            // Component 14, piece A: the page tab where no web view can be made (headless, Wayland, no `web` feature).
+            ("page-tab-fallback", |s| s.show_page_fallback()),
+            ("page-tab-fallback-light", |s| {
+                s.dark = Some(false);
+                s.show_page_fallback()
+            }),
             ("allowed-chip", |s| s.show_rules(mock::rules::Case::Chip)),
             ("allowed-chip-light", |s| {
                 s.dark = Some(false);
@@ -4114,6 +4127,12 @@ pub fn start_desktop() {
     let (server, rest) = split_args(args.into_iter());
     // `--demo`: the invented data on purpose, for a look by hand. It is Fleet Native's own, not Rune's.
     let demo = rest.iter().any(|a| a == "--demo");
+    // `FLEET_NATIVE_WEB_DEMO=<address>`: the CI walk over an invented page served there (`web::demo`), on the invented data.
+    #[cfg(all(feature = "web", not(target_arch = "wasm32")))]
+    let web_walk = web::demo::asked();
+    #[cfg(not(all(feature = "web", not(target_arch = "wasm32"))))]
+    let web_walk: Option<String> = None;
+    let demo = demo || web_walk.is_some();
     let rest: Vec<String> = rest.into_iter().filter(|a| a != "--demo").collect();
     // `--server` wins; Finder can't pass arguments, so `FLEET_NATIVE_SERVER` names the address as well.
     let server = fleet::discover::explicit_server(server, &|k| std::env::var(k).ok());
@@ -4139,10 +4158,22 @@ pub fn start_desktop() {
             s.quiet.visible = visible;
             s.keep_notices(s.clock, tx);
         });
+    // The window's native handle, for the web views laid over page tabs (`web::platform`). Headless runs never get one.
+    #[cfg(all(feature = "web", not(target_arch = "wasm32")))]
+    let app = app.on_window(web::platform::on_window);
     let handle = app.handle();
+    #[cfg(all(feature = "web", not(target_arch = "wasm32")))]
+    {
+        web::platform::set_app(handle.clone());
+        if let Some(base) = web_walk.clone().filter(|_| !headless) {
+            handle.update(move |s, tx| web::demo::start(s, base, tx));
+        }
+    }
     // The drafts and the remembered choices (folded groups, the side panels) come back from the app's own data folder, read off the UI thread. A picture or a scripted run
     // only touches the folder when `FLEET_NATIVE_DATA_DIR` names one, so they come out the same every time.
-    if (!headless || std::env::var_os("FLEET_NATIVE_DATA_DIR").is_some())
+    // The CI walk keeps out of the data folder too, so its panels are the ones it asks for.
+    let own_data = !headless && web_walk.is_none();
+    if (own_data || std::env::var_os("FLEET_NATIVE_DATA_DIR").is_some())
         && let Some(dir) = composer::drafts::app_dir(|k| std::env::var(k).ok())
     {
         let handle = handle.clone();
@@ -4157,7 +4188,7 @@ pub fn start_desktop() {
             });
         });
     }
-    if !headless {
+    if own_data {
         update::start_checker(&handle);
     }
     if let Some(url) = server {
