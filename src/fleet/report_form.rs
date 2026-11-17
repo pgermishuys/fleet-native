@@ -2,14 +2,27 @@
 //! screenshot): what was typed, which parts are ticked, the screenshot, and the facts the window gives the server when
 //! the report is reviewed. The requests and the dialog's stages are `report.rs`; the drawing is `view/report.rs`.
 use super::link::Connection;
-use super::report::{Client, Includes, Kind, Opening, PrepareRequest, Source, describe_app, describe_screen, private_values, where_facts};
-use crate::{Rail, State};
+use super::report::{
+    Client, Includes, Kind, Opening, PrepareRequest, SendRequest, Source, describe_app, describe_screen, private_values, where_facts,
+};
+use crate::{Rail, State, Tx};
 use rune::TextEdit;
 
 /// `maxlength` of the three fields.
 pub const DESCRIPTION_MAX: usize = 10_000;
 pub const EXPECTED_MAX: usize = 2_000;
 pub const CONTACT_MAX: usize = 200;
+/// `maxlength` of the Review step's title.
+pub const TITLE_MAX: usize = 200;
+
+/// `ReviewFile`: which of the report's files Review shows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ReviewFile {
+    #[default]
+    Report,
+    Log,
+    Screenshot,
+}
 
 /// What a part of the report is called and says (`ITEMS`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -104,6 +117,11 @@ pub struct ReportForm {
     pub screenshot: Option<Shot>,
     /// A screenshot is being taken (`capturing`).
     pub capturing: bool,
+    /// Review: the title (the server's, then the person's), the file shown, "Show what was removed", and "Copied" on Sent.
+    pub title: TextEdit,
+    pub file: ReviewFile,
+    pub show_removed: bool,
+    pub copied: bool,
 }
 
 impl Default for ReportForm {
@@ -126,6 +144,10 @@ impl ReportForm {
             shot_on: true,
             screenshot: None,
             capturing: false,
+            title: TextEdit::new(""),
+            file: ReviewFile::Report,
+            show_removed: false,
+            copied: false,
         }
     }
 
@@ -166,6 +188,12 @@ impl ReportForm {
     /// `hasScreenshot`: taken and still ticked.
     pub fn has_screenshot(&self) -> bool {
         self.shot_on && self.screenshot.is_some()
+    }
+
+    /// `removeScreenshot`: unticked, so it isn't sent, and the report file shows again.
+    pub fn remove_screenshot(&mut self) {
+        self.shot_on = false;
+        self.file = ReviewFile::Report;
     }
 
     /// The description may be reviewed (`!description.trim()`).
@@ -304,5 +332,54 @@ impl State {
             client: self.report_client(),
         };
         self.report_prepare(request);
+    }
+
+    /// A prepared report arrived: its title is the one to edit, and the report file shows first.
+    pub fn report_reviewing(&mut self, title: &str) {
+        let f = &mut self.report_form;
+        f.title = TextEdit::new(title);
+        f.title.set_caret(title.len());
+        f.file = ReviewFile::Report;
+        f.show_removed = false;
+    }
+
+    /// `reviewedReport`: what the person reviewed, as the requests take it.
+    pub fn report_reviewed(&self) -> Option<SendRequest> {
+        let prepared = self.report.prepared.as_ref()?;
+        let form = &self.report_form;
+        let screenshot = form.screenshot.as_ref().filter(|_| form.has_screenshot()).map(|s| s.data_url());
+        let title: String = form.title.text.chars().take(TITLE_MAX).collect();
+        Some(SendRequest::reviewed(form.kind, prepared, &title, screenshot.as_deref(), &form.contact.text))
+    }
+
+    /// `send`.
+    pub fn report_send_reviewed(&mut self) {
+        // Send is off when this Fleet has no inbox (`:disabled="!prepared?.canSend"`).
+        if !self.report.prepared.as_ref().is_some_and(|p| p.can_send) {
+            return;
+        }
+        if let Some(request) = self.report_reviewed() {
+            self.report_send(request);
+        }
+    }
+
+    /// `saveFile`.
+    pub fn report_save_reviewed(&mut self, tx: &mut Tx) {
+        if let Some(request) = self.report_reviewed() {
+            self.report_save(request, tx);
+        }
+    }
+
+    /// Back to Describe: what was typed and ticked stays.
+    pub fn report_back(&mut self) {
+        self.report.back();
+    }
+
+    /// `copyId`: the report id on the clipboard, and "Copied".
+    pub fn report_copy_id(&mut self, tx: &mut Tx) {
+        if let Some(id) = self.report.sent_id.clone() {
+            tx.copy(id);
+            self.report_form.copied = true;
+        }
     }
 }

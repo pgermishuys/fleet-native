@@ -1,6 +1,6 @@
 //! Help → Report a problem: the window and its Describe step. Ports `components/report/ProblemReportDialog.vue`'s header,
 //! Describe body (the kind, the three fields, the screenshot, the attached parts) and footer. Review and Sent are piece R's
-//! (`view/report_review.rs`); until it lands those stages show a line saying so. The data is `fleet::report` and
+//! (`view/report_review.rs`). The data is `fleet::report` and
 //! `fleet::report_form`; this file only draws it. Sizes are the component's CSS pixels, not rem.
 use crate::State;
 use crate::fleet::report::{Busy, KINDS, Kind, Stage};
@@ -43,8 +43,8 @@ pub fn dialog(s: &State, t: &Theme) -> Option<Vec<El>> {
         .child(head(s, t));
     panel = match s.report.stage {
         Stage::Describe => panel.child(describe(s, t, HEIGHT.min(h - 32.0))),
-        Stage::Review => panel.child(placeholder(t, "Review comes with the next piece of this dialog.")),
-        Stage::Sent => panel.child(placeholder(t, "Sent")),
+        Stage::Review => panel.child(super::report_review::review(s, t, HEIGHT.min(h - 32.0))),
+        Stage::Sent => panel.child(super::report_review::sent(s, t)),
     };
     panel = panel.child(foot(s, t));
     // Esc and the overlay close it, except while it is sending.
@@ -54,10 +54,6 @@ pub fn dialog(s: &State, t: &Theme) -> Option<Vec<El>> {
         .token_motion(Spring::new(0.2, 0.0))
         .modal(!sending, close);
     Some(vec![overlay(KEY), centred("report-frame", panel)])
-}
-
-fn placeholder(t: &Theme, words: &str) -> El {
-    col().w_full().padding(20.0).child(text(words.to_string()).font(sans(12.5, 400.0, 1.4)).color(t.muted))
 }
 
 // ---- the header -----------------------------------------------------------------------------------------------------
@@ -138,7 +134,7 @@ fn label(t: &Theme, words: &str, optional: Option<&str>) -> El {
 }
 
 /// The textarea and the two inputs (`.report__field textarea, input`): 1 px border, `--card-bg`, 13/1.45, padding 8 10.
-fn field(t: &Theme, key: &str, edit: &rune::TextEdit, placeholder: &str, rows: usize) -> El {
+pub(super) fn field(t: &Theme, key: &str, edit: &rune::TextEdit, placeholder: &str, rows: usize) -> El {
     let f = text_input(edit, sans(13.0, 400.0, 1.45))
         .key(key.to_string())
         .placeholder(placeholder.to_string(), t.muted)
@@ -177,7 +173,12 @@ fn kind_pill(t: &Theme, kind: Kind, on: bool) -> El {
 }
 
 /// A ghost `.report__button`: 12.5/500, padding 6 12, a 1 px border, `--radius-btn`.
-fn button(t: &Theme, key: &str, words: &str, primary: bool, ghost: bool, disabled: bool) -> El {
+pub(super) fn button(t: &Theme, key: &str, words: &str, primary: bool, ghost: bool, disabled: bool) -> El {
+    button_with(t, key, words, primary, ghost, disabled, None)
+}
+
+/// The same with an icon or spinner in front of its words, as Review's buttons have.
+pub(super) fn button_with(t: &Theme, key: &str, words: &str, primary: bool, ghost: bool, disabled: bool, lead: Option<El>) -> El {
     let (fill, border, ink) = if primary {
         (t.accent, rune::Color::TRANSPARENT, t.primary_fg)
     } else if ghost {
@@ -197,8 +198,12 @@ fn button(t: &Theme, key: &str, words: &str, primary: bool, ghost: bool, disable
         .border(1.0, border)
         .border_layout()
         .radius(RADIUS_BTN)
-        .focus_ring(2.0, 2.0, t.accent)
-        .child(text(words.to_string()).font(sans(12.5, 500.0, 1.4)).color(ink));
+        .focus_ring(2.0, 2.0, t.accent);
+    let b = match lead {
+        Some(l) => b.child(l),
+        None => b,
+    }
+    .child(text(words.to_string()).font(sans(12.5, 500.0, 1.4)).color(ink));
     if disabled { b.disabled(true).opacity(0.5) } else { b.cursor(Cursor::Pointer).hover(t.wash(8.0)) }
 }
 
@@ -342,7 +347,7 @@ fn aside(s: &State, t: &Theme) -> El {
 }
 
 /// What the header and the footer take of the window's height (68.5 and 55.5, and a line more for an error).
-const CHROME: f32 = 126.0;
+pub(super) const CHROME: f32 = 126.0;
 
 fn describe(s: &State, t: &Theme, window: f32) -> El {
     // The body scrolls inside what is left of the window's height, as `.report__body` does (`overflow: auto`). Flex can't
@@ -363,7 +368,8 @@ fn foot(s: &State, t: &Theme) -> El {
     let buttons = row().w_full().gap(8.0).center_y();
     foot.child(match s.report.stage {
         Stage::Describe => describe_foot(s, t, buttons),
-        _ => buttons,
+        Stage::Review => super::report_review::review_foot(s, t, buttons),
+        Stage::Sent => super::report_review::sent_foot(s, t, buttons),
     })
 }
 

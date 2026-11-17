@@ -109,6 +109,8 @@ mod tests_report;
 #[cfg(test)]
 mod tests_report_describe;
 #[cfg(test)]
+mod tests_report_review;
+#[cfg(test)]
 mod tests_right_panel;
 #[cfg(test)]
 mod tests_row_actions;
@@ -3334,6 +3336,41 @@ pub fn spec() -> AppSpec<State> {
             ("report-describe-noshot-light", |s| {
                 s.dark = Some(false);
                 s.show_report(mock::report::Case::NoShot)
+            }),
+            ("report-review", |s| s.show_report(mock::report::Case::Review)),
+            ("report-review-light", |s| {
+                s.dark = Some(false);
+                s.show_report(mock::report::Case::Review)
+            }),
+            ("report-review-removed", |s| s.show_report(mock::report::Case::Removed)),
+            ("report-review-removed-light", |s| {
+                s.dark = Some(false);
+                s.show_report(mock::report::Case::Removed)
+            }),
+            ("report-review-log", |s| s.show_report(mock::report::Case::Log)),
+            ("report-review-log-light", |s| {
+                s.dark = Some(false);
+                s.show_report(mock::report::Case::Log)
+            }),
+            ("report-review-shot", |s| s.show_report(mock::report::Case::ShotView)),
+            ("report-review-shot-light", |s| {
+                s.dark = Some(false);
+                s.show_report(mock::report::Case::ShotView)
+            }),
+            ("report-review-noinbox", |s| s.show_report(mock::report::Case::NoInbox)),
+            ("report-review-noinbox-light", |s| {
+                s.dark = Some(false);
+                s.show_report(mock::report::Case::NoInbox)
+            }),
+            ("report-review-failed", |s| s.show_report(mock::report::Case::SendFailed)),
+            ("report-review-failed-light", |s| {
+                s.dark = Some(false);
+                s.show_report(mock::report::Case::SendFailed)
+            }),
+            ("report-sent", |s| s.show_report(mock::report::Case::Sent)),
+            ("report-sent-light", |s| {
+                s.dark = Some(false);
+                s.show_report(mock::report::Case::Sent)
             }),
         ],
         fonts: &[include_bytes!("../assets/fonts/InterVariable.ttf"), include_bytes!("../assets/fonts/JetBrainsMono-Variable.ttf")],

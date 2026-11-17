@@ -207,10 +207,10 @@ their pictures from scenes beside Fleet's client with the answers put in by Play
 | 9.5 | Attached aside (`--main-bg` 45% tint, left rule): "Attached" and "n of 5"; checkboxes Screenshot / Fleet and system / Where you were / Connection / Fleet log with their details; an unticked one muted and struck through; footer `ShieldCheck` + "Folder paths, session names, branch names, tokens and email addresses in the text and the log are replaced before you review it. The screenshot isn't changed." | D | **Done (9Q)**: the aside with "n of 5", the five checkboxes (drawn here: the kit has none), muted and struck through when off, and the guard. Gap: with no screenshot Fleet draws the box ticked but disabled; native draws it unticked |
 | 9.6 | Footer: "About: <session title>" or "Not about a session"; Cancel; **Review what's sent** (disabled while the description is blank; spinner while preparing) | D | **Done (9Q)**: "About: <title>" / "Not about a session", Cancel, **Review what's sent** (off while the description is blank or a request runs, spinner while preparing; it calls piece P's `report_prepare` with the client facts: app, screen, the session's shown status, window, theme, "Live updates", private values). Review and Sent are drawn by piece R; until then a line says so. Gap: the connection facts "Subscribed" and "Open session" need the hub thread's topic counts and are not given |
 | 9.7 | `POST /api/reports/prepare` with the ticked parts and what the client knows (app "Desktop app <version> · <os>", screen name, the session's shown status, window size and scale, theme, connection facts for the live machine and the session's machine, private values: every machine's name and address and this Fleet's address) → `{title, body, log, labels, replacements, problems, canSend}` | L; `api/generated/schema.d.ts:2904-2936` | None |
-| 9.8 | Review (grid `180 1fr`): files report.md (label count pill), fleet.log, screenshot; Title input; "<n> private details replaced · 3 folders, 1 session name…" or "No private details found."; **Show what was removed** switch (originals struck in `--error-text` before each `‹kind-n›` label); "Left out: <item>. <reason>" rows; the mono preview (11.5/1.65) with labels on `--accent-dim`; the screenshot view with "Remove screenshot" | D | None |
-| 9.9 | Review footer: Back; "Only the Fleet maintainers will see this." or "Sending is off on this Fleet. Save it as a file instead."; **Save as file** (`POST /api/reports/file` → zip, name from `content-disposition`); **Send report** (`POST /api/reports/send` → `{id}`) | D | None |
-| 9.10 | Sent: a 34 px `--running` 15% circle with `Check`, "Report sent", "Only the Fleet maintainers can see it. If you talk to us about it, mention `<id>`.", "You left a contact, so a reply goes to <contact>."; Copy report id → "Copied"; Done | D | None |
-| 9.11 | Errors in the footer (`role=alert`): "Couldn't gather the report. Try again.", "Couldn't send the report. Try again, or use Save as file.", "Couldn't save the report."; the server's `error` wins | D | None |
+| 9.8 | Review (grid `180 1fr`): files report.md (label count pill), fleet.log, screenshot; Title input; "<n> private details replaced · 3 folders, 1 session name…" or "No private details found."; **Show what was removed** switch (originals struck in `--error-text` before each `‹kind-n›` label); "Left out: <item>. <reason>" rows; the mono preview (11.5/1.65) with labels on `--accent-dim`; the screenshot view with "Remove screenshot" | D | **Done (9R)**: `view/report_review.rs`: the files list (report.md and fleet.log with their label counts, screenshot only while ticked), Title (200 max, applied when sent), "<n> private details replaced · …" with the bold count, or "No private details found.", **Show what was removed** (the switch of the kit; the original struck in `--error-text` before each label, on the label's wash), "Left out: <item>. <reason>" rows, the mono preview (11.5/1.65, scrolls inside the dialog), the screenshot view (at most 340 high) with "Remove screenshot". Gaps: the preview is drawn text, so it can't be selected; the screenshot view can only be shown from a picture handed in (9.12) |
+| 9.9 | Review footer: Back; "Only the Fleet maintainers will see this." or "Sending is off on this Fleet. Save it as a file instead."; **Save as file** (`POST /api/reports/file` → zip, name from `content-disposition`); **Send report** (`POST /api/reports/send` → `{id}`) | D | **Done (9R)**: Back, the note ("Only the Fleet maintainers will see this." / "Sending is off on this Fleet. Save it as a file instead."), **Save as file** (zip to `Downloads`, a toast says where, piece P) and **Send report** (off while this Fleet has no inbox or a request runs; a spinner while sending). Gap: "Sending is off" could not be made live (the scratch Fleet, v0.72.0, has an inbox), so it is drawn from a scene only |
+| 9.10 | Sent: a 34 px `--running` 15% circle with `Check`, "Report sent", "Only the Fleet maintainers can see it. If you talk to us about it, mention `<id>`.", "You left a contact, so a reply goes to <contact>."; Copy report id → "Copied"; Done | D | **Done (9R)**: the 34 px circle with the check, "Report sent", the id in mono on a card wash, the contact line, **Copy report id** → "Copied" (kept until the dialog closes; Fleet's too), **Done**. Drawn from a scene; never sent live, because a Fleet's `/send` reaches the real inbox. The send itself is tested against a stand-in server |
+| 9.11 | Errors in the footer (`role=alert`): "Couldn't gather the report. Try again.", "Couldn't send the report. Try again, or use Save as file.", "Couldn't save the report."; the server's `error` wins | D | **Done (9R)**: the footer's red line with the server's words or the three fallbacks (piece P's `error_words`), shown on Review and kept there so Send can be tried again |
 | 9.12 | Screenshot: Electron's `captureWindow` or a DOM render, 2 s timeout, 4 MB cap. Native needs the app's own frame as PNG; if Rune can't hand one to the app, ship "Couldn't take a screenshot" and write the smallest case into `docs/RUNE.md` | `lib/problem-report.ts` | **Not possible today (9Q)**: Rune draws on the GPU and gives a running app no way to read its frame back (`docs/RUNE.md`). So `grab_frame()` returns nothing, Describe says "Couldn't take a screenshot. The report works without one." and the Screenshot part is off (4 of 5). The seam (`Shot`, the thumbnail, `data_url`, the `/send` field) is built and tested with a picture handed in, so a Rune that can is one function. Scenes show both states |
 
 ## Part 10: the landing rule and the home dashboard (`routes/index.tsx`, `components/dashboard/`)
@@ -299,7 +299,7 @@ Counts are `it(...)` cases. Ported tests keep Fleet's names (in Rust, `snake_cas
 | `use-update-notices.test.ts` (20), `use-dream-notices.test.ts` (6) | 26 | 16 (the server variant and dreams); the Electron-bridge cases with decision 1 |
 | `use-stale-window-notice.test.ts` | 5 | Not ported: not applicable (8.8) |
 | `lib/__tests__/problem-report.test.ts` | 5 | P |
-| `components/report/__tests__/ProblemReportDialog.test.ts` | 10 | P (3-5: the request), **Q done (1-2)**, R (6-10) |
+| `components/report/__tests__/ProblemReportDialog.test.ts` | 10 | P (3-5: the request), **Q done (1-2)**, **R done (6-10)** |
 | `AuthGate`, `LoginPage`, `OnboardingGate` | none | S writes cases from reading |
 | `components/skills/__tests__/ImproveSkillDialog.test.ts` | 4 | U |
 
@@ -579,7 +579,7 @@ before N, O and U; P, Q, R; S; T, U; V when decided; W last.
   and `fleet-report-describe-filled-light.png` beside `report-describe-filled-light.png`). The no-screenshot state is a scene only:
   Fleet's own client always manages one. Not checked on Windows or macOS.
 
-### Piece R: Report a problem: Review and Sent
+### Piece R: Report a problem: Review and Sent — **done**
 
 - **Rows:** 9.8, 9.9 (drawn), 9.10, 9.11 (drawn).
 - **Files:** `src/view/report_review.rs` (files list, title, replacements bar and switch, problems, the preview, the
@@ -588,6 +588,12 @@ before N, O and U; P, Q, R; S; T, U; V when decided; W last.
 - **Tests:** `ProblemReportDialog.test.ts` 6-10.
 - **Pictures:** Review with removed shown, Sent, and "Sending is off on this Fleet" (the scratch Fleet has no inbox,
   so that one is live), both themes, beside Fleet's.
+- **Done:** rows 9.8-9.11 as above. `src/view/report_review.rs`, the Review state in `src/fleet/report_form.rs` (`ReviewFile`, the title,
+  `report_reviewed`, `report_send_reviewed`, `report_save_reviewed`, `report_copy_id`), `src/mock/report.rs` (scenes `report-review*`,
+  `report-sent*`), `src/tests_report_review.rs` (cases 6-10 under their names and five more). Send is refused in code when the server said
+  `canSend: false`, as Fleet's disabled button does. Pictures: `shots/parity/09r-report-review/` (live: `fleet-review*.png` beside
+  `report-review-live-*.png` for the same text on the same scratch Fleet; scenes: Sent, Sending is off with a line left out, the screenshot
+  view, a failed send). Not checked on Windows or macOS.
 
 ### Piece S: sign-in
 

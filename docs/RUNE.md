@@ -1210,6 +1210,14 @@ in Rune stops a drop in the wrong tree. Nothing in Rune got in the way otherwise
 - A grid with `minmax(70px, 1fr)` is a `grow(1).min_w(70)` cell next to fixed-width ones; let its text `wrap()` as the browser does.
 - A button inside a stretched column fills the width: wrap it in a `row()` to keep its own width.
 
+## Component 9, piece R (Report a problem: Review and Sent)
+
+- `rich` text takes a colour and a background per span but no strikethrough: strike the same byte ranges with `El::strikes`.
+- A dialog that changes height between steps moves while it settles (`token_motion`): after a press that makes it shorter, run
+  about 30 frames before pressing something inside it, or the press lands on the scrim and closes it.
+- A scrolling child with `grow(1.0)` in a column of unknown height collapses and its text draws over the footer; give it `min_h` and
+  `max_h` and no `grow` (the same rule as piece Q's).
+
 ## Component 9, piece Q (Report a problem: Describe and the screenshot)
 
 - **A running app can't take its own picture.** Rune renders a window's frame on the GPU and exposes no call that returns it to the app
