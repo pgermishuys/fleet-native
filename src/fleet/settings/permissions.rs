@@ -155,6 +155,11 @@ pub struct PermissionsPage {
     pub chip: Option<(Row, String)>,
     /// The "+ exception" list that is open.
     pub add: Option<Row>,
+    /// A change of "Message other sessions" is on its way: the choice waits.
+    pub messages_saving: bool,
+    /// The machine chip whose value list is open, and whether the machines' "+ exception" list is.
+    pub machine_chip: Option<String>,
+    pub machine_add: bool,
 }
 
 impl State {
@@ -260,6 +265,7 @@ impl State {
         self.read_preferences(&machine);
         self.read_harnesses(&machine, false);
         self.read_browser_switch(&machine);
+        self.read_permission_machines();
         true
     }
 }

@@ -24,6 +24,7 @@ pub mod memory_notes;
 pub mod naming_actions;
 pub mod naming_draft;
 pub mod permissions;
+pub mod permissions_more;
 pub mod storage;
 pub mod storage_actions;
 pub mod switches;

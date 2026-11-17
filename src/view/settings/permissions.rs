@@ -2,7 +2,7 @@
 //! two, Edit files and Run commands & go online, with the chips of the harnesses that differ from the default; the rows after
 //! them (messages, machines, nobody watching), the Browser group and the fine print are pieces N and O. Sizes are Fleet's scoped
 //! CSS px (`.reach-*`).
-use super::kit;
+use super::{kit, permissions_rows as rows};
 use crate::State;
 use crate::fleet::settings::permissions::{Reach, Row, default_tag, reach_of};
 use crate::icons::CHEVRON_DOWN;
@@ -30,7 +30,7 @@ fn intro(t: &Theme) -> El {
         .child(rich(words, vec![span]).font(sans(rem(0.875), 400.0, 1.43)).color(t.muted).wrap().shrink().min_w(0.0))
 }
 
-fn small(words: &str, size: f32, weight: f32, ink: rune::Color) -> El {
+pub fn small(words: &str, size: f32, weight: f32, ink: rune::Color) -> El {
     text(words.to_string()).font(sans(size, weight, 1.33)).color(ink)
 }
 
@@ -141,6 +141,23 @@ fn add(t: &Theme, which: Row) -> El {
         })
 }
 
+/// A row's head: the title with its default tag, the summary under it, and the row's one setting on the right.
+pub fn head(t: &Theme, id: &str, title: &str, tag: &str, summary: El, control: El) -> El {
+    let title = row()
+        .wrap()
+        .items_end()
+        .gap(8.0)
+        .child(text(title.to_string()).font(sans(13.5, 600.0, 1.5)).color(t.text))
+        .child(small(tag, 11.0, 400.0, t.muted).key(format!("reach-tag-{id}")));
+    row()
+        .w_full()
+        .items_start()
+        .justify_between()
+        .gap(16.0)
+        .child(col().shrink().min_w(0.0).child(title).child(row().mt(2.0).child(summary)))
+        .child(control)
+}
+
 /// One row of the card: the title with its default tag, the summary, the default's segments, and the exceptions under them.
 pub fn reach_row(s: &State, t: &Theme, which: Row, summary: &str, tag: String) -> El {
     let value = s.permission_default_reach(which);
@@ -158,22 +175,8 @@ pub fn reach_row(s: &State, t: &Theme, which: Row, summary: &str, tag: String) -
             }
         }),
     );
-    let title = row()
-        .wrap()
-        .items_end()
-        .gap(8.0)
-        .child(text(which.title().to_string()).font(sans(13.5, 600.0, 1.5)).color(t.text))
-        .child(small(&tag, 11.0, 400.0, t.muted).key(format!("reach-tag-{id}")));
-    let head =
-        row()
-            .w_full()
-            .items_start()
-            .justify_between()
-            .gap(16.0)
-            .child(col().shrink().min_w(0.0).child(title).child(
-                row().mt(2.0).child(text(summary.to_string()).font(sans(12.0, 400.0, 1.45)).color(t.muted).wrap().shrink().min_w(0.0)),
-            ))
-            .child(segments);
+    let summary = text(summary.to_string()).font(sans(12.0, 400.0, 1.45)).color(t.muted).wrap().shrink().min_w(0.0);
+    let head = head(t, id, which.title(), &tag, summary, segments);
     let mut chips = row().wrap().center_y().gap(6.0);
     for h in s.permission_exceptions(which) {
         chips = chips.child(chip(s, t, which, &h.kind, &h.display_name, s.permission_handed(&h)));
@@ -211,6 +214,9 @@ fn card(s: &State, t: &Theme) -> El {
     let rows = vec![
         reach_row(s, t, Row::Edits, "Change and create files in the session's folder or worktree.", tag(Row::Edits)),
         reach_row(s, t, Row::Commands, "The shell, web fetch, the browser and other tools.", tag(Row::Commands)),
+        rows::messages(s, t),
+        rows::machines(s, t),
+        rows::unattended(s, t),
     ];
     let mut body = col()
         .key("reach-rows")
@@ -234,6 +240,7 @@ pub fn content(s: &State, t: &Theme) -> El {
         .child(super::super::settings::page_header(s, t, &crate::fleet::settings_nav::Page::Permissions))
         .child(intro(t))
         .child(card(s, t))
+        .child(rows::fine_print(t))
 }
 
 /// The open value list of an exception chip: Allowed and Ask, the one the default has marked "(as the default)".
