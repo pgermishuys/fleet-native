@@ -12,6 +12,7 @@ pub mod machine_scope;
 pub mod memory;
 pub mod memory_actions;
 pub mod memory_events;
+pub mod memory_notes;
 pub mod switches;
 
 use super::new_session::defaults::{DEFAULTS_KEY, NewSessionDefaults, defaults_key};

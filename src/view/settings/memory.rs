@@ -179,6 +179,12 @@ pub fn card(s: &State, t: &Theme) -> El {
         }
         if !page.enabled() {
             card = card.child(facts(page, t));
+        } else if page.notes.is_some() {
+            // Dreaming's nightly row and panel go between the toolbar and the lists (pieces R and S).
+            card = card.child(super::memory_notes::toolbar(s, t));
+            card = card.children(super::memory_notes::lists(s, t));
+            card = card.children(super::memory_expired::expired(s, t));
+            card = card.child(super::memory_clear::clear_all(s, t));
         }
         card = card.child(harnesses(t));
     } else if let Some(message) = &page.error {

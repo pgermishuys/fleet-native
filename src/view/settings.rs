@@ -9,6 +9,10 @@ pub mod kit_scene;
 pub mod labs;
 pub mod machine_header;
 pub mod memory;
+pub mod memory_clear;
+pub mod memory_expired;
+pub mod memory_notes;
+pub mod memory_row;
 
 use super::machines_page;
 use crate::State;

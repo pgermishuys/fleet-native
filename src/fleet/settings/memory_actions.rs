@@ -43,13 +43,15 @@ impl State {
     /// has moved to another machine; leaving the page forgets what it read, so coming back reads again (`onMounted(load)`).
     pub fn keep_memory(&mut self, _tx: &mut Tx) -> bool {
         if self.rail != crate::Rail::Settings || self.settings.page != Page::Memory {
-            let had = self.settings.memory != MemoryPage::default();
+            let had = self.settings.memory != MemoryPage::default() || self.settings.memory_ui != Default::default();
             self.settings.memory = MemoryPage::default();
+            self.settings.memory_ui = Default::default();
             return had;
         }
+        let cut = self.limit_memory_fields();
         let key = self.settings.choice.key(&self.machines).to_string();
         if self.settings.memory.loaded_for.as_deref() == Some(key.as_str()) {
-            return false;
+            return cut;
         }
         self.load_memory(key);
         true
@@ -57,6 +59,7 @@ impl State {
 
     fn load_memory(&mut self, key: String) {
         let wanted = self.settings.repository.take();
+        self.settings.memory_ui = Default::default();
         let page = &mut self.settings.memory;
         *page = MemoryPage { loaded_for: Some(key.clone()), request: page.request + 1, loading: true, ..MemoryPage::default() };
         let request = page.request;
@@ -112,6 +115,7 @@ impl State {
             if let Some(o) = page.overview.as_mut() {
                 o.enabled = enabled;
             }
+            self.settings.memory_ui.confirming_clear = false;
             return;
         };
         let home = self.settings_target().is_some_and(|t| t.is_home());
@@ -124,6 +128,7 @@ impl State {
                 s.settings.memory.saving = false;
                 match got {
                     Ok(overview) => {
+                        s.settings.memory_ui.confirming_clear = false;
                         if home {
                             s.pickers.prefs.set(memory::MEMORY_PREFERENCE_KEY, if overview.enabled { "true" } else { "false" });
                         }
