@@ -184,7 +184,7 @@ pub fn with_file_stats(
                     if !is_outside(path, directory) {
                         let relative = relative_path(path, directory);
                         // A file the diff doesn't list has no net change.
-                        let unchanged = FileStat { additions: 0, deletions: 0 };
+                        let unchanged = FileStat::new(0, 0);
                         if let Some(snapshot) = snapshot {
                             found = Some(snapshot.files.get(&relative).copied().unwrap_or(unchanged));
                         } else if in_last && let Some(stats) = stats {

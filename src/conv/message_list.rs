@@ -32,6 +32,21 @@ pub enum ClusterPosition {
 pub struct FileStat {
     pub additions: u32,
     pub deletions: u32,
+    /// What the session diff says was done to the file, when it says (`status`): the Turns tab calls a file new only on `Added`.
+    pub status: Option<FileStatus>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FileStatus {
+    Added,
+    Modified,
+    Deleted,
+}
+
+impl FileStat {
+    pub fn new(additions: u32, deletions: u32) -> Self {
+        FileStat { additions, deletions, status: None }
+    }
 }
 
 /// A call as the list holds it (`ToolCardItem`): only what folding and grouping read. The drawn card comes from the

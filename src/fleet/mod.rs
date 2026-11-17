@@ -126,6 +126,7 @@ pub mod summary;
 pub mod tls;
 pub mod toolbar;
 pub mod topics;
+pub mod turns;
 pub mod update_notices;
 pub mod updates;
 pub mod uploads;

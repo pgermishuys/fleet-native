@@ -4,7 +4,7 @@
 //! The strip lists a session's running work and what ended in the last 30 seconds, counted from when this window first
 //! saw it end (not from the server's `endedAt`, so a server clock that runs ahead or behind can't hide or pin a row).
 use super::time::{MONTHS, civil, clock};
-use super::working::format_duration;
+use super::working::{format_duration, format_duration_exact};
 use crate::fleet::work::{RunningWorkItem, WorkKind, is_running, parse_iso_ms, work_elapsed_ms};
 use std::collections::{HashMap, HashSet};
 
@@ -170,16 +170,6 @@ fn relative(diff_ms: i64) -> String {
     if diff_ms >= 0 { format!("{words} ago") } else { format!("in {words}") }
 }
 
-/// `formatDuration(ms)` with seconds, for the tooltip: "45 s", "3 min 20 s", "1 h 05 min".
-fn exact(ms: i64) -> String {
-    let seconds = ms.max(0) / 1000;
-    if (60..3600).contains(&seconds) {
-        let (m, s) = (seconds / 60, seconds % 60);
-        return if s == 0 { format!("{m} min") } else { format!("{m} min {s:02} s") };
-    }
-    format_duration(ms)
-}
-
 /// `formatDateTime(at, { seconds: true })` in en-US: "Oct 4, 10:03:12 AM", with the year when it isn't this one.
 fn date_time(at: i64, now: i64, offset_secs: i64) -> String {
     let (y, mo, d, h, mi) = civil(at, offset_secs);
@@ -192,5 +182,9 @@ fn date_time(at: i64, now: i64, offset_secs: i64) -> String {
 /// The tooltip on the time (`timeTitle`).
 pub fn time_title(item: &RunningWorkItem, now: i64, offset_secs: i64) -> String {
     let started = parse_iso_ms(&item.started_at).map(|at| date_time(at, now, offset_secs)).unwrap_or_default();
-    if is_running(item) { format!("Started {started}") } else { format!("Ran for {}, from {started}", exact(work_elapsed_ms(item, now))) }
+    if is_running(item) {
+        format!("Started {started}")
+    } else {
+        format!("Ran for {}, from {started}", format_duration_exact(work_elapsed_ms(item, now)))
+    }
 }

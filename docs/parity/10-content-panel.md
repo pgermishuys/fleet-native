@@ -363,7 +363,7 @@ Sizes are CSS px at the 14 px root. Line height is Tailwind's preflight 1.5 wher
 | 4.6 | Filter focus ring: 2 px `--accent`, offset 2 (`:focus-visible`) | TC 398-401 | None (`focus_ring(2.0, 2.0, t.accent)` as `ui/dialog.rs` 94) |
 | 4.7 | Click toggles `changedOnly`; on shows only turns with `!readOnly` (a file written). Local to the instance: kept across tab switches and across session switches (same `turns` instance, 4.1) | TC 44-45, 106 | None |
 | 4.8 | "Newest first": a fixed span, `nowrap` | TC 110, 403-405 | None |
-| 4.9 | Totals, pushed right (`margin-left auto`), inline flex gap 8, mono 11.5, tabular figures: "N turn" / "N turns", then `+A` in `--running-text` if A > 0, then `−D` (U+2212) in `--error-text` if D > 0. A and D are `formatCount` (grouped, "1,234"). Counts **every** turn, not just the filtered ones | TC 111-121, 407-422; TS 506-515 | None. `format_count` exists (`composer/format.rs` 68) |
+| 4.9 | Totals, pushed right (`margin-left auto`), inline flex gap 8, mono 11.5, tabular figures: "N turn" / "N turns", then `+A` in `--running-text` if A > 0, then `−D` (U+2212) in `--error-text` if D > 0. A and D are `formatCount` (grouped, "1,234"). Counts **every** turn, not just the filtered ones | TC 111-121, 407-422; TS 506-515 | None. `format_count` exists (`composer/format.rs` 68) **Done (piece I): the words (`turns_text`, `additions_text`, `deletions_text`); drawn by J.** |
 
 ### Turns (B): The list and its states
 
@@ -385,12 +385,12 @@ Sizes are CSS px at the 14 px root. Line height is Tailwind's preflight 1.5 wher
 | 4.18 | Caret: lucide `ChevronRight` 12, `--muted`, never shrinks; turns 90° when open (150 ms ease-out) | TC 165-169, 479-487 | None (copy `view/fold.rs` 30) |
 | 4.19 | Number: `turn.number` (1 = oldest *loaded* round, so loading older shifts every number), mono 11, `--muted`, min width 22, tabular figures, never shrinks | TC 170, 489-496; TS 59 | None |
 | 4.20 | Copy column: flex 1, `min-width 0`, column, gap 1 | TC 171, 498-504 | None |
-| 4.21 | Prompt line, 13 px, one line, ellipsis. Text: the prompt's first non-blank line, trimmed, cut to 159 chars + "…" when longer than 160; else "(no text in this prompt)" for a user message with no text; else "Before the loaded history" for the round with no prompt (assistant messages older than the first loaded user message) | TC 87-90, 172, 506-511; TS 283-299, 389 | None |
-| 4.22 | A slash-command prompt reads as sent, `/name arguments` (`/name` with none), not the expanded prompt | TS 284-287 | Partial: `conv::references::format_slash_command` and `Msg.command` exist |
+| 4.21 | Prompt line, 13 px, one line, ellipsis. Text: the prompt's first non-blank line, trimmed, cut to 159 chars + "…" when longer than 160; else "(no text in this prompt)" for a user message with no text; else "Before the loaded history" for the round with no prompt (assistant messages older than the first loaded user message) | TC 87-90, 172, 506-511; TS 283-299, 389 | None **Done (piece I): `prompt_line`; drawn by J.** |
+| 4.22 | A slash-command prompt reads as sent, `/name arguments` (`/name` with none), not the expanded prompt | TS 284-287 | Partial: `conv::references::format_slash_command` and `Msg.command` exist **Done (piece I): `derive_turns`.** |
 | 4.23 | Sub line: flex, centred, gap 6, 11.5 px, `--muted`, one line, clipped | TC 173-185, 513-522 | None |
 | 4.24 | Model: inline flex gap 5, never shrinks: a 5×5 dot (`--accent` 75 % over transparent), then the model's name (4.53) | TC 174-179, 524-537 | None |
 | 4.25 | "model changed" pill, when the round ran on more than one model: padding `1px 6px`, radius 999, fill `--accent-dim`, `--text` 78 %, 10.5 px, never shrinks | TC 180-183, 539-546; TS 393 | None |
-| 4.26 | Facts (truncates): `· <took> · <files>` joined by spaces, a part left out when null. Took = `formatDuration(max(1000, durationMs))` ("1 s" at least, "3 min 20 s", "1 h 05 min"), none when the duration is null. Files = "read only" when no file was written (also a turn with no tools at all), else "1 file" / "N files" | TC 72-85, 184, 548-551; `format/duration.ts` 22-41 | None. Needs a public seconds-precision `formatDuration` (move `conv::work_clock::exact` out, or add one beside `conv::working::format_duration`) |
+| 4.26 | Facts (truncates): `· <took> · <files>` joined by spaces, a part left out when null. Took = `formatDuration(max(1000, durationMs))` ("1 s" at least, "3 min 20 s", "1 h 05 min"), none when the duration is null. Files = "read only" when no file was written (also a turn with no tools at all), else "1 file" / "N files" | TC 72-85, 184, 548-551; `format/duration.ts` 22-41 | None. Needs a public seconds-precision `formatDuration` (move `conv::work_clock::exact` out, or add one beside `conv::working::format_duration`) **Done (piece I): `took`, `facts`; `format_duration_exact` moved to `conv::working`.** |
 | 4.27 | Stats at the end, never shrink, inline flex gap 7, mono 11.5, tabular: `+A` `--running-text` (A > 0), `−D` `--error-text` (D > 0), **raw numbers** (not grouped, unlike 4.9); "—" (U+2014) `--muted` when both are 0 | TC 187-202, 553-564 | None |
 | 4.28 | Open state: the newest turn (`turns[0]`, unfiltered) is open by default; a click toggles that turn and the choice overrides the default from then on (`openOverrides[turn.id]`). When a new prompt arrives the new turn becomes the default-open one and the previous closes, unless it was clicked | TC 47-57, 156, 163 | None (`State.turns_open` is the conversation's; Turns needs its own map) |
 
@@ -399,9 +399,9 @@ Sizes are CSS px at the 14 px root. Line height is Tailwind's preflight 1.5 wher
 | # | Row | Source | Native today |
 |---|---|---|---|
 | 4.29 | Detail: column, gap 12, padding `2px 10px 12px 41px` | TC 205-208, 566-571 | None |
-| 4.30 | Meta line: wraps, gap `4px 18px`, 12 px `--muted`; values bold 500, `--text` 84 %, tabular. Items in order: "Model **name**" (always), "Agent **build**" (when the round has an agent: the first assistant message's), "Took **12 s**" (when 4.26 has one), "Tokens **3k in · 300 out**" (`formatTokens`, when either is > 0), "Est. cost **$0.19**" (`formatMoney`, when > 0) | TC 209-217, 573-585 | None. `format_tokens`, `format_money` exist (`composer/format.rs` 81, 100) |
+| 4.30 | Meta line: wraps, gap `4px 18px`, 12 px `--muted`; values bold 500, `--text` 84 %, tabular. Items in order: "Model **name**" (always), "Agent **build**" (when the round has an agent: the first assistant message's), "Took **12 s**" (when 4.26 has one), "Tokens **3k in · 300 out**" (`formatTokens`, when either is > 0), "Est. cost **$0.19**" (`formatMoney`, when > 0) | TC 209-217, 573-585 | None. `format_tokens`, `format_money` exist (`composer/format.rs` 81, 100) **Done (piece I): `meta_items`; drawn by J.** |
 | 4.31 | Section label (used by "Wrote this turn", "Also ran", "Subagents"): mono 10, letter-spacing 0.1em, uppercase, `--muted`, margin-bottom 4 | TC 220-222, 284-286, 308-310, 587-594 | None (`tracking(1.0)` + `to_uppercase()`, docs/RUNE.md) |
-| 4.32 | Nothing written: 12.5 px `--muted`: "Nothing was written this turn." with no tools; with tools "Nothing was written this turn — 3 tool calls, all reads ." ("1 tool call"). Fleet's own text has a space before the period (Vue keeps the newline before `</template>` as a space; checked by compiling the template). Match what Fleet draws | TC 274-281, 596-600 | None |
+| 4.32 | Nothing written: 12.5 px `--muted`: "Nothing was written this turn." with no tools; with tools "Nothing was written this turn — 3 tool calls, all reads ." ("1 tool call"). Fleet's own text has a space before the period (Vue keeps the newline before `</template>` as a space; checked by compiling the template). Match what Fleet draws | TC 274-281, 596-600 | None **Done (piece I): `nothing_written`; drawn by J.** |
 
 ### Turns (E): Files the turn wrote, and their diffs
 
@@ -423,8 +423,8 @@ Sizes are CSS px at the 14 px root. Line height is Tailwind's preflight 1.5 wher
 |---|---|---|---|
 | 4.42 | "Also ran" (when the round ran any tool): chips wrapping, gap 6. First chip: "N tool(s)", then " · **N edit(s)**" when any call wrote a file | TC 283-291, 602-606 | None |
 | 4.43 | Chip: inline flex, centred, gap 4, max width 100 %, padding `3px 9px`, 1 px `--border`, radius 999, fill `--card-bg`, 11.5 px `--muted`, one line; bold parts 500 `--text` 84 % | TC 608-632 | None |
-| 4.44 | A chip per shell command (first 4 only): the label (first non-blank line of `command`, else `description`, cut to 47 + "…" past 48), truncating inside the chip, tooltip the label; then "·" and **passed** (completed) or **failed** (error); nothing more while running | TC 292-303, 622-627; TS 359-363, 412-416 | None |
-| 4.45 | "Subagents" (when the round started any): a chip per sub-agent: title (truncates, tooltip), "·", **status** as the wire word (`pending`, `running`, `completed`, `error`, `cancelled`) | TC 307-323 | None. `DelegationStatus` needs a `wire()` word |
+| 4.44 | A chip per shell command (first 4 only): the label (first non-blank line of `command`, else `description`, cut to 47 + "…" past 48), truncating inside the chip, tooltip the label; then "·" and **passed** (completed) or **failed** (error); nothing more while running | TC 292-303, 622-627; TS 359-363, 412-416 | None **Done (piece I): `TurnCommand`, `command_outcome`.** |
+| 4.45 | "Subagents" (when the round started any): a chip per sub-agent: title (truncates, tooltip), "·", **status** as the wire word (`pending`, `running`, `completed`, `error`, `cancelled`) | TC 307-323 | None. `DelegationStatus` needs a `wire()` word **Done (piece I): `TurnDelegation`, `DelegationStatus::wire`.** |
 
 ### Turns (G): Show in the chat, and older turns
 
@@ -446,16 +446,16 @@ Sizes are CSS px at the 14 px root. Line height is Tailwind's preflight 1.5 wher
 
 | # | Row | Source | Native today |
 |---|---|---|---|
-| 4.52 | Rounds: messages oldest first; a user message (or the very first message) starts a round; `hasPrompt` is whether it starts with a user message. Two prompts in a row are two rounds. Numbered 1.. oldest first, returned newest first | TS 268-281, 302-325 | None |
-| 4.53 | Model name (`modelDisplayName`): none → "Unknown model"; exact id in the session's catalog → its name; else the bare id (after the last "/") matched as an id or as `…/bare`; else the bare id | TS 527-539 | None: `composer::choice::model_display_name` differs ("" for none, exact match only); add Fleet's beside it or in the turns module |
-| 4.54 | Per round over assistant messages: models in order (consecutive repeats once), last one is `modelId`, `modelChanged` when more than one distinct; `agent` the first one set; `cost`, input and output tokens summed; `endedAt` the latest `completedAt ?? createdAt` over **all** its messages; `startedAt` the first message's `createdAt`; `durationMs` only when `endedAt > startedAt` | TS 331-352, 382-384 | None (`Msg` carries every field) |
-| 4.55 | Tools: `toolCount` every tool part (reads too, failed too); `editCount` calls with at least one file edit; commands from shell calls (category shell, not Code Mode's `execute`), up to 4, outcome true/false/null from status completed/error/other | TS 95-97, 355-371, 412-416 | Partial: `conv::tools::is_shell_row`, `string_field`, `ToolStatus::from_word` |
-| 4.56 | File edits: `fileEditsOf` (completed write calls only; diff array, else unified diff on state/metadata or in the input, split by file, else old/new strings, else whole contents, else a bare path) | TS 160-259 | Done: `conv::diff::file_edits_of` (`src/conv/diff.rs` 491-580). Missing: Fleet's per-call cache (by `partId|callId|tool`, at most 4000 calls) |
-| 4.57 | Merging per path within a round: counts add, `created` is either, diff lines concatenate, `wholeFile` sticks | TS 418-445 | None |
-| 4.58 | Whole-file writes: a file written by a call that sent only its contents takes its counts from the session diff (`fileStats` by path relative to the session's `workspaceDirectory`), 0/0 while unknown; it is "new" only when the diff says `added` and no earlier round wrote that path (absolute path as written) | TS 373-379, 314-319 | None. `conv::fold::relative_path` exists; `FileStat` lacks `status` (add an optional `added`/`modified`/`deleted`, or a turns-own map) |
-| 4.59 | `readOnly` = no file written; turn `additions`/`deletions` = sums of its files | TS 380-381, 408 | None |
-| 4.60 | Sub-agents: each delegation goes to the round holding the tool call it came from (`parentToolCallId`), else to the last round started at or before its `createdAt` (ISO), else nowhere | TS 451-496 | None. `Delegation.parent_tool_call_id`, `created_at` and `parse_iso_ms` exist |
-| 4.61 | Totals: turns, additions, deletions over all turns | TS 500-515 | None |
+| 4.52 | Rounds: messages oldest first; a user message (or the very first message) starts a round; `hasPrompt` is whether it starts with a user message. Two prompts in a row are two rounds. Numbered 1.. oldest first, returned newest first | TS 268-281, 302-325 | None **Done (piece I): `fleet::turns`.** |
+| 4.53 | Model name (`modelDisplayName`): none → "Unknown model"; exact id in the session's catalog → its name; else the bare id (after the last "/") matched as an id or as `…/bare`; else the bare id | TS 527-539 | None: `composer::choice::model_display_name` differs ("" for none, exact match only); add Fleet's beside it or in the turns module **Done (piece I): `model_display_name`.** |
+| 4.54 | Per round over assistant messages: models in order (consecutive repeats once), last one is `modelId`, `modelChanged` when more than one distinct; `agent` the first one set; `cost`, input and output tokens summed; `endedAt` the latest `completedAt ?? createdAt` over **all** its messages; `startedAt` the first message's `createdAt`; `durationMs` only when `endedAt > startedAt` | TS 331-352, 382-384 | None (`Msg` carries every field) **Done (piece I): `fleet::turns`.** |
+| 4.55 | Tools: `toolCount` every tool part (reads too, failed too); `editCount` calls with at least one file edit; commands from shell calls (category shell, not Code Mode's `execute`), up to 4, outcome true/false/null from status completed/error/other | TS 95-97, 355-371, 412-416 | Partial: `conv::tools::is_shell_row`, `string_field`, `ToolStatus::from_word` **Done (piece I): `fleet::turns`.** |
+| 4.56 | File edits: `fileEditsOf` (completed write calls only; diff array, else unified diff on state/metadata or in the input, split by file, else old/new strings, else whole contents, else a bare path) | TS 160-259 | Done: `conv::diff::file_edits_of` (`src/conv/diff.rs` 491-580). Missing: Fleet's per-call cache (by `partId|callId|tool`, at most 4000 calls) **Done (piece I): `EditCache` keeps the per-call cache (4000 calls).** |
+| 4.57 | Merging per path within a round: counts add, `created` is either, diff lines concatenate, `wholeFile` sticks | TS 418-445 | None **Done (piece I): `fleet::turns`.** |
+| 4.58 | Whole-file writes: a file written by a call that sent only its contents takes its counts from the session diff (`fileStats` by path relative to the session's `workspaceDirectory`), 0/0 while unknown; it is "new" only when the diff says `added` and no earlier round wrote that path (absolute path as written) | TS 373-379, 314-319 | None. `conv::fold::relative_path` exists; `FileStat` lacks `status` (add an optional `added`/`modified`/`deleted`, or a turns-own map) **Done (piece I): `FileStat.status` added (`FileStatus`).** |
+| 4.59 | `readOnly` = no file written; turn `additions`/`deletions` = sums of its files | TS 380-381, 408 | None **Done (piece I): `fleet::turns`.** |
+| 4.60 | Sub-agents: each delegation goes to the round holding the tool call it came from (`parentToolCallId`), else to the last round started at or before its `createdAt` (ISO), else nowhere | TS 451-496 | None. `Delegation.parent_tool_call_id`, `created_at` and `parse_iso_ms` exist **Done (piece I): `fleet::turns`.** |
+| 4.61 | Totals: turns, additions, deletions over all turns | TS 500-515 | None **Done (piece I): `fleet::turns`.** |
 
 ### Turns (J): Where the data comes from, and when it changes
 
@@ -1017,6 +1017,14 @@ did for smart links, and say so.
   a scene. Both themes.
 
 ### Piece I: turns, the logic (plain Rust, no view)
+
+**Done.** Rows 4.9, 4.21, 4.22, 4.26, 4.30, 4.32 (their words), 4.44, 4.45 and 4.52-4.61 are done in `src/fleet/turns.rs`
+(`derive_turns`, `derive_turns_cached`, `turn_totals`, `model_display_name`, the words, `EditCache`). The cache is an explicit value
+the caller owns (J keeps one on `State`), not a global: Fleet's is a module global, but tests run in parallel here and would share
+call ids. `FileStat` has an optional `status`; `DelegationStatus::wire()`; `conv::working::format_duration_exact` is the old
+`work_clock::exact`. All 33 of `turns.test.ts` and the `turns` column of `tool-classification.test.ts` are ported
+(`src/fleet/tests/turns.rs`, 48 tests with the cases from reading). Open: 4.62-4.64 (where the data comes from, the
+`/diffs` fetch) are J's; 4.65 is component 26. `fileEditsOf`'s own cases stay in `conv/tests/diff.rs`.
 
 - **Rows:** 4.9 (totals), 4.21, 4.22, 4.26, 4.30, 4.32 (words), 4.44, 4.45, 4.52-4.61.
 - **Files:** new `src/fleet/turns.rs` (`SessionTurn`, `TurnFile`, `TurnCommand`, `TurnDelegation`, `derive_turns`,
