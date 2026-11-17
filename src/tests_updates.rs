@@ -168,8 +168,12 @@ fn asks_another_machines_status_and_notes_when_settings_shows_it_never_home() {
     let other_base = serve(other.clone());
     let mut r = rig("0.59.0", Some((&other, &other_base)), true);
     assert_eq!(r.rt.state.settings.choice.key(&r.rt.state.machines), "m-harbor");
-    r.wait("harbor's status and notes", |s| {
-        s.updates.status.get("m-harbor").is_some_and(|x| x.status.is_some()) && s.updates.releases.get("m-harbor").is_some_and(|x| x.loaded)
+    // The rollout read is home's and goes out on its own request, so wait for it too: asserting it was heard
+    // right after harbor's answers raced it on a slow runner.
+    r.wait("harbor's status and notes, and home's rollout", |s| {
+        s.updates.status.get("m-harbor").is_some_and(|x| x.status.is_some())
+            && s.updates.releases.get("m-harbor").is_some_and(|x| x.loaded)
+            && s.updates.rollout.is_some()
     });
     assert_eq!(r.rt.state.updates.status["m-harbor"].status.as_ref().map(|s| s.current_version.as_str()), Some("0.58.0"));
     assert!(r.did(&other, "GET", "/api/update/status") && r.did(&other, "GET", "/api/update/releases"));
@@ -221,7 +225,9 @@ fn restart_on_home_posts_apply_and_waits_for_it_to_go_down_and_come_back() {
     r.home.lock().unwrap().down_for = 2;
     r.rt.update(|s, _| s.restart_machine("home", Some("0.59.0".into()), Some("0.59.1".into())));
     r.wait("apply to be sent", |s| s.updates.restarting.is_some());
-    assert!(r.did(&r.home, "POST", "/api/update/apply"));
+    // `restarting` is set before the request leaves; wait until home has heard it.
+    let home = r.home.clone();
+    r.wait("home to hear the apply", move |_| home.lock().unwrap().heard.iter().any(|(m, p, _)| m == "POST" && p == "/api/update/apply"));
     // Down twice (503), then up: the page lets go of the wait and reads everything again.
     r.wait("the Fleet to come back", |s| s.updates.restarting.is_none() && s.updates.action_error.is_none());
     let asked = r.heard(&r.home).iter().filter(|(m, p, _)| m == "GET" && p == "/api/machine").count();

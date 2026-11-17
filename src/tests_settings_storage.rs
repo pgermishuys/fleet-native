@@ -300,6 +300,9 @@ fn waits_to_measure_until_folders_is_open_and_asks_for_three_at_a_time() {
     r.wait("three folders being measured", |s| s.settings.storage.in_flight == 3);
     assert_eq!(r.page().queue.len(), 2, "the other two wait their turn");
     assert_eq!(r.page().queue.iter().collect::<Vec<_>>(), ["w4", "w5"], "the first three (w1, w2 removable, then w3) are out already");
+    // `in_flight` counts requests sent; the fake's own count rises when its thread picks each one up, which can lag.
+    let fake = r.fake.clone();
+    r.wait("the server to hold three at once", move |_| fake.lock().unwrap().most_at_once == 3);
     r.fake.lock().unwrap().hold = false;
     r.measured();
     assert_eq!(r.fake.lock().unwrap().most_at_once, 3);

@@ -170,6 +170,11 @@ impl Rig {
         let it = all.iter().find(|e| e.key.as_deref() == Some(key) && !e.exiting).unwrap_or_else(|| panic!("no element keyed {key:?}"));
         all.iter().filter(|e| e.path.starts_with(&it.path)).filter_map(|e| e.text.clone()).collect::<Vec<_>>().join("")
     }
+    /// Calls that change something. A press that "sends nothing" is about these: a read the page makes on its own schedule
+    /// can still arrive after `read()` returns, and counting it made those tests flaky.
+    fn writes(&self) -> usize {
+        self.heard().iter().filter(|(m, _)| m != "GET").count()
+    }
     fn heard(&self) -> Vec<(String, String)> {
         // The Worktrees and Storage cards share the page and read on their own schedule; these tests are about Locations.
         let other = |p: &str| p.starts_with("/api/storage/") || p.starts_with("/api/worktrees/");
@@ -304,13 +309,13 @@ fn add_sends_the_trimmed_path_clears_the_box_reads_the_list_and_scans() {
 fn add_with_an_empty_box_says_so_and_sends_nothing() {
     let mut r = rig(|_| {});
     r.read();
-    let before = r.heard().len();
+    let before = r.writes();
     click(&mut r.rt, "locations-add");
     assert_eq!(r.text("locations-add-error"), "Enter the folder to add.");
     r.type_path("   ");
     click(&mut r.rt, "locations-add");
     assert_eq!(r.text("locations-add-error"), "Enter the folder to add.");
-    assert_eq!(r.heard().len(), before);
+    assert_eq!(r.writes(), before);
 }
 
 #[test]
@@ -353,9 +358,9 @@ fn the_add_button_says_adding_and_is_off_while_it_works() {
     r.rt.update(|s, _| s.settings.locations.adding = true);
     r.settle();
     assert_eq!(r.text("locations-add"), "Adding…");
-    let before = r.heard().len();
+    let before = r.writes();
     click(&mut r.rt, "locations-add");
-    assert_eq!(r.heard().len(), before, "a press while adding sends nothing");
+    assert_eq!(r.writes(), before, "a press while adding sends nothing");
 }
 
 // ─── Remove ─────────────────────────────────────────────────────────────────────

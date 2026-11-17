@@ -267,6 +267,10 @@ fn undoes_a_change_shows_undone_and_reads_the_notes_again() {
     r.press("dream-undo-c1");
     assert_eq!(r.heard("POST", "/api/memory/dreams/d1/changes/c1/undo").len(), 1);
     assert_eq!(r.text("dream-undo-c1"), "Undone");
+    let fake = r.fake.clone();
+    r.wait("the notes to be read again", move |_| {
+        fake.lock().unwrap().heard.iter().filter(|(m, p, _)| m == "GET" && p.starts_with("/api/memory/notes")).count() > reads
+    });
     assert!(r.heard("GET", "/api/memory/notes").len() > reads, "the notes are read again");
     assert!(r.text("dream-heading").contains("0 notes changed"));
 }
