@@ -38,6 +38,9 @@ impl State {
                 self.right.widened = case == Case::Widened;
             }
             Case::Tabs | Case::Attention => {
+                // Widened with the list folded, so every tab fits and the badges show.
+                self.sidebar_open = false;
+                self.right.widened = true;
                 self.canvases.agents_running = 1;
                 self.edit_canvases(|c, id| {
                     c.open(id, CanvasKind::Progress);
