@@ -47,6 +47,7 @@ pub fn targets(page: &Page) -> &'static [(&'static str, &'static str)] {
             ("session-messages", "reach-row-messages"),
             ("other-machines", "reach-row-machines"),
             ("unattended-runs", "reach-row-unattended"),
+            ("browser", "settings-anchor-browser"),
         ],
         Page::Folders => &[("storage", "settings-anchor-storage")],
         _ => &[],
@@ -98,7 +99,9 @@ impl State {
         }
         match self.settings.settle_anchor() {
             Some(key) => {
-                tx.scroll_into_view(key);
+                // Fleet scrolls with `block: start`. `scroll_into_view` only reveals the top edge, so a group whose top is already
+                // on screen but whose body is below it (the Browser group) wouldn't move; this puts the top at the top.
+                tx.scroll_key_to(key, 0.0);
                 true
             }
             None => false,

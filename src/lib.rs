@@ -135,6 +135,8 @@ mod tests_settings_appearance;
 #[cfg(test)]
 mod tests_settings_appearance_page;
 #[cfg(test)]
+mod tests_settings_browser;
+#[cfg(test)]
 mod tests_settings_dreaming;
 #[cfg(test)]
 mod tests_settings_general;
@@ -1941,6 +1943,22 @@ pub fn spec() -> AppSpec<State> {
             ("settings-providers-copilot-in-light", |s| s.show_providers(false, mock::harnesses::Providers::CopilotIn)),
             ("settings-providers-copilot-out", |s| s.show_providers(true, mock::harnesses::Providers::CopilotOut)),
             ("settings-providers-copilot-out-light", |s| s.show_providers(false, mock::harnesses::Providers::CopilotOut)),
+            ("settings-browser", |s| s.show_browser_group(true, mock::permissions::Browser::Default)),
+            ("settings-browser-light", |s| s.show_browser_group(false, mock::permissions::Browser::Default)),
+            ("settings-browser-off", |s| s.show_browser_group(true, mock::permissions::Browser::Off)),
+            ("settings-browser-off-light", |s| s.show_browser_group(false, mock::permissions::Browser::Off)),
+            ("settings-browser-machine", |s| s.show_browser_group(true, mock::permissions::Browser::Machine)),
+            ("settings-browser-machine-light", |s| s.show_browser_group(false, mock::permissions::Browser::Machine)),
+            ("settings-browser-any", |s| s.show_browser_group(true, mock::permissions::Browser::Any)),
+            ("settings-browser-any-light", |s| s.show_browser_group(false, mock::permissions::Browser::Any)),
+            ("settings-browser-scripts", |s| s.show_browser_group(true, mock::permissions::Browser::Scripts)),
+            ("settings-browser-scripts-light", |s| s.show_browser_group(false, mock::permissions::Browser::Scripts)),
+            ("settings-browser-error", |s| s.show_browser_group(true, mock::permissions::Browser::SaveError)),
+            ("settings-browser-error-light", |s| s.show_browser_group(false, mock::permissions::Browser::SaveError)),
+            ("settings-browser-loading", |s| s.show_browser_group(true, mock::permissions::Browser::Loading)),
+            ("settings-browser-loading-light", |s| s.show_browser_group(false, mock::permissions::Browser::Loading)),
+            ("settings-browser-load-error", |s| s.show_browser_group(true, mock::permissions::Browser::LoadError)),
+            ("settings-browser-load-error-light", |s| s.show_browser_group(false, mock::permissions::Browser::LoadError)),
             ("settings-profiles-none", |s| s.show_profiles(true, mock::harnesses::Profiles::None)),
             ("settings-profiles-none-light", |s| s.show_profiles(false, mock::harnesses::Profiles::None)),
             ("settings-profiles-loading", |s| s.show_profiles(true, mock::harnesses::Profiles::Loading)),

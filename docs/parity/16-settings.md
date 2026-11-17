@@ -918,10 +918,22 @@ Built in `src/fleet/settings/permissions.rs` (`Reach`, `reach_of`, `level_with`,
 Built in `src/fleet/settings/permissions_more.rs` (`Unattended`, the messages choice, the machine exceptions and candidates, the "runs at" word, the writes), `src/view/settings/permissions_rows.rs` (the three rows, the machine chips and their two lists, the fine print), the `settings-permissions-machines*`, `-elsewhere`, `-machine-chip`, `-machine-add` and `-vega-*` scenes, `src/tests_settings_permissions_more.rs`, and the page's row anchors (`edit-files`, `run-commands`, `session-messages`, `other-machines`, `unattended-runs`) in `anchor::targets`.
 
 - **Done:** 6.25 to 6.37 and 6.39. 6.34: opening the page on the live machine asks home for its machines again (`refresh_machines`: the list, home's identity, each machine's settings); the app already polls every 15 s, and another machine's page asks for none of it.
-- **Open:** 6.38 (the Browser group and its anchor) is O's.
+- **Open:** none (6.38, the Browser group and its anchor, was O's: done).
 - **Fleet's tests ported under their names:** "lists the rows in order ...", "turns messages between sessions on ...", "says nowhere else that a change waits for new sessions", "lists machines set to Always or Never as exceptions ...", "points to Machines when there's no other machine", "keeps unattended runs allowed until told otherwise". Ours: anything else reads as Allow, a refused machine change says so under the row and the next try clears it, another machine's page names where the list is.
 - **Differences from Fleet:** the chip's select is a trigger and a popup, as decided; the machine error is the Machines page's per-machine error (one place), shown under this row for the listed machines; a machine's error stays until the next try on either page.
 - **Pictures:** a scratch Fleet can pair one machine (a second scratch Fleet), so Fleet's pictures show it at Ask and at Always; Never and several machines are from scenes only, as are "another machine shown" and the open lists (Fleet's are the browser's own select popups).
+
+### Piece O: done (17 November 2026)
+
+**Followed:** weave-fleet `main` (17 November 2026), `BrowserSection.vue` and `use-agent-browser-settings.ts`. The scratch server is v0.72.0 and serves a client with the same group; its error line is plain red text, where `main`'s `ErrorNote` is the tinted box this app draws.
+
+Built in `src/fleet/settings/browser.rs` (`Pages`, `Settings`, `Change`, one `Copy` per machine in `settings.browser`: loading, saving, error; `read_browser`, `save_browser`, `browser_off`), `src/view/settings/browser.rs` (the card, the 36 x 20 switch, the radio ring, the rows, the error note, the fine print), `mock::permissions::Browser` and the `settings-browser*` scenes, `src/tests_settings_browser.rs`. The Browser chip and the harness tab's "without the browser" now read the same copy (`browser_off()` replaces `harnesses.browser_off`). The Browser anchor is in `anchor::targets`.
+
+- **Done:** 6.38, 6.40 to 6.53 (6.52: controls wait for the answer, and the spinner shows while loading or saving; with no server nothing is waited on).
+- **Fixed on the way (shared):** no Settings page scrolled (a single column inside a scroll box is squeezed to the window), so the page's own column is now the scroll box, and the anchor uses `scroll_key_to(key, 0.0)` (`scroll_into_view` only reveals an edge). Both are in `docs/RUNE.md`. The scroll is instant; Fleet's is smooth.
+- **Tests:** Fleet has none for these files; ours are in `tests_settings_browser.rs` (what the machine says, defaults, partial PUT bodies and the answer kept, off fades Pages and Scripts and ignores them, the two never-changing rows, a refused save put back with the error and the next try clearing it, an unreadable answer, controls wait while loading, one copy per machine, the chip opens the group and the page scrolls to it once). The chip test of piece M now expects the anchor spent.
+- **Differences from Fleet:** the radio is drawn (ring and dot), a disabled one isn't greyed separately from its row's 60%; the error note follows `main`, not v0.72.0's plain red line; no hover or focus-visible ring on the radios beyond Rune's.
+- **Pictures:** `shots/parity/16-settings-browser/`: default, off, any (Fleet's has scripts on too; native's `scripts` scene shows that), the refused save, both themes for default and off. Loading and load-error are scenes only (a scratch Fleet answers at once).
 
 ### Requests, events and preferences (Part 6)
 

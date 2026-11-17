@@ -105,3 +105,47 @@ impl State {
         }
     }
 }
+
+/// What the Browser group shows in a scene.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Browser {
+    /// What a machine that hasn't been changed says: on, this session's pages, no scripts.
+    Default,
+    Off,
+    Machine,
+    Any,
+    /// Scripts on, any address: the most open it goes.
+    Scripts,
+    /// The save was refused.
+    SaveError,
+    /// The machine hasn't answered.
+    Loading,
+    /// The machine's answer couldn't be read.
+    LoadError,
+}
+
+impl State {
+    /// The Browser group on the invented list, scrolled to by the anchor the Browser chip uses.
+    pub fn show_browser_group(&mut self, dark: bool, case: Browser) {
+        use crate::fleet::settings::browser::{Copy, LOAD_ERROR, Pages, SAVE_ERROR, Settings};
+        self.show_permissions(dark, Case::Defaults, None);
+        let mut copy = Copy::default();
+        let mut set = |enabled: bool, pages: Pages, scripts: bool| copy.settings = Settings { enabled, pages, scripts };
+        match case {
+            Browser::Default | Browser::Loading => {}
+            Browser::Off => set(false, Pages::Session, false),
+            Browser::Machine => set(true, Pages::Machine, false),
+            Browser::Any => set(true, Pages::Any, false),
+            Browser::Scripts => set(true, Pages::Any, true),
+            Browser::SaveError | Browser::LoadError => {}
+        }
+        copy.loading = case == Browser::Loading;
+        copy.error = match case {
+            Browser::SaveError => Some(SAVE_ERROR.to_string()),
+            Browser::LoadError => Some(LOAD_ERROR.to_string()),
+            _ => None,
+        };
+        self.settings.browser.insert(self.harness_machine(), copy);
+        self.open_settings("permissions", Some("browser"));
+    }
+}

@@ -7,6 +7,7 @@
 //! (`State::adopt_settings`, `State::save_settings`), never a view or a handler.
 pub mod anchor;
 pub mod appearance;
+pub mod browser;
 pub mod code_themes;
 pub mod dream_nightly;
 pub mod dream_nightly_actions;

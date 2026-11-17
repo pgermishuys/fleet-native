@@ -24,10 +24,21 @@ pub(crate) struct Fake {
     pub fresh: usize,
     /// What `GET /api/agent-browser/settings` says `enabled` is.
     pub browser_on: bool,
+    /// The pages and scripts it says (`""` is this session's pages), every `PUT` body it got, and whether it turns them down.
+    pub browser_pages: String,
+    pub browser_scripts: bool,
+    pub browser_puts: Vec<Value>,
+    pub browser_refuse: bool,
+    /// Answers the browser's settings with something that isn't settings.
+    pub browser_garbage: bool,
     /// Every `PUT /api/machines/{id}`: the id and the `agentWork` it sent. One whose id is in `refuse` is turned down.
     pub machine_puts: Vec<(String, String)>,
 }
 pub(crate) type Shared = Arc<Mutex<Fake>>;
+
+fn browser_json(f: &Fake) -> Value {
+    json!({"enabled": f.browser_on, "pages": if f.browser_pages.is_empty() { "session" } else { &f.browser_pages }, "scripts": f.browser_scripts})
+}
 
 pub(crate) fn serve(fake: Shared) -> String {
     let listener = TcpListener::bind("127.0.0.1:0").expect("a port");
@@ -75,7 +86,24 @@ fn answer(mut stream: std::net::TcpStream, fake: Shared) {
     } else if method == "GET" && path == "/api/preferences" {
         ("200 OK", json!(f.prefs))
     } else if method == "GET" && path == "/api/agent-browser/settings" {
-        ("200 OK", json!({"enabled": f.browser_on, "pages": "session", "scripts": false}))
+        if f.browser_garbage { ("200 OK", json!({})) } else { ("200 OK", browser_json(&f)) }
+    } else if method == "PUT" && path == "/api/agent-browser/settings" {
+        let sent = serde_json::from_slice::<Value>(&body).unwrap_or_default();
+        f.browser_puts.push(sent.clone());
+        if f.browser_refuse {
+            ("500 Internal Server Error", json!({ "error": "The server said no." }))
+        } else {
+            if let Some(on) = sent["enabled"].as_bool() {
+                f.browser_on = on;
+            }
+            if let Some(p) = sent["pages"].as_str() {
+                f.browser_pages = p.to_string();
+            }
+            if let Some(on) = sent["scripts"].as_bool() {
+                f.browser_scripts = on;
+            }
+            ("200 OK", browser_json(&f))
+        }
     } else if method == "PUT" && path.starts_with("/api/machines/") {
         let id = path.trim_start_matches("/api/machines/").to_string();
         let work =
@@ -379,7 +407,7 @@ fn spends_the_anchor_once_it_has_scrolled_there_so_a_later_save_doesn_t_pull_the
 fn says_the_level_it_runs_at_and_links_to_what_agents_can_do() {
     let mut r = rig(&[("PermissionLevel", "edits"), ("PermissionLevel.claude-code", "ask")]);
     // The fake says Fleet's browser is off, so every harness runs without it.
-    r.wait("the browser answer", |s| s.settings.harnesses.browser_off);
+    r.wait("the browser answer", |s| s.browser_off());
     assert!(r.words().contains("Runs at Allow edits, without the browser."));
     click(&mut r, "harness-tab-claude-code");
     assert!(r.words().contains("Runs at Ask before changes, without the browser."));

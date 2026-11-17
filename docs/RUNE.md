@@ -1456,3 +1456,11 @@ Plain Rust, no view, so nothing new about Rune. For the next piece that draws th
 - **No margin-left:auto**: a right-pushed item in a wrapping row is a `el().grow(1.0)` sibling before it.
 - **A first-run dialog makes the page inert in a test**: with no harness on, `harness-setup-overlay` covers the window and a click does nothing; close it (`harness_setup.close()`) before pressing in the page.
 - **Text keys**: a test reads a text with `text_of(key)` only when the key is on the text element itself, not on its row.
+
+
+## Component 16, piece O (What agents can do: the Browser group)
+
+- **A page that is one column inside a `scroll()` box never scrolls.** `el().scroll(..).child(page_column)` squeezed the single child to the window's height (its overflow isn't scrollable), so no Settings page scrolled at all: `scroll_to`, the wheel and the anchors did nothing. Make the page's own column the scroll box (`page_column.padding(24.0).scroll(..).grow(1.0).min_h(0.0)`); its children then lay out at full height. Smallest case: a `col().h(200.0).child(el().scroll(..).child(col().child(10 rows of 40 px)))` has no scroll range; with the scroll on the inner `col` it has.
+- **`Tx::scroll_into_view` only reveals an edge**: a group whose top is already on screen but whose body is below the fold doesn't move. `Tx::scroll_key_to(key, 0.0)` puts the top at the top of the box (instant, clamped to the end of the content), which is what `scrollIntoView({block: "start"})` does. It is instant, not smooth.
+- **A radio has to be drawn**: a 13 px ring with a 7 px dot, `role("radio")`, `checked(..)`, and the group `role("radiogroup")`. Disabled ones take `opacity(0.6)` and no press.
+- **`El` has no `shrink_0`**: a child doesn't shrink unless it asks with `.shrink()`.
