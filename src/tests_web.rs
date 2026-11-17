@@ -130,3 +130,91 @@ fn wanted_is_nothing_before_the_area_is_laid_out() {
     assert_eq!(rt.state.web.rect, None, "headless: the fallback has no area to report");
     assert_eq!(wanted(&rt.state), Wanted::Nothing);
 }
+
+// Piece B: the page bridge, as the host's IPC handler drives it (`State::hear_page`), with no window.
+use serde_json::{Value, json};
+
+fn hear(rt: &mut rune::Runtime<crate::State>, tab: &str, data: Value) -> Option<Value> {
+    let tab = tab.to_string();
+    let mut out = None;
+    rt.update(|s, tx| out = s.hear_page(&tab, &data, tx));
+    out
+}
+
+fn typed(rt: &rune::Runtime<crate::State>) -> String {
+    rt.state.draft.text.to_string()
+}
+
+#[test]
+fn puts_a_reply_in_the_composer_and_sends_nothing() {
+    let mut rt = opened();
+    assert_eq!(hear(&mut rt, "canvas:page_1", json!({"type": "fleet:page-reply", "text": "# Re: Plan\n\nGo with B"})), None);
+    rt.frame(FRAME);
+    assert_eq!(typed(&rt), "# Re: Plan\n\nGo with B");
+    let mut focused = None;
+    rt.update(|_, tx| focused = tx.focused().map(str::to_string));
+    assert_eq!(focused.as_deref(), Some("composer"), "the composer has the keyboard");
+}
+
+#[test]
+fn keeps_what_the_user_already_typed_above_the_reply() {
+    let mut rt = opened();
+    rt.update(|s, _| s.set_draft_text("Thinking about it"));
+    hear(&mut rt, "canvas:page_1", json!({"type": "fleet:page-reply", "text": "Answer: B"}));
+    assert_eq!(typed(&rt), "Thinking about it\n\nAnswer: B");
+}
+
+#[test]
+fn ignores_messages_from_any_other_web_view() {
+    let mut rt = opened();
+    assert_eq!(hear(&mut rt, "canvas:page_2", json!({"type": "fleet:page-reply", "text": "from elsewhere"})), None);
+    assert_eq!(hear(&mut rt, "canvas:page_2", json!({"type": "fleet:page-state", "state": {"a": 1}})), None);
+    assert_eq!(typed(&rt), "");
+    assert_eq!(rt.state.web.kept.kept("p1"), Value::Null);
+}
+
+#[test]
+fn answers_a_hello_with_the_state_the_page_saved_also_after_the_page_is_shown_again() {
+    let mut rt = opened();
+    let hello = || json!({"type": "fleet:page-hello"});
+    assert_eq!(hear(&mut rt, "canvas:page_1", hello()), Some(json!({"type": "fleet:page-state", "state": null})));
+    hear(&mut rt, "canvas:page_1", json!({"type": "fleet:page-state", "state": {"answers": {"one": "2"}}}));
+    let saved = Some(json!({"type": "fleet:page-state", "state": {"answers": {"one": "2"}}}));
+    assert_eq!(hear(&mut rt, "canvas:page_1", hello()), saved);
+    // Another tab, then back: the page is made again and says hello again.
+    rt.update(|s, _| {
+        let _ = s.edit_canvases(|all, id| all.activate(id, "changes"));
+    });
+    rt.update(|s, tx| s.activate_tab("canvas:page_1", tx));
+    assert_eq!(hear(&mut rt, "canvas:page_1", hello()), saved);
+}
+
+#[test]
+fn stops_listening_once_the_canvas_is_gone() {
+    let mut rt = opened();
+    rt.update(|s, _| {
+        let _ = s.edit_canvases(|all, id| all.activate(id, "changes"));
+    });
+    assert_eq!(hear(&mut rt, "canvas:page_1", json!({"type": "fleet:page-reply", "text": "late"})), None);
+    assert_eq!(typed(&rt), "");
+}
+
+#[test]
+fn a_page_cant_send_a_pick_or_a_refusal_itself() {
+    let mut rt = opened();
+    assert_eq!(hear(&mut rt, "canvas:page_1", json!({"type": "fleet:page-choice", "value": "a"})), None);
+    assert_eq!(hear(&mut rt, "canvas:page_1", json!({"type": "fleet:page-choice-refused", "reason": "x"})), None);
+}
+
+#[test]
+fn the_pages_theme_follows_the_window() {
+    let mut rt = opened();
+    rt.update(|s, _| s.drawn_dark.set(true));
+    assert!(rt.state.page_theme().dark);
+    assert_eq!(rt.state.page_theme().variables["--fleet-bg"], "#141418");
+    rt.update(|s, _| s.drawn_dark.set(false));
+    let light = rt.state.page_theme();
+    assert!(!light.dark);
+    assert_eq!(light.variables["--fleet-bg"], "#ffffff");
+    assert!(light.frame_name(crate::web::page_theme::PagePlace::Tab).starts_with("fleet:{"));
+}

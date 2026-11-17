@@ -1,7 +1,8 @@
 //! The native side of the web view host: the window's handle, the web views (one per page tab, keyed by tab id), the
 //! system's start-up (GTK on Linux, COM on Windows) and GTK's loop (rows 14.1, 14.2, 14.5, 14.6, 14.7). Everything here runs
 //! on the UI thread; a web view is `!Send`, so the views sit beside the state in a thread-local rather than in it.
-use super::{HOST_SCRIPT, Wanted, wanted};
+use super::page_theme::PagePlace;
+use super::{Wanted, inject, wanted};
 use crate::State;
 use rune::{AppHandle, Tx, WindowHandle};
 use std::cell::RefCell;
@@ -84,11 +85,20 @@ pub fn keep(s: &mut State, tx: &mut Tx) -> bool {
         return false;
     }
     take_keys_back(s, tx);
+    let theme = s.page_theme();
+    let name = theme.frame_name(PagePlace::Tab);
+    if s.web.theme.as_ref() != Some(&theme) {
+        // A change of theme (or of the font size) reaches every page that's open (row 14.28).
+        if s.web.theme.is_some() {
+            retheme_all(&name, &theme.message());
+        }
+        s.web.theme = Some(theme);
+    }
     let want = wanted(s);
     if s.web.applied.as_ref() == Some(&want) {
         return false;
     }
-    let result = apply(&want);
+    let result = apply(&want, &name);
     s.web.applied = Some(want);
     match result {
         Ok(()) => false,
@@ -113,7 +123,7 @@ fn pump(tx: &mut Tx) {
     let _ = tx;
 }
 
-fn apply(want: &Wanted) -> Result<(), String> {
+fn apply(want: &Wanted, name: &str) -> Result<(), String> {
     VIEWS.with(|views| {
         let mut views = views.borrow_mut();
         if let Wanted::Shown(p) = want {
@@ -124,7 +134,7 @@ fn apply(want: &Wanted) -> Result<(), String> {
                     v.load_key = p.load_key.clone();
                 }
                 Some(_) => {}
-                None => views.push(make(p)?),
+                None => views.push(make(p, name)?),
             }
         }
         for v in views.iter_mut() {
@@ -142,7 +152,7 @@ fn apply(want: &Wanted) -> Result<(), String> {
     })
 }
 
-fn make(p: &super::Placement) -> Result<View, String> {
+fn make(p: &super::Placement, name: &str) -> Result<View, String> {
     log(|| format!("make {} at {:?}", p.url, p.rect));
     let tab = p.tab.clone();
     let builder = WebViewBuilder::new()
@@ -152,7 +162,7 @@ fn make(p: &super::Placement) -> Result<View, String> {
         .with_background_color((255, 255, 255, 255))
         // Showing a page doesn't take the keyboard from the composer; a click in it does.
         .with_focused(false)
-        .with_initialization_script_for_main_only(HOST_SCRIPT, true)
+        .with_initialization_script_for_main_only(inject::script(name), true)
         .with_ipc_handler(move |req| heard(&tab, req.body()));
     let web = WINDOW.with(|w| {
         let w = w.borrow();
@@ -162,10 +172,31 @@ fn make(p: &super::Placement) -> Result<View, String> {
     Ok(View { tab: p.tab.clone(), web, load_key: p.load_key.clone(), rect: p.rect })
 }
 
-/// A message from a page's host script.
+fn retheme_all(name: &str, message: &serde_json::Value) {
+    let js = inject::retheme(name, message);
+    VIEWS.with(|views| {
+        for v in views.borrow().iter() {
+            let _ = v.web.evaluate_script(&js);
+        }
+    });
+}
+
+/// A message from a page's host script: that it took the keyboard, or a Fleet message from the page.
 fn heard(tab: &str, body: &str) {
     log(|| format!("heard from {tab}: {body}"));
-    let kind = serde_json::from_str::<serde_json::Value>(body).ok().and_then(|v| v.get("host")?.as_str().map(str::to_string));
+    let parsed = serde_json::from_str::<serde_json::Value>(body).ok();
+    if let Some(data) = parsed.as_ref().and_then(|v| v.get("page")).cloned() {
+        let tab = tab.to_string();
+        if let Some(app) = APP.get() {
+            app.update(move |s: &mut State, tx| {
+                if let Some(reply) = s.hear_page(&tab, &data, tx) {
+                    evaluate(&tab, &inject::deliver(&reply), |_| {});
+                }
+            });
+        }
+        return;
+    }
+    let kind = parsed.as_ref().and_then(|v| v.get("host")?.as_str().map(str::to_string));
     if kind.as_deref() == Some("focus")
         && let Some(app) = APP.get()
     {
