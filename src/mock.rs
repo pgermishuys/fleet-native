@@ -4,6 +4,7 @@ use crate::view::conversation::{Message, Part, ToolState};
 pub mod agents;
 pub mod asks;
 pub mod browser;
+pub mod canvas_host;
 pub mod context;
 pub mod context_tab;
 #[cfg(test)]

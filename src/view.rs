@@ -9,6 +9,7 @@ pub mod attachments;
 pub mod autocomplete;
 pub mod base_picker;
 pub mod browser_steps;
+pub mod canvas_host;
 mod compaction;
 pub mod composer;
 pub mod context_tab;

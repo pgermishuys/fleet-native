@@ -25,6 +25,8 @@ mod tests_asks;
 #[cfg(test)]
 mod tests_browser;
 #[cfg(test)]
+mod tests_canvas_host;
+#[cfg(test)]
 mod tests_chips;
 #[cfg(test)]
 mod tests_context_tab;
@@ -1463,6 +1465,7 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     // Whole seconds only, so the "Working · 18s" label redraws once a second.
     let ticked = now.floor() != s.clock.floor();
     s.clock = now;
+    let strip = s.keep_strip(tx);
     if s.keep_notices(now, tx) {
         return true;
     }
@@ -1485,7 +1488,7 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         }
         None => false,
     };
-    if archiving || plain || picked {
+    if archiving || plain || picked || strip {
         return true;
     }
     match s.reply {
@@ -3982,6 +3985,19 @@ pub fn spec() -> AppSpec<State> {
                 s.dark = Some(false);
                 s.show_report(mock::report::Case::Sent)
             }),
+            // Component 10, piece B: the panel's tab strip. `panel-over` is `panel-fresh` drawn in a narrow window.
+            ("panel-tabs", |s| s.show_tabs(mock::canvas_host::Case::Tabs, true)),
+            ("panel-tabs-light", |s| s.show_tabs(mock::canvas_host::Case::Tabs, false)),
+            ("panel-tabs-attention", |s| s.show_tabs(mock::canvas_host::Case::Attention, true)),
+            ("panel-tabs-attention-light", |s| s.show_tabs(mock::canvas_host::Case::Attention, false)),
+            ("panel-menu", |s| s.show_tabs(mock::canvas_host::Case::Menu, true)),
+            ("panel-menu-light", |s| s.show_tabs(mock::canvas_host::Case::Menu, false)),
+            ("panel-widened", |s| s.show_tabs(mock::canvas_host::Case::Widened, true)),
+            ("panel-widened-light", |s| s.show_tabs(mock::canvas_host::Case::Widened, false)),
+            ("panel-fresh", |s| s.show_tabs(mock::canvas_host::Case::Fresh, true)),
+            ("panel-fresh-light", |s| s.show_tabs(mock::canvas_host::Case::Fresh, false)),
+            ("panel-over", |s| s.show_tabs(mock::canvas_host::Case::Fresh, true)),
+            ("panel-over-light", |s| s.show_tabs(mock::canvas_host::Case::Fresh, false)),
         ],
         fonts: &[include_bytes!("../assets/fonts/InterVariable.ttf"), include_bytes!("../assets/fonts/JetBrainsMono-Variable.ttf")],
         families: ("Inter", "JetBrains Mono"),

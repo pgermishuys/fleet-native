@@ -3,7 +3,6 @@
 use super::context::{SESSION, failing, issue, popover_pr, run, thread};
 use super::links::pull_request;
 use crate::State;
-use crate::fleet::context_tab::PanelTab;
 use crate::fleet::rows::Origin;
 use serde_json::{Value, json};
 
@@ -141,7 +140,7 @@ impl State {
         let id = self.session().id.clone();
         self.smart_links.set_links(&id, &links(case));
         self.content_open = true;
-        self.context.tab = PanelTab::Context;
+        self.show_context_tab();
         self.context.loaded_for = Some(id.clone());
         match case {
             Case::Loading => {

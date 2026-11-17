@@ -1487,8 +1487,8 @@ Plain Rust, no view, so nothing new about Rune. For the next piece that draws th
 
 Nothing new about Rune: the piece is plain Rust. Two things to know for the pieces after it. Lucide 1.0 renamed `FileJson` to
 `FileBraces`, so `tools/gen-icons.py` takes `file-braces` (Fleet's client still says `FileJson`; the picture is the same). And
-`State::open_id` is `None` for the mock sessions, so `State::edit_canvases` does nothing on them: a scene that needs tabs must set
-a real route first (or use `Canvases` directly).
+`State::open_id` is `None` for the mock sessions; piece B's `State::canvas_session()` falls back to the shown session's id, so
+`edit_canvases` works on them.
 ## Component 10, piece F (Progress data)
 
 - **Nothing new about Rune.** The piece is plain Rust. One lesson in the app's own terms: keep a detail drawn while it is marked stale (`ProgressFeed`'s `fresh` flag) instead of deleting it, so a view never draws its empty state between a summary and the detail that follows it.
@@ -1501,3 +1501,17 @@ a real route first (or use `Canvases` directly).
 
 - **Nothing new about Rune.** The piece is plain Rust. For piece J: derive the turns off the frame path and keep an `EditCache`
   on `State`, so a long session parses each call once. A global cache (as Fleet has) shares call ids between parallel tests.
+
+## Component 10, piece B (the tab strip)
+
+- **A tab strip that scrolls: `scroll_x()` on a keyed box with one `row()` inside it**, `.shrink().min_w(0.0)` so the buttons beside it keep
+  their place, and `scroll_edge_fade(20.0)` for Fleet's fades. Children of the `scroll_x` box itself shrink to the box; put the tabs in
+  the inner row and they keep their size and scroll. `Tx::scroll_into_view_in(strip, tab_key)` brings the active tab in, but a tab
+  added this frame isn't laid out yet: `State::keep_strip` waits one frame.
+- **A pressable `row()` isn't a keyboard target until it says `.focusable(true)`.** Without it a click leaves nothing focused, `on_key`
+  on the strip is never called and `tx.focus(key, true)` finds nothing. Inactive tabs use `tab_index(-1)`.
+- **A middle click in a test:** `rt.button_down(x, y, PointerButton::Middle)` then `rt.button_up(..)`; `pointer_down` is the primary button.
+- **A control revealed by its parent's hover** is `hover_group()` on the parent and `group_opacity(rest, hovered)` on the child (the tab's
+  close button: 1.0 at rest on the active tab, 0.0 on the others).
+- **Mock sessions have no server id**, so `State::canvas_session()` is the open session's id on a server and the shown session's id
+  otherwise; `edit_canvases` and `open_canvases` use it, so scenes and tests can change tabs without a route.

@@ -16,14 +16,6 @@ pub const FRESHNESS_TICK_SECS: f64 = 15.0;
 /// `context-flash`: the ring fades out over this long.
 pub const FLASH_SECS: f64 = 1.2;
 
-/// What the content panel shows. Component 10 owns the tab strip; until it is built the panel holds the plan and this tab.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub enum PanelTab {
-    #[default]
-    Plan,
-    Context,
-}
-
 /// Where a session started when an automation did it: the row's origin gives the name, the origin records the detail.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AutomationOrigin {
@@ -154,7 +146,6 @@ pub fn feedback(has_links: bool, has_automation: bool, loading: bool, error: Opt
 
 /// The attach form, the Refresh button and the flash: everything the tab keeps between frames.
 pub struct ContextTab {
-    pub tab: PanelTab,
     pub attaching: bool,
     pub url: TextEdit,
     pub attach_error: Option<String>,
@@ -177,7 +168,6 @@ pub struct ContextTab {
 impl Default for ContextTab {
     fn default() -> Self {
         ContextTab {
-            tab: PanelTab::Plan,
             attaching: false,
             url: TextEdit::new(String::new()),
             attach_error: None,
@@ -243,17 +233,16 @@ impl ContextTab {
 impl State {
     /// Whether the Context tab is on screen: the panel is open on it.
     pub fn context_visible(&self) -> bool {
-        self.content_open && self.context.tab == PanelTab::Context
+        self.panel_body_shown(super::canvases::CanvasKind::Context)
     }
 
     /// Opens the panel on the Context tab.
     pub fn show_context_tab(&mut self) {
-        self.context.tab = PanelTab::Context;
+        self.edit_canvases(|c, session| {
+            c.introduce(session, super::canvases::CanvasKind::Context);
+            c.open(session, super::canvases::CanvasKind::Context);
+        });
         self.set_content_open(true);
-    }
-
-    pub fn set_panel_tab(&mut self, tab: PanelTab) {
-        self.context.tab = tab;
     }
 
     /// On open (`watch(sessionId, immediate)`): the session's links and origin records are asked for once per session shown.

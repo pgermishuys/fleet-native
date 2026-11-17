@@ -31,7 +31,7 @@ fn ring(s: &State, t: &Theme, done: usize, total: usize) -> El {
     let mut full = circle(0.0, 1.0);
     full.pop();
     let track = Shape::new().stroke_with(full, true, STROKE, LineCap::Butt, srgb_mix(t.border, t.panel_bg, 0.75));
-    let mut face = el().size(RING, RING).child(canvas(track).size(RING, RING).absolute(0.0, 0.0));
+    let mut face = el().key("content-rail-ring").size(RING, RING).child(canvas(track).size(RING, RING).absolute(0.0, 0.0));
     let end = s.row_rings.aim("right-rail", ratio);
     if ratio > 0.0 {
         face = face.child(
@@ -53,6 +53,7 @@ pub fn rail(s: &State, t: &Theme, done: usize, total: usize) -> El {
     }
     body = body.child(
         col()
+            .key("content-rail-pending")
             .items_center()
             .gap(2.0)
             .child(icon(&LIST_TODO, 14.0).color(t.muted).group_color(t.text))
