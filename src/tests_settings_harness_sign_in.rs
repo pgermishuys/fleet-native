@@ -22,6 +22,12 @@ pub(crate) struct Fake {
     pub writes: Vec<(String, String)>,
     pub reads: usize,
     pub fresh_reads: usize,
+    /// The flow's side: what a started browser sign-in answers, what its status says in turn (the last one stays), what a key
+    /// sign-in is refused with, and the bodies that were sent (never a real key: invented ones).
+    pub attempt: Option<Value>,
+    pub statuses: Vec<Value>,
+    pub refuse_key: Option<&'static str>,
+    pub bodies: Vec<Value>,
 }
 
 impl Default for Fake {
@@ -37,6 +43,10 @@ impl Default for Fake {
             writes: Vec::new(),
             reads: 0,
             fresh_reads: 0,
+            attempt: None,
+            statuses: Vec::new(),
+            refuse_key: None,
+            bodies: Vec::new(),
         }
     }
 }
@@ -79,6 +89,19 @@ fn answer(mut stream: std::net::TcpStream, fake: Shared) {
             return;
         }
     };
+    let wanted = head
+        .lines()
+        .find_map(|l| l.to_ascii_lowercase().strip_prefix("content-length:").and_then(|n| n.trim().parse::<usize>().ok()))
+        .unwrap_or(0);
+    let start = buf.windows(4).position(|w| w == b"\r\n\r\n").map_or(buf.len(), |at| at + 4);
+    while buf.len() - start < wanted {
+        let n = stream.read(&mut chunk).unwrap_or(0);
+        if n == 0 {
+            break;
+        }
+        buf.extend_from_slice(&chunk[..n]);
+    }
+    let sent: Value = serde_json::from_slice(&buf[start..]).unwrap_or(Value::Null);
     let mut first = head.lines().next().unwrap_or("").split(' ');
     let (method, path) = (first.next().unwrap_or("").to_string(), first.next().unwrap_or("").to_string());
     let mut f = fake.lock().unwrap();
@@ -118,6 +141,42 @@ fn answer(mut stream: std::net::TcpStream, fake: Shared) {
                     connections.retain(|c| c["id"] != id);
                 }
             }
+            ("200 OK", json!({}))
+        }
+    } else if let Some(rest) = path.strip_prefix(&format!("{base}/")).filter(|r| r.contains('/')) {
+        // /{provider}/key, /{provider}/attempts, /{provider}/attempts/{id}[/code|/callback]
+        f.writes.push((method.clone(), path.clone()));
+        f.bodies.push(sent);
+        let (provider, tail) = rest.split_once('/').unwrap_or((rest, ""));
+        let provider = provider.to_string();
+        if tail == "key" {
+            if let Some(why) = f.refuse_key {
+                ("400 Bad Request", json!({"error": why}))
+            } else {
+                for p in &mut f.providers {
+                    if p["id"] == provider {
+                        p["connections"] = json!([{"kind": "credential", "id": "cred_new", "label": provider, "active": true}]);
+                    }
+                }
+                ("200 OK", json!({}))
+            }
+        } else if tail == "attempts" {
+            ("200 OK", f.attempt.clone().unwrap_or(json!({})))
+        } else if method == "GET" {
+            let status = if f.statuses.len() > 1 {
+                f.statuses.remove(0)
+            } else {
+                f.statuses.first().cloned().unwrap_or(json!({"status": "pending"}))
+            };
+            if status["status"] == "complete" {
+                for p in &mut f.providers {
+                    if p["id"] == provider {
+                        p["connections"] = json!([{"kind": "credential", "id": "cred_new", "label": provider, "active": true}]);
+                    }
+                }
+            }
+            ("200 OK", status)
+        } else {
             ("200 OK", json!({}))
         }
     } else if path == "/api/agent-browser/settings" {

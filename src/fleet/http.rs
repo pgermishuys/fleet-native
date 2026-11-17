@@ -646,6 +646,32 @@ pub fn sign_in_remove(base: &str, harness: &str, connection: &str) -> Result<(u1
     text_with("DELETE", base, &format!("/api/harnesses/{}/sign-in/connections/{}", escape(harness), escape(connection)), None)
 }
 
+/// `POST /api/harnesses/{type}/sign-in/{provider}/key` `{key, answers}`: signs in with a key. The key goes in this one body.
+pub fn sign_in_key(base: &str, harness: &str, provider: &str, key: &str, answers: &Value) -> Result<(u16, String), String> {
+    let body = json!({ "key": key, "answers": answers });
+    text_with("POST", base, &format!("/api/harnesses/{}/sign-in/{}/key", escape(harness), escape(provider)), Some(&body))
+}
+
+/// `POST .../sign-in/{provider}/attempts` `{methodId, answers}`: starts a sign-in in the browser.
+pub fn sign_in_start(base: &str, harness: &str, provider: &str, method: &str, answers: &Value) -> Result<(u16, String), String> {
+    let body = json!({ "methodId": method, "answers": answers });
+    text_with("POST", base, &format!("/api/harnesses/{}/sign-in/{}/attempts", escape(harness), escape(provider)), Some(&body))
+}
+
+/// One call on an attempt: `GET` its status, `DELETE` cancels it, `POST` with `/code` or `/callback` finishes it.
+pub fn sign_in_attempt(
+    method: &str,
+    base: &str,
+    harness: &str,
+    provider: &str,
+    attempt: &str,
+    step: &str,
+    body: Option<&Value>,
+) -> Result<(u16, String), String> {
+    let path = format!("/api/harnesses/{}/sign-in/{}/attempts/{}{step}", escape(harness), escape(provider), escape(attempt));
+    text_with(method, base, &path, body)
+}
+
 /// `DELETE /api/harnesses/{type}/profiles/{id}`.
 pub fn profile_delete(base: &str, harness: &str, id: &str) -> Result<(u16, String), String> {
     text_with("DELETE", base, &format!("/api/harnesses/{}/profiles/{}", escape(harness), escape(id)), None)

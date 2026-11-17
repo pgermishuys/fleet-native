@@ -202,6 +202,8 @@ impl State {
     pub fn keep_harnesses_page(&mut self, tx: &mut Tx) -> bool {
         let here = self.rail == crate::Rail::Settings && self.settings.page == crate::fleet::settings_nav::Page::Harnesses;
         if !here {
+            // Leaving the page ends a sign-in that was open: a browser attempt is cancelled and a key is wiped.
+            self.end_flow();
             return std::mem::take(&mut self.settings.harnesses.asked).is_some();
         }
         let machine = self.harness_machine();

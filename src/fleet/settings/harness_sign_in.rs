@@ -2,6 +2,8 @@
 //! harness's providers are signed in and which sign-in each uses, with Use this one and Sign out. Listing them asks the harness,
 //! which starts it if it isn't running, so a harness that is off waits for a click. The flow a provider's Sign in opens is piece
 //! L's; this holds the state that says which provider's is open and what ends it ([`State::sign_in_done`]).
+pub mod flow;
+mod flow_actions;
 #[cfg(test)]
 mod tests;
 
@@ -138,6 +140,9 @@ pub struct Panel {
     pub confirming: Option<String>,
     /// The sign-in a request is changing; all buttons wait meanwhile.
     pub working: Option<String>,
+    /// The flow of the provider that is open (`HarnessSignInFlow`), and a box to hand `on_edit` when there is none.
+    pub flow: Option<flow::Flow>,
+    pub spare: TextEdit,
     lists: HashMap<(String, String), SignIns>,
 }
 
@@ -195,8 +200,15 @@ impl State {
     /// Asked each frame the panel is on screen: a harness that is on lists its providers when the panel first shows, and again
     /// when it turns on later (`watch(autoLoad, …, { immediate: true })`). True when it asked.
     pub fn keep_sign_in_panel(&mut self) -> bool {
-        let Some(h) = self.harness_tab().filter(|h| h.offers_sign_in()) else { return false };
+        let Some(h) = self.harness_tab().filter(|h| h.offers_sign_in()) else {
+            self.end_flow();
+            return false;
+        };
         let key = self.sign_in_key(&h.kind);
+        if self.settings.harnesses.sign_in.key != key {
+            // Another tab (or machine) is its own panel: what the old one had open ends.
+            self.end_flow();
+        }
         let auto = self.harness_enabled(&h);
         let panel = &mut self.settings.harnesses.sign_in;
         panel.mine(&key);
@@ -272,6 +284,7 @@ impl State {
         let panel = &mut self.settings.harnesses.sign_in;
         panel.mine(&key);
         panel.open = None;
+        panel.flow = None;
         panel.query.replace_text(String::new());
         panel.notice = Some(done_words(message));
         self.sign_in_changed(
@@ -288,10 +301,16 @@ impl State {
     /// `toggle`: a provider's Sign in opens its flow, or closes it.
     pub fn toggle_sign_in(&mut self, harness: &str, provider: &str) {
         let key = self.sign_in_key(harness);
+        self.settings.harnesses.sign_in.mine(&key);
+        // The flow under the old provider ends, which cancels a sign-in it was following.
+        self.end_flow();
         let panel = &mut self.settings.harnesses.sign_in;
-        panel.mine(&key);
-        panel.open = if panel.open.as_deref() == Some(provider) { None } else { Some(provider.to_string()) };
+        let opening = panel.open.as_deref() != Some(provider);
+        panel.open = opening.then(|| provider.to_string());
         panel.notice = None;
+        if opening && let Some(p) = self.sign_ins(harness).and_then(|l| l.providers.iter().find(|p| p.id == provider)).cloned() {
+            self.open_flow(harness, &p);
+        }
     }
 
     /// `use`: the provider uses another of its sign-ins.

@@ -143,6 +143,8 @@ mod tests_settings_general;
 #[cfg(test)]
 mod tests_settings_harness_editor;
 #[cfg(test)]
+mod tests_settings_harness_flow;
+#[cfg(test)]
 mod tests_settings_harness_install;
 #[cfg(test)]
 mod tests_settings_harness_profiles;
@@ -1380,6 +1382,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_harnesses_page(tx)
         | s.keep_permissions_page(tx)
         | s.keep_harness_strips(now, tx)
+        | s.keep_sign_in_flow(now, tx)
         | s.keep_updates(now, tx)
         | s.keep_locations(tx)
         | s.keep_dreaming(now, tx)
@@ -1957,6 +1960,22 @@ pub fn spec() -> AppSpec<State> {
             ("settings-providers-copilot-in-light", |s| s.show_providers(false, mock::harnesses::Providers::CopilotIn)),
             ("settings-providers-copilot-out", |s| s.show_providers(true, mock::harnesses::Providers::CopilotOut)),
             ("settings-providers-copilot-out-light", |s| s.show_providers(false, mock::harnesses::Providers::CopilotOut)),
+            ("settings-flow-key", |s| s.show_providers(true, mock::harnesses::Providers::FlowKey)),
+            ("settings-flow-key-light", |s| s.show_providers(false, mock::harnesses::Providers::FlowKey)),
+            ("settings-flow-fields", |s| s.show_providers(true, mock::harnesses::Providers::FlowFields)),
+            ("settings-flow-fields-light", |s| s.show_providers(false, mock::harnesses::Providers::FlowFields)),
+            ("settings-flow-env", |s| s.show_providers(true, mock::harnesses::Providers::FlowEnv)),
+            ("settings-flow-env-light", |s| s.show_providers(false, mock::harnesses::Providers::FlowEnv)),
+            ("settings-flow-command", |s| s.show_providers(true, mock::harnesses::Providers::FlowCommand)),
+            ("settings-flow-command-light", |s| s.show_providers(false, mock::harnesses::Providers::FlowCommand)),
+            ("settings-flow-browser", |s| s.show_providers(true, mock::harnesses::Providers::FlowBrowser)),
+            ("settings-flow-browser-light", |s| s.show_providers(false, mock::harnesses::Providers::FlowBrowser)),
+            ("settings-flow-device", |s| s.show_providers(true, mock::harnesses::Providers::FlowDevice)),
+            ("settings-flow-device-light", |s| s.show_providers(false, mock::harnesses::Providers::FlowDevice)),
+            ("settings-flow-remote", |s| s.show_providers(true, mock::harnesses::Providers::FlowRemote)),
+            ("settings-flow-remote-light", |s| s.show_providers(false, mock::harnesses::Providers::FlowRemote)),
+            ("settings-flow-refused", |s| s.show_providers(true, mock::harnesses::Providers::FlowRefused)),
+            ("settings-flow-refused-light", |s| s.show_providers(false, mock::harnesses::Providers::FlowRefused)),
             ("settings-browser", |s| s.show_browser_group(true, mock::permissions::Browser::Default)),
             ("settings-browser-light", |s| s.show_browser_group(false, mock::permissions::Browser::Default)),
             ("settings-browser-off", |s| s.show_browser_group(true, mock::permissions::Browser::Off)),

@@ -18,6 +18,7 @@ pub mod harness_path;
 pub mod harness_profile_editor;
 pub mod harness_profiles;
 pub mod harness_sign_in;
+pub mod harness_sign_in_flow;
 pub mod harness_update;
 pub mod harnesses;
 pub mod kit;

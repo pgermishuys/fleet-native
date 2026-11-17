@@ -5,6 +5,7 @@ use crate::fleet::new_session::feeds::Profile;
 use crate::fleet::new_session::harness_choice::{Card, HarnessEntry, HarnessSetting};
 use crate::fleet::settings::HOME_MACHINE_KEY;
 use crate::fleet::settings::harness_profiles::{Check, Editing};
+use crate::fleet::settings::harness_sign_in::flow::{Attempt, Flow};
 use crate::fleet::settings::harness_sign_in::{Connection, Provider, SignIns};
 
 /// How the harnesses are doing in a scene.
@@ -424,6 +425,22 @@ pub enum Providers {
     CopilotIn,
     /// GitHub Copilot, not signed in yet.
     CopilotOut,
+    /// "Add a sign-in" on Anthropic: the key form with its method pills.
+    FlowKey,
+    /// Azure's key form with every kind of field: a choice, a box, a tick and several choices.
+    FlowFields,
+    /// The environment method's advice.
+    FlowEnv,
+    /// The command method's advice.
+    FlowCommand,
+    /// A sign-in in the browser under way, on this computer.
+    FlowBrowser,
+    /// A device sign-in with a code to copy and a box to paste one.
+    FlowDevice,
+    /// A sign-in under way on another machine: the note and the paste box.
+    FlowRemote,
+    /// The form with the harness's refusal under it.
+    FlowRefused,
 }
 
 fn connection(kind: &str, id: &str, label: &str, active: bool) -> Connection {
@@ -458,6 +475,28 @@ pub fn sign_ins() -> SignIns {
     }
 }
 
+/// The Providers of the flow scenes: Anthropic and Azure are signed in (their "Add a sign-in" opens inside the group, not in the
+/// scrolling list), so every way to sign in is on show.
+fn flow_list() -> SignIns {
+    let mut list = sign_ins();
+    list.providers[0].methods = vec![
+        serde_json::json!({"type": "key", "label": "API key", "fields": []}),
+        serde_json::json!({"type": "oauth", "id": "claude-browser", "label": "Claude (browser)", "fields": []}),
+        serde_json::json!({"type": "command", "label": "Terminal", "fields": [], "command": ["opencode2", "auth", "login", "anthropic"]}),
+        serde_json::json!({"type": "env", "label": "Environment variable", "fields": [], "environmentVariables": ["EXAMPLE_API_KEY", "EXAMPLE_AUTH_TOKEN"]}),
+    ];
+    list.providers[1].connections = vec![connection("credential", "cred_azure", "Azure", true)];
+    list.providers[1].methods = vec![serde_json::json!({"type": "key", "label": "API key", "fields": [
+        {"key": "region", "type": "string", "title": "Region", "required": true, "hidden": false,
+         "options": [{"value": "eastus", "label": "East US", "description": "eastus"}, {"value": "westeurope", "label": "West Europe", "description": "westeurope"}]},
+        {"key": "resourceName", "type": "string", "title": "Resource name", "required": true, "hidden": false,
+         "placeholder": "my-resource", "description": "The name in your Azure portal, not its address."},
+        {"key": "private", "type": "boolean", "title": "Use a private endpoint", "required": false, "hidden": false},
+        {"key": "models", "type": "multiselect", "title": "Models to offer", "required": false, "hidden": false,
+         "options": [{"value": "chat", "label": "Chat"}, {"value": "embeddings", "label": "Embeddings"}], "default": ["chat"]}]})];
+    list
+}
+
 fn copilot_list(signed_in: bool) -> SignIns {
     let connections = if signed_in { vec![connection("credential", "cred_gh", "octo-dev", true)] } else { vec![] };
     SignIns { note: None, providers: vec![provider("github-copilot", "GitHub Copilot", connections)] }
@@ -479,6 +518,14 @@ impl State {
             Providers::Before | Providers::Asking | Providers::Failed => None,
             Providers::CopilotIn => Some(copilot_list(true)),
             Providers::CopilotOut => Some(copilot_list(false)),
+            Providers::FlowKey
+            | Providers::FlowFields
+            | Providers::FlowEnv
+            | Providers::FlowCommand
+            | Providers::FlowBrowser
+            | Providers::FlowDevice
+            | Providers::FlowRemote
+            | Providers::FlowRefused => Some(flow_list()),
             Providers::Switched => {
                 let mut list = sign_ins();
                 for c in &mut list.providers[0].connections {
@@ -505,7 +552,63 @@ impl State {
             Providers::Switched => panel.notice = Some("Anthropic now uses Personal.".into()),
             Providers::Refused => panel.error = Some("That sign-in is locked.".into()),
             Providers::Many | Providers::CopilotIn | Providers::CopilotOut => {}
+            flow => self.show_flow(kind, flow),
         }
         self.open_harness(kind, Some("providers"));
+    }
+
+    /// A flow scene: the provider's article open with its flow in the state the scene names. Everything typed is invented.
+    fn show_flow(&mut self, harness: &str, case: Providers) {
+        let list = flow_list();
+        let azure = case == Providers::FlowFields;
+        let provider = &list.providers[usize::from(azure)];
+        let panel = &mut self.settings.harnesses.sign_in;
+        let mut flow = Flow::new(harness, "OpenCode 2", provider);
+        let method = |kind: &str| {
+            crate::fleet::settings::harness_sign_in::flow::methods_to_offer(provider)
+                .into_iter()
+                .find(|m| m.kind == kind)
+                .expect("a method")
+        };
+        let device = "Open https://example.test/device on any device and enter code: ABCD-1234";
+        match case {
+            Providers::FlowKey | Providers::FlowRefused => flow.key.replace_text("sk-dummy-0000"),
+            Providers::FlowFields => {
+                if let Some(i) = flow.edit_index("resourceName") {
+                    flow.edits[i].1.replace_text("contoso-models");
+                }
+                flow.key.replace_text("sk-dummy-0000");
+                flow.answers.insert("private".into(), true.into());
+            }
+            Providers::FlowEnv => flow.pick(&method("env")),
+            Providers::FlowCommand => flow.pick(&method("command")),
+            Providers::FlowBrowser | Providers::FlowRemote | Providers::FlowDevice => {
+                flow.pick(&method("oauth"));
+                let browser = case != Providers::FlowDevice;
+                flow.attempt = Some(Attempt {
+                    id: "con_1".into(),
+                    url: "https://auth.example.test/oauth/authorize".into(),
+                    instructions: if browser {
+                        "Complete authorization in your browser. This window will close automatically.".into()
+                    } else {
+                        device.into()
+                    },
+                    needs_code: !browser,
+                    callback: browser.then(|| "http://localhost:1455/auth/callback".to_string()),
+                    expires: "12:10 PM".into(),
+                });
+                flow.remote = case == Providers::FlowRemote;
+                flow.paste_open = flow.remote;
+                if flow.remote {
+                    flow.landed.replace_text("http://localhost:1455/auth/callback?code=");
+                }
+            }
+            _ => {}
+        }
+        if case == Providers::FlowRefused {
+            flow.error = Some("Missing required form field: resourceName".into());
+        }
+        panel.open = Some(provider.id.clone());
+        panel.flow = Some(flow);
     }
 }
