@@ -130,6 +130,18 @@ fn rig(status_kind: &str) -> Rig {
         s.updates.status.get("home").is_some_and(|x| x.status.is_some()) && !s.harness_list().all.is_empty() && s.harness_prefs().fetched
     });
     r.frames();
+    // The wait above is on state; the rows are drawn from it by frames, and on a loaded runner the layout can lag the state
+    // by more than two. Draw until the first harness's row is there, so a test reads a page that has been drawn.
+    let first = r.rt.state.harness_list().all.first().map(|h| format!("settings-row-harness-version-{}", h.kind)).unwrap_or_default();
+    test_wait::until(
+        &mut r,
+        "the harness rows to be drawn",
+        |r| {
+            r.frames();
+            r.info(&first).is_some()
+        },
+        |_| format!("no element keyed {first:?}"),
+    );
     r
 }
 
