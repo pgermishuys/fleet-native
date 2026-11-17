@@ -6,6 +6,7 @@ pub mod appearance_cards;
 pub mod general;
 pub mod kit;
 pub mod kit_scene;
+pub mod labs;
 pub mod machine_header;
 pub mod memory;
 
@@ -127,6 +128,8 @@ pub fn detail(s: &State, t: &Theme) -> El {
         kit_scene::content(s, t)
     } else if *page == Page::General {
         general::content(s, t)
+    } else if *page == Page::Labs {
+        labs::content(s, t)
     } else if *page == Page::Appearance {
         appearance::content(s, t)
     } else if *page == Page::Memory {

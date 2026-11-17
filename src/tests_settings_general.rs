@@ -14,14 +14,14 @@ use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
 #[derive(Default)]
-struct Fake {
-    prefs: HashMap<String, String>,
-    puts: Vec<(String, String)>,
+pub(crate) struct Fake {
+    pub(crate) prefs: HashMap<String, String>,
+    pub(crate) puts: Vec<(String, String)>,
     /// Keys the server refuses to save.
-    refuse: Vec<String>,
+    pub(crate) refuse: Vec<String>,
 }
 
-type Shared = Arc<Mutex<Fake>>;
+pub(crate) type Shared = Arc<Mutex<Fake>>;
 
 fn serve(fake: Shared) -> String {
     let listener = TcpListener::bind("127.0.0.1:0").expect("a port");
@@ -83,23 +83,28 @@ fn answer(mut stream: std::net::TcpStream, fake: Shared) {
     let _ = stream.write_all(out.as_bytes());
 }
 
-struct Rig {
-    rt: Runtime<State>,
+pub(crate) struct Rig {
+    pub(crate) rt: Runtime<State>,
     queue: Receiver<Job>,
-    fake: Shared,
+    pub(crate) fake: Shared,
 }
 
 /// A connected app on Settings → General, with these preferences already read.
 fn rig(prefs: &[(&str, &str)]) -> Rig {
+    rig_on("general", prefs)
+}
+
+/// The same on another Settings page.
+pub(crate) fn rig_on(page: &'static str, prefs: &[(&str, &str)]) -> Rig {
     let mut r = unread(prefs);
-    r.rt.update(|s, _| s.open_settings("general", None));
+    r.rt.update(move |s, _| s.open_settings(page, None));
     r.wait("the preferences", |s| s.pickers.prefs.fetched);
     r.frames();
     r
 }
 
 /// The same, before the first read: the switches are waiting.
-fn unread(prefs: &[(&str, &str)]) -> Rig {
+pub(crate) fn unread(prefs: &[(&str, &str)]) -> Rig {
     let fake: Shared =
         Arc::new(Mutex::new(Fake { prefs: prefs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect(), ..Default::default() }));
     let base = serve(fake.clone());
@@ -123,14 +128,14 @@ fn unread(prefs: &[(&str, &str)]) -> Rig {
 }
 
 impl Rig {
-    fn wait(&mut self, what: &str, done: impl FnMut(&State) -> bool) {
+    pub(crate) fn wait(&mut self, what: &str, done: impl FnMut(&State) -> bool) {
         test_wait::drive(&mut self.rt, &self.queue, what, done, |s| format!("prefs {:?}", s.pickers.prefs));
     }
-    fn frames(&mut self) {
+    pub(crate) fn frames(&mut self) {
         self.rt.frame(FRAME);
         self.rt.frame(FRAME);
     }
-    fn wait_put(&mut self, key: &str, value: &str) {
+    pub(crate) fn wait_put(&mut self, key: &str, value: &str) {
         let fake = self.fake.clone();
         let (k, v) = (key.to_string(), value.to_string());
         self.wait(&format!("{key} = {value} to reach Fleet"), move |_| fake.lock().unwrap().puts.iter().any(|(a, b)| *a == k && *b == v));
@@ -139,20 +144,20 @@ impl Rig {
         self.wait(&format!("{key} to stop saving"), move |s| !s.setting_saving(&key));
         self.frames();
     }
-    fn puts(&self) -> Vec<(String, String)> {
+    pub(crate) fn puts(&self) -> Vec<(String, String)> {
         self.fake.lock().unwrap().puts.clone()
     }
-    fn on(&self, switch: sw::Switch) -> bool {
+    pub(crate) fn on(&self, switch: sw::Switch) -> bool {
         switch.enabled(&self.rt.state.pickers.prefs)
     }
-    fn info(&self, key: &str) -> Option<rune::ElementInfo> {
+    pub(crate) fn info(&self, key: &str) -> Option<rune::ElementInfo> {
         self.rt.elements().into_iter().find(|e| e.key.as_deref() == Some(key) && !e.exiting)
     }
-    fn text(&self, key: &str) -> String {
+    pub(crate) fn text(&self, key: &str) -> String {
         self.info(key).unwrap_or_else(|| panic!("no element keyed {key:?}")).text.unwrap_or_default()
     }
     /// Everything the page says, joined.
-    fn words(&self) -> String {
+    pub(crate) fn words(&self) -> String {
         self.rt.elements().iter().filter_map(|e| e.text.clone()).collect::<Vec<_>>().join("\n")
     }
 }

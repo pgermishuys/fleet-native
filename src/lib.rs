@@ -137,6 +137,8 @@ mod tests_settings_general;
 #[cfg(test)]
 mod tests_settings_kit;
 #[cfg(test)]
+mod tests_settings_labs;
+#[cfg(test)]
 mod tests_settings_machine;
 #[cfg(test)]
 mod tests_settings_memory;
@@ -1544,6 +1546,20 @@ fn failed_page(p: &fleet::settings::memory::MemoryPage) -> fleet::settings::memo
     }
 }
 
+/// Settings → Labs for a scene: every experiment on (Memory too), another machine listed, or neither.
+fn labs_scene(s: &mut State, dark: bool, machines: bool, all_on: bool) {
+    s.dark = Some(dark);
+    if machines {
+        s.show_machines_only(mock::machines::Case::Several);
+    }
+    if all_on {
+        for key in ["Jobs", "features.mission-control.enabled", "Workflows", "Memory", "MemorySearch", "LiveMachines"] {
+            s.pickers.prefs.set(key, "true");
+        }
+    }
+    s.open_settings("labs", None);
+}
+
 fn flip_general(s: &mut State) {
     for switch in [
         fleet::settings::switches::STARTERS,
@@ -1602,6 +1618,13 @@ pub fn spec() -> AppSpec<State> {
                 s.open_settings("general", None);
                 flip_general(s);
             }),
+            // Piece T: Labs with everything off, with another machine listed, and with everything on.
+            ("settings-labs", |s| labs_scene(s, true, false, false)),
+            ("settings-labs-light", |s| labs_scene(s, false, false, false)),
+            ("settings-labs-machines", |s| labs_scene(s, true, true, false)),
+            ("settings-labs-machines-light", |s| labs_scene(s, false, true, false)),
+            ("settings-labs-on", |s| labs_scene(s, true, true, true)),
+            ("settings-labs-on-light", |s| labs_scene(s, false, true, true)),
             ("settings-general-pastes", |s| {
                 s.dark = Some(true);
                 s.open_settings("general", None);

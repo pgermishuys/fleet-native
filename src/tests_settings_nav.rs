@@ -147,17 +147,9 @@ fn the_settings_rail_draws_the_menu_beside_the_page_and_opens_on_general() {
 #[test]
 fn a_menu_entry_opens_its_page_with_its_title_and_line_and_the_note() {
     let mut rt = shown();
-    for page in [
-        Page::Harnesses,
-        Page::Permissions,
-        Page::Skills,
-        Page::Memory,
-        Page::Credentials,
-        Page::Folders,
-        Page::Labs,
-        Page::Updates,
-        Page::Plugins,
-    ] {
+    for page in
+        [Page::Harnesses, Page::Permissions, Page::Skills, Page::Memory, Page::Credentials, Page::Folders, Page::Updates, Page::Plugins]
+    {
         click(&mut rt, &format!("settings-nav-{}", page.id()));
         rt.frame(FRAME);
         assert_eq!(rt.state.settings.page, page);
