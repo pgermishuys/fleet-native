@@ -90,6 +90,12 @@ impl Contents {
         self.entries.get(path)
     }
 
+    /// Holds an answer as if it had come (scenes and tests draw states no server was asked for).
+    pub fn put(&mut self, session: &str, path: &str, entry: Entry) {
+        self.open(session);
+        self.entries.insert(path.to_string(), entry);
+    }
+
     /// How many requests are on their way to a machine.
     pub fn in_flight(&self, machine: &str) -> usize {
         self.in_flight.get(machine).copied().unwrap_or(0)

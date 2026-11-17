@@ -123,6 +123,8 @@ mod tests_report_review;
 #[cfg(test)]
 mod tests_restart_notice;
 #[cfg(test)]
+mod tests_review;
+#[cfg(test)]
 mod tests_right_panel;
 #[cfg(test)]
 mod tests_row_actions;
@@ -328,6 +330,8 @@ pub struct State {
     pub diffs: fleet::diffs::Diffs,
     /// The contents of the files Changes shows, one request per file (`fleet::diff_contents`).
     pub diff_contents: fleet::diff_contents::Contents,
+    /// The review's own state: which sections are shut and the layout picked (`fleet::review`).
+    pub review: fleet::review::Review,
     /// The page canvas "Open page" asked the content panel to show; the tab is component 14's.
     pub page_target: Option<String>,
     /// The web views over page tabs: where the page area is, and whether this window can host one (`web`).
@@ -617,6 +621,7 @@ impl Default for State {
             turns_tab: Default::default(),
             diffs: Default::default(),
             diff_contents: Default::default(),
+            review: Default::default(),
             page_target: None,
             web: Default::default(),
             allowed_flash: None,
@@ -2591,6 +2596,10 @@ pub fn spec() -> AppSpec<State> {
             ("changes-empty-session-light", |s| s.show_changes_scene(mock::changes::Case::EmptySession, false)),
             ("changes-empty-branch", |s| s.show_changes_scene(mock::changes::Case::EmptyBranch, true)),
             ("changes-empty-branch-light", |s| s.show_changes_scene(mock::changes::Case::EmptyBranch, false)),
+            ("review", |s| s.show_changes_scene(mock::changes::Case::Review, true)),
+            ("review-light", |s| s.show_changes_scene(mock::changes::Case::Review, false)),
+            ("review-states", |s| s.show_changes_scene(mock::changes::Case::ReviewStates, true)),
+            ("review-states-light", |s| s.show_changes_scene(mock::changes::Case::ReviewStates, false)),
             ("context-tab-empty", |s| s.show_context_tab_scene(mock::context_tab::Case::Empty, true)),
             ("context-tab-empty-light", |s| s.show_context_tab_scene(mock::context_tab::Case::Empty, false)),
             ("context-tab-loading", |s| s.show_context_tab_scene(mock::context_tab::Case::Loading, true)),

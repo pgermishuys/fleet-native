@@ -79,6 +79,7 @@ mod reasoning;
 mod recap;
 pub mod report;
 pub mod report_review;
+pub mod review;
 mod right_rail;
 pub mod ring;
 pub mod ring_popover;

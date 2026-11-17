@@ -381,6 +381,7 @@ impl State {
         if self.diffs_wanted() {
             let ticket = self.diffs.on_wanted();
             self.send_diffs(ticket);
+            self.review_sync();
         }
     }
 
@@ -431,6 +432,7 @@ impl State {
             move |s, _, answer| {
                 let next = s.diffs.finish(&ticket, answer);
                 s.send_diffs(next);
+                s.review_sync();
             },
         );
     }

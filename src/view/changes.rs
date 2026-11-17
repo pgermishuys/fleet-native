@@ -19,7 +19,7 @@ pub fn changes_body(s: &State, t: &Theme) -> El {
     }
     // The review's header names the base itself once there are changes.
     let state = if has_changes {
-        review_slot(t)
+        super::review::review(s, t)
     } else if !d.has_loaded {
         text("Loading changes…").key("changes-loading").font(sans(13.0, 400.0, 1.4)).color(t.muted).wrap().px(18.0).py(14.0)
     } else if let Some(why) = &d.error {
@@ -102,14 +102,4 @@ fn refused(t: &Theme, refusal: &Refusal, copied: bool) -> El {
         .child(text("To let git read it, run this once:").font(sans(13.0, 400.0, 1.4)).color(t.muted).wrap())
         .child(command)
         .child(copy)
-}
-
-/// Where the review goes (pieces E to I); until then a line says so, as the panel's other unbuilt tabs do.
-fn review_slot(t: &Theme) -> El {
-    col()
-        .key("changes-review")
-        .w_full()
-        .grow(1.0)
-        .center()
-        .child(text("The review is drawn by piece E of component 12.").font(sans(13.0, 400.0, 1.4)).color(t.muted))
 }
