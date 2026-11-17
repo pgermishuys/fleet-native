@@ -1401,3 +1401,8 @@ Plain Rust, no view, so nothing new about Rune. For the next piece that draws th
 - **Rich text with a monospace run** is `rich(body, vec![Span::new(a, b).mono().size(..)])`.
 - **No hover border**: `.hover(c)` is a fill only, so Fleet's `hover:border-accent/45` on the token chips isn't drawn.
 
+
+### Component 9, piece W (the sweep)
+
+- **Nothing new about Rune.** The sweep found no row that Rune blocks beyond the ones already written down: no frame read-back for a window screenshot (9Q), no pressed tint or focus path for the rail's tooltip and the hints (A, B), no fade on an anchored overlay.
+- **A background-work picture is a race**: the scripted model's `background-work` runs about 30 s, and a native start costs 5 s or more on a software renderer. Start the session, then the app, tap the counter in the script at 6 s, and take the picture at the mark after it; a script that taps at 3 s finds no counter yet.
