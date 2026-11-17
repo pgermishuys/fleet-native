@@ -260,9 +260,15 @@ fn update_machines_now_posts_the_rollout_and_follows_it() {
     r.rt.update(|s, _| s.harness_setup.close());
     r.rt.frame(1.0 / 60.0);
     click(&mut r.rt, "updates-update-machines");
-    r.wait("the rollout to come back", |s| s.updates.rollout.is_some());
+    let home = r.home.clone();
+    r.wait("home to hear the rollout", move |_| {
+        home.lock().unwrap().heard.iter().any(|(m, p, _)| m == "POST" && p == "/api/update/rollout")
+    });
     let body = r.heard(&r.home).into_iter().find(|(m, p, _)| m == "POST" && p == "/api/update/rollout").expect("a post").2;
     assert_eq!(serde_json::from_str::<Value>(&body).unwrap(), json!({ "machineIds": [] }));
+    r.rt.frame(1.0 / 60.0);
+    r.rt.frame(1.0 / 60.0);
+    r.wait("the rollout to run", |s| s.updates.rollout.as_ref().is_some_and(|x| x.running()));
     r.rt.frame(1.0 / 60.0);
     r.rt.frame(1.0 / 60.0);
     assert!(has(&r.rt, "updates-narrative") && has(&r.rt, "updates-stop-rollout"), "the strip turns into the narrative");
