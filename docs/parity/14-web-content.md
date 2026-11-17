@@ -107,7 +107,7 @@ Owner: `14` = this component, with the piece; another number = that component. "
 | 14.4 | Hidden while a Rune overlay is open over it (decision 7); back where it was, with its page as it was, when it closes | spike | **Done (A)** for `ui.open` (`Wanted::Hidden`; the palette over the page in the walk, the page back with its script still running); the other overlays are D's | 14 A (`ui.open`), D (all) |
 | 14.5 | Linux: `gtk::init()` before the first web view; GTK's loop turned from `poll` every 16 ms while any web view exists, not at all otherwise | spike | **Done (A):** `gtk::init` in `on_window`; `poll` turns GTK every 16 ms while a view exists, not at all before | 14 A |
 | 14.6 | Windows: the UI thread is a single-threaded COM apartment before WebView2 starts | spike | **Done (A):** `CoInitializeEx(APARTMENTTHREADED)` in `on_window` (CI) | 14 A |
-| 14.7 | Keyboard: a click in the page gives it the keys; a press anywhere in Rune takes them back (decision 8), per system | spike (Windows, Linux tried) | **Shown (A):** the host script tells the app when the page takes focus (IPC `{"host":"focus"}`); Rune's focus is blurred; when a Rune element takes focus again the host calls `focus_parent` (Windows and macOS, not Linux). Linux walk: page got "tides", the composer "harbour". Windows and macOS: see the CI grabs in the PR | 14 A (shown), D (all of Rune's focusable things) |
+| 14.7 | Keyboard: a click in the page gives it the keys; a press anywhere in Rune takes them back (decision 8), per system | spike (Windows, Linux tried) | **Shown (A):** the host script tells the app when the page takes focus (IPC `{"host":"focus"}`); Rune's focus is blurred; when a Rune element takes focus again the host calls `focus_parent` (Windows and macOS, not Linux). Real clicks and keys on all three (xdotool under Xvfb, PowerShell on Windows, cliclick on macOS): the page got "tides", then the composer "harbour" on each; on Windows and macOS the page heard its field lose focus (`focus_parent`), on Linux it didn't need to. A press on a Rune button that takes no focus is D's | 14 A (shown), D (all of Rune's focusable things) |
 | 14.8 | Fleet's shortcuts while the page has the keys: none reach the app (as Fleet) | iframe behaviour | n/a | 14 D (checked, written down) |
 | 14.9 | The fallback panel when no web view can be made (decision 9): words, **Open in browser**; drawn by headless runs and scenes | ours | **Done (A):** `view::page_tab` fallback, scene `page-tab-fallback`; what headless runs draw | 14 A |
 | 14.10 | Before the page draws, the area is white (`.page-canvas__frame { background: #fff; color-scheme: light }`), not the theme's ground | PC, BC, HR | **Done (A)** in Rune (`Theme::page_frame`) and wry (`with_background_color` white). **Open on Linux:** WebKitGTK's view is black until its first paint (about 1-2 s on a software renderer); GTK's container, which wry doesn't expose | 14 A |
@@ -276,8 +276,10 @@ and the owner decides whether the component goes on. Write every finding into `d
   not a job of its own: it reuses the job's debug build instead of building the app a second time on each system.
 - The gutter step sets the dragged width (`RightPanel::width`) rather than dragging with the OS pointer: the web view follows the
   panel's layout either way, and a real drag is one more thing to script per system.
-- The host script reaches the app over wry's IPC from a page served with Fleet's `sandbox` CSP (opaque origin) on Linux; piece B
-  stands on that. Windows and macOS: see the PR's CI grabs and its log lines (`web: heard from …`).
+- The host script reaches the app over wry's IPC on all three systems (CI logs `web: heard from page_walk: {"host":"focus"}`), and on
+  Linux from the scratch Fleet's own page, served with Fleet's `sandbox` CSP (opaque origin); piece B stands on that.
+- Every step held on Linux, Windows and macOS: loaded, followed the gutter and a resize, hidden under the palette (drawn whole over
+  where the page was), back with its script still running (its tick count went on), keys to the page and back to the composer.
 - Open from A: 14.10 on Linux (black until WebKit's first paint); the rest of 14.2, 14.3, 14.4 and 14.7 are D's, as planned.
 
 **B. The page bridge and the theme** (plain Rust plus the injected script). Rows 14.28–14.33.

@@ -1564,6 +1564,10 @@ What the app's own host stands on, at `f1f54ce` (the research spike's findings h
   script over wry's IPC), the app calls `tx.blur()`; the next time `tx.focused()` is `Some`, a Rune element took focus, and
   the host hands the keyboard back (`focus_parent`, Windows and macOS). A press on something Rune doesn't focus (a button)
   is still missed: that needs the "a press landed anywhere" hook `docs/research/web-content.md` asks for.
+- **Where the keyboard went, with real input on each system** (the CI walk): Linux (X11 with no window manager) moves it with
+  the click by itself; Windows and macOS keep it in the web view until `focus_parent`, after which the page's field hears `blur`
+  and Rune's composer gets the keys. macOS runners take real input from `cliclick` (`brew install cliclick`), which the research
+  spike didn't have.
 - **A window resized from outside before its first frame stopped drawing** under Xvfb with no window manager
   (`xdotool windowsize` while the first frame was still being made: the window stayed black, clicks did nothing). Resized after
   the first frame, it was fine. Not chased further: no real desktop does that.
