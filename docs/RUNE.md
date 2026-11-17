@@ -1474,3 +1474,11 @@ Plain Rust, no view, so nothing new about Rune. For the next piece that draws th
 - **A right-pushed item in a wrapping row, with a growing sibling:** `grow(1.0)` on the item itself and `justify_end()` (no spacer) right-aligns it whether it shares the line or wraps onto its own, as `margin-left: auto` does. With another item that also grows (a headline), give the right-hand item `grow(0.001)` so the headline keeps the space.
 - **A paragraph beside a button in a wrapping row:** put the rich text in a `col().w(0.0).grow(1.0).min_w(256.0)` with the text `w_full()`; a text element left as a direct child measures at its one-line width and runs under its neighbours (the same as piece J's note), and `basis` doesn't exist, so `w(0).grow(1).min_w(n)` is Fleet's `flex: 1 1 n`.
 - **A test that clicks after a rig with a fake Fleet:** the fake's empty harness list opens the first-run overlay (see piece K); close it and run a frame before each click, and use the tall window (`app_tall`) because a click can't reach below the first screen.
+
+## Component 12, planning (Changes and review)
+
+- **Picking diff lines by selecting them looks possible without a pin move** (read at `f1f54ce`, not built yet).
+  Put the lines' `selectable` texts in an element with `selection_group(true)`, and add `on_selection_change` to it. Each
+  selected text then comes with its path and range (`TextSelection::texts`), so the handler can map the texts to line
+  numbers. Fleet's Split selects down one column only. Here that means one selection group per column, so Split is
+  drawn as two columns of fixed-height rows side by side, not as rows that each hold both sides.
