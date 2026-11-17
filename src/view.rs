@@ -2,6 +2,8 @@
 //! 14px root (see `client/src/components/layout/AppShell.vue`).
 pub mod add_machine;
 pub mod agent_row;
+pub mod agents;
+pub mod agents_row;
 pub mod allowed;
 pub mod analytics;
 pub mod ask_card;
