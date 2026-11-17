@@ -192,6 +192,10 @@ impl State {
             self.load_interruption(&id);
             self.load_browser(&id);
             self.load_header_detail(&id);
+            // Only a session whose Agents tab has been shown holds a history.
+            if self.agents_history.contains_key(&id) {
+                self.load_agents_history(&id);
+            }
         }
         if self.stream.is_some() && (open_here || (key == super::settings::HOME_MACHINE_KEY && self.open_id().is_none())) {
             self.loading = true;

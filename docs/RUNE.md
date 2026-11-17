@@ -1519,3 +1519,8 @@ Nothing new about Rune: the piece is plain Rust. Two things to know for the piec
 ## Component 12, piece B (the review model)
 
 Nothing about Rune: plain Rust. One thing for the pieces that draw it: word marks are byte offsets into a line's content, so a view slices with `marked_segments` and never counts characters.
+
+## Component 10, piece K (Agents data)
+
+- **Nothing new about Rune.** The piece is plain Rust. For piece L: a row's own session stream needs a side stream (watch the child, hand
+  its snapshot over), because a watched topic's snapshot isn't given to `State`; `summarize_agent_activity` takes the reduced messages.

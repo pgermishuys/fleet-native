@@ -3,6 +3,7 @@
 //! real server (`tests/fixtures/`). The impure parts (`http`, `link`) do the network work on their
 //! own threads and hand results to the state.
 pub mod actions;
+pub mod agents;
 pub mod archive_queue;
 pub mod archived_view;
 pub mod asks;

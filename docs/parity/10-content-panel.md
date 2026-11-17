@@ -1066,6 +1066,19 @@ call ids. `FileStat` has an optional `status`; `DelegationStatus::wire()`; `conv
 - **Pictures:** non-visual. A scene unchanged, plus the model printed for a scratch session after `spawn-agent` and
   during `background-work`.
 
+**Piece K status (done, plain Rust, `src/fleet/agents.rs`, tests `src/fleet/tests/agents.rs`).** Rows 5.12-5.16, 5.19-5.23 (words),
+5.28-5.33 and 5.36-5.39 (what shows: the `Detail` model), 5.40-5.46 and 5.50 are logic here; the views (L, M) draw them.
+Open for later pieces, each with its reason:
+- 5.34 (the row's own session stream) and the seen-model map: needs the side stream; `summarize_agent_activity` and `DetailInput.activity` are
+  what it will feed, and `runs_on` takes the seen map.
+- 5.32's one read of a no-session item's output: `DetailInput.output_line` takes it; the request itself is with the view (L).
+- 5.46 loading: `State::load_agents_history` / `on_agents_history` exist and run again on a reconnect for a session whose history is held;
+  the tab (L) calls it on show and on a session change, because there is no tab to show yet.
+- 5.37: `stop_work` now finds an item in the history, and a Stop's answer joins it, so the row moves to Earlier agents.
+- 5.23: uses `fleet::turns::model_display_name` (piece I), not the composer's.
+- 5.41: `session_state` has six states in its own type; `lineage::AgentState` is unchanged.
+- 5.5 / 5.50: `AgentsLineage::active_count` is the badge number; `right_panel::note_panel_content` isn't changed here (pieces B/D wire it).
+
 ### Piece L: the Agents tab drawn, with its actions
 
 - **Rows:** 5.1-5.11, 5.17-5.18, 5.24-5.27, 5.33-5.39 drawn, 5.34 (the child's activity), 6.4 and 6.5 for Agents, 6.22.
