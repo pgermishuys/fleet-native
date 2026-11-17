@@ -1414,7 +1414,16 @@ pub(crate) fn read_request(stream: &mut std::net::TcpStream) -> String {
     use std::io::Read;
     let mut got = Vec::new();
     let mut buf = [0u8; 1024];
-    while !got.windows(4).any(|w| w == b"\r\n\r\n") {
+    // The headers and the body can arrive in separate reads (often under load): read on until the whole body is here.
+    loop {
+        if let Some(end) = got.windows(4).position(|w| w == b"\r\n\r\n") {
+            let head = String::from_utf8_lossy(&got[..end]).to_ascii_lowercase();
+            let wanted =
+                head.lines().find_map(|l| l.strip_prefix("content-length:")).and_then(|v| v.trim().parse::<usize>().ok()).unwrap_or(0);
+            if got.len() >= end + 4 + wanted {
+                break;
+            }
+        }
         match stream.read(&mut buf) {
             Ok(0) | Err(_) => break,
             Ok(n) => got.extend_from_slice(&buf[..n]),
