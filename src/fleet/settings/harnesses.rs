@@ -293,6 +293,15 @@ impl State {
         self.save_harness_pref(&format!("{kind}.enabled"), value, |_, _| {});
     }
 
+    /// The Check for updates switch of Updates & about › Harnesses (`toggleUpdateChecks`): saved on the machine shown, then
+    /// the harnesses are asked again so the strips follow.
+    pub fn toggle_harness_update_checks(&mut self) {
+        let on = self.harness_prefs().get(crate::fleet::updates::HARNESS_UPDATE_CHECK.key) != Some("false");
+        self.save_harness_pref(crate::fleet::updates::HARNESS_UPDATE_CHECK.key, if on { "false" } else { "true" }, |s, _| {
+            s.check_harnesses_again()
+        });
+    }
+
     /// The Default harness select (`makeDefaultHarness`): a harness that is off can't be the default.
     pub fn set_default_harness(&mut self, kind: &str) {
         let Some(h) = self.harness_list().all.into_iter().find(|h| h.kind == kind) else { return };

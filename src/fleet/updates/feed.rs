@@ -36,6 +36,8 @@ pub struct StatusStore {
     pub status: Option<UpdateStatus>,
     /// Until the first answer, good or not.
     pub loading: bool,
+    /// "Check for updates" was pressed and its post hasn't come back (`isLoading` of `checkForUpdate`).
+    pub checking: bool,
     request: u64,
     in_flight: bool,
     next_read: Option<f64>,
@@ -170,6 +172,8 @@ pub struct UpdatesFeed {
     pub checking: bool,
     /// What each machine last reported to this device.
     pub last_seen: LastSeen,
+    /// The machine whose harnesses and preferences the open page has asked for.
+    pub asked: Option<String>,
     /// The rollout has been read and is followed, while the page is open.
     following: bool,
     next_rollout_read: f64,
@@ -285,17 +289,31 @@ impl State {
         self.updates.last_seen.note(reported.iter().map(|(k, v)| (k.as_str(), v.as_str())))
     }
 
-    /// Called from `poll`: while Updates & about is open, keeps the shown machine's status and notes fresh, reads the rollout
-    /// and follows it. A restart of this Fleet is followed wherever the page is.
+    /// Called from `poll`. Anywhere in Settings the shown machine's status is kept fresh, for the menu's dot. While Updates &
+    /// about is open the notes, the rollout and the harnesses are read too, and the rollout is followed. A restart of this Fleet
+    /// is followed wherever the page is.
     pub fn keep_updates(&mut self, now: f64, tx: &mut Tx) -> bool {
         let mut changed = self.keep_come_back(now);
-        if !self.updates_page_open() {
+        if self.rail != Rail::Settings {
             self.updates.following = false;
+            self.updates.asked = None;
             return changed;
         }
         let key = self.settings.choice.key(&self.machines).to_string();
         if self.updates.status.entry(key.clone()).or_default().due(now) {
             self.load_update_status(&key, now);
+        }
+        if !self.updates_page_open() {
+            self.updates.following = false;
+            self.updates.asked = None;
+            return changed;
+        }
+        // Opening the page asks the machine for its harnesses and its preferences (the switch and which harness is on).
+        if self.updates.asked.as_deref() != Some(key.as_str()) {
+            self.updates.asked = Some(key.clone());
+            self.read_harnesses(&key, false);
+            self.read_preferences(&key);
+            changed = true;
         }
         let notes = self.updates.releases.entry(key.clone()).or_default();
         if !notes.loaded && !notes.loading {
@@ -416,11 +434,15 @@ impl State {
     pub fn update_machine(&mut self, key: &str, path: &'static str) {
         let Some(link) = self.link_for_machine(key) else { return };
         let (key, now) = (key.to_string(), self.clock);
+        self.updates.status.entry(key.clone()).or_default().checking = true;
         link.off_thread(
             move |base| {
                 let _ = http::text_with("POST", base, path, None);
             },
-            move |s, _, ()| s.load_update_status(&key, now),
+            move |s, _, ()| {
+                s.updates.status.entry(key.clone()).or_default().checking = false;
+                s.load_update_status(&key, now);
+            },
         );
     }
 
