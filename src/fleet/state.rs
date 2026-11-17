@@ -242,6 +242,8 @@ impl State {
         self.keep_skill_undo();
         self.keep_restart_buttons();
         self.keep_restart_notice();
+        self.keep_update_buttons();
+        self.keep_update_notices();
         let mut changed = self.notices.expire(now);
         if self.notices.open().is_none() && self.notices.next_waiting().is_some() {
             if self.quiet.is_quiet(now) {

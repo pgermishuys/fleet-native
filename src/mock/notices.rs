@@ -131,3 +131,42 @@ pub fn restarted(s: &mut State, auto: bool) {
     s.keep_restart_notice();
     s.notices.open_next();
 }
+
+fn machine_info(id: &str, name: &str, version: &str, update: serde_json::Value) -> crate::fleet::machines::Info {
+    let json = serde_json::json!({ "id": id, "name": name, "os": "linux", "version": version, "update": update });
+    crate::fleet::machines::Info::from_json(&json).expect("an info")
+}
+
+/// Home updated itself in the night under a rule nobody picked, through the real rule (`fleet::update_notices`): the card
+/// says when, says it once, and offers What's new, Change the rule and Dismiss.
+pub fn machine_updated(s: &mut State) {
+    s.now_ms = crate::fleet::work::parse_iso_ms("2026-10-20T12:00:00Z");
+    s.pickers.prefs.fetched = true;
+    let last = serde_json::json!({ "from": "0.59.0", "to": "0.59.1", "at": "2026-10-20T03:12:00Z", "trigger": "idle" });
+    let update = serde_json::json!({ "status": "uptodate", "latestVersion": "0.59.1", "lastUpdate": last });
+    s.machines.home = Some(machine_info("home-id", "harbor", "0.59.1", update));
+    s.keep_update_notices();
+    s.notices.open_next();
+}
+
+/// Two listed machines have an update waiting, or (`rollout`) a rollout is under way across three: only the status bar chip.
+pub fn machines_can_update(s: &mut State, rollout: bool) {
+    let list: Vec<serde_json::Value> = ["falcon", "lantern"]
+        .iter()
+        .map(|n| serde_json::json!({ "id": format!("{n}-id"), "name": n, "baseUrl": "http://127.0.0.1:6001" }))
+        .collect();
+    s.machines.list = list.iter().filter_map(crate::fleet::machine::Machine::from_json).collect();
+    for m in s.machines.list.clone() {
+        let update = serde_json::json!({ "status": "available", "latestVersion": "0.59.1" });
+        s.machines.identities.insert(m.id.clone(), machine_info(&m.id, &m.name, "0.59.0", update));
+    }
+    if rollout {
+        let steps: Vec<_> = [("harbor", "done"), ("falcon", "waiting"), ("lantern", "pending")]
+            .iter()
+            .map(|(n, st)| serde_json::json!({ "machineId": format!("{n}-id"), "name": n, "state": st }))
+            .collect();
+        let body = serde_json::json!({ "id": "r1", "status": "running", "startedAt": "2026-10-20T09:00:00Z", "steps": steps });
+        s.updates.rollout = crate::fleet::updates::Rollout::from_json(&body);
+    }
+    s.keep_update_notices();
+}

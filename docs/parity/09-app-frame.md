@@ -187,7 +187,7 @@ their pictures from scenes beside Fleet's client with the answers put in by Play
 |---|---|---|---|
 | 8.1 | **Fleet restarted** (`restart-cut-off:<at>`, warn, `RotateCw`, hold 30 s): "Fleet restarted" or "Fleet updated to v<x>"; "N sessions were cut off." / "Continuing N sessions."; up to 5 items (a lost question says "…: the question was lost. Ask again."), "+N more"; one line per other machine that restarted; link "Next time, continue these by itself?" (sets `RestartContinueAuto`); **Continue all** (`POST …/interruption/continue` each), **Dismiss all** (`DELETE …/interruption` each), or in automatic mode **Stop all** (`POST /api/sessions/interruptions/stop-automatic`, also on Esc); a machines-only variant "A machine restarted" | `use-restart-notice.ts` | **Done (N)** `fleet/restart_notice.rs`, shown by `keep_restart_notice`: title, body, five items and "+N more", the other machines' lines, the link (turns `RestartContinueAuto` on), Continue all, Dismiss all, Stop all (also on Esc) through `http::stop_automatic`, the continuing count held, the machines-only card. Gap: "Fleet updated to v<x>" needs the update store (component 16): `title(Some(v))` is ready and tested, the source passes none until then |
 | 8.2 | **Remembered** (`memory-saved-<id>-<updated>`, `Lightbulb`, hold 6 s with countdown, expires 2 min): "Remembered for this machine / <repo> / this repository", the note's text; **Undo** (update back to the previous text, or forget the note and put the previous back); on failure "Couldn't undo it" + reason | `use-memory-notices.ts` | **Done in M**: `memory.saved` on the `sessions` topic posts the card; Undo goes through `/api/memory` |
-| 8.3 | **Machine updated** (`fleet-updated:<machine>:<to>`, within 3 days): "<name> updated to <to>", "At HH:MM, <when nothing was working / overnight / when you restarted it / by Update machines now>."; once, the rule sentence and "Change the rule"; What's new, Dismiss. **Chip** `fleet-updates-waiting`: "↑ N machines can update" or "Updating machines · k of n", opens Settings → Updates › Machines | `use-fleet-update-notices.ts`, `lib/fleet-updates.ts` | Machine info from 17; `update.rollout` read but unused |
+| 8.3 | **Machine updated** (`fleet-updated:<machine>:<to>`, within 3 days): "<name> updated to <to>", "At HH:MM, <when nothing was working / overnight / when you restarted it / by Update machines now>."; once, the rule sentence and "Change the rule"; What's new, Dismiss. **Chip** `fleet-updates-waiting`: "↑ N machines can update" or "Updating machines · k of n", opens Settings → Updates › Machines | `use-fleet-update-notices.ts`, `lib/fleet-updates.ts` | **Done (O)** `fleet/update_notices.rs`, kept by `keep_update_notices` on every notices pass: the card (title, "At <time>, <how>.", What's new, Dismiss; the rule sentence and "Change the rule" once, written to `FleetUpdateRuleNotice`), one id per machine and version, and the chip (`fleet-updates-waiting`, quiet) that opens Settings → Updates & about › Machines. Gaps: What's new opens the page without a version (no What's new request exists yet, 16); "Reload" for a stale window is 8.8 (not applicable) |
 | 8.4 | **What's new after an update** (server variant) and "Updated to …" quiet chip | `use-update-notices.ts` 235-300 | Component 16 (needs release notes and Settings → Updates & about) |
 | 8.5 | **Dream** notices ("Fleet updated <repo>'s notes", See what changed → Settings → Memory) | `use-dream-notices.ts` | Component 16 (Memory and Dreaming) |
 | 8.6 | "Couldn't change mods" | `use-start-without-mods.ts` | Component 22 |
@@ -542,7 +542,7 @@ before N, O and U; P, Q, R; S; T, U; V when decided; W last.
   go all at once; (4) other machines' lines are tested as a function, not drawn live (no second machine here); (5) a notice id already shown comes back as no card
   (as in Fleet), so a second look at the same restart shows nothing: clear the data folder to see it again.
 
-### Piece O: machine update notices
+### Piece O: machine update notices — **done**
 
 - **Rows:** 8.3.
 - **Files:** new `src/fleet/update_notices.rs` (the updated card, the rule sentence once via `UpdateRuleNotice`, the
@@ -550,6 +550,16 @@ before N, O and U; P, Q, R; S; T, U; V when decided; W last.
 - **Depends on:** M, 17 (machine info: `update.lastUpdate`).
 - **Tests:** `use-fleet-update-notices.test.ts` (5).
 - **Pictures:** the chip and the card from scenes beside Fleet's own with the same machine answers (Playwright).
+
+- **Done:** row 8.3 (`shots/parity/09o-update-notices/`). `src/fleet/update_notices.rs` (the words are 16U's `describe_updated_notice` and
+  `describe_update_chip`); `src/tests_update_notices.rs` ports `use-fleet-update-notices.test.ts` (5, by name) and adds the card's words, the
+  once-only rule sentence and the buttons. The rollout is read once at start when a link exists, then follows the pushed `update.rollout`. Scenes
+  `notice-update`, `notice-update-chip`, `notice-update-rollout` (+ `-light`). Fleet's pictures: the scratch Fleet's own client with
+  Playwright answering `GET /api/machine` (a machine named harbor with a last update) and `GET /api/update/rollout`; nothing was updated.
+  The same card wrapped its buttons the same way. Gaps: (1) the "↑ N machines can update" chip has no Fleet picture, it needs a second
+  reachable machine; (2) Fleet writes the clock by the browser's locale ("19:54"), native's shared `clock` is always 12-hour ("3:12 AM"),
+  an app-wide difference (Fleet's `formatTime`), not this piece's; (3) What's new opens Updates & about without a version or scroll
+  (13.70); (4) the card's action buttons are now packed into lines by estimated width, see docs/RUNE.md.
 
 ### Piece P: Report a problem: the data and the requests (plain Rust) — **done**
 

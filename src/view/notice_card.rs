@@ -51,7 +51,7 @@ pub fn view(s: &State, t: &Theme) -> Option<El> {
         card = card.child(countdown(t, left, width - 24.0));
     }
     if !n.actions.is_empty() {
-        card = card.child(actions(t, &n.actions));
+        card = card.child(actions(t, &n.actions, width));
     }
     // A composer only counts while the session view that holds it is the one showing.
     let composer =
@@ -200,37 +200,71 @@ fn countdown(t: &Theme, left: f32, width: f32) -> El {
         .child(el().key("notice-countdown-bar").w(width * left).h(3.0).fill(t.accent))
 }
 
-fn actions(t: &Theme, actions: &[Action]) -> El {
-    let mut r = row().key("notice-actions").w_full().wrap().gap(6.0).mt(10.0).pl(INDENT);
+/// How wide a button is, near enough to decide where Fleet's `flex-wrap` would break: 12/500 text plus 10 px each side.
+fn button_width(a: &Action) -> f32 {
+    a.label.chars().count() as f32 * 6.0 + 20.0 + a.icon.map_or(0.0, |_| 17.0)
+}
+
+/// Buttons in lines: Rune's wrapping row doesn't move a whole button down (docs/RUNE.md), so the lines are packed here by the
+/// width the card leaves them, as `flex-wrap` does.
+fn action_lines(actions: &[Action], room: f32) -> Vec<Vec<usize>> {
+    let mut lines: Vec<Vec<usize>> = Vec::new();
+    let mut used = 0.0;
     for (i, a) in actions.iter().enumerate() {
-        let (fill, hover, ink) = match a.tone {
-            ActionTone::Primary => (t.accent, t.mix(t.accent, Color::BLACK, 0.12), t.primary_fg),
-            ActionTone::Danger => (t.error.alpha(0.16), t.error.alpha(0.24), t.error_text),
-            ActionTone::Quiet => (Color::TRANSPARENT, t.wash(6.0), t.muted),
-        };
-        // The text above it is level with a lone quiet button's label, not its edge.
-        let lead = if i == 0 && a.tone == ActionTone::Quiet { -10.0 } else { 0.0 };
-        let run = a.run.clone();
-        let mut b = row()
-            .key(format!("notice-action-{}", a.label))
-            .role("button")
-            .label(a.label.clone())
-            .h(26.0)
-            .px(10.0)
-            .gap(5.0)
-            .center_y()
-            .ml(lead)
-            .radius(RADIUS_BTN - 1.0)
-            .fill(fill)
-            .hover(hover)
-            .cursor(Cursor::Pointer)
-            .focusable(true)
-            .focus_ring(2.0, 1.0, t.accent)
-            .on_press(move |s: &mut State| s.notices.tell(&run));
-        if let Some(i) = a.icon {
-            b = b.child(icon(i.0, 12.0).color(ink));
+        let w = button_width(a) + if used > 0.0 { 6.0 } else { 0.0 };
+        match lines.last_mut() {
+            Some(line) if used + w <= room => {
+                line.push(i);
+                used += w;
+            }
+            _ => {
+                lines.push(vec![i]);
+                used = button_width(a);
+            }
         }
-        r = r.child(b.child(text(a.label.clone()).font(sans(12.0, 500.0, 1.2)).color(ink)));
     }
-    r
+    lines
+}
+
+fn actions(t: &Theme, actions: &[Action], width: f32) -> El {
+    let mut lines = col().w_full().gap(6.0).mt(10.0).pl(INDENT);
+    for line in action_lines(actions, width - 24.0 - INDENT) {
+        let mut r = row().gap(6.0);
+        for i in line {
+            r = r.child(action_button(t, i, &actions[i]));
+        }
+        lines = lines.child(r);
+    }
+    lines
+}
+
+fn action_button(t: &Theme, i: usize, a: &Action) -> El {
+    let (fill, hover, ink) = match a.tone {
+        ActionTone::Primary => (t.accent, t.mix(t.accent, Color::BLACK, 0.12), t.primary_fg),
+        ActionTone::Danger => (t.error.alpha(0.16), t.error.alpha(0.24), t.error_text),
+        ActionTone::Quiet => (Color::TRANSPARENT, t.wash(6.0), t.muted),
+    };
+    // The text above it is level with a lone quiet button's label, not its edge.
+    let lead = if i == 0 && a.tone == ActionTone::Quiet { -10.0 } else { 0.0 };
+    let run = a.run.clone();
+    let mut b = row()
+        .key(format!("notice-action-{}", a.label))
+        .role("button")
+        .label(a.label.clone())
+        .h(26.0)
+        .px(10.0)
+        .gap(5.0)
+        .center_y()
+        .ml(lead)
+        .radius(RADIUS_BTN - 1.0)
+        .fill(fill)
+        .hover(hover)
+        .cursor(Cursor::Pointer)
+        .focusable(true)
+        .focus_ring(2.0, 1.0, t.accent)
+        .on_press(move |s: &mut State| s.notices.tell(&run));
+    if let Some(i) = a.icon {
+        b = b.child(icon(i.0, 12.0).color(ink));
+    }
+    b.child(text(a.label.clone()).font(sans(12.0, 500.0, 1.2)).color(ink))
 }
