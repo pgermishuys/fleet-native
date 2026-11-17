@@ -61,6 +61,8 @@ pub struct Card {
     pub supports_provider_sign_in: bool,
     /// `setup.mode` is there: the harness describes how it is installed here (OpenCode 2).
     pub describes_install: bool,
+    /// `presentation.profileNote`: what the harness says about a profile's config, with `code` in backticks.
+    pub profile_note: Option<String>,
 }
 
 impl Card {
@@ -92,6 +94,7 @@ impl Card {
             supports_agent_browser: flag("/capabilities/supportsAgentBrowser"),
             supports_provider_sign_in: flag("/capabilities/supportsProviderSignIn"),
             describes_install: h.pointer("/setup/mode").is_some_and(|m| !m.is_null()),
+            profile_note: text("/presentation/profileNote"),
         }
     }
 }

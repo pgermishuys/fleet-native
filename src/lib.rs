@@ -139,6 +139,8 @@ mod tests_settings_dreaming;
 #[cfg(test)]
 mod tests_settings_general;
 #[cfg(test)]
+mod tests_settings_harness_editor;
+#[cfg(test)]
 mod tests_settings_harness_profiles;
 #[cfg(test)]
 mod tests_settings_harnesses;
@@ -1857,6 +1859,14 @@ pub fn spec() -> AppSpec<State> {
             ("settings-profiles-edit-light", |s| s.show_profiles(false, mock::harnesses::Profiles::Edit)),
             ("settings-profiles-chosen", |s| s.show_profiles(true, mock::harnesses::Profiles::Chosen)),
             ("settings-profiles-chosen-light", |s| s.show_profiles(false, mock::harnesses::Profiles::Chosen)),
+            ("settings-profiles-broken", |s| s.show_profiles(true, mock::harnesses::Profiles::EditBroken)),
+            ("settings-profiles-broken-light", |s| s.show_profiles(false, mock::harnesses::Profiles::EditBroken)),
+            ("settings-profiles-test-ok", |s| s.show_profiles(true, mock::harnesses::Profiles::TestOk)),
+            ("settings-profiles-test-ok-light", |s| s.show_profiles(false, mock::harnesses::Profiles::TestOk)),
+            ("settings-profiles-test-failed", |s| s.show_profiles(true, mock::harnesses::Profiles::TestFailed)),
+            ("settings-profiles-test-failed-light", |s| s.show_profiles(false, mock::harnesses::Profiles::TestFailed)),
+            ("settings-profiles-delete-ask", |s| s.show_profiles(true, mock::harnesses::Profiles::DeleteAsk)),
+            ("settings-profiles-delete-ask-light", |s| s.show_profiles(false, mock::harnesses::Profiles::DeleteAsk)),
             ("settings-machine", |s| settings_machine_scene(s, true, "general", None, false)),
             ("settings-machine-light", |s| settings_machine_scene(s, false, "general", None, false)),
             ("settings-machine-open", |s| settings_machine_scene(s, true, "general", None, true)),

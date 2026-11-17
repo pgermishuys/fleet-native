@@ -102,7 +102,15 @@ pub fn button(t: &Theme, v: Variant, size: Size, glyph: Option<&'static Icon>, l
 
 /// `button` with its leading element made by the caller (a spinner), spaced as an icon is.
 pub fn button_lead(t: &Theme, v: Variant, size: Size, lead: Option<El>, label: &str) -> El {
-    let l = look(t, v);
+    button_ink(t, v, size, lead, label, None)
+}
+
+/// `button_lead` with the label in `ink` instead of the variant's (`class="text-error-text"` on a ghost button).
+pub fn button_ink(t: &Theme, v: Variant, size: Size, lead: Option<El>, label: &str, ink: Option<Color>) -> El {
+    let mut l = look(t, v);
+    if let Some(ink) = ink {
+        l.ink = ink;
+    }
     let (h, px, gap) = size.dims(lead.is_some() && !label.is_empty());
     // `text-sm` is 0.875rem; the filter chip is `text-[11px]`.
     let font = if matches!(v, Variant::Filter { .. }) { sans(11.0, 500.0, 1.4) } else { sans(rem(0.875), 500.0, 1.4) };

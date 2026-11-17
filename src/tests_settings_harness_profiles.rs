@@ -12,17 +12,23 @@ use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
 #[derive(Default)]
-struct Fake {
-    profiles: Vec<Value>,
+pub(crate) struct Fake {
+    pub profiles: Vec<Value>,
     /// Profile reads that fail until this many have been refused.
-    refuse_reads: usize,
+    pub refuse_reads: usize,
     /// Held back: the first read of the list waits until this is false.
-    hold: bool,
-    refuse_default: bool,
-    writes: Vec<(String, String, Value)>,
-    reads: usize,
+    pub hold: bool,
+    pub refuse_default: bool,
+    /// A create, update or delete is refused with this.
+    pub refuse_write: Option<String>,
+    /// `presentation.profileNote`.
+    pub note: Option<String>,
+    /// What a check answers.
+    pub check: Option<Value>,
+    pub writes: Vec<(String, String, Value)>,
+    pub reads: usize,
 }
-type Shared = Arc<Mutex<Fake>>;
+pub(crate) type Shared = Arc<Mutex<Fake>>;
 
 fn serve(fake: Shared) -> String {
     let listener = TcpListener::bind("127.0.0.1:0").expect("a port");
@@ -72,7 +78,7 @@ fn answer(mut stream: std::net::TcpStream, fake: Shared) {
         let list = json!([{
             "type": "opencode2", "displayName": "OpenCode 2", "available": true, "userEnabled": true, "state": "ready",
             "capabilities": {"supportsProfiles": true, "supportsPermissionLevels": true},
-            "presentation": {"eyebrow": "CLI harness", "description": "The runtime."}, "settings": []
+            "presentation": {"eyebrow": "CLI harness", "description": "The runtime.", "profileNote": f.note}, "settings": []
         }]);
         ("200 OK", list)
     } else if method == "GET" && path == "/api/preferences" {
@@ -92,7 +98,9 @@ fn answer(mut stream: std::net::TcpStream, fake: Shared) {
         if path.ends_with("/default") {
             if f.refuse_default { ("500 Internal Server Error", json!({"error": "The default is locked."})) } else { ("200 OK", json!({})) }
         } else if path.ends_with("/check") {
-            ("200 OK", json!({"ok": false, "error": "Unknown key", "details": "line 2"}))
+            ("200 OK", f.check.clone().unwrap_or(json!({"ok": false, "error": "Unknown key", "details": ["line 2"]})))
+        } else if let Some(why) = f.refuse_write.clone() {
+            ("400 Bad Request", json!({"error": why}))
         } else if method == "POST" {
             ("200 OK", json!({"id": "made", "name": sent["name"], "content": sent["content"], "isDefault": false, "openSessions": 0}))
         } else if method == "PUT" {
@@ -111,17 +119,17 @@ fn answer(mut stream: std::net::TcpStream, fake: Shared) {
     let _ = stream.write_all(out.as_bytes());
 }
 
-fn profile(id: &str, name: &str, default: bool, open: u32) -> Value {
+pub(crate) fn profile(id: &str, name: &str, default: bool, open: u32) -> Value {
     json!({"id": id, "name": name, "content": format!("{{ \"model\": \"{id}/model\" }}"), "isDefault": default, "openSessions": open})
 }
 
-struct Rig {
-    rt: Runtime<State>,
-    queue: Receiver<Job>,
-    fake: Shared,
+pub(crate) struct Rig {
+    pub rt: Runtime<State>,
+    pub queue: Receiver<Job>,
+    pub fake: Shared,
 }
 
-fn rig(fake: Fake) -> Rig {
+pub(crate) fn rig(fake: Fake) -> Rig {
     let fake: Shared = Arc::new(Mutex::new(fake));
     let base = serve(fake.clone());
     let (jobs, queue) = channel::<Job>();
@@ -148,31 +156,31 @@ fn rig(fake: Fake) -> Rig {
 }
 
 impl Rig {
-    fn wait(&mut self, what: &str, done: impl FnMut(&State) -> bool) {
+    pub fn wait(&mut self, what: &str, done: impl FnMut(&State) -> bool) {
         let fake = self.fake.clone();
         test_wait::drive(&mut self.rt, &self.queue, what, done, move |s| {
             format!("{:?}; writes {:?}", s.settings.harnesses.profiles, fake.lock().map(|f| f.writes.clone()))
         });
         self.frames();
     }
-    fn frames(&mut self) {
+    pub fn frames(&mut self) {
         self.rt.frame(FRAME);
         self.rt.frame(FRAME);
     }
-    fn has(&self, key: &str) -> bool {
+    pub fn has(&self, key: &str) -> bool {
         self.rt.elements().iter().any(|e| e.key.as_deref() == Some(key) && !e.exiting)
     }
-    fn words(&self) -> String {
+    pub fn words(&self) -> String {
         self.rt.elements().iter().filter_map(|e| e.text.clone().or_else(|| e.label.clone())).collect::<Vec<_>>().join("\n")
     }
-    fn text_of(&self, key: &str) -> String {
+    pub fn text_of(&self, key: &str) -> String {
         self.rt.elements().into_iter().find(|e| e.key.as_deref() == Some(key)).and_then(|e| e.text).unwrap_or_default()
     }
-    fn click(&mut self, key: &str) {
+    pub fn click(&mut self, key: &str) {
         crate::tests::click(&mut self.rt, key);
         self.frames();
     }
-    fn profiles(&self) -> Vec<(String, bool)> {
+    pub fn profiles(&self) -> Vec<(String, bool)> {
         self.rt.state.harness_profiles("opencode2").into_iter().map(|p| (p.id, p.is_default)).collect()
     }
 }

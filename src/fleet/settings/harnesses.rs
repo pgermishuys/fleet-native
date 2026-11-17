@@ -203,7 +203,7 @@ impl State {
             // The label's clock runs every 15 s.
             tx.wake_after(Duration::from_secs(15));
         }
-        let profiles = self.keep_profiles_panel();
+        let profiles = self.keep_profiles_panel() | self.limit_profile_name();
         if self.settings.harnesses.asked.as_deref() == Some(machine.as_str()) {
             return profiles;
         }

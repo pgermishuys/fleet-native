@@ -1,6 +1,7 @@
 //! Settings → Harnesses → Profiles (`HarnessProfilesPanel.vue`): the head with "New profile", the notice, the list with its
-//! default, and a row's editor slot (piece I draws the editor; the slot is empty until then). Sizes are Fleet's Tailwind
+//! default, and a row's editor (`harness_profile_editor`). Sizes are Fleet's Tailwind
 //! classes at the 14px root.
+use super::harness_profile_editor::editor;
 use super::kit;
 use crate::State;
 use crate::fleet::new_session::feeds::Profile;
@@ -139,16 +140,6 @@ fn empty(t: &Theme, name: &str) -> El {
         )
 }
 
-/// What piece I fills: the editor. Until it is built there is a way out of the empty slot.
-fn editor_slot(t: &Theme, kind: &str, key: &str) -> El {
-    let kind = kind.to_string();
-    row().key(key.to_string()).w_full().child(
-        button::button(t, Variant::Ghost, Size::Sm, None, "Close")
-            .key(format!("{key}-close"))
-            .on_press(move |s: &mut State| s.close_profile_editor(&kind, None)),
-    )
-}
-
 fn row_frame(t: &Theme, first: bool) -> El {
     let r = col().w_full();
     if first { r } else { r.border_sides([1.0, 0.0, 0.0, 0.0], t.border) }
@@ -174,7 +165,7 @@ fn none_row(t: &Theme, kind: &str, has_default: bool) -> El {
     r
 }
 
-fn profile_row(t: &Theme, kind: &str, p: &Profile, editing: bool) -> El {
+fn profile_row(s: &State, t: &Theme, kind: &str, name: &str, note: Option<&str>, p: &Profile, editing: bool) -> El {
     let (set_kind, edit_kind, id) = (kind.to_string(), kind.to_string(), p.id.clone());
     let mut buttons = row().center_y().gap(3.5);
     if !p.is_default {
@@ -205,18 +196,19 @@ fn profile_row(t: &Theme, kind: &str, p: &Profile, editing: bool) -> El {
     let top = if editing { top } else { top.child(buttons) };
     let mut r = row_frame(t, false).key(format!("harness-profile-row-{}", p.id)).child(top);
     if editing {
-        r = r.child(
-            col().w_full().border_sides([1.0, 0.0, 0.0, 0.0], t.border).fill(t.card_bg).px(14.0).pb(14.0).pt(10.5).child(editor_slot(
-                t,
-                kind,
-                "harness-profile-editor",
-            )),
-        );
+        r = r.child(col().w_full().border_sides([1.0, 0.0, 0.0, 0.0], t.border).fill(t.card_bg).px(14.0).pb(14.0).pt(10.5).child(editor(
+            s,
+            t,
+            kind,
+            name,
+            note,
+            &Editing::Edit(p.id.clone()),
+        )));
     }
     r
 }
 
-fn new_row(t: &Theme, kind: &str, first: bool) -> El {
+fn new_row(s: &State, t: &Theme, kind: &str, name: &str, note: Option<&str>, seed: &Editing, first: bool) -> El {
     let r = if first { col().w_full() } else { col().w_full().border_sides([1.0, 0.0, 0.0, 0.0], t.border) };
     r.key("harness-profile-row-new")
         .fill(t.card_bg)
@@ -224,11 +216,11 @@ fn new_row(t: &Theme, kind: &str, first: bool) -> El {
         .pb(14.0)
         .pt(10.5)
         .child(row().mb(10.5).child(text("New profile").font(sans(rem(0.875), 500.0, 1.43)).color(t.text)))
-        .child(editor_slot(t, kind, "harness-profile-editor-new"))
+        .child(editor(s, t, kind, name, note, seed))
 }
 
 /// The Profiles group of a harness that supports them (`data-setting-group="profiles"`).
-pub fn section(s: &State, t: &Theme, kind: &str, name: &str) -> El {
+pub fn section(s: &State, t: &Theme, kind: &str, name: &str, note: Option<&str>) -> El {
     let profiles = s.harness_profiles(kind);
     let (editing, notice, error) = s.settings.harnesses.profiles.of(kind);
     let has_default = profiles.iter().any(|p| p.is_default);
@@ -261,10 +253,10 @@ pub fn section(s: &State, t: &Theme, kind: &str, name: &str) -> El {
         list = list.child(none_row(t, kind, has_default));
     }
     for p in &profiles {
-        list = list.child(profile_row(t, kind, p, editing == Some(&Editing::Edit(p.id.clone()))));
+        list = list.child(profile_row(s, t, kind, name, note, p, editing == Some(&Editing::Edit(p.id.clone()))));
     }
-    if matches!(editing, Some(Editing::New(_))) {
-        list = list.child(new_row(t, kind, profiles.is_empty()));
+    if let Some(new @ Editing::New(_)) = editing {
+        list = list.child(new_row(s, t, kind, name, note, new, profiles.is_empty()));
     }
     group.child(list)
 }

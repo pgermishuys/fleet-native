@@ -11,6 +11,7 @@ pub mod folders_locations;
 pub mod folders_naming;
 pub mod folders_storage;
 pub mod general;
+pub mod harness_profile_editor;
 pub mod harness_profiles;
 pub mod harnesses;
 pub mod kit;
