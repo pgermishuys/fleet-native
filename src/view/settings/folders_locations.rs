@@ -18,7 +18,7 @@ fn word(t: &Theme, words: &str, weight: f32) -> El {
 }
 
 /// `buttonSecondaryClass` / `buttonPrimaryClass` / Remove: `rounded-btn px-3 py-1.5 text-sm font-medium`, a gap of 8 around the glyph.
-fn pill(base: El, key: &str, label: &str, disabled: bool, lead: El, words: El, press: impl Fn(&mut State) + 'static) -> El {
+pub(super) fn pill(base: El, key: &str, label: &str, disabled: bool, lead: El, words: El, press: impl Fn(&mut State) + 'static) -> El {
     base.key(key.to_string())
         .role("button")
         .label(label.to_string())
@@ -37,7 +37,7 @@ fn pill(base: El, key: &str, label: &str, disabled: bool, lead: El, words: El, p
         .on_press(press)
 }
 
-fn secondary(t: &Theme) -> El {
+pub(super) fn secondary(t: &Theme) -> El {
     row().border(1.0, t.border).border_layout().fill(t.main_bg).hover(t.main_bg)
 }
 

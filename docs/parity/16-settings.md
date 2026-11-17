@@ -301,6 +301,15 @@ Built in `src/fleet/settings/harness_profiles/` (`mod.rs`: the panel's state, th
 - **Open, with reason:** the row's editor (5.157's content, 5.170 to 5.177): I. Until then the slot holds a "Close" button so a row can't be stuck open; I replaces it. The empty state's border is solid (Rune has no dashed line). Fleet's `lg` loading spinner is 20px; native's is the 14px one.
 - **Fleet's tests ported under their names (B ones):** "says it's loading, not “No profiles yet”, until the machine answers", "says a failed load failed, not that there are no profiles, and tries again", "explains profiles when there are none", "lists profiles with the default, what each changes and who uses it", "makes a profile the default"; the eight `harness-profile` lib tests ("names the model, then what the profile adds", "counts OpenCode 2's own names ...", "says when a profile limits the providers", "describes agents and a default agent", "says a new profile has no settings yet, and counts other settings", "doesn't pretend to read broken JSON", "reads comments and trailing commas but keeps // inside strings", "returns null for anything that isn't an object"). Ours: a refused default says the server's words, "No profile" clears the default, an update, a delete and a check follow the store's rules, an editor opens in the row and New profile is disabled while the new one is open.
 - **Difference from Fleet's served client:** Fleet's page also has Providers and Weave groups above Profiles (K and Y); the native page draws none until those pieces land, so Profiles sits higher. Fleet's side of the pictures answers the harness list and the profiles through Playwright with invented data (the scratch server has no OpenCode 2 profiles).
+### Piece AB: done (17 November 2026)
+
+Built in `src/fleet/settings/naming_draft.rs` (the fields, chips, sample, save body, preview), `naming_actions.rs` (the read, Save and Use Fleet's defaults on the machine Settings shows, the 2 s "Saved"), `src/view/settings/folders_naming.rs`, `http::put_worktree_naming`, scenes `settings-worktrees`, `-filled`, `-no-slug`, `-error`, `-saved` (+ `-light`). The preview calls component 7's `resolve_worktree_name`.
+
+- **Done:** 10.22-10.34. 10.27: the fields hold the user's own layer and re-sync after a read or save. 10.30: the preview's repository is the invented `/home/you/source/lantern` (Fleet's own shows `weave-fleet`); the date is today's UTC date. 10.34: Save goes to the machine shown; the preview never asks.
+- **Open, with reason:** the chip's hover border and text colour (Rune has no hover border; same as AA). The prefix box's `disabled` look while the read is under way is Rune's. `spellcheck=false` has no meaning here.
+- **Differences from Fleet:** the preview's repository name (above). A prefix of exactly Fleet's default is sent as typed, as in Fleet. The v0.72.0 server and `main` agree on this card.
+- **Tests:** native (Fleet has none), `src/tests_settings_naming.rs`, 23 cases: the fields from the user's layer, the five boxes in order, the prefix box's width, load errors, the chip table and appends, the preview with defaults, a draft and a ticket capture, the sample, the no-slug note, an invented repository and no server call, a long path, Save's body with nulls, the layers replaced by the answer, Save off while saving, "Saved" for 2 s on the clock, refusal in the server's words and its fallback, the next save clearing it, Use Fleet's defaults, coming back to the page, and no server.
+- **Pictures:** `shots/parity/16-ab-worktrees/` (`fleet-*` beside `native-*`, five states, both themes, 1280 by 1500). Fleet's side is the scratch Fleet's own client, all live: defaults, filled (prefix `kit`, a ticket template and capture), no slug (empty sample), the refusal (`{nope}/{slug}`) and Saved. Fleet's pictures also show the Storage card (AC) and its one location.
 
 ### Requests, events and preferences
 
@@ -1981,7 +1990,7 @@ native app yet" note (decision 1) and adds its scenes to `spec()`.
 | **Y** | Harnesses: the Weave group | 5.26, 5.110-5.122 | G | Part 5, local G | ~600 |
 | **Z** | Harnesses: the Weave config dialog | 5.130-5.142 | Y, I | Part 5, local H | ~650 |
 | **AA** | Folders: Locations (done 17 Nov) | 10.1-10.21 | B, C | Part 10-11, 10-A | ~500 |
-| **AB** | Folders: Worktree naming | 10.22-10.34 | AA | Part 10-11, 10-B | ~400 |
+| **AB** | Folders: Worktree naming (done 17 Nov) | 10.22-10.34 | AA | Part 10-11, 10-B | ~400 |
 | **AC** | Folders: Storage | 10.3, 10.35-10.53 | AA | Part 10-11, 10-C | ~600 |
 | **AD** | Plugins: the table, the switches, the overview and a plugin's page; the menu's Plugins count, fold and children | 1.15, 1.16, 11.1-11.34, 11.57-11.59 | B | Part 10-11, 11-A and 11-B | ~700 |
 | **AE** | Plugins: the Mods and Built-in skills entries, and the Mods runtime panel | 11.19, 11.50-11.53, 8.130-8.134 | AD | Part 10-11, 11-C; Part 8 rows 8.130-8.134 | ~600 |

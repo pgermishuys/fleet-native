@@ -8,6 +8,7 @@ pub mod dreaming_panel;
 pub mod folders;
 pub mod folders_browse;
 pub mod folders_locations;
+pub mod folders_naming;
 pub mod general;
 pub mod harness_profiles;
 pub mod harnesses;

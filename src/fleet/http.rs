@@ -704,3 +704,8 @@ pub fn report_file(base: &str, body: &Value) -> Result<(String, Vec<u8>), String
     }
     Ok((disposition, bytes))
 }
+
+/// `PUT /api/worktrees/naming`: Settings → Folders → Worktrees saves the user's own layer.
+pub fn put_worktree_naming(base: &str, body: &Value) -> Result<(u16, String), String> {
+    text_with("PUT", base, "/api/worktrees/naming", Some(body))
+}

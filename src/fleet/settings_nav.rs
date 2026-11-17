@@ -157,6 +157,8 @@ pub struct SettingsNav {
     pub memory: crate::fleet::settings::memory::MemoryPage,
     /// What Folders read from the machine shown: the locations, the add box and the folder browser.
     pub locations: crate::fleet::settings::locations::LocationsPage,
+    /// What Folders' Worktrees card read from the machine shown: the user's layer, the fields and the sample.
+    pub naming: crate::fleet::settings::naming_draft::NamingPage,
     /// Memory's search, add and edit forms and its folds.
     pub memory_ui: crate::fleet::settings::memory_notes::MemoryUi,
 }

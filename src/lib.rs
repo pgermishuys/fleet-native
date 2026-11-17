@@ -155,6 +155,8 @@ mod tests_settings_memory;
 #[cfg(test)]
 mod tests_settings_memory_notes;
 #[cfg(test)]
+mod tests_settings_naming;
+#[cfg(test)]
 mod tests_settings_nav;
 #[cfg(test)]
 mod tests_sign_in;
@@ -1358,7 +1360,8 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_harnesses_page(tx)
         | s.keep_updates(now, tx)
         | s.keep_locations(tx)
-        | s.keep_dreaming(now, tx);
+        | s.keep_dreaming(now, tx)
+        | s.keep_naming(now, tx);
     // "Copied" on a message's button ends by itself.
     let copied = match &s.copied {
         Some((_, until)) if now >= *until => {
@@ -1586,6 +1589,29 @@ fn locations_scene(s: &mut State, dark: bool, change: impl FnOnce(&mut fleet::se
     s.settings.locations = page;
 }
 
+/// Settings → Folders with the Worktrees card read: Fleet's defaults, or the fields `change` sets, marked as already read.
+fn naming_scene(s: &mut State, dark: bool, change: impl FnOnce(&mut fleet::settings::naming_draft::NamingPage)) {
+    locations_scene(s, dark, |_| {});
+    let key = s.settings.choice.key(&s.machines).to_string();
+    let mut page = fleet::settings::naming_draft::NamingPage { loaded_for: Some(key), request: 1, ..Default::default() };
+    page.sample.replace_text(fleet::settings::naming_draft::SAMPLE);
+    page.adopt(Default::default());
+    change(&mut page);
+    s.now_ms = Some(1_789_000_000_000);
+    s.settings.naming = page;
+}
+
+fn naming_filled(p: &mut fleet::settings::naming_draft::NamingPage) {
+    p.prefix.replace_text("kit");
+    p.branch.replace_text("{prefix}/{ticket}-{slug}");
+    p.ticket.replace_text("[A-Z]{2,}-\\d+");
+}
+
+fn naming_refused(p: &mut fleet::settings::naming_draft::NamingPage) {
+    p.branch.replace_text("{nope}/{slug}");
+    p.error = Some("There's no {nope} token. Try {date}, {prefix}, {repo}, {shortid}, {slug}, {user}.".into());
+}
+
 /// The folder browser open on `path` (the roots for none).
 fn browse_scene(s: &mut State, dark: bool, path: Option<&str>) {
     locations_scene(s, dark, |p| p.browse = Some(mock::locations::browse(path)));
@@ -1646,6 +1672,16 @@ pub fn spec() -> AppSpec<State> {
             }),
             // Piece D: General with every switch the other way round and the first More open; the Large pastes list open.
             // Component 16, piece P: Memory off, on (the lists come with the next piece), still loading, and a failed read.
+            ("settings-worktrees", |s| naming_scene(s, true, |_| {})),
+            ("settings-worktrees-light", |s| naming_scene(s, false, |_| {})),
+            ("settings-worktrees-filled", |s| naming_scene(s, true, naming_filled)),
+            ("settings-worktrees-filled-light", |s| naming_scene(s, false, naming_filled)),
+            ("settings-worktrees-no-slug", |s| naming_scene(s, true, |p| p.sample.replace_text(""))),
+            ("settings-worktrees-no-slug-light", |s| naming_scene(s, false, |p| p.sample.replace_text(""))),
+            ("settings-worktrees-error", |s| naming_scene(s, true, naming_refused)),
+            ("settings-worktrees-error-light", |s| naming_scene(s, false, naming_refused)),
+            ("settings-worktrees-saved", |s| naming_scene(s, true, |p| p.saved_until = Some(2.0))),
+            ("settings-worktrees-saved-light", |s| naming_scene(s, false, |p| p.saved_until = Some(2.0))),
             ("settings-folders-list", |s| locations_scene(s, true, |_| {})),
             ("settings-folders-list-light", |s| locations_scene(s, false, |_| {})),
             ("settings-folders-empty", |s| locations_scene(s, true, |p| p.roots.clear())),
