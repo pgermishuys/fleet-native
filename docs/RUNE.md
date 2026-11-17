@@ -1317,3 +1317,8 @@ against the same restart opens no card (`tap` then fails with "no element"). Emp
 - **A switch whose choice lives in `State`** is a `Switch { choice: fn(&mut State) -> &mut MachineChoice }`: a non-capturing closure coerces to the `fn`, so one widget serves every view's own choice.
 - **`Runtime::find` returns an element's centre**, so "above" in a test compares centres, not edges.
 - **No timed fade** was drawn for the pane swap; headless pictures draw at rest, so a fade could only be tested on virtual frames.
+
+## Component 9, piece S (sign-in)
+
+- **There is a password field after all.** At the pinned rev `TextEdit::new(String::new()).secure()` makes `text_input` draw one bullet per character, keep no undo history, hide the text from `Debug` (`[redacted]`) and wipe its buffer when replaced (`replace_text`) or dropped. The note under component 17, piece J ("no masked mode") is out of date: the New token field on Settings → Machines can use it too.
+- **A secure field's text is not in a test's element tree**: `rt.elements()` shows the bullets, so "the token is never drawn" can be asserted on what the tree holds.

@@ -103,7 +103,12 @@ impl State {
     /// A hub's state: home's is the app's connection, another machine's is kept by its id (and not for one that's gone).
     pub fn set_connection(&mut self, key: &str, connection: Connection) {
         if key == HOME_MACHINE_KEY {
+            // The Fleet asks who this is: the sign-in page opens once per refusal.
+            let refused = connection == Connection::Refused && self.connection != Connection::Refused;
             self.connection = connection;
+            if refused {
+                self.open_sign_in();
+            }
         } else if self.machines.machine(key).is_some() {
             self.machines.hubs.insert(key.to_string(), connection);
         }
