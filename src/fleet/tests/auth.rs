@@ -130,9 +130,14 @@ fn a_fleet_that_needs_a_token_is_refused_once_and_then_reached_with_one() {
     assert!(!note.contains(SECRET));
     // The sign-in page asks what the Fleet offers, once; that is not a reconnect.
     assert!(pump(&mut rt, &queue, 10.0, |s| s.sign_in.open && s.sign_in.options != crate::fleet::sign_in::Options::Loading));
-    let knocks = seen.lock().unwrap().len();
+    // A reconnect loop is the hub knocking again. The machine and plugin polls start beside the hub and make their first
+    // call whenever their thread gets to run, so on a slow machine it can land after the refusal; they aren't counted.
+    let hub_knocks =
+        |seen: &Seen| seen.lock().unwrap().iter().filter(|(l, _)| l.starts_with("POST /hubs/session-events/negotiate")).count();
+    let knocks = hub_knocks(&seen);
+    assert_eq!(knocks, 1, "one knock on the hub");
     pump(&mut rt, &queue, 2.5, |_| false);
-    assert_eq!(seen.lock().unwrap().len(), knocks, "no reconnect loop");
+    assert_eq!(hub_knocks(&seen), knocks, "no reconnect loop: {:?}", seen.lock().unwrap());
     assert!(!rt.state.list_is_loading(), "the list isn't left loading");
 
     // The wrong token: its own wording.
