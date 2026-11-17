@@ -1111,10 +1111,9 @@ Open for later pieces, each with its reason:
   long text. Both themes.
 
 **Piece L status (drawn, 17 November 2026; `src/view/agents.rs`, `agents_row.rs`, `src/fleet/agents_tab.rs`, scenes `agents*`, tests `src/tests_agents_tab.rs`).**
-Done: 5.1 (the tab and its icon), 5.3 (introduced once something runs or waits), 5.4 (the badge from `activeCount`), 5.6-5.11, 5.17-5.19, 5.20 and 5.22-5.23 (words), 5.24 (labels through `.label()`), 5.25-5.27, 5.28 and 5.32 (from the work: asked to, the one read of a no-session item's output), 5.31, 5.35-5.39, 6.4 and 6.5 for Agents, 6.22 (Open session on a fork or started session opens it from the list; a child opens under this session).
+Done: 5.1 (the tab and its icon), 5.3 (introduced once something runs or waits), 5.4 (the badge from `activeCount`), 5.5 (piece D's panel watcher already reads `agents_running`, which this tab now feeds), 5.6-5.11, 5.17-5.19, 5.20 and 5.22-5.23 (words), 5.24 (labels through `.label()`), 5.25-5.27, 5.28 and 5.32 (from the work: asked to, the one read of a no-session item's output), 5.31, 5.35-5.39, 6.4 and 6.5 for Agents, 6.22 (Open session on a fork or started session opens it from the list; a child opens under this session).
 Open, each with its reason:
 - 5.34 and 5.29-5.30, 5.33 (tools, tokens, the latest line, "Reading its session…", the model in `runs_on`): need the side stream, piece L2. Until then the detail shows no tools or tokens and never says "Reading its session…" (it would never end). Fleet's picture shows the model after the harness ("OpenCode · Fake") and a Latest line; native shows neither.
-- 5.5: a collapsed panel does not open by itself for a running agent yet (`note_panel_content` isn't fed).
 - 5.12's "Parent" for a parent not in the list reads its title through `load_parent_title`; the press opens it only when the list holds it.
 - 5.21 (the state word's tooltip) is set with `.help`; the hover eases (5.15, 5.17) are instant (RUNE.md).
 - The live scratch Fleet showed only ended work: `background-work` ends before this renderer draws, so Running now, the badge and Stop are from scenes.
