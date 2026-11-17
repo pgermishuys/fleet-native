@@ -272,9 +272,13 @@ fn setting_row(s: &State, t: &Theme, setting: &HarnessSetting) -> El {
 
 /// Where the parts that come in later pieces sit, in Fleet's order: the install panel under the version line, Providers,
 /// Weave, Profiles and the Copilot path field. Each piece returns its part here; until then there is none.
-fn slots(_s: &State, _t: &Theme, _h: &HarnessEntry) -> (Vec<El>, Vec<El>) {
+fn slots(s: &State, t: &Theme, h: &HarnessEntry) -> (Vec<El>, Vec<El>) {
     // (after the version line and before "What it may do", after it and before the harness's own switches)
-    (Vec::new(), Vec::new())
+    let mut after = Vec::new();
+    if h.supports_profiles {
+        after.push(super::harness_profiles::section(s, t, &h.kind, &h.display_name));
+    }
+    (Vec::new(), after)
 }
 
 fn panel(s: &State, t: &Theme, h: &HarnessEntry) -> El {

@@ -242,18 +242,25 @@ impl State {
 
     /// A harness's profiles; a failure leaves the list as it was.
     pub fn read_profiles(&mut self, key: &str, harness: &str) {
+        self.read_profiles_then(key, harness, |_, _| {});
+    }
+
+    /// `read_profiles`, and `after` hears whether the machine gave a list. False when there is no machine to ask.
+    pub fn read_profiles_then(&mut self, key: &str, harness: &str, after: impl FnOnce(&mut State, bool) + Send + 'static) -> bool {
         let (machine, harness) = (key.to_string(), harness.to_string());
         let asked = harness.clone();
         self.feed_call(
             key,
             move |base| parse_profiles(http::harness_profiles(base, &asked)),
             move |s, _, r| {
+                let given = r.is_some();
                 if let Some(list) = r {
                     s.feeds.profiles.insert((machine, harness), list);
                     s.settle_choices();
                 }
+                after(s, given);
             },
-        );
+        )
     }
 
     /// The machine's preferences. Home's are the app's own (`load_preferences`); another machine's are kept here, and its

@@ -124,6 +124,7 @@ pub fn feeds() -> Feeds {
             name: "Work".into(),
             content: "{\n  \"model\": \"anthropic/sonnet\"\n}".into(),
             is_default: true,
+            ..Profile::default()
         }],
     );
     let key = CatalogKey { harness: "opencode2".into(), directory: Some(ROCKET.into()), profile: None };

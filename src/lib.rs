@@ -137,6 +137,8 @@ mod tests_settings_appearance_page;
 #[cfg(test)]
 mod tests_settings_general;
 #[cfg(test)]
+mod tests_settings_harness_profiles;
+#[cfg(test)]
 mod tests_settings_harnesses;
 #[cfg(test)]
 mod tests_settings_kit;
@@ -1736,6 +1738,20 @@ pub fn spec() -> AppSpec<State> {
                 s.show_harnesses(true, mock::harnesses::Case::Mixed, None);
                 s.ui.open = Some(ui::Open::Select("default-harness"));
             }),
+            ("settings-profiles-none", |s| s.show_profiles(true, mock::harnesses::Profiles::None)),
+            ("settings-profiles-none-light", |s| s.show_profiles(false, mock::harnesses::Profiles::None)),
+            ("settings-profiles-loading", |s| s.show_profiles(true, mock::harnesses::Profiles::Loading)),
+            ("settings-profiles-loading-light", |s| s.show_profiles(false, mock::harnesses::Profiles::Loading)),
+            ("settings-profiles-failed", |s| s.show_profiles(true, mock::harnesses::Profiles::Failed)),
+            ("settings-profiles-failed-light", |s| s.show_profiles(false, mock::harnesses::Profiles::Failed)),
+            ("settings-profiles-three", |s| s.show_profiles(true, mock::harnesses::Profiles::Three)),
+            ("settings-profiles-three-light", |s| s.show_profiles(false, mock::harnesses::Profiles::Three)),
+            ("settings-profiles-new", |s| s.show_profiles(true, mock::harnesses::Profiles::New)),
+            ("settings-profiles-new-light", |s| s.show_profiles(false, mock::harnesses::Profiles::New)),
+            ("settings-profiles-edit", |s| s.show_profiles(true, mock::harnesses::Profiles::Edit)),
+            ("settings-profiles-edit-light", |s| s.show_profiles(false, mock::harnesses::Profiles::Edit)),
+            ("settings-profiles-chosen", |s| s.show_profiles(true, mock::harnesses::Profiles::Chosen)),
+            ("settings-profiles-chosen-light", |s| s.show_profiles(false, mock::harnesses::Profiles::Chosen)),
             ("settings-machine", |s| settings_machine_scene(s, true, "general", None, false)),
             ("settings-machine-light", |s| settings_machine_scene(s, false, "general", None, false)),
             ("settings-machine-open", |s| settings_machine_scene(s, true, "general", None, true)),

@@ -8,6 +8,7 @@
 pub mod anchor;
 pub mod appearance;
 pub mod code_themes;
+pub mod harness_profiles;
 pub mod harnesses;
 pub mod locations;
 pub mod locations_actions;
