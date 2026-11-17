@@ -127,6 +127,8 @@ pub struct HarnessesPage {
     pub error: Option<(String, String)>,
     /// The machine shown says Fleet's agent browser is off (it is on until the machine says otherwise).
     pub browser_off: bool,
+    /// Profiles: the editor that is open, the notice, the reads under way (`HarnessProfilesPanel`).
+    pub profiles: super::harness_profiles::Panel,
 }
 
 /// A switch is on as saved; unset (or empty), it is what the harness says its default is (`isSettingOn`).
@@ -201,8 +203,9 @@ impl State {
             // The label's clock runs every 15 s.
             tx.wake_after(Duration::from_secs(15));
         }
+        let profiles = self.keep_profiles_panel();
         if self.settings.harnesses.asked.as_deref() == Some(machine.as_str()) {
-            return false;
+            return profiles;
         }
         self.settings.harnesses.asked = Some(machine.clone());
         self.settings.harnesses.error = None;

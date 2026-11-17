@@ -1,8 +1,10 @@
 //! The Harnesses page's invented data (component 16, piece G): a Fleet that lists OpenCode 2, Claude Code, GitHub Copilot and
 //! Pi, worded as the server words them, so the page draws the same every time. OpenCode 1 isn't listed: Fleet drops it.
 use crate::State;
+use crate::fleet::new_session::feeds::Profile;
 use crate::fleet::new_session::harness_choice::{Card, HarnessEntry, HarnessSetting};
 use crate::fleet::settings::HOME_MACHINE_KEY;
+use crate::fleet::settings::harness_profiles::Editing;
 
 /// How the harnesses are doing in a scene.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -95,5 +97,81 @@ impl State {
         }
         self.settings.harness = tab.map(str::to_string);
         self.open_settings("harnesses", None);
+    }
+}
+
+/// What the Profiles group shows in a scene.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Profiles {
+    /// The machine has said there are none.
+    None,
+    /// Asked, not answered.
+    Loading,
+    /// The machine couldn't be read.
+    Failed,
+    /// Three: the default, one two sessions use, one that doesn't read.
+    Three,
+    /// Three, and a new profile's editor open under them.
+    New,
+    /// Three, and the first one's editor open.
+    Edit,
+    /// Three, after "Set default" on the second.
+    Chosen,
+}
+
+fn profile(id: &str, name: &str, content: &str, default: bool, open: u32) -> Profile {
+    Profile { id: id.into(), name: name.into(), content: content.into(), is_default: default, open_sessions: open }
+}
+
+/// Three invented profiles: one is the default, one is used by two open sessions, one doesn't read.
+pub fn profiles() -> Vec<Profile> {
+    vec![
+        profile(
+            "p-work",
+            "Work",
+            "{\n  // Models through the company gateway\n  \"model\": \"gateway/large\",\n  \"provider\": { \"gateway\": {} },\n  \"mcp\": { \"docs\": {}, \"tickets\": {} },\n}",
+            true,
+            0,
+        ),
+        profile(
+            "p-local",
+            "Local only",
+            "{ \"enabled_providers\": [\"ollama\"], \"default_agent\": \"review\", \"agent\": { \"review\": {} } }",
+            false,
+            2,
+        ),
+        profile("p-draft", "Draft", "{ \"model\": ", false, 0),
+    ]
+}
+
+impl State {
+    /// Settings → Harnesses on OpenCode 2's tab, scrolled to Profiles, with `case` in it.
+    pub fn show_profiles(&mut self, dark: bool, case: Profiles) {
+        self.show_harnesses(dark, Case::Mixed, Some("opencode2"));
+        let key = (HOME_MACHINE_KEY.to_string(), "opencode2".to_string());
+        match case {
+            Profiles::None => drop(self.feeds.profiles.insert(key, Vec::new())),
+            Profiles::Loading => {
+                self.feeds.profiles.remove(&key);
+            }
+            Profiles::Failed => {
+                self.feeds.profiles.remove(&key);
+                self.settings.harnesses.profiles.mark_failed(key);
+            }
+            Profiles::Three | Profiles::New | Profiles::Edit | Profiles::Chosen => {
+                let mut list = profiles();
+                if case == Profiles::Chosen {
+                    list = crate::fleet::settings::harness_profiles::with_default(&list, Some("p-local"));
+                }
+                self.feeds.profiles.insert(key, list);
+            }
+        }
+        match case {
+            Profiles::New => self.open_profile_editor("opencode2", Editing::New(None)),
+            Profiles::Edit => self.open_profile_editor("opencode2", Editing::Edit("p-work".into())),
+            Profiles::Chosen => self.settings.harnesses.profiles.notice = Some("New sessions start with Local only.".into()),
+            _ => {}
+        }
+        self.open_harness("opencode2", Some("profiles"));
     }
 }

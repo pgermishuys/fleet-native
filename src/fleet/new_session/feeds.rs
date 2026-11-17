@@ -352,31 +352,34 @@ pub fn parse_harnesses(answer: Answer) -> Result<Vec<super::harness_choice::Harn
 }
 
 /// One profile of a harness (`HarnessProfile`).
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Profile {
     pub id: String,
     pub name: String,
     /// The profile's settings, as the text the user wrote.
     pub content: String,
     pub is_default: bool,
+    /// How many open sessions started with it (`openSessions`); they keep the version they started with.
+    pub open_sessions: u32,
+}
+
+impl Profile {
+    /// One profile as the machine words it (`HarnessProfile`); none without an id.
+    pub fn parse(p: &Value) -> Option<Profile> {
+        Some(Profile {
+            id: text(p, "id")?,
+            name: text(p, "name").unwrap_or_default(),
+            content: text(p, "content").unwrap_or_default(),
+            is_default: p.get("isDefault").and_then(Value::as_bool) == Some(true),
+            open_sessions: p.get("openSessions").and_then(Value::as_u64).unwrap_or(0) as u32,
+        })
+    }
 }
 
 /// `GET /api/harnesses/{type}/profiles`: a list, or `None` when the machine couldn't say (the list stays as it was).
 pub fn parse_profiles(answer: Answer) -> Option<Vec<Profile>> {
     let v = body_of(answer).ok()?;
-    Some(
-        v.as_array()?
-            .iter()
-            .filter_map(|p| {
-                Some(Profile {
-                    id: text(p, "id")?,
-                    name: text(p, "name").unwrap_or_default(),
-                    content: text(p, "content").unwrap_or_default(),
-                    is_default: p.get("isDefault").and_then(Value::as_bool) == Some(true),
-                })
-            })
-            .collect(),
-    )
+    Some(v.as_array()?.iter().filter_map(Profile::parse).collect())
 }
 
 /// What a harness offers in a folder before a session exists (`HarnessCatalogResponse`).

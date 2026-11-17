@@ -7,6 +7,7 @@ pub mod folders;
 pub mod folders_browse;
 pub mod folders_locations;
 pub mod general;
+pub mod harness_profiles;
 pub mod harnesses;
 pub mod kit;
 pub mod kit_scene;

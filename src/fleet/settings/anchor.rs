@@ -37,6 +37,7 @@ pub fn targets(page: &Page) -> &'static [(&'static str, &'static str)] {
         Page::Harnesses => &[
             ("default-harness", "settings-group-default-harness"),
             ("may-do", "settings-anchor-may-do"),
+            ("profiles", "settings-group-profiles"),
             ("harness-settings", "settings-group-harness-settings"),
         ],
         _ => &[],

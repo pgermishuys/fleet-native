@@ -41,7 +41,7 @@ fn set_profiles(rt: &mut Rt, harness: &str, list: Vec<Profile>) {
 }
 
 fn profile(id: &str, name: &str, is_default: bool) -> Profile {
-    Profile { id: id.into(), name: name.into(), content: format!("{{ \"model\": \"{id}/model\" }}"), is_default }
+    Profile { id: id.into(), name: name.into(), content: format!("{{ \"model\": \"{id}/model\" }}"), is_default, ..Profile::default() }
 }
 
 /// The harness has told the page what it offers for `key`, as an answer a moment ago.

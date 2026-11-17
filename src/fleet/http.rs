@@ -613,6 +613,35 @@ pub fn harness_profiles(base: &str, harness: &str) -> Result<(u16, String), Stri
     text_with("GET", base, &format!("/api/harnesses/{}/profiles", escape(harness)), None)
 }
 
+/// `PUT /api/harnesses/{type}/profiles/default` `{profileId}`: the default for new sessions, or none with `null`.
+pub fn profile_set_default(base: &str, harness: &str, id: Option<&str>) -> Result<(u16, String), String> {
+    let body = json!({ "profileId": id });
+    text_with("PUT", base, &format!("/api/harnesses/{}/profiles/default", escape(harness)), Some(&body))
+}
+
+/// `POST /api/harnesses/{type}/profiles` `{name, content}`: the harness tries it first and refuses it with its reason.
+pub fn profile_create(base: &str, harness: &str, name: &str, content: &str) -> Result<(u16, String), String> {
+    let body = json!({ "name": name, "content": content });
+    text_with("POST", base, &format!("/api/harnesses/{}/profiles", escape(harness)), Some(&body))
+}
+
+/// `PUT /api/harnesses/{type}/profiles/{id}` `{name, content}`.
+pub fn profile_update(base: &str, harness: &str, id: &str, name: &str, content: &str) -> Result<(u16, String), String> {
+    let body = json!({ "name": name, "content": content });
+    text_with("PUT", base, &format!("/api/harnesses/{}/profiles/{}", escape(harness), escape(id)), Some(&body))
+}
+
+/// `DELETE /api/harnesses/{type}/profiles/{id}`.
+pub fn profile_delete(base: &str, harness: &str, id: &str) -> Result<(u16, String), String> {
+    text_with("DELETE", base, &format!("/api/harnesses/{}/profiles/{}", escape(harness), escape(id)), None)
+}
+
+/// `POST /api/harnesses/{type}/profiles/check` `{content}`: the harness tries the text without saving it.
+pub fn profile_check(base: &str, harness: &str, content: &str) -> Result<(u16, String), String> {
+    let body = json!({ "content": content });
+    text_with("POST", base, &format!("/api/harnesses/{}/profiles/check", escape(harness)), Some(&body))
+}
+
 /// `GET /api/harnesses/{type}/catalog?directory=&profile=`: what the harness offers in a folder before a session exists.
 pub fn harness_catalog(base: &str, harness: &str, directory: Option<&str>, profile: Option<&str>) -> Result<(u16, String), String> {
     let mut query = Vec::new();

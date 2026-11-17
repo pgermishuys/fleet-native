@@ -497,12 +497,13 @@ impl State {
         self.feeds.profiles.insert(
             (key, "opencode2".into()),
             vec![
-                Profile { id: "work".into(), name: "Work".into(), content: "{ \"model\": \"anthropic/sonnet\" }".into(), is_default: true },
+                Profile { id: "work".into(), name: "Work".into(), content: "{ \"model\": \"anthropic/sonnet\" }".into(), is_default: true, ..Profile::default() },
                 Profile {
                     id: "local".into(),
                     name: "Local".into(),
                     content: "{\n // a model on this machine\n \"provider\": { \"ollama\": {} },\n \"mcp\": { \"docs\": {} },\n \"enabled_providers\": [\"ollama\"],\n}".into(),
                     is_default: false,
+                    ..Profile::default()
                 },
             ],
         );
