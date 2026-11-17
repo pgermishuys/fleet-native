@@ -151,7 +151,8 @@ pub(crate) fn rig(fake: Fake) -> Rig {
     });
     let mut r = Rig { rt, queue, fake };
     r.rt.frame(FRAME);
-    r.wait("the harness list", |s| s.harness_list().all.len() == 1);
+    // The page also reads the preferences; a reply landing later would replace anything a test sets, so wait for it too.
+    r.wait("the harness list and the preferences", |s| s.harness_list().all.len() == 1 && s.pickers.prefs.fetched);
     r
 }
 

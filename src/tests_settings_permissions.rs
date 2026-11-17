@@ -79,12 +79,19 @@ pub(crate) struct Rig {
 }
 
 pub(crate) fn rig(prefs: &[(&str, &str)], browser_on: bool) -> Rig {
-    let fake: Shared = Arc::new(Mutex::new(Fake {
+    rig_with(prefs, browser_on, |_| {})
+}
+
+/// `setup` changes the fake before the page opens, so the page's one read of the machine already hears it.
+pub(crate) fn rig_with(prefs: &[(&str, &str)], browser_on: bool, setup: impl FnOnce(&mut Fake)) -> Rig {
+    let mut fake = Fake {
         harnesses: list(),
         prefs: prefs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect(),
         browser_on,
         ..Default::default()
-    }));
+    };
+    setup(&mut fake);
+    let fake: Shared = Arc::new(Mutex::new(fake));
     let base = serve(fake.clone());
     let (jobs, queue) = channel::<Job>();
     let jobs = Mutex::new(jobs);

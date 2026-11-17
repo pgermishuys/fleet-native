@@ -69,7 +69,10 @@ fn answer(mut stream: std::net::TcpStream, fake: Shared) {
     let mut first = head.lines().next().unwrap_or("").split(' ');
     let (method, path) = (first.next().unwrap_or("").to_string(), first.next().unwrap_or("").to_string());
     let mut f = fake.lock().unwrap();
-    f.heard.push((method.clone(), path.clone(), body.clone()));
+    // The live-events link negotiates in the background at any moment; it is not what a test asks about.
+    if !path.starts_with("/hubs/") {
+        f.heard.push((method.clone(), path.clone(), body.clone()));
+    }
     let route = path.split('?').next().unwrap_or("").to_string();
     let segments: Vec<&str> = route.trim_start_matches('/').split('/').collect();
     let (status, reply) = match (method.as_str(), segments.as_slice()) {

@@ -321,3 +321,17 @@ fn the_cycle_and_toggle_commands_keep_the_choice() {
     assert_eq!(rt.state.thinking, Thinking::Open);
     assert_eq!(rt.state.sidebar.appearance().thinking, Thinking::Open);
 }
+
+#[test]
+fn a_newer_write_to_another_folder_does_not_drop_an_older_one_to_this_folder() {
+    // Tests (and nothing else here) save to several folders in one process: the order is kept per folder.
+    let (here, there) = (folder("order-here"), folder("order-there"));
+    settings::write_in_order(u64::MAX - 1, &there, "{}");
+    settings::write_in_order(u64::MAX - 5, &here, "{\"kept\":true}");
+    assert!(std::fs::read_to_string(here.join(settings::FILE)).is_ok_and(|j| j.contains("kept")));
+    // The same folder still drops an older write.
+    settings::write_in_order(u64::MAX - 6, &here, "{\"older\":true}");
+    assert!(std::fs::read_to_string(here.join(settings::FILE)).is_ok_and(|j| j.contains("kept")));
+    let _ = std::fs::remove_dir_all(here);
+    let _ = std::fs::remove_dir_all(there);
+}

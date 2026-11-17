@@ -61,7 +61,10 @@ fn answer(mut stream: std::net::TcpStream, fake: Shared) {
     let (method, path) = (first.next().unwrap_or("").to_string(), first.next().unwrap_or("").to_string());
     let text = String::from_utf8_lossy(&body).to_string();
     let mut f = fake.lock().unwrap();
-    f.heard.push((method.clone(), path.clone(), text));
+    // The live-events link negotiates in the background at any moment; it is not what a test asks about.
+    if !path.starts_with("/hubs/") {
+        f.heard.push((method.clone(), path.clone(), text));
+    }
     let reply = if method == "GET" && path == "/api/preferences" {
         Value::Object(f.prefs.clone()).to_string()
     } else if method == "PUT" && path.starts_with("/api/preferences/") {
