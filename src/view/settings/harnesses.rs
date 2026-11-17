@@ -283,7 +283,11 @@ fn setting_row(s: &State, t: &Theme, setting: &HarnessSetting) -> El {
 /// Weave, Profiles and the Copilot path field. Each piece returns its part here; until then there is none.
 fn slots(s: &State, t: &Theme, h: &HarnessEntry) -> (Vec<El>, Vec<El>) {
     // (after the version line and before "What it may do", after it and before the harness's own switches)
+    let mut before = Vec::new();
     let mut after = Vec::new();
+    if h.offers_sign_in() {
+        before.push(super::harness_sign_in::section(s, t, &h.kind, &h.display_name));
+    }
     if h.supports_profiles {
         after.push(super::harness_profiles::section(s, t, &h.kind, &h.display_name, h.card.profile_note.as_deref()));
     }
@@ -291,7 +295,7 @@ fn slots(s: &State, t: &Theme, h: &HarnessEntry) -> (Vec<El>, Vec<El>) {
     if h.kind == "copilot" {
         after.push(super::harness_path::field(s, t, h));
     }
-    (Vec::new(), after)
+    (before, after)
 }
 
 fn panel(s: &State, t: &Theme, h: &HarnessEntry) -> El {

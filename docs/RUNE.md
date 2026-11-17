@@ -1451,3 +1451,8 @@ Plain Rust, no view, so nothing new about Rune. For the next piece that draws th
 - **No CSS grid**: `fit-content(15em) 1fr` is a label column sized from the longest label's character count.
 - **`cargo test` of this crate peaks near 3 GB in rustc**: under a 3000M cap it is OOM-killed (exit 143, nothing printed); `CARGO_BUILD_JOBS=1` and a 3500M cap built it.
 - **A click can't reach below the first screen**: a test of a control further down the page calls the state method and checks the element exists.
+## Component 16, piece K (Providers)
+
+- **No margin-left:auto**: a right-pushed item in a wrapping row is a `el().grow(1.0)` sibling before it.
+- **A first-run dialog makes the page inert in a test**: with no harness on, `harness-setup-overlay` covers the window and a click does nothing; close it (`harness_setup.close()`) before pressing in the page.
+- **Text keys**: a test reads a text with `text_of(key)` only when the key is on the text element itself, not on its row.

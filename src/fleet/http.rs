@@ -631,6 +631,21 @@ pub fn profile_update(base: &str, harness: &str, id: &str, name: &str, content: 
     text_with("PUT", base, &format!("/api/harnesses/{}/profiles/{}", escape(harness), escape(id)), Some(&body))
 }
 
+/// `GET /api/harnesses/{type}/sign-in`: the providers a harness can sign in to, which asks (and starts) the harness.
+pub fn sign_in_list(base: &str, harness: &str) -> Result<(u16, String), String> {
+    text_with("GET", base, &format!("/api/harnesses/{}/sign-in", escape(harness)), None)
+}
+
+/// `POST /api/harnesses/{type}/sign-in/connections/{id}/use`: the sign-in the provider uses from now on.
+pub fn sign_in_use(base: &str, harness: &str, connection: &str) -> Result<(u16, String), String> {
+    text_with("POST", base, &format!("/api/harnesses/{}/sign-in/connections/{}/use", escape(harness), escape(connection)), None)
+}
+
+/// `DELETE /api/harnesses/{type}/sign-in/connections/{id}`: signs out of one sign-in.
+pub fn sign_in_remove(base: &str, harness: &str, connection: &str) -> Result<(u16, String), String> {
+    text_with("DELETE", base, &format!("/api/harnesses/{}/sign-in/connections/{}", escape(harness), escape(connection)), None)
+}
+
 /// `DELETE /api/harnesses/{type}/profiles/{id}`.
 pub fn profile_delete(base: &str, harness: &str, id: &str) -> Result<(u16, String), String> {
     text_with("DELETE", base, &format!("/api/harnesses/{}/profiles/{}", escape(harness), escape(id)), None)

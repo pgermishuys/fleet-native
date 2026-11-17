@@ -15,6 +15,7 @@ pub mod dreaming_actions;
 pub mod harness_install;
 pub mod harness_path;
 pub mod harness_profiles;
+pub mod harness_sign_in;
 pub mod harness_update;
 pub mod harnesses;
 pub mod locations;
