@@ -351,9 +351,11 @@ impl State {
         self.refetch_diffs();
     }
 
-    /// Whether anything shows the diffs: the content panel (`isWanted`).
+    /// Whether anything shows the diffs (`isWanted`). On the desktop the panel is always wanted: `SessionsV2RightPanel` sits
+    /// beside the route in `AppShell`, not under it, so it never gets the route's instance (the one with `isWanted`) and runs
+    /// its own, which has none. A folded panel still learns of the first change, and that is what opens an empty session's.
     fn diffs_wanted(&self) -> bool {
-        self.content_open
+        true
     }
 
     /// A session opened (`useDiffs` mounting): another session starts from nothing; the page and the panel both asking shares

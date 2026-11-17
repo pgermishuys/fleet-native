@@ -209,3 +209,15 @@ fn makes_the_button_fill_the_rail_and_stack_from_the_top() {
     assert!((cx - x).abs() < 1.0, "centred in the rail's width");
     assert!(cy < y, "stacked from the top, not centred down the height");
 }
+
+#[test]
+fn shows_the_changed_file_count_on_the_changes_tab_once_the_diffs_are_read() {
+    let mut rt = open();
+    assert!(!has(&rt, "canvas-tab-changes-count"), "nothing changed: no count");
+    rt.update(|s, _| s.diffs.apply(&crate::mock::diffs::changed()));
+    rt.frame(FRAME);
+    assert!(has(&rt, "canvas-tab-changes-count"));
+    rt.update(|s, _| s.diffs.apply(&crate::mock::diffs::unchanged()));
+    rt.frame(FRAME);
+    assert!(!has(&rt, "canvas-tab-changes-count"));
+}
