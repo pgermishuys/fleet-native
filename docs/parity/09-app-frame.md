@@ -185,7 +185,7 @@ their pictures from scenes beside Fleet's client with the answers put in by Play
 
 | # | Notice | Source | Native today / owner |
 |---|---|---|---|
-| 8.1 | **Fleet restarted** (`restart-cut-off:<at>`, warn, `RotateCw`, hold 30 s): "Fleet restarted" or "Fleet updated to v<x>"; "N sessions were cut off." / "Continuing N sessions."; up to 5 items (a lost question says "…: the question was lost. Ask again."), "+N more"; one line per other machine that restarted; link "Next time, continue these by itself?" (sets `RestartContinueAuto`); **Continue all** (`POST …/interruption/continue` each), **Dismiss all** (`DELETE …/interruption` each), or in automatic mode **Stop all** (`POST /api/sessions/interruptions/stop-automatic`, also on Esc); a machines-only variant "A machine restarted" | `use-restart-notice.ts` | Per-session cards and calls done (3I); the notice, `stop-automatic` and the preference missing |
+| 8.1 | **Fleet restarted** (`restart-cut-off:<at>`, warn, `RotateCw`, hold 30 s): "Fleet restarted" or "Fleet updated to v<x>"; "N sessions were cut off." / "Continuing N sessions."; up to 5 items (a lost question says "…: the question was lost. Ask again."), "+N more"; one line per other machine that restarted; link "Next time, continue these by itself?" (sets `RestartContinueAuto`); **Continue all** (`POST …/interruption/continue` each), **Dismiss all** (`DELETE …/interruption` each), or in automatic mode **Stop all** (`POST /api/sessions/interruptions/stop-automatic`, also on Esc); a machines-only variant "A machine restarted" | `use-restart-notice.ts` | **Done (N)** `fleet/restart_notice.rs`, shown by `keep_restart_notice`: title, body, five items and "+N more", the other machines' lines, the link (turns `RestartContinueAuto` on), Continue all, Dismiss all, Stop all (also on Esc) through `http::stop_automatic`, the continuing count held, the machines-only card. Gap: "Fleet updated to v<x>" needs the update store (component 16): `title(Some(v))` is ready and tested, the source passes none until then |
 | 8.2 | **Remembered** (`memory-saved-<id>-<updated>`, `Lightbulb`, hold 6 s with countdown, expires 2 min): "Remembered for this machine / <repo> / this repository", the note's text; **Undo** (update back to the previous text, or forget the note and put the previous back); on failure "Couldn't undo it" + reason | `use-memory-notices.ts` | **Done in M**: `memory.saved` on the `sessions` topic posts the card; Undo goes through `/api/memory` |
 | 8.3 | **Machine updated** (`fleet-updated:<machine>:<to>`, within 3 days): "<name> updated to <to>", "At HH:MM, <when nothing was working / overnight / when you restarted it / by Update machines now>."; once, the rule sentence and "Change the rule"; What's new, Dismiss. **Chip** `fleet-updates-waiting`: "↑ N machines can update" or "Updating machines · k of n", opens Settings → Updates › Machines | `use-fleet-update-notices.ts`, `lib/fleet-updates.ts` | Machine info from 17; `update.rollout` read but unused |
 | 8.4 | **What's new after an update** (server variant) and "Updated to …" quiet chip | `use-update-notices.ts` 235-300 | Component 16 (needs release notes and Settings → Updates & about) |
@@ -524,7 +524,7 @@ before N, O and U; P, Q, R; S; T, U; V when decided; W last.
   (4) Fleet's pictures show the empty home, not the open session the native ones show; the state of the notice is the same.
   (5) Reduced motion is Rune's own (spatial travel snaps).
 
-### Piece N: the Fleet restarted notice
+### Piece N: the Fleet restarted notice — **done**
 
 - **Rows:** 8.1.
 - **Files:** new `src/fleet/restart_notice.rs` (from the interrupted rows; Continue all, Dismiss all, Stop all,
@@ -533,6 +533,14 @@ before N, O and U; P, Q, R; S; T, U; V when decided; W last.
 - **Tests:** `use-restart-notice.test.ts` (11).
 - **Pictures:** the scratch Fleet restarted with `slow-task` running (the card with Continue all), automatic mode,
   both themes, beside Fleet's.
+- **Done:** row 8.1 (`shots/parity/09n-restart-notice/`). Tests: `src/tests_restart_notice.rs` ports `use-restart-notice.test.ts` (11, by name) plus the
+  machines-only and "+N more" cases. A real scratch Fleet (two `slow-task` sessions, server restarted) made Fleet's own card, and the native app
+  against the same server drew the same card; Continue all pressed in the native app cleared both interruptions on the server. Scenes
+  `notice-restart` and `notice-restart-auto` (+ `-light`). Gaps: (1) automatic mode can't be made live on the scratch Fleet (the server's sends
+  go out within a second), so it is shown from a scene only, with no Fleet picture; (2) the link sits on its own line in Fleet's picture and inline in
+  native's: the same wrap, decided by text width; (3) the requests for Continue all and Dismiss all go one after another on one thread, Fleet's
+  go all at once; (4) other machines' lines are tested as a function, not drawn live (no second machine here); (5) a notice id already shown comes back as no card
+  (as in Fleet), so a second look at the same restart shows nothing: clear the data folder to see it again.
 
 ### Piece O: machine update notices
 

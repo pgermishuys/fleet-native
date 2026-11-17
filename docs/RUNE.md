@@ -1306,3 +1306,8 @@ in Rune stops a drop in the wrong tree. Nothing in Rune got in the way otherwise
 - **`Color::alpha(a)` sets the alpha, it doesn't multiply it.** Fleet's `border-border/60` is `t.border.alpha(t.border.a * 0.6)`; `.alpha(0.6)` on a translucent border draws a white line.
 - **`ElementInfo` has no checked or disabled flags**, so a test reads a picked card by its fill and a disabled one by its 50% opacity.
 - **A page taller than the headless window** needs `rt.set_viewport((w, h), 1.0)` before a test clicks its lower rows; the anchor scroll isn't applied by frames alone.
+
+## Component 9, piece N (the Fleet restarted notice)
+
+Nothing new about Rune. One trap in scripted runs: the shown-notice ids live in the settings file under `FLEET_NATIVE_DATA_DIR`, so a second run
+against the same restart opens no card (`tap` then fails with "no element"). Empty that folder between runs.
