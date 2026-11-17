@@ -24,6 +24,16 @@ pub fn targets(page: &Page) -> &'static [(&'static str, &'static str)] {
         Page::General => {
             &[("new-sessions", "settings-group-new-sessions"), ("away", "settings-group-away"), ("rail", "settings-group-rail")]
         }
+        // Fleet's ids are `look` and `conversation`, plus the rows inside them (`font-size`, `code-theme`, `thinking`).
+        Page::Appearance => &[
+            ("look", "settings-group-look"),
+            ("conversation", "settings-group-conversation"),
+            ("theme", "settings-row-theme"),
+            ("code-theme", "settings-row-code-theme"),
+            ("font", "settings-row-font"),
+            ("font-size", "settings-row-font-size"),
+            ("thinking", "settings-row-thinking"),
+        ],
         _ => &[],
     }
 }

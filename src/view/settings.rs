@@ -1,6 +1,8 @@
 //! The Settings rail (`SettingsRoute.vue`, `SettingsPage.vue`, `SettingsNavPanel.vue`, `ui/page-header/PageHeader.vue`,
 //! `CenterContent.vue`): the menu in the left panel and the page in the sheet. A page that isn't built yet shows its header and
 //! one note (decision 1 of docs/parity/16-settings.md); Machines is component 17's page.
+pub mod appearance;
+pub mod appearance_cards;
 pub mod general;
 pub mod kit;
 pub mod kit_scene;
@@ -114,6 +116,8 @@ pub fn detail(s: &State, t: &Theme) -> El {
         kit_scene::content(s, t)
     } else if *page == Page::General {
         general::content(s, t)
+    } else if *page == Page::Appearance {
+        appearance::content(s, t)
     } else if *page == Page::Machines {
         machines_page::content(s, t)
     } else {

@@ -297,6 +297,18 @@ impl Theme {
         crate::fleet::settings::code_themes::Grounds { text: text.into(), surfaces: surfaces.map(String::from).to_vec() }
     }
 
+    /// The four colours of a theme card's picture on Appearance: window, card, accent, text (`themes[].swatches` in
+    /// `stores/theme.ts`; literals there, not tokens, so the card shows the theme whichever one is on).
+    pub fn swatches(dark: bool) -> [Color; 4] {
+        let h = if dark { ["#0d0d10", "#1b1b20", "#6366f1", "#e8e8ec"] } else { ["#F3F2EF", "#ffffff", "#5B6EC7", "#1A1918"] };
+        h.map(c)
+    }
+
+    /// The System card's picture: `from-[#0a0a0b] via-[#0a0a0b] to-[#f1f5f9]`, dark on the left and light on the right.
+    pub fn system_swatch() -> [Color; 2] {
+        [c("#0a0a0b"), c("#f1f5f9")]
+    }
+
     /// `--color-secondary`: `color-mix(in srgb, var(--text) 8%, transparent)`, the segmented tabs' track.
     pub fn secondary(&self) -> Color {
         self.wash(8.0)

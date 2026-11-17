@@ -178,6 +178,11 @@ impl State {
         self.thinking = a.thinking;
     }
 
+    /// A scene's choices are drawn, but the window's theme stays what the scene set.
+    pub(crate) fn apply_appearance_scene(&mut self) {
+        self.thinking = self.sidebar.appearance().thinking;
+    }
+
     fn change_appearance(&mut self, change: impl FnOnce(&mut Appearance)) {
         self.sidebar.update_appearance(change);
         self.apply_appearance();
