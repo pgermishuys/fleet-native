@@ -190,7 +190,7 @@ impl State {
     pub fn open_settings(&mut self, id: &str, anchor: Option<&str>) {
         self.enter_settings();
         self.settings.set(id, anchor);
-        if self.settings.page == Page::General {
+        if matches!(self.settings.page, Page::General | Page::Labs) {
             self.refresh_preferences();
         }
     }

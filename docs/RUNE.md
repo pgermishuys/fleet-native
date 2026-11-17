@@ -1336,3 +1336,7 @@ against the same restart opens no card (`tap` then fails with "no element"). Emp
 - A button inside a pressable row takes the press alone: the card under the row did not open or close.
 - The skill diff can't wrap a long line as Fleet's does: wrapped text has no fixed height, and the diff keeps its number column level with
   the code by giving both columns rows of one height.
+
+## Component 16, piece T (Labs)
+
+- `ElementInfo` has no `disabled` flag. A test reads a disabled switch from its `opacity` (the kit fades it to 0.6) or by pressing it and seeing nothing happen.

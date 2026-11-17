@@ -28,6 +28,17 @@ pub const MEMORY: Switch = Switch { key: super::memory::MEMORY_PREFERENCE_KEY, d
 /// Off unless turned on.
 pub const BOARD: Switch = Switch { key: "features.board.enabled", default_on: false };
 
+/// Off unless turned on (Labs): other machines' sessions update as they change.
+pub const LIVE_MACHINES: Switch = Switch { key: "LiveMachines", default_on: false };
+/// Off unless turned on (Labs).
+pub const JOBS: Switch = Switch { key: "Jobs", default_on: false };
+/// Off unless turned on (Labs): the Fleet screen in the rail, and the first screen.
+pub const MISSION_CONTROL: Switch = Switch { key: "features.mission-control.enabled", default_on: false };
+/// Off unless turned on (Labs); it only works while Memory is on.
+pub const MEMORY_SEARCH: Switch = Switch { key: "MemorySearch", default_on: false };
+/// Off unless turned on (Labs).
+pub const WORKFLOWS: Switch = Switch { key: "Workflows", default_on: false };
+
 impl Switch {
     pub fn enabled(&self, prefs: &Prefs) -> bool {
         match (prefs.get(self.key), self.default_on) {
