@@ -1541,3 +1541,10 @@ Nothing about Rune: plain Rust. One thing for the pieces that draw it: word mark
 
 - **No whole-text select on press** (`user-select: all` on the fix command): the command is `selectable(true)`, so a drag or double-click selects it, but one click does not select it all. Copy command is the way to take it whole.
 - **A margin on a full-width element overflows its parent**: Fleet's `m-3` on the error note is a wrapper with padding around a `w_full` note; `mx`/`my` on the note itself pushed it past the panel's right edge.
+
+
+## Component 10, piece J (the Turns tab)
+
+- **A container query** is `on_layout` writing the width into `State` (`turns_tab.width`) and the view reading it, so the 300 px rule lands one frame late, as elsewhere.
+- **A row that wraps and pushes one child right** (`margin-left: auto` in a wrapping flex row) has no equivalent: a `grow(1.0)` spacer takes the free space on a line, but when the totals wrap to a second line they sit at the left, where Fleet's sit at the right of their line only while they fit beside the others.
+- **A diff opening under a click**: the list lays out a frame after a diff opens, so a test that clicks the next row needs two frames first.

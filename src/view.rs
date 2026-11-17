@@ -101,6 +101,8 @@ pub mod subagent_row;
 pub mod summary_bar;
 pub mod toolcard;
 pub mod toolrow;
+pub mod turn_detail;
+pub mod turns;
 pub mod update;
 pub mod usage_chip;
 pub mod usage_popover;
