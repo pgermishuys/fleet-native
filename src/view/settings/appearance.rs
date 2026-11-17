@@ -209,7 +209,7 @@ pub fn content(s: &State, t: &Theme) -> El {
         .key("appearance-section")
         .w_full()
         .gap(21.0)
-        .child(super::super::settings::page_header(t, &crate::fleet::settings_nav::Page::Appearance))
+        .child(super::super::settings::page_header(s, t, &crate::fleet::settings_nav::Page::Appearance))
         .child(look(s, t))
         .child(conversation(s, t))
 }

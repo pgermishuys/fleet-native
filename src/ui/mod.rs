@@ -182,6 +182,9 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
     if let Some(choice) = &s.machine_switch_scene {
         layer.extend(crate::view::machine_switch::overlay(s, t, crate::view::machine_switch::SCENE, choice));
     }
+    if s.rail == crate::Rail::Settings {
+        layer.extend(crate::view::settings::machine_header::overlay(s, t));
+    }
     if let Some(wizard) = crate::view::harness_setup::dialog(s, t) {
         layer.extend(wizard);
     }

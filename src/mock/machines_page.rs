@@ -96,6 +96,12 @@ impl State {
         self.machine_switch_scene = Some(choice);
     }
 
+    /// Home ("atlas") and three machines for a Settings scene, the app on home.
+    pub fn show_settings_machines(&mut self, dark: bool) {
+        self.show_machines(Case::Several, dark);
+        self.machines.home = Some(info("home-id", "atlas", "all", 1, 2));
+    }
+
     /// With no other machine the switch is not drawn.
     pub fn show_machine_switch_home_only(&mut self, dark: bool) {
         self.show_machines(Case::Empty, dark);

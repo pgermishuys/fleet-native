@@ -1311,3 +1311,9 @@ in Rune stops a drop in the wrong tree. Nothing in Rune got in the way otherwise
 
 Nothing new about Rune. One trap in scripted runs: the shown-notice ids live in the settings file under `FLEET_NATIVE_DATA_DIR`, so a second run
 against the same restart opens no card (`tap` then fails with "no element"). Empty that folder between runs.
+
+## Component 16, piece C (Settings follows the machine)
+
+- **A switch whose choice lives in `State`** is a `Switch { choice: fn(&mut State) -> &mut MachineChoice }`: a non-capturing closure coerces to the `fn`, so one widget serves every view's own choice.
+- **`Runtime::find` returns an element's centre**, so "above" in a test compares centres, not edges.
+- **No timed fade** was drawn for the pane swap; headless pictures draw at rest, so a fade could only be tested on virtual frames.

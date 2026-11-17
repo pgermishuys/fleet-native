@@ -69,7 +69,7 @@ pub fn content(s: &State, t: &Theme) -> El {
         .key("settings-kit-page")
         .w_full()
         .gap(21.0)
-        .child(super::super::settings::page_header(t, &Page::General))
+        .child(super::super::settings::page_header(s, t, &Page::General))
         .child(kit::group(t, "new-sessions", "New sessions", None, vec![starters]))
         .child(kit::group(t, "experiments", "Labs", Some("Each is off until you turn it on."), vec![jobs, quiet, choice]))
 }
