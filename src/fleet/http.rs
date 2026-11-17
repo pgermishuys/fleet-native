@@ -408,6 +408,11 @@ pub fn progress(base: &str, session: &str) -> Result<(u16, Value), String> {
     status_of("GET", base, &format!("/api/sessions/{session}/progress"))
 }
 
+/// `GET /api/sessions/{id}/diffs`: the session's changed files, without their contents (`use-diffs.ts`).
+pub fn diffs(base: &str, session: &str) -> Result<(u16, Value), String> {
+    status_of("GET", base, &format!("/api/sessions/{session}/diffs"))
+}
+
 /// `GET /api/sessions/{id}/canvases`: the canvases the agent keeps for the session (`use-server-canvases.ts`).
 pub fn canvases(base: &str, session: &str) -> Result<(u16, Value), String> {
     status_of("GET", base, &format!("/api/sessions/{session}/canvases"))

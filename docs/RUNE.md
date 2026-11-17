@@ -1492,3 +1492,7 @@ a real route first (or use `Canvases` directly).
 ## Component 10, piece F (Progress data)
 
 - **Nothing new about Rune.** The piece is plain Rust. One lesson in the app's own terms: keep a detail drawn while it is marked stale (`ProgressFeed`'s `fresh` flag) instead of deleting it, so a view never draws its empty state between a summary and the detail that follows it.
+
+## Component 12, piece A (the changes list)
+
+- **Nothing new about Rune.** The piece is plain Rust. For the pieces after it: a timer on the UI side is a thread that sleeps and posts back (`Link::off_thread` with a sleeping call), as the 250 ms edit window does; `Diffs` hands out a `Ticket` per request and drops an answer whose ticket is no longer current, so a test drives the rules with no thread at all and only a few cases need the fake server.
