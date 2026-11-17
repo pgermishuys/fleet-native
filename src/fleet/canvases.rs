@@ -284,11 +284,21 @@ pub struct Canvases {
     by_session: HashMap<String, SessionCanvases>,
     /// Tab id → the clock when its content last updated itself (a page Fleet reloaded), for the pulse.
     updated_at: HashMap<String, f64>,
+    /// Agents running or waiting, for the Agents tab's badge. Piece L fills it from the lineage; until then only scenes do.
+    pub agents_running: usize,
+    /// The session, active tab and tab count the strip was last scrolled for, and whether a scroll is due (`keep_strip`).
+    pub strip_seen: Option<(String, String, usize)>,
+    pub strip_due: bool,
 }
 
 impl Canvases {
     #[cfg(test)]
     pub(crate) fn by_session_for_test(&mut self, session: &str, tabs: SessionCanvases) {
+        self.by_session.insert(session.to_string(), tabs);
+    }
+
+    /// Sets a session's tabs outright (scenes; piece C's list loads).
+    pub fn replace(&mut self, session: &str, tabs: SessionCanvases) {
         self.by_session.insert(session.to_string(), tabs);
     }
 
@@ -438,7 +448,7 @@ pub fn panel_has_content(c: PanelContent) -> bool {
 impl crate::State {
     /// The open session's tabs.
     pub fn open_canvases(&self) -> SessionCanvases {
-        self.open_id().map(|id| self.canvases.session(&id)).unwrap_or_default()
+        self.canvases.session(&self.canvas_session())
     }
 
     /// Hands the panel's width rules what the model says about review (`state.review && activeId === "changes"`).
@@ -448,7 +458,7 @@ impl crate::State {
 
     /// Runs a change to the open session's tabs, then keeps the panel's review width in step.
     pub fn edit_canvases<R>(&mut self, change: impl FnOnce(&mut Canvases, &str) -> R) -> Option<R> {
-        let id = self.open_id()?;
+        let id = self.canvas_session();
         let out = change(&mut self.canvases, &id);
         self.sync_review();
         Some(out)

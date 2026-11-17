@@ -1,13 +1,11 @@
 //! The words of the progress strip (`SessionMetadataHeader.vue`): its heading, its current line, its tooltip and how far
 //! its bar reaches. Pure: no Rune, no I/O. Fleet's strip also draws a plan (`plan` with groups and steps); the plan is
 //! component 10's piece F (`fleet::progress`); the strip draws it when the open session's detail has one.
-use super::context_tab::PanelTab;
 use super::progress::{Plan, strip_heading, strip_line};
 use super::row_chips::Progress;
 
-/// The tab the strip opens, and the one it hides on. Fleet's is the Progress tab (component 10); until that is built the
-/// panel's nearest tab, Plan, stands in for it, so the strip shows on the Context tab and hides on Plan.
-pub const PROGRESS_TAB: PanelTab = PanelTab::Plan;
+/// The tab the strip opens, and the one it hides on (the id of the Progress kind).
+pub const PROGRESS_TAB: &str = "progress";
 
 /// The strip's first words: the current step's group title, or the plan's title or path with markdown stripped; with no plan,
 /// "Todos".
@@ -36,6 +34,6 @@ pub fn fraction(progress: &Progress) -> f32 {
 }
 
 /// `visible`: there is something to count, and the tab that shows it all isn't the open one.
-pub fn visible(progress: Option<&Progress>, panel_tab: PanelTab) -> Option<&Progress> {
+pub fn visible<'a>(progress: Option<&'a Progress>, panel_tab: &str) -> Option<&'a Progress> {
     progress.filter(|p| p.total > 0 && panel_tab != PROGRESS_TAB)
 }

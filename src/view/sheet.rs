@@ -2,11 +2,9 @@
 //! panel on the right (collapsed to a 48px rail by default).
 use super::conversation::{Scroll, stream};
 use crate::State;
-use crate::fleet::context_tab::PanelTab;
-use crate::icons::*;
 use crate::mock::Session;
-use crate::theme::{Theme, sans};
-use rune::{Color, Cursor, El, Shadow, col, icon, row, spacer, text};
+use crate::theme::Theme;
+use rune::{Color, El, Shadow, col, row};
 
 use super::right_rail;
 use crate::fleet::right_panel as rp;
@@ -69,7 +67,7 @@ pub fn sheet(s: &State, t: &Theme) -> El {
     sheet = sheet.child(centre);
     // Too narrow for a third column (`rightPanelFits`): the panel lies over the conversation, on the right, closed until asked.
     if !rp::fits(s.sheet_w) {
-        let over = content(s, t, session, true)
+        let over = super::canvas_host::host(s, t, true)
             .w(360.0_f32.min(s.sheet_w - 48.0))
             .fill(t.panel_bg)
             .box_shadow(Shadow {
@@ -87,49 +85,13 @@ pub fn sheet(s: &State, t: &Theme) -> El {
     if !s.content_open {
         return sheet.child(collapsed_rail(s, t, session));
     }
-    sheet.child(right_rail::gutter(t)).child(content(s, t, session, false).w(s.right_shown_w()).min_w(rp::MIN_W))
+    sheet.child(right_rail::gutter(t)).child(super::canvas_host::host(s, t, false).w(s.right_shown_w()).min_w(rp::MIN_W))
 }
 
 /// The collapsed content panel (`CollapsedRightRail.vue`), counting the session's plan.
 fn collapsed_rail(s: &State, t: &Theme, session: &Session) -> El {
     let (steps, pending) = plan(session);
     right_rail::rail(s, t, steps.len() - pending, steps.len())
-}
-
-/// The open content panel, showing the session's plan. Fleet shows files, pages and more here;
-/// the prototype only shows that the third column opens and closes.
-fn content(s: &State, t: &Theme, session: &Session, over: bool) -> El {
-    if s.context.tab == PanelTab::Context {
-        return col()
-            .key("content")
-            .h_full()
-            .border_sides([0.0, 0.0, 0.0, 1.0], t.border)
-            .child(panel_head(t, PanelTab::Context, None, over))
-            .child(col().w_full().grow(1.0).min_h(0.0).child(super::context_tab::context_tab(s, t)))
-            .children(super::progress_strip::slot(s, t));
-    }
-    let (steps, pending) = plan(session);
-    let mut list = col().w_full().px(10.0).py(10.0).gap(2.0);
-    for (done, step) in &steps {
-        let (glyph, ink) = if *done { (&CIRCLE_CHECK, t.muted) } else { (&CIRCLE, t.text) };
-        list = list.child(
-            row()
-                .w_full()
-                .min_h(30.0)
-                .center_y()
-                .gap(9.0)
-                .px(8.0)
-                .radius(6.0)
-                .hover(t.wash(5.0))
-                .child(icon(glyph, 14.0).color(if *done { t.running } else { t.muted }))
-                .child(text(*step).font(sans(13.0, 400.0, 1.3)).color(ink).truncate().grow(1.0)),
-        );
-    }
-    if steps.is_empty() {
-        list = list.child(text("This session has no plan.").font(sans(13.0, 400.0, 1.4)).color(t.muted).px(8.0).py(6.0));
-    }
-    let head = panel_head(t, PanelTab::Plan, Some(pending), over);
-    col().key("content").h_full().border_sides([0.0, 0.0, 0.0, 1.0], t.border).child(head).child(list)
 }
 
 /// The plan steps of a session (done?, step) and how many are left.
@@ -148,39 +110,4 @@ fn plan(session: &Session) -> (Vec<(bool, &'static str)>, usize) {
     };
     let pending = steps.iter().filter(|(done, _)| !done).count();
     (steps, pending)
-}
-
-/// The strip at the top of the panel. Component 10 builds Fleet's real one (`CanvasHost`); until then it holds the two tabs
-/// there are, and the button that closes the panel.
-fn panel_head(t: &Theme, active: PanelTab, pending: Option<usize>, over: bool) -> El {
-    let tab = |key: &'static str, glyph: &'static rune::Icon, label: &str, which: PanelTab| {
-        let on = active == which;
-        row()
-            .key(key)
-            .role("tab")
-            .label(label.to_string())
-            .gap(6.0)
-            .center_y()
-            .h_full()
-            .px(2.0)
-            .cursor(Cursor::Pointer)
-            .border_sides([0.0, 0.0, 2.0, 0.0], if on { t.accent } else { Color::TRANSPARENT })
-            .on_press(move |s: &mut State| s.set_panel_tab(which))
-            .child(icon(glyph, 14.0).color(if on { t.text } else { t.muted }))
-            .child(text(label.to_string()).font(sans(14.0, 600.0, 1.3)).color(if on { t.text } else { t.muted }))
-    };
-    let mut head = row()
-        .w_full()
-        .h(56.0)
-        .center_y()
-        .gap(14.0)
-        .pl(17.5)
-        .pr(12.0)
-        .border_sides([0.0, 0.0, 1.0, 0.0], t.border)
-        .child(tab("content-tab-plan", &LIST_TODO, "Plan", PanelTab::Plan))
-        .child(tab("content-tab-context", &PAPERCLIP, "Context", PanelTab::Context));
-    if let Some(pending) = pending {
-        head = head.child(text(format!("{pending} to do")).font(sans(12.0, 400.0, 1.4)).color(t.muted));
-    }
-    head.child(spacer()).child(right_rail::collapse_button(t, over))
 }

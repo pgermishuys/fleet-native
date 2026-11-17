@@ -1,6 +1,6 @@
 //! The Context tab (component 8, piece I): `SessionContextCanvas.test.ts` under its names, and the rows' words. The scenes
 //! hold invented links (`mock::context_tab`); the attach form and Refresh talk to a fake Fleet.
-use crate::fleet::context_tab::{Feedback, PanelTab, feedback, row_detail, workspace_rows};
+use crate::fleet::context_tab::{Feedback, feedback, row_detail, workspace_rows};
 use crate::fleet::link::{Job, Link, Post};
 use crate::mock::context::SESSION;
 use crate::mock::context_tab::Case;
@@ -323,10 +323,10 @@ fn a_chip_opens_the_panel_on_the_context_tab() {
     let mut rt = app();
     rt.update(|s, _| s.show_chips(crate::mock::context::Case::Chips, true));
     rt.frame(FRAME);
-    assert_ne!(rt.state.context.tab, PanelTab::Context);
+    assert_ne!(rt.state.active_canvas(), "context");
     rt.update(|s, _| s.show_in_context("link-187"));
     rt.frame(FRAME);
-    assert!(rt.state.content_open && rt.state.context.tab == PanelTab::Context);
+    assert!(rt.state.content_open && rt.state.active_canvas() == "context");
     assert!(has(&rt, "context"), "the tab is drawn");
 }
 

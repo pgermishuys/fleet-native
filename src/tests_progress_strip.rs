@@ -1,5 +1,4 @@
 //! The progress strip (component 8, piece K). Fleet has no test for `SessionMetadataHeader.vue`, so the names say what it does.
-use crate::fleet::context_tab::PanelTab;
 use crate::fleet::progress_line::{self as line, PROGRESS_TAB};
 use crate::fleet::row_chips::Progress;
 use crate::tests::{FRAME, app, click};
@@ -48,10 +47,10 @@ fn reaches_as_far_along_the_top_as_the_share_done() {
 #[test]
 fn is_hidden_with_no_items_and_on_the_progress_tab() {
     let p = todos(1, 2, None);
-    assert!(line::visible(Some(&p), PanelTab::Context).is_some());
+    assert!(line::visible(Some(&p), "context").is_some());
     assert!(line::visible(Some(&p), PROGRESS_TAB).is_none());
-    assert!(line::visible(Some(&todos(0, 0, None)), PanelTab::Context).is_none());
-    assert!(line::visible(None, PanelTab::Context).is_none());
+    assert!(line::visible(Some(&todos(0, 0, None)), "context").is_none());
+    assert!(line::visible(None, "context").is_none());
 }
 
 #[test]
@@ -73,6 +72,6 @@ fn a_click_opens_the_progress_tab_and_the_strip_goes_away() {
     let mut rt = shown(3, 7, Some("Write the migration"));
     click(&mut rt, "progress-strip");
     rt.frame(FRAME);
-    assert_eq!(rt.state.context.tab, PROGRESS_TAB);
+    assert_eq!(rt.state.active_canvas(), PROGRESS_TAB);
     assert!(rt.find("progress-strip").is_none());
 }

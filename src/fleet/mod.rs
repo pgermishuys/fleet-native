@@ -11,6 +11,7 @@ pub mod auth;
 pub mod autocomplete;
 pub mod browser;
 pub mod bulk;
+pub mod canvas_host;
 pub mod canvases;
 pub mod catalog;
 pub mod command;
