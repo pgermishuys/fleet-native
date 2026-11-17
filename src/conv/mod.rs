@@ -22,6 +22,7 @@ pub mod output;
 pub mod pin;
 pub mod references;
 pub mod retry;
+pub mod review;
 pub mod shell;
 pub mod time;
 pub mod tools;
