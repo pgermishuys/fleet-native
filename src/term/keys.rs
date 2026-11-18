@@ -85,6 +85,13 @@ pub fn encode(ev: &KeyEvent, app_cursor: bool) -> Option<Vec<u8>> {
     })
 }
 
+/// What a paste writes (xterm's `prepareTextForTerminal`, `bracketTextForPaste`): newlines become `\r`, and the text is
+/// wrapped in `ESC[200~ … ESC[201~` when the program asked for bracketed paste.
+pub fn paste_bytes(text: &str, bracketed: bool) -> Vec<u8> {
+    let body = text.replace("\r\n", "\r").replace('\n', "\r");
+    if bracketed { [&b"\x1b[200~"[..], body.as_bytes(), b"\x1b[201~"].concat() } else { body.into_bytes() }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

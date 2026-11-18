@@ -1,0 +1,72 @@
+{
+ "events": [
+  {
+   "t": 0.3,
+   "type": "tap",
+   "x": 800,
+   "y": 600
+  },
+  {
+   "t": 0.6,
+   "type": "type",
+   "text": "git status",
+   "every": 0.01
+  },
+  {
+   "t": 0.8,
+   "type": "key",
+   "name": "Enter"
+  },
+  {
+   "t": 1.0,
+   "type": "type",
+   "text": "git status",
+   "every": 0.01
+  },
+  {
+   "t": 1.2,
+   "type": "key",
+   "name": "Enter"
+  },
+  {
+   "t": 1.4,
+   "type": "type",
+   "text": "git status",
+   "every": 0.01
+  },
+  {
+   "t": 1.5999999999999999,
+   "type": "key",
+   "name": "Enter"
+  },
+  {
+   "t": 1.7999999999999998,
+   "type": "type",
+   "text": "git status",
+   "every": 0.01
+  },
+  {
+   "t": 1.9999999999999998,
+   "type": "key",
+   "name": "Enter"
+  },
+  {
+   "t": 2.1999999999999997,
+   "type": "wheel",
+   "x": 800,
+   "y": 600,
+   "dy": 57
+  },
+  {
+   "t": 2.4999999999999996,
+   "type": "move",
+   "x": 800,
+   "y": 620
+  },
+  {
+   "t": 2.8999999999999995,
+   "type": "mark",
+   "name": "bar"
+  }
+ ]
+}

@@ -1,0 +1,4 @@
+{"events": [
+  {"t": 0.4, "type": "drag", "x": 402, "y": 523, "dx": 70, "dy": 21, "dur": 0.4},
+  {"t": 1.2, "type": "mark", "name": "selected"}
+]}

@@ -1827,6 +1827,14 @@ Read at the pin while planning; nothing built yet.
 - A test that waits for the app to react to a focus change must wait with the runtime driving frames (`Live::wait`), not a bare `until_true`.
 
 
+## Component 13, piece F (selection, copy, paste, the bubble)
+
+- **`rt.wheel` only drives scroll views; an `on_wheel` handler is reached with `rt.wheel_xy(x, y, dx, dy)`.** A notch arrives as `precise: false`.
+- **`Drag` carries `clicks` (1, 2, 3) but no modifiers**, so Shift+click to extend a selection can't be told from a click.
+- **There is no `translate(-50%, -100%)`**: a bubble centred on a point is placed from its measured size (`rune::text::advance` for the words).
+- **`.focusable(false)` on a pressable keeps the keyboard where it was** when it is pressed (CSS `mousedown.prevent`).
+- A replayed terminal that has a socket is resized to its box by `fit_terminal`; a test that wants a fixed size gives it no socket.
+
 ## Component 11, piece E (searching by name)
 
 - A one-line bottom rule on a row is `.border_sides([0.0, 0.0, 1.0, 0.0], c).border_layout()` (top, right, bottom, left); without `border_layout` it takes no room.

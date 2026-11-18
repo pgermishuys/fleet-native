@@ -13,7 +13,13 @@ use crate::theme::Theme;
 
 /// `TerminalView.vue`'s box: the grid and, over it, the "Reconnecting…" notice or the failed panel.
 pub fn area(s: &State, t: &Theme) -> El {
-    let mut area = col().grow(1.0).min_h(0.0).min_w(0.0).child(body(s, t));
+    let mut area = col()
+        .grow(1.0)
+        .min_h(0.0)
+        .min_w(0.0)
+        .on_hover_change(|s: &mut State, inside: bool, _: &mut Tx| s.terminal_hover(inside))
+        .child(body(s, t));
+    area = area.children(super::terminal_bar::bar(s, t)).children(super::terminal_pop::pop(s, t));
     match s.terminal.status() {
         Some(Status::Reconnecting) => area = area.child(notice(t)),
         Some(Status::Failed) => area = area.child(failed(t)),
@@ -86,6 +92,8 @@ fn body(s: &State, t: &Theme) -> El {
         .no_focus_ring()
         .on_layout(|s: &mut State, [_, _, w, h]| s.fit_terminal(w, h))
         .on_key(on_key)
+        .on_drag(|s: &mut State, d: &mut rune::Drag, _| s.terminal_drag(d))
+        .on_wheel(|s: &mut State, e: rune::WheelEvent, _: &mut Tx| s.terminal_wheel(&e))
         .on_paste(|s: &mut State, text: &str, _| paste(s, text));
     let Some(live) = &slot.live else {
         // Nothing to draw: the drawer says why ("Starting a shell…" or the error) over this box.
@@ -95,6 +103,8 @@ fn body(s: &State, t: &Theme) -> El {
     let look = look_of(t);
     {
         let mut screen = live.screen.borrow_mut();
+        // The selection is `--selection` while the box has the keyboard and a greyer one when it doesn't (13.8).
+        screen.selection = Some(if slot.focused { pal.selection } else { pal.selection_inactive });
         live.term.read_damage(|term| screen.read(term, &pal, t.terminal_bg(), look));
     }
     let screen = live.screen.borrow();
@@ -164,9 +174,6 @@ fn on_key(s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool {
 }
 
 fn paste(s: &mut State, text: &str) {
-    // Newlines become `\r`, as a terminal's paste does; bracketed when the program asked for it.
-    let body = text.replace("\r\n", "\r").replace('\n', "\r");
     let bracketed = s.terminal.live.as_ref().is_some_and(|l| l.term.mode().contains(crate::term::BRACKETED_PASTE));
-    let bytes = if bracketed { [&b"\x1b[200~"[..], body.as_bytes(), b"\x1b[201~"].concat() } else { body.into_bytes() };
-    s.terminal_write(bytes);
+    s.terminal_write(crate::term::keys::paste_bytes(text, bracketed));
 }

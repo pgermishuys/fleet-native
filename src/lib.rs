@@ -256,6 +256,8 @@ mod tests_terminal_keys;
 #[cfg(test)]
 mod tests_terminal_live;
 #[cfg(test)]
+mod tests_terminal_select;
+#[cfg(test)]
 mod tests_terminal_tabs;
 #[cfg(test)]
 mod tests_turns;
