@@ -47,6 +47,7 @@ pub mod history;
 pub mod image;
 pub mod improve_skill;
 pub mod interrupted;
+pub mod lines_bar;
 pub mod machine_addresses;
 pub mod machine_card;
 pub mod machine_group;

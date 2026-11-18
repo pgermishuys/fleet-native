@@ -26,15 +26,58 @@ pub fn review(s: &State, t: &Theme) -> El {
     for file in &files {
         body = body.child(section(s, t, file));
     }
-    col().key("changes-review").w_full().grow(1.0).min_h(0.0).child(header(s, t, &files)).children(super::changes_find::bar(s, t)).child(
-        body.scroll(ScrollSpec { stick_bottom: false })
-            .on_scroll_offset(move |at| probe.set(Some(at)))
-            .key("review-scroll")
-            // A click in the diff gives Changes focus, so Ctrl+F and Esc reach its find; no ring (Fleet's root has none).
-            .focusable(true)
-            .w_full()
-            .grow(1.0)
-            .min_h(0.0),
+    let picked = s.review.picked.as_ref();
+    let mut review = col()
+        .key("changes-review")
+        .w_full()
+        .grow(1.0)
+        .min_h(0.0)
+        .child(header(s, t, &files))
+        .children(super::changes_find::bar(s, t))
+        .child(
+            body.scroll(ScrollSpec { stick_bottom: false })
+                .on_scroll_offset(move |at| probe.set(Some(at)))
+                .key("review-scroll")
+                // A click in the diff gives Changes focus, so Ctrl+F and Esc reach its find; no ring (Fleet's root has none).
+                .focusable(true)
+                .w_full()
+                .grow(1.0)
+                .min_h(0.0),
+        );
+    if let Some(p) = picked {
+        let (label, count, link) = (p.lines.label(), p.lines.count(), p.lines.link(&p.path));
+        let bar = super::lines_bar::Bar {
+            file: Some(name_of(&p.path)),
+            label: &label,
+            count: &count,
+            link: link.as_deref(),
+            narrow: s.right_shown_w() - 16.0 <= 404.0,
+        };
+        review = review.child(super::lines_bar::lines_bar(
+            t,
+            &bar,
+            |s, tx| s.copy_pick_link(tx),
+            |s, tx| s.copy_pick_quote(tx),
+            |s, tx| s.add_pick_to_message(tx),
+            |s, tx| s.clear_pick(tx),
+        ));
+    }
+    if let Some((words, _)) = &s.review.toast {
+        review = review.child(toast(t, words, picked.is_some()));
+    }
+    review
+}
+
+/// `.review__toast`: centred 18 px above the bottom (58 with the bar up), padding `7 12`, radius 9, `--text` on `--panel-bg`, 12.5/500.
+/// It appears at once; Fleet's 160 ms rise isn't drawn.
+fn toast(t: &Theme, words: &str, lifted: bool) -> El {
+    row().key("review-toast").role("status").pin(Some(0.0), None, Some(0.0), Some(if lifted { 58.0 } else { 18.0 })).justify_center().child(
+        row()
+            .px(12.0)
+            .py(7.0)
+            .radius(9.0)
+            .fill(t.text)
+            .child(text(words.to_string()).font(sans(12.5, 500.0, 1.4)).color(t.panel_bg).single_line()),
     )
 }
 

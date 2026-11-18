@@ -1761,3 +1761,10 @@ Read at the pin while planning; nothing built yet.
   `.ime_cursor()` serves an editor the app draws itself: the two ways slice 2's spike (component 11, piece P) compares. `ui::code_box`'s
   known gap (numbers under a wrapped line sit a row too high; no unwrapped multi-line field) is what makes the first one doubtful for files.
 - **No syntax tree**: the highlighter gives tokens, so there is nothing to fold code by, and no outline or symbols.
+## Component 12, piece L (selecting lines)
+
+- **One `selection_group` per file plus `on_selection_change` reads a drag well**: `TextSelection::texts()` gives each selected text's key and byte range, so keys that carry the line's index are enough to get line numbers. A text the selection only reaches the edge of comes with an empty range, which is Fleet's "touches only" rule.
+- **Split can't leave one column unselectable** without a group per column (the rows hold both cells), so the side is read from the anchor text (`backward()` says which end it is) and the other column's text is still highlighted.
+- **`El::keeps_text_selection()` on a bar's buttons** keeps the selection and focus through a press, so the buttons act on what is selected and the bar doesn't vanish when the selection clears.
+- **A test drags with `pointer_down`/`pointer_move`/`pointer_up` on rects from `rt.elements()`** in the tall window; the drag must end inside a text (the right padding of a line's text element is part of its rect, so stay 18 points in from its right edge).
+- **A script's `drag` on a text's key** (`dx`, `dy`) selects from its centre, enough for a picture.

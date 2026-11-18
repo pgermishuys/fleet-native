@@ -17,6 +17,7 @@ mod find;
 mod fold;
 mod gist;
 mod image_sniff;
+mod line_quote;
 mod merge_reads;
 mod message_list;
 mod output;

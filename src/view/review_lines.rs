@@ -9,6 +9,7 @@ use crate::conv::diff::Kind;
 use crate::conv::review::{ReviewHunk, ReviewItem, ReviewLine};
 use crate::fleet::diffs::{FileDiff, FileStatus};
 use crate::fleet::review::{Layout, hidden_changes, visible};
+use crate::fleet::review_pick::{picked_texts, text_key};
 use crate::icons::{ELLIPSIS, UNDO_2};
 use crate::theme::{Theme, mono, sans};
 use rune::{Color, Cursor, El, TextHighlight, Tx, col, el, icon, row, text};
@@ -126,7 +127,11 @@ fn line(t: &Theme, k: &Tints, key: String, path: &str, l: &ReviewLine, wrap: boo
     let numbers = row().items_stretch().child(no(l.line.old, false)).child(no(l.line.new, true));
     let numbers = if wrap { numbers } else { numbers.sticky_left(0.0) };
     let font = mono(12.0, 400.0, LINE_H / 12.0);
+    // Only the code is selectable: the numbers and the marker stay out of a selection (7.3, 12.1).
     let code = text(l.line.content.clone())
+        .key(text_key(path, l.index, None))
+        .selectable(true)
+        .selection_color(t.accent.alpha(0.5))
         .font(font)
         .color(t.text)
         .text_highlights(l.marks.iter().map(|&(a, b)| TextHighlight::new(a..b, word).pad(0.0)).chain(find_marks(k, path, l, true)));
@@ -183,7 +188,18 @@ pub fn lines(s: &State, t: &Theme, file: &FileDiff, items: &[ReviewItem]) -> El 
     let mut k = tints(t);
     k.find = super::changes_find::look(s, t);
     let split = s.review_layout() == Layout::Split;
-    let mut out = col().key(format!("review-lines-{path}")).w_full();
+    // One selection per file, so a drag stays inside it; it is read into line numbers as it changes (12.1).
+    let owner = path.to_string();
+    let mut out =
+        col().key(format!("review-lines-{path}")).w_full().selection_group(true).on_selection_change(move |s: &mut State, change, _| {
+            match change.selection() {
+                Some(sel) => {
+                    let (texts, backward) = picked_texts(sel);
+                    s.read_pick(&owner, &texts, backward);
+                }
+                None => s.clear_pick_state(&owner),
+            }
+        });
     for shown in visible(items, all) {
         match shown.item {
             ReviewItem::Fold(f) if !s.review.fold_open(path, &f.id) => {

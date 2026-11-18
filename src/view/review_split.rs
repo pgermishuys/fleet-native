@@ -5,7 +5,9 @@
 use super::changes_find::find_marks;
 use super::review_lines::{LINE_H, Tints};
 use crate::conv::diff::Kind;
+use crate::conv::line_quote::Side;
 use crate::conv::review::{ReviewLine, SplitRow, split_rows};
+use crate::fleet::review_pick::text_key;
 use crate::theme::{Theme, mono};
 use rune::{Color, El, TextHighlight, col, row, text};
 
@@ -41,6 +43,9 @@ fn cell(t: &Theme, k: &Tints, key: String, path: &str, l: Option<&ReviewLine>, n
             .single_line(),
     );
     let code = text(l.line.content.clone())
+        .key(text_key(path, l.index, Some(if new_side { Side::New } else { Side::Old })))
+        .selectable(true)
+        .selection_color(t.accent.alpha(0.5))
         .font(font)
         .color(t.text)
         .text_highlights(l.marks.iter().map(|&(a, b)| TextHighlight::new(a..b, word).pad(0.0)).chain(find_marks(k, path, l, keyed)));
