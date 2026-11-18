@@ -1634,3 +1634,10 @@ Nothing in Rune was needed.
 - **`text().wrap_anywhere()` with `.shrink().min_w(0.0).grow(1.0)`** is `white-space: pre-wrap; overflow-wrap: anywhere` for a code line beside fixed-width number cells.
 - **Left and Right arrows don't scroll a focused `scroll_x` viewport**, so a hunk's tab stop (Fleet's `tabindex=0` region) can be reached but not scrolled by keyboard.
 
+## Component 10, piece E (the strip's motion and drag)
+
+- **A slide-in or a fading background is drawn from the app's clock**: `opacity`, `offset` and `scale` take plain values each frame, so the view computes them from `State.clock` and `poll` asks for frames (`wake_after`) until the motion has run. A test sets `s.clock` and reads in the same `update`: the next frame's `poll` sets the clock back.
+- **Dragging a scroll box that is full of pressable children**: put `on_drag_any` on the box *and* on each child (a press on a child never reaches the box's handler). Read the starting offset from `on_scroll_offset` (a thread-local `Cell`; that callback can't touch `State`), then `tx.scroll_to_x(key, start - d.dx)`. A click on a child still presses.
+- **`rt.find(key)` is the element's centre**, and `rt.elements()[..].rect` is `[x, y, w, h]`; a tab scrolled out of a strip has a rect far outside the window, so a test aims a pointer at the strip, not the tab.
+- **A plain vertical mouse wheel over a `scroll_x` box does nothing**; Fleet turns it into a sideways scroll (`useDragScroll`). Not worked around.
+

@@ -1,7 +1,7 @@
 //! What the panel's tab strip needs from the model (`CanvasHost.vue`, `SessionsV2RightPanel.vue`): the badges on the tabs,
 //! the tab that is showing, and the handlers behind a tab, its close button and the `+` menu. Plain logic; `view::canvas_host`
 //! draws it.
-use super::canvases::{CanvasKind, PICKABLE};
+use super::canvases::{CanvasKind, PICKABLE, VisualPayload, visual_id, visual_title};
 use super::smart_links::needs_attention;
 use crate::{State, Tx};
 
@@ -98,6 +98,14 @@ impl State {
     pub fn keep_strip(&mut self, tx: &mut Tx) -> bool {
         let tabs = self.open_canvases();
         let now = (self.canvas_session(), tabs.active_id.clone(), tabs.canvases.len());
+        // A tab that wasn't there a frame ago slides in, unless the session itself changed (`watch` skips the first run).
+        let ids: Vec<String> = tabs.canvases.iter().map(|c| c.id.clone()).collect();
+        if self.canvases.strip_seen.as_ref().is_some_and(|(session, ..)| *session == now.0)
+            && let Some(added) = ids.iter().find(|id| !self.canvases.strip_ids.contains(id))
+        {
+            self.canvases.entering = Some((added.clone(), self.clock));
+        }
+        self.canvases.strip_ids = ids;
         if self.canvases.strip_seen.as_ref() != Some(&now) {
             self.canvases.strip_seen = Some(now);
             self.canvases.strip_due = true;
@@ -134,5 +142,29 @@ impl State {
     pub fn picker_rows(&self) -> Vec<(CanvasKind, bool)> {
         let open = self.open_canvases();
         PICKABLE.iter().map(|k| (*k, open.canvases.iter().any(|c| c.id == k.slug()))).collect()
+    }
+
+    /// The conversation's visuals for the menu's "From this conversation" group: newest first, one for each canvas title,
+    /// each with whether its tab is open (`conversationVisuals`).
+    pub fn conversation_visuals(&self) -> Vec<(VisualPayload, String, bool)> {
+        let tabs = self.open_canvases();
+        let mut seen: Vec<String> = Vec::new();
+        let mut out = Vec::new();
+        for payload in tabs.known_visuals.iter().rev() {
+            let id = visual_id(payload);
+            if seen.contains(&id) {
+                continue;
+            }
+            seen.push(id.clone());
+            let open = tabs.canvases.iter().any(|c| c.id == id);
+            out.push((payload.clone(), visual_title(payload), open));
+        }
+        out
+    }
+
+    /// A visual picked in the menu opens as the active tab (`openVisual`).
+    pub fn open_conversation_visual(&mut self, payload: VisualPayload, tx: &mut Tx) {
+        self.edit_canvases(|c, session| c.open_visual(session, payload, true));
+        self.reveal_active(tx);
     }
 }

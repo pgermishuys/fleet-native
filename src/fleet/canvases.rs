@@ -354,6 +354,10 @@ pub struct Canvases {
     /// The session, active tab and tab count the strip was last scrolled for, and whether a scroll is due (`keep_strip`).
     pub strip_seen: Option<(String, String, usize)>,
     pub strip_due: bool,
+    /// The tab ids the strip last saw, so a new one can be told from a reordering (`keep_strip`).
+    pub strip_ids: Vec<String>,
+    /// The tab that just arrived and the clock it did, for the slide-in.
+    pub entering: Option<(String, f64)>,
 }
 
 impl Canvases {

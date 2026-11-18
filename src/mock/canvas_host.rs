@@ -2,7 +2,7 @@
 //! can't make without a GitHub or a page canvas (piece C).
 use super::context_tab::Case as Links;
 use crate::State;
-use crate::fleet::canvases::{CanvasInstance, CanvasKind};
+use crate::fleet::canvases::{CanvasInstance, CanvasKind, VisualPayload, VisualType};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Case {
@@ -16,6 +16,12 @@ pub enum Case {
     Widened,
     /// The panel as it opens on a session: Changes and Files.
     Fresh,
+    /// Twelve tabs in the panel's own width, one in the middle active, so both ends are faded.
+    Overflow,
+    /// The `+` menu with "From this conversation": three documents, one of them open.
+    MenuVisuals,
+    /// A page tab a moment into its pulse.
+    Pulse,
 }
 
 impl State {
@@ -65,10 +71,52 @@ impl State {
                 });
                 self.canvases.replace(&id, tabs);
             }
+            Case::Overflow => {
+                self.canvases.replace(&id, Default::default());
+                self.edit_canvases(|c, id| {
+                    c.open(id, CanvasKind::Context);
+                    c.open(id, CanvasKind::Progress);
+                    c.open(id, CanvasKind::Turns);
+                    c.open(id, CanvasKind::Agents);
+                    for title in ["Release notes", "Cache design", "Retry flow", "Cost table", "Open questions", "Rollout"] {
+                        c.open_visual(id, scene_visual(title, VisualType::Markdown), false);
+                    }
+                    c.activate(id, "visual:Retry flow");
+                });
+            }
+            Case::MenuVisuals => {
+                self.edit_canvases(|c, id| {
+                    c.open(id, CanvasKind::Context);
+                    c.open_visual(id, scene_visual("Cache design", VisualType::Markdown), false);
+                    c.set_known_visuals(
+                        id,
+                        vec![
+                            scene_visual("Release notes", VisualType::Markdown),
+                            scene_visual("Cache design", VisualType::Markdown),
+                            scene_visual("Retry flow", VisualType::Html),
+                        ],
+                    );
+                });
+                self.ui.open = Some(crate::ui::Open::Menu("canvas"));
+            }
+            Case::Pulse => {
+                self.canvases.replace(&id, Default::default());
+                self.sidebar_open = false;
+                self.right.widened = true;
+                self.edit_canvases(|c, id| {
+                    c.open_visual(id, scene_visual("Retry flow", VisualType::Html), false);
+                    c.open_visual(id, scene_visual("Cache design", VisualType::Markdown), false);
+                    c.mark_updated("visual:Retry flow", 0.0);
+                });
+            }
             Case::Menu => {
                 self.edit_canvases(|c, id| c.open(id, CanvasKind::Context));
                 self.ui.open = Some(crate::ui::Open::Menu("canvas"));
             }
         }
     }
+}
+
+fn scene_visual(title: &str, kind: VisualType) -> VisualPayload {
+    VisualPayload { kind, title: Some(title.into()), source_path: None, content: "# Notes\n".into() }
 }
