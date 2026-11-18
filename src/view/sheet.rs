@@ -21,7 +21,7 @@ fn centre_w(s: &State) -> f32 {
 
 pub fn sheet(s: &State, t: &Theme) -> El {
     let session = s.session();
-    let drawer = super::terminal_view::drawer(s, t);
+    let drawer = super::terminal_drawer::drawer(s, t);
     let centre = col()
         .grow(1.0)
         .min_w(0.0)
@@ -62,7 +62,10 @@ pub fn sheet(s: &State, t: &Theme) -> El {
         .border_layout()
         .radius(12.0)
         .clip_rounded(12.0)
-        .on_layout(|s: &mut State, [_, _, w, _]| s.sheet_w = w);
+        .on_layout(|s: &mut State, [_, _, w, h]| {
+            s.sheet_w = w;
+            s.sheet_h = h;
+        });
     for shadow in t.sheet_shadows() {
         sheet = sheet.box_shadow(shadow);
     }

@@ -444,6 +444,10 @@ struct Tool {
     spinning: bool,
     /// The analytics button once either number is known: filled, with its border (`analytics-trigger--active`).
     active: bool,
+    /// The terminal button while its drawer is open (`terminal-toggle[aria-pressed=true]`): `--text` at 9 % behind `--text`.
+    pressed: bool,
+    /// The terminal button's `--running` dot: shells are running with the drawer hidden.
+    dot: bool,
 }
 
 fn toolbar_button(t: &Theme, b: Tool) -> El {
@@ -451,11 +455,26 @@ fn toolbar_button(t: &Theme, b: Tool) -> El {
     let glyph = if b.spinning {
         icon(&LOADER_CIRCLE, 20.0).color(t.muted).cycle(crate::view::ring_popover::spinner())
     } else {
-        icon(b.glyph, 14.0).color(t.muted).group_color(ink)
+        icon(b.glyph, 14.0).color(if b.pressed { t.text } else { t.muted }).group_color(ink)
     };
     let mut e = el().key(b.key).size(24.5, 24.5).center().radius(8.0).help(b.tip.clone()).label(b.tip).child(glyph);
     if b.active {
         e = e.fill(t.main_bg).border(1.0, t.border).border_layout();
+    }
+    if b.pressed {
+        e = e.fill(t.wash(9.0));
+    }
+    if b.dot {
+        // `.terminal-toggle__dot`: 6 px at top 5, right 5, ringed 2 px in `--panel-bg`.
+        e = e.child(
+            el().key("terminal-dot")
+                .absolute(24.5 - 5.0 - 6.0 - 2.0, 5.0 - 2.0)
+                .size(10.0, 10.0)
+                .radius(5.0)
+                .fill(t.panel_bg)
+                .center()
+                .child(el().size(6.0, 6.0).radius(3.0).fill(t.running)),
+        );
     }
     if b.off {
         return e.opacity(0.5);
@@ -467,10 +486,24 @@ fn toolbar_button(t: &Theme, b: Tool) -> El {
 fn actions(s: &State, t: &Theme, m: &HeaderModel) -> El {
     let pending = s.toolbar_pending();
     let a = &m.actions;
-    let tool = |key, glyph, tip: &str| Tool { key, glyph, tip: tip.into(), danger: false, off: false, spinning: false, active: false };
-    let mut buttons = row().center_y().gap(2.0).child(
-        toolbar_button(t, tool("terminal", &SQUARE_TERMINAL, "Terminal")).on_press_tx(|s: &mut State, tx: &mut Tx| s.toggle_terminal(tx)),
-    );
+    let tool = |key, glyph, tip: &str| Tool {
+        key,
+        glyph,
+        tip: tip.into(),
+        danger: false,
+        off: false,
+        spinning: false,
+        active: false,
+        pressed: false,
+        dot: false,
+    };
+    let mut buttons = row().center_y().gap(2.0);
+    // `TerminalToggleButton.vue`: there only while Fleet has terminals on (13.55, 13.87); with no server there is the pretend one.
+    if s.terminals_shown() {
+        let (open, running) = s.terminal_toggle_state();
+        let b = Tool { pressed: open, dot: running, ..tool("terminal", &SQUARE_TERMINAL, &s.terminal_toggle_words()) };
+        buttons = buttons.child(toolbar_button(t, b).on_press_tx(|s: &mut State, tx: &mut Tx| s.toggle_terminal(tx)));
+    }
     if a.can_abort {
         let b = Tool {
             danger: true,

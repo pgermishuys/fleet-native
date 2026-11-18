@@ -242,29 +242,29 @@ fn the_pretend_shell_clears_on_ctrl_l_and_backspace_takes_a_letter_back() {
 // ---- use-session-terminals.test.ts, against a fake Fleet -----------------------------------------------------------------------
 
 /// What was asked of the session's terminals: the list, the create and the close (not the shells' sockets).
-fn asked(fake: &Fake) -> Vec<Call> {
+pub(crate) fn asked(fake: &Fake) -> Vec<Call> {
     fake.calls("/terminals").into_iter().filter(|c| !c.1.contains("/socket")).collect()
 }
 
-fn entry(id: &str, title: &str) -> Value {
+pub(crate) fn entry(id: &str, title: &str) -> Value {
     json!({"id": id, "title": title, "status": "running", "createdAt": "2026-11-18T10:00:00Z"})
 }
 
 /// A Fleet that lists `listed` and answers the other terminal calls with `answer`.
-fn serving(listed: Vec<Value>, other: impl Fn(&str, &str) -> (u16, String) + Send + Sync + 'static) -> Fake {
+pub(crate) fn serving(listed: Vec<Value>, other: impl Fn(&str, &str) -> (u16, String) + Send + Sync + 'static) -> Fake {
     Fake::start(move |method, path| {
         if method == "GET" && path.ends_with("/terminals") { (200, Value::Array(listed.clone()).to_string()) } else { other(method, path) }
     })
 }
 
-fn rig(fake: &Fake) -> Rig {
+pub(crate) fn rig(fake: &Fake) -> Rig {
     let mut r = Rig::home(fake);
     r.rt.update(|s, _| s.set_session_id((0, 0), "s1"));
     r.rt.frame(FRAME);
     r
 }
 
-fn enable(r: &mut Rig, on: bool) {
+pub(crate) fn enable(r: &mut Rig, on: bool) {
     r.rt.update(move |s, _| {
         s.terminals_allowed = Some(on);
         s.terminal.session = s.open_id();
@@ -274,7 +274,7 @@ fn enable(r: &mut Rig, on: bool) {
     });
 }
 
-fn tabs(r: &Rig, session: &str) -> Vec<String> {
+pub(crate) fn tabs(r: &Rig, session: &str) -> Vec<String> {
     ids(&r.rt.state.terminals, session)
 }
 
@@ -483,9 +483,10 @@ fn the_toggle_does_nothing_without_a_session_or_with_terminals_off() {
     assert!(!rt.state.terminal_open());
     rt.update(|s, tx| {
         s.set_session_id((0, 0), "s1");
+        s.terminals_allowed = Some(false);
         s.toggle_terminal(tx);
     });
-    assert!(!rt.state.terminals.is_open("s1"), "terminals are off until the server says so");
+    assert!(!rt.state.terminals.is_open("s1"), "terminals are off when the server says so");
 }
 
 #[test]

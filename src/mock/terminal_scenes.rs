@@ -58,3 +58,58 @@ impl State {
         }
     }
 }
+
+/// The drawer's states (component 13, piece D), each drawn from the pretend shell of the app with no server.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Drawer {
+    One,
+    Two,
+    Starting,
+    Error,
+    Long,
+    /// Shells running with the drawer hidden: the header button's dot.
+    HiddenDot,
+}
+
+impl State {
+    pub fn show_drawer(&mut self, kind: Drawer, dark: bool) {
+        use crate::fleet::http::Terminal;
+        self.dark = Some(dark);
+        let at = self.open_at();
+        if self.open_id().is_none() {
+            self.set_session_id(at, "scene-session");
+        }
+        let Some(id) = self.open_id() else { return };
+        self.terminals_allowed = Some(true);
+        self.terminal.session = Some(id.clone());
+        let dir = if kind == Drawer::Long {
+            "/home/dev/projects/glow-and-wick-studios/lantern-monorepo/packages/glow-renderer/src/shaders"
+        } else {
+            "/home/dev/lantern"
+        };
+        self.projects[at.0].sessions[at.1].listing.workspace_directory = dir.into();
+        let tab = |n: usize, title: &str| Terminal { id: format!("mock-{n}"), title: title.into(), running: true };
+        let tabs = match kind {
+            Drawer::One | Drawer::HiddenDot => vec![tab(1, "zsh")],
+            Drawer::Two => vec![tab(1, "zsh"), tab(2, "dev server")],
+            Drawer::Starting | Drawer::Error => vec![],
+            Drawer::Long => (1..=9)
+                .map(|n| tab(n, &if n == 3 { "a build shell with a title that goes on and on".to_string() } else { format!("zsh {n}") }))
+                .collect(),
+        };
+        self.terminals.set_terminals(&id, tabs);
+        if kind == Drawer::Two {
+            self.terminals.set_active(&id, "mock-2");
+        }
+        self.terminal.starting = kind == Drawer::Starting;
+        if kind == Drawer::Error {
+            self.terminal.error = Some("The session's folder /home/dev/lantern doesn't exist any more.".into());
+        }
+        self.terminals.set_open(&id, kind != Drawer::HiddenDot);
+        if kind == Drawer::Two {
+            // The second tab is a dev server that has been running for a while; the first one was shown before.
+            let shell = self.terminal.shells.open("mock-2");
+            let _ = shell.write(b"npm run dev\r");
+        }
+    }
+}

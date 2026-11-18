@@ -93,6 +93,16 @@ impl Terminal {
         self.answers.0.lock().unwrap().clear();
     }
 
+    /// xterm.js's `clear()` (the drawer's Clear): everything but the cursor's row goes, scrollback included, and that row
+    /// moves to the top. Done with the escapes a shell could send: scroll up by the cursor's row, erase the history, go back up.
+    pub fn clear(&self) {
+        let row = self.read(|t| t.grid().cursor.point.line.0.max(0));
+        if row == 0 {
+            return self.feed(b"\x1b[3J");
+        }
+        self.feed(format!("\x1b[{row}S\x1b[3J\x1b[{row}A").as_bytes());
+    }
+
     /// What the parser wants sent back to the shell since the last call (13.16).
     pub fn take_answers(&self) -> Vec<u8> {
         std::mem::take(&mut *self.answers.0.lock().unwrap())

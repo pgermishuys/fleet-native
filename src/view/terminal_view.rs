@@ -1,6 +1,5 @@
 //! Ports `TerminalView.vue`'s box (component 13, piece A): the terminal's grid in its padded box, the block cursor, the keys.
-//! The drawer around it (tabs, header, grip) is piece D's; here it is a plain 272 px box under the composer
-//! (`TerminalDrawer.vue`'s default height).
+//! The drawer around it (tabs, header) is `terminal_drawer`.
 use rune::{Cursor, El, Key, KeyEvent, Tx, col, el, grid, row, text};
 
 use crate::State;
@@ -11,27 +10,8 @@ use crate::term::palette::Palette;
 use crate::term::screen::style;
 use crate::theme::Theme;
 
-/// `TerminalDrawer.vue`'s default height.
-pub const HEIGHT: f32 = 272.0;
-
-/// The drawer's box, or nothing while no terminal is shown for the open session.
-pub fn drawer(s: &State, t: &Theme) -> Option<El> {
-    let slot = &s.terminal;
-    if !s.terminal_open() || slot.session != s.open_id() {
-        return None;
-    }
-    Some(
-        col()
-            .key("terminal-drawer")
-            .h(if slot.height > 0.0 { slot.height } else { s.terminals.height() as f32 })
-            .fill(t.terminal_bg())
-            .child(el().h(1.0).fill(t.border))
-            .child(area(s, t)),
-    )
-}
-
 /// `TerminalView.vue`'s box: the grid and, over it, the "Reconnecting…" notice or the failed panel.
-fn area(s: &State, t: &Theme) -> El {
+pub fn area(s: &State, t: &Theme) -> El {
     let mut area = col().grow(1.0).min_h(0.0).min_w(0.0).child(body(s, t));
     match s.terminal.status() {
         Some(Status::Reconnecting) => area = area.child(notice(t)),
@@ -107,11 +87,8 @@ fn body(s: &State, t: &Theme) -> El {
         .on_key(on_key)
         .on_paste(|s: &mut State, text: &str, _| paste(s, text));
     let Some(live) = &slot.live else {
-        let words = match (&slot.error, slot.starting) {
-            (Some(why), _) => why.clone(),
-            _ => "Starting a shell\u{2026}".to_string(),
-        };
-        return host.child(text(words).font(crate::theme::sans(12.5, 400.0, 1.4)).color(t.muted));
+        // Nothing to draw: the drawer says why ("Starting a shell…" or the error) over this box.
+        return host;
     };
     let pal = Palette::new(t);
     let look = look_of(t);

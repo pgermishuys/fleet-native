@@ -115,6 +115,16 @@ impl State {
     /// A refusal is kept in the server's words for the drawer to show.
     pub fn open_new_terminal(&mut self) {
         let Some(session) = self.terminal.session.clone() else { return };
+        if self.pretend_terminals() {
+            // No server: the next pretend shell is a tab of its own, named as Fleet's are ("zsh", "zsh 2", ...).
+            let taken = |n: usize| self.terminals.terminals_for(&session).iter().any(|t| t.id == format!("mock-{n}"));
+            let n = (1..).find(|n| !taken(*n)).unwrap_or(1);
+            let title = if n == 1 { "zsh".to_string() } else { format!("zsh {n}") };
+            self.terminals.add(&session, http::Terminal { id: format!("mock-{n}"), title, running: true }, true);
+            self.terminals.set_open(&session, true);
+            self.sync_terminal();
+            return;
+        }
         let Some(link) = self.link_for(&session) else { return };
         let size = self.terminal.fitted.unwrap_or(START_SIZE);
         self.terminal.starting = true;
