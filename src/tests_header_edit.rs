@@ -298,7 +298,10 @@ fn serve(mut stream: TcpStream, seen: Arc<Mutex<Seen>>) {
     let (method, path) = (parts.next().unwrap_or("").to_string(), parts.next().unwrap_or("").to_string());
     let (status, text) = if path.starts_with("/api/sessions/a-open") || path.starts_with("/api/storage/worktrees/") {
         let mut seen = seen.lock().unwrap();
-        seen.calls.push((method, path, body));
+        // Reads of the session (a refresh can land at any moment) aren't what these tests count: only what changes something.
+        if method != "GET" {
+            seen.calls.push((method, path, body));
+        }
         seen.answer.clone().unwrap_or((200, "{}".into()))
     } else {
         // The hub and the list are not what is being tested.
