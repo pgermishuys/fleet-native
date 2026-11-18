@@ -1826,3 +1826,8 @@ Read at the pin while planning; nothing built yet.
 - **`scroll_display` damages the whole screen**, so the row cache needs nothing extra.
 - A test that waits for the app to react to a focus change must wait with the runtime driving frames (`Live::wait`), not a bare `until_true`.
 
+
+## Component 11, piece E (searching by name)
+
+- A one-line bottom rule on a row is `.border_sides([0.0, 0.0, 1.0, 0.0], c).border_layout()` (top, right, bottom, left); without `border_layout` it takes no room.
+- A debounce that waits for the clock needs a `tx.wake_after` for the remaining time, or a quiet window never draws the answer.
