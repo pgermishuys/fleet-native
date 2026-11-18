@@ -161,6 +161,12 @@ pub struct Review {
     pub probe: Rc<Cell<Option<rune::ScrollPos>>>,
     /// The last place `keep_near` acted on.
     seen: Cell<Option<rune::ScrollPos>>,
+    /// A revert is on its way: another can't start (`reverting`).
+    pub reverting: bool,
+    /// What the last revert that did nothing or failed says, above the files until dismissed (`notice`).
+    pub notice: Option<String>,
+    /// The file whose diff is asked for again once the list a revert asked for has come.
+    pub reload_after_list: Option<String>,
 }
 
 impl Review {

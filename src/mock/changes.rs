@@ -169,4 +169,33 @@ impl State {
             }
         }
     }
+
+    /// The review of the scratch Fleet's two files with a revert asked about (`hunk`: the one hunk of `src/paginate.py`, else the file
+    /// `src/page_size.py`), or with the notice a stale file leaves (`ask` false).
+    pub fn show_review_revert(&mut self, dark: bool, ask: bool, hunk: bool) {
+        use crate::conv::diff::parse_diff_lines;
+        use crate::conv::review::{ReviewItem, build_review};
+        use crate::fleet::actions::Call;
+        use crate::fleet::diffs::FileStatus;
+        use crate::ui::confirm::Confirm;
+        self.show_changes_scene(Case::Review, dark);
+        if !ask {
+            self.review.notice = Some(crate::fleet::revert::stale_words("src/paginate.py"));
+            return;
+        }
+        let item = self.diff_contents.entry("src/paginate.py").and_then(|e| match e {
+            crate::fleet::diff_contents::Entry::Ready(f) => Some(f.clone()),
+            _ => None,
+        });
+        self.ui.confirm = Some(match (hunk, item) {
+            (true, Some(f)) => {
+                let range = build_review(&parse_diff_lines(&f.before, &f.after)).iter().find_map(|i| match i {
+                    ReviewItem::Hunk(h) => Some((h.from, h.to)),
+                    ReviewItem::Fold(_) => None,
+                });
+                Confirm::revert_hunk("src/paginate.py", Call::Revert { path: "src/paginate.py".into(), range })
+            }
+            _ => Confirm::revert_file("src/page_size.py", FileStatus::Added, Call::Revert { path: "src/page_size.py".into(), range: None }),
+        });
+    }
 }

@@ -1684,3 +1684,8 @@ Nothing in Rune was needed.
 - **A mock scene that wants the fold plan** (something that depends on several messages) has to go through `State::stream`, not `show_conversation`,
   which resets the plan.
 - **A web view in a dialog** is the one `Wanted` placement while the dialog is up; the other views move off screen by the normal rule.
+
+## Component 12, piece I (Revert)
+
+- **A confirm that has nothing to wait for is a `Call` the dialog closes on.** `ui::confirm`'s dialog holds itself open for a request (Delete session); Fleet's `confirmAction` with no `run` closes at once and the caller does the work after. `Call::Revert` takes that path in `take_confirm`, like the machine calls, so no new dialog was needed.
+- **`rune::El` has no `items_baseline`.** The notice's words and Dismiss are centred instead of baseline-aligned; one line of text makes them the same.

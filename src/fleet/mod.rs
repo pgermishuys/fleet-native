@@ -101,6 +101,7 @@ pub mod report_form;
 pub mod repositories;
 pub mod restart_notice;
 pub mod retry;
+pub mod revert;
 pub mod review;
 pub mod right_panel;
 pub mod routing;
