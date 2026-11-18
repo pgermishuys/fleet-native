@@ -202,7 +202,8 @@ mod use_agent_browser {
     fn step(session: &str, seq: i64) -> Event {
         Event::Other(
             Kind::BrowserStep,
-            json!({"sessionId": session, "seq": seq, "kind": "tabs.open", "ok": true, "callId": "call_1", "tabId": "tab-1", "title": "Demo app"}),
+            json!({"sessionId": session, "seq": seq, "kind": "tabs.open", "ok": true, "callId": "call_1", "tabId": "tab-1",
+                "url": "http://localhost:4000/", "title": "Demo app"}),
         )
     }
 
@@ -215,6 +216,24 @@ mod use_agent_browser {
             assert!(s.apply_browser_event(&id, &step(&id, 1)));
             assert_eq!(s.browser.count(&id, "call_1"), 1);
             assert_eq!(s.browser.of(&id, "call_1")[0].title.as_deref(), Some("Demo app"));
+            assert_eq!(s.browser.tabs(&id).unwrap().tabs[0].title, "Demo app");
+        });
+    }
+
+    // use-agent-browser.test.ts: "loads the agent's tabs and steps when the session opens"
+    #[test]
+    fn loads_the_agents_tabs_and_steps_when_the_session_opens() {
+        let (mut rt, id) = open_app();
+        rt.update(move |s, _| {
+            let tab = json!({"id": "tab-1", "url": "http://localhost:4000/", "title": "Demo app", "loading": false, "canGoBack": false,
+                "canGoForward": false, "generation": 1});
+            s.on_browser_loaded(&id, &json!({"tabs": [tab], "focusedTabId": "tab-1", "steps": []}));
+            let tabs = s.browser.tabs(&id).unwrap();
+            assert_eq!(tabs.tabs.iter().map(|t| t.id.as_str()).collect::<Vec<_>>(), ["tab-1"]);
+            assert_eq!(tabs.focused.as_deref(), Some("tab-1"));
+            // An answer without them reads as none.
+            s.on_browser_loaded(&id, &json!({}));
+            assert!(s.browser.tabs(&id).unwrap().tabs.is_empty());
         });
     }
 

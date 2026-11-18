@@ -1,6 +1,7 @@
 //! Invented projects, sessions and conversations. Nothing here comes from a real Fleet.
 use crate::view::conversation::{Message, Part, ToolState};
 
+pub mod agent_tab;
 pub mod agents;
 pub mod agents_tab;
 pub mod asks;

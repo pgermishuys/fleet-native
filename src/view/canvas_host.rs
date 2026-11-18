@@ -175,6 +175,11 @@ fn body(s: &State, t: &Theme) -> El {
             Some((tab, page)) => super::page_tab::page_tab(s, t, &tab, &page),
             None => stand_in(t, CanvasKind::Page),
         },
+        // Component 14's browser canvas hosts Agent's view; until it does, only a scene watches a tab.
+        Some(CanvasKind::Browser) => match &s.agent_view.target {
+            Some((session, tab)) => super::agent_tab::agent_tab(s, t, session, tab),
+            None => stand_in(t, CanvasKind::Browser),
+        },
         Some(kind) => stand_in(t, kind),
         None => el(),
     };

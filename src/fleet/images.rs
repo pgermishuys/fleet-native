@@ -77,6 +77,17 @@ impl Images {
         self.slots.remove(key);
     }
 
+    /// Lets go of every picture whose key `drop` picks.
+    pub fn forget_where(&mut self, drop: impl Fn(&str) -> bool) {
+        self.slots.retain(|k, _| !drop(k));
+    }
+
+    /// What views have asked for and `poll` hasn't started yet: a test reads what a draw or a tick wanted.
+    #[cfg(test)]
+    pub fn asked(&self) -> Vec<String> {
+        self.wanted.borrow().iter().map(|(k, _)| k.clone()).collect()
+    }
+
     pub fn is_missing(&self, key: &str) -> bool {
         matches!(self.slots.get(key), Some(Slot::Missing))
     }
