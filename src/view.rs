@@ -14,6 +14,7 @@ pub mod base_picker;
 pub mod browser_steps;
 pub mod canvas_host;
 pub mod changes;
+pub mod changes_find;
 mod compaction;
 pub mod composer;
 pub mod context_tab;

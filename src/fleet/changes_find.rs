@@ -20,6 +20,10 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::time::Duration;
 
+/// The bar's field, and the element the scroll to the current match aims at (the first drawn copy of it).
+pub const FIELD: &str = "changes-find-field";
+pub const MARK: &str = "changes-find-current";
+
 /// How long after the last keystroke the machine is asked (`setTimeout(…, 120)`), in seconds.
 pub const SEARCH_DEBOUNCE: f64 = 0.12;
 
@@ -43,7 +47,11 @@ pub type Found = HashMap<String, u64>;
 pub struct ChangesFind {
     pub open: bool,
     pub query: String,
+    /// What the field holds, with its caret and selection; `query` follows it.
+    pub field: rune::TextEdit,
     pub current: usize,
+    /// A scroll to the current match is due (the line is drawn first, so it waits a frame).
+    scroll_due: Option<f64>,
     /// `serverMatches`: `None` nothing asked (bar shut, nothing typed, or the answer is on its way); `Some(None)` the machine can't say.
     server: Option<Option<Found>>,
     /// `searchPending`: the answer is on its way, or the debounce is running.
@@ -82,6 +90,9 @@ impl ChangesFind {
 
     /// Typing: the search starts again at the first match.
     pub fn set_query(&mut self, query: &str) {
+        if self.field.text != query {
+            self.field = rune::TextEdit::new(query);
+        }
         if self.query != query {
             self.query = query.to_string();
             self.current = 0;
@@ -257,6 +268,7 @@ impl State {
     pub fn changes_find_step(&mut self, direction: i32) {
         if self.changes_find.step(direction) {
             self.changes_find_reveal();
+            self.changes_find.scroll_due = Some(0.0);
         }
     }
 
@@ -312,6 +324,89 @@ impl State {
         self.review_sync();
     }
 
+    /// A scene: the bar open on the session in view with `query` typed, the matches worked out, `steps` Enters pressed.
+    pub fn show_changes_find(&mut self, query: &str, steps: usize) {
+        self.changes_find = ChangesFind { session: self.diffs.session().to_string(), ..Default::default() };
+        self.changes_find_open(None);
+        self.changes_find_set_query(query);
+        let files = self.review_files();
+        self.refresh_changes_hits(&files);
+        for _ in 0..steps {
+            self.changes_find_step(1);
+        }
+        self.changes_find.scroll_due = Some(0.0);
+    }
+
+    /// Where focus is inside Changes: the review's own elements and the bar's.
+    fn in_changes(focused: Option<&str>) -> bool {
+        focused.is_some_and(|k| k.starts_with("review-") || k.starts_with("changes-"))
+    }
+
+    /// Ctrl+F or the header's Find button: the bar opens, the field takes focus with its text selected. A selection inside Changes
+    /// would become the query; Rune can't read one out of drawn text yet (docs/RUNE.md), so `selection` comes from the caller.
+    pub fn changes_find_open_ui(&mut self, selection: Option<&str>, tx: &mut Tx) {
+        self.changes_find_open(selection);
+        let end = self.changes_find.field.text.len();
+        self.changes_find.field.set_selection(0, end);
+        tx.focus(FIELD, false);
+    }
+
+    /// Esc or Close: the bar and its marks go, and focus goes back to Changes.
+    pub fn changes_find_close_ui(&mut self, tx: &mut Tx) {
+        if !self.changes_find.open {
+            return;
+        }
+        self.changes_find_close();
+        tx.focus("review-scroll", false);
+    }
+
+    /// The header's Find button: opens or closes.
+    pub fn changes_find_toggle(&mut self, tx: &mut Tx) {
+        if self.changes_find.open {
+            self.changes_find_close_ui(tx);
+        } else {
+            self.changes_find_open_ui(None, tx);
+        }
+    }
+
+    /// The field's text changed.
+    pub fn changes_find_typed(&mut self) {
+        let text = self.changes_find.field.text.clone();
+        self.changes_find_set_query(&text);
+    }
+
+    /// The window's key, before the app's and the conversation's: Ctrl/Cmd+F opens the bar (or selects its field), F3 and Ctrl/Cmd+G
+    /// step while it is open, Esc closes it, all only while focus is in Changes, so the key stops there (Esc elsewhere stops the agent).
+    pub fn changes_find_key(&mut self, ev: &rune::KeyEvent, tx: &mut Tx) -> bool {
+        let focused = tx.focused();
+        if !Self::in_changes(focused) {
+            return false;
+        }
+        let apple = cfg!(target_os = "macos");
+        if crate::conv::find::is_find_shortcut(ev, apple) {
+            if self.changes_find.open && focused == Some(FIELD) {
+                let end = self.changes_find.field.text.len();
+                self.changes_find.field.set_selection(0, end);
+            } else {
+                self.changes_find_open_ui(None, tx);
+            }
+            return true;
+        }
+        if !self.changes_find.open {
+            return false;
+        }
+        let direction = crate::conv::changes_find::step_shortcut(ev, apple);
+        if direction != 0 {
+            self.changes_find_step(direction);
+            true
+        } else if ev.key == rune::Key::Escape {
+            self.changes_find_close_ui(tx);
+            true
+        } else {
+            false
+        }
+    }
+
     /// From `poll`: starts the machine's search when its debounce is up, loads the files the search wants, works the matches out
     /// again when what they come from changed, and draws the first match when a new query or the first matches arrive.
     /// True when the bar must redraw.
@@ -348,7 +443,22 @@ impl State {
                 self.load_diff_file(&session, file);
             }
         }
-        changed | self.refresh_changes_hits(&files)
+        changed |= self.refresh_changes_hits(&files);
+        // The current match is drawn this frame; centre it on the next, once its line has been laid out.
+        match self.changes_find.scroll_due {
+            Some(0.0) => {
+                self.changes_find.scroll_due = Some(now + 0.016);
+                tx.wake_after(Duration::from_millis(16));
+            }
+            Some(due) if now >= due => {
+                self.changes_find.scroll_due = None;
+                tx.scroll_center(MARK);
+                changed = true;
+            }
+            Some(_) => tx.wake_after(Duration::from_millis(16)),
+            None => {}
+        }
+        changed
     }
 
     fn refresh_changes_hits(&mut self, files: &[FileDiff]) -> bool {
@@ -368,6 +478,7 @@ impl State {
         if self.changes_find.jumped != key {
             self.changes_find.jumped = key;
             self.changes_find_reveal();
+            self.changes_find.scroll_due = Some(0.0);
             changed = true;
         }
         changed

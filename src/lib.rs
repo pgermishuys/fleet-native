@@ -42,6 +42,8 @@ mod tests_changes;
 #[cfg(test)]
 mod tests_changes_find;
 #[cfg(test)]
+mod tests_changes_find_bar;
+#[cfg(test)]
 mod tests_chips;
 #[cfg(test)]
 mod tests_context_tab;
@@ -1600,7 +1602,8 @@ fn on_key(s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool {
     if tx.focused().is_some() {
         s.quiet.typed(s.clock);
     }
-    if s.find_key(ev, tx)
+    if s.changes_find_key(ev, tx)
+        || s.find_key(ev, tx)
         || view::permission::on_key(s, ev, tx)
         || view::question::on_key(s, ev, tx)
         || view::notice_card::on_key(s, ev, tx)
@@ -2652,6 +2655,14 @@ pub fn spec() -> AppSpec<State> {
             ("changes-empty-branch-light", |s| s.show_changes_scene(mock::changes::Case::EmptyBranch, false)),
             ("review", |s| s.show_changes_scene(mock::changes::Case::Review, true)),
             ("review-light", |s| s.show_changes_scene(mock::changes::Case::Review, false)),
+            ("review-find", |s| s.show_review_find(true, mock::changes::Case::Review, "page", 0)),
+            ("review-find-light", |s| s.show_review_find(false, mock::changes::Case::Review, "page", 0)),
+            ("review-find-none", |s| s.show_review_find(true, mock::changes::Case::Review, "zzz", 0)),
+            ("review-find-none-light", |s| s.show_review_find(false, mock::changes::Case::Review, "zzz", 0)),
+            ("review-find-fold", |s| s.show_review_find(true, mock::changes::Case::Review, "Page 2 of", 0)),
+            ("review-find-fold-light", |s| s.show_review_find(false, mock::changes::Case::Review, "Page 2 of", 0)),
+            ("review-find-collapsed", |s| s.show_review_find(true, mock::changes::Case::ReviewStates, "alpha", 0)),
+            ("review-find-collapsed-light", |s| s.show_review_find(false, mock::changes::Case::ReviewStates, "alpha", 0)),
             ("review-revert-hunk", |s| s.show_review_revert(true, true, true)),
             ("review-revert-hunk-light", |s| s.show_review_revert(false, true, true)),
             ("review-revert-file", |s| s.show_review_revert(true, true, false)),

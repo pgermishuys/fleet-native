@@ -26,10 +26,12 @@ pub fn review(s: &State, t: &Theme) -> El {
     for file in &files {
         body = body.child(section(s, t, file));
     }
-    col().key("changes-review").w_full().grow(1.0).min_h(0.0).child(header(s, t, &files)).child(
+    col().key("changes-review").w_full().grow(1.0).min_h(0.0).child(header(s, t, &files)).children(super::changes_find::bar(s, t)).child(
         body.scroll(ScrollSpec { stick_bottom: false })
             .on_scroll_offset(move |at| probe.set(Some(at)))
             .key("review-scroll")
+            // A click in the diff gives Changes focus, so Ctrl+F and Esc reach its find; no ring (Fleet's root has none).
+            .focusable(true)
             .w_full()
             .grow(1.0)
             .min_h(0.0),
@@ -168,8 +170,10 @@ fn header(s: &State, t: &Theme, files: &[FileDiff]) -> El {
             let to = if id == "split" { Layout::Split } else { Layout::Unified };
             Box::new(move |s: &mut State| s.set_review_layout(to))
         }))
-        // Find is drawn now and wired by piece K.
-        .child(icon_button(t, "review-find", "Find in changes (Ctrl+F)", &SEARCH, false))
+        .child(
+            icon_button(t, "review-find", "Find in changes (Ctrl+F)", &SEARCH, s.changes_find.open)
+                .on_press_tx(|s: &mut State, tx: &mut Tx| s.changes_find_toggle(tx)),
+        )
         .child(
             icon_button(t, "review-wrap", "Wrap long lines", &TEXT_WRAP, s.sidebar.changes_wrap())
                 .on_press(|s: &mut State| s.toggle_review_wrap()),

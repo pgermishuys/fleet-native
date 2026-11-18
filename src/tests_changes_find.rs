@@ -14,11 +14,11 @@ use std::net::TcpListener;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
-type Rt = Runtime<State>;
+pub(crate) type Rt = Runtime<State>;
 
 /// How the fake Fleet answers `GET /diffs/search`.
 #[derive(Clone)]
-enum Search {
+pub(crate) enum Search {
     /// The files that hold the text.
     Found(Vec<&'static str>),
     /// An older Fleet: not found.
@@ -26,15 +26,15 @@ enum Search {
 }
 
 /// A changed file: its path, and its text before and after.
-type Changed = (&'static str, String, String);
+pub(crate) type Changed = (&'static str, String, String);
 
-fn one(path: &'static str, before: &str, after: &str) -> Changed {
+pub(crate) fn one(path: &'static str, before: &str, after: &str) -> Changed {
     (path, before.to_string(), after.to_string())
 }
 
 /// What the fake Fleet was asked, in order: `/diffs/file` paths and `/diffs/search` queries.
 #[derive(Default)]
-struct Asked {
+pub(crate) struct Asked {
     files: Vec<String>,
     searches: Vec<String>,
 }
@@ -58,7 +58,7 @@ fn decode(text: &str) -> String {
     String::from_utf8_lossy(&out).into_owned()
 }
 
-fn scene(changed: Vec<Changed>, search: Search) -> (Rt, Receiver<Job>, Arc<Mutex<Asked>>) {
+pub(crate) fn scene(changed: Vec<Changed>, search: Search) -> (Rt, Receiver<Job>, Arc<Mutex<Asked>>) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("a port");
     let base = format!("http://{}", listener.local_addr().expect("an address"));
     let asked = Arc::new(Mutex::new(Asked::default()));
@@ -114,26 +114,26 @@ fn scene(changed: Vec<Changed>, search: Search) -> (Rt, Receiver<Job>, Arc<Mutex
     (rt, queue, asked)
 }
 
-fn settled(rt: &mut Rt, queue: &Receiver<Job>, what: &str, done: impl FnMut(&State) -> bool) {
+pub(crate) fn settled(rt: &mut Rt, queue: &Receiver<Job>, what: &str, done: impl FnMut(&State) -> bool) {
     test_wait::drive(rt, queue, what, done, test_wait::app_state);
 }
 
 /// Everything the open files asked for has come, so what follows counts only what find asks.
-fn quiet(rt: &mut Rt, queue: &Receiver<Job>, asked: &Arc<Mutex<Asked>>) {
+pub(crate) fn quiet(rt: &mut Rt, queue: &Receiver<Job>, asked: &Arc<Mutex<Asked>>) {
     settled(rt, queue, "the open files' contents", |s| {
         s.diffs.files().iter().all(|f| !matches!(s.diff_contents.entry(&f.file), Some(Entry::Loading)))
     });
     asked.lock().unwrap().files.clear();
 }
 
-fn type_query(rt: &mut Rt, query: &'static str) {
+pub(crate) fn type_query(rt: &mut Rt, query: &'static str) {
     rt.update(move |s, _| {
         s.changes_find_open(None);
         s.changes_find_set_query(query);
     });
 }
 
-fn found(rt: &mut Rt, queue: &Receiver<Job>, what: &str, total: usize) {
+pub(crate) fn found(rt: &mut Rt, queue: &Receiver<Job>, what: &str, total: usize) {
     settled(rt, queue, what, move |s| s.changes_find.hits().len() == total && s.changes_find_count_label() != "Searching…");
 }
 

@@ -123,3 +123,17 @@ pub struct Section {
 pub fn reveal_plan(hit: &ChangesHit, section: Section) -> Reveal {
     Reveal { open_file: !section.open, show_diff: section.rendered, open_fold: hit.in_fold && !section.fold_open, show_all: !section.drawn }
 }
+
+/// `markChangesMatches` for one drawn line: where each match of `query` sits in the line's text (bytes), and which of them is the
+/// current match (the one `current` names), if this is its line. Every copy of a line, which Split draws twice, gets the same marks.
+pub fn line_marks(
+    path: &str,
+    line: usize,
+    text: &str,
+    query: &str,
+    current: Option<&ChangesHit>,
+) -> (Vec<std::ops::Range<usize>>, Option<usize>) {
+    let ranges = super::find::plain_ranges(text, query);
+    let at = current.filter(|c| c.path == path && c.line == line && c.ordinal < ranges.len()).map(|c| c.ordinal);
+    (ranges, at)
+}
