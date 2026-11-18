@@ -27,7 +27,7 @@ pub enum AppStatus {
 }
 
 impl AppStatus {
-    fn read(name: &str) -> Option<AppStatus> {
+    pub fn read(name: &str) -> Option<AppStatus> {
         Some(match name {
             "starting" => AppStatus::Starting,
             "running" => AppStatus::Running,
@@ -170,6 +170,12 @@ impl AppRuns {
             },
         );
         true
+    }
+
+    /// Sets an app's output outright (scenes and tests that draw one).
+    pub fn set_output(&mut self, app: &str, lines: &[&str]) {
+        let next = lines.len() as i64;
+        self.output.insert(app.to_string(), AppOutput { lines: lines.iter().map(|l| l.to_string()).collect(), next });
     }
 
     /// What `GET .../output?after=N` said. Fewer lines than before means Fleet restarted and lost them: `false`, and the

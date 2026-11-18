@@ -71,7 +71,7 @@ pub fn shown_tab(s: &State) -> Option<(String, String, String)> {
 }
 
 /// The browser tab the content panel shows, with the preview address its web view loads and what makes it load again. Not while
-/// the tab says an error, waits for an address, or the session is on another machine (rows 14.53 and 14.60).
+/// the tab says an error, waits for an address, has its app's panel up, or the session is on another machine (rows 14.53 and 14.60).
 pub fn shown_browser(s: &State) -> Option<(String, String, String)> {
     if s.rail != crate::Rail::Sessions || !s.panel_body_shown(CanvasKind::Browser) || s.agent_view.target.is_some() || s.browser_elsewhere()
     {
@@ -79,7 +79,8 @@ pub fn shown_browser(s: &State) -> Option<(String, String, String)> {
     }
     let tab = s.active_canvas();
     let ui = s.browser_ui(&tab)?;
-    let src = ui.frame_src.clone().filter(|_| ui.error.is_none())?;
+    // An app that is starting, exited or stopped has a panel where the page would be (row 14.61).
+    let src = ui.frame_src.clone().filter(|_| ui.error.is_none() && s.browser_panel(&tab).is_none())?;
     let key = format!("{src}:{}", ui.loads);
     Some((tab, src, key))
 }

@@ -7,6 +7,7 @@
 //! fallback panel instead (decision 9).
 pub mod body;
 pub mod browser;
+pub mod browser_app;
 pub mod choice;
 pub mod cover;
 pub mod full;

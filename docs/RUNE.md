@@ -1736,3 +1736,11 @@ Nothing in Rune was needed.
 
 Nothing new about Rune. One thing about the harness: a frame hook (`keep_terminal`) is where state that follows other state is kept in
 step (the shown view follows the active tab), since a handler that changes the tabs doesn't know which views exist.
+
+## Component 14, piece I (the app's panel, strip and output)
+
+- **`poll` sets `State::clock` from the runtime's own time every frame**, so a test that adds to `clock` has it overwritten at the next frame: drive time with `rt.frame(seconds)`.
+- **`Tx::wake_after` takes a `Duration` that must be finite**: a refusal that never expires (a scene's `f64::MAX`) panics `from_secs_f64`; the wake is clamped to the real 10 seconds.
+- **`ScrollSpec { stick_bottom: true }` on a column with `max_h(220)`** is the output drawer: it follows the end of new lines and lets go when the user scrolls up, as Fleet's `scrollLogs` does.
+- **No native `<select>`**: the port select is a trigger row plus `ui::select::content` opened through `Open::Select`, so its list is Rune's, not the system's.
+- **A browser tab's width** (Fleet's container query for the strip) is read with `on_layout` on the tab's root and kept in `BrowserUi`.

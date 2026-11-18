@@ -32,6 +32,8 @@ mod tests_asks;
 #[cfg(test)]
 mod tests_browser;
 #[cfg(test)]
+mod tests_browser_app;
+#[cfg(test)]
 mod tests_browser_tab;
 #[cfg(test)]
 mod tests_canvas_host;
@@ -3539,6 +3541,37 @@ pub fn spec() -> AppSpec<State> {
                 s.show_browser_tab(mock::browser_tab::BrowserCase::Elsewhere)
             }),
             ("browser-tab-no-web-app", |s| s.show_browser_tab(mock::browser_tab::BrowserCase::ElsewhereNoApp)),
+            // Component 14, piece I: the app's panel for each status, the strip, and the output drawer.
+            ("browser-app-starting", |s| s.show_browser_tab(mock::browser_tab::BrowserCase::AppStarting)),
+            ("browser-app-starting-light", |s| {
+                s.dark = Some(false);
+                s.show_browser_tab(mock::browser_tab::BrowserCase::AppStarting)
+            }),
+            ("browser-app-running", |s| s.show_browser_tab(mock::browser_tab::BrowserCase::AppRunning)),
+            ("browser-app-running-light", |s| {
+                s.dark = Some(false);
+                s.show_browser_tab(mock::browser_tab::BrowserCase::AppRunning)
+            }),
+            ("browser-app-exited", |s| s.show_browser_tab(mock::browser_tab::BrowserCase::AppExited)),
+            ("browser-app-exited-light", |s| {
+                s.dark = Some(false);
+                s.show_browser_tab(mock::browser_tab::BrowserCase::AppExited)
+            }),
+            ("browser-app-stopped", |s| s.show_browser_tab(mock::browser_tab::BrowserCase::AppStopped)),
+            ("browser-app-stopped-light", |s| {
+                s.dark = Some(false);
+                s.show_browser_tab(mock::browser_tab::BrowserCase::AppStopped)
+            }),
+            ("browser-app-failed", |s| s.show_browser_tab(mock::browser_tab::BrowserCase::AppBuildFailed)),
+            ("browser-app-failed-light", |s| {
+                s.dark = Some(false);
+                s.show_browser_tab(mock::browser_tab::BrowserCase::AppBuildFailed)
+            }),
+            ("browser-app-output", |s| s.show_browser_tab(mock::browser_tab::BrowserCase::AppOutput)),
+            ("browser-app-output-light", |s| {
+                s.dark = Some(false);
+                s.show_browser_tab(mock::browser_tab::BrowserCase::AppOutput)
+            }),
             // Component 14, piece C: the page tab's bar, warnings and each state of the choice bar.
             ("page-tab-waiting", |s| s.show_page_tab(mock::pages::TabCase::Waiting)),
             ("page-tab-waiting-light", |s| {
