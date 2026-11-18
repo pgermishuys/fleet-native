@@ -8,7 +8,7 @@ use crate::tests::FRAME;
 use crate::{Rail, State, test_wait};
 use rune::{App, Env, Runtime};
 use serde_json::{Value, json};
-use std::io::{Read, Write};
+use std::io::Write;
 use std::net::TcpListener;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
@@ -66,33 +66,9 @@ fn serve(fake: Shared) -> String {
 }
 
 fn answer(mut stream: std::net::TcpStream, fake: Shared) {
-    let mut buf = Vec::new();
-    let mut chunk = [0u8; 4096];
-    let body_at = loop {
-        let n = stream.read(&mut chunk).unwrap_or(0);
-        buf.extend_from_slice(&chunk[..n]);
-        if let Some(at) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
-            break at + 4;
-        }
-        if n == 0 {
-            break buf.len();
-        }
-    };
-    let head = String::from_utf8_lossy(&buf[..body_at]).to_string();
-    let length = head
-        .lines()
-        .find_map(|l| l.to_lowercase().strip_prefix("content-length:").and_then(|v| v.trim().parse::<usize>().ok()))
-        .unwrap_or(0);
-    while buf.len() < body_at + length {
-        let n = stream.read(&mut chunk).unwrap_or(0);
-        if n == 0 {
-            break;
-        }
-        buf.extend_from_slice(&chunk[..n]);
-    }
-    let body = String::from_utf8_lossy(&buf[body_at..]).to_string();
-    let mut first = head.lines().next().unwrap_or("").split(' ');
-    let (method, path) = (first.next().unwrap_or("").to_string(), first.next().unwrap_or("").to_string());
+    let req = crate::test_http::read(&mut stream);
+    let body = req.body_text();
+    let (method, path) = (req.method, req.path);
     // The live-events link negotiates in the background at any moment; it is not what a test asks about.
     if !path.starts_with("/hubs/") {
         fake.lock().unwrap().heard.push((method.clone(), path.clone(), body.clone()));

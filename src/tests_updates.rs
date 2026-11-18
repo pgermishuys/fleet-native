@@ -8,7 +8,7 @@ use crate::fleet::state::Topic;
 use crate::{Rail, State, test_wait};
 use rune::Runtime;
 use serde_json::{Value, json};
-use std::io::{Read, Write};
+use std::io::Write;
 use std::net::TcpListener;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
@@ -44,28 +44,9 @@ fn rollout_json(status: &str) -> Value {
 }
 
 fn answer(mut stream: std::net::TcpStream, fake: Shared) {
-    let mut buf = Vec::new();
-    let mut chunk = [0u8; 4096];
-    let (mut head_end, mut length) = (None, 0usize);
-    loop {
-        let n = stream.read(&mut chunk).unwrap_or(0);
-        buf.extend_from_slice(&chunk[..n]);
-        if head_end.is_none() {
-            head_end = buf.windows(4).position(|w| w == b"\r\n\r\n").map(|p| p + 4);
-            if let Some(end) = head_end {
-                let head = String::from_utf8_lossy(&buf[..end]).to_lowercase();
-                length = head.lines().find_map(|l| l.strip_prefix("content-length:")?.trim().parse().ok()).unwrap_or(0);
-            }
-        }
-        if n == 0 || head_end.is_some_and(|end| buf.len() >= end + length) {
-            break;
-        }
-    }
-    let end = head_end.unwrap_or(buf.len());
-    let head = String::from_utf8_lossy(&buf[..end]).to_string();
-    let body = String::from_utf8_lossy(&buf[end..]).to_string();
-    let mut first = head.lines().next().unwrap_or("").split(' ');
-    let (method, path) = (first.next().unwrap_or("").to_string(), first.next().unwrap_or("").to_string());
+    let req = crate::test_http::read(&mut stream);
+    let body = req.body_text();
+    let (method, path) = (req.method, req.path);
     let mut f = fake.lock().unwrap();
     f.heard.push((method.clone(), path.clone(), body));
     let (status, reply) = match (method.as_str(), path.as_str()) {
