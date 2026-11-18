@@ -289,12 +289,27 @@ fn rendered_body(t: &Theme, file: &FileDiff, content: &str) -> El {
         });
         return col().key(key).w_full().px(14.0).py(8.0).child(card);
     }
-    col().key(key.clone()).w_full().px(14.0).py(8.0).child(super::prose::prose(
-        &super::prose::style(t),
-        &format!("{key}-markdown"),
-        content,
-        false,
-    ))
+    // Selecting text here asks the agent about it (`:annotatable="!/\\.html?$/i.test(file.file)"`, row 9.2); the popover opens when the
+    // drag lets go, where the pointer is. HTML is a card and isn't annotatable.
+    let owner = file.file.clone();
+    col()
+        .key(key.clone())
+        .w_full()
+        .px(14.0)
+        .py(8.0)
+        .on_pointer_move_local(|s: &mut State, p: rune::PointerEvent, tx: &mut Tx| {
+            s.annotation.pointer = (p.window_x, p.window_y);
+            tx.live_only();
+        })
+        .child(
+            col()
+                .w_full()
+                .selection_group(true)
+                .on_selection_change(move |s: &mut State, change, tx| {
+                    s.read_rendered_selection(&owner, change.selection(), change.dragging(), tx)
+                })
+                .child(super::prose::prose(&super::prose::style(t), &format!("{key}-markdown"), content, false)),
+        )
 }
 
 fn section(s: &State, t: &Theme, file: &FileDiff) -> El {

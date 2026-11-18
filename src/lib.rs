@@ -154,6 +154,8 @@ mod tests_restart_notice;
 #[cfg(test)]
 mod tests_review;
 #[cfg(test)]
+mod tests_review_annotation;
+#[cfg(test)]
 mod tests_review_lines;
 #[cfg(test)]
 mod tests_review_near;
@@ -396,6 +398,8 @@ pub struct State {
     pub file_browser: fleet::file_browser::FileBrowser,
     /// The review's own state: which sections are shut and the layout picked (`fleet::review`).
     pub review: fleet::review::Review,
+    /// The popover that asks the agent about selected text (`fleet::annotation`).
+    pub annotation: fleet::annotation::Annotation,
     /// Find in Changes: the bar's query and matches, and the machine's search (`fleet::changes_find`).
     pub changes_find: fleet::changes_find::ChangesFind,
     /// The page canvas "Open page" asked the content panel to show; the tab is component 14's.
@@ -703,6 +707,7 @@ impl Default for State {
             file_browser: Default::default(),
             file_bases: Default::default(),
             review: Default::default(),
+            annotation: Default::default(),
             changes_find: Default::default(),
             page_target: None,
             web: Default::default(),
@@ -2714,6 +2719,10 @@ pub fn spec() -> AppSpec<State> {
             ("review-hunks-light", |s| s.show_review_hunks(false, false)),
             ("review-wrap", |s| s.show_review_hunks(true, true)),
             ("review-wrap-light", |s| s.show_review_hunks(false, true)),
+            ("review-ask", |s| s.show_review_ask(true, false)),
+            ("review-ask-light", |s| s.show_review_ask(false, false)),
+            ("review-ask-typed", |s| s.show_review_ask(true, true)),
+            ("review-ask-typed-light", |s| s.show_review_ask(false, true)),
             ("review-split", |s| s.show_review_split(true, false)),
             ("review-split-light", |s| s.show_review_split(false, false)),
             ("review-split-wrap", |s| s.show_review_split(true, true)),

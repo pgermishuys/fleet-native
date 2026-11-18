@@ -174,6 +174,15 @@ impl State {
         self.set_review_rendered("docs/preview.html", rendered);
     }
 
+    /// The Rendered Markdown with a line selected and the annotation popover open over it, a question typed when `typed`.
+    pub fn show_review_ask(&mut self, dark: bool, typed: bool) {
+        self.show_review_docs(dark, true);
+        let text = "size is how many rows a page holds (default 25, at most 100).";
+        self.annotation.open =
+            Some(crate::fleet::annotation::Open { anchor_text: text.to_string(), path: "docs/paging.md".to_string(), at: (1222.0, 420.0) });
+        self.annotation.field = rune::TextEdit::new(if typed { "Why is the default 25 and not 50?" } else { "" });
+    }
+
     /// The review with Split picked, a fold opened.
     pub fn show_review_split(&mut self, dark: bool, wrap: bool) {
         self.show_review_hunks(dark, wrap);

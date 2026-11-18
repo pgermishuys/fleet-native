@@ -1808,3 +1808,12 @@ Read at the pin while planning; nothing built yet.
 - **A press then a double-press** reach `on_press_tx` and then `on_double_press_tx` in that order on the second click, so a single click's wait is a deadline kept in `State` and checked in `poll` (`keep_files_tab`, with `tx.wake_after`), and the double-press just drops it. No thread is needed, and an invented session (no link) works the same.
 - **No way to change a fill on focus-within**: `focus_within_ring` draws the ring but the field keeps its resting fill, where CSS `:focus-within` swaps it for transparent.
 - **A vertical scroll box is `.scroll(ScrollSpec { stick_bottom: false })`**; there is no `scroll_y`.
+
+
+## Component 12, piece N (the annotation popover)
+
+- **A toolbar that waits for a drag's release** is `on_selection_change` on a `selection_group`: it is heard with `dragging()` true while the drag goes and once more with it false at the release. Keep a "was dragging" flag in the state, so a selection made by Cmd+A or by code (never dragging) opens nothing, as Fleet's `mouseup` does.
+- **The release carries no point.** A `on_pointer_move_local` on the element that holds the text, writing `window_x/window_y` and calling `tx.live_only()`, keeps the last place; the popover opens there. `selection.text()` is the selected text as copying takes it (backticks of inline code are gone, as `textContent` is in Fleet).
+- **`tx.clear_text_selection()` inside the selection handler** is fine (the handler is heard once more, with no selection).
+- **Pressing a disabled button takes focus from a text field**: a test that clicks Send while it is off must click the field again before typing.
+- **No block rectangles from `rune_kit::markdown`**, so Fleet's click-on-a-block anchor can't be ported without drawing the Markdown blocks ourselves.
