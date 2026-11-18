@@ -506,14 +506,16 @@ fn pressing_the_header_button_shows_the_prompt_and_what_is_typed_reaches_the_she
 }
 
 #[test]
-fn with_no_terminals_listed_one_is_started_at_120_by_14() {
+fn with_no_terminals_listed_one_is_started_at_the_views_size_else_120_by_14() {
     let mut live = Live::start(Fake::start(&[], b"demo $ "));
     click(&mut live.rt, "terminal");
     live.wait("the socket to open", |s| s.terminal.status() == Some(Status::Open));
     let posts: Vec<_> = live.fake.requests().into_iter().filter(|(m, _, _)| m == "POST").collect();
     assert_eq!(posts.len(), 1);
     assert_eq!(posts[0].1, "/api/sessions/s1/terminals");
-    assert_eq!(posts[0].2, json!({"cols": 120, "rows": 14}));
+    // The view's size when it was laid out before the list came back, else 120 × 14 (`openNewTerminal`).
+    let known = live.rt.state.terminal.fitted.map(|(c, r)| json!({"cols": c, "rows": r}));
+    assert!(posts[0].2 == json!({"cols": 120, "rows": 14}) || Some(posts[0].2.clone()) == known, "{:?}", posts[0].2);
     assert!(live.fake.heard.lock().unwrap().sockets[0].contains("/terminals/t-new/socket?"));
 }
 

@@ -359,7 +359,9 @@ fn keeps_a_drawer_opened_while_the_empty_list_was_loading_so_it_starts_a_shell()
     r.wait("a shell to start", |s| ids(&s.terminals, "s1") == ["t-new"]);
     let posts: Vec<_> = asked(&fake).into_iter().filter(|c| c.0 == "POST").collect();
     assert_eq!(posts.len(), 1);
-    assert_eq!(posts[0].2, json!({"cols": 120, "rows": 14}));
+    // The box under the open drawer may have been laid out before the answer came: then its size, else 120 × 14.
+    let known = r.rt.state.terminal.fitted.map(|(c, rows)| json!({"cols": c, "rows": rows}));
+    assert!(posts[0].2 == json!({"cols": 120, "rows": 14}) || Some(posts[0].2.clone()) == known, "{:?}", posts[0].2);
 }
 
 #[test]
