@@ -58,6 +58,11 @@ pub enum Layout {
     Split,
 }
 
+/// The user's pick, else Unified below `SPLIT_FROM_WIDTH` of panel and Split from it.
+pub fn layout_for(pick: Option<Layout>, panel_w: f32) -> Layout {
+    pick.unwrap_or(if panel_w >= SPLIT_FROM_WIDTH { Layout::Split } else { Layout::Unified })
+}
+
 /// `GENERATED_FILE`: lockfiles and generated files nobody reads. Names are matched case-blind, as Fleet's pattern is.
 pub fn is_generated(path: &str) -> bool {
     const NAMES: [&str; 14] = [
@@ -109,7 +114,6 @@ pub struct Review {
     collapsed: HashSet<String>,
     /// The start-shut decision has been made for this review (once, when the first list arrives).
     decided: bool,
-    layout_pref: Option<Layout>,
     /// Unchanged runs the reader opened (`path`, fold id) and files drawn whole past the cap.
     open_folds: HashSet<(String, String)>,
     drawn_all: HashSet<String>,
@@ -119,7 +123,7 @@ impl Review {
     /// Another session: a fresh review (Fleet mounts one per session).
     pub fn open(&mut self, session: &str) {
         if self.session != session {
-            *self = Review { session: session.to_string(), layout_pref: self.layout_pref, ..Default::default() };
+            *self = Review { session: session.to_string(), ..Default::default() };
         }
     }
 
@@ -168,15 +172,6 @@ impl Review {
     pub fn toggle_all(&mut self, files: &[FileDiff]) {
         self.collapsed = if self.all_collapsed(files) { HashSet::new() } else { files.iter().map(|f| f.file.clone()).collect() };
     }
-
-    /// The layout drawn: the user's pick, else by the panel's width.
-    pub fn layout(&self, panel_w: f32) -> Layout {
-        self.layout_pref.unwrap_or(if panel_w >= SPLIT_FROM_WIDTH { Layout::Split } else { Layout::Unified })
-    }
-
-    pub fn set_layout(&mut self, layout: Layout) {
-        self.layout_pref = Some(layout);
-    }
 }
 
 impl State {
@@ -199,6 +194,15 @@ impl State {
         for file in open {
             self.load_diff_file(&session, file);
         }
+    }
+
+    /// The layout drawn: the user's pick (remembered, `weave:changes-layout`), else by the panel's width.
+    pub fn review_layout(&self) -> Layout {
+        layout_for(self.sidebar.changes_layout(), self.right_shown_w())
+    }
+
+    pub fn set_review_layout(&mut self, layout: Layout) {
+        self.sidebar.save_changes_layout(layout);
     }
 
     /// Wrap long lines, remembered across sessions and launches.
@@ -280,11 +284,10 @@ mod tests {
 
     #[test]
     fn layout_follows_the_width_until_picked() {
-        let mut r = Review::default();
-        assert_eq!(r.layout(1099.0), Layout::Unified);
-        assert_eq!(r.layout(1100.0), Layout::Split);
-        r.set_layout(Layout::Unified);
-        assert_eq!(r.layout(1400.0), Layout::Unified);
+        assert_eq!(layout_for(None, 1099.0), Layout::Unified);
+        assert_eq!(layout_for(None, 1100.0), Layout::Split);
+        assert_eq!(layout_for(Some(Layout::Unified), 1400.0), Layout::Unified);
+        assert_eq!(layout_for(Some(Layout::Split), 400.0), Layout::Split);
     }
 
     #[test]

@@ -90,6 +90,8 @@ pub struct Sidebar {
     canvas_widened: bool,
     /// Wrap long lines in the Changes review (`weave:changes-wrap`).
     changes_wrap: bool,
+    /// The layout picked in the Changes review, `None` until one is (`weave:changes-layout`).
+    changes_layout: Option<super::review::Layout>,
     /// The version each machine last reported to this device (`fleet.machineVersions`), for one that stops answering.
     machine_versions: super::updates::LastSeen,
     dir: Option<PathBuf>,
@@ -142,6 +144,11 @@ impl Sidebar {
         }
         s.canvas_widened = root.get("canvasWidened") == Some(&Value::Bool(true));
         s.changes_wrap = root.get("changesWrap") == Some(&Value::Bool(true));
+        s.changes_layout = match root.get("changesLayout").and_then(Value::as_str) {
+            Some("split") => Some(super::review::Layout::Split),
+            Some("unified") => Some(super::review::Layout::Unified),
+            _ => None,
+        };
         s.dreaming_harness = root.get("dreamingHarness").and_then(Value::as_str).filter(|h| !h.is_empty()).map(str::to_string);
         s
     }
@@ -171,6 +178,9 @@ impl Sidebar {
         }
         if self.changes_wrap {
             root["changesWrap"] = Value::Bool(true);
+        }
+        if let Some(l) = self.changes_layout {
+            root["changesLayout"] = json!(if l == super::review::Layout::Split { "split" } else { "unified" });
         }
         if let Some(h) = &self.dreaming_harness {
             root["dreamingHarness"] = json!(h);
@@ -338,6 +348,17 @@ impl Sidebar {
 
     pub fn changes_wrap(&self) -> bool {
         self.changes_wrap
+    }
+
+    pub fn changes_layout(&self) -> Option<super::review::Layout> {
+        self.changes_layout
+    }
+
+    pub fn save_changes_layout(&mut self, layout: super::review::Layout) {
+        if self.changes_layout != Some(layout) {
+            self.changes_layout = Some(layout);
+            self.dirty = true;
+        }
     }
 
     pub fn save_changes_wrap(&mut self, wrap: bool) {
