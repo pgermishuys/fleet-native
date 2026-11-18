@@ -4,6 +4,7 @@
 //! 500 ms reload on `files.changed` and the clock are in the `State` half at the bottom.
 use super::canvases::OpenFile;
 use super::events::{Event, Kind};
+use super::finder::{FileSearch, Scope, Step, failure, parse_files};
 use super::http;
 use super::state::Topic;
 use crate::State;
@@ -117,8 +118,10 @@ pub struct FileBrowser {
     /// The reload after `files.changed`: a later event makes an earlier wait stale.
     reload: u64,
     pub search_in: SearchIn,
-    /// What the search box holds (the names search is piece E's).
+    /// What the search box holds.
     pub field: rune::TextEdit,
+    /// The names search (`useFindFiles`): its own, so the composer's `@` list and this box never answer each other.
+    pub search: FileSearch,
 }
 
 impl FileBrowser {
@@ -130,6 +133,22 @@ impl FileBrowser {
 
     pub fn session(&self) -> Option<&str> {
         self.session.as_deref()
+    }
+
+    /// `isSearching`: two characters or more (trimmed) replace the tree with results, in the names mode.
+    pub fn is_searching(&self) -> bool {
+        self.search_in == SearchIn::Names && self.field.text.trim().chars().count() >= 2
+    }
+
+    /// The query to look for, if any: none while the tree shows (`null`).
+    pub fn wanted(&self) -> Option<&str> {
+        self.is_searching().then_some(self.field.text.as_str())
+    }
+
+    /// `foundFiles`: what the search lists for what is typed, folders (they end in "/") left out, as many of the last answer as
+    /// still match while the next is awaited.
+    pub fn found(&self) -> Vec<String> {
+        self.search.files(&self.field.text).into_iter().filter(|p| !p.ends_with('/')).collect()
     }
 
     pub fn root(&self) -> &[Entry] {
@@ -331,6 +350,7 @@ impl State {
             if self.file_browser.follow(&session) {
                 self.load_files_root(&session);
             }
+            self.keep_files_search(&session, now, tx);
         }
         if let Some(path) = self.file_browser.due_click(now) {
             let session = self.files_session();
@@ -356,6 +376,47 @@ impl State {
             self.file_browser.collapse(path);
         } else if self.file_browser.expand(path) {
             self.browse(&session, Some(path.to_string()));
+        }
+    }
+
+    /// A result was pressed (`handleResultClick`): the file is selected and opens at once, as a preview or, with `keep`, a kept tab.
+    pub fn open_found_file(&mut self, path: &str, keep: bool, tx: &mut Tx) {
+        self.file_browser.selected = Some(path.to_string());
+        let session = self.files_session();
+        self.open_file(&session, path, OpenFile { keep, view: None }, tx);
+    }
+
+    /// Enter in the box opens the first result as a kept tab.
+    pub fn open_first_found(&mut self, tx: &mut Tx) {
+        if let Some(first) = self.file_browser.found().first().cloned() {
+            self.open_found_file(&first, true, tx);
+        }
+    }
+
+    /// The names search for what is typed: after its 80 ms wait, one request, a newer one replacing an older.
+    fn keep_files_search(&mut self, session: &str, now: f64, tx: &mut Tx) {
+        let scope = Scope::Session(session.to_string());
+        let query = self.file_browser.wanted().map(str::to_string);
+        match self.file_browser.search.want(Some(&scope), query.as_deref(), now) {
+            Step::Idle => {}
+            Step::Wait(seconds) => tx.wake_after(Duration::from_secs_f64(seconds + 0.002)),
+            Step::Send { generation, query } => {
+                let Some(link) = self.link_for(session) else {
+                    // An invented session: the invented project answers at once.
+                    let files = crate::mock::files_tab::find(&query);
+                    self.file_browser.search.answered(generation, &query, Ok(files));
+                    return;
+                };
+                let (id, asked) = (session.to_string(), query.clone());
+                link.off_thread(
+                    move |base| match http::find_files(base, &id, &asked) {
+                        Ok((status, body)) if (200..300).contains(&status) => Ok(parse_files(&body)),
+                        Ok((status, body)) => Err(failure(status, &body)),
+                        Err(why) => Err(why),
+                    },
+                    move |s, _, result| s.file_browser.search.answered(generation, &query, result),
+                );
+            }
         }
     }
 

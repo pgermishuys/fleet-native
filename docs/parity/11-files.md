@@ -143,9 +143,9 @@ view, a search panel. Slice 1 needs none of those (it draws the lines itself); s
 | 1.11 | A folder opens on click: `GET …/files/browse?path=<folder>`; while loading, a "Loading…" row (12 px italic `--muted`, indented one level more); an empty folder shows "No files" the same way. Closing a folder forgets its entries, so opening it again reads it again. A failed read sets the panel's error ("Failed to load directory: <path>" when the request gives no message) | TN 110-117, 176-193, 312-322; UFB 397-437 | **Done (piece D, 18 November 2026).** |
 | 1.12 | A click on a file selects it and, 250 ms later (one double-click interval, shared by every row so a click elsewhere cancels it), opens it in a **preview** tab; a double-click opens a **kept** tab at once and nothing else | TN 1-4, 119-133; `FileBrowserTreeNode.test.ts` (2) | **Done (piece D, 18 November 2026).** |
 | 1.13 | The tree follows the agent: `files.changed` on the session's topic reloads the root 500 ms after the last one (a burst reloads once); the wait is dropped on a session switch. Only the root is read again (open folders keep what they had) | UFB 495-533 | **Done (piece D, 18 November 2026).** |
-| 1.14 | Searching by name: a query of 2 or more characters (trimmed) replaces the tree with results from `GET …/find/files?q=`: folders (ending in `/`) are left out; the list follows each key from the last answer while the next is awaited (80 ms wait; an empty query or one ending in `/` lists at once) | FBP 37-42, 220-249; UFF all | None (`fleet::finder` has the same request and rules for the `@` list) |
-| 1.15 | Search states: "Searching…" (large `Spinner`, as 1.6); an `ErrorNote` with the error (margin 12); `EmptyState` (compact, no icon) "No files found", "Try a different search query". A result: a button, the whole path, 12 px `--text`, padding `8px 12px`, one line with an ellipsis, a 1 px `--border` line under each but the last, hover fill `--bg`. Newer than v0.72.0 (`Spinner`, `ErrorNote`, `EmptyState`) | FBP 219-249, 492-521 | None |
-| 1.16 | Opening from the results: a click opens a preview tab (and selects the file); Enter in the field opens the first result as a kept tab; Esc clears the query and leaves the field | FBP 117-136; FBP tests "calls_selectFile…", "opens_the_first_search_result_as_a_kept_tab_on_enter" | None |
+| 1.14 | Searching by name: a query of 2 or more characters (trimmed) replaces the tree with results from `GET …/find/files?q=`: folders (ending in `/`) are left out; the list follows each key from the last answer while the next is awaited (80 ms wait; an empty query or one ending in `/` lists at once) | FBP 37-42, 220-249; UFF all | **Done (piece E, 18 November 2026).** |
+| 1.15 | Search states: "Searching…" (large `Spinner`, as 1.6); an `ErrorNote` with the error (margin 12); `EmptyState` (compact, no icon) "No files found", "Try a different search query". A result: a button, the whole path, 12 px `--text`, padding `8px 12px`, one line with an ellipsis, a 1 px `--border` line under each but the last, hover fill `--bg`. Newer than v0.72.0 (`Spinner`, `ErrorNote`, `EmptyState`) | FBP 219-249, 492-521 | **Done (piece E, 18 November 2026).** |
+| 1.16 | Opening from the results: a click opens a preview tab (and selects the file); Enter in the field opens the first result as a kept tab; Esc clears the query and leaves the field | FBP 117-136; FBP tests "calls_selectFile…", "opens_the_first_search_result_as_a_kept_tab_on_enter" | **Done (piece E, 18 November 2026).** |
 | 1.17 | Narrow windows (`max-width 716px`): the search box 38 high, the switch's buttons padding `7px 8px` | FBP 453-466 | Out of scope: the phone layout. The desktop window's own width never meets it with the panel inline, so it isn't ported |
 
 ## Part 2: file tabs in the strip (`stores/canvases.ts`, `CanvasHost.vue`)
@@ -440,7 +440,7 @@ for the theme; the Files tab is `[role=tab]` "Files", tree rows are `.file-brows
   isn't disabled; the tree isn't virtualised (Fleet's isn't either). Selected-row look is from a scene only: in Fleet a
   click opens the preview tab and the tree leaves the screen 250 ms later.
 
-#### Piece E: the Files tab: searching by name
+#### Piece E: the Files tab: searching by name — **done, 18 November 2026**
 
 - **Rows:** 1.14-1.16.
 - **Files:** `src/fleet/file_browser.rs` (the query, reusing `fleet::finder`'s file search and `narrow_file_matches`),
@@ -448,7 +448,9 @@ for the theme; the Files tab is `[role=tab]` "Files", tree rows are `.file-brows
   light.
 - **Depends on:** D.
 - **Tests:** `FileBrowserPanel.test.ts` File selection (2).
-- **Pictures:** "pag" in the Files search beside Fleet's; "No files found".
+- **Pictures:** "pag" in the Files search beside Fleet's; "No files found" (`shots/parity/11-files/*-files-search*`).
+- **Done:** rows 1.14-1.16. The box has its own `FileSearch` (same rules as the `@` list, a separate store so the two never answer each other); a click opens a preview at once (no 250 ms wait, as `selectFile` does), Enter a kept tab. Tests: the File selection pair, plus the states, Esc, and two over a fake server (one request after the wait, folders left out, the refusal's words). Checked live against a scratch Fleet (v0.72.0) with an invented repository; order of results matches the server's.
+- **Gaps, with reasons:** none new. While a query awaits its answer Fleet shows "Searching…" even if the last answer could be narrowed; so does this app (the narrowed list is used only once loading ends).
 
 #### Piece F: file tabs in the strip
 

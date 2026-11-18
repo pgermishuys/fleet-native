@@ -5,7 +5,8 @@
 //! a folder map and records every path it was asked for.
 use super::super::canvases::{FileView, OpenFile};
 use super::super::events::{Event, Kind};
-use super::super::file_browser::{DOUBLE_CLICK, Entry, FileBrowser, Row, browse_result, parse_entries};
+use super::super::file_browser::{DOUBLE_CLICK, Entry, FileBrowser, Row, SearchIn, browse_result, parse_entries};
+use super::super::finder::Step;
 use super::super::link::{Job, Link, Post};
 use super::super::sessions;
 use super::super::state::Topic;
@@ -212,6 +213,11 @@ struct Seen {
     folders: HashMap<String, Vec<Entry>>,
     /// The status the server answers browse with.
     status: u16,
+    /// Every `/find/files` request: the `q` asked for.
+    searched: Vec<String>,
+    /// What the file search answers, and with which status.
+    found: Vec<String>,
+    search_status: u16,
 }
 
 fn entries_json(list: &[Entry]) -> String {
@@ -244,6 +250,15 @@ fn serve(mut stream: std::net::TcpStream, seen: Arc<Mutex<Seen>>) {
         json!({"diffs": [{"file": "README.md", "status": "added", "additions": 5, "deletions": 0}], "available": true,
             "base": {"kind": "branch", "branch": "main", "commit": "aaa1111"}})
         .to_string()
+    } else if let Some((_, q)) = path.split_once("/find/files?q=") {
+        let mut seen = seen.lock().unwrap();
+        seen.searched.push(q.to_string());
+        if seen.search_status != 0 && seen.search_status != 200 {
+            status = "500 Internal Server Error";
+            json!({"error": "search is down"}).to_string()
+        } else {
+            json!({"files": seen.found}).to_string()
+        }
     } else if let Some((_, rest)) = path.split_once("/files/browse") {
         let asked = rest.strip_prefix("?path=").unwrap_or("").replace("%2F", "/");
         let mut seen = seen.lock().unwrap();
@@ -320,6 +335,18 @@ impl Fake {
         );
     }
 
+    /// Like `wait`, for what the file search has seen (`wait` holds the lock on the browse list while it looks).
+    fn wait_search(&mut self, what: &str, done: impl Fn(&State, &[String]) -> bool) {
+        let (seen, described) = (self.seen.clone(), self.seen.clone());
+        crate::test_wait::drive(
+            &mut self.rt,
+            &self.jobs,
+            what,
+            |s| done(s, &seen.lock().unwrap().searched),
+            |s| format!("{}; searched {:?}", crate::test_wait::app_state(s), described.lock().unwrap().searched),
+        );
+    }
+
     fn browsed(&self) -> Vec<String> {
         self.seen.lock().unwrap().browsed.clone()
     }
@@ -392,4 +419,54 @@ fn a_server_that_refuses_the_root_shows_its_status() {
     f.rt.update(|s, _| s.refresh_files());
     f.wait("the error", |s, _| s.file_browser.error().is_some());
     assert_eq!(f.rt.state.file_browser.error(), Some("Failed to browse directory: 500 Internal Server Error"));
+}
+
+// Searching by name (piece E): the rules under the box.
+
+#[test]
+fn a_query_of_two_characters_trimmed_is_a_search_and_folders_are_left_out() {
+    let mut b = FileBrowser::default();
+    b.field = rune::TextEdit::new(" a ");
+    assert!(!b.is_searching(), "one character once trimmed");
+    b.field = rune::TextEdit::new(" ab ");
+    assert_eq!(b.wanted(), Some(" ab "));
+    b.search_in = SearchIn::Contents;
+    assert_eq!(b.wanted(), None, "File contents is another search");
+    b.search_in = SearchIn::Names;
+    let scope = crate::fleet::finder::Scope::Session("s".into());
+    let typed = b.wanted().map(str::to_string);
+    let Step::Wait(_) = b.search.want(Some(&scope), typed.as_deref(), 0.0) else { panic!("waits the 80 ms") };
+    let Step::Send { generation, query } = b.search.want(Some(&scope), typed.as_deref(), 0.1) else { panic!("then sends") };
+    b.search.answered(generation, &query, Ok(vec!["src/".into(), "src/ab.rs".into()]));
+    assert_eq!(b.found(), ["src/ab.rs"]);
+}
+
+fn type_query(f: &mut Fake, words: &str) {
+    let words = words.to_string();
+    f.rt.update(move |s, _| s.file_browser.field = rune::TextEdit::new(&words));
+    f.rt.frame(crate::tests::FRAME);
+}
+
+#[test]
+fn typing_asks_the_server_once_after_the_wait_and_lists_files_without_folders() {
+    let mut f = Fake::start();
+    f.seen.lock().unwrap().found = vec!["src/".into(), "src/app.ts".into(), "docs/app.md".into()];
+    type_query(&mut f, "app");
+    f.wait_search("the search to be answered", |s, asked| !s.file_browser.search.loading && !asked.is_empty());
+    assert_eq!(f.seen.lock().unwrap().searched, ["app"], "one request for the whole word");
+    assert_eq!(f.rt.state.file_browser.found(), ["src/app.ts", "docs/app.md"]);
+}
+
+#[test]
+fn a_refused_search_shows_the_servers_words_and_one_character_asks_nothing() {
+    let mut f = Fake::start();
+    f.seen.lock().unwrap().search_status = 500;
+    type_query(&mut f, "a");
+    for _ in 0..12 {
+        f.rt.frame(crate::tests::FRAME);
+    }
+    assert!(f.seen.lock().unwrap().searched.is_empty());
+    type_query(&mut f, "ap");
+    f.wait_search("the error", |s, _| s.file_browser.search.error.is_some());
+    assert_eq!(f.rt.state.file_browser.search.error.as_deref(), Some("search is down"));
 }

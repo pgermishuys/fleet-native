@@ -169,3 +169,88 @@ fn a_click_on_another_file_replaces_the_wait() {
     assert_eq!(file_tabs(&rt), [("src/ledger/totals.py".to_string(), true)], "only the last file opens");
     assert_eq!(rt.state.file_browser.selected.as_deref(), Some("src/ledger/totals.py"));
 }
+
+// FileBrowserPanel.test.ts, File selection, and the search around it (piece E)
+
+use crate::fleet::file_browser::SearchIn;
+use rune::{Key, KeyEvent, Mods};
+
+fn type_in_box(rt: &mut Runtime<crate::State>, words: &str) {
+    click(rt, "files-search");
+    rt.key(KeyEvent { key: Key::Text(words.into()), mods: Mods::default() });
+    // The 80 ms wait, then the invented project answers at once.
+    for _ in 0..12 {
+        rt.frame(FRAME);
+    }
+}
+
+fn press_key(rt: &mut Runtime<crate::State>, key: Key) {
+    rt.key(KeyEvent { key, mods: Mods::default() });
+    rt.frame(FRAME);
+    rt.frame(FRAME);
+}
+
+fn results(rt: &Runtime<crate::State>) -> Vec<String> {
+    rt.elements().iter().filter_map(|e| e.key.as_deref()?.strip_prefix("file-result-").map(str::to_string)).collect()
+}
+
+#[test]
+fn calls_selectfile_on_content_panel_and_file_browser_when_search_result_clicked() {
+    let mut rt = open(Case::Tree);
+    type_in_box(&mut rt, "paginate");
+    assert_eq!(results(&rt), ["src/ledger/paginate.py", "tests/test_paginate.py"]);
+    click(&mut rt, "file-result-src/ledger/paginate.py");
+    assert_eq!(rt.state.file_browser.selected.as_deref(), Some("src/ledger/paginate.py"));
+    assert_eq!(file_tabs(&rt), [("src/ledger/paginate.py".to_string(), true)], "a preview, at once (no double-click wait)");
+}
+
+#[test]
+fn opens_the_first_search_result_as_a_kept_tab_on_enter() {
+    let mut rt = open(Case::Tree);
+    type_in_box(&mut rt, "paginate");
+    press_key(&mut rt, Key::Enter);
+    assert_eq!(file_tabs(&rt), [("src/ledger/paginate.py".to_string(), false)]);
+    assert_eq!(rt.state.file_browser.selected.as_deref(), Some("src/ledger/paginate.py"));
+}
+
+#[test]
+fn one_character_leaves_the_tree_two_replace_it_with_results_and_folders_are_left_out() {
+    let mut rt = open(Case::Tree);
+    rt.update(|s, _| s.file_browser.field = rune::TextEdit::new("p"));
+    rt.frame(FRAME);
+    assert!(has(&rt, "files-tree") && !has(&rt, "files-results"));
+    rt.update(|s, _| s.file_browser.field = rune::TextEdit::new("le"));
+    for _ in 0..12 {
+        rt.frame(FRAME);
+    }
+    assert!(has(&rt, "files-results") && !has(&rt, "files-tree"));
+    assert!(!results(&rt).iter().any(|p| p.ends_with('/')), "src/ledger/ matches \"le\" and is not listed");
+}
+
+#[test]
+fn says_no_files_found_for_a_query_nothing_matches_and_clearing_brings_the_tree_back() {
+    let mut rt = open(Case::SearchNone);
+    assert!(has(&rt, "files-search-empty"));
+    assert!(rt.elements().iter().any(|e| e.text.as_deref() == Some("Try a different search query")));
+    click(&mut rt, "files-search-clear");
+    rt.frame(FRAME);
+    assert!(has(&rt, "files-tree") && !has(&rt, "files-search-empty"));
+}
+
+#[test]
+fn escape_clears_the_query() {
+    let mut rt = open(Case::Search);
+    assert!(has(&rt, "files-results"));
+    click(&mut rt, "files-search");
+    press_key(&mut rt, Key::Escape);
+    assert_eq!(rt.state.file_browser.field.text, "");
+    assert!(has(&rt, "files-tree"));
+}
+
+#[test]
+fn the_contents_mode_does_not_search_names() {
+    let mut rt = open(Case::Search);
+    rt.update(|s, _| s.file_browser.search_in = SearchIn::Contents);
+    rt.frame(FRAME);
+    assert!(!has(&rt, "files-results"), "Find in files is component 12's");
+}

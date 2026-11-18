@@ -18,6 +18,31 @@ pub enum Case {
     Empty,
     /// The root could not be read.
     Failed,
+    /// "pag" typed in the search box, answered.
+    Search,
+    /// A query nothing matches.
+    SearchNone,
+}
+
+/// Every file of the invented project, folders left out (what the search lists once they are filtered).
+const ALL_FILES: [&str; 11] = [
+    "assets/logo.svg",
+    "docs/pagination.md",
+    "pyproject.toml",
+    "README.md",
+    "src/ledger/page_size.py",
+    "src/ledger/paginate.py",
+    "src/ledger/sample.csv",
+    "src/ledger/totals.py",
+    "src/ledger/__init__.py",
+    "tests/test_paginate.py",
+    "src/ledger/",
+];
+
+/// What the find endpoint answers for the invented project: files and the folder, ranked as Fleet's server does.
+pub fn find(query: &str) -> Vec<String> {
+    let all: Vec<String> = ALL_FILES.iter().map(|p| p.to_string()).collect();
+    crate::composer::files::narrow_file_matches(&all, query.trim())
 }
 
 /// What the browse endpoint says for a folder of the invented project (the root with no path): folders first, then files, each in the server's order (case ignored, so `pyproject.toml` is before `README.md` and `__init__.py` last).
@@ -74,7 +99,7 @@ impl State {
                 browser.root_done(&id, Ok(Vec::new()));
                 return;
             }
-            Case::Tree | Case::Selected => {}
+            Case::Tree | Case::Selected | Case::Search | Case::SearchNone => {}
         }
         browser.root_done(&id, browse(None));
         for dir in ["src", "src/ledger", "docs"] {
@@ -83,6 +108,18 @@ impl State {
         }
         if case == Case::Selected {
             browser.selected = Some("src/ledger/paginate.py".into());
+        }
+        let typed = match case {
+            Case::Search => "pag",
+            Case::SearchNone => "zzq",
+            _ => return,
+        };
+        browser.field = rune::TextEdit::new(typed);
+        let scope = crate::fleet::finder::Scope::Session(id);
+        // The first look starts the 80 ms wait; a later one sends, and the invented project answers.
+        browser.search.want(Some(&scope), Some(typed), 0.0);
+        if let crate::fleet::finder::Step::Send { generation, query } = browser.search.want(Some(&scope), Some(typed), 1.0) {
+            browser.search.answered(generation, &query, Ok(find(&query)));
         }
     }
 }

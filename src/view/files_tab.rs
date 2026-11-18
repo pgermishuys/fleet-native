@@ -1,7 +1,7 @@
 //! Ports `components/canvas/FilesCanvas.vue` and the names half of `components/session/FileBrowserPanel.vue`: the Files tab's body.
 //! A toolbar (the search box and Refresh), the "Search in" switch, and under them the tree or what stands in for it: "Loading
 //! files…", the error, or "No files found". "File contents" is Find in files' (component 12) and drawn off until then; the names
-//! search is piece E's, so the box takes what is typed and nothing yet answers it.
+//! search replaces the tree with its results once two characters are typed.
 use super::file_tree::tree_row;
 use crate::State;
 use crate::fleet::file_browser::SearchIn;
@@ -44,6 +44,11 @@ fn toolbar(s: &State, t: &Theme) -> El {
             Key::Escape => {
                 s.clear_files_search();
                 tx.blur();
+                true
+            }
+            // Enter opens the first result as a kept tab.
+            Key::Enter => {
+                s.open_first_found(tx);
                 true
             }
             _ => false,
@@ -125,8 +130,59 @@ fn switch(s: &State, t: &Theme) -> El {
         .child(contents)
 }
 
+/// The results of the names search: "Searching…", the error, "No files found" or one button per path.
+fn results(s: &State, t: &Theme) -> El {
+    let search = &s.file_browser.search;
+    if search.loading {
+        return col()
+            .key("files-searching")
+            .w_full()
+            .items_center()
+            .gap(8.0)
+            .px(16.0)
+            .py(24.0)
+            .child(spinner(t.muted, 20.0))
+            .child(text("Searching\u{2026}").font(sans(12.0, 400.0, 1.5)).color(t.muted));
+    }
+    if let Some(why) = &search.error {
+        return col().key("files-search-error-wrap").w_full().padding(12.0).items_stretch().child(confirm::error_note(
+            t,
+            "files-search-error",
+            why,
+            None,
+        ));
+    }
+    let found = s.file_browser.found();
+    if found.is_empty() {
+        return empty_state::compact_described(t, "files-search-empty", None, "No files found", "Try a different search query");
+    }
+    let last = found.len() - 1;
+    col().key("files-results").w_full().items_stretch().children(found.iter().enumerate().map(|(i, path)| {
+        let open = path.clone();
+        let mut r = row()
+            .key(format!("file-result-{path}"))
+            .role("button")
+            .label(path.clone())
+            .w_full()
+            .px(12.0)
+            .py(8.0)
+            .cursor(Cursor::Pointer)
+            .hover(t.main_bg)
+            .focusable(true)
+            .focus_ring(2.0, -2.0, t.accent)
+            .child(text(path.clone()).font(sans(12.0, 400.0, 1.5)).color(t.text).truncate().min_w(0.0).grow(1.0));
+        if i != last {
+            r = r.border_sides([0.0, 0.0, 1.0, 0.0], t.border).border_layout();
+        }
+        r.on_press_tx(move |s: &mut State, tx| s.open_found_file(&open, false, tx))
+    }))
+}
+
 fn content(s: &State, t: &Theme) -> El {
     let browser = &s.file_browser;
+    if browser.is_searching() {
+        return results(s, t);
+    }
     let tree = browser.rows();
     if browser.root_loading() && browser.root().is_empty() {
         return col()
