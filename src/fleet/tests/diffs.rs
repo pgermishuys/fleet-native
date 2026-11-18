@@ -355,9 +355,15 @@ fn serve(mut stream: std::net::TcpStream, seen: Arc<Mutex<Seen>>) {
 
 impl Live {
     fn start() -> Live {
+        Live::start_answering(crate::mock::diffs::changed().to_string())
+    }
+
+    /// The first `/diffs` request goes out inside `start`, so a test that needs a particular first answer must give it here,
+    /// not set it afterwards (the request may already have been answered with the default).
+    fn start_answering(answer: String) -> Live {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
-        let seen = Arc::new(Mutex::new(Seen { answer: crate::mock::diffs::changed().to_string(), ..Default::default() }));
+        let seen = Arc::new(Mutex::new(Seen { answer, ..Default::default() }));
         let shared = seen.clone();
         std::thread::spawn(move || {
             for stream in listener.incoming().flatten() {
@@ -442,16 +448,14 @@ fn edits_gather_in_one_window_even_while_the_panel_is_folded() {
 
 #[test]
 fn the_panel_stays_folded_for_a_session_with_nothing_to_show_and_opens_on_its_first_change() {
-    let mut live = Live::start();
-    live.seen.lock().unwrap().answer = crate::mock::diffs::unchanged().to_string();
+    let mut live = Live::start_answering(crate::mock::diffs::unchanged().to_string());
     live.wait("the empty list", |s, _| s.diffs.has_loaded);
     live.rt.frame(1.0 / 60.0);
     assert!(!live.rt.state.content_open, "nothing to show: the panel is folded");
     live.seen.lock().unwrap().answer = crate::mock::diffs::changed().to_string();
     live.files_changed();
     live.wait("the change", |s, _| s.diffs.files().len() == 4);
-    live.rt.frame(1.0 / 60.0);
-    assert!(live.rt.state.content_open, "its first change opens it");
+    live.wait("its first change opens the panel", |s, _| s.content_open);
     live.rt.update(|s, _| s.set_content_open(false));
     live.rt.frame(1.0 / 60.0);
     assert!(!live.rt.state.content_open, "the user's choice is kept, though the session still has changes");
