@@ -314,10 +314,12 @@ fn an_empty_sample_says_the_session_id_stands_in_for_the_slug() {
 fn the_preview_is_of_an_invented_repository_and_never_asks_the_server() {
     let mut r = rig(json!({}));
     r.read();
-    let before = r.fake.lock().unwrap().heard.len();
+    // Background reads (the machines, presence, refreshes) land at any moment, so count only what the naming card itself asks.
+    let asked = |r: &Rig| r.fake.lock().unwrap().heard.iter().filter(|(_, p, _)| p.starts_with("/api/worktrees/naming")).count();
+    let before = asked(&r);
     r.type_into("naming-sample", " more");
     set(&mut r, Field::Folder, "{repo}-{shortid}");
-    assert_eq!(r.fake.lock().unwrap().heard.len(), before, "typing asks for nothing");
+    assert_eq!(asked(&r), before, "typing asks for nothing");
     assert!(r.text("naming-worktree-line").ends_with("/lantern-a1b2c3d4"), "{}", r.text("naming-worktree-line"));
     assert!(!r.text("naming-worktree-line").contains("weave-fleet"));
 }
