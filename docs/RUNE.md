@@ -1768,3 +1768,11 @@ Read at the pin while planning; nothing built yet.
 - **`El::keeps_text_selection()` on a bar's buttons** keeps the selection and focus through a press, so the buttons act on what is selected and the bar doesn't vanish when the selection clears.
 - **A test drags with `pointer_down`/`pointer_move`/`pointer_up` on rects from `rt.elements()`** in the tall window; the drag must end inside a text (the right padding of a line's text element is part of its rect, so stay 18 points in from its right edge).
 - **A script's `drag` on a text's key** (`dx`, `dy`) selects from its centre, enough for a picture.
+
+
+## Component 14, piece J (Open a browser tab, Agent's view)
+
+- **`ui::dialog::Dialog` had a fixed 32 rem width**; a `sm:max-w-md` window (28 rem) needs the new `width` field.
+- **A dialog's field is not focused by Rune on its own**: `tx.focus(KEY, false)` from the handler that opens it, as the fork dialog does. A test then sends keys with `rt.key`, not the composer helper, which clicks the composer first.
+- **No `aria-pressed`**: the toggle's pressed button is shown by its fill and shadow only.
+- **Shared dialog state that follows other state** (watching the agent's tab while Agent's view is chosen) is kept in step by `keep_browser` in `poll` and by the press handler, so the web view is hidden in the same frame.

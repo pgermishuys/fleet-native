@@ -35,6 +35,8 @@ pub struct Dialog {
     pub description_el: Option<El>,
     /// What Escape does; `None` closes the open overlay (`Ui::open`). A dialog with a state of its own names it.
     pub dismiss: Option<fn(&mut State)>,
+    /// The window's width when it is not the default `sm:max-w-lg` (`sm:max-w-md` is 28rem).
+    pub width: Option<f32>,
 }
 
 /// `DialogContent`: `max-w-lg` (448), `p-6`, `gap-4`, a border and `shadow-lg`, no radius.
@@ -59,8 +61,8 @@ pub fn dialog(t: &Theme, d: Dialog) -> Vec<El> {
         .key(format!("{}-dialog", d.key))
         .role(if d.close_button { "dialog" } else { "alertdialog" })
         .label(d.title)
-        .w(rem(32.0))
-        .max_w(rem(32.0))
+        .w(d.width.unwrap_or(rem(32.0)))
+        .max_w(d.width.unwrap_or(rem(32.0)))
         .padding(rem(1.5))
         .gap(rem(1.0))
         .fill(t.panel_bg)

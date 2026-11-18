@@ -79,6 +79,7 @@ pub fn dialog(s: &State, t: &Theme) -> Option<Vec<El>> {
     Some(kit_dialog(
         t,
         Dialog {
+            width: None,
             key: "update",
             title: "Update available".into(),
             description: Some(format!("Build {}{date}", offer.build)),

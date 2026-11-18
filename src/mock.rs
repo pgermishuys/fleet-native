@@ -6,6 +6,7 @@ pub mod agents;
 pub mod agents_tab;
 pub mod asks;
 pub mod browser;
+pub mod browser_agent;
 pub mod browser_tab;
 pub mod canvas_host;
 pub mod changes;
