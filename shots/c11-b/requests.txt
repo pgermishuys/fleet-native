@@ -1,0 +1,4 @@
+Opening one file three times (open, open while it reads, open once it is there)
+against a fake server that logs each GET /api/sessions/{id}/files/content:
+
+requests for the file: ["src/app.py"]

@@ -379,6 +379,8 @@ pub struct State {
     pub diffs: fleet::diffs::Diffs,
     /// The contents of the files Changes shows, one request per file (`fleet::diff_contents`).
     pub diff_contents: fleet::diff_contents::Contents,
+    /// Open files' buffers, per machine, session and path (`fleet::file_buffers`).
+    pub file_buffers: fleet::file_buffers::FileBuffers,
     /// The review's own state: which sections are shut and the layout picked (`fleet::review`).
     pub review: fleet::review::Review,
     /// Find in Changes: the bar's query and matches, and the machine's search (`fleet::changes_find`).
@@ -682,6 +684,7 @@ impl Default for State {
             agents_tab: Default::default(),
             diffs: Default::default(),
             diff_contents: Default::default(),
+            file_buffers: Default::default(),
             review: Default::default(),
             changes_find: Default::default(),
             page_target: None,

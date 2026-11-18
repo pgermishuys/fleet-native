@@ -496,6 +496,7 @@ mod discover;
 mod drafts;
 mod events;
 mod export;
+mod file_buffers;
 mod files;
 mod find;
 mod finder;
