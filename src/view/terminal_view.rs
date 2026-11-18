@@ -1,5 +1,6 @@
 //! Ports `TerminalView.vue`'s box (component 13, piece A): the terminal's grid in its padded box, the block cursor, the keys.
 //! The drawer around it (tabs, header) is `terminal_drawer`.
+use alacritty_terminal::vte::ansi::CursorShape;
 use rune::{Cursor, El, Key, KeyEvent, Tx, col, el, grid, row, text};
 
 use crate::State;
@@ -92,6 +93,7 @@ fn body(s: &State, t: &Theme) -> El {
         .no_focus_ring()
         .on_layout(|s: &mut State, [_, _, w, h]| s.fit_terminal(w, h))
         .on_key(on_key)
+        .on_pointer_move_local(|s: &mut State, ev: rune::PointerEvent, _: &mut Tx| s.terminal_pointer(ev.x, ev.y))
         .on_drag(|s: &mut State, d: &mut rune::Drag, _| s.terminal_drag(d))
         .on_wheel(|s: &mut State, e: rune::WheelEvent, _: &mut Tx| s.terminal_wheel(&e))
         .on_paste(|s: &mut State, text: &str, _| paste(s, text));
@@ -113,18 +115,61 @@ fn body(s: &State, t: &Theme) -> El {
         .w(cols as f32 * CELL_W)
         .h(rows as f32 * CELL_H)
         .child(grid(cols as u16, CELL_W, CELL_H, screen.rows.clone()).w(cols as f32 * CELL_W).h(rows as f32 * CELL_H));
+    if let Some(link) = &s.terminal.link {
+        stack = links(stack, link, &pal);
+    }
     if let Some(c) = &screen.cursor {
         let w = if c.wide { 2.0 * CELL_W } else { CELL_W };
         let at = |e: El| e.absolute(c.col as f32 * CELL_W, c.line as f32 * CELL_H);
-        // A block while the box has the keyboard, an outline when not (xterm's `cursorBlink` and inactive cursor).
-        stack = stack.child(if slot.focused {
-            at(el().key("terminal-cursor").size(w, CELL_H).fill(pal.fg).child(text(c.ch.clone()).font(style()).color(pal.cursor_ink)))
+        let outline = || at(el().key("terminal-cursor").size(w, CELL_H).border(1.0, pal.fg).border_layout());
+        // Focused: the shape the program asked for, lit or dark with the blink. Not focused: an outline of the cell, steady
+        // (xterm's `cursorInactiveStyle`).
+        stack = if !slot.focused {
+            stack.child(outline())
+        } else if slot.blink_off && c.blinking {
+            stack
         } else {
-            at(el().key("terminal-cursor").size(w, CELL_H).border(1.0, pal.fg).border_layout())
-        });
+            stack.child(match c.shape {
+                CursorShape::Beam => at(el().key("terminal-cursor").size(CURSOR_THIN, CELL_H).fill(pal.fg)),
+                CursorShape::Underline => el()
+                    .key("terminal-cursor")
+                    .absolute(c.col as f32 * CELL_W, c.line as f32 * CELL_H + CELL_H - CURSOR_THIN)
+                    .size(w, CURSOR_THIN)
+                    .fill(pal.fg),
+                CursorShape::HollowBlock => outline(),
+                _ => at(el()
+                    .key("terminal-cursor")
+                    .size(w, CELL_H)
+                    .fill(pal.fg)
+                    .child(text(c.ch.clone()).font(style()).color(pal.cursor_ink))),
+            })
+        };
     }
     host.child(stack)
 }
+
+/// The bar and underline cursors are one pixel thick (xterm's `cursorWidth`).
+const CURSOR_THIN: f32 = 1.0;
+
+/// The link under the pointer: its cells get a hand and a line under them, and a click opens it. The line is in the text's
+/// colour; the hand is a layer over the cells (so a press on a link opens it and doesn't start a selection).
+fn links(mut stack: El, link: &crate::term::links::Link, pal: &Palette) -> El {
+    for (n, &(line, from, to)) in link.spans.iter().enumerate() {
+        let w = (to - from) as f32 * CELL_W;
+        stack = stack.child(
+            el().key(format!("terminal-link-{n}"))
+                .absolute(from as f32 * CELL_W, line as f32 * CELL_H)
+                .size(w, CELL_H)
+                .cursor(Cursor::Pointer)
+                .on_press_tx(|s: &mut State, tx: &mut Tx| s.open_terminal_link(tx))
+                .child(el().absolute(0.0, UNDERLINE_AT).size(w, 1.0).fill(pal.fg)),
+        );
+    }
+    stack
+}
+
+/// Where a link's line sits in its row, as an underline does.
+const UNDERLINE_AT: f32 = 16.0;
 
 /// What the rows were built with: another theme builds them again.
 fn look_of(t: &Theme) -> u64 {

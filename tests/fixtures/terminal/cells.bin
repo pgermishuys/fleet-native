@@ -1,0 +1,28 @@
+[1;32m$[0m ./show-cells
+[1mbold[0m [2mdim[0m [3mitalic[0m [7minverse[0m [9mstrikethrough[0m [8mhidden[0m(hidden) [1;3mbold italic[0m
+[4munderline[0m [4:2mdouble[0m [4:3mcurly[0m [4:4mdotted[0m [4:5mdashed[0m [4;58;2;248;113;113mred line[0m [4:3;58;2;251;191;36mamber wave[0m [4;9mboth[0m
+normal: [30mblack[0m [31mred[0m [32mgreen[0m [33myellow[0m [34mblue[0m [35mmagenta[0m [36mcyan[0m [37mwhite[0m 
+bold:   [1;30mblack[0m [1;31mred[0m [1;32mgreen[0m [1;33myellow[0m [1;34mblue[0m [1;35mmagenta[0m [1;36mcyan[0m [1;37mwhite[0m 
+dim:    [2;30mblack[0m [2;31mred[0m [2;32mgreen[0m [2;33myellow[0m [2;34mblue[0m [2;35mmagenta[0m [2;36mcyan[0m [2;37mwhite[0m 
+bright: [90mblack[0m [91mred[0m [92mgreen[0m [93myellow[0m [94mblue[0m [95mmagenta[0m [96mcyan[0m [97mwhite[0m 
+on:     [40m 0 [0m[41m 1 [0m[42m 2 [0m[43m 3 [0m[44m 4 [0m[45m 5 [0m[46m 6 [0m[47m 7 [0m [100m 0 [0m[101m 1 [0m[102m 2 [0m[103m 3 [0m[104m 4 [0m[105m 5 [0m[106m 6 [0m[107m 7 [0m
+
+┌──────┬──────┐  ┏━━━━━━┳━━━━━━┓  ╔══════╦══════╗
+│ one  │ two  │  ┃ one  ┃ two  ┃  ║ one  ║ two  ║
+├──────┼──────┤  ┣━━━━━━╋━━━━━━┫  ╠══════╬══════╣
+│ ╱╲╳  │ ┼╋╬  │  ┃ ╾╼╸╺ ┃ ╿╽╻╹ ┃  ║ ╒╓╕╖ ║ ╘╙╛╜ ║
+└──────┴──────┘  ┗━━━━━━┻━━━━━━┛  ╚══════╩══════╝
+╭──────┬──────╮  ┌──┐ ╭──╮ ┏━━┓
+│ one  │ two  │  │  │ │  │ ┃  ┃
+├──────┼──────┤  └──┘ ╰──╯ ┗━━┛
+│      │      │
+╰──────┴──────╯
+▀▀▀▀▀▀ ▄▄▄▄▄▄ ██████ ▌▌▌▌▌▌ ▐▐▐▐▐▐ ░░░░░░ ▒▒▒▒▒▒ ▓▓▓▓▓▓
+▖▗▘▙▚▛▜▝▞▟ ▁▂▃▄▅▆▇█ ▏▎▍▌▋▊▉█
+[32m████████[0m[44m▀▀▀▀▀▀▀▀[0m[31m▒▒▒▒▒▒▒▒[0m[33m▓▓▓▓▓▓▓▓[0m[36m▄▄▄▄▄▄▄▄[0m
+[32m████████[0m[44m████████[0m[31m████████[0m[33m████████[0m[36m████████[0m
+
+docs: https://example.com/docs/cells?page=2#links and (https://example.com/a_b-c) end.
+a very long address that wraps at the right edge of the grid: https://example.com/archive/2026/11/18/terminal-cells-and-links-that-keep-going/index.html?ref=cells
+]8;;https://example.com/changelog\changelog (OSC 8)]8;;\  ]8;;file:///etc/passwd\not opened (file:)]8;;\
+[1;32m$[0m 

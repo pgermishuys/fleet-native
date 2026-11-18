@@ -254,6 +254,8 @@ mod tests_summary_bar;
 #[cfg(test)]
 mod tests_terminal;
 #[cfg(test)]
+mod tests_terminal_cells;
+#[cfg(test)]
 mod tests_terminal_drawer;
 #[cfg(test)]
 mod tests_terminal_keys;
@@ -4456,6 +4458,11 @@ pub fn spec() -> AppSpec<State> {
             ("terminal-git-log-light", |s| s.show_terminal(mock::terminal_scenes::Stream::GitLog, false)),
             ("terminal-unicode", |s| s.show_terminal(mock::terminal_scenes::Stream::Unicode, true)),
             ("terminal-unicode-light", |s| s.show_terminal(mock::terminal_scenes::Stream::Unicode, false)),
+            // Piece G: every cell attribute, box drawing and blocks, and a link under the pointer.
+            ("terminal-cells", |s| s.show_terminal(mock::terminal_scenes::Stream::Cells, true)),
+            ("terminal-cells-light", |s| s.show_terminal(mock::terminal_scenes::Stream::Cells, false)),
+            ("terminal-cells-link", |s| s.show_terminal_link(true, 27, 10)),
+            ("terminal-cells-link-light", |s| s.show_terminal_link(false, 27, 10)),
             // Piece B: the connection lost and given up on.
             // Piece C: the pretend shell of the app with no server, showing the first terminal's start.
             ("terminal-mock", |s| s.show_terminal_mock(true)),

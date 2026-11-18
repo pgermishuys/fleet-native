@@ -1876,3 +1876,12 @@ Read at the pin while planning; nothing built yet.
   where Fleet colours them.
 - **`SyntaxTheme::spans` sets no italic or underline**, only colour and weight; the viewer builds its own `Span`s from the
   highlights to italicise comments and underline links as Fleet's theme does.
+
+
+## Component 13, piece G (cells, the cursor, links)
+
+- **`GridRow::shape` draws in the row's own points from its top-left corner**, one point a pixel at 1×: a 1 px line centred at `x + 3.5` in a 7 px cell is crisp, a 3 px heavy line centred there is too. Edges of block fills are rounded to whole points so neighbours meet.
+- **`ElementInfo.rect` is `[x, y, w, h]`**, not corners.
+- **`on_pointer_move_local` gives the pointer in the element's own points**, the way to find the cell under it; a small child with `.cursor(Cursor::Pointer)` and `on_press_tx` is the way to get a hand over just a link.
+- **Rune's `Runtime::take_url_requests()` returns what `tx.open_url` asked for in a test.**
+- A blink is the app's clock plus `tx.wake_after` for the time left in the half period; alacritty's default cursor style must be set to blinking in its `Config` (`default_cursor_style`) or a cursor the program never set is steady.

@@ -14,8 +14,9 @@ use alacritty_terminal::term::color::Colors;
 use alacritty_terminal::term::{Term, TermDamage, TermMode};
 use alacritty_terminal::vte::ansi::{Color as Ansi, CursorShape, NamedColor};
 use rune::tok::TextStyle;
-use rune::{Color, GridRow, Span};
+use rune::{Color, GridRow, Shape, Span};
 
+use super::cells::{self, Under};
 use super::fit::{CELL_H, CELL_W, FONT};
 use super::palette::Palette;
 
@@ -47,6 +48,8 @@ pub struct Cursor {
     pub shape: CursorShape,
     pub ch: String,
     pub wide: bool,
+    /// The program (or the default) asks for it to blink.
+    pub blinking: bool,
 }
 
 /// What the view draws: the rows on screen and where the cursor is.
@@ -123,7 +126,16 @@ impl Screen {
             (look, cols, spans[v]).hash(&mut h);
             for c in 0..cols {
                 let cell = &row[Column(c)];
-                (cell.c, cell.flags.bits(), code(cell.fg), code(cell.bg), cell.zerowidth()).hash(&mut h);
+                (
+                    cell.c,
+                    cell.flags.bits(),
+                    code(cell.fg),
+                    code(cell.bg),
+                    cell.underline_color().map_or(0, code),
+                    cell.hyperlink().is_some(),
+                    cell.zerowidth(),
+                )
+                    .hash(&mut h);
             }
             let key = h.finish() | 1;
             self.spans[v] = spans[v];
@@ -145,6 +157,7 @@ impl Screen {
                 shape: cur.shape,
                 ch,
                 wide: cell.flags.contains(Flags::WIDE_CHAR),
+                blinking: term.cursor_style().blinking,
             }
         });
         self.mode = content.mode;
@@ -206,6 +219,10 @@ fn build_row<'a>(
     let (mut text, mut spans, mut fills, mut pins) = (String::new(), Vec::<Span>::new(), Vec::new(), Vec::new());
     let mut fill: Option<(u16, u16, Color)> = None;
     let mut wraps = false;
+    // Strokes over the text: box drawing, underlines and strikethrough (13.11).
+    let mut shape = Shape::new();
+    let mut under: Option<(Under, Color, u16, u16)> = None;
+    let mut strike: Option<(Color, u16, u16)> = None;
     for (col, cell) in cells.enumerate() {
         let flags = cell.flags;
         wraps = flags.contains(Flags::WRAPLINE);
@@ -220,8 +237,30 @@ fn build_row<'a>(
         if flags.contains(Flags::DIM) {
             fg = fg.alpha(0.5);
         }
-        // Background runs: extend the open one while the colour holds.
         let c = col as u16;
+        // Underline and strikethrough runs: one line over cells that share a style and colour.
+        // xterm underlines the cells of an OSC 8 link with dots, hovered or not.
+        let line = underline_of(flags).or_else(|| cell.hyperlink().is_some().then_some(Under::Dotted));
+        let ink = cell.underline_color().and_then(|u| resolve(pal, u, colors, false, pal.fg)).unwrap_or(fg);
+        under = match (under, line) {
+            (Some((u, k, s0, e)), Some(st)) if u == st && k == ink && e == c => Some((u, k, s0, c + 1)),
+            (open, st) => {
+                if let Some((u, k, s0, e)) = open {
+                    shape = cells::underline(shape, u, s0, e, k);
+                }
+                st.map(|st| (st, ink, c, c + 1))
+            }
+        };
+        strike = match (strike, flags.contains(Flags::STRIKEOUT)) {
+            (Some((k, s0, e)), true) if k == fg && e == c => Some((k, s0, c + 1)),
+            (open, on) => {
+                if let Some((k, s0, e)) = open {
+                    shape = cells::strike(shape, s0, e, k);
+                }
+                on.then_some((fg, c, c + 1))
+            }
+        };
+        // Background runs: extend the open one while the colour holds.
         fill = match (fill, bg) {
             (Some((s, e, k)), Some(b)) if k == b && e == c => Some((s, c + 1, k)),
             (open, b) => {
@@ -230,6 +269,11 @@ fn build_row<'a>(
             }
         };
         if flags.intersects(Flags::WIDE_CHAR_SPACER | Flags::LEADING_WIDE_CHAR_SPACER) {
+            text.push(' ');
+            continue;
+        }
+        if !flags.contains(Flags::HIDDEN) && cells::drawn(cell.c) {
+            shape = cells::draw(shape, cell.c, c, fg);
             text.push(' ');
             continue;
         }
@@ -250,29 +294,25 @@ fn build_row<'a>(
         }
         let at = text.len();
         text.push_str(&glyph);
-        let underline = flags.intersects(Flags::ALL_UNDERLINES);
         // Spans: extend the last one while the style holds.
         match spans.last_mut() {
-            Some(s)
-                if s.end as usize == at
-                    && s.color == Some(fg)
-                    && s.weight == Some(st.weight)
-                    && s.italic == st.italic
-                    && s.underline.is_some() == underline =>
-            {
+            Some(s) if s.end as usize == at && s.color == Some(fg) && s.weight == Some(st.weight) && s.italic == st.italic => {
                 s.end = text.len() as u32;
             }
             _ => {
                 let mut s = Span::new(at, text.len()).color(fg).weight(st.weight);
                 s.italic = st.italic;
-                if underline {
-                    s = s.underline(fg);
-                }
                 spans.push(s);
             }
         }
     }
     fills.extend(fill);
+    if let Some((u, k, s0, e)) = under {
+        shape = cells::underline(shape, u, s0, e, k);
+    }
+    if let Some((k, s0, e)) = strike {
+        shape = cells::strike(shape, s0, e, k);
+    }
     let mut row = GridRow::new(text, spans, style()).wraps(wraps);
     for (s, e, k) in fills {
         row = row.fill(s, e, k);
@@ -284,5 +324,18 @@ fn build_row<'a>(
     for (col, width, glyph, st, fg) in pins {
         row = row.cell(col, width, glyph, st, fg);
     }
-    row
+    row.shape(shape)
+}
+
+/// Which underline a cell has, if any.
+fn underline_of(f: Flags) -> Option<Under> {
+    [
+        (Flags::UNDERCURL, Under::Curly),
+        (Flags::DOUBLE_UNDERLINE, Under::Double),
+        (Flags::DOTTED_UNDERLINE, Under::Dotted),
+        (Flags::DASHED_UNDERLINE, Under::Dashed),
+        (Flags::UNDERLINE, Under::Single),
+    ]
+    .into_iter()
+    .find_map(|(flag, u)| f.contains(flag).then_some(u))
 }
