@@ -1,0 +1,5 @@
+<!doctype html>
+<html><body style="font-family: sans-serif; padding: 24px">
+<h1>Paging preview</h1>
+<p>Page 2 of 5</p>
+</body></html>

@@ -23,6 +23,8 @@ pub enum Case {
     ReviewLong,
     /// Forty added files, as a long change opens: the first two are near the visible part and drawn, the rest hold their room (piece H).
     ReviewNear,
+    /// A Markdown file edited and an HTML file added: each can be looked at as Rendered (piece M).
+    ReviewDocs,
 }
 
 pub const FIX: &str = "git config --global --add safe.directory /srv/demo-app";
@@ -35,7 +37,7 @@ impl State {
         self.right.review = false;
         let id = self.canvas_session();
         self.diffs.reset(&id);
-        if matches!(case, Case::Review | Case::ReviewStates | Case::ReviewLong | Case::ReviewNear) {
+        if matches!(case, Case::Review | Case::ReviewStates | Case::ReviewLong | Case::ReviewNear | Case::ReviewDocs) {
             self.review_scene(case);
             return;
         }
@@ -49,7 +51,7 @@ impl State {
             }
             Case::EmptySession => d.base = Some(Base::Session),
             Case::EmptyBranch => d.base = Some(Base::Branch { branch: Some("main".into()), commit: Some("8a61fdd7c0ffee".into()) }),
-            Case::Review | Case::ReviewStates | Case::ReviewLong | Case::ReviewNear => {}
+            Case::Review | Case::ReviewStates | Case::ReviewLong | Case::ReviewNear | Case::ReviewDocs => {}
         }
         d.has_loaded = true;
     }
@@ -93,6 +95,28 @@ impl State {
                 );
                 held.push(("src/paginate.py".to_string(), Entry::Ready(paginate)));
                 held.push(("src/page_size.py".to_string(), Entry::Ready(page_size)));
+            }
+            Case::ReviewDocs => {
+                let md = file(
+                    "docs/paging.md",
+                    "modified",
+                    9,
+                    5,
+                    include_str!("changes/paging.before.md").to_string(),
+                    include_str!("changes/paging.after.md").to_string(),
+                    [false; 2],
+                );
+                let html = file(
+                    "docs/preview.html",
+                    "added",
+                    5,
+                    0,
+                    String::new(),
+                    include_str!("changes/preview.html.txt").to_string(),
+                    [false; 2],
+                );
+                held.push(("docs/paging.md".to_string(), Entry::Ready(md)));
+                held.push(("docs/preview.html".to_string(), Entry::Ready(html)));
             }
             Case::ReviewNear => {
                 // What the scratch Fleet's long change holds: forty files of twelve small functions each. Only those near the top were
@@ -141,6 +165,13 @@ impl State {
         let files = self.review_files();
         self.review.decide(&files);
         self.review_sync();
+    }
+
+    /// The review of a Markdown and an HTML file, both viewed as Rendered when `rendered`.
+    pub fn show_review_docs(&mut self, dark: bool, rendered: bool) {
+        self.show_changes_scene(Case::ReviewDocs, dark);
+        self.set_review_rendered("docs/paging.md", rendered);
+        self.set_review_rendered("docs/preview.html", rendered);
     }
 
     /// The review with Split picked, a fold opened.

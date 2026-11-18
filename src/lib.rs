@@ -158,6 +158,8 @@ mod tests_review_near;
 #[cfg(test)]
 mod tests_review_pick;
 #[cfg(test)]
+mod tests_review_rendered;
+#[cfg(test)]
 mod tests_review_revert;
 #[cfg(test)]
 mod tests_right_panel;
@@ -1485,7 +1487,8 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_attachments(tx)
         | s.keep_new_message(tx)
         | s.keep_new_mentions(now, tx);
-    let scrolled = s.keep_scroll(tx) | s.keep_review_near() | s.keep_changes_find(now, tx) | s.keep_review_toast(now, tx);
+    let scrolled =
+        s.keep_scroll(tx) | s.keep_review_near() | s.keep_review_focus(tx) | s.keep_changes_find(now, tx) | s.keep_review_toast(now, tx);
     // The tick asks for the next frame first, so `keep_images` starts it in the same poll.
     let agent_view = s.keep_agent_view(now, tx);
     let pictures = s.keep_images(tx) | agent_view;
@@ -2706,6 +2709,10 @@ pub fn spec() -> AppSpec<State> {
             ("review-lines-light", |s| s.show_review_lines(false, false)),
             ("review-lines-old", |s| s.show_review_lines(true, true)),
             ("review-lines-old-light", |s| s.show_review_lines(false, true)),
+            ("review-docs", |s| s.show_review_docs(true, false)),
+            ("review-docs-light", |s| s.show_review_docs(false, false)),
+            ("review-rendered", |s| s.show_review_docs(true, true)),
+            ("review-rendered-light", |s| s.show_review_docs(false, true)),
             ("review-near", |s| s.show_changes_scene(mock::changes::Case::ReviewNear, true)),
             ("review-near-light", |s| s.show_changes_scene(mock::changes::Case::ReviewNear, false)),
             ("review-long", |s| s.show_changes_scene(mock::changes::Case::ReviewLong, true)),

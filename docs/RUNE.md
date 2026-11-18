@@ -1789,3 +1789,8 @@ Read at the pin while planning; nothing built yet.
 - **`truncate_head` cuts a text at its start** with "…" (Fleet's `direction: rtl` folder), and `scroll_x` on a strip with `shrink()` scrolls the tabs sideways with no scrollbar.
 - **A child hidden by `group_opacity(0.0, 1.0)` still takes presses**: the tab's close button is under the pointer wherever it is drawn.
 - Mock sessions have no id, so a scene that needs a session (the drawer is per session) gives one with `set_session_id`.
+## Component 12, piece M (Rendered, the focus request)
+
+- **`rune_kit` Markdown inside a scrolling list needs no wrapper**: `view::prose::prose` in a padded `col` sits in the review's scroll like any other element, unlike a web view, which is why HTML gets 14's card there.
+- **`tx.scroll_into_view_in(scroll_key, card_key)`** needs the card drawn first, so a request that also opens and marks a file near does the scroll one poll later (`wake_after` 16 ms); it brings the card into view, it doesn't pin its top to the scroll box's.
+- **A script's `tap` is the only pointer event** (no `move`): to show a header's hover actions, tap one of them that changes nothing.

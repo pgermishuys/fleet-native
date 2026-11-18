@@ -5,6 +5,7 @@ use super::diff_contents::Entry;
 use super::diffs::FileDiff;
 use crate::State;
 use crate::conv::review::ReviewItem;
+use rune::Tx;
 use std::cell::Cell;
 use std::collections::HashSet;
 use std::rc::Rc;
@@ -146,6 +147,18 @@ pub fn name_of(path: &str) -> &str {
     path.rfind('/').map_or(path, |i| &path[i + 1..])
 }
 
+/// `hasRenderedView`: a Markdown or HTML file can be looked at as drawn (`.md`, `.markdown`, `.mdx`, `.htm`, `.html`).
+pub fn has_rendered_view(path: &str) -> bool {
+    let lower = path.to_lowercase();
+    [".md", ".markdown", ".mdx", ".htm", ".html"].iter().any(|e| lower.ends_with(e))
+}
+
+/// `/\.html?$/i`: drawn by the HTML renderer (component 14's card), not Markdown.
+pub fn is_html_path(path: &str) -> bool {
+    let lower = path.to_lowercase();
+    lower.ends_with(".html") || lower.ends_with(".htm")
+}
+
 #[derive(Debug, Default)]
 pub struct Review {
     session: String,
@@ -171,6 +184,11 @@ pub struct Review {
     pub picked: Option<Picked>,
     /// The toast at the bottom (`toastMessage`) and the clock time it goes at.
     pub toast: Option<(String, f64)>,
+    /// Files viewed as Rendered rather than as a diff (`rendered`).
+    rendered: HashSet<String>,
+    /// The last focus request answered (`handledSeq`), and the file its scroll is still due for.
+    handled_seq: u32,
+    pub focus_scroll: Option<String>,
 }
 
 /// The selected lines of one file.
@@ -232,6 +250,19 @@ impl Review {
     /// `markNear`: for a file something else needs drawn (find, a request to focus it). Returns whether any was new.
     pub fn mark_near(&mut self, paths: impl IntoIterator<Item = String>) -> bool {
         paths.into_iter().fold(false, |any, p| self.near.insert(p) | any)
+    }
+
+    pub fn is_rendered(&self, path: &str) -> bool {
+        self.rendered.contains(path)
+    }
+
+    /// `toggleRendered`.
+    pub fn set_rendered(&mut self, path: &str, on: bool) {
+        if on {
+            self.rendered.insert(path.to_string());
+        } else {
+            self.rendered.remove(path);
+        }
     }
 
     pub fn is_open(&self, path: &str) -> bool {
@@ -320,6 +351,39 @@ impl State {
         let files = self.review_files();
         self.review.toggle_all(&files);
         self.review_sync();
+    }
+
+    /// The Diff | Rendered segment.
+    pub fn set_review_rendered(&mut self, path: &str, on: bool) {
+        self.review.set_rendered(path, on);
+    }
+
+    /// A request from another component to look at one file (`reviewFocus`, set by `open_changes(path)`), answered once per `seq`
+    /// when the file is in the list: its section opens, it is marked near and scrolled to the top on the frame after it is drawn.
+    pub fn keep_review_focus(&mut self, tx: &mut Tx) -> bool {
+        let session = self.diffs.session().to_string();
+        if session.is_empty() {
+            return false;
+        }
+        let mut changed = false;
+        if let Some(request) = self.canvases.session(&session).review_focus
+            && request.seq != self.review.handled_seq
+            && self.diffs.by_file(&request.path).is_some()
+        {
+            self.review.handled_seq = request.seq;
+            if !self.review.is_open(&request.path) {
+                self.review.toggle(&request.path);
+            }
+            self.review.mark_near([request.path.clone()]);
+            self.review_sync();
+            self.review.focus_scroll = Some(request.path);
+            tx.wake_after(std::time::Duration::from_millis(16));
+            changed = true;
+        } else if let Some(path) = self.review.focus_scroll.take() {
+            tx.scroll_into_view_in("review-scroll", format!("review-file-{path}"));
+            changed = true;
+        }
+        changed
     }
 
     /// Try again on a file whose diff failed.
