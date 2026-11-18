@@ -85,7 +85,7 @@ fn show_asks_for_the_canvas_the_call_opened_and_the_tab_comes_forward_when_it_is
 
 // CanvasHost.test.ts: "closes a server canvas through the server" (the request itself is in `fleet::tests::server_canvases`)
 #[test]
-fn the_close_button_of_a_server_tab_takes_the_tab_away() {
+fn closes_a_server_canvas_through_the_server() {
     let mut rt = scene();
     let id = rt.state.canvas_session();
     rt.update(|s, _| {

@@ -87,7 +87,7 @@ their pictures from scenes beside Fleet's client with the answers put in by Play
 | 1.2 | `.main`: rail, the context panel (`ContextPanel`, width 306, 200-500, `aria-label="Context panel"`) and its gutter only while `!panelCollapsed && panel !== null`; then the workspace sheet | AppShell 330-352; ContextPanel | Done for Sessions; other rails: 2.12 |
 | 1.3 | Workspace sheet: flex 1, `--panel-bg`, 1 px `--border`, `--radius-panel`, `--sheet-shadow`, overflow hidden; holds the centre and the right panel | AppShell 438-448 | Done (`sheet.rs`) |
 | 1.4 | Gutters: 8 px wide with -4 px margins, hover or drag fill `rgba(91,110,199,.15)`; left gutter drag clamps 200-500 | AppShell 214-246, 457-471 | Done (`view.rs` `gutter`) |
-| 1.5 | Right gutter and panel widths (360 default, 280 min, 480 kept for the conversation, Widen 760, review 60%), the panel as a sheet when it doesn't fit | AppShell 172-312 | Component 10 |
+| 1.5 | Right gutter and panel widths (360 default, 280 min, 480 kept for the conversation, Widen 760, review 60%), the panel as a sheet when it doesn't fit | AppShell 172-312 | Component 10 | **Closed by component 10 (18 November 2026):** ported under Fleet's names (10 pieces B, D).
 | 1.6 | `CenterContent`: padding 24 and scroll on every route except `/sessions/…` (no padding, no scroll) | CenterContent 31-50 | **Done (9D)** for Home: the page is a panel with a scroll and 24 px padding, its column centred. Other pages pad their own |
 | 1.7 | Ctrl/⌘ B (`toggle-sidebar`) collapses the context panel of **any** rail, remembered (`weave:left-collapsed`) | `stores/sidebar.ts`, AppShell 109 | Done in A: `State::context_panel_shown` (`sidebar_open` and the rail has a panel); the command now remembers it (`set_sidebar_open`). Other rails draw no panel yet, so only Sessions shows the effect |
 | 1.8 | Mounted once: palette (1, done), Go to file (11), `ProblemReportDialog` (9.x), `ArchiveUndoToast` (6, done), `NoticeCard` (7.x), `ModsSafeModeBanner` (22) | AppShell 359-455 | See owners |
@@ -273,12 +273,12 @@ Counts are `it(...)` cases. Ported tests keep Fleet's names (in Rust, `snake_cas
 |---|---|---|
 | `components/layout/__tests__/rails.test.ts` | 26 (3 of them run once per Labs feature, `describe.each` × 4) | A |
 | `components/layout/__tests__/ContextPanel.test.ts` | 4 | A (plugin panels: as rules on the rail list; the placeholder panel is drawn only when a plugin rail has no panel) |
-| `stores/__tests__/sidebar.test.ts` | 9 | A: "tracks the active rail and panel visibility", "persists both panel states"; the rest are 6F's and 10's (confirm by name) |
+| `stores/__tests__/sidebar.test.ts` | 9 | A: "tracks the active rail and panel visibility", "persists both panel states"; the rest are 6F's and 10's (confirm by name) | **Closed by component 10 (18 November 2026):** ported under Fleet's names (10 pieces B, D).
 | `components/layout/__tests__/StatusBar.test.ts` | 11 | B (9), J ("shows the usage chip unless the Settings switch hides it"); "hides the terminal from the terminal's own hints…" goes to 13 |
 | `components/layout/__tests__/StatusBar.characterise.test.ts` | 2 | B (as view tests of the two states, not snapshots) |
 | `components/layout/__tests__/StatusBar.mods.test.ts` | 7 | Component 22 |
 | `components/layout/__tests__/MachineScope.test.ts` | 1 | Done in 17 (checked in W): the case is `shows_the_machine_you_re_on_and_pages_ask_it` and `makes_the_machine_the_one_youre_on_and_goes_to_its_first_page_in_place` |
-| `components/layout/__tests__/CollapsedRightRail.test.ts`, `shell-font-scale.test.ts` | 4, 1 | Component 10; the font scale one is a CSS check (26) |
+| `components/layout/__tests__/CollapsedRightRail.test.ts`, `shell-font-scale.test.ts` | 4, 1 | Component 10; the font scale one is a CSS check (26) | **Closed by component 10 (18 November 2026):** ported under Fleet's names (10 pieces B, D).
 | `routes/__tests__/home-landing.test.ts` | 5 | C (4; the phone one skipped) |
 | `components/dashboard/__tests__/FleetDashboard.machine.test.ts` | 4 | E (3; the phone heading one skipped) |
 | `components/dashboard/__tests__/FleetDashboard.archive.test.ts` | 1 | E |

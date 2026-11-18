@@ -1,7 +1,7 @@
 //! What the Agents tab keeps while it is mounted (`AgentsCanvas.vue`'s script): which row's detail is open, whether the Earlier
 //! fold is open, the one read of a no-session item's output, and the tab's own life: introduced when something runs, its
 //! badge, and its history read on show and on a session change. The words and the sections are `fleet::agents`.
-use super::agents::{AgentRow, AgentsLineage, DetailInput, OpenTarget, parent_row};
+use super::agents::{AgentActivity, AgentRow, AgentsLineage, DetailInput, OpenTarget, parent_row};
 use super::canvases::CanvasKind;
 use super::groups::{LineageKind, lineage_of};
 use crate::State;
@@ -17,7 +17,21 @@ pub struct AgentsTab {
     /// The last line of the output of work with no session, read once per item.
     outputs: HashMap<String, Option<String>>,
     /// The session the tab last asked its history for.
-    loaded_for: Option<String>,
+    pub(crate) loaded_for: Option<String>,
+    /// What each row's own session showed (`useAgentActivity`), by the row's session id.
+    activity: HashMap<String, Seen>,
+}
+
+/// How long a running row's session is left before it is read again. Fleet listens to the child's topic; native reads
+/// `GET /api/sessions/{id}/messages` instead (no second hub subscription), so a running row is read again on this beat.
+const REREAD_SECONDS: f64 = 3.0;
+
+#[derive(Debug, Default)]
+struct Seen {
+    activity: Option<AgentActivity>,
+    /// When the last answer arrived, on `State::clock`.
+    at: f64,
+    asking: bool,
 }
 
 impl AgentsTab {
@@ -52,29 +66,32 @@ impl State {
     /// What a row says it runs on.
     pub fn agents_runs_on(&self, id: &str, row: &AgentRow) -> Option<String> {
         let own = self.listed(id).and_then(|s| s.row.harness_type.clone());
-        super::agents::runs_on(row, own.as_deref(), &HashMap::new(), &self.pickers.harnesses, self.turn_models())
+        let seen: HashMap<String, String> = row
+            .session_id
+            .as_ref()
+            .and_then(|id| Some((row.key.clone(), self.agents_tab.activity.get(id)?.activity.as_ref()?.model_id.clone()?)))
+            .into_iter()
+            .collect();
+        super::agents::runs_on(row, own.as_deref(), &seen, &self.pickers.harnesses, self.turn_models())
     }
 
-    /// The model of the shown row's detail, from the work and (until the side stream lands) no activity.
+    /// The model of the shown row's detail, from the work and the row's own session.
     pub fn agents_detail(&self, id: &str, row: &AgentRow) -> super::agents::Detail {
         let work_id = row.work.as_ref().map(|w| w.id.as_str());
         let output = work_id.and_then(|w| self.agents_tab.outputs.get(w)).and_then(|l| l.as_deref());
-        let mut detail = super::agents::detail(&DetailInput {
+        super::agents::detail(&DetailInput {
             row,
             this_session: id,
-            activity: None,
+            activity: row.session_id.as_ref().and_then(|id| self.agents_tab.activity.get(id)).and_then(|s| s.activity.as_ref()),
             output_line: output,
             stopping: work_id.is_some_and(|w| self.work.stopping.contains(w)),
             stop_error: work_id.and_then(|w| self.work.stop_errors.get(w)).map(String::as_str),
-        });
-        // Nothing reads the row's own session yet (the side stream is piece L2), so "Reading its session…" would never end.
-        detail.reading = false;
-        detail
+        })
     }
 
     /// Called every frame. Adds the tab the first time something runs or waits, keeps the badge's number, and while the tab is
     /// shown reads what it needs once: the history, the parent's title, a no-session item's output.
-    pub fn keep_agents_tab(&mut self, _tx: &mut Tx) {
+    pub fn keep_agents_tab(&mut self, tx: &mut Tx) {
         let session = self.canvas_session();
         let lineage = self.agents_lineage(&session);
         self.canvases.agents_running = lineage.active_count();
@@ -94,7 +111,51 @@ impl State {
         }
         if let Some(row) = shown_row(&lineage, self.agents_tab.selected.as_deref()) {
             self.read_agent_output(&row);
+            self.read_agent_session(&row, tx);
         }
+    }
+
+    /// 5.34: a row with a session of its own shows what that session did. Read when the detail first shows and, while the
+    /// row still runs, again every few seconds.
+    fn read_agent_session(&mut self, row: &AgentRow, tx: &mut Tx) {
+        let Some(child) = row.session_id.clone() else { return };
+        let running = row.state.is_active();
+        let link = self.link_for(&child);
+        let clock = self.clock;
+        let seen = self.agents_tab.activity.entry(child.clone()).or_default();
+        let due = seen.activity.is_none() || (running && clock - seen.at >= REREAD_SECONDS);
+        if running && !seen.asking && !due {
+            tx.wake_after(
+                std::time::Duration::from_secs_f64(REREAD_SECONDS - (clock - seen.at)).max(std::time::Duration::from_millis(100)),
+            );
+        }
+        if seen.asking || !due {
+            return;
+        }
+        let Some(link) = link else { return };
+        seen.asking = true;
+        let asked = child.clone();
+        link.off_thread(
+            move |base| {
+                let path = format!("/api/sessions/{}/messages?limit=200", crate::conv::export_history::encode_component(&asked));
+                super::http::get_page(base, &path).ok().filter(|(status, _)| (200..300).contains(status)).and_then(|(_, body)| {
+                    let body: serde_json::Value = serde_json::from_str(&body).ok()?;
+                    let list = body.get("messages")?.as_array()?;
+                    // A page is oldest first, as the summary reads it.
+                    let messages: Vec<_> =
+                        list.iter().filter_map(|m| crate::conv::export_history::convert_fleet_message(m, &asked)).collect();
+                    Some(super::agents::summarize_agent_activity(&messages))
+                })
+            },
+            move |s, _, activity| {
+                let clock = s.clock;
+                let seen = s.agents_tab.activity.entry(child).or_default();
+                seen.asking = false;
+                seen.at = clock;
+                // A failed read still ends "Reading its session…": it would never end otherwise.
+                seen.activity = activity.or_else(|| seen.activity.take()).or_else(|| Some(AgentActivity::default()));
+            },
+        );
     }
 
     /// 5.32: work with no session of its own, that the server can read, has its last output line read once.
