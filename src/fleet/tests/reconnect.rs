@@ -369,7 +369,10 @@ fn coming_back_to_the_window_while_the_hub_is_down_reconnects_at_once() {
     crate::test_wait::drive(&mut rt, &queue, "the hub to come back", |s| s.connection == Connection::Online, crate::test_wait::app_state);
     let times = attempts.lock().unwrap().clone();
     let waited = times[3] - times[2];
-    assert!(waited < reconnect_delay(2) - Duration::from_secs(1), "didn't reconnect when the window came back: {waited:?} after the last try");
+    assert!(
+        waited < reconnect_delay(2) - Duration::from_secs(1),
+        "didn't reconnect when the window came back: {waited:?} after the last try"
+    );
 }
 
 /// Whether the connection is the hub's negotiate, the first call of every attempt to connect. Peeks until enough of the
