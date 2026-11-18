@@ -7,6 +7,7 @@ pub mod agents;
 pub mod agents_row;
 pub mod allowed;
 pub mod analytics;
+pub mod annotation;
 pub mod ask_card;
 pub mod attachments;
 pub mod autocomplete;

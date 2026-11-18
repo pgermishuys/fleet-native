@@ -186,7 +186,7 @@ Files tab, each in both themes.
 | # | Element / behaviour | Source | Native today |
 |---|---|---|---|
 | 9.1 | Diff \| Rendered on a Markdown or HTML file (6.4): Rendered draws the file's new text with the Markdown renderer (padding `8px 14px`); HTML with the HTML renderer | CR 302-313, 1001-1008, 1531-1533; `stores/canvases.ts` 131 | Done in piece M (18 November 2026): Markdown through `view::prose` (padding `8px 14px`), HTML through `html_card` whose Expand opens the page as a tab; only once the file's contents are Ready, after the binary and too-large notes. Each file has its own choice, kept per session while the review lives |
-| 9.2 | Selecting text in rendered Markdown offers to ask the agent about it: the right panel's popover (`AnnotationPopover`, `useAnnotation`, `formatAnnotationPrompt`) puts the question in the draft. Shared with the file tab (11) and the visual tab (14); HTML in Changes isn't annotatable | CR 547-550, 1005-1007; `SessionsV2RightPanel.vue` 206-236, 278-284; `use-canvas-annotation.ts` | None. Owned here (agreed with component 10's planner, 17 November 2026) through one `State::open_annotation(anchor_text, position, path)` that 11 and 14 call |
+| 9.2 | Selecting text in rendered Markdown offers to ask the agent about it: the right panel's popover (`AnnotationPopover`, `useAnnotation`, `formatAnnotationPrompt`) puts the question in the draft. Shared with the file tab (11) and the visual tab (14); HTML in Changes isn't annotatable | CR 547-550, 1005-1007; `SessionsV2RightPanel.vue` 206-236, 278-284; `use-canvas-annotation.ts` | Done in piece N (18 November 2026) for a selection of text: `fleet::annotation` (`State::open_annotation(anchor_text, position, path, tx)`, `send_annotation`, the prompt as `formatAnnotationPrompt` makes it) and `view::annotation`, over the Rendered Markdown's selection (opens when the drag lets go, at the pointer). **Gap:** clicking a block with no selection (Fleet's `ElementAnchor`) isn't ported: `rune_kit`'s Markdown gives no per-block hooks or rectangles. |
 
 ## Part 10: revert
 
@@ -497,7 +497,9 @@ Tests: `src/tests_review_rendered.rs` (8: Rendered offered for Markdown/HTML onl
 - **Pictures:** a Markdown file's Diff and Rendered beside Fleet's (make one with the scripted model's `write-file`
   pointed at a `.md`, or a shell `run-tests` step that writes one; say how).
 
-### Piece N: asking about rendered text (the annotation popover)
+### Piece N: asking about rendered text (the annotation popover) (**done** for selected text, 18 November 2026)
+
+Tests: `src/tests_review_annotation.rs` (7: "rendered markdown can be asked about, like a file tab's", HTML and the diff ask nothing, Send off until there is a comment and the prompt goes as a message, Cancel and Esc leave the draft alone, Ctrl+Enter sends, placement and the 16 pt clamp, the prompt's format). Fleet has no tests for the popover itself. Pictures `shots/parity/12n-annotation/`. Notes on Fleet: Send *replaces the draft* with the prompt and sends it (`setText` then `sendPrompt`), so no draft is left, and a half-typed draft is lost; kept as Fleet has it. The prompt carries the quote twice (the frame and the comment's `Context:` line); kept. Gaps: the block click (see 9.2); the popover is for Changes only until 11 and 14 call `open_annotation`.
 
 - **Rows:** 9.2.
 - **Files:** new `src/fleet/annotation.rs` (`State::open_annotation(anchor_text, position, path)`, the prompt from
