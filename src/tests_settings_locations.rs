@@ -155,9 +155,10 @@ impl Rig {
         self.heard().iter().filter(|(m, _)| m != "GET").count()
     }
     fn heard(&self) -> Vec<(String, String)> {
-        // The Worktrees and Storage cards share the page and read on their own schedule; these tests are about Locations.
-        let other = |p: &str| p.starts_with("/api/storage/") || p.starts_with("/api/worktrees/");
-        self.fake.lock().unwrap().heard.iter().filter(|(_, p, _)| !other(p)).map(|(m, p, _)| (m.clone(), p.clone())).collect()
+        // Only what Locations itself asks. The rest of Settings reads on its own schedule (the Worktrees and Storage cards,
+        // the update status for the menu's dot), and one of those landing between an add and its list broke the order.
+        let ours = |p: &str| ["/api/workspace-roots", "/api/repositories/", "/api/directories"].iter().any(|r| p.starts_with(r));
+        self.fake.lock().unwrap().heard.iter().filter(|(_, p, _)| ours(p)).map(|(m, p, _)| (m.clone(), p.clone())).collect()
     }
     fn key(&mut self, key: Key) {
         self.rt.key(KeyEvent { key, mods: Mods::default() });
