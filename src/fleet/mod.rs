@@ -106,6 +106,7 @@ pub mod restart_notice;
 pub mod retry;
 pub mod revert;
 pub mod review;
+pub mod review_pick;
 pub mod right_panel;
 pub mod routing;
 pub mod row_chips;

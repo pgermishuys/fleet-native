@@ -393,6 +393,11 @@ impl State {
             return true;
         }
         if !self.changes_find.open {
+            // Esc clears the selected lines ("Clear (Esc)"), and stops here.
+            if ev.key == rune::Key::Escape && self.review.picked.is_some() {
+                self.clear_pick(tx);
+                return true;
+            }
             return false;
         }
         let direction = crate::conv::changes_find::step_shortcut(ev, apple);

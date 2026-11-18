@@ -167,6 +167,17 @@ pub struct Review {
     pub notice: Option<String>,
     /// The file whose diff is asked for again once the list a revert asked for has come.
     pub reload_after_list: Option<String>,
+    /// The lines the reader selected (`selected`): the bar under the review is about them.
+    pub picked: Option<Picked>,
+    /// The toast at the bottom (`toastMessage`) and the clock time it goes at.
+    pub toast: Option<(String, f64)>,
+}
+
+/// The selected lines of one file.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Picked {
+    pub path: String,
+    pub lines: crate::conv::line_quote::ReviewSelection,
 }
 
 impl Review {

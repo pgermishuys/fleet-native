@@ -170,6 +170,26 @@ impl State {
         }
     }
 
+    /// The review of the scratch Fleet's two files with lines of `src/paginate.py` selected, so the bar is up: its changed lines in
+    /// the new file (`old` false) or the lines it lost (`old` true). The picture of a real drag is the script's.
+    pub fn show_review_lines(&mut self, dark: bool, old: bool) {
+        use crate::conv::line_quote::{ReviewSelection, Side};
+        use crate::conv::review::ReviewItem;
+        self.show_review_hunks(dark, false);
+        let Some(crate::fleet::diff_contents::Entry::Ready(f)) = self.diff_contents.entry("src/paginate.py") else { return };
+        let items = crate::view::review::review_items(f);
+        let numbers: Vec<u32> = items
+            .iter()
+            .filter_map(|i| if let ReviewItem::Hunk(h) = i { Some(h) } else { None })
+            .flat_map(|h| h.lines.iter())
+            .filter_map(|l| if old { l.line.old.filter(|_| l.line.new.is_none()) } else { l.line.new.filter(|_| l.line.old.is_none()) })
+            .collect();
+        let (Some(&first), Some(&last)) = (numbers.iter().min(), numbers.iter().max()) else { return };
+        let side = if old { Side::Old } else { Side::New };
+        self.review.picked =
+            Some(crate::fleet::review::Picked { path: "src/paginate.py".into(), lines: ReviewSelection { side, first, last } });
+    }
+
     /// The review with the find bar open on `query` (`steps` matches in), over the scratch Fleet's two files or the states one.
     pub fn show_review_find(&mut self, dark: bool, case: Case, query: &str, steps: usize) {
         self.show_changes_scene(case, dark);

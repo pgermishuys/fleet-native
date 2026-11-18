@@ -1,0 +1,5 @@
+{"events": [
+  {"t": 0.3, "type": "tap", "key": "review-file-head-src/page_size.py"},
+  {"t": 0.8, "type": "drag", "key": "review-tx-src/paginate.py-25", "dx": 40, "dy": 40, "dur": 0.4},
+  {"t": 1.6, "type": "mark", "name": "picked"}
+]}
