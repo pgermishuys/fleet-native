@@ -1,11 +1,11 @@
 //! Ports `components/canvas/ProgressCanvas.vue`: the Progress tab. The plan form (head, flow bar, now line, groups, steps and
 //! the live todo list under the current step), the todo form, and the empty state. What each step says and which group is
 //! open is worked out in `fleet::progress` and `fleet::progress_feed`. The subagent cards (`ProgressSubagentCard.vue`) are
-//! piece H's; this file leaves the place for them.
+//! drawn in `progress_subagent.rs`, under their step and in the "Subagents" list at the bottom.
 use crate::State;
 use crate::fleet::progress::{
     Plan, PlanGroup, PlanStep, ProgressDetail, TodoItem, TodoStatus, code_spans, current_plan_step, format_time, group_done, group_key,
-    group_open_default, is_flat, is_group_complete, last_tick, now_line,
+    group_open_default, is_flat, is_group_complete, last_tick, now_line, subagents_for, unplaced,
 };
 use crate::icons::{CHECK, CHEVRON_DOWN, CHEVRON_RIGHT, LIST_CHECKS};
 use crate::theme::{RADIUS_BTN, Theme, sans};
@@ -29,6 +29,13 @@ pub fn progress_tab(s: &State, t: &Theme) -> El {
         Some(d) if !d.todos.is_empty() => body.child(todo_form(t, d)),
         _ => body.child(empty(t)),
     };
+    // Under any of the three forms: the subagents no step shows.
+    if let Some(d) = detail {
+        let loose = unplaced(d);
+        if !loose.is_empty() {
+            body = body.child(super::progress_subagent::unplaced_list(t, &loose, &session));
+        }
+    }
     col()
         .key("progress-tab")
         .role("region")
@@ -39,7 +46,7 @@ pub fn progress_tab(s: &State, t: &Theme) -> El {
 }
 
 /// `.progress-canvas__eyebrow` and the in-step labels: 10 px, 600, uppercase, tracked 0.08em.
-fn eyebrow(t: &Theme, key: &str, words: &str) -> El {
+pub(super) fn eyebrow(t: &Theme, key: &str, words: &str) -> El {
     text(words.to_uppercase()).key(key.to_string()).font(sans(10.0, 600.0, 1.6).tracking(0.8)).color(t.muted)
 }
 
@@ -152,7 +159,7 @@ fn group_section(s: &State, t: &Theme, d: &ProgressDetail, plan: &Plan, session:
         let mut steps = col().key(format!("progress-steps-{index}")).w_full().pb(4.0).items_stretch();
         for step in &group.steps {
             let is_current = current.is_some_and(|c| c.step.key == step.key);
-            steps = steps.child(step_row(t, d, step, is_current, offset));
+            steps = steps.child(step_row(t, d, step, is_current, offset, session));
         }
         sec = sec.child(steps);
     }
@@ -232,7 +239,7 @@ fn step_title(t: &Theme, step: &PlanStep) -> El {
     rich(content, spans).font(sans(12.5, 400.0, 1.4)).color(ink).wrap_anywhere().grow(1.0).shrink().min_w(0.0)
 }
 
-fn step_row(t: &Theme, d: &ProgressDetail, step: &PlanStep, current: bool, offset: i64) -> El {
+fn step_row(t: &Theme, d: &ProgressDetail, step: &PlanStep, current: bool, offset: i64, session: &str) -> El {
     let number = step.number.clone().unwrap_or_default();
     let meta = if step.checked {
         format_time(step.ticked_at.as_deref(), offset)
@@ -263,10 +270,16 @@ fn step_row(t: &Theme, d: &ProgressDetail, step: &PlanStep, current: bool, offse
         r = r.fill(t.accent.alpha(0.07));
     }
     r = r.child(line);
+    // The step's detail spans the title and meta columns: past the glyph, the number and their gaps (16 + 6 + 20 + 6, less the
+    // row's own 6 of padding). Its cards come first, then the todos under the current step.
+    let placed = subagents_for(d, step);
+    if !placed.is_empty() {
+        r = r
+            .child(super::progress_subagent::cards(t, &placed, session).key(format!("progress-step-agents-{}", step.key)).mt(7.0).pl(48.0));
+    }
     if current && !d.todos.is_empty() {
         let done = d.todos.iter().filter(|x| x.status == TodoStatus::Completed).count();
         let label = format!("Todos · {done} of {}", d.todos.len());
-        // Under the title and meta columns: past the glyph, the number and their gaps (16 + 6 + 20 + 6, less the row's own 6 of padding).
         r = r.child(
             col()
                 .w_full()
