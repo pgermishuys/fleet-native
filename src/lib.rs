@@ -99,6 +99,8 @@ mod tests_notices;
 #[cfg(test)]
 mod tests_open_in;
 #[cfg(test)]
+mod tests_page_tab;
+#[cfg(test)]
 mod tests_pages;
 #[cfg(test)]
 mod tests_pages_native;
@@ -3434,6 +3436,29 @@ pub fn spec() -> AppSpec<State> {
                 s.dark = Some(false);
                 s.show_page_fallback()
             }),
+            // Component 14, piece C: the page tab's bar, warnings and each state of the choice bar.
+            ("page-tab-waiting", |s| s.show_page_tab(mock::pages::TabCase::Waiting)),
+            ("page-tab-waiting-light", |s| {
+                s.dark = Some(false);
+                s.show_page_tab(mock::pages::TabCase::Waiting)
+            }),
+            ("page-tab-proposed", |s| s.show_page_tab(mock::pages::TabCase::Proposed)),
+            ("page-tab-proposed-light", |s| {
+                s.dark = Some(false);
+                s.show_page_tab(mock::pages::TabCase::Proposed)
+            }),
+            ("page-tab-refused", |s| s.show_page_tab(mock::pages::TabCase::Refused)),
+            ("page-tab-answered", |s| s.show_page_tab(mock::pages::TabCase::Answered)),
+            ("page-tab-answered-light", |s| {
+                s.dark = Some(false);
+                s.show_page_tab(mock::pages::TabCase::Answered)
+            }),
+            ("page-tab-skipped", |s| s.show_page_tab(mock::pages::TabCase::Skipped)),
+            ("page-tab-stale", |s| s.show_page_tab(mock::pages::TabCase::Stale)),
+            ("page-tab-failed", |s| s.show_page_tab(mock::pages::TabCase::Failed)),
+            ("page-tab-warnings", |s| s.show_page_tab(mock::pages::TabCase::Warnings)),
+            ("page-tab-label", |s| s.show_page_tab(mock::pages::TabCase::Label)),
+            ("page-tab-long-path", |s| s.show_page_tab(mock::pages::TabCase::LongPath)),
             ("allowed-chip", |s| s.show_rules(mock::rules::Case::Chip)),
             ("allowed-chip-light", |s| {
                 s.dark = Some(false);

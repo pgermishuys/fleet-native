@@ -110,7 +110,15 @@ fn part(p: &PartData, role: Role, folded: Option<&str>, finished: &Finished) -> 
 fn title(tool: &str, state: &Value) -> String {
     let known = get_tool(tool);
     let answer = if known.titled_from_answer { state.get("title").and_then(Value::as_str).filter(|t| !t.is_empty()) } else { None };
-    let label = answer.map(str::to_string).unwrap_or_else(|| known.label(state.get("input").unwrap_or(&Value::Null)));
+    let input = state.get("input").unwrap_or(&Value::Null);
+    // A page that waits for a pick is named by how the wait is going (`pageChoiceRowTitle`).
+    let pick = (known.name == "fleet_page_show")
+        .then(|| {
+            let status = state.get("status").and_then(Value::as_str);
+            super::web_page::page_choice_row_title(input, status, state.get("metadata").unwrap_or(&Value::Null))
+        })
+        .flatten();
+    let label = pick.or_else(|| answer.map(str::to_string)).unwrap_or_else(|| known.label(input));
     let one_line = label.split_whitespace().collect::<Vec<_>>().join(" ");
     if one_line.is_empty() { tool.to_string() } else { one_line }
 }

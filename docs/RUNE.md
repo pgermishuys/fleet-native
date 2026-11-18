@@ -1606,3 +1606,15 @@ Nothing in Rune was needed. Learned about the web view:
 
 - **A 1 px border that lifts to another colour on hover** has no hover-border in Rune (`hover` is an overlay on the fill). Draw the border as a 1 px padded ring (`fill(border)`, `padding(1.0)`) around the card and give the ring `hover(wash)`; the overlay shows only at the ring. Radius of the inside is the outside's minus 1.
 - **A line-height of 1.4 where CSS inherits 1.5** shortens a card by a few pixels: read `line-height` from the component's cascade (the body's), not from the nearest class.
+
+## Component 14, piece C (the page tab's bar and choice bar)
+
+Nothing in Rune was needed.
+
+- **A sentence with a bold pick and a small time after it** is one `rich` text with spans (`weight(600)`, `size(11)`), not three elements:
+  it wraps as Fleet's inline `<p>` does. The 8 px `margin-left` before the time is three spaces.
+- **`border_sides([1,0,0,0], c)` with `border_layout()`** is `border-top` that takes room, as the bar's and the warnings' do.
+- A keyed button's text is its child's, so a test reads `ElementInfo::label` (`.label(words)`) for it, not `text`.
+- Under Xvfb with no window manager the window opens at 1360x880; `xdotool windowsize` to 1280x760 relays it out, so a grab can be the
+  size of Fleet's own picture.
+

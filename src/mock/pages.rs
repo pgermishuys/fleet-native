@@ -49,6 +49,76 @@ impl State {
     }
 }
 
+/// What the page tab's scenes show (component 14, piece C): the bar's source and warnings, and each state of the choice bar.
+#[derive(Clone, Copy)]
+pub enum TabCase {
+    Waiting,
+    Proposed,
+    Refused,
+    Answered,
+    Skipped,
+    /// A wait left behind by a Fleet restart, with the session idle.
+    Stale,
+    /// A request that Fleet refused.
+    Failed,
+    Warnings,
+    Label,
+    LongPath,
+}
+
+impl State {
+    /// The page tab with the bar, drawn from a page canvas written as the server sends it.
+    pub fn show_page_tab(&mut self, case: TabCase) {
+        self.show_page_pick(if matches!(case, TabCase::Stale) { Case::Stale } else { Case::Waiting });
+        self.web.mock_base = Some("http://127.0.0.1:6411".into());
+        let at = "2026-10-07T01:50:00Z";
+        let mut state = json!({"pageId": "p1", "entry": "index.html", "source": "/work/pocket-notes/layouts/index.html", "files": 3, "bytes": 4210, "shownAt": "2026-10-07T01:49:00Z"});
+        let choice = |status: &str, extra: serde_json::Value| {
+            let mut c = json!({"callId": "call_1", "status": status, "at": at});
+            c.as_object_mut().unwrap().extend(extra.as_object().unwrap().clone());
+            c
+        };
+        state["choice"] = match case {
+            TabCase::Answered => choice("answered", json!({"value": "b", "summary": "Paged table"})),
+            TabCase::Skipped => choice("not-answered", json!({"reason": "skipped"})),
+            _ => choice("waiting", json!({})),
+        };
+        match case {
+            TabCase::Warnings => {
+                state["warnings"] = json!([
+                    "fonts/inter.woff2 is outside the page's folder, so it was not copied",
+                    "https://cdn.example.test/chart.js is on another site and may not load",
+                    "images/logo.png was not found next to the page"
+                ]);
+            }
+            TabCase::Label => state["label"] = json!("Walkthrough \u{b7} compared with main at 55650b2"),
+            TabCase::LongPath => {
+                state["source"] =
+                    json!("/work/pocket-notes/docs/design/explorations/2026-autumn/layout-options/with-a-very-long-folder-name/index.html");
+            }
+            _ => {}
+        }
+        let mut canvas = page_canvas();
+        canvas["state"] = state;
+        let tabs = crate::fleet::canvases::read_server_canvas(&canvas).into_iter().collect();
+        self.canvases.set_server_canvases("mock.0.0", tabs);
+        self.pages.set("mock.0.0", read_page_canvas(&canvas).into_iter().collect());
+        self.open_page("page_1");
+        let tab = "canvas:page_1".to_string();
+        let ui = self.web.choices.entry(tab).or_default();
+        ui.call_id = "call_1".into();
+        match case {
+            TabCase::Proposed => ui.proposal = Some(("b".into(), "Paged table".into())),
+            TabCase::Refused => ui.refusal = "That pick is too long to send (over 16,000 characters). Pick again.".into(),
+            TabCase::Failed => {
+                ui.proposal = Some(("b".into(), "Paged table".into()));
+                ui.error = "The agent is no longer waiting for this pick.".into();
+            }
+            _ => {}
+        }
+    }
+}
+
 /// The page canvas the scenes' agent showed, as the server sends it.
 fn page_canvas() -> serde_json::Value {
     json!({
