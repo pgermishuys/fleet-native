@@ -143,6 +143,7 @@ pub mod usage;
 pub mod usage_chip;
 pub mod usage_rules;
 pub mod view;
+pub mod visuals;
 pub mod web_page;
 pub mod work;
 pub mod work_actions;

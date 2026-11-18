@@ -240,14 +240,44 @@ pub fn body(t: &Theme, s: &State, id: &str, tool: &str, b: &ToolBody) -> El {
     if diff {
         inner = inner.child(diff_body(t, s, id, tool, b));
     }
-    // A write that has its diff shows that instead of what it printed.
-    if !b.output.is_empty() && !(is_write_call(tool) && diff) {
+    if let Some(visual) = &b.visual {
+        inner = inner.child(visual_box(t, id, visual));
+    } else if !b.output.is_empty() && !(is_write_call(tool) && diff) {
+        // A write that has its diff shows that instead of what it printed.
         inner = inner.child(output_body(t, s, id, b));
     }
     if b.summary.is_empty() && b.output.is_empty() && !diff {
         inner = inner.child(text("No output captured").key(format!("tool-{id}-empty")).font(sans(14.0, 400.0, 1.4)).color(t.muted).py(7.0));
     }
     inner
+}
+
+/// `.tool-visual`: what the agent rendered, in a box of its own, with Expand under it. Markdown is drawn here as it is in the tab;
+/// an HTML page is a card, since a web view can't sit inside a list (decision 1).
+fn visual_box(t: &Theme, id: &str, visual: &crate::fleet::canvases::VisualPayload) -> El {
+    use crate::fleet::canvases::VisualType;
+    let key = format!("tool-{id}-visual");
+    let open = visual.clone();
+    let expand = move |s: &mut State| s.expand_visual(open.clone());
+    let inner = match visual.kind {
+        VisualType::Markdown => col()
+            .w_full()
+            .gap(8.0)
+            .child(super::prose::prose(&super::prose::style(t), &format!("{key}-markdown"), &visual.content, false))
+            .child(super::web_card::expand_button(t, &format!("{key}-expand"), expand)),
+        VisualType::Html => super::web_card::html_card(t, &format!("{key}-html"), &crate::fleet::canvases::visual_title(visual), expand),
+    };
+    // margin 8 0, padding 12, a 1 px border, `--radius-card`, `--panel-bg`.
+    col()
+        .key(key)
+        .w_full()
+        .my(8.0)
+        .padding(12.0)
+        .radius(crate::theme::RADIUS_CARD)
+        .border(1.0, t.border)
+        .border_layout()
+        .fill(t.panel_bg)
+        .child(inner)
 }
 
 /// The card's diff; a write shows its first 12 lines and "Show all N lines" (`.tool-diff-more`).

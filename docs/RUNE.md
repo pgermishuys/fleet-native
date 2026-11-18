@@ -1641,3 +1641,12 @@ Nothing in Rune was needed.
 - **`rt.find(key)` is the element's centre**, and `rt.elements()[..].rect` is `[x, y, w, h]`; a tab scrolled out of a strip has a rect far outside the window, so a test aims a pointer at the strip, not the tab.
 - **A plain vertical mouse wheel over a `scroll_x` box does nothing**; Fleet turns it into a sideways scroll (`useDragScroll`). Not worked around.
 
+## Component 14, piece E (the Document tab)
+
+Nothing in Rune was needed.
+
+- **A button inside a column is stretched** to the column's width (`items_stretch`); to keep it as wide as its words, wrap it in a `row()`.
+- **`WebViewBuilder::with_html`** takes the page's text; wry's `load_html` loads a revised one. A `with_navigation_handler` that refuses
+  anything but `about:`/`data:`/`blob:` keeps a link in the document from replacing it.
+- **A conversation's "mounted at"** (Fleet's `Date.now()` at mount) is read once per session by `keep_visuals`; a test that drives
+  `watch_visuals` with its own clock must count from `Visuals::mounted_at`, since the frames before it already took the real time.

@@ -176,14 +176,14 @@ Owner: `14` = this component, with the piece; another number = that component. "
 
 | # | Row | Source | Native today | Owner |
 |---|---|---|---|---|
-| 14.80 | `parseVisualPayload`: only text starting with `{`; JSON object with `$type` `html` or `markdown` and string `content`; optional string `title`; `__proto__`/`constructor` keys ignored | VP | None | 14 E |
-| 14.81 | Known visuals: every payload in the conversation's tool outputs, oldest first, for 10's "From this conversation"; one that arrives within 5 s of the session opening (`LIVE_TOLERANCE_MS`) opens as a tab once per tool id, history never does | AS `conversationVisuals` (component 3 row 1.91) | None | 14 E (10 draws the list and the tab) |
-| 14.82 | Bar: 40 px, padding 0 14, gap 8, 12.5 px; the title (600, ellipsis, tooltip) then the kind, "Document" for markdown or "HTML" (12 px `--muted`); title = payload title, else the file name, else "Document" | VC; `visualCanvasTitle` | None | 14 E |
-| 14.83 | Markdown body: padding 12 14, Rune's markdown; HTML body: the web view of the content, no scripts (decision 11), over the dotted ground (`--text` 7 % dots every 16 px) | VC, HR | None | 14 E |
-| 14.84 | A tool card with a visual payload: in a box (margin 8 0, padding 12, 1 px border, `--radius-card`, `--panel-bg`): markdown drawn inline; HTML as a card (title, "HTML") instead of the frame; then **Expand** (accent fill, `--primary-foreground`, 12 px 600, padding 4 12, hover 85 %) opens it as a tab and shows the panel | TC 3.19 | None | 14 E |
+| 14.80 | `parseVisualPayload`: only text starting with `{`; JSON object with `$type` `html` or `markdown` and string `content`; optional string `title`; `__proto__`/`constructor` keys ignored | VP | None | 14 E — **Done (E)** |
+| 14.81 | Known visuals: every payload in the conversation's tool outputs, oldest first, for 10's "From this conversation"; one that arrives within 5 s of the session opening (`LIVE_TOLERANCE_MS`) opens as a tab once per tool id, history never does | AS `conversationVisuals` (component 3 row 1.91) | None | 14 E (10 draws the list and the tab) — **Done (E)**: `conv::visual` + `fleet::visuals::keep_visuals` (known visuals told to 10's model every frame; a live one opens once per call) |
+| 14.82 | Bar: 40 px, padding 0 14, gap 8, 12.5 px; the title (600, ellipsis, tooltip) then the kind, "Document" for markdown or "HTML" (12 px `--muted`); title = payload title, else the file name, else "Document" | VC; `visualCanvasTitle` | None | 14 E — **Done (E)** |
+| 14.83 | Markdown body: padding 12 14, Rune's markdown; HTML body: the web view of the content, no scripts (decision 11), over the dotted ground (`--text` 7 % dots every 16 px) | VC, HR | None | 14 E — **Done (E)**: the dotted ground is never seen (the frame is white, as Fleet's iframe), so it isn't drawn. **Open gap:** the Document's markdown uses the message style (15 px, plain headings); Fleet's `MarkdownRenderer` is smaller, with accent-tinted headings and a rule under h1/h2 (compare `fleet-document-markdown-*.png` with `native-document-markdown-*.png`) |
+| 14.84 | A tool card with a visual payload: in a box (margin 8 0, padding 12, 1 px border, `--radius-card`, `--panel-bg`): markdown drawn inline; HTML as a card (title, "HTML") instead of the frame; then **Expand** (accent fill, `--primary-foreground`, 12 px 600, padding 4 12, hover 85 %) opens it as a tab and shows the panel | TC 3.19 | None | 14 E — **Done (E)** |
 | 14.85 | Annotating a markdown Document (`useCanvasAnnotate`) | VC | None | 12 (the annotation popover) |
-| 14.86 | A rendered `.html` file tab: the web view of its text, no padding; `web::html_body` | `FileCanvas.vue` | None | 11 (uses 14 E's) |
-| 14.87 | A rendered `.html` file in the review list: a card with Expand | `ChangesReview.vue` | None | 12 (uses 14 E's `html_card`) |
+| 14.86 | A rendered `.html` file tab: the web view of its text, no padding; `web::html_body` | `FileCanvas.vue` | `web::html_body` and `html_document` exist (E); 11 must add its tab to `web::wanted` (today only a Document tab is placed) | 11 (uses 14 E's) |
+| 14.87 | A rendered `.html` file in the review list: a card with Expand | `ChangesReview.vue` | `view::web_card::html_card` exists (E) | 12 (uses 14 E's `html_card`) |
 
 ### 5. Pages in the conversation (CP, MP, MTL, ATC)
 
@@ -205,7 +205,7 @@ Owner: `14` = this component, with the piece; another number = that component. "
 | 14.100 | Page tab: loading (white), loaded, a label instead of a source, a long source path, three warnings, each choice-bar state, a failed send | page-tab scenes (the web area as the fallback panel) + live pictures | **Done (C)** (scenes `page-tab-*`, live on Linux) |
 | 14.101 | Page tab, no web view possible (fallback) | scene `page-tab-fallback` | **Done (A)** |
 | 14.102 | Browser tab: loading, a page, an address error, starting with output, exited with code, stopped, build failed with output open, three ports, another machine (both wordings), agent's tab banners | scenes + live | 14 H, I, J |
-| 14.103 | Document tab: markdown, HTML, a long title | scenes | 14 E |
+| 14.103 | Document tab: markdown, HTML, a long title | scenes `document-*`, `tool-visual*`; the HTML one live on Linux | **Done (E)** |
 | 14.104 | The page card in a conversation, full size open | scenes + live | 14 F |
 | 14.105 | Every state above in light and dark | pictures | each piece |
 

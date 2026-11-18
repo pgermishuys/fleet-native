@@ -25,6 +25,8 @@ pub struct Placement {
     /// `frameKey`'s `{pageId}:{shownAt}`: a new value loads the page again (row 14.27).
     pub load_key: String,
     pub rect: [f32; 4],
+    /// A Document tab's HTML (already with its policy, `html_document`): loaded as it is, and `url` is empty.
+    pub html: Option<String>,
 }
 
 impl Wanted {
@@ -64,12 +66,32 @@ pub fn shown_tab(s: &State) -> Option<(String, String, String)> {
     Some((tab, url, format!("{}:{}:{reloads}", page.page_id, page.shown_at)))
 }
 
+/// The Document tab of an HTML payload the content panel shows: its tab, the document to load (scripts refused) and what makes it
+/// load again, which is its content (`openVisual` replaces a revised one in its own tab).
+pub fn shown_document(s: &State) -> Option<(String, String, String)> {
+    use crate::fleet::canvases::VisualType;
+    if s.rail != crate::Rail::Sessions || !s.panel_body_shown(CanvasKind::Visual) {
+        return None;
+    }
+    let tabs = s.open_canvases();
+    let active = tabs.active()?;
+    let payload = active.payload.as_ref().filter(|p| p.kind == VisualType::Html)?;
+    let mut hash = std::collections::hash_map::DefaultHasher::new();
+    std::hash::Hash::hash(&payload.content, &mut hash);
+    let key = format!("{}:{}:{:x}", active.id, payload.content.len(), std::hash::Hasher::finish(&hash));
+    Some((active.id.clone(), super::html_document(&payload.content), key))
+}
+
 /// `wanted`: the rule the host follows every frame.
 pub fn wanted(s: &State) -> Wanted {
-    let Some((tab, url, load_key)) = shown_tab(s) else { return Wanted::Nothing };
+    let (tab, url, html, load_key) = match (shown_tab(s), shown_document(s)) {
+        (Some((tab, url, key)), _) => (tab, url, None, key),
+        (None, Some((tab, html, key))) => (tab, String::new(), Some(html), key),
+        (None, None) => return Wanted::Nothing,
+    };
     let Some(rect) = s.web.rect.filter(|r| r[2] >= 1.0 && r[3] >= 1.0) else { return Wanted::Nothing };
     if s.ui.open.is_some() {
         return Wanted::Hidden { tab };
     }
-    Wanted::Shown(Placement { tab, url, load_key, rect })
+    Wanted::Shown(Placement { tab, url, load_key, rect, html })
 }

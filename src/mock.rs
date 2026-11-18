@@ -50,6 +50,7 @@ pub mod update;
 pub mod updates_machines;
 pub mod updates_page;
 pub mod usage;
+pub mod visuals;
 pub mod work;
 pub mod working;
 

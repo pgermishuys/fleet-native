@@ -45,6 +45,8 @@ mod tests_dashboard;
 #[cfg(test)]
 mod tests_dashboard_actions;
 #[cfg(test)]
+mod tests_document;
+#[cfg(test)]
 mod tests_draft_row;
 #[cfg(test)]
 mod tests_folder_clone;
@@ -332,6 +334,8 @@ pub struct State {
     pub server_loads: fleet::server_canvases::Loads,
     /// Every session's panel tabs (`fleet::canvases`, component 10).
     pub canvases: fleet::canvases::Canvases,
+    /// What the conversation's visuals have been told to the canvases (`fleet::visuals`).
+    pub visuals: fleet::visuals::Visuals,
     /// Each opened session's progress detail (`fleet::progress_feed`): the Progress tab and the strip read it.
     pub progress: fleet::progress_feed::ProgressFeed,
     /// The Turns tab: its filter, what is open, and the turns derived from the conversation (`fleet::turns_tab`).
@@ -631,6 +635,7 @@ impl Default for State {
             pages: Default::default(),
             server_loads: Default::default(),
             canvases: Default::default(),
+            visuals: Default::default(),
             progress: Default::default(),
             turns_tab: Default::default(),
             agents_tab: Default::default(),
@@ -1518,6 +1523,7 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     s.keep_progress_tab();
     let strip = s.keep_turns_tab() | strip;
     s.keep_panel_content();
+    s.keep_visuals();
     s.keep_agents_tab(tx);
     if s.keep_notices(now, tx) {
         return true;
@@ -4162,6 +4168,24 @@ pub fn spec() -> AppSpec<State> {
             ("panel-menu-visuals-light", |s| s.show_tabs(mock::canvas_host::Case::MenuVisuals, false)),
             ("panel-pulse", |s| s.show_tabs(mock::canvas_host::Case::Pulse, true)),
             ("panel-pulse-light", |s| s.show_tabs(mock::canvas_host::Case::Pulse, false)),
+            // Piece E of component 14: the tool card's boxes, and the Document tab of each kind (the HTML one as the fallback
+            // panel: a scene has no window, so the live web view is a screen grab).
+            ("tool-visual", |s| s.show_visual_calls(true)),
+            ("tool-visual-light", |s| s.show_visual_calls(false)),
+            ("document-markdown", |s| {
+                s.show_document(mock::visuals::payload(fleet::canvases::VisualType::Markdown, Some("Cache eviction")), true)
+            }),
+            ("document-markdown-light", |s| {
+                s.show_document(mock::visuals::payload(fleet::canvases::VisualType::Markdown, Some("Cache eviction")), false)
+            }),
+            ("document-html", |s| s.show_document(mock::visuals::payload(fleet::canvases::VisualType::Html, Some("Order totals")), true)),
+            ("document-html-light", |s| {
+                s.show_document(mock::visuals::payload(fleet::canvases::VisualType::Html, Some("Order totals")), false)
+            }),
+            ("document-long-title", |s| {
+                let title = "Cache eviction, the long version with every table and the reasons behind each of the numbers in it";
+                s.show_document(mock::visuals::payload(fleet::canvases::VisualType::Markdown, Some(title)), true)
+            }),
             ("panel-over", |s| s.show_tabs(mock::canvas_host::Case::Fresh, true)),
             ("panel-over-light", |s| s.show_tabs(mock::canvas_host::Case::Fresh, false)),
             // Component 10, piece M: Agent's view, the picture of the agent's own tab.

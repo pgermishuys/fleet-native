@@ -221,6 +221,10 @@ fn body(s: &State, t: &Theme) -> El {
             Some((session, tab)) => super::agent_tab::agent_tab(s, t, session, tab),
             None => stand_in(t, CanvasKind::Browser),
         },
+        Some(CanvasKind::Visual) => match tabs.active().and_then(|c| c.payload.as_ref()) {
+            Some(payload) => super::document_tab::document_tab(s, t, payload),
+            None => stand_in(t, CanvasKind::Visual),
+        },
         Some(kind) => stand_in(t, kind),
         None => el(),
     };
@@ -233,7 +237,7 @@ fn stand_in(t: &Theme, kind: CanvasKind) -> El {
         CanvasKind::Changes => "Component 12",
         CanvasKind::Files | CanvasKind::File => "Component 11",
         CanvasKind::Progress | CanvasKind::Turns | CanvasKind::Agents | CanvasKind::Context => "Component 10",
-        CanvasKind::Visual | CanvasKind::Browser | CanvasKind::Page => "Component 14",
+        CanvasKind::Browser | CanvasKind::Page | CanvasKind::Visual => "Component 14",
         CanvasKind::Mod => "Component 22",
     };
     col().key("canvas-stand-in").w_full().h_full().center().child(

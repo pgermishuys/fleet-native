@@ -70,6 +70,8 @@ pub struct ToolBody {
     pub screenshot: Option<super::image_sniff::Shot>,
     /// A canvas the call opened or changed, which the row offers to show; never for a retired diagram call.
     pub canvas_id: Option<String>,
+    /// The output is a document or page the agent rendered: the box shows it instead of the output (`parseVisualPayload`).
+    pub visual: Option<crate::fleet::canvases::VisualPayload>,
 }
 
 /// The card's diff lines (`cardDiffLines`, then `withFileEdit`'s fallback for write kinds).
@@ -98,6 +100,7 @@ pub fn tool_body(tool: &str, title: &str, state: &Value) -> ToolBody {
         shell_header(input, title, meta("exit").or_else(|| meta("exitCode")), tool_duration_ms(state))
     });
     let diff = card_diff(tool, state);
+    let visual = output.as_deref().and_then(super::visual::parse_visual_payload);
     ToolBody {
         has_diff: !diff.is_empty(),
         diff,
@@ -108,6 +111,7 @@ pub fn tool_body(tool: &str, title: &str, state: &Value) -> ToolBody {
         initially_collapsed: state.get("status").and_then(Value::as_str) != Some("error"),
         screenshot: super::image_sniff::tool_screenshot(state),
         canvas_id: canvas_id_of(tool, state),
+        visual,
     }
 }
 
