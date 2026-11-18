@@ -24,6 +24,11 @@ pub fn close_key(id: &str) -> String {
     format!("canvas-tab-close-{id}")
 }
 
+/// The key of a file tab's pin.
+pub fn pin_key(id: &str) -> String {
+    format!("canvas-tab-pin-{id}")
+}
+
 /// The strip's scroll box, which the active tab is brought into.
 pub const STRIP: &str = "canvas-tabs";
 
@@ -81,7 +86,12 @@ impl State {
         match self.open_canvases().canvases.iter().find(|c| c.id == id).and_then(|c| c.server.clone()) {
             Some(server) => self.close_server_canvas(&server.canvas_id),
             None => {
-                self.edit_canvases(|c, session| c.close(session, &id));
+                let closed = self.edit_canvases(|c, session| c.close(session, &id)).flatten();
+                // A file tab's buffer leaves with it (`close`).
+                if let Some(file) = closed.and_then(|c| c.file) {
+                    let session = self.canvas_session();
+                    self.close_file_buffer(&session, &file.path);
+                }
             }
         }
         self.reveal_active(tx);

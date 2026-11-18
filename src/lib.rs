@@ -4358,6 +4358,8 @@ pub fn spec() -> AppSpec<State> {
             ("files-search-light", |s| s.show_files_tab(mock::files_tab::Case::Search, false)),
             ("files-search-none", |s| s.show_files_tab(mock::files_tab::Case::SearchNone, true)),
             ("files-search-none-light", |s| s.show_files_tab(mock::files_tab::Case::SearchNone, false)),
+            ("file-tabs", |s| s.show_file_tabs(true)),
+            ("file-tabs-light", |s| s.show_file_tabs(false)),
             ("panel-tabs", |s| s.show_tabs(mock::canvas_host::Case::Tabs, true)),
             ("panel-tabs-light", |s| s.show_tabs(mock::canvas_host::Case::Tabs, false)),
             ("panel-tabs-attention", |s| s.show_tabs(mock::canvas_host::Case::Attention, true)),
