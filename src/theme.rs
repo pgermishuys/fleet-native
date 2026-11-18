@@ -167,6 +167,21 @@ impl Theme {
         Color::WHITE
     }
 
+    /// `.agent-tab__caption`'s fill (`rgb(20 20 24 / 0.86)`) and ink (`#f2f2f5`): literals in Fleet, the same in both themes, since
+    /// the caption sits on a picture of someone else's page.
+    pub fn agent_caption_bg(&self) -> Color {
+        c("#141418").alpha(0.86)
+    }
+
+    pub fn agent_caption_ink(&self) -> Color {
+        c("#f2f2f5")
+    }
+
+    /// `.agent-tab__caption--failed`: `color-mix(in srgb, var(--error) 80%, black)`.
+    pub fn agent_caption_failed_bg(&self) -> Color {
+        self.mix(self.error, Color::BLACK, 0.8)
+    }
+
     /// `var(--warning, #b45309)`: weave-fleet's main.css defines no `--warning`, so Fleet always draws the fallback. It tints
     /// an Allowed rule that covers every use of a tool.
     pub fn warning(&self) -> Color {

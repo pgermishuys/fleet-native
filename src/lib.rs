@@ -17,6 +17,8 @@ mod tests;
 #[cfg(test)]
 mod tests_add_machine;
 #[cfg(test)]
+mod tests_agent_tab;
+#[cfg(test)]
 mod tests_agents_tab;
 #[cfg(test)]
 pub(crate) mod tests_archive_pins;
@@ -533,6 +535,8 @@ pub struct State {
     pub work: conv::work_clock::WorkStrip,
     /// The pictures the conversation shows (a call's screenshot, a user's images) and the lightbox over them.
     pub images: fleet::images::Images,
+    /// Agent's view: the live picture of the agent's own browser tab (`AgentTabView.vue`).
+    pub agent_view: fleet::agent_tab::AgentView,
     /// The steps the agent took in its own browser, per session.
     pub browser: conv::browser::Steps,
     /// Each open session's own record (`GET /api/sessions/{id}`), for the header of one the list doesn't hold.
@@ -737,6 +741,7 @@ impl Default for State {
             shown: None,
             work: Default::default(),
             images: Default::default(),
+            agent_view: Default::default(),
             browser: Default::default(),
             header_details: Default::default(),
             parent_titles: Default::default(),
@@ -1419,7 +1424,9 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_new_message(tx)
         | s.keep_new_mentions(now, tx);
     let scrolled = s.keep_scroll(tx);
-    let pictures = s.keep_images(tx);
+    // The tick asks for the next frame first, so `keep_images` starts it in the same poll.
+    let agent_view = s.keep_agent_view(now, tx);
+    let pictures = s.keep_images(tx) | agent_view;
     let renamed = s.keep_rename(tx) | s.keep_row_rename(tx) | s.keep_header(now, tx);
     let found = s.find_poll(tx) | s.keep_questions(tx) | s.keep_allowed_flash(now, tx);
     let exported = s.export_poll(tx) | s.keep_setup_rows(now, tx) | s.keep_context(now, tx) | s.keep_machine_page(now, tx);
@@ -4141,6 +4148,17 @@ pub fn spec() -> AppSpec<State> {
             ("panel-fresh-light", |s| s.show_tabs(mock::canvas_host::Case::Fresh, false)),
             ("panel-over", |s| s.show_tabs(mock::canvas_host::Case::Fresh, true)),
             ("panel-over-light", |s| s.show_tabs(mock::canvas_host::Case::Fresh, false)),
+            // Component 10, piece M: Agent's view, the picture of the agent's own tab.
+            ("agent-tab", |s| s.show_agent_tab(mock::agent_tab::Case::Ring, true)),
+            ("agent-tab-light", |s| s.show_agent_tab(mock::agent_tab::Case::Ring, false)),
+            ("agent-tab-failed-step", |s| s.show_agent_tab(mock::agent_tab::Case::Failed, true)),
+            ("agent-tab-failed-step-light", |s| s.show_agent_tab(mock::agent_tab::Case::Failed, false)),
+            ("agent-tab-loading", |s| s.show_agent_tab(mock::agent_tab::Case::Loading, true)),
+            ("agent-tab-loading-light", |s| s.show_agent_tab(mock::agent_tab::Case::Loading, false)),
+            ("agent-tab-closed", |s| s.show_agent_tab(mock::agent_tab::Case::Closed, true)),
+            ("agent-tab-closed-light", |s| s.show_agent_tab(mock::agent_tab::Case::Closed, false)),
+            ("agent-tab-narrow", |s| s.show_agent_tab(mock::agent_tab::Case::Narrow, true)),
+            ("agent-tab-narrow-light", |s| s.show_agent_tab(mock::agent_tab::Case::Narrow, false)),
         ],
         fonts: &[include_bytes!("../assets/fonts/InterVariable.ttf"), include_bytes!("../assets/fonts/JetBrainsMono-Variable.ttf")],
         families: ("Inter", "JetBrains Mono"),

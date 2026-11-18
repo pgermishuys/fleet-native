@@ -1,10 +1,18 @@
-//! The steps a tool call took in the agent's own browser (`stores/agent-browser.ts`, the steps half; the tabs are the
-//! content panel's) and what the "+" menu's Browser field means (`lib/browser-target.ts`). Plain logic, no Rune.
+//! The steps a tool call took in the agent's own browser (`stores/agent-browser.ts`; the tabs are `agent_tabs.rs`) and what the "+" menu's Browser field means (`lib/browser-target.ts`). Plain logic, no Rune.
+use super::agent_tabs::{AgentTab, Tabs};
 use serde_json::Value;
 use std::collections::HashMap;
 
-/// One action the agent took in its browser tab (`BrowserStep`). Only what the conversation reads: the tab, its url and
-/// the element's box are for the browser canvas.
+/// The element a step acted on, on the tab's 1280×800 screen.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct StepBox {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+}
+
+/// One action the agent took in its browser tab (`BrowserStep`).
 #[derive(Clone, Debug, PartialEq)]
 pub struct BrowserStep {
     /// Its place in the session's steps, from 1.
@@ -22,6 +30,12 @@ pub struct BrowserStep {
     pub title: Option<String>,
     /// A screenshot the step took, kept under the session: (id, width, height).
     pub screenshot: Option<(String, u32, u32)>,
+    /// The tab it was taken on, and the page that tab showed after it.
+    pub tab_id: Option<String>,
+    pub url: Option<String>,
+    /// When it happened, as ISO text: Agent's view rings the element for a few seconds after.
+    pub at: Option<String>,
+    pub bounds: Option<StepBox>,
 }
 
 impl BrowserStep {
@@ -43,6 +57,13 @@ impl BrowserStep {
             call_id: text("callId"),
             title: text("title"),
             screenshot: shot,
+            tab_id: text("tabId"),
+            url: text("url"),
+            at: text("at"),
+            bounds: v.get("box").and_then(|b| {
+                let n = |k: &str| b.get(k).and_then(Value::as_f64).filter(|n| n.is_finite()).map(|n| n as f32);
+                Some(StepBox { x: n("x")?, y: n("y")?, width: n("width")?, height: n("height")? })
+            }),
         })
     }
 }
@@ -51,15 +72,39 @@ impl BrowserStep {
 #[derive(Default)]
 pub struct Steps {
     sessions: HashMap<String, Vec<BrowserStep>>,
+    tabs: HashMap<String, Tabs>,
 }
 
 impl Steps {
     /// A new step, added once (`applyStep`): an event can be seen twice, and the list may already hold it.
     pub fn apply(&mut self, session: &str, step: BrowserStep) {
         let list = self.sessions.entry(session.to_string()).or_default();
-        if !list.iter().any(|known| known.seq == step.seq) {
-            list.push(step);
+        if list.iter().any(|known| known.seq == step.seq) {
+            return;
         }
+        if let (Some(tab), true) = (&step.tab_id, step.ok) {
+            self.tabs.entry(session.to_string()).or_default().apply(tab, &step.kind, step.url.as_deref(), step.title.as_deref());
+        }
+        list.push(step);
+    }
+
+    /// The tabs and focus the server listed when the session loaded; they replace what steps made of them.
+    pub fn set_tabs(&mut self, session: &str, tabs: Vec<AgentTab>, focused: Option<String>) {
+        self.tabs.insert(session.to_string(), Tabs { tabs, focused });
+    }
+
+    pub fn tabs(&self, session: &str) -> Option<&Tabs> {
+        self.tabs.get(session)
+    }
+
+    /// The agent's tab on the same app as `url`, when it has one open (`tabFor`).
+    pub fn tab_for(&self, session: &str, url: Option<&str>) -> Option<&AgentTab> {
+        self.tabs.get(session)?.tab_for(url)
+    }
+
+    /// The newest step taken on `tab_id` (`lastStepOn`).
+    pub fn last_step_on(&self, session: &str, tab_id: &str) -> Option<&BrowserStep> {
+        self.sessions.get(session)?.iter().rev().find(|s| s.tab_id.as_deref() == Some(tab_id))
     }
 
     /// What Fleet said when the session loaded; steps that arrived meanwhile stay (`setFromServer`).

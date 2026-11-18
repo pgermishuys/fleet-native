@@ -108,3 +108,104 @@ fn reads_a_step_as_the_server_sends_it() {
     assert!(BrowserStep::read(&json!({"summary": "x"})).is_none());
     assert!(BrowserStep::read(&json!({"seq": 1, "screenshot": {"id": "a", "width": 0, "height": 9}})).unwrap().screenshot.is_none());
 }
+
+// ─── the agent's tabs (stores/__tests__/agent-browser.test.ts, rows 5.53 to 5.57) ───────────────────────────────────────
+
+const TAB: &str = "tab_00000000-0000-0000-0000-000000000001";
+
+fn tab_step(seq: i64, extra: serde_json::Value) -> BrowserStep {
+    let mut v = json!({"sessionId": "s1", "seq": seq, "at": "2026-10-02T10:00:00Z", "kind": "click", "summary": format!("Step {seq}"),
+        "detail": "click @e2 · 170 ms", "ok": true, "callId": "call_1", "tabId": TAB, "url": "http://127.0.0.1:5173/", "title": "Signup demo"});
+    v.as_object_mut().unwrap().extend(extra.as_object().cloned().unwrap());
+    BrowserStep::read(&v).unwrap()
+}
+
+#[test]
+fn keeps_the_agents_tabs_from_its_steps_opened_moved_and_closed() {
+    let mut steps = Steps::default();
+    steps.apply("s1", tab_step(1, json!({"kind": "tabs.open"})));
+    let tabs = steps.tabs("s1").unwrap();
+    assert_eq!(tabs.tabs.iter().map(|t| t.url.as_str()).collect::<Vec<_>>(), ["http://127.0.0.1:5173/"]);
+    assert_eq!(tabs.focused.as_deref(), Some(TAB));
+
+    steps.apply("s1", tab_step(2, json!({"kind": "navigate", "url": "http://127.0.0.1:5173/settings", "title": "Settings"})));
+    let tab = &steps.tabs("s1").unwrap().tabs[0];
+    assert_eq!((tab.url.as_str(), tab.title.as_str()), ("http://127.0.0.1:5173/settings", "Settings"));
+
+    steps.apply("s1", tab_step(3, json!({"kind": "tabs.close"})));
+    assert!(steps.tabs("s1").unwrap().tabs.is_empty());
+    assert_eq!(steps.tabs("s1").unwrap().focused, None);
+}
+
+#[test]
+fn closing_the_focused_tab_hands_focus_to_the_last_one_left() {
+    let mut steps = Steps::default();
+    for (n, id) in [(1, "a"), (2, "b"), (3, "c")] {
+        steps.apply("s1", tab_step(n, json!({"kind": "tabs.open", "tabId": id})));
+    }
+    steps.apply("s1", tab_step(4, json!({"kind": "tabs.close", "tabId": "c"})));
+    assert_eq!(steps.tabs("s1").unwrap().focused.as_deref(), Some("b"));
+    steps.apply("s1", tab_step(5, json!({"kind": "tabs.close", "tabId": "a"})));
+    assert_eq!(steps.tabs("s1").unwrap().focused.as_deref(), Some("b"), "another tab closing leaves focus alone");
+}
+
+#[test]
+fn a_failed_step_doesnt_move_the_tab() {
+    let mut steps = Steps::default();
+    steps.apply("s1", tab_step(1, json!({"kind": "tabs.open"})));
+    steps.apply("s1", tab_step(2, json!({"kind": "navigate", "ok": false, "url": "https://example.com/", "error": "Not allowed."})));
+    assert_eq!(steps.tabs("s1").unwrap().tabs[0].url, "http://127.0.0.1:5173/");
+}
+
+#[test]
+fn a_step_seen_twice_changes_nothing() {
+    let mut steps = Steps::default();
+    steps.apply("s1", tab_step(1, json!({"kind": "tabs.open"})));
+    steps.apply("s1", tab_step(1, json!({"kind": "tabs.close"})));
+    assert_eq!(steps.tabs("s1").unwrap().tabs.len(), 1);
+}
+
+#[test]
+fn finds_the_agents_tab_for_the_page_a_canvas_shows_whatever_loopback_name_either_uses() {
+    let mut steps = Steps::default();
+    steps.apply("s1", tab_step(1, json!({"kind": "tabs.open"})));
+    assert_eq!(steps.tab_for("s1", Some("http://localhost:5173/")).map(|t| t.id.as_str()), Some(TAB));
+    assert!(steps.tab_for("s1", Some("http://localhost:3000/")).is_none());
+    assert!(steps.tab_for("s1", None).is_none() && steps.tab_for("s1", Some("")).is_none());
+    assert_eq!(steps.last_step_on("s1", TAB).map(|s| s.seq), Some(1));
+    assert!(steps.last_step_on("s1", "other").is_none());
+}
+
+#[test]
+fn the_focused_tab_wins_and_else_the_last_one() {
+    let mut steps = Steps::default();
+    steps.apply("s1", tab_step(1, json!({"kind": "tabs.open", "tabId": "a"})));
+    steps.apply("s1", tab_step(2, json!({"kind": "tabs.open", "tabId": "b"})));
+    steps.apply("s1", tab_step(3, json!({"kind": "tabs.focus", "tabId": "a"})));
+    assert_eq!(steps.tab_for("s1", Some("http://localhost:5173/")).map(|t| t.id.as_str()), Some("a"));
+    steps.set_tabs("s1", steps.tabs("s1").unwrap().tabs.clone(), None);
+    assert_eq!(steps.tab_for("s1", Some("http://localhost:5173/")).map(|t| t.id.as_str()), Some("b"));
+}
+
+#[test]
+fn same_app_means_same_scheme_port_and_machine() {
+    use crate::conv::agent_tabs::same_app;
+    assert!(same_app("http://127.0.0.1:5173/a", "http://localhost:5173/b"));
+    assert!(same_app("http://[::1]:5173/", "http://shop.localhost:5173/"));
+    assert!(!same_app("http://localhost:5173/", "https://localhost:5173/"));
+    assert!(!same_app("http://localhost:5173/", "http://localhost:5174/"));
+    assert!(!same_app("not a url", "http://localhost:5173/"));
+    // An empty port reads as "80": `new URL` drops a scheme's own port.
+    assert!(same_app("http://localhost/", "http://localhost:80/"));
+    assert!(same_app("https://example.test/", "https://example.test:443/"));
+    assert!(!same_app("http://example.test/", "http://other.test/"));
+    assert!(!same_app("http://localhost:99999/", "http://localhost:99999/"), "a port out of range is no url");
+}
+
+#[test]
+fn reads_what_a_step_says_about_its_tab_time_and_box() {
+    let s = tab_step(1, json!({"box": {"x": 464, "y": 250, "width": 361, "height": 250}}));
+    assert_eq!((s.tab_id.as_deref(), s.at.as_deref()), (Some(TAB), Some("2026-10-02T10:00:00Z")));
+    assert_eq!(s.bounds.map(|b| (b.x, b.width)), Some((464.0, 361.0)));
+    assert!(tab_step(2, json!({"box": {"x": 1}})).bounds.is_none());
+}

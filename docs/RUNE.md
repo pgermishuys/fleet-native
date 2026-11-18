@@ -1618,3 +1618,9 @@ Nothing in Rune was needed.
 - Under Xvfb with no window manager the window opens at 1360x880; `xdotool windowsize` to 1280x760 relays it out, so a grab can be the
   size of Fleet's own picture.
 
+## Component 10, piece M (Agent's view)
+
+- **A picture placed by arithmetic** (`scale = min(w/1280, h/800)`, pinned to the top, centred across) is a `pin(Some(left), Some(0.0), None, None)` element with `w`/`h` set from the stage's size and `pixels_fit(.., SurfaceFit::Fill)`. `pixels_fit` alone only centres. The stage gets its size from `on_layout`, one frame late, so the first frame draws no picture.
+- **A pinned element needs no "relative" parent**: ring, caption and tag are all `pin(..)` children of the stage. Nothing without a handler takes the pointer, so Fleet's `pointer-events: none` ring needs nothing.
+- **No transition on a position**: Fleet's 200 ms ease of the ring's left, top, width and height is a jump here.
+- **A Browser tab is a server canvas, not a built-in**: `Canvases::open(.., CanvasKind::Browser)` does nothing. A scene stands one in with `canvases.replace` and sets `active_id`.
