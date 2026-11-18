@@ -180,6 +180,9 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
         Some(Open::Alert) => gallery::alert(s, t),
         Some(Open::Sheet(side)) => gallery::sheet(s, t, side),
     };
+    let menu_open = s.ui.open.is_some();
+    // Floating things a native web view could cover, by the key of the element: the host hides a page only where one is over it.
+    let mut floats: Vec<&'static str> = Vec::new();
     // The autocomplete popup, 6 px above the composer's frame and as wide as it; it never takes focus from the text area.
     if s.ui.open.is_none()
         && let Some(popup) = if s.on_new_session_page() { s.new_popup() } else { s.auto.popup.as_ref() }
@@ -188,13 +191,16 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
         let panel = crate::view::autocomplete::popup(s, t, popup, s.pickers.composer_w);
         let anchor = if s.on_new_session_page() { "new-session-frame" } else { "composer-frame" };
         layer.push(panel.anchored_fit(anchor, rune::Side::Top, rune::Align::Start, 6.0));
+        floats.push("autocomplete-popup");
     }
     // The rail's tooltip, while nothing else is open over the window.
     if s.ui.open.is_none()
         && let Some(tip) = crate::view::rail::tip(s, t)
     {
         layer.push(tip);
+        floats.push("rail-tip");
     }
+    let before_dialogs = layer.len();
     if let Some(choice) = &s.machine_switch_scene {
         layer.extend(crate::view::machine_switch::overlay(s, t, crate::view::machine_switch::SCENE, choice));
     }
@@ -231,15 +237,18 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
     if let Some(lightbox) = &s.images.lightbox {
         layer.extend(crate::view::image::lightbox(s, t, lightbox));
     }
+    let dialog_up = layer.len() > before_dialogs;
     // The message history list sits on the frame's top edge, as wide as it (row 8.3).
     if s.ui.open.is_none()
         && s.pickers.composer_w > 0.0
         && let Some(list) = crate::view::history::list(s, t, s.pickers.composer_w)
     {
         layer.push(list.anchored_fit("composer-frame", rune::Side::Top, rune::Align::Start, 0.0));
+        floats.push("input-history");
     }
     if let Some(card) = crate::view::notice_card::view(s, t) {
         layer.push(card);
+        floats.push("notice-card");
     }
     // One toast: what the archive waits on or failed at, else a plain message (`ArchiveUndoToast`).
     let queued = s.queue_toast();
@@ -255,6 +264,9 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
                 .pb(16.0)
                 .child(toast::view(t, toast, s.clock)),
         );
+        floats.push("toast");
     }
+    // Menus, popovers, selects, the palette and every dialog dim or reach over the page whole; the floating ones only where they are.
+    s.web.cover.set(&floats, menu_open || dialog_up);
     layer
 }

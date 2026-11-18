@@ -225,6 +225,8 @@ mod tests_usage_popover;
 #[cfg(test)]
 mod tests_web;
 #[cfg(test)]
+mod tests_web_host;
+#[cfg(test)]
 mod tests_workspace;
 mod theme;
 pub mod ui;
