@@ -1665,3 +1665,12 @@ Nothing in Rune was needed.
 - **Two exactly equal halves** (wrapped Split) need `.w_frac(0.5)`; basis 0 with `grow(1.0)` followed the wrapped text's width.
 - **No pattern or hatch fill**, so a padded cell is a flat wash.
 - **There is no way to measure a text's width while building a view**, so an unwrapped Split column's minimum comes from the character count times a mono advance of 0.6 em.
+
+## Component 12, piece H (drawing what's near)
+
+- There are no per-element rects in the app, only `on_scroll_offset` (`ScrollPos`: offset, max, viewport). To act on what is near the
+  visible part, keep the place in an `Rc<Cell<..>>` from the handler (it may not change state), read it in `poll`, and work each
+  section's top out from heights you know. Return true from `poll` only when the set that matters changed: returning true on every
+  frame of a scroll prints Rune's "committed the view on N of N frames" warning.
+- In headless tests `rt.wheel(x, y, dy)` with a **negative** `dy` scrolls further down; `ScrollPos` is `#[non_exhaustive]`, so a test
+  can't build one and has to scroll for real.

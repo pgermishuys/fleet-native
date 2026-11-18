@@ -96,6 +96,12 @@ impl Contents {
         self.entries.insert(path.to_string(), entry);
     }
 
+    /// `put` as an answer to this version of the file: `load` leaves it alone, as it does what a request brought.
+    pub fn put_at(&mut self, session: &str, path: &str, version: &str, entry: Entry) {
+        self.put(session, path, entry);
+        self.versions.insert(path.to_string(), version.to_string());
+    }
+
     /// How many requests are on their way to a machine.
     pub fn in_flight(&self, machine: &str) -> usize {
         self.in_flight.get(machine).copied().unwrap_or(0)

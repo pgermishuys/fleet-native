@@ -13,22 +13,24 @@ use crate::theme::{Theme, mono, sans};
 use rune::{Cursor, El, Icon, ScrollSpec, Tx, col, el, icon, row, text};
 use std::hash::{Hash, Hasher};
 
-use super::review_lines::LINE_H;
-use crate::fleet::review::MAX_DRAWN_LINES;
+use crate::fleet::review::pending_height;
 
 pub fn review(s: &State, t: &Theme) -> El {
     let files = s.review_files();
+    // `on_scroll_offset` may not change state: it leaves the place for `poll` (`State::keep_review_near`).
+    let probe = s.review.probe.clone();
     let mut body = col().key("review-body").w_full().gap(10.0).px(12.0).pt(12.0).pb(16.0);
     for file in &files {
         body = body.child(section(s, t, file));
     }
-    col()
-        .key("changes-review")
-        .w_full()
-        .grow(1.0)
-        .min_h(0.0)
-        .child(header(s, t, &files))
-        .child(body.scroll(ScrollSpec { stick_bottom: false }).key("review-scroll").w_full().grow(1.0).min_h(0.0))
+    col().key("changes-review").w_full().grow(1.0).min_h(0.0).child(header(s, t, &files)).child(
+        body.scroll(ScrollSpec { stick_bottom: false })
+            .on_scroll_offset(move |at| probe.set(Some(at)))
+            .key("review-scroll")
+            .w_full()
+            .grow(1.0)
+            .min_h(0.0),
+    )
 }
 
 // ── The header ──────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -271,11 +273,14 @@ fn note(t: &Theme, key: String, words: &str) -> El {
 /// The file's body: loading, the failure with Try again, a placeholder, no changes, or its lines.
 fn body(s: &State, t: &Theme, file: &FileDiff) -> El {
     let key = |what: &str| format!("review-{what}-{}", file.file);
+    // Not near yet (8.1): an empty room of about its height, so the files below don't all come into view and load at once (8.2).
+    if !s.review.is_near(&file.file) {
+        return col().key(key("pending")).w_full().h(pending_height(file));
+    }
     match s.diff_contents.entry(&file.file) {
         None | Some(Entry::Loading) => {
             // Holds about the height its lines will take, so the files below don't all come into view at once (8.3).
-            let held = ((file.additions + file.deletions + 8).min(MAX_DRAWN_LINES as u64) as f32 * LINE_H).max(0.0);
-            col().key(key("body")).w_full().min_h(held).child(note(t, key("loading"), "Loading…"))
+            col().key(key("body")).w_full().min_h(pending_height(file)).child(note(t, key("loading"), "Loading…"))
         }
         Some(Entry::Error(_)) => {
             let path = file.file.clone();
@@ -310,6 +315,15 @@ fn body(s: &State, t: &Theme, file: &FileDiff) -> El {
     }
 }
 
+thread_local! {
+    static WORKED: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+/// How many times a file's lines have been worked out on this thread (8.3's test counts it).
+pub fn lines_worked() -> usize {
+    WORKED.with(|w| w.get())
+}
+
 /// A file's hunks, worked out once per answer: its lines come from an edit-distance walk that costs far more than drawing them.
 fn review_items(item: &FileDiff) -> std::rc::Rc<Vec<ReviewItem>> {
     type Cached = std::collections::HashMap<String, (u64, std::rc::Rc<Vec<ReviewItem>>)>;
@@ -326,6 +340,7 @@ fn review_items(item: &FileDiff) -> std::rc::Rc<Vec<ReviewItem>> {
         {
             return items.clone();
         }
+        WORKED.with(|w| w.set(w.get() + 1));
         let lines: Vec<DiffLine> = parse_diff_lines(&item.before, &item.after);
         let items = std::rc::Rc::new(build_review(&lines));
         c.insert(item.file.clone(), (stamp, items.clone()));
