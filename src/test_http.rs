@@ -2,7 +2,8 @@
 //! runner is often half a request (the head without its body, or a head cut mid-line), and a fake that answers on that
 //! answers wrongly or resets the client's connection (#203, #214, #250, #265 were each this). `read` takes the head up
 //! to the blank line, then exactly the body the head announces (Content-Length, or chunked), however many reads and
-//! however long that takes, up to [`crate::test_wait::BOUND`]. Every fake that binds a `TcpListener` reads through it.
+//! however long that takes, up to [`crate::test_wait::BOUND`]. Every fake that binds a `TcpListener` reads through it;
+//! `fakes_read_requests_through_test_http` below fails the build of a new one that doesn't.
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::time::{Duration, Instant};
@@ -218,5 +219,37 @@ mod tests {
         let mut text = String::new();
         client.read_to_string(&mut text).unwrap();
         assert!(text.starts_with("HTTP/1.1 200 OK\r\n") && text.ends_with("\r\n\r\n{}"), "{text}");
+    }
+
+    /// Every fake server reads its requests through this module. A file that binds a `TcpListener` must say
+    /// `test_http::` (or be listed in `OTHER_STREAMS` with the reason), and nothing else may parse Content-Length by hand.
+    #[test]
+    fn fakes_read_requests_through_test_http() {
+        // A fake that reads over something other than a bare `TcpStream`. tls.rs reads through rustls, byte by byte to the
+        // blank line and then exactly Content-Length bytes, so it cannot half-read a request.
+        const OTHER_STREAMS: &[&str] = &["src/fleet/tests/tls.rs"];
+        let mut bad = Vec::new();
+        let mut stack = vec![std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src")];
+        while let Some(dir) = stack.pop() {
+            for entry in std::fs::read_dir(&dir).unwrap().flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    stack.push(path);
+                } else if path.extension().is_some_and(|e| e == "rs") && !path.ends_with("test_http.rs") {
+                    let text = std::fs::read_to_string(&path).unwrap();
+                    let name = path.strip_prefix(env!("CARGO_MANIFEST_DIR")).unwrap().to_string_lossy().replace('\\', "/");
+                    if OTHER_STREAMS.contains(&name.as_str()) {
+                        continue;
+                    }
+                    if text.contains("TcpListener::bind") && !text.contains("test_http::") {
+                        bad.push(format!("{name}: binds a TcpListener but doesn't read through test_http"));
+                    }
+                    if text.to_ascii_lowercase().contains("strip_prefix(\"content-length:\")") {
+                        bad.push(format!("{name}: parses Content-Length by hand; use test_http::read"));
+                    }
+                }
+            }
+        }
+        assert!(bad.is_empty(), "fake servers read requests through crate::test_http:\n{}", bad.join("\n"));
     }
 }

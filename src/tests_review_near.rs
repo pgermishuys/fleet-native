@@ -4,7 +4,7 @@
 use crate::fleet::diff_contents::Entry;
 use crate::fleet::link::{Job, Link, Post};
 use crate::mock::changes::Case;
-use crate::tests::{FRAME, app, finish, read_request};
+use crate::tests::{FRAME, app, finish};
 use crate::{State, test_wait};
 use rune::Runtime;
 use serde_json::json;
@@ -27,7 +27,7 @@ fn forty(n: usize) -> (Rt, Receiver<Job>, Arc<Mutex<Vec<String>>>) {
     let log = asked.clone();
     std::thread::spawn(move || {
         for mut stream in listener.incoming().flatten() {
-            let request = read_request(&mut stream);
+            let request = crate::test_http::read(&mut stream).raw();
             let body = match request.split_once("path=") {
                 Some((_, rest)) if request.contains("/diffs/file") => {
                     let file = rest.split([' ', '&']).next().unwrap_or("").replace("%2F", "/");

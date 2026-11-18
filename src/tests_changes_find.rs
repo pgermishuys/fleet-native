@@ -4,7 +4,7 @@
 use crate::fleet::diff_contents::Entry;
 use crate::fleet::link::{Job, Link, Post};
 use crate::mock::changes::Case;
-use crate::tests::{FRAME, app, finish, read_request};
+use crate::tests::{FRAME, app, finish};
 use crate::{State, test_wait};
 use rune::Runtime;
 use serde_json::json;
@@ -66,7 +66,7 @@ pub(crate) fn scene(changed: Vec<Changed>, search: Search) -> (Rt, Receiver<Job>
     let texts: HashMap<String, (String, String)> = changed.iter().map(|(p, b, a)| (p.to_string(), (b.clone(), a.clone()))).collect();
     std::thread::spawn(move || {
         for mut stream in listener.incoming().flatten() {
-            let request = read_request(&mut stream);
+            let request = crate::test_http::read(&mut stream).raw();
             let (status, body) = if request.contains("/diffs/search") {
                 let query = decode(request.split_once("q=").map_or("", |(_, r)| r.split([' ', '&']).next().unwrap_or("")));
                 log.lock().unwrap().searches.push(query);

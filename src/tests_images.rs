@@ -1,7 +1,7 @@
 //! Pictures in the conversation (component 3, piece N): `ToolScreenshot.test.ts` ("a screenshot in the conversation") and
 //! the user's image thumbnails, driven headless like the rest of `tests.rs`.
 use crate::mock::images::{Case, PAGE, SHOT_PATH};
-use crate::tests::{FRAME, app, click, finish, read_request};
+use crate::tests::{FRAME, app, click, finish};
 use crate::{State, mock};
 use rune::{Key, KeyEvent, Mods, Runtime};
 
@@ -181,7 +181,7 @@ fn a_picture_is_asked_of_fleets_screenshot_path_on_a_thread() {
     let log = seen.clone();
     std::thread::spawn(move || {
         for mut stream in listener.incoming().flatten() {
-            let line = read_request(&mut stream).lines().next().unwrap_or("").to_string();
+            let line = crate::test_http::read(&mut stream).raw().lines().next().unwrap_or("").to_string();
             let found = line.contains("shot_1");
             log.lock().unwrap().push(line);
             let (status, body): (&str, &[u8]) = if found { ("200 OK", PAGE) } else { ("404 Not Found", b"{}") };

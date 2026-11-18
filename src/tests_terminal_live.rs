@@ -8,7 +8,7 @@ use crate::test_wait::{drive, until_true};
 use crate::tests::{FRAME, app, click};
 use rune::{Key, KeyEvent, Mods, Runtime};
 use serde_json::{Value, json};
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::Write;
 use std::net::{TcpListener, TcpStream};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, Sender, channel};
@@ -124,20 +124,8 @@ fn serve(stream: TcpStream, listed: &[&str], scrollback: &[u8], heard: Arc<Mutex
         }
         return socket(stream, scrollback, heard, &shared);
     }
-    let mut reader = BufReader::new(stream.try_clone().unwrap());
-    let mut length = 0usize;
-    loop {
-        let mut l = String::new();
-        if reader.read_line(&mut l).unwrap_or(0) == 0 || l == "\r\n" {
-            break;
-        }
-        if let Some(n) = l.to_ascii_lowercase().strip_prefix("content-length:") {
-            length = n.trim().parse().unwrap_or(0);
-        }
-    }
-    let mut raw = vec![0; length];
-    let _ = reader.read_exact(&mut raw);
-    let body: Value = serde_json::from_slice(&raw).unwrap_or(Value::Null);
+    let mut stream = stream;
+    let body = crate::test_http::read(&mut stream).json();
     let method = line.split(' ').next().unwrap_or("").to_string();
     let entry = |id: &str| json!({"id": id, "title": "zsh", "status": "running", "createdAt": "2026-11-18T10:00:00Z"});
     let (status, text) = match (method.as_str(), path.ends_with("/terminals")) {
@@ -146,7 +134,6 @@ fn serve(stream: TcpStream, listed: &[&str], scrollback: &[u8], heard: Arc<Mutex
         _ => (404, "{}".to_string()),
     };
     heard.lock().unwrap().requests.push((method, path, body));
-    let mut stream = stream;
     let _ = stream.write_all(
         format!(
             "HTTP/1.1 {status} X\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{text}",

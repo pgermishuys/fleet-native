@@ -11,7 +11,7 @@ use crate::tests::{FRAME, app, click};
 use crate::{State, test_wait};
 use rune::{Key, KeyEvent, Mods, Runtime, TextEdit};
 use serde_json::{Value, json};
-use std::io::{Read, Write};
+use std::io::Write;
 use std::net::TcpListener;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
@@ -124,28 +124,9 @@ fn serve(cfg: Shared) -> String {
         for mut stream in listener.incoming().flatten() {
             let cfg = cfg.clone();
             std::thread::spawn(move || {
-                let mut buf = vec![0u8; 16384];
-                let mut n = stream.read(&mut buf).unwrap_or(0);
-                // The head and the body may arrive in two packets: read until the body is all there.
-                loop {
-                    let so_far = String::from_utf8_lossy(&buf[..n]).to_string();
-                    let want = so_far
-                        .lines()
-                        .find_map(|l| l.to_lowercase().strip_prefix("content-length:").and_then(|v| v.trim().parse::<usize>().ok()))
-                        .unwrap_or(0);
-                    let have = so_far.split("\r\n\r\n").nth(1).map_or(0, str::len);
-                    if so_far.contains("\r\n\r\n") && have >= want {
-                        break;
-                    }
-                    match stream.read(&mut buf[n..]) {
-                        Ok(0) | Err(_) => break,
-                        Ok(m) => n += m,
-                    }
-                }
-                let text = String::from_utf8_lossy(&buf[..n]).to_string();
-                let mut first = text.lines().next().unwrap_or("").split(' ');
-                let (method, target) = (first.next().unwrap_or("").to_string(), first.next().unwrap_or("").to_string());
-                let body = text.split("\r\n\r\n").nth(1).unwrap_or("").to_string();
+                let req = crate::test_http::read(&mut stream);
+                let body = req.body_text();
+                let (method, target) = (req.method, req.path);
                 let (path, query) = target.split_once('?').unwrap_or((&target, ""));
                 let asked = query.split('&').find_map(|p| p.strip_prefix("path=")).map(decode).unwrap_or_default();
                 if method == "POST" && path == "/api/directories/clone" {

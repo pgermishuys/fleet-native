@@ -2,7 +2,7 @@
 //! states (`mock::changes`); Try again talks to a fake Fleet that answers HTTP 500 and counts what it was asked.
 use crate::fleet::link::{Job, Link, Post};
 use crate::mock::changes::{Case, FIX};
-use crate::tests::{FRAME, app, click, read_request};
+use crate::tests::{FRAME, app, click};
 use crate::{State, test_wait};
 use rune::Runtime;
 use serde_json::json;
@@ -50,7 +50,7 @@ fn says_the_changes_could_not_be_loaded_with_try_again_instead_of_no_changes_whe
     let counter = asked.clone();
     std::thread::spawn(move || {
         for mut stream in listener.incoming().flatten() {
-            let request = read_request(&mut stream);
+            let request = crate::test_http::read(&mut stream).raw();
             if request.starts_with("GET") && request.contains("/diffs") {
                 counter.fetch_add(1, Ordering::SeqCst);
             }

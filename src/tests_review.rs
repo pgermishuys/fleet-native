@@ -3,7 +3,7 @@
 use crate::fleet::diff_contents::Entry;
 use crate::fleet::link::{Job, Link, Post};
 use crate::mock::changes::Case;
-use crate::tests::{FRAME, app, click, read_request};
+use crate::tests::{FRAME, app, click};
 use crate::{State, test_wait};
 use rune::Runtime;
 use std::io::Write;
@@ -99,7 +99,7 @@ fn offers_try_again_on_a_file_whose_diff_failed_to_load_and_draws_it_when_the_re
     let counter = asked.clone();
     std::thread::spawn(move || {
         for mut stream in listener.incoming().flatten() {
-            let request = read_request(&mut stream);
+            let request = crate::test_http::read(&mut stream).raw();
             let body = if request.starts_with("GET") && request.contains("/diffs/file") {
                 counter.fetch_add(1, Ordering::SeqCst);
                 r#"{"file":"src/paginate.py","status":"modified","additions":1,"deletions":0,"before":"a = 1\n","after":"a = 1\ntags = []\n"}"#

@@ -8,7 +8,7 @@ use crate::tests::{FRAME, app, click};
 use crate::{State, test_wait};
 use rune::Runtime;
 use serde_json::{Value, json};
-use std::io::{Read, Write};
+use std::io::Write;
 use std::net::TcpListener;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
@@ -31,9 +31,7 @@ fn serve(fake: Shared) -> String {
         for mut stream in listener.incoming().flatten() {
             let fake = fake.clone();
             std::thread::spawn(move || {
-                let mut buf = [0u8; 4096];
-                let n = stream.read(&mut buf).unwrap_or(0);
-                let head = String::from_utf8_lossy(&buf[..n]).to_string();
+                let head = crate::test_http::read(&mut stream).head;
                 let mut first = head.lines().next().unwrap_or("").split(' ');
                 let (method, path) = (first.next().unwrap_or("").to_string(), first.next().unwrap_or("").to_string());
                 let mut f = fake.lock().unwrap();

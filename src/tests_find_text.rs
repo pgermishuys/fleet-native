@@ -5,7 +5,7 @@ use crate::fleet::file_browser::SearchIn;
 use crate::fleet::find_text::*;
 use crate::fleet::link::{Job, Link, Post};
 use crate::mock::files_tab::Case;
-use crate::tests::{FRAME, app, finish, read_request};
+use crate::tests::{FRAME, app, finish};
 use crate::{State, test_wait};
 use rune::Runtime;
 use serde_json::{Value, json};
@@ -39,7 +39,7 @@ fn scene(mut replies: VecDeque<Reply>) -> (Rt, Receiver<Job>, Asked) {
     let log = asked.clone();
     std::thread::spawn(move || {
         for mut stream in listener.incoming().flatten() {
-            let request = read_request(&mut stream);
+            let request = crate::test_http::read(&mut stream).raw();
             let line = request.lines().next().unwrap_or_default().to_string();
             let (status, body) = if line.contains("/find/text") {
                 log.lock().unwrap().push(line);
