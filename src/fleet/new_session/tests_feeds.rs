@@ -521,9 +521,27 @@ mod live {
             for mut stream in listener.incoming().flatten() {
                 let (log, route) = (log.clone(), route.clone());
                 std::thread::spawn(move || {
-                    let mut buf = [0u8; 8192];
-                    let n = stream.read(&mut buf).unwrap_or(0);
-                    let text = String::from_utf8_lossy(&buf[..n]).to_string();
+                    // One read can hold half a request (a slow Windows loopback splits the headers from the
+                    // line, or the body from the headers), which answered 404 for a path it did know. Read to the
+                    // blank line, then the body, so the reply never races the client's own write.
+                    let mut got = Vec::new();
+                    let mut chunk = [0u8; 4096];
+                    let mut need = None;
+                    loop {
+                        if let Some(end) = got.windows(4).position(|w| w == b"\r\n\r\n") {
+                            let head = String::from_utf8_lossy(&got[..end]).to_lowercase();
+                            let len = head.lines().find_map(|l| l.strip_prefix("content-length:")?.trim().parse::<usize>().ok());
+                            let total = *need.get_or_insert(end + 4 + len.unwrap_or(0));
+                            if got.len() >= total {
+                                break;
+                            }
+                        }
+                        match stream.read(&mut chunk) {
+                            Ok(0) | Err(_) => break,
+                            Ok(n) => got.extend_from_slice(&chunk[..n]),
+                        }
+                    }
+                    let text = String::from_utf8_lossy(&got).to_string();
                     let mut first = text.lines().next().unwrap_or("").split(' ');
                     let (method, target) = (first.next().unwrap_or("").to_string(), first.next().unwrap_or("").to_string());
                     log.lock().unwrap().push(format!("{method} {target}"));
