@@ -104,7 +104,7 @@ fn header(s: &State, t: &Theme, files: &[FileDiff]) -> El {
         || "Which changes to show".to_string(),
         |l| format!("{}{}", l.text, l.commit.as_deref().map_or(String::new(), |c| format!(" {c}"))),
     );
-    let layout = s.review.layout(s.right_shown_w());
+    let layout = s.review_layout();
     let all_shut = s.review.all_collapsed(files);
     let (shut_tip, shut_icon) = if all_shut { ("Expand all files", &CHEVRONS_UP_DOWN) } else { ("Collapse all files", &CHEVRONS_DOWN_UP) };
     let choices = [("unified", "Unified", layout == Layout::Unified), ("split", "Split", layout == Layout::Split)];
@@ -134,7 +134,7 @@ fn header(s: &State, t: &Theme, files: &[FileDiff]) -> El {
         .child(el().grow(1.0))
         .child(segment(t, "review-layout", "Layout", false, &choices, |id| {
             let to = if id == "split" { Layout::Split } else { Layout::Unified };
-            Box::new(move |s: &mut State| s.review.set_layout(to))
+            Box::new(move |s: &mut State| s.set_review_layout(to))
         }))
         // Find is drawn now and wired by piece K.
         .child(icon_button(t, "review-find", "Find in changes (Ctrl+F)", &SEARCH, false))

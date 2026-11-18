@@ -108,3 +108,63 @@ fn a_huge_diff_draws_its_first_lines_and_shows_the_rest_on_a_click() {
     assert!(rt.state.review.is_drawn_all(PATH));
     assert!(rt.elements().into_iter().all(|e| e.exiting || e.key.as_deref() != Some(more.as_str())), "the button is gone");
 }
+
+// ChangesReview.test.ts: "draws split as old and new columns and remembers the pick"
+#[test]
+fn draws_split_as_old_and_new_columns_and_remembers_the_pick() {
+    let mut rt = shown(Case::Review);
+    let at = |rt: &Rt, key: &str| rt.elements().into_iter().find(|e| e.key.as_deref() == Some(key)).map(|e| e.rect);
+    assert!(keys(&rt, "review-old-").is_empty(), "Unified draws no columns");
+    click(&mut rt, "review-layout-split");
+    settle(&mut rt);
+    let olds = keys(&rt, &format!("review-old-{NOTES}-"));
+    let news = keys(&rt, &format!("review-new-{NOTES}-"));
+    assert!(!olds.is_empty() && olds.len() == news.len(), "a cell each side of every row: {olds:?} {news:?}");
+    // The two sides of a row are level and the same size, side by side.
+    let (o, n) = (at(&rt, &olds[0]).unwrap(), at(&rt, &news[0]).unwrap());
+    assert_eq!((o[1], o[3]), (n[1], n[3]), "level");
+    assert!(n[0] >= o[0] + o[2] - 1.0, "old then new: {o:?} {n:?}");
+    // Remembered: the settings file says so and reads back.
+    let json = rt.state.sidebar.to_json();
+    assert!(json.contains("\"changesLayout\": \"split\""), "{json}");
+    assert_eq!(crate::fleet::settings::Sidebar::parse(&json).changes_layout(), Some(crate::fleet::review::Layout::Split));
+}
+
+// ChangesReview.test.ts: "keeps line numbers in place only in a hunk scrolled sideways". Native: Unified's numbers are
+// `sticky_left`, held at the region's left edge always, so there is no scrolled state to track; Split's scroll with the text
+// (Fleet's split has static numbers too).
+#[test]
+fn a_hunks_numbers_hold_at_the_left_in_unified_and_a_split_hunk_scrolls_as_one_region() {
+    let mut rt = shown(Case::Review);
+    let regions = |rt: &Rt| keys(rt, &format!("review-region-{NOTES}-")).len();
+    let before = regions(&rt);
+    assert!(before > 0);
+    click(&mut rt, "review-layout-split");
+    settle(&mut rt);
+    assert_eq!(regions(&rt), before, "one scrolling region per hunk, old and new inside it");
+    assert!(!keys(&rt, &format!("review-new-{NOTES}-")).is_empty());
+}
+
+// 7.8: an unchanged run opened in Split is context on both sides
+#[test]
+fn an_opened_unchanged_run_draws_as_context_on_both_sides_in_split() {
+    let mut rt = shown(Case::Review);
+    click(&mut rt, "review-layout-split");
+    settle(&mut rt);
+    let folds = keys(&rt, &format!("review-fold-{NOTES}-"));
+    let (olds, news) = (keys(&rt, "review-old-").len(), keys(&rt, "review-new-").len());
+    click(&mut rt, &folds[0]);
+    settle(&mut rt);
+    let (o2, n2) = (keys(&rt, "review-old-").len(), keys(&rt, "review-new-").len());
+    assert!(o2 > olds && o2 - olds == n2 - news, "{olds}->{o2} {news}->{n2}");
+}
+
+// 5.6: a panel from 1,100 px starts as Split, until the user picks
+#[test]
+fn a_wide_panel_starts_as_split_until_picked() {
+    use crate::fleet::review::{Layout, layout_for};
+    assert_eq!(layout_for(None, 1100.0), Layout::Split);
+    let mut rt = shown(Case::Review);
+    rt.update(|s, _| s.set_review_layout(Layout::Unified));
+    assert_eq!(rt.state.review_layout(), Layout::Unified);
+}

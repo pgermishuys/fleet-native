@@ -1,12 +1,13 @@
 //! A file's hunks, folds and lines in the Changes review (`ChangesReview.vue`, rows 7.1 to 7.6, 7.9 and 7.10 of
 //! docs/parity/12-changes-and-review.md): a header per hunk, a button for each run of unchanged lines, the lines with their two
-//! numbers, a marker and word marks, sideways scrolling per hunk or wrapping, and Show more past 600 changed lines. The Split
-//! layout is piece G's: until it lands both layouts draw Unified.
+//! numbers, a marker and word marks, sideways scrolling per hunk or wrapping, and Show more past 600 changed lines. Split draws
+//! the same hunks and folds through `review_split` (piece G).
+use super::review_split::split_lines;
 use crate::State;
 use crate::conv::diff::Kind;
 use crate::conv::review::{ReviewHunk, ReviewItem, ReviewLine};
 use crate::fleet::diffs::{FileDiff, FileStatus};
-use crate::fleet::review::{hidden_changes, visible};
+use crate::fleet::review::{Layout, hidden_changes, visible};
 use crate::icons::{ELLIPSIS, UNDO_2};
 use crate::theme::{Theme, mono, sans};
 use rune::{Color, Cursor, El, TextHighlight, col, el, icon, row, text};
@@ -14,7 +15,7 @@ use rune::{Color, Cursor, El, TextHighlight, col, el, icon, row, text};
 /// A line, 12 px at 20 px.
 pub const LINE_H: f32 = 20.0;
 /// The right edge of an unwrapped hunk fades over this much.
-const FADE: f32 = 28.0;
+pub(super) const FADE: f32 = 28.0;
 
 /// `.rfold`: a full-width button between runs of unchanged lines, and "Show N more lines".
 fn fold_button(t: &Theme, key: String, words: String, glyph: bool, press: impl Fn(&mut State) + 'static) -> El {
@@ -74,14 +75,14 @@ fn hunk_header(t: &Theme, path: &str, hunk: &ReviewHunk, file: &FileDiff) -> El 
         .child(revert)
 }
 
-struct Tints {
-    add: Color,
-    del: Color,
-    add_word: Color,
-    del_word: Color,
+pub struct Tints {
+    pub add: Color,
+    pub del: Color,
+    pub add_word: Color,
+    pub del_word: Color,
 }
 
-fn tints(t: &Theme) -> Tints {
+pub(super) fn tints(t: &Theme) -> Tints {
     // `--add-bg` and `--del-bg` over the card's fill, `--add-word` and `--del-word` over those.
     Tints {
         add: t.mix(t.diff_add(), t.panel_bg, 0.10),
@@ -133,7 +134,7 @@ fn line(t: &Theme, k: &Tints, key: String, l: &ReviewLine, wrap: bool) -> El {
 }
 
 /// A run of lines in one sideways-scrolling region (or plain rows when they wrap), labelled for a screen reader (7.10).
-fn region(t: &Theme, key: String, label: String, lines: El, count: usize, wrap: bool) -> El {
+pub(super) fn region(t: &Theme, key: String, label: String, lines: El, count: usize, wrap: bool) -> El {
     if wrap {
         return lines.key(key).role("region").label(label);
     }
@@ -168,6 +169,7 @@ pub fn lines(s: &State, t: &Theme, file: &FileDiff, items: &[ReviewItem]) -> El 
     let wrap = s.sidebar.changes_wrap();
     let all = s.review.is_drawn_all(path);
     let k = tints(t);
+    let split = s.review_layout() == Layout::Split;
     let mut out = col().key(format!("review-lines-{path}")).w_full();
     for shown in visible(items, all) {
         match shown.item {
@@ -184,8 +186,8 @@ pub fn lines(s: &State, t: &Theme, file: &FileDiff, items: &[ReviewItem]) -> El 
                     t,
                     format!("review-region-{path}-{}", f.id),
                     label,
-                    rows(t, &k, path, f.lines.iter(), wrap),
-                    f.lines.len(),
+                    if split { split_lines(t, &k, path, &f.lines, wrap) } else { rows(t, &k, path, f.lines.iter(), wrap) },
+                    if split { crate::conv::review::split_rows(&f.lines).len() } else { f.lines.len() },
                     wrap,
                 ));
             }
@@ -196,8 +198,12 @@ pub fn lines(s: &State, t: &Theme, file: &FileDiff, items: &[ReviewItem]) -> El 
                     t,
                     format!("review-region-{path}-{}", h.id),
                     label,
-                    rows(t, &k, path, h.lines.iter().take(shown.take), wrap),
-                    shown.take,
+                    if split {
+                        split_lines(t, &k, path, &h.lines[..shown.take], wrap)
+                    } else {
+                        rows(t, &k, path, h.lines.iter().take(shown.take), wrap)
+                    },
+                    if split { crate::conv::review::split_rows(&h.lines[..shown.take]).len() } else { shown.take },
                     wrap,
                 ));
             }

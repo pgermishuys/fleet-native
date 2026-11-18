@@ -1657,3 +1657,11 @@ Nothing in Rune was needed.
 - **`rune::memo::window_layout(key)` works inside the view build with no `Cx`**: `ui::overlays` reads the rect of each floating overlay by key while it builds and the view builds again when one moves.
 - **A keyed element reports no rect until laid out**: read as "might be over the page" (hide) rather than "not".
 - WebKitGTK: a view is black until it first paints; keep it out of the window until `PageLoadEvent::Finished` (6 s cap). `GDK_SCALE` is a whole number, so on X11 at 1.5× the view is placed at 2× positions.
+
+
+## Component 12, piece G (Split)
+
+- **`minmax(max-content, 1fr)` is `.w(0.0).grow(1.0).min_w(content)`**: flex basis 0 with a minimum, so a side with nothing long stays narrow until the region is wider than both. `.w(content).grow(1.0)` instead keeps each side's own width and shares only the extra, which isn't the grid.
+- **Two exactly equal halves** (wrapped Split) need `.w_frac(0.5)`; basis 0 with `grow(1.0)` followed the wrapped text's width.
+- **No pattern or hatch fill**, so a padded cell is a flat wash.
+- **There is no way to measure a text's width while building a view**, so an unwrapped Split column's minimum comes from the character count times a mono advance of 0.6 em.

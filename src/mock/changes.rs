@@ -128,6 +128,12 @@ impl State {
         self.review.decide(&files);
     }
 
+    /// The review with Split picked, a fold opened.
+    pub fn show_review_split(&mut self, dark: bool, wrap: bool) {
+        self.show_review_hunks(dark, wrap);
+        self.set_review_layout(crate::fleet::review::Layout::Split);
+    }
+
     /// The review of the scratch Fleet's two files with the first unchanged run of `src/paginate.py` opened, or with lines wrapped.
     pub fn show_review_hunks(&mut self, dark: bool, wrap: bool) {
         use crate::conv::diff::parse_diff_lines;

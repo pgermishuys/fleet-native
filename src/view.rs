@@ -87,6 +87,7 @@ pub mod report;
 pub mod report_review;
 pub mod review;
 pub mod review_lines;
+pub mod review_split;
 mod right_rail;
 pub mod ring;
 pub mod ring_popover;

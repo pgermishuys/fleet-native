@@ -155,7 +155,7 @@ fn collapse_all_shuts_every_file_and_the_button_then_offers_expand_all() {
 fn the_layout_choice_follows_the_pick() {
     let mut rt = shown(Case::Review);
     use crate::fleet::review::Layout;
-    let layout = |rt: &Rt| rt.state.review.layout(rt.state.right_shown_w());
+    let layout = |rt: &Rt| rt.state.review_layout();
     assert_eq!(layout(&rt), Layout::Unified);
     click(&mut rt, "review-layout-split");
     settle(&mut rt);
