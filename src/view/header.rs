@@ -468,7 +468,9 @@ fn actions(s: &State, t: &Theme, m: &HeaderModel) -> El {
     let pending = s.toolbar_pending();
     let a = &m.actions;
     let tool = |key, glyph, tip: &str| Tool { key, glyph, tip: tip.into(), danger: false, off: false, spinning: false, active: false };
-    let mut buttons = row().center_y().gap(2.0).child(toolbar_button(t, tool("terminal", &SQUARE_TERMINAL, "Terminal")));
+    let mut buttons = row().center_y().gap(2.0).child(
+        toolbar_button(t, tool("terminal", &SQUARE_TERMINAL, "Terminal")).on_press_tx(|s: &mut State, tx: &mut Tx| s.toggle_terminal(tx)),
+    );
     if a.can_abort {
         let b = Tool {
             danger: true,

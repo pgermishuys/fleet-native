@@ -21,6 +21,7 @@ fn centre_w(s: &State) -> f32 {
 
 pub fn sheet(s: &State, t: &Theme) -> El {
     let session = s.session();
+    let drawer = super::terminal_view::drawer(s, t);
     let centre = col()
         .grow(1.0)
         .min_w(0.0)
@@ -48,7 +49,8 @@ pub fn sheet(s: &State, t: &Theme) -> El {
             },
         ))
         .children(super::recap::recap_line(t, s.recap()))
-        .child(super::composer::composer(s, t, session));
+        .child(super::composer::composer(s, t, session))
+        .children(drawer);
     let mut sheet = row()
         .key("workspace-sheet")
         .grow(1.0)

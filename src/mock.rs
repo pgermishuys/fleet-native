@@ -45,6 +45,7 @@ pub mod rules;
 pub mod running;
 pub mod sign_in;
 pub mod storage;
+pub mod terminal_scenes;
 pub mod tools;
 pub mod turns;
 pub mod update;

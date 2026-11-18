@@ -126,9 +126,11 @@ fn shows_the_terminal_button_only_when_terminals_are_on_and_runs_the_terminal_co
     rt.update(|s, _| s.terminals_allowed = Some(true));
     rt.frame(FRAME);
     assert!(has(&rt, "status-hint-terminal"));
+    // With a session open, the hint runs the toggle (component 13): the terminal's box opens under the composer.
+    rt.update(|s, _| s.set_session_id((0, 0), "s1"));
+    rt.frame(FRAME);
     click(&mut rt, "status-hint-terminal");
-    // The terminal is component 13's: the command says so, the way the palette's row does.
-    assert!(rt.state.ui.toast.as_ref().is_some_and(|t| t.message.contains("Show terminal")));
+    assert!(has(&rt, "terminal-drawer"));
 }
 
 #[test]

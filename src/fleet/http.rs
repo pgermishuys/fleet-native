@@ -231,6 +231,48 @@ pub fn client_config(base: &str) -> Result<Value, String> {
     get(base, "/api/config/client")
 }
 
+/// `GET /api/sessions/{id}/terminals`: `[{id, title, status: "running" | "stopped", createdAt}]`, oldest first.
+pub fn terminals(base: &str, session: &str) -> Result<Vec<Terminal>, String> {
+    let body = get(base, &format!("/api/sessions/{}/terminals", escape(session)))?;
+    Ok(body.as_array().map(|a| a.iter().filter_map(Terminal::from_json).collect()).unwrap_or_default())
+}
+
+/// `POST /api/sessions/{id}/terminals {cols, rows}`: a new shell, 201 with its entry; a refusal says why in `error`.
+pub fn terminal_create(base: &str, session: &str, cols: u32, rows: u32) -> Result<Terminal, String> {
+    let path = format!("/api/sessions/{}/terminals", escape(session));
+    let (status, text) = text_with("POST", base, &path, Some(&json!({ "cols": cols, "rows": rows })))
+        .map_err(|_| "Couldn't reach Fleet to open a terminal.".to_string())?;
+    let body: Value = serde_json::from_str(&text).unwrap_or(Value::Null);
+    if (200..300).contains(&status) {
+        return Terminal::from_json(&body).ok_or_else(|| "The terminal request failed (HTTP 200).".to_string());
+    }
+    Err(body
+        .get("error")
+        .and_then(Value::as_str)
+        .filter(|e| !e.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| format!("The terminal request failed (HTTP {status}).")))
+}
+
+/// A session's terminal as the server lists it.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Terminal {
+    pub id: String,
+    pub title: String,
+    pub running: bool,
+}
+
+impl Terminal {
+    fn from_json(v: &Value) -> Option<Terminal> {
+        let s = |k: &str| v.get(k).and_then(Value::as_str);
+        Some(Terminal {
+            id: s("id")?.to_string(),
+            title: s("title").unwrap_or_default().to_string(),
+            running: s("status") != Some("stopped"),
+        })
+    }
+}
+
 /// `POST /api/setup/terminals`: a shell in the home folder, outside any session, where a harness's installer is shown. Gives the
 /// terminal's id, or the sentence to show (the server's `error`, else the status).
 pub fn setup_terminal_create(base: &str, cols: u32, rows: u32) -> Result<String, String> {

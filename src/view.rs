@@ -110,6 +110,7 @@ pub mod starters;
 mod status;
 pub mod subagent_row;
 pub mod summary_bar;
+pub mod terminal_view;
 pub mod toolcard;
 pub mod toolrow;
 pub mod turn_detail;
