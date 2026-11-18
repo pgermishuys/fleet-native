@@ -316,10 +316,11 @@ fn re_reads_open_files_when_the_agent_stops_session_idled_which_catches_shell_ed
 #[test]
 fn re_reads_when_the_window_gets_focus_back_without_waiting() {
     let mut f = Fake::start();
-    let started = std::time::Instant::now();
     f.rt.update(|s, _| s.file_window_focus());
+    // Sent from the focus itself, not queued behind the 500 ms wait. Timing the round trip instead failed on a busy machine,
+    // where the read alone can take longer than the wait it is meant to skip.
+    assert!(f.rt.state.file_buffers.is_reading(&f.machine, &f.id, PATH), "no 500 ms wait");
     f.wait("the file to be read", |_, p| p.reads.len() == 1);
-    assert!(started.elapsed() < FILE_EVENT_DEBOUNCE, "no 500 ms wait");
 }
 
 #[test]

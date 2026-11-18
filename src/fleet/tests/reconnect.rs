@@ -327,10 +327,35 @@ fn a_dropped_connection_comes_back_with_the_conversation_a_fresh_open_shows() {
 
 #[test]
 fn coming_back_to_the_window_while_the_hub_is_down_reconnects_at_once() {
-    // A port nothing listens on yet: the first attempt is refused, and the next one is a second away.
-    let held = TcpListener::bind("127.0.0.1:0").unwrap();
-    let addr = held.local_addr().unwrap();
-    drop(held);
+    // The hub turns every attempt away until `up`, and notes when each one came. Three refusals put the schedule at its
+    // five-second step (1, 2, 5 s), so "at once" is told apart from "on schedule" by seconds, not by the 0.7 s this test
+    // used to allow, which a busy machine ran past. The times are taken where the attempts arrive, so how long the app
+    // takes to say it is online doesn't count.
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = listener.local_addr().unwrap();
+    let up = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let attempts = Arc::new(std::sync::Mutex::new(Vec::<Instant>::new()));
+    let (is_up, noted) = (up.clone(), attempts.clone());
+    std::thread::spawn(move || {
+        let hubs = Arc::new(AtomicUsize::new(0));
+        for stream in listener.incoming().flatten() {
+            let (is_up, noted, hubs) = (is_up.clone(), noted.clone(), hubs.clone());
+            std::thread::spawn(move || {
+                if !negotiates(&stream) {
+                    if is_up.load(Ordering::SeqCst) {
+                        serve(stream, hubs);
+                    }
+                    return;
+                }
+                // Decided before it is noted, so the third attempt is refused even if the test turns `up` on as it notes it.
+                let serving = is_up.load(Ordering::SeqCst);
+                noted.lock().unwrap().push(Instant::now());
+                if serving {
+                    serve(stream, hubs);
+                }
+            });
+        }
+    });
     let (jobs, queue) = channel::<Job>();
     let jobs = std::sync::Mutex::new(jobs);
     let post = Post::new(move |job| {
@@ -338,29 +363,31 @@ fn coming_back_to_the_window_while_the_hub_is_down_reconnects_at_once() {
     });
     let mut rt = app();
     let link = Link::start(format!("http://{addr}"), post);
-    let wake = |rt: &mut Runtime<State>, until: &dyn Fn(&State) -> bool, secs: f32| {
-        let end = Instant::now() + Duration::from_secs_f32(secs);
-        while Instant::now() < end {
-            while let Ok(job) = queue.try_recv() {
-                rt.update(job);
-            }
-            if until(&rt.state) {
-                return true;
-            }
-            std::thread::sleep(Duration::from_millis(10));
-        }
-        false
-    };
-    assert!(wake(&mut rt, &|s| matches!(s.connection, Connection::Down(_)), 60.0), "never saw it down");
-    let listener = TcpListener::bind(addr).unwrap();
-    let hubs = Arc::new(AtomicUsize::new(0));
-    std::thread::spawn(move || {
-        for stream in listener.incoming().flatten() {
-            let hubs = hubs.clone();
-            std::thread::spawn(move || serve(stream, hubs));
-        }
-    });
+    crate::test_wait::until_true("three refused attempts", || attempts.lock().unwrap().len() >= 3);
+    up.store(true, Ordering::SeqCst);
     link.window_focus(true);
-    // Well inside the one-second delay the schedule would have waited out.
-    assert!(wake(&mut rt, &|s| s.connection == Connection::Online, 0.7), "didn't reconnect when the window came back");
+    crate::test_wait::drive(&mut rt, &queue, "the hub to come back", |s| s.connection == Connection::Online, crate::test_wait::app_state);
+    let times = attempts.lock().unwrap().clone();
+    let waited = times[3] - times[2];
+    assert!(
+        waited < reconnect_delay(2) - Duration::from_secs(1),
+        "didn't reconnect when the window came back: {waited:?} after the last try"
+    );
+}
+
+/// Whether the connection is the hub's negotiate, the first call of every attempt to connect. Peeks until enough of the
+/// request line is in, so one that arrives in pieces isn't taken for another call.
+fn negotiates(stream: &TcpStream) -> bool {
+    const LINE: &[u8] = b"POST /hubs/session-events/negotiate";
+    let mut peek = [0u8; LINE.len()];
+    let mut is = false;
+    crate::test_wait::until_true("a request line", || match stream.peek(&mut peek) {
+        Ok(n) if n < LINE.len() && n > 0 && LINE.starts_with(&peek[..n]) => false,
+        Ok(n) => {
+            is = peek[..n] == *LINE;
+            true
+        }
+        Err(_) => true,
+    });
+    is
 }
