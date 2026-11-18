@@ -1659,6 +1659,10 @@ Nothing in Rune was needed.
 - WebKitGTK: a view is black until it first paints; keep it out of the window until `PageLoadEvent::Finished` (6 s cap). `GDK_SCALE` is a whole number, so on X11 at 1.5× the view is placed at 2× positions.
 
 
+## Component 14, piece G (app runs)
+
+- Nothing new about Rune: plain Rust over `Link::off_thread`. The one thing worth knowing is that a request must record the store's event clock when it is *asked* (on the UI thread), not when its thread starts, or a late answer can undo an event that came in between.
+
 ## Component 12, piece G (Split)
 
 - **`minmax(max-content, 1fr)` is `.w(0.0).grow(1.0).min_w(content)`**: flex basis 0 with a minimum, so a side with nothing long stays narrow until the region is wider than both. `.w(content).grow(1.0)` instead keeps each side's own width and shares only the extra, which isn't the grid.
