@@ -7,6 +7,7 @@ mod background;
 mod browser;
 mod bubble;
 mod card;
+mod changes_find;
 mod classification;
 mod compaction;
 mod diff;

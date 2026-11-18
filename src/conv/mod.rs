@@ -7,6 +7,7 @@ pub mod background;
 pub mod browser;
 pub mod bubble;
 pub mod card;
+pub mod changes_find;
 pub mod compaction;
 pub mod diff;
 pub mod export;
