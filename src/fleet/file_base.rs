@@ -3,18 +3,12 @@
 //! it says which request to make and takes the answer; the thread is in the `State` half at the bottom. It shares the request
 //! with Changes (`http::diff_file`) but keeps its own answers, kept by machine, session, what the changes are compared with and
 //! path, so a rebase onto a newer main reads each file again.
+use super::canvases::is_image_path;
 use super::diffs::Base;
 use super::http;
 use crate::State;
 use serde_json::Value;
 use std::collections::{HashMap, VecDeque};
-
-/// The image types the server's `/files/image` serves (`isImagePath`). Piece A's `canvases::is_image_path` is the same list;
-/// this one goes when A lands.
-fn is_image_path(path: &str) -> bool {
-    let ext = path.rsplit_once('.').map(|(_, e)| e.to_ascii_lowercase()).unwrap_or_default();
-    matches!(ext.as_str(), "png" | "jpg" | "jpeg" | "gif" | "webp" | "avif" | "bmp" | "ico" | "svg")
-}
 
 /// Open files are few; keep the bases of the most recent ones.
 pub const MAX_CACHED: usize = 50;
