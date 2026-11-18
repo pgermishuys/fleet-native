@@ -68,6 +68,11 @@ impl State {
     /// Loads the session's server canvases when it opens and after a reconnect. A failed load is not shown; the next open or
     /// reconnect loads again.
     pub fn load_server_canvases(&mut self, session: &str) {
+        self.load_server_canvases_then(session, None);
+    }
+
+    /// `load_server_canvases`, then the tab `activate` names comes forward (a tab a browser tab opened from a link).
+    pub fn load_server_canvases_then(&mut self, session: &str, activate: Option<String>) {
         let Some(link) = self.link_for(session) else { return };
         let generation = self.pages.begin_load(session);
         self.server_loads.id += 1;
@@ -92,6 +97,9 @@ impl State {
                 s.canvases.set_server_canvases(&id, list);
                 for event in pending.map(|p| p.buffered).unwrap_or_default() {
                     s.canvases.apply_canvas_event(&id, event);
+                }
+                if let Some(tab) = &activate {
+                    s.canvases.activate(&id, tab);
                 }
                 s.sync_review();
             },

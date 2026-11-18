@@ -15,6 +15,8 @@ use wry::{Rect, WebView, WebViewBuilder};
 struct View {
     tab: String,
     place: PagePlace,
+    /// A browser tab's preview (row 14.54): no theme goes to it.
+    browser: bool,
     web: WebView,
     load_key: String,
     /// The last rectangle it had on screen: a hidden view keeps its size, so the page doesn't lay itself out again.
@@ -106,6 +108,9 @@ pub fn keep(s: &mut State, tx: &mut Tx) -> bool {
         return false;
     }
     take_keys_back(s, tx);
+    for request in std::mem::take(&mut s.web.nav) {
+        evaluate(&request.tab, request.script, |_| {});
+    }
     let theme = s.page_theme();
     if s.web.theme.as_ref() != Some(&theme) {
         // A change of theme (or of the font size) reaches every page that's open (row 14.28).
@@ -125,15 +130,31 @@ pub fn keep(s: &mut State, tx: &mut Tx) -> bool {
     if !revealed && s.web.applied.as_ref() == Some(&want) {
         return false;
     }
+    let before = VIEWS.with(|v| v.borrow().len());
     let result = apply(&want, s.web.theme.as_ref().expect("set above"));
     s.web.applied = Some(want);
     match result {
-        Ok(()) => false,
+        // A view that went leaves its pixels on screen until Rune draws over them (an error shown where the page was).
+        Ok(()) => {
+            let gone = VIEWS.with(|v| v.borrow().len()) < before;
+            if gone {
+                // The last view's window is destroyed by GTK's loop, which `pump` only turns while a view exists.
+                drain_gtk();
+            }
+            gone
+        }
         Err(e) => {
             eprintln!("fleet-native: a web view couldn't be made: {e}");
             s.web.failed = Some(e);
             true
         }
+    }
+}
+
+fn drain_gtk() {
+    #[cfg(target_os = "linux")]
+    while gtk::events_pending() {
+        gtk::main_iteration_do(false);
     }
 }
 
@@ -231,7 +252,7 @@ fn make(p: &super::Placement, name: &str) -> Result<View, String> {
         .with_background_color((255, 255, 255, 255))
         // Showing a page doesn't take the keyboard from the composer; a click in it does.
         .with_focused(false)
-        .with_initialization_script_for_main_only(inject::script(name), true)
+        .with_initialization_script_for_main_only(if p.browser { inject::preview_script().to_string() } else { inject::script(name) }, true)
         .with_ipc_handler(move |req| heard(&tab, req.body()));
     let web = WINDOW.with(|w| {
         let w = w.borrow();
@@ -241,6 +262,7 @@ fn make(p: &super::Placement, name: &str) -> Result<View, String> {
     Ok(View {
         tab: p.tab.clone(),
         place: p.place,
+        browser: p.browser,
         web,
         load_key: p.load_key.clone(),
         rect: p.rect,
@@ -263,7 +285,7 @@ fn open_document_link(url: String) {
 fn retheme_all(theme: &super::page_theme::PageTheme) {
     let message = theme.message();
     VIEWS.with(|views| {
-        for v in views.borrow().iter() {
+        for v in views.borrow().iter().filter(|v| !v.browser) {
             let _ = v.web.evaluate_script(&inject::retheme(&theme.frame_name(v.place), &message));
         }
     });
@@ -273,6 +295,13 @@ fn retheme_all(theme: &super::page_theme::PageTheme) {
 fn heard(tab: &str, body: &str) {
     log(|| format!("heard from {tab}: {body}"));
     let parsed = serde_json::from_str::<serde_json::Value>(body).ok();
+    if let Some(data) = parsed.as_ref().and_then(|v| v.get("preview")).cloned() {
+        let tab = tab.to_string();
+        if let Some(app) = APP.get() {
+            app.update(move |s: &mut State, _| s.hear_preview(&tab, &data));
+        }
+        return;
+    }
     if let Some(data) = parsed.as_ref().and_then(|v| v.get("page")).cloned() {
         let tab = tab.to_string();
         if let Some(app) = APP.get() {

@@ -12,6 +12,7 @@ pub mod attachments;
 pub mod autocomplete;
 pub mod base_picker;
 pub mod browser_steps;
+pub mod browser_tab;
 pub mod canvas_host;
 pub mod changes;
 pub mod changes_find;

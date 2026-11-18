@@ -738,3 +738,8 @@ pub static CHEVRONS_UP_DOWN: Icon = Icon {
     view: 24.0,
     body: r#"<path d="m7 15 5 5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="m7 9 5-5 5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>"#,
 };
+pub static ARROW_RIGHT: Icon = Icon {
+    name: "lucide-arrow-right",
+    view: 24.0,
+    body: r#"<path d="M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="m12 5 7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>"#,
+};

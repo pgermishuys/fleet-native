@@ -32,6 +32,8 @@ mod tests_asks;
 #[cfg(test)]
 mod tests_browser;
 #[cfg(test)]
+mod tests_browser_tab;
+#[cfg(test)]
 mod tests_canvas_host;
 #[cfg(test)]
 mod tests_canvas_show;
@@ -1483,7 +1485,8 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_nightly(tx)
         | s.keep_naming(now, tx)
         | s.keep_storage(tx)
-        | s.keep_terminal(tx);
+        | s.keep_terminal(tx)
+        | s.keep_browser(tx);
     // "Copied" on a message's button ends by itself.
     let copied = match &s.copied {
         Some((_, until)) if now >= *until => {
@@ -3510,6 +3513,25 @@ pub fn spec() -> AppSpec<State> {
                 s.dark = Some(false);
                 s.show_page_fallback()
             }),
+            // Component 14, piece H: the browser tab's bar and each thing its page area can say.
+            ("browser-tab", |s| s.show_browser_tab(mock::browser_tab::BrowserCase::Shown)),
+            ("browser-tab-light", |s| {
+                s.dark = Some(false);
+                s.show_browser_tab(mock::browser_tab::BrowserCase::Shown)
+            }),
+            ("browser-tab-waiting", |s| s.show_browser_tab(mock::browser_tab::BrowserCase::Waiting)),
+            ("browser-tab-loading", |s| s.show_browser_tab(mock::browser_tab::BrowserCase::Loading)),
+            ("browser-tab-error", |s| s.show_browser_tab(mock::browser_tab::BrowserCase::Refused)),
+            ("browser-tab-error-light", |s| {
+                s.dark = Some(false);
+                s.show_browser_tab(mock::browser_tab::BrowserCase::Refused)
+            }),
+            ("browser-tab-elsewhere", |s| s.show_browser_tab(mock::browser_tab::BrowserCase::Elsewhere)),
+            ("browser-tab-elsewhere-light", |s| {
+                s.dark = Some(false);
+                s.show_browser_tab(mock::browser_tab::BrowserCase::Elsewhere)
+            }),
+            ("browser-tab-no-web-app", |s| s.show_browser_tab(mock::browser_tab::BrowserCase::ElsewhereNoApp)),
             // Component 14, piece C: the page tab's bar, warnings and each state of the choice bar.
             ("page-tab-waiting", |s| s.show_page_tab(mock::pages::TabCase::Waiting)),
             ("page-tab-waiting-light", |s| {

@@ -1223,6 +1223,7 @@ dependencies = [
  "tar",
  "tungstenite",
  "ureq",
+ "url",
  "wasm-bindgen",
  "webpki-roots",
  "windows",
