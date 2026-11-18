@@ -3,7 +3,7 @@
 //! another component's draws a stand-in that names that component, until it is built.
 use super::right_rail;
 use crate::State;
-use crate::fleet::canvas_host::{Badge, STRIP, close_key, tab_key};
+use crate::fleet::canvas_host::{Badge, STRIP, close_key, pin_key, tab_key};
 use crate::fleet::canvases::{CanvasInstance, CanvasKind, VisualType};
 use crate::fleet::tab_motion::{PULSE_ICON_SHARE, bezier, ease_out};
 use crate::icons::*;
@@ -130,18 +130,31 @@ fn tab(s: &State, t: &Theme, canvas: &CanvasInstance, active: bool) -> El {
         let e = bezier(0.2, 0.8, 0.2, 1.0, p);
         tab = tab.opacity(e).offset(8.0 * (1.0 - e), 0.0).scale(0.96 + 0.04 * e);
     }
+    // A preview tab's name is italic: the next file you open takes its place.
+    let preview = name_italic(canvas);
+    let font = if preview { sans(13.0, weight, 1.3).italic() } else { sans(13.0, weight, 1.3) };
     tab = tab
         .child(icon(canvas.icon(), 14.0).color(icon_ink).group_color(t.text))
-        .child(text(title).font(sans(13.0, weight, 1.3)).color(ink).group_color(t.text).truncate().min_w(0.0));
+        .child(text(title).font(font).color(ink).group_color(t.text).truncate().min_w(0.0));
     if let Some(badge) = badge(s, t, canvas) {
         tab = tab.child(badge);
+    }
+    if let Some(file) = &canvas.file {
+        tab = tab.child(pin_button(t, &id, &canvas.title(), file.preview, active));
     }
     if canvas.closable() {
         tab = tab.child(close_button(t, &id, &canvas.title(), active));
     }
     let (press, middle) = (id.clone(), id);
+    let keep = press.clone();
     let tab = tab.on_press_tx(move |s: &mut State, tx| s.activate_tab(&press, tx));
+    let tab = if canvas.file.is_some() { tab.on_double_press(move |s: &mut State| s.keep_preview_tab(&keep)) } else { tab };
     if canvas.closable() { tab.on_middle_press(move |s: &mut State, tx| s.close_tab(&middle, tx)) } else { tab }
+}
+
+/// A preview tab's name is italic (`.canvas-tab--preview .canvas-tab__label`).
+pub fn name_italic(canvas: &CanvasInstance) -> bool {
+    canvas.file.as_ref().is_some_and(|f| f.preview)
 }
 
 /// The badge: Changes' count (once the diffs are read), else an attention dot, else a count.
@@ -155,6 +168,31 @@ fn badge(s: &State, t: &Theme, canvas: &CanvasInstance) -> Option<El> {
         Badge::Attention(label) => el().role("img").label(label).size(7.0, 7.0).min_w(7.0).radius(3.5).fill(t.error),
         Badge::Count(n, label) => counted(n).label(label),
     })
+}
+
+/// `canvas-tab__pin`: like the close button (16 square, hidden until the tab is hovered or active), filled while the tab is kept.
+fn pin_button(t: &Theme, id: &str, title: &str, preview: bool, active: bool) -> El {
+    let id = id.to_string();
+    let (verb, tip) = if preview {
+        ("Pin", "Pin: keep this tab open when you open another file")
+    } else {
+        ("Unpin", "Unpin: the next file you open replaces this tab")
+    };
+    el().key(pin_key(&id))
+        .role("button")
+        .label(format!("{verb} {title}"))
+        .help(tip)
+        .size(16.0, 16.0)
+        .min_w(16.0)
+        .mr(-4.0)
+        .center()
+        .radius(4.0)
+        .cursor(Cursor::Pointer)
+        .hover(t.wash(10.0))
+        .hover_group()
+        .group_opacity(if active { 1.0 } else { 0.0 }, 1.0)
+        .on_press_tx(move |s: &mut State, tx| s.toggle_file_pin(&id, tx))
+        .child(icon(if preview { &PIN } else { &PIN_FILLED }, 12.0).color(t.muted).group_color(t.text))
 }
 
 fn close_button(t: &Theme, id: &str, title: &str, active: bool) -> El {

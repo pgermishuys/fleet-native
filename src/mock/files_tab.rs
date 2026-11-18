@@ -122,4 +122,18 @@ impl State {
             browser.search.answered(generation, &query, Ok(find(&query)));
         }
     }
+
+    /// The strip with file tabs: two kept (one filled pin each) and the preview, whose name is italic, in front.
+    pub fn show_file_tabs(&mut self, dark: bool) {
+        self.show_files_tab(Case::Selected, dark);
+        // Widened, so the whole strip shows.
+        self.right.widened = true;
+        use crate::fleet::canvases::OpenFile;
+        self.edit_canvases(|c, id| {
+            let keep = OpenFile { keep: true, view: None };
+            c.open_file(id, "README.md", keep.clone(), &|_| false);
+            c.open_file(id, "src/ledger/paginate.py", keep, &|_| false);
+            c.open_file(id, "src/ledger/totals.py", OpenFile::default(), &|_| false);
+        });
+    }
 }

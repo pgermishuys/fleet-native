@@ -1837,3 +1837,11 @@ Read at the pin while planning; nothing built yet.
 
 - **Nothing new from Rune.** A debounce is the app's own clock plus `tx.wake_after`, as Find in Changes does; a test runs it by drawing frames until `State.clock` has passed the pause, and waits for the request with `test_wait::drive` before it counts requests.
 - **Ctrl/Cmd+Shift+F is read in `on_key`** like the other window shortcuts; `is_command('f')` ignores the shift, so check `mods.shift` for it and leave Ctrl+F (`is_find_shortcut`) to the find bars.
+
+## Component 11, piece F (file tabs in the strip)
+
+- **`ElementInfo` has no font style**, so a test can't read "italic" off the drawn tree: test the function that chooses it (`name_italic`) and look at the picture.
+- **A tab scrolled out of a `scroll_x` strip is still found by key, but a click on it lands on what is drawn there** (in a live script it hit the title's "..." menu). Widen the window or the panel before tapping a far tab; in a test, activate the tab through state, let the strip scroll to it, then click its pin.
+- **A new tab slides in for 240 ms**: run about 30 frames before clicking it in a test.
+- A child's `on_press_tx` (the pin, the close button) doesn't reach the tab's own press, so no `stopPropagation` is needed.
+

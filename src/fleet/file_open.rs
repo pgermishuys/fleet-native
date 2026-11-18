@@ -18,4 +18,35 @@ impl State {
         self.sync_review();
         self.reveal_active(tx);
     }
+
+    /// A double-click on a preview tab keeps it (`keepPreview`); a kept tab does nothing.
+    pub fn keep_preview_tab(&mut self, id: &str) {
+        let tabs = self.open_canvases();
+        let Some(path) =
+            tabs.canvases.iter().find(|c| c.id == id).and_then(|c| c.file.as_ref()).filter(|f| f.preview).map(|f| f.path.clone())
+        else {
+            return;
+        };
+        let session = self.canvas_session();
+        self.canvases.keep_file(&session, &path);
+    }
+
+    /// The pin on a file tab (`togglePin`): a preview is kept; a kept tab becomes the preview, and the preview it replaces closes
+    /// with its buffer unless that one has unsaved changes.
+    pub fn toggle_file_pin(&mut self, id: &str, tx: &mut Tx) {
+        let tabs = self.open_canvases();
+        let Some(file) = tabs.canvases.iter().find(|c| c.id == id).and_then(|c| c.file.clone()) else { return };
+        let session = self.canvas_session();
+        if file.preview {
+            self.canvases.keep_file(&session, &file.path);
+            return;
+        }
+        let machine = self.machine_key_of(&session).to_string();
+        let buffers = &self.file_buffers;
+        if let Some(old) = self.canvases.unpin_file(&session, &file.path, &|p| buffers.is_dirty(&machine, &session, p)) {
+            self.close_file_buffer(&session, &old);
+        }
+        self.sync_review();
+        self.reveal_active(tx);
+    }
 }

@@ -254,3 +254,112 @@ fn the_contents_mode_does_not_search_names() {
     rt.frame(FRAME);
     assert!(!has(&rt, "files-results"), "Find in files is component 12's");
 }
+
+// CanvasHost.test.ts, file tabs (piece F)
+
+fn info(rt: &Runtime<crate::State>, key: &str) -> rune::ElementInfo {
+    rt.elements().into_iter().find(|e| e.key.as_deref() == Some(key) && !e.exiting).unwrap_or_else(|| panic!("no element {key}"))
+}
+
+fn tab_el(rt: &Runtime<crate::State>, path: &str) -> rune::ElementInfo {
+    info(rt, &crate::fleet::canvas_host::tab_key(&format!("file:{path}")))
+}
+
+fn open_tabs() -> Runtime<crate::State> {
+    let mut rt = app();
+    rt.update(|s, _| s.show_file_tabs(true));
+    // The new tabs have slid in (240 ms); a click before that lands off them.
+    for _ in 0..30 {
+        rt.frame(FRAME);
+    }
+    rt
+}
+
+#[test]
+fn shows_a_file_tab_by_name_with_its_path() {
+    let rt = open_tabs();
+    let tab = tab_el(&rt, "src/ledger/paginate.py");
+    assert_eq!(tab.label.as_deref(), Some("paginate.py"));
+    assert_eq!(tab.help.as_deref(), Some("src/ledger/paginate.py"), "the tooltip is the whole path");
+    let canvas = rt.state.open_canvases().canvases.iter().find(|c| c.id == "file:src/ledger/paginate.py").cloned().unwrap();
+    assert_eq!(canvas.file.unwrap().path, "src/ledger/paginate.py", "and the tab holds the path for its body");
+}
+
+#[test]
+fn draws_a_preview_tab_in_italics_and_keeps_it_on_double_click() {
+    let mut rt = open_tabs();
+    let italic = |rt: &Runtime<crate::State>, path: &str| {
+        let id = format!("file:{path}");
+        crate::view::canvas_host::name_italic(rt.state.open_canvases().canvases.iter().find(|c| c.id == id).unwrap())
+    };
+    assert!(italic(&rt, "src/ledger/totals.py"), "the preview");
+    assert!(!italic(&rt, "src/ledger/paginate.py"), "a kept tab");
+    double_click_tab(&mut rt, "src/ledger/totals.py");
+    assert_eq!(file_tabs(&rt).iter().map(|t| t.1).collect::<Vec<_>>(), [false, false, false]);
+    assert!(!italic(&rt, "src/ledger/totals.py"));
+}
+
+fn double_click_tab(rt: &mut Runtime<crate::State>, path: &str) {
+    let key = crate::fleet::canvas_host::tab_key(&format!("file:{path}"));
+    click(rt, &key);
+    click(rt, &key);
+    rt.frame(FRAME);
+}
+
+/// Makes a tab the active one and lets the strip scroll to it: a pin is drawn on the active tab, and a tab far along the strip
+/// is clipped.
+fn bring_forward(rt: &mut Runtime<crate::State>, id: &str) {
+    let id = id.to_string();
+    rt.update(move |s, tx| s.activate_tab(&id, tx));
+    for _ in 0..30 {
+        rt.frame(FRAME);
+    }
+}
+
+#[test]
+fn pins_a_preview_tab_from_its_pin_button_and_unpins_it_again() {
+    let mut rt = open_tabs();
+    let pin = |p: &str| crate::fleet::canvas_host::pin_key(&format!("file:{p}"));
+    let totals = "src/ledger/totals.py";
+    let el = info(&rt, &pin(totals));
+    assert_eq!(el.label.as_deref(), Some("Pin totals.py"));
+    assert_eq!(el.help.as_deref(), Some("Pin: keep this tab open when you open another file"));
+    click(&mut rt, &pin(totals));
+    rt.frame(FRAME);
+    assert!(file_tabs(&rt).iter().all(|t| !t.1), "kept");
+    let el = info(&rt, &pin(totals));
+    assert_eq!(el.label.as_deref(), Some("Unpin totals.py"));
+    assert_eq!(el.help.as_deref(), Some("Unpin: the next file you open replaces this tab"));
+    assert_eq!(rt.state.open_canvases().active_id, "file:src/ledger/totals.py", "the pin doesn't activate a tab");
+    // Unpin README.md (its tab brought forward first: a pin shows on the active or hovered tab): it becomes the preview.
+    bring_forward(&mut rt, "file:README.md");
+    click(&mut rt, &pin("README.md"));
+    rt.frame(FRAME);
+    assert_eq!(file_tabs(&rt).iter().filter(|t| t.1).map(|t| t.0.as_str()).collect::<Vec<_>>(), ["README.md"]);
+    assert_eq!(rt.state.open_canvases().active_id, "file:README.md", "the active tab stays");
+    // Unpinning another replaces that preview: README.md closes.
+    bring_forward(&mut rt, "file:src/ledger/totals.py");
+    click(&mut rt, &pin(totals));
+    rt.frame(FRAME);
+    assert_eq!(file_tabs(&rt), [("src/ledger/paginate.py".to_string(), false), (totals.to_string(), true)]);
+}
+
+#[test]
+fn a_press_on_the_pin_does_not_activate_its_tab() {
+    let mut rt = open_tabs();
+    let before = rt.state.open_canvases().active_id.clone();
+    click(&mut rt, &crate::fleet::canvas_host::pin_key("file:src/ledger/totals.py"));
+    assert_eq!(rt.state.open_canvases().active_id, before);
+}
+
+#[test]
+fn closing_a_file_tab_drops_its_buffer() {
+    let mut rt = open_tabs();
+    let session = rt.state.canvas_session();
+    rt.update(|s, tx| s.open_file(&s.canvas_session(), "README.md", Default::default(), tx));
+    rt.frame(FRAME);
+    assert!(rt.state.file_buffers.open_paths(rt.state.machine_key_of(&session), &session).iter().any(|p| p == "README.md"));
+    click(&mut rt, &crate::fleet::canvas_host::close_key("file:README.md"));
+    rt.frame(FRAME);
+    assert!(!rt.state.file_buffers.open_paths(rt.state.machine_key_of(&session), &session).iter().any(|p| p == "README.md"));
+}
