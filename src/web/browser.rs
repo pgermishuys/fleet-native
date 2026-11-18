@@ -37,6 +37,10 @@ pub struct BrowserUi {
     pub loads: u32,
     /// Which question to Fleet is the latest, so an old answer lands on nothing.
     pub ask: u64,
+    /// The app this tab shows, kept from its canvas (`appId`).
+    pub app_id: Option<String>,
+    /// What the app's panel, strip and output keep (piece I).
+    pub app: super::browser_app::AppUi,
 }
 
 /// What the host is to do to a tab's web view besides loading it: run this in the page.
@@ -132,15 +136,20 @@ impl State {
 
     /// From `poll`: the browser tab on screen shows what it should (`onMounted`, `watch(pageUrl)`), and the address field says
     /// whether it has the keyboard. True when something to draw changed.
-    pub fn keep_browser(&mut self, tx: &rune::Tx) -> bool {
+    pub fn keep_browser(&mut self, tx: &mut rune::Tx) -> bool {
         let tabs = self.open_canvases();
-        let Some(active) = tabs.active().filter(|c| c.kind == CanvasKind::Browser) else { return false };
-        let (tab, Some(page)) = (active.id.clone(), active.browser()) else { return false };
+        let active = tabs.active().filter(|c| c.kind == CanvasKind::Browser).and_then(|c| Some((c.id.clone(), c.browser()?)));
+        let on_screen = active.filter(|_| self.rail == crate::Rail::Sessions && self.content_open && !self.browser_elsewhere());
+        // A tab that isn't on screen counts as gone when it comes back (`onActivated`).
+        for (id, ui) in &mut self.web.browsers {
+            if on_screen.as_ref().is_none_or(|(t, _)| t != id) {
+                ui.app.visible = false;
+                ui.app.out_key = None;
+            }
+        }
+        let Some((tab, page)) = on_screen else { return false };
         let focused = tx.focused() == Some(ADDRESS_KEY);
         let mut changed = false;
-        if self.rail != crate::Rail::Sessions || !self.content_open || self.browser_elsewhere() {
-            return false;
-        }
         let want = self.browser_page_of(&page);
         let ui = self.browser_ui_mut(&tab);
         match (focused, ui.focused) {
@@ -157,7 +166,7 @@ impl State {
             self.browser_show(&tab, &want);
             changed = true;
         }
-        changed
+        changed | self.keep_browser_app(&tab, &page.url, page.app_id.as_deref(), tx)
     }
 
     /// `show`: the page through Fleet's preview. The question to Fleet is asked once per origin.

@@ -11,6 +11,7 @@ pub mod ask_card;
 pub mod attachments;
 pub mod autocomplete;
 pub mod base_picker;
+pub mod browser_app;
 pub mod browser_steps;
 pub mod browser_tab;
 pub mod canvas_host;

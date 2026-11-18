@@ -157,6 +157,7 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
         Some(Open::Select("sign-in-field")) => crate::view::settings::harness_sign_in_flow::field_list(s, t),
         Some(Open::Select("update-default-rule")) => crate::view::settings::updates_strip::rule_list(s, t),
         Some(Open::Select("update-machine-rule")) => crate::view::settings::updates_version::list(s, t),
+        Some(Open::Select("browser-port")) => crate::view::browser_app::port_list(s, t),
         Some(Open::Select("default-harness")) => crate::view::settings::harnesses::default_list(s, t),
         Some(Open::Select(name)) => gallery::select_content(s, t, name),
         Some(Open::Popover("context")) => crate::view::ring_popover::overlay(s, t),

@@ -22,6 +22,28 @@ pub enum BrowserCase {
     Elsewhere,
     /// The session is on another machine with no web app.
     ElsewhereNoApp,
+    /// Piece I: the app's panel and strip, one per status (and the page shown while it runs).
+    AppStarting,
+    AppRunning,
+    AppExited,
+    AppStopped,
+    /// The build failed: the output drawer opened by itself.
+    AppBuildFailed,
+    /// Running, with the output drawer opened by the user and a refused Stop under it.
+    AppOutput,
+}
+
+impl BrowserCase {
+    fn app_status(self) -> Option<&'static str> {
+        Some(match self {
+            BrowserCase::AppStarting => "starting",
+            BrowserCase::AppRunning | BrowserCase::AppOutput => "running",
+            BrowserCase::AppExited => "exited",
+            BrowserCase::AppStopped => "stopped",
+            BrowserCase::AppBuildFailed => "build-failed",
+            _ => return None,
+        })
+    }
 }
 
 pub const TAB: &str = "canvas:cv_1";
@@ -49,7 +71,14 @@ impl State {
             ..Default::default()
         };
         match case {
-            BrowserCase::Shown => {
+            // The app cases start from the shown page; `show_app_state` takes the page away where its panel stands in for it.
+            BrowserCase::Shown
+            | BrowserCase::AppStarting
+            | BrowserCase::AppRunning
+            | BrowserCase::AppExited
+            | BrowserCase::AppStopped
+            | BrowserCase::AppBuildFailed
+            | BrowserCase::AppOutput => {
                 self.web.browsers.insert(TAB.into(), shown(PAGE));
             }
             BrowserCase::Refused => {
@@ -76,6 +105,60 @@ impl State {
                 }
             }
             BrowserCase::Fresh => {}
+        }
+        if let Some(status) = case.app_status() {
+            self.show_app_state(case, status);
+        }
+    }
+
+    /// An app Fleet runs, in `status`, with the output its command invented.
+    fn show_app_state(&mut self, case: BrowserCase, status: &str) {
+        let exit = (status == "exited").then_some(1);
+        let app = json!({"appId": "app_1", "sessionId": "mock.0.0", "status": status, "command": "npm run dev", "exitCode": exit,
+            "url": (status == "running" || status == "build-failed").then_some(PAGE), "ports": [5173, 5174]});
+        self.apps.apply_event(&app);
+        let lines: Vec<&str> = match status {
+            "exited" => vec![
+                "old run: listening on 5173",
+                crate::fleet::app_runs::RESTART_MARKER,
+                "$ npm run dev",
+                "> pocket-notes@0.3.1 dev",
+                "> vite",
+                "Error: Cannot find module './routes'",
+                "Require stack:",
+                "- src/main.ts",
+            ],
+            "build-failed" => {
+                vec!["$ npm run dev", "> vite", "[vite] Internal server error: Unexpected token (14:3)", "  at src/App.vue:14:3"]
+            }
+            "starting" => vec![
+                "old run: Error: port 5173 is already in use",
+                crate::fleet::app_runs::RESTART_MARKER,
+                "$ npm run dev",
+                "> pocket-notes@0.3.1 dev",
+                "> vite",
+            ],
+            "stopped" => vec!["old run", "Error: crashed", crate::fleet::app_runs::RESTART_MARKER, "$ npm run dev", "> vite"],
+            "running" if case == BrowserCase::AppOutput => vec![
+                "$ npm run dev",
+                "> vite",
+                "VITE v5.4.2  ready in 312 ms",
+                "Local:   http://localhost:5173/",
+                "page reload src/App.vue",
+            ],
+            _ => Vec::new(),
+        };
+        self.apps.set_output("app_1", &lines);
+        let ui = self.web.browsers.entry(TAB.into()).or_default();
+        ui.app_id = Some("app_1".into());
+        ui.app.last_status = crate::fleet::app_runs::AppStatus::read(status);
+        ui.app.show_logs = matches!(case, BrowserCase::AppBuildFailed | BrowserCase::AppOutput);
+        if case == BrowserCase::AppOutput {
+            ui.app.action_error = Some(("Fleet couldn't stop the app: it isn't running.".into(), f64::MAX));
+        }
+        if !matches!(case, BrowserCase::AppRunning | BrowserCase::AppOutput | BrowserCase::AppBuildFailed) {
+            ui.target = None;
+            ui.frame_src = None;
         }
     }
 }

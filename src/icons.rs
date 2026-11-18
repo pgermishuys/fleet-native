@@ -553,6 +553,11 @@ pub static ARROW_LEFT: Icon = Icon {
     view: 24.0,
     body: r#"<path d="m12 19-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M19 12H5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>"#,
 };
+pub static ARROW_RIGHT: Icon = Icon {
+    name: "lucide-arrow-right",
+    view: 24.0,
+    body: r#"<path d="M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="m12 5 7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>"#,
+};
 pub static CORNER_LEFT_UP: Icon = Icon {
     name: "lucide-corner-left-up",
     view: 24.0,
@@ -738,8 +743,13 @@ pub static CHEVRONS_UP_DOWN: Icon = Icon {
     view: 24.0,
     body: r#"<path d="m7 15 5 5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="m7 9 5-5 5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>"#,
 };
-pub static ARROW_RIGHT: Icon = Icon {
-    name: "lucide-arrow-right",
+pub static ROTATE_CCW: Icon = Icon {
+    name: "lucide-rotate-ccw",
     view: 24.0,
-    body: r#"<path d="M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="m12 5 7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>"#,
+    body: r#"<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M3 3v5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>"#,
+};
+pub static SQUARE: Icon = Icon {
+    name: "lucide-square",
+    view: 24.0,
+    body: r#"<rect width="18" height="18" x="3" y="3" rx="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>"#,
 };

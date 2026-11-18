@@ -2,21 +2,42 @@
 //! Open in a new tab) and the page area: the preview's web view laid over the panel, or what stands in for it (the panel when
 //! there is no page yet, the error, another machine's note, the fallback where no web view can be made).
 //!
-//! Not here yet: the port select and the app's panel, strip and output (piece I), Your view / Agent's view (piece J).
+//! The app's panel, strip and output drawer, and the port select, are `browser_app` (piece I). Not here yet: Your view / Agent's
+//! view (piece J).
 use crate::State;
 use crate::fleet::browser_tab::BrowserPage;
 use crate::icons::*;
 use crate::theme::{RADIUS_BTN, Theme, mono, sans};
 use crate::ui::button::{Size, Variant, button};
 use crate::web::browser::ADDRESS_KEY;
+use crate::web::browser_app::Panel;
 use crate::web::preview_bridge::NavAction;
 use rune::{El, Key, KeyEvent, Tx, col, row, text, text_input};
 
+use super::browser_app;
 use super::page_tab::{fallback, icon_button};
 
 /// The whole tab (`.browser-canvas`).
 pub fn browser_tab(s: &State, t: &Theme, tab: &str, page: &BrowserPage) -> El {
-    col().key("browser-tab").w_full().h_full().min_h(0.0).child(bar(s, t, tab, page)).child(body(s, t, tab, page))
+    let width_tab = tab.to_string();
+    let mut all = col()
+        .key("browser-tab")
+        .w_full()
+        .h_full()
+        .min_h(0.0)
+        // Fleet's container query reads this width (the strip's narrow forms).
+        .on_layout(move |s: &mut State, r| {
+            let ui = s.web.browsers.entry(width_tab.clone()).or_default();
+            if ui.app.width != Some(r[2]) {
+                ui.app.width = Some(r[2]);
+            }
+        })
+        .child(bar(s, t, tab, page))
+        .child(body(s, t, tab));
+    if let Some(app) = browser_app::app_section(s, t, tab) {
+        all = all.child(app);
+    }
+    all
 }
 
 /// `.browser-canvas__bar`: 40 px, padding 0 8, gap 2.
@@ -44,6 +65,7 @@ fn bar(s: &State, t: &Theme, tab: &str, page: &BrowserPage) -> El {
         .child(nav("browser-forward", "Forward", &ARROW_RIGHT, NavAction::Forward))
         .child(nav("browser-reload", "Reload", &ROTATE_CW, NavAction::Reload))
         .child(address(s, t, tab, page))
+        .children(browser_app::port_select(s, t, tab))
         .child(open)
 }
 
@@ -81,7 +103,7 @@ fn address(s: &State, t: &Theme, tab: &str, page: &BrowserPage) -> El {
 }
 
 /// `.browser-canvas__page`: `--panel-bg`, holding the web view's frame, a message, or the fallback.
-fn body(s: &State, t: &Theme, tab: &str, page: &BrowserPage) -> El {
+fn body(s: &State, t: &Theme, tab: &str) -> El {
     let area = |inner: El| col().key("browser-tab-page").w_full().grow(1.0).min_h(0.0).fill(t.panel_bg).child(inner);
     if s.browser_elsewhere() {
         return area(elsewhere(s, t));
@@ -92,9 +114,11 @@ fn body(s: &State, t: &Theme, tab: &str, page: &BrowserPage) -> El {
             text(error.clone()).key("browser-error").role("alert").font(sans(12.5, 400.0, 1.5)).color(t.error_text).wrap().padding(16.0),
         );
     }
+    if let Some(p) = s.browser_panel(tab) {
+        return area(browser_app::panel(s, t, tab, p, panel(t)));
+    }
     let Some(frame_src) = ui.and_then(|u| u.frame_src.clone()) else {
-        let title = if page.app_id.is_some() { "Waiting for the app to serve a page\u{2026}" } else { "Loading\u{2026}" };
-        return area(panel(t).child(text(title).key("browser-panel-title").font(sans(13.0, 500.0, 1.5)).color(t.text)));
+        return area(browser_app::panel(s, t, tab, Panel::Waiting, panel(t)));
     };
     if s.web.can_show() {
         return area(
