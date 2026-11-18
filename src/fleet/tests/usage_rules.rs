@@ -7,7 +7,7 @@ use crate::fleet::link::{Job, Link, Post};
 use crate::fleet::usage::*;
 use crate::fleet::usage_rules::*;
 use serde_json::{Value, json};
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::Write;
 use std::net::TcpListener;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
@@ -382,22 +382,9 @@ pub(crate) fn fake(routes: Routes) -> Fake {
         for stream in listener.incoming().flatten() {
             let (log, routes) = (log.clone(), routes.clone());
             std::thread::spawn(move || {
-                let mut reader = BufReader::new(stream.try_clone().unwrap());
-                let mut first = String::new();
-                let _ = reader.read_line(&mut first);
-                let mut length = 0;
-                loop {
-                    let mut line = String::new();
-                    if reader.read_line(&mut line).unwrap_or(0) == 0 || line == "\r\n" {
-                        break;
-                    }
-                    if let Some(n) = line.to_ascii_lowercase().strip_prefix("content-length:") {
-                        length = n.trim().parse().unwrap_or(0);
-                    }
-                }
-                let _ = reader.read_exact(&mut vec![0; length]);
-                let mut parts = first.split(' ');
-                let (method, target) = (parts.next().unwrap_or(""), parts.next().unwrap_or(""));
+                let mut stream = stream;
+                let heard = crate::test_http::read(&mut stream);
+                let (method, target) = (heard.method.as_str(), heard.path.as_str());
                 log.lock().unwrap().push(format!("{method} {target}"));
                 let path = target.split('?').next().unwrap_or("");
                 // The most specific route wins.

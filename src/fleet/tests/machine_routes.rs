@@ -4,7 +4,7 @@ use crate::fleet::machine_routes::{self as routes, Outcome, PROBE_TIMEOUT, Probe
 use crate::fleet::{auth, machine_routes::probe_address};
 use serde_json::json;
 use std::collections::HashMap;
-use std::io::{Read, Write};
+use std::io::Write;
 use std::net::TcpListener;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -218,9 +218,7 @@ fn serve(route: impl Fn(&str) -> Option<(&'static str, String)> + Send + Sync + 
         for mut stream in listener.incoming().flatten() {
             let (log, route) = (log.clone(), route.clone());
             std::thread::spawn(move || {
-                let mut buf = [0u8; 8192];
-                let n = stream.read(&mut buf).unwrap_or(0);
-                let text = String::from_utf8_lossy(&buf[..n]).to_string();
+                let text = crate::test_http::read(&mut stream).raw();
                 let path = text.lines().next().unwrap_or("").split(' ').nth(1).unwrap_or("").split('?').next().unwrap_or("").to_string();
                 let header = |name: &str| {
                     text.lines()

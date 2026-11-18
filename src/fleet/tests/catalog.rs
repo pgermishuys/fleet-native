@@ -14,7 +14,7 @@ use crate::State;
 use crate::composer::choice::{ModelOption, create_model_selection_key};
 use crate::composer::drafts::Choice;
 use rune::Runtime;
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::Write;
 use std::net::{TcpListener, TcpStream};
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
@@ -321,23 +321,11 @@ struct Seen {
 }
 
 fn serve(mut stream: TcpStream, seen: Arc<Mutex<Seen>>) {
-    let mut reader = BufReader::new(stream.try_clone().unwrap());
-    let (mut head, mut length) = (String::new(), 0);
-    loop {
-        let mut line = String::new();
-        if reader.read_line(&mut line).unwrap_or(0) == 0 {
-            return;
-        }
-        if line == "\r\n" {
-            break;
-        }
-        if let Some(n) = line.to_ascii_lowercase().strip_prefix("content-length:") {
-            length = n.trim().parse().unwrap_or(0);
-        }
-        head.push_str(&line);
+    let heard = crate::test_http::read(&mut stream);
+    if heard.method.is_empty() {
+        return;
     }
-    let mut body = vec![0; length];
-    let _ = reader.read_exact(&mut body);
+    let (head, body) = (heard.head, heard.body);
     let request = head.lines().next().unwrap_or("").to_string();
     let reply = |stream: &mut TcpStream, body: &str| {
         let _ = stream.write_all(

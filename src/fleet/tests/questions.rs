@@ -9,7 +9,7 @@ use super::reconnect::app;
 use super::*;
 use crate::State;
 use rune::{Key, KeyEvent, Mods, Runtime, TextEdit};
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::Write;
 use std::net::{TcpListener, TcpStream};
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
@@ -25,25 +25,12 @@ struct Seen {
 }
 
 fn serve(mut stream: TcpStream, seen: Arc<Mutex<Seen>>) {
-    let mut reader = BufReader::new(stream.try_clone().unwrap());
-    let (mut length, mut request) = (0usize, String::new());
-    loop {
-        let mut line = String::new();
-        if reader.read_line(&mut line).unwrap_or(0) == 0 {
-            return;
-        }
-        if request.is_empty() {
-            request = line.clone();
-        }
-        if line == "\r\n" {
-            break;
-        }
-        if let Some(n) = line.to_ascii_lowercase().strip_prefix("content-length:") {
-            length = n.trim().parse().unwrap_or(0);
-        }
+    let heard = crate::test_http::read(&mut stream);
+    if heard.method.is_empty() {
+        return;
     }
-    let mut raw = vec![0; length];
-    let _ = reader.read_exact(&mut raw);
+    let (head, raw) = (heard.head, heard.body);
+    let request = head.lines().next().unwrap_or("").to_string();
     let body: Value = serde_json::from_slice(&raw).unwrap_or(Value::Null);
     let mut parts = request.split(' ');
     let (method, path) = (parts.next().unwrap_or("").to_string(), parts.next().unwrap_or("").to_string());

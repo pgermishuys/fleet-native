@@ -5,7 +5,7 @@ use super::super::topics::{KEPT_SESSIONS, Kept, Topics, reconnect_delay};
 use super::*;
 use crate::{State, spec};
 use rune::{App, Env, Runtime};
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::Write;
 use std::net::{TcpListener, TcpStream};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -247,21 +247,11 @@ fn serve(mut stream: TcpStream, hubs: Arc<AtomicUsize>) {
         }
         return;
     }
-    let mut reader = BufReader::new(stream.try_clone().unwrap());
-    let mut head = String::new();
-    let mut length = 0;
-    loop {
-        let mut line = String::new();
-        if reader.read_line(&mut line).unwrap_or(0) == 0 || line == "\r\n" {
-            break;
-        }
-        if let Some(n) = line.to_ascii_lowercase().strip_prefix("content-length:") {
-            length = n.trim().parse().unwrap_or(0);
-        }
-        head.push_str(&line);
+    let heard = crate::test_http::read(&mut stream);
+    if heard.method.is_empty() {
+        return;
     }
-    let mut body = vec![0; length];
-    let _ = reader.read_exact(&mut body);
+    let (head, _body) = (heard.head, heard.body);
     let reply = |stream: &mut TcpStream, body: &str| {
         let head = format!(
             "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",

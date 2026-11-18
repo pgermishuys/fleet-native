@@ -2,7 +2,7 @@
 //! system, the order they are tried in, the instance file that is missing, and the wording of what the
 //! window says. Temporary folders and a fake environment; nothing reads the real home folder.
 use crate::fleet::discover::{self, Os, Place, desktop_user_data_dir, explicit_server, find_in, places, saved_port, server_data_dir};
-use std::io::{Read, Write};
+use std::io::Write;
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 
@@ -23,8 +23,7 @@ fn server() -> String {
     let url = format!("http://{}", listener.local_addr().unwrap());
     std::thread::spawn(move || {
         while let Ok((mut s, _)) = listener.accept() {
-            let mut buf = [0u8; 1024];
-            let _ = s.read(&mut buf);
+            crate::test_http::read(&mut s);
             let _ = s.write_all(b"HTTP/1.1 200 OK\r\ncontent-length: 2\r\nconnection: close\r\n\r\nok");
         }
     });

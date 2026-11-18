@@ -14,7 +14,7 @@ use crate::State;
 use rune::Runtime;
 use serde_json::{Value, json};
 use std::collections::HashMap;
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::Write;
 use std::net::{TcpListener, TcpStream};
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
@@ -449,23 +449,11 @@ impl Fake {
 }
 
 fn serve(mut stream: TcpStream, fake: Arc<Mutex<Fake>>) {
-    let mut reader = BufReader::new(stream.try_clone().unwrap());
-    let (mut head, mut length) = (String::new(), 0usize);
-    loop {
-        let mut line = String::new();
-        if reader.read_line(&mut line).unwrap_or(0) == 0 {
-            return;
-        }
-        if line == "\r\n" {
-            break;
-        }
-        if let Some(n) = line.to_ascii_lowercase().strip_prefix("content-length:") {
-            length = n.trim().parse().unwrap_or(0);
-        }
-        head.push_str(&line);
+    let heard = crate::test_http::read(&mut stream);
+    if heard.method.is_empty() {
+        return;
     }
-    let mut raw = vec![0; length];
-    let _ = reader.read_exact(&mut raw);
+    let (head, raw) = (heard.head, heard.body);
     let mut words = head.lines().next().unwrap_or("").split(' ');
     let (method, path) = (words.next().unwrap_or("").to_string(), words.next().unwrap_or("").to_string());
     let mut fake = fake.lock().unwrap();

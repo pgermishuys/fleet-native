@@ -10,7 +10,7 @@ use super::reconnect::app;
 use super::*;
 use crate::State;
 use crate::web::preview_bridge::{BridgeMessage, NavAction, PreviewHmr, app_address, nav_message, read_bridge_message};
-use std::io::{BufRead, BufReader, Write};
+use std::io::Write;
 use std::net::TcpListener;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
@@ -32,20 +32,11 @@ fn start(answer: Answer) -> Fake {
         for mut stream in listener.incoming().flatten() {
             let (asked_tx, answer) = (asked_tx.clone(), answer.clone());
             std::thread::spawn(move || {
-                let mut reader = BufReader::new(stream.try_clone().unwrap());
-                let mut request = String::new();
-                loop {
-                    let mut line = String::new();
-                    if reader.read_line(&mut line).unwrap_or(0) == 0 {
-                        return;
-                    }
-                    if request.is_empty() {
-                        request = line.clone();
-                    }
-                    if line == "\r\n" {
-                        break;
-                    }
+                let heard = crate::test_http::read(&mut stream);
+                if heard.method.is_empty() {
+                    return;
                 }
+                let request = heard.head.lines().next().unwrap_or("").to_string();
                 let mut words = request.split(' ');
                 let (method, path) = (words.next().unwrap_or(""), words.next().unwrap_or(""));
                 if !path.starts_with("/hubs/") && !path.starts_with("/api/sessions?") {

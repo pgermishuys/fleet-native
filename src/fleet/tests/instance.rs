@@ -4,7 +4,7 @@
 use crate::fleet::discover;
 use crate::fleet::instance::{self, Instance, data_dir, find_running_fleet, is_loopback_http_url, is_ready, parse_instance};
 use serde_json::json;
-use std::io::{Read, Write};
+use std::io::Write;
 use std::net::TcpListener;
 use std::time::Duration;
 
@@ -25,8 +25,7 @@ fn server(status: &'static str) -> (String, std::thread::JoinHandle<()>) {
     let url = format!("http://{}", listener.local_addr().unwrap());
     let thread = std::thread::spawn(move || {
         if let Ok((mut s, _)) = listener.accept() {
-            let mut buf = [0u8; 1024];
-            let _ = s.read(&mut buf);
+            crate::test_http::read(&mut s);
             let _ = s.write_all(format!("HTTP/1.1 {status}\r\ncontent-length: 2\r\nconnection: close\r\n\r\nok").as_bytes());
         }
     });
