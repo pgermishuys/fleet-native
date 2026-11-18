@@ -6,7 +6,6 @@ use crate::fleet::link::{Job, Link, Post};
 use crate::fleet::new_session::harness_choice::{HarnessEntry, Harnesses};
 use crate::fleet::state::Topic;
 use crate::tests::{FRAME, app, click};
-use crate::tests_settings_dreaming::read_body;
 use crate::{Rail, State, test_wait};
 use rune::{Key, KeyEvent, Mods, Runtime};
 use serde_json::{Value, json};
@@ -51,7 +50,9 @@ fn dream(id: &str, run: Option<&str>, changes: Vec<Value>) -> Value {
 }
 
 fn answer(mut stream: std::net::TcpStream, fake: Shared) {
-    let (head, body) = read_body(&mut stream);
+    let req = crate::test_http::read(&mut stream);
+    let body = req.json();
+    let head = req.head;
     let mut first = head.lines().next().unwrap_or("").split(' ');
     let (method, path) = (first.next().unwrap_or("").to_string(), first.next().unwrap_or("").to_string());
     let mut f = fake.lock().unwrap();

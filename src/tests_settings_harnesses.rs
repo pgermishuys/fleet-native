@@ -9,7 +9,7 @@ use crate::{Rail, State, test_wait};
 use rune::Runtime;
 use serde_json::{Value, json};
 use std::collections::HashMap;
-use std::io::{Read, Write};
+use std::io::Write;
 use std::net::TcpListener;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
@@ -53,29 +53,12 @@ pub(crate) fn serve(fake: Shared) -> String {
 }
 
 fn answer(mut stream: std::net::TcpStream, fake: Shared) {
-    let mut buf = Vec::new();
-    let mut chunk = [0u8; 4096];
-    let (head, mut body) = loop {
-        let n = stream.read(&mut chunk).unwrap_or(0);
-        buf.extend_from_slice(&chunk[..n]);
-        if let Some(at) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
-            break (String::from_utf8_lossy(&buf[..at]).to_string(), buf[at + 4..].to_vec());
-        }
-        if n == 0 {
-            return;
-        }
-    };
-    let wanted: usize =
-        head.lines().find_map(|l| l.to_lowercase().strip_prefix("content-length:").and_then(|v| v.trim().parse().ok())).unwrap_or(0);
-    while body.len() < wanted {
-        let n = stream.read(&mut chunk).unwrap_or(0);
-        if n == 0 {
-            break;
-        }
-        body.extend_from_slice(&chunk[..n]);
+    let req = crate::test_http::read(&mut stream);
+    if req.method.is_empty() {
+        return;
     }
-    let mut first = head.lines().next().unwrap_or("").split(' ');
-    let (method, path) = (first.next().unwrap_or(""), first.next().unwrap_or(""));
+    let (method, path) = (req.method.as_str(), req.path.as_str());
+    let body = req.body;
     let mut f = fake.lock().unwrap();
     let (status, reply) = if method == "GET" && path.starts_with("/api/harnesses") {
         f.lists += 1;

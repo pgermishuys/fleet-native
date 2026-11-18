@@ -39,7 +39,7 @@ fn serve(fake: Shared) -> String {
 }
 
 fn answer(mut stream: std::net::TcpStream, fake: Shared) {
-    let request = crate::tests::read_request(&mut stream);
+    let request = crate::test_http::read(&mut stream).raw();
     let mut first = request.lines().next().unwrap_or("").split(' ');
     let (method, path) = (first.next().unwrap_or(""), first.next().unwrap_or(""));
     let body = request.split("\r\n\r\n").nth(1).unwrap_or("");

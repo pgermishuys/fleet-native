@@ -7,7 +7,7 @@ use crate::tests::{FRAME, click};
 use crate::{Rail, State, test_wait};
 use rune::Runtime;
 use serde_json::{Value, json};
-use std::io::{Read, Write};
+use std::io::Write;
 use std::net::TcpListener;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
@@ -37,35 +37,10 @@ fn dream(status: &str, changes: Vec<Value>) -> Value {
             "changes": changes, "runId": "run-1", "tokens": 48200, "since": null })
 }
 
-pub(crate) fn read_body(stream: &mut std::net::TcpStream) -> (String, Value) {
-    let mut buf = Vec::new();
-    let mut chunk = [0u8; 4096];
-    let (head_end, length) = loop {
-        let n = stream.read(&mut chunk).unwrap_or(0);
-        buf.extend_from_slice(&chunk[..n]);
-        if let Some(at) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
-            let head = String::from_utf8_lossy(&buf[..at]).to_lowercase();
-            let length =
-                head.lines().find_map(|l| l.strip_prefix("content-length:")).and_then(|v| v.trim().parse::<usize>().ok()).unwrap_or(0);
-            break (at + 4, length);
-        }
-        if n == 0 {
-            break (buf.len(), 0);
-        }
-    };
-    while buf.len() < head_end + length {
-        let n = stream.read(&mut chunk).unwrap_or(0);
-        if n == 0 {
-            break;
-        }
-        buf.extend_from_slice(&chunk[..n]);
-    }
-    let head = String::from_utf8_lossy(&buf[..head_end]).to_string();
-    (head, serde_json::from_slice(&buf[head_end..]).unwrap_or(Value::Null))
-}
-
 fn answer(mut stream: std::net::TcpStream, fake: Shared) {
-    let (head, body) = read_body(&mut stream);
+    let req = crate::test_http::read(&mut stream);
+    let body = req.json();
+    let head = req.head;
     let mut first = head.lines().next().unwrap_or("").split(' ');
     let (method, path) = (first.next().unwrap_or("").to_string(), first.next().unwrap_or("").to_string());
     let mut f = fake.lock().unwrap();
