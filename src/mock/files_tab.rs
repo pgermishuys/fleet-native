@@ -22,6 +22,61 @@ pub enum Case {
     Search,
     /// A query nothing matches.
     SearchNone,
+    /// Contents mode, "page" searched inside the files, answered.
+    Find,
+    /// Contents mode, a query nothing matches.
+    FindNone,
+    /// Contents mode, the search stopped at its cap in a folder that isn't a git repository.
+    FindLimit,
+    /// Contents mode, a regex the server refused.
+    FindBad,
+    /// Contents mode, a machine whose Fleet is too old to search inside files.
+    FindOld,
+    /// Contents mode, the field empty: the tree and the hint.
+    FindIdle,
+}
+
+/// A matching line the way the server answers it: every case-insensitive `needle` marked.
+fn line(number: u32, words: &str, needle: &str) -> crate::fleet::find_text::TextMatch {
+    let (low, key) = (words.to_lowercase(), needle.to_lowercase());
+    // The server counts UTF-16 units, and the cut line starts with a "…" of one unit and three bytes.
+    let units = |bytes: usize| low[..bytes].encode_utf16().count();
+    let ranges = low
+        .match_indices(&key)
+        .map(|(i, m)| crate::fleet::find_text::TextRange { start: units(i), end: units(i) + m.encode_utf16().count() })
+        .collect();
+    crate::fleet::find_text::TextMatch { line: number, column: 1, text: words.to_string(), ranges }
+}
+
+fn file(path: &str, total: u32, matches: Vec<crate::fleet::find_text::TextMatch>) -> crate::fleet::find_text::TextFile {
+    crate::fleet::find_text::TextFile { path: path.into(), total, matches }
+}
+
+/// What `find/text` answers for "page" in the invented project (ASCII only, so byte and UTF-16 offsets agree).
+pub fn find_answer(engine: crate::fleet::find_text::Engine) -> crate::fleet::find_text::TextSearchResult {
+    let paginate = [
+        (1, "\"\"\"Split ledger rows into pages.\"\"\""),
+        (4, "DEFAULT_PAGE_SIZE = 50"),
+        (7, "def paginate(rows, page_size=DEFAULT_PAGE_SIZE):"),
+        (8, "    \"\"\"Yield one page of rows at a time.\"\"\""),
+        (9, "\u{2026}e(0, len(rows), page_size):"),
+        (10, "        yield rows[start : start + page_size]"),
+        (14, "def page_count(rows, size=DEFAULT_PAGE_SIZE):"),
+    ];
+    crate::fleet::find_text::TextSearchResult {
+        files: vec![
+            file("docs/pagination.md", 1, vec![line(3, "Rows are returned one page at a time.", "page")]),
+            file(
+                "src/ledger/page_size.py",
+                2,
+                vec![line(1, "\"\"\"The page size a ledger report uses.\"\"\"", "page"), line(3, "PAGE_SIZE = 50", "page")],
+            ),
+            file("src/ledger/paginate.py", 7, paginate.iter().map(|(n, w)| line(*n, w, "page")).collect()),
+        ],
+        matches: 10,
+        stopped: None,
+        engine,
+    }
 }
 
 /// Every file of the invented project, folders left out (what the search lists once they are filtered).
@@ -100,6 +155,7 @@ impl State {
                 return;
             }
             Case::Tree | Case::Selected | Case::Search | Case::SearchNone => {}
+            Case::Find | Case::FindNone | Case::FindLimit | Case::FindBad | Case::FindOld | Case::FindIdle => {}
         }
         browser.root_done(&id, browse(None));
         for dir in ["src", "src/ledger", "docs"] {
@@ -109,11 +165,29 @@ impl State {
         if case == Case::Selected {
             browser.selected = Some("src/ledger/paginate.py".into());
         }
-        let typed = match case {
-            Case::Search => "pag",
-            Case::SearchNone => "zzq",
+        use crate::fleet::find_text::{Engine, FailureKind, FindTextFailure, Stopped, TextSearchResult};
+        if case == Case::FindIdle || matches!(case, Case::Find | Case::FindNone | Case::FindLimit | Case::FindBad | Case::FindOld) {
+            browser.search_in = crate::fleet::file_browser::SearchIn::Contents;
+        }
+        let none = |engine| TextSearchResult { files: Vec::new(), matches: 0, stopped: None, engine };
+        let (typed, found): (&str, Result<TextSearchResult, FindTextFailure>) = match case {
+            Case::Search => ("pag", Ok(none(Engine::Git))),
+            Case::SearchNone => ("zzq", Ok(none(Engine::Git))),
+            Case::Find => ("page", Ok(find_answer(Engine::Git))),
+            Case::FindNone => ("zzq", Ok(none(Engine::Git))),
+            Case::FindLimit => ("page", Ok(TextSearchResult { stopped: Some(Stopped::Limit), matches: 200, ..find_answer(Engine::Walk) })),
+            Case::FindBad => {
+                ("page(", Err(FindTextFailure { kind: FailureKind::Pattern, message: "Unmatched ( or \\( (git extended regex)".into() }))
+            }
+            Case::FindOld => ("page", Err(FindTextFailure { kind: FailureKind::Unsupported, message: String::new() })),
             _ => return,
         };
+        if matches!(case, Case::Find | Case::FindNone | Case::FindLimit | Case::FindBad | Case::FindOld) {
+            self.find_text.regex = case == Case::FindBad;
+            browser.field = rune::TextEdit::new(typed);
+            self.find_text.show(&id, typed, found, 100.0);
+            return;
+        }
         browser.field = rune::TextEdit::new(typed);
         let scope = crate::fleet::finder::Scope::Session(id);
         // The first look starts the 80 ms wait; a later one sends, and the invented project answers.

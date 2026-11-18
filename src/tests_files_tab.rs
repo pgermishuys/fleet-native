@@ -85,14 +85,6 @@ fn shows_the_error_of_a_failed_read() {
 }
 
 #[test]
-fn file_contents_is_drawn_off_until_find_in_files_exists() {
-    let mut rt = open(Case::Tree);
-    assert!(has(&rt, "files-mode-names") && has(&rt, "files-mode-contents"));
-    click(&mut rt, "files-mode-contents");
-    assert_eq!(rt.state.file_browser.search_in, crate::fleet::file_browser::SearchIn::Names);
-}
-
-#[test]
 fn a_typed_query_shows_the_clear_button_and_clearing_empties_the_box() {
     let mut rt = open(Case::Tree);
     assert!(!has(&rt, "files-search-clear"));

@@ -1,10 +1,12 @@
 //! Ports `components/canvas/FilesCanvas.vue` and the names half of `components/session/FileBrowserPanel.vue`: the Files tab's body.
 //! A toolbar (the search box and Refresh), the "Search in" switch, and under them the tree or what stands in for it: "Loading
-//! files…", the error, or "No files found". "File contents" is Find in files' (component 12) and drawn off until then; the names
-//! search replaces the tree with its results once two characters are typed.
+//! files…", the error, or "No files found". The names search replaces the tree with its results once two characters are typed;
+//! "File contents" does the same with Find in files' lines (`find_in_files`, component 12), and adds Aa and .* to the box.
 use super::file_tree::tree_row;
+use super::find_in_files::{find_results, hint, hit_key, toggle};
 use crate::State;
 use crate::fleet::file_browser::SearchIn;
+use crate::fleet::find_text::FindText;
 use crate::icons::*;
 use crate::theme::{RADIUS_BTN, Theme, sans};
 use crate::ui::{confirm, empty_state};
@@ -12,11 +14,8 @@ use rune::{Cursor, Cycle, El, Key, KeyEvent, Tx, col, el, icon, row, text, text_
 
 pub const FIELD: &str = "files-search";
 
-/// "File contents" waits for Find in files (component 12, piece P).
-pub const CONTENTS_OFF: &str = "Searching inside files comes with Find in files";
-
 /// `Spinner` at `size`: the turning circle.
-fn spinner(ink: rune::Color, size: f32) -> El {
+pub fn spinner(ink: rune::Color, size: f32) -> El {
     static FADE: [(f32, f32); 3] = [(0.0, 1.0), (0.5, 0.35), (1.0, 1.0)];
     icon(&LOADER_CIRCLE, size).color(ink).cycle(Cycle { period: 1.2, phase: 0.0, stops: &FADE, still: 1.0, fps: 30.0 })
 }
@@ -29,10 +28,11 @@ pub fn files_tab(s: &State, t: &Theme) -> El {
 
 fn toolbar(s: &State, t: &Theme) -> El {
     let browser = &s.file_browser;
+    let contents = browser.search_in == SearchIn::Contents;
     let field = text_input(&browser.field, sans(13.0, 400.0, 1.3))
         .key(FIELD)
-        .label("Search files")
-        .placeholder("Search files\u{2026}", t.muted)
+        .label(if contents { "Search inside files" } else { "Search files" })
+        .placeholder(if contents { "Search inside files\u{2026}" } else { "Search files\u{2026}" }, t.muted)
         .color(t.text)
         .caret(t.text, t.accent.alpha(0.35))
         .single_line()
@@ -46,9 +46,22 @@ fn toolbar(s: &State, t: &Theme) -> El {
                 tx.blur();
                 true
             }
-            // Enter opens the first result as a kept tab.
+            // Enter opens the first result as a kept tab; in contents mode, the active line.
             Key::Enter => {
-                s.open_first_found(tx);
+                if s.file_browser.search_in == SearchIn::Contents {
+                    if let Some(hit) = s.find_text.enter_hit() {
+                        s.open_hit(&hit.path, hit.line, tx);
+                    }
+                } else {
+                    s.open_first_found(tx);
+                }
+                true
+            }
+            Key::Down | Key::Up if s.file_browser.search_in == SearchIn::Contents => {
+                s.find_text.move_active(if ev.key == Key::Down { 1 } else { -1 });
+                if let Some(a) = &s.find_text.active {
+                    tx.scroll_into_view(hit_key(&a.path, a.line));
+                }
                 true
             }
             _ => false,
@@ -66,6 +79,17 @@ fn toolbar(s: &State, t: &Theme) -> El {
         .focus_within_ring(1.0, -1.0, t.accent.alpha(0.55))
         .child(icon(&SEARCH, 14.0).color(t.muted))
         .child(field);
+    if contents {
+        search = search
+            .child(
+                toggle(t, "find-match-case", "Match case", "Aa", s.find_text.match_case)
+                    .on_press(|s: &mut State| s.find_text.match_case = !s.find_text.match_case),
+            )
+            .child(
+                toggle(t, "find-regex", "Regular expression", ".*", s.find_text.regex)
+                    .on_press(|s: &mut State| s.find_text.regex = !s.find_text.regex),
+            );
+    }
     if !browser.field.text.is_empty() {
         search = search.child(
             el().key("files-search-clear")
@@ -115,8 +139,8 @@ fn switch(s: &State, t: &Theme) -> El {
     };
     let names = button("files-mode-names", "File names", mode == SearchIn::Names)
         .on_press(|s: &mut State| s.file_browser.search_in = SearchIn::Names);
-    // Pressing File contents does nothing yet: it is drawn off, with the reason as its tooltip.
-    let contents = button("files-mode-contents", "File contents", false).opacity(0.5).disabled(true).help(CONTENTS_OFF);
+    let contents = button("files-mode-contents", "File contents", mode == SearchIn::Contents)
+        .on_press(|s: &mut State| s.file_browser.search_in = SearchIn::Contents);
     row()
         .key("files-modes")
         .role("group")
@@ -180,9 +204,21 @@ fn results(s: &State, t: &Theme) -> El {
 
 fn content(s: &State, t: &Theme) -> El {
     let browser = &s.file_browser;
+    if browser.search_in == SearchIn::Contents && FindText::is_active(&browser.field.text) {
+        return find_results(s, t);
+    }
     if browser.is_searching() {
         return results(s, t);
     }
+    // In contents mode a short query leaves the tree, with a hint under it.
+    if browser.search_in == SearchIn::Contents {
+        return col().key("files-contents-idle").w_full().items_stretch().child(tree_body(s, t)).child(hint(s, t));
+    }
+    tree_body(s, t)
+}
+
+fn tree_body(s: &State, t: &Theme) -> El {
+    let browser = &s.file_browser;
     let tree = browser.rows();
     if browser.root_loading() && browser.root().is_empty() {
         return col()

@@ -1853,3 +1853,10 @@ Read at the pin while planning; nothing built yet.
 - **A new tab slides in for 240 ms**: run about 30 frames before clicking it in a test.
 - A child's `on_press_tx` (the pin, the close button) doesn't reach the tab's own press, so no `stopPropagation` is needed.
 
+
+## Component 12, piece P (find in files, the view)
+
+- **Marked words in one line of text are `Span`s with a `bg`**, set with `.spans(...)` on a single `text` (byte offsets into the string you built): no row of little elements, and `.truncate()` still ends the line with an ellipsis.
+- **Arrow keys are `Key::Down` and `Key::Up`** (not `ArrowDown`); in a `text_input`'s `on_input_key` returning `true` stops the caret moving.
+- **`tx.focus(key, false)` then `tx.select_all_text(key)` in one poll** focuses a field and selects its text.
+- A press that opens a tab moves the keyboard off the field, so a test that wants more keys in the field presses them before it presses Enter.
