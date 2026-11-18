@@ -19,6 +19,8 @@ mod tests_add_machine;
 #[cfg(test)]
 mod tests_agent_tab;
 #[cfg(test)]
+mod tests_agents_session;
+#[cfg(test)]
 mod tests_agents_tab;
 #[cfg(test)]
 pub(crate) mod tests_archive_pins;

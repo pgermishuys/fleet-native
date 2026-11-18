@@ -1136,9 +1136,64 @@ Open, each with its reason:
 
 ### Piece N: the sweep
 
+**Done (18 November 2026): see "The sweep" above.**
+
 - Every row still open is ticked or given a reason. Every scene in both themes is put beside Fleet's own client. A live
   run covers every tab on a scratch Fleet. 6.x is closed in the documents of 03, 04, 06, 08 and 09. Component 10's row
   in `docs/PORT.md` is marked done.
+
+## The sweep (piece N, 18 November 2026)
+
+Every row of Parts 1 to 6 was read against the code on `main`. Rows of Parts 3, 4 and 5 carry no per-row "done" text; their
+state is in the piece sections above (F to M) and this table. **Done** means built, tested and looked at beside Fleet.
+
+| Rows | State |
+|---|---|
+| 1.1-1.15, 1.17, 1.18, 1.20, 1.21, 1.24-1.29, 1.31, 1.32 | Done (B, E) |
+| 1.16 | Done bar the wheel (Rune turns a plain wheel over a sideways box into nothing; shift+wheel and a trackpad scroll it) |
+| 1.19 | **Open, Rune:** reduced motion isn't read |
+| 1.22 | **Open, component 14:** `State::open_browser_dialog` isn't on `main`; the menu shows the row when it is |
+| 1.23 | Component 22 (no mod declares a pane) |
+| 1.12 (double-click), 1.30, file tabs | Component 11 |
+| 2.1-2.20, 2.22-2.25 | Done (A, C, D) |
+| 2.21 | **Open, component 14** (`app.updated`; it calls `mark_updated`, which is built) |
+| 3.1-3.3, 3.5, 3.10-3.19, 3.21-3.27, 3.30-3.64, 3.70 | Done (F, G, H) |
+| 3.4, 3.6 | Done (A, D, F) |
+| 3.20 | Server side only |
+| 3.71 | Component 26 |
+| 4.1-4.14, 4.16-4.49, 4.51, 4.62, 4.64 | Done (J) |
+| 4.9, 4.21, 4.22, 4.26, 4.30, 4.32, 4.44, 4.45, 4.52-4.61 | Done (I) |
+| 4.15, 4.50, 4.63 | Gaps with reasons in piece J (a plain column, no 150 ms eases, no request of its own) |
+| 4.65 | Component 26 |
+| 5.1-5.11, 5.17-5.27, 5.31, 5.35-5.39 | Done (K, L) |
+| 5.12-5.16, 5.40-5.50 | Done (K) |
+| 5.28-5.30, 5.32-5.34 | **Done in the sweep.** The detail reads the row's own session: tools, tokens, the Latest line, "Reading its session…", and the model in `runs_on`. Fleet listens to the child's hub topic; native reads `GET /api/sessions/{id}/messages` when the detail first shows and again every 3 s while the row runs or waits (`fleet/agents_tab.rs`). Same words, no second subscription; a change in the child shows up to 3 s late |
+| 5.51-5.68, 6.16 | Done (M) |
+| 5.69-5.71 | **Open, component 14** (the Your view / Agent's view pair in the browser tab) |
+| 5.36's and 5.12's new-tab gestures | Out of reach: native opens in place |
+| 6.1-6.6, 6.8-6.11, 6.14, 6.19-6.22 | Done (A to D, L) |
+| 6.12, 6.13 | Done (J; 14 and E) |
+| 6.7 | Component 12; 6.15 component 11; 6.17 component 12; 6.18 component 14 |
+
+**Fleet's tests.** Every case in Parts 3, 4, 5 and the frame table is ported under its name, except these, each with its
+owner: `visual renderers › …` (2 cases, component 14); `keeps the session's apps current and pulses the tabs of a page
+Fleet reloaded` (14); the `file tabs` and `use-content-panel` cases (11); `CanvasHost.mods` and the mod-pane menu cases (22);
+`useSessionProgress › stops listening when unmounted` (Vue's scope teardown: native has one listener); `AgentsCanvas ›
+loads the session list itself when nothing has` (the phone's case; the list is always loaded here). Added in this piece
+under Fleet's names: `SessionsV2RightPanel.test.ts`'s three (`src/fleet/tests/diffs.rs`), "closes a server canvas through
+the server" (renamed from `the_close_button_of_a_server_tab_takes_the_tab_away`), and `fetches the parent's title when the
+list doesn't have it` (`src/tests_agents_session.rs`).
+
+**Handed to component 10 by earlier components, all done or named:** Widen and review widths and what sets `review` (6Q;
+A and B), the Plan stand-in tab and the Context host (8I, 8K; `PanelTab` is gone), a work item's output in the detail (5.32,
+L), opening a child session from a row (6.22, L), `show-message` from Turns (J), the tool card's Show (C), the agent's
+tabs (M). Still others': the annotation popover and find in files (12), file `open-file` links (11), visual payloads (14).
+
+**Live run, 18 November 2026** (scratch Fleet v0.72.0, `run-tests`, `write-file`, `spawn-agent`, `show-page`): Turns,
+Agents with its detail, Progress and the `+` menu, native beside Fleet's own client in both themes
+(`shots/parity/10n-sweep/`). Not live: Running now, the badge and Stop (`background-work` ends before the tab is drawn; scenes
+in `shots/parity/10-agent-view/` and piece L's), Agent's view and the page tab. The `+` menu in Fleet shows "Browser…"; ours
+doesn't until 14.
 
 ## Found in Fleet (for the report, not to fix from here)
 

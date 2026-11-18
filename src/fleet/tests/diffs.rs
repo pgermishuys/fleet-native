@@ -493,3 +493,42 @@ fn the_context_tab_is_added_without_focus_the_first_time_an_automation_started_t
     live.rt.frame(1.0 / 60.0);
     assert!(!live.rt.state.open_canvases().ids().contains(&"context"), "closed once, it stays closed");
 }
+
+// SessionsV2RightPanel.test.ts. Native has one `State.diffs` however many parts want it, so the first and third cases say
+// the same thing: one request per session open, whoever asks.
+#[test]
+fn does_not_run_its_own_diffs_instance_when_the_sessions_route_already_holds_one() {
+    let mut live = Live::start();
+    live.wait("the list", |s, _| s.diffs.has_loaded);
+    let id = live.id.clone();
+    // The panel asking too, as it does on every open, joins the list that is loaded and fresh.
+    for _ in 0..3 {
+        live.rt.update(|s, tx| s.after_open(tx));
+        live.rt.frame(1.0 / 60.0);
+    }
+    assert_eq!(live.seen.lock().unwrap().asked, [format!("/api/sessions/{id}/diffs")]);
+}
+
+#[test]
+fn runs_its_own_diffs_instance_when_no_route_holds_one() {
+    let mut live = Live::start();
+    live.wait("the panel's own request", |s, asked| asked == 1 && s.diffs.has_loaded);
+    assert_eq!(live.rt.state.diffs.session(), live.id);
+    assert_eq!(live.seen.lock().unwrap().asked.len(), 1);
+}
+
+#[test]
+fn doesnt_take_a_failed_diffs_for_an_empty_session_so_the_panel_isnt_shut_over_the_error() {
+    let mut d = opened("s");
+    let t = d.begin(false).unwrap();
+    d.finish(&t, Ok((500, json!({}))));
+    assert!(d.has_loaded && d.error.is_some() && d.files().is_empty());
+    let defaults = crate::fleet::canvases::Canvases::default().session("s").canvases;
+    let content = crate::fleet::canvases::PanelContent {
+        changed_files: d.files().len(),
+        canvases: &defaults,
+        changes_failed: d.error.is_some(),
+        ..Default::default()
+    };
+    assert!(crate::fleet::canvases::panel_has_content(content), "the panel opens on the error and Try again");
+}

@@ -339,7 +339,7 @@ Kinds: `belongs to component N` = another component owns it; `DOM only` = a brow
 | renders_stable_test_ids_for_summary_output_and_empty_state | src/tests.rs::a_summary_shows_above_the_output + src/tests.rs::a_call_that_printed_nothing_says_so |
 | renders_empty_state_with_stable_selector_when_tool_has_no_content | src/tests.rs::a_call_that_printed_nothing_says_so |
 | shows_diff_rows_with_stable_selectors_when_inline_diffs_are_enabled | src/tests.rs::a_row_that_is_not_a_write_shows_a_diff_only_with_inline_diffs_on |
-| offers to show the canvas a finished tool opened | belongs to component 10: content panel (canvas Show button) |
+| offers to show the canvas a finished tool opened | belongs to component 10: content panel (canvas Show button) | **Closed by component 10 (18 November 2026):** ported (10 pieces C and M).
 | says quietly that a retired diagram is gone instead of offering to show it | belongs to component 10: content panel (retired diagram canvases) |
 
 ## components/session/__tests__/ToolOutputBody.test.ts
@@ -762,7 +762,7 @@ Kinds: `belongs to component N` = another component owns it; `DOM only` = a brow
 | Fleet case | Rust test or owner |
 |---|---|
 | lists a call's steps in order, once each | src/conv/tests/browser.rs::lists_a_calls_steps_in_order_once_each |
-| keeps the agent's tabs from its steps: opened, moved and closed | belongs to component 10: content panel (the agent's tabs: opened, moved, closed) |
+| keeps the agent's tabs from its steps: opened, moved and closed | belongs to component 10: content panel (the agent's tabs: opened, moved, closed) | **Closed by component 10 (18 November 2026):** ported (10 pieces C and M).
 | a failed step doesn't move the tab | belongs to component 10: content panel (the agent's tabs) |
 | finds the agent's tab for the page a canvas shows, whatever loopback name either uses | belongs to component 10: content panel (a canvas's tab, loopback names) |
 | keeps steps that arrived while the session was loading | src/conv/tests/browser.rs::keeps_steps_that_arrived_while_the_session_was_loading |
