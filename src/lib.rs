@@ -10,6 +10,7 @@ pub mod fleet;
 mod icons;
 mod mock;
 mod script;
+pub mod term;
 #[cfg(test)]
 mod test_wait;
 #[cfg(test)]
@@ -224,6 +225,10 @@ mod tests_starters;
 mod tests_status_bar;
 #[cfg(test)]
 mod tests_summary_bar;
+#[cfg(test)]
+mod tests_terminal;
+#[cfg(test)]
+mod tests_terminal_live;
 #[cfg(test)]
 mod tests_turns;
 #[cfg(test)]
@@ -456,6 +461,8 @@ pub struct State {
     pub machine_menu: Option<(String, String)>,
     /// `terminalEnabled` of `GET /api/config/client` once read: the status bar shows its Terminal hint only while it is on.
     pub terminals_allowed: Option<bool>,
+    /// The open session's terminal (component 13, `fleet::terminal_slot`).
+    pub terminal: fleet::terminal_slot::Slot,
     /// The Add a machine row was pressed: the form opens when Settings has one (piece K).
     pub add_machine_asked: bool,
     /// Settings → Machines: the rename and token fields, what is busy, the access of this machine (`fleet::machine_actions`).
@@ -708,6 +715,7 @@ impl Default for State {
             machine_children: Default::default(),
             machine_menu: None,
             terminals_allowed: None,
+            terminal: Default::default(),
             add_machine_asked: false,
             machine_page: Default::default(),
             sign_in: Default::default(),
@@ -1472,7 +1480,8 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_dreaming(now, tx)
         | s.keep_nightly(tx)
         | s.keep_naming(now, tx)
-        | s.keep_storage(tx);
+        | s.keep_storage(tx)
+        | s.keep_terminal(tx);
     // "Copied" on a message's button ends by itself.
     let copied = match &s.copied {
         Some((_, until)) if now >= *until => {
@@ -1598,7 +1607,9 @@ fn on_key(s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool {
     {
         return true;
     }
-    if ev.is_command('k') {
+    if ev.is_command('j') && !ev.mods.shift {
+        s.toggle_terminal(tx);
+    } else if ev.is_command('k') {
         ui::palette::toggle(s, tx);
     } else if ev.is_command('b') && ev.mods.shift {
         s.set_content_open(!s.content_open);
@@ -4240,6 +4251,13 @@ pub fn spec() -> AppSpec<State> {
             }),
             ("panel-over", |s| s.show_tabs(mock::canvas_host::Case::Fresh, true)),
             ("panel-over-light", |s| s.show_tabs(mock::canvas_host::Case::Fresh, false)),
+            // Component 13, piece A: the terminal under the composer, drawn from recorded streams of an invented project.
+            ("terminal-vim", |s| s.show_terminal(mock::terminal_scenes::Stream::Vim, true)),
+            ("terminal-vim-light", |s| s.show_terminal(mock::terminal_scenes::Stream::Vim, false)),
+            ("terminal-git-log", |s| s.show_terminal(mock::terminal_scenes::Stream::GitLog, true)),
+            ("terminal-git-log-light", |s| s.show_terminal(mock::terminal_scenes::Stream::GitLog, false)),
+            ("terminal-unicode", |s| s.show_terminal(mock::terminal_scenes::Stream::Unicode, true)),
+            ("terminal-unicode-light", |s| s.show_terminal(mock::terminal_scenes::Stream::Unicode, false)),
             // Component 10, piece M: Agent's view, the picture of the agent's own tab.
             ("agent-tab", |s| s.show_agent_tab(mock::agent_tab::Case::Ring, true)),
             ("agent-tab-light", |s| s.show_agent_tab(mock::agent_tab::Case::Ring, false)),

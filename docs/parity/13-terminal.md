@@ -84,31 +84,31 @@ Owner: `13` = this component, with the piece; another number = that component. "
 
 | # | Row | Source | Native today | Owner |
 |---|---|---|---|---|
-| 13.1 | One terminal: JetBrains Mono (`--font-mono-stack`) 12 px, `lineHeight: 1.2`; **measured in Fleet at 1×: cells 7 × 19 CSS px** (xterm floors the measured advance and multiplies the font's own height by 1.2) | TV `new Terminal`; measured | None | 13 A |
-| 13.2 | Fit (xterm's fit addon): `cols = ⌊(box width − 14) / cell w⌋`, `rows = ⌊box height / cell h⌋` (14 is the scrollbar it reserves while there is scrollback), at least 2 × 1; measured: a 508 × 225 box is 70 × 11 | TV `fitNow`; fit addon | None | 13 A |
-| 13.3 | The box: `position: absolute; inset: 0`, padding `6px 4px 4px 12px`; xterm paints no background, the drawer's `--terminal-bg` shows through | TV `.terminal-view` | None | 13 A |
-| 13.4 | Refit whenever the box changes size (resize observer, next frame) and when it is shown again; skipped while the box has no size | TV `scheduleFit`, `watch(shown)` | None | 13 A |
-| 13.5 | A size change sends `{"type":"resize",cols,rows}` and tells the drawer the size (13.47) | TV `term.onResize` | None | 13 A (send), D (meta) |
+| 13.1 | One terminal: JetBrains Mono (`--font-mono-stack`) 12 px, `lineHeight: 1.2`; **measured in Fleet at 1×: cells 7 × 19 CSS px** (xterm floors the measured advance and multiplies the font's own height by 1.2) | TV `new Terminal`; measured | Done in A | 13 A  |
+| 13.2 | Fit (xterm's fit addon): `cols = ⌊(box width − 14) / cell w⌋`, `rows = ⌊box height / cell h⌋` (14 is the scrollbar it reserves while there is scrollback), at least 2 × 1; measured: a 508 × 225 box is 70 × 11 | TV `fitNow`; fit addon | Done in A | 13 A  |
+| 13.3 | The box: `position: absolute; inset: 0`, padding `6px 4px 4px 12px`; xterm paints no background, the drawer's `--terminal-bg` shows through | TV `.terminal-view` | Done in A | 13 A  |
+| 13.4 | Refit whenever the box changes size (resize observer, next frame) and when it is shown again; skipped while the box has no size | TV `scheduleFit`, `watch(shown)` | Done in A | 13 A  |
+| 13.5 | A size change sends `{"type":"resize",cols,rows}` and tells the drawer the size (13.47) | TV `term.onResize` | Done in A (send done; the readout is D) | 13 A (send), D (meta)  |
 | 13.6 | Scrollback 5,000 lines; the wheel scrolls it; new output while scrolled back leaves the view where it is (xterm) | TV `scrollback: 5000`; xterm | None | 13 F |
 | 13.7 | The scrollbar: xterm 6's own, 8 px wide, radius 4, slider `text` at 16 %, hover 28 %, dragged 36 %; no shadow | TV `:deep(.scrollbar)`, TT | None | 13 F |
-| 13.8 | Colours (`terminalTheme`): foreground and cursor `--text`; cursor accent `--panel-bg`; selection `mix(panel, accent, .28)`, inactive selection `mix(panel, text, .14)`; red `--error`, green `--running`, yellow `--idle`, blue `--complete`, magenta `--queued`; the other ANSI colours from `DARK` or `LIGHT` (by `isLight(panel)`: relative luminance > 0.4); the 256-colour cube and grey ramp and true colour as xterm | TT | None | 13 A |
-| 13.9 | A theme change re-colours every open terminal at once (no reconnect) | TV `watch(resolvedThemeId)` | None | 13 A |
-| 13.10 | Cell attributes: bold, italic, underline, inverse, and wide (CJK, emoji) cells | xterm | None | 13 A |
+| 13.8 | Colours (`terminalTheme`): foreground and cursor `--text`; cursor accent `--panel-bg`; selection `mix(panel, accent, .28)`, inactive selection `mix(panel, text, .14)`; red `--error`, green `--running`, yellow `--idle`, blue `--complete`, magenta `--queued`; the other ANSI colours from `DARK` or `LIGHT` (by `isLight(panel)`: relative luminance > 0.4); the 256-colour cube and grey ramp and true colour as xterm | TT | Done in A | 13 A  |
+| 13.9 | A theme change re-colours every open terminal at once (no reconnect) | TV `watch(resolvedThemeId)` | Done in A | 13 A  |
+| 13.10 | Cell attributes: bold, italic, underline, inverse, and wide (CJK, emoji) cells | xterm | Done in A | 13 A  |
 | 13.11 | The rest of the attributes: dim (half opacity), strikethrough, curly/double/dotted/dashed underlines and the underline colour (SGR 58), hidden, overline; bold with colours 0–7 drawn in their bright colour (xterm's `drawBoldTextInBrightColors`, on by default) | xterm | None | 13 G |
-| 13.12 | Cursor: a block that blinks while focused (`cursorBlink: true`), drawn as an outline while not focused; DECSCUSR shapes (bar, underline, steady); hidden by DECTCEM | TV `cursorBlink`; xterm | None | 13 A (block), G (the rest) |
+| 13.12 | Cursor: a block that blinks while focused (`cursorBlink: true`), drawn as an outline while not focused; DECSCUSR shapes (bar, underline, steady); hidden by DECTCEM | TV `cursorBlink`; xterm | Done in A (block and outline done; blink and shapes G) | 13 A (block), G (the rest)  |
 | 13.13 | Focus: a press in the terminal gives it the keyboard; the drawer border turns accent (13.43) and the status bar says so (13.62); **on focus the view sends its own size again**, because another client attaching resized the shell | TV `onFocus` | None | 13 E |
 | 13.14 | `clear()` (the drawer's Clear): clears this view and sends `{"type":"clear"}` so the server drops the scrollback for everyone; `{"type":"cleared"}` from elsewhere clears this view | TV `defineExpose.clear`, `onCleared` | None | 13 B |
 | 13.15 | The window title (OSC 0/2) and the bell are ignored (tab titles come from the server; xterm 6's bell is off) | TV, xterm | n/a | 13 G |
-| 13.16 | Parser answers (DA, DSR cursor position) go back to the shell as input | xterm `onData` | None | 13 A |
-| 13.17 | A flood keeps the window drawing; rows that didn't change aren't rebuilt (`Rc<GridRow>` reused; alacritty's damage instead of hashing every cell) | research | None | 13 A (reuse), B (damage, flood) |
+| 13.16 | Parser answers (DA, DSR cursor position) go back to the shell as input | xterm `onData` | Done in A | 13 A  |
+| 13.17 | A flood keeps the window drawing; rows that didn't change aren't rebuilt (`Rc<GridRow>` reused; alacritty's damage instead of hashing every cell) | research | Done in A (row reuse done; damage and flood B) | 13 A (reuse), B (damage, flood)  |
 
 ### 2. The connection (SO, TA, TC; server)
 
 | # | Row | Source | Native today | Owner |
 |---|---|---|---|---|
-| 13.20 | Socket address `{ws|wss}://<machine>/api/sessions/{id}/terminals/{terminalId}/socket?cols=&rows=` (or under a base path, 13.80), the session's machine, its token as `&access_token=` (`session-calls-machine.test.ts`) | TA `terminalSocketUrl` | None | 13 A (home), B (other machines) |
-| 13.21 | On open: reset the view; then binary frames are the saved scrollback, then `{"type":"ready"}`, then live output | SO | None | 13 A |
-| 13.22 | Input as binary frames; `resize` and `clear` as text; anything typed before `ready` (or while reconnecting) kept up to 4,096 bytes and sent after `ready`; more is dropped | SO `write`, `MAX_PENDING_INPUT` | None | 13 A (send), B (pending) |
+| 13.20 | Socket address `{ws|wss}://<machine>/api/sessions/{id}/terminals/{terminalId}/socket?cols=&rows=` (or under a base path, 13.80), the session's machine, its token as `&access_token=` (`session-calls-machine.test.ts`) | TA `terminalSocketUrl` | Done in A (home machine done; others B) | 13 A (home), B (other machines)  |
+| 13.21 | On open: reset the view; then binary frames are the saved scrollback, then `{"type":"ready"}`, then live output | SO | Done in A | 13 A  |
+| 13.22 | Input as binary frames; `resize` and `clear` as text; anything typed before `ready` (or while reconnecting) kept up to 4,096 bytes and sent after `ready`; more is dropped | SO `write`, `MAX_PENDING_INPUT` | Done in A (send done; the 4,096-byte queue B) | 13 A (send), B (pending)  |
 | 13.23 | `{"type":"exit","exitCode":n}`: the shell ended; `exitCode` null when Fleet ended it; no reconnect after | SO | None | 13 B |
 | 13.24 | Close 1000 (or after `exit`): status `ended`, no reconnect; the tab goes (13.34) | SO `NORMAL_CLOSURE` | None | 13 B |
 | 13.25 | Any other close (4001 "fell behind the terminal's output", 1001 Fleet stopping, a dropped network): reconnect after 250, 500, 1000, 2000, 4000, 8000, 8000… ms; each reconnect resets the view and the scrollback replays | SO `RECONNECT_DELAYS_MS` | None | 13 B |
@@ -139,7 +139,7 @@ Owner: `13` = this component, with the piece; another number = that component. "
 
 | # | Row | Source | Native today | Owner |
 |---|---|---|---|---|
-| 13.43 | Under the composer, spanning the conversation column; `border-top: 1px --border` (accent at 60 % while a terminal has the keyboard), background `--terminal-bg` = `--panel-bg` 96 % + `--text` (add to `theme.rs`); height from 13.39, capped at 60 % of the column (never under 140); not drawn at all until first opened in this session, then hidden rather than dropped | TD `.terminal-drawer`, `everOpened` | None | 13 A (a plain box), D |
+| 13.43 | Under the composer, spanning the conversation column; `border-top: 1px --border` (accent at 60 % while a terminal has the keyboard), background `--terminal-bg` = `--panel-bg` 96 % + `--text` (add to `theme.rs`); height from 13.39, capped at 60 % of the column (never under 140); not drawn at all until first opened in this session, then hidden rather than dropped | TD `.terminal-drawer`, `everOpened` | Done in A (plain 272 px box; cap and grip D, E) | 13 A (a plain box), D  |
 | 13.44 | Grip: 9 px tall over the top edge (−5 px), row-resize cursor; a 36 × 3 bar, radius 2, `--muted`, shows at 60 % on hover, while dragged or focused; drag sets the height (capped as 13.43); double-click resets to 272; ↑/↓ by 24 when focused; tooltip "Drag to resize, double-click to reset"; label "Resize terminal" | TD `.terminal-drawer__grip` | None | 13 E |
 | 13.45 | Header: 36 px, padding `0 6px 0 8px`, gap 2, bottom border; tabs, **+** (New terminal, `Plus` 14, off while creating), a spacer (≥ 8), the meta, **Clear** (`Eraser` 13, off with no active tab, "Clear"), **Hide** (`ChevronDown` 15, "Hide terminal (Ctrl J). Shells keep running."); icon buttons 26 × 26, radius btn, `--muted`, hover `text` 6 % behind `--text`, off at 40 % | TD `.terminal-drawer__header` | None | 13 D |
 | 13.46 | A tab: 26 px, padding `0 4px 0 8px`, gap 6, radius btn, 12.5 px `--muted`; hover `text` 5 % and `--text`; active `text` 9 %, `--text`, 500; `SquareTerminal` 13 at 70 %; the title (max 160, ellipsis); close 18 × 18, radius 4, `X` 11, shown on hover or when active, hover `text` 10 %, "Close (ends the shell)"; middle-click closes; tabs scroll sideways with no scrollbar | TD `.terminal-tab` | None | 13 D |
@@ -154,15 +154,15 @@ Owner: `13` = this component, with the piece; another number = that component. "
 | # | Row | Source | Native today | Owner |
 |---|---|---|---|---|
 | 13.55 | The header's terminal button (toolbar icon), only while `terminalEnabled` and not on a phone; pressed look while open (`text` 9 %, `--text`); a 6 px `--running` dot at top 5, right 5, ringed 2 px `--panel-bg`, while shells run with the drawer hidden; words "Hide terminal (Ctrl J)", "Show terminal: shells are running (Ctrl J)", "Show terminal (Ctrl J)" (⌘ J on a Mac) as tooltip and label | TTB | Drawn, does nothing (8's 5.1) | 13 D |
-| 13.56 | `toggle-terminal`: "Hide terminal" / "Show terminal" by the open session's drawer; "Show or hide the terminal under the chat." or, with no session open or terminals off, "Open a session to use its terminal." and off; Mod+J, works from a text field; keywords terminal, shell, console, drawer | UC, KB | Listed, `Run::Waiting(13)` | 13 A (runs), D (label) |
+| 13.56 | `toggle-terminal`: "Hide terminal" / "Show terminal" by the open session's drawer; "Show or hide the terminal under the chat." or, with no session open or terminals off, "Open a session to use its terminal." and off; Mod+J, works from a text field; keywords terminal, shell, console, drawer | UC, KB | Done in A (runs; label D) | 13 A (runs), D (label)  |
 | 13.57 | Status bar Ctrl J Terminal hint (shown only while `terminalEnabled`) runs the command | SB | Done (9's 4.6) | 9 |
 
 ### 6. Keys (TK, TV, xterm)
 
 | # | Row | Source | Native today | Owner |
 |---|---|---|---|---|
-| 13.60 | Who gets a key while a terminal has focus (`terminalKeyOwner`): Fleet's pass-through shortcuts (toggle-terminal Mod+J, toggle-right-panel Mod+Shift+B, as currently bound) go to Fleet; off a Mac, Ctrl+Shift+C copies the selection and Ctrl+Shift+V pastes; everything else goes to the shell and **never** reaches Fleet (Esc, Ctrl K, Ctrl B, Ctrl [ …) | TK, TV `onHostKeydown` | None | 13 A (shell gets keys), E (owner) |
-| 13.61 | Keys to bytes as xterm: printable text; Enter `\r`; Backspace `\x7f` (Ctrl+Backspace `\x08`); Tab, Shift+Tab `CSI Z`; Esc; Ctrl+letter and Ctrl+@[\]^_; Alt+key prefixed with ESC (off a Mac); arrows, Home, End in normal or application cursor mode (`CSI`/`SS3`); Insert, Delete, PgUp, PgDn, F1–F12 with modifier parameters (`CSI 1;m X`); Shift+PgUp/PgDn scroll the view; Windows Ctrl+Break (`Key::Pause`) as `\x03` | xterm | None | 13 A (text, Enter, Backspace, Tab, Esc, Ctrl+letter, arrows), E (all) |
+| 13.60 | Who gets a key while a terminal has focus (`terminalKeyOwner`): Fleet's pass-through shortcuts (toggle-terminal Mod+J, toggle-right-panel Mod+Shift+B, as currently bound) go to Fleet; off a Mac, Ctrl+Shift+C copies the selection and Ctrl+Shift+V pastes; everything else goes to the shell and **never** reaches Fleet (Esc, Ctrl K, Ctrl B, Ctrl [ …) | TK, TV `onHostKeydown` | Done in A (shell gets keys, Mod+J and Mod+Shift+B pass; copy keys E) | 13 A (shell gets keys), E (owner)  |
+| 13.61 | Keys to bytes as xterm: printable text; Enter `\r`; Backspace `\x7f` (Ctrl+Backspace `\x08`); Tab, Shift+Tab `CSI Z`; Esc; Ctrl+letter and Ctrl+@[\]^_; Alt+key prefixed with ESC (off a Mac); arrows, Home, End in normal or application cursor mode (`CSI`/`SS3`); Insert, Delete, PgUp, PgDn, F1–F12 with modifier parameters (`CSI 1;m X`); Shift+PgUp/PgDn scroll the view; Windows Ctrl+Break (`Key::Pause`) as `\x03` | xterm | Done in A (table whole in `src/term/keys.rs`, basics tested; rest E) | 13 A (text, Enter, Backspace, Tab, Esc, Ctrl+letter, arrows), E (all)  |
 | 13.62 | While a terminal has the keyboard the status bar's left side is: "Terminal has the keyboard" (accent text) · Esc Ctrl K Ctrl B go to the shell · Ctrl J Hide terminal (a button running the command) · Ctrl Shift C Copy (⌘ C on a Mac) | SB 100-130 | None (9's 4.7) | 13 E |
 | 13.63 | Mac: ⌘C copies, ⌘V pastes; Option types characters (xterm's `macOptionIsMeta` is off and Fleet doesn't set it); other ⌘ keys go nowhere | xterm, TK | None | 13 E |
 | 13.64 | Input methods (dead keys, CJK, the emoji picker): `ime_cursor` on the drawn cursor, `App::on_ime`; composed text goes to the shell | xterm | None | 13 H (Linux can't drive one; Windows and macOS by hand or "not checked") |
@@ -221,6 +221,16 @@ Owner: `13` = this component, with the piece; another number = that component. "
 | `lib/__tests__/terminal-keys.test.ts` | all 4: "leaves Ctrl J and Ctrl Shift B to Fleet", "copies with Ctrl Shift C and pastes with Ctrl Shift V", "follows a rebound terminal shortcut" (the native app has no rebinding yet: port against the binding table), "leaves Ctrl Shift C to the shell, since ⌘ C copies" | E |
 | `components/layout/__tests__/StatusBar.test.ts` | "hides the terminal from the terminal's own hints, and leaves the rest as text" | E |
 | `lib/__tests__/format-terminal-context.test.ts`, `composables/__tests__/use-draft-terminal-context.test.ts` | done by component 5 (piece O) | 5 |
+
+### Piece A, what was done on 18 November 2026
+
+Done: 13.1–13.5, 13.8–13.10, 13.12 (block, outline when unfocused; blink is G), 13.16, 13.17 (row reuse; damage is B), 13.20, 13.21, 13.22 (send), 13.31 (list,
+create), 13.43 (plain box), 13.56 (runs), 13.60 (shell gets keys), 13.61 (basic keys). Live on a scratch Fleet v0.72.0: prompt drawn, `ls` and
+`stty size` typed (`13 115`), a wider column then `13 130`: the shell sees the resize.
+Left open and why: the cursor does not blink yet (G); box drawing and block characters (`┌─┬`, `▁▂▃`) show small gaps at 19 px rows (looked at in
+`scene-unicode-*`; G with the other cell attributes); the scene boxes are taller than the window leaves, so the conversation above is squeezed (the
+real drawer is 272 px, D); Ctrl+Shift+C sends `^C` until E gives copy its owner; after a reconnect or the session changing nothing reconnects (B, C).
+Pictures: `shots/parity/13-terminal/A/`.
 
 ## Out of reach, and why
 

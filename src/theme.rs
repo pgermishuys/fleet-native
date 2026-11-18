@@ -257,6 +257,12 @@ impl Theme {
         self.mix(color, self.text, share)
     }
 
+    /// `--terminal-bg` (`TerminalDrawer.vue`): `color-mix(in srgb, var(--panel-bg) 96%, var(--text))`, the terminal drawer's
+    /// ground, a step off the panel.
+    pub fn terminal_bg(&self) -> Color {
+        self.mix(self.panel_bg, self.text, 0.96)
+    }
+
     /// `color-mix(in srgb, a share%, b)`.
     pub fn mix(&self, a: Color, b: Color, share: f32) -> Color {
         // CSS mixes the sRGB numbers; Rune's colours are linear, so decode, mix and encode back.

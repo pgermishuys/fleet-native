@@ -1,0 +1,7 @@
+* [33mca1a6ca[m[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;33mtag: [m[1;33mv0.2[m[33m)[m[m Release 0.2 [2m(Ada Fenwick, 2026-03-06)[m
+* [33m050c8d1[m[m[m Trim script prints what it trims [2m(Ada Fenwick, 2026-03-05)[m
+[31m|[m * [33m2c66e62[m[m[33m ([m[1;32mwick-length[m[33m)[m[m Test the short-wick case [2m(Juno Marsh, 2026-03-04)[m
+[31m|[m * [33mf9b99e7[m[m[m A wick shorter than 2 mm goes out [2m(Juno Marsh, 2026-03-03)[m
+[31m|[m[31m/[m  
+* [33m9927a6f[m[m[m Measure oil left in millilitres [2m(Ada Fenwick, 2026-03-02)[m
+* [33maa2fbc1[m[m[m Start the lantern controller [2m(Ada Fenwick, 2026-03-01)[m

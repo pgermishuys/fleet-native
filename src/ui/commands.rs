@@ -327,7 +327,7 @@ pub fn all(s: &State) -> Vec<Command> {
                 View,
                 Some(md("J")),
                 &["shell", "console"],
-                Run::Waiting(13),
+                now(|s, tx| s.toggle_terminal(tx)),
             );
             terminal.disabled = !open;
             terminal

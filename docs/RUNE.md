@@ -1702,3 +1702,11 @@ Nothing in Rune was needed.
 - A request that Fleet aborts (`AbortController`) has no cancel here: `Link::off_thread` runs to its end, and the answer is dropped by a run
   number when a newer query has replaced it. The old request still costs the server a git search; it isn't sent at all inside the debounce.
 - The debounce is `tx.wake_after` from `poll`: nothing else wakes an idle app 120 ms after the last key.
+
+## Component 13, piece A (the terminal)
+
+- **`TextStyle::tracking`** pulls JetBrains Mono's 7.22 px advance to xterm's floored 7, so a `GridRow`'s columns land on 7 px cells (`term::screen::style`); pinned cells are measured with the same style.
+- **`rt.key` is queued**: a key reaches `on_key` on the next `rt.frame`, so a test that types and then waits without framing sees only the earlier keys.
+- **`El::on_key` on a `focusable(true)` box** receives every key before the window's `on_key` (Esc, Ctrl K), and a click focuses it with no `on_press`; adding an `on_press_tx` as well swallowed Enter.
+- **A focused box's focus state isn't readable while building the view**: `Tx::focused()` is read in `poll` once a frame and kept in `State` for the cursor's block-or-outline.
+- **`Term::read` closures**: `impl Trait` can't nest in a closure bound; `alacritty_terminal`'s listener type has to be public for a wrapper to name it.

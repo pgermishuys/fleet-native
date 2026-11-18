@@ -84,12 +84,12 @@ fn a_command_waiting_on_a_component_says_so_instead_of_running() {
     let mut rt = app();
     rt.update(|s, tx| {
         super::palette::open(s, tx);
-        s.ui.palette.query = TextEdit::new("terminal");
+        s.ui.palette.query = TextEdit::new("inline tool diffs");
     });
     rt.frame(FRAME);
     key(&mut rt, Key::Enter);
     let toast = rt.state.ui.toast.as_ref().expect("a toast");
-    assert!(toast.message.contains("component 13"), "{}", toast.message);
+    assert!(toast.message.contains("component 3"), "{}", toast.message);
 }
 
 #[test]
