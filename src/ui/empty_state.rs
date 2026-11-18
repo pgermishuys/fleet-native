@@ -15,3 +15,13 @@ pub fn compact(t: &Theme, key: &str, glyph: &'static Icon, title: &str) -> El {
         .child(icon(glyph, 20.0).color(t.muted).mb(rem(0.5)))
         .child(text(title.to_string()).font(sans(rem(0.875), 500.0, 1.43)).color(t.text).wrap().align(Align::Center))
 }
+
+/// The compact `EmptyState` with its one line of text (`text-xs`, `--muted`) under the title, and the icon optional.
+pub fn compact_described(t: &Theme, key: &str, glyph: Option<&'static Icon>, title: &str, description: &str) -> El {
+    let mut c = col().key(key.to_string()).w_full().items_center().gap(rem(0.25)).px(rem(0.75)).py(rem(1.0));
+    if let Some(glyph) = glyph {
+        c = c.child(icon(glyph, 20.0).color(t.muted).mb(rem(0.5)));
+    }
+    c.child(text(title.to_string()).font(sans(rem(0.875), 500.0, 1.43)).color(t.text).wrap().align(Align::Center))
+        .child(text(description.to_string()).font(sans(rem(0.75), 400.0, 1.33)).color(t.muted).wrap().align(Align::Center))
+}

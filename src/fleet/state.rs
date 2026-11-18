@@ -68,6 +68,7 @@ impl State {
             self.on_progress_event(topic, event);
             self.on_diffs_event(topic, event);
             self.on_file_live_event(topic, event);
+            self.on_file_browser_event(topic, event);
             for (only, listener) in &mut self.subscribers.0 {
                 if only.is_none() || *only == kind {
                     listener(topic, event);

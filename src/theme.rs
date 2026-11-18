@@ -161,6 +161,20 @@ impl Theme {
         self.idle
     }
 
+    /// The Files tree's change badges (`.file-browser-tree-node__badge--green|orange|red`): fixed hex in Fleet, not tokens, so the
+    /// same in both themes. Added, modified, deleted.
+    pub fn badge_added(&self) -> Color {
+        c("#10b981")
+    }
+
+    pub fn badge_modified(&self) -> Color {
+        c("#f59e0b")
+    }
+
+    pub fn badge_deleted(&self) -> Color {
+        c("#ef4444")
+    }
+
     /// `.page-canvas__frame { background: #fff }`: a page's frame before the page draws, white in both themes (a literal in
     /// Fleet too: pages without a background of their own expect a white one).
     pub fn page_frame(&self) -> Color {

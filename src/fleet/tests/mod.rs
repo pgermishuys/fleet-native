@@ -496,6 +496,7 @@ mod discover;
 mod drafts;
 mod events;
 mod export;
+mod file_browser;
 mod file_buffers;
 mod file_live;
 mod files;

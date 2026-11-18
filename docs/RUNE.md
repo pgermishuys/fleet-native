@@ -1802,3 +1802,9 @@ Read at the pin while planning; nothing built yet.
 - **No "tab activated" hook in the model**, so a tab coming to the front is seen by comparing the active tab id in `poll` (`keep_file_front`), the way `keep_strip` does for the strip; it reads the id without copying the session's tabs.
 - **A debounce is a generation number and a sleeping `Link::off_thread`**: each queue bumps the number, and the timer that wakes finds itself stale and reads nothing. A test of "once" checks the queue as a rule and a fake server for what is asked.
 - **A test that waits for a second read must wait for the first one to be applied** (`!is_reading`), because a refresh asked while one is on its way is skipped on purpose.
+
+## Component 11, piece D (the Files tab)
+
+- **A press then a double-press** reach `on_press_tx` and then `on_double_press_tx` in that order on the second click, so a single click's wait is a deadline kept in `State` and checked in `poll` (`keep_files_tab`, with `tx.wake_after`), and the double-press just drops it. No thread is needed, and an invented session (no link) works the same.
+- **No way to change a fill on focus-within**: `focus_within_ring` draws the ring but the field keeps its resting fill, where CSS `:focus-within` swaps it for transparent.
+- **A vertical scroll box is `.scroll(ScrollSpec { stick_bottom: false })`**; there is no `scroll_y`.
