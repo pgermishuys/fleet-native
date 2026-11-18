@@ -12,6 +12,8 @@ mod mock;
 mod script;
 pub mod term;
 #[cfg(test)]
+mod test_http;
+#[cfg(test)]
 mod test_wait;
 #[cfg(test)]
 mod tests;

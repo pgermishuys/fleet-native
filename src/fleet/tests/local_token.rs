@@ -4,7 +4,7 @@ use super::auth::HOME_TOKEN;
 use crate::fleet::discover::{self, Found, Os, Place};
 use crate::fleet::local_token::{self, Outcome, parse_machine_file};
 use crate::fleet::{auth, http};
-use std::io::{Read, Write};
+use std::io::Write;
 use std::net::TcpListener;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -26,9 +26,7 @@ fn fleet(needs: bool) -> (String, Arc<Mutex<Vec<String>>>) {
     let log = seen.clone();
     std::thread::spawn(move || {
         for mut stream in listener.incoming().flatten() {
-            let mut buf = [0u8; 4096];
-            let n = stream.read(&mut buf).unwrap_or(0);
-            let text = String::from_utf8_lossy(&buf[..n]).to_lowercase();
+            let text = crate::test_http::read(&mut stream).raw().to_lowercase();
             let ok = !needs || text.contains(&format!("authorization: bearer {TOKEN}"));
             log.lock().unwrap().push(text);
             let reply: &[u8] = if ok {

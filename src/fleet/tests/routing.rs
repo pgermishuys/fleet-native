@@ -7,7 +7,7 @@ use crate::fleet::settings::HOME_MACHINE_KEY;
 use crate::mock::{Session, Status};
 use crate::tests::app;
 use serde_json::json;
-use std::io::{Read, Write};
+use std::io::Write;
 use std::net::TcpListener;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -25,9 +25,7 @@ fn fake_fleet() -> (String, Heard) {
     let log = heard.clone();
     std::thread::spawn(move || {
         for mut stream in listener.incoming().flatten() {
-            let mut buf = [0u8; 8192];
-            let n = stream.read(&mut buf).unwrap_or(0);
-            let text = String::from_utf8_lossy(&buf[..n]).to_string();
+            let text = crate::test_http::read(&mut stream).raw();
             let line = text.lines().next().unwrap_or("").to_string();
             let header = text.lines().find_map(|l| l.to_ascii_lowercase().strip_prefix("authorization: bearer ").map(str::to_string));
             let query = line.split("access_token=").nth(1).and_then(|t| t.split([' ', '&']).next()).map(str::to_string);

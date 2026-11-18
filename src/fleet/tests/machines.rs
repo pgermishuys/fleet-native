@@ -7,7 +7,7 @@ use crate::fleet::machine_poll::read_one;
 use crate::fleet::machines::{Entry, Listed, Machines, Source, parse_machine_list, read_machine};
 use crate::fleet::{auth, sessions};
 use serde_json::{Value, json};
-use std::io::{Read, Write};
+use std::io::Write;
 use std::net::TcpListener;
 use std::sync::{Arc, Mutex};
 
@@ -27,9 +27,7 @@ fn serve(route: impl Fn(&str) -> Option<(u16, String)> + Send + Sync + 'static) 
         for mut stream in listener.incoming().flatten() {
             let (log, route) = (log.clone(), route.clone());
             std::thread::spawn(move || {
-                let mut buf = [0u8; 8192];
-                let n = stream.read(&mut buf).unwrap_or(0);
-                let text = String::from_utf8_lossy(&buf[..n]).to_string();
+                let text = crate::test_http::read(&mut stream).raw();
                 let target = text.lines().next().unwrap_or("").split(' ').nth(1).unwrap_or("").to_string();
                 let bearer = text.lines().find_map(|l| {
                     l.to_ascii_lowercase().starts_with("authorization:").then(|| l.split_once(':').unwrap().1.trim().to_string())

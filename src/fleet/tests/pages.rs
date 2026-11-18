@@ -8,7 +8,7 @@ use super::super::state::Topic;
 use super::reconnect::app;
 use super::*;
 use crate::State;
-use std::io::{BufRead, BufReader, Write};
+use std::io::Write;
 use std::net::TcpListener;
 use std::sync::Mutex;
 use std::sync::mpsc::channel;
@@ -127,20 +127,11 @@ fn loads_the_canvases_when_the_session_opens() {
     std::thread::spawn(move || {
         for mut stream in listener.incoming().flatten() {
             std::thread::spawn(move || {
-                let mut reader = BufReader::new(stream.try_clone().unwrap());
-                let mut request = String::new();
-                loop {
-                    let mut line = String::new();
-                    if reader.read_line(&mut line).unwrap_or(0) == 0 {
-                        return;
-                    }
-                    if request.is_empty() {
-                        request = line.clone();
-                    }
-                    if line == "\r\n" {
-                        break;
-                    }
+                let heard = crate::test_http::read(&mut stream);
+                if heard.method.is_empty() {
+                    return;
                 }
+                let request = heard.head.lines().next().unwrap_or("").to_string();
                 let path = request.split(' ').nth(1).unwrap_or("");
                 let (status, body) = if path.starts_with("/hubs/session-events/negotiate") {
                     ("200 OK", "{\"negotiateVersion\":1,\"connectionToken\":\"tok\"}".to_string())

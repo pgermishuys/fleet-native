@@ -8,7 +8,7 @@ use super::super::file_buffers::{
 use super::super::link::{Job, Link, Post};
 use super::reconnect::app;
 use super::*;
-use std::io::{BufRead, BufReader, Write};
+use std::io::Write;
 use std::net::TcpListener;
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
@@ -306,20 +306,11 @@ struct Seen {
 }
 
 fn serve(mut stream: std::net::TcpStream, seen: Arc<Mutex<Seen>>) {
-    let mut reader = BufReader::new(stream.try_clone().unwrap());
-    let mut request = String::new();
-    loop {
-        let mut line = String::new();
-        if reader.read_line(&mut line).unwrap_or(0) == 0 {
-            return;
-        }
-        if request.is_empty() {
-            request = line.clone();
-        }
-        if line == "\r\n" {
-            break;
-        }
+    let heard = crate::test_http::read(&mut stream);
+    if heard.method.is_empty() {
+        return;
     }
+    let request = heard.head.lines().next().unwrap_or("").to_string();
     let path = request.split(' ').nth(1).unwrap_or("").to_string();
     let body = if path.starts_with("/hubs/session-events/negotiate") {
         "{\"negotiateVersion\":1,\"connectionToken\":\"tok\"}".to_string()

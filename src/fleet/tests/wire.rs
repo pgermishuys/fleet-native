@@ -7,7 +7,7 @@ use super::*;
 use crate::fleet::link::{Connection, Job, Link, Post};
 use crate::{State, spec};
 use rune::{App, Env};
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::mpsc::{Sender, channel};
 use tungstenite::Message;
@@ -19,24 +19,11 @@ fn reply(stream: &mut TcpStream, body: &str) {
 }
 
 fn serve(mut stream: TcpStream, prompts: Sender<String>) {
-    let mut reader = BufReader::new(stream.try_clone().unwrap());
-    let mut head = String::new();
-    let mut length = 0;
-    loop {
-        let mut line = String::new();
-        if reader.read_line(&mut line).unwrap_or(0) == 0 {
-            return;
-        }
-        if line == "\r\n" {
-            break;
-        }
-        if let Some(n) = line.to_ascii_lowercase().strip_prefix("content-length:") {
-            length = n.trim().parse().unwrap_or(0);
-        }
-        head.push_str(&line);
+    let heard = crate::test_http::read(&mut stream);
+    if heard.method.is_empty() {
+        return;
     }
-    let mut body = vec![0; length];
-    let _ = reader.read_exact(&mut body);
+    let (head, body) = (heard.head, heard.body);
     let request = head.lines().next().unwrap_or("").to_string();
     if request.starts_with("POST /hubs/session-events/negotiate") {
         reply(&mut stream, "{\"negotiateVersion\":1,\"connectionToken\":\"tok\"}");
@@ -70,7 +57,7 @@ fn hub(stream: TcpStream, head: String) {
             self.1.flush()
         }
     }
-    let replay = Replay(std::io::Cursor::new(format!("{head}\r\n").into_bytes()), stream);
+    let replay = Replay(std::io::Cursor::new(format!("{head}\r\n\r\n").into_bytes()), stream);
     let Ok(mut ws) = tungstenite::accept(replay) else { return };
     let live = frames_of("hub-turn-run-tests.jsonl");
     while let Ok(Message::Text(text)) = ws.read() {

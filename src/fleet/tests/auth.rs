@@ -56,7 +56,7 @@ fn fake_fleet() -> (String, Seen) {
         for mut stream in listener.incoming().flatten() {
             // The whole request, body included: closing with the POST's body unread makes Windows reset the connection under
             // the client, which then retries, and the retry is a second knock on the hub.
-            let text = crate::tests::read_request(&mut stream);
+            let text = crate::test_http::read(&mut stream).raw();
             let line = text.lines().next().unwrap_or("").to_string();
             let with = text.to_lowercase().contains(&format!("authorization: bearer {SECRET}").to_lowercase());
             // The WebSocket asks with the token in the URL instead of a header.
@@ -179,7 +179,7 @@ fn recording_server() -> (String, Arc<Mutex<Vec<String>>>) {
     let log = seen.clone();
     std::thread::spawn(move || {
         for mut stream in listener.incoming().flatten() {
-            log.lock().unwrap().push(crate::tests::read_request(&mut stream).to_lowercase());
+            log.lock().unwrap().push(crate::test_http::read(&mut stream).raw().to_lowercase());
             let _ =
                 stream.write_all(b"HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: 2\r\nconnection: close\r\n\r\n{}");
         }

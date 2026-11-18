@@ -4,7 +4,7 @@ use super::manifest::{self, Asset};
 use super::{Phase, Update};
 use crate::State;
 use crate::tests::{FRAME, app, click};
-use std::io::{Read, Write};
+use std::io::Write;
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 
@@ -31,10 +31,7 @@ fn serve(files: Vec<(&'static str, Vec<u8>)>) -> String {
     std::thread::spawn(move || {
         for stream in listener.incoming() {
             let Ok(mut stream) = stream else { continue };
-            let mut request = [0u8; 2048];
-            let n = stream.read(&mut request).unwrap_or(0);
-            let line = String::from_utf8_lossy(&request[..n]).lines().next().unwrap_or("").to_string();
-            let path = line.split(' ').nth(1).unwrap_or("").to_string();
+            let path = crate::test_http::read(&mut stream).path;
             match files.iter().find(|(p, _)| *p == path) {
                 Some((_, body)) => {
                     let _ = write!(stream, "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", body.len());

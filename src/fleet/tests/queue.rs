@@ -11,7 +11,7 @@ use crate::State;
 use crate::composer::status::{HarnessInfo, SteerDelivery};
 use crate::mock::Status;
 use rune::{Key, KeyEvent, Mods, Runtime};
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::Write;
 use std::net::{TcpListener, TcpStream};
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
@@ -426,26 +426,12 @@ struct Seen {
 }
 
 fn serve(mut stream: TcpStream, seen: Arc<Mutex<Seen>>) {
-    let mut reader = BufReader::new(stream.try_clone().unwrap());
-    let (mut head, mut length, mut content_type) = (String::new(), 0usize, String::new());
-    loop {
-        let mut line = String::new();
-        if reader.read_line(&mut line).unwrap_or(0) == 0 {
-            return;
-        }
-        if line == "\r\n" {
-            break;
-        }
-        if let Some(n) = line.to_ascii_lowercase().strip_prefix("content-length:") {
-            length = n.trim().parse().unwrap_or(0);
-        }
-        if line.to_ascii_lowercase().starts_with("content-type:") {
-            content_type = line["content-type:".len()..].trim().to_string();
-        }
-        head.push_str(&line);
+    let heard = crate::test_http::read(&mut stream);
+    if heard.method.is_empty() {
+        return;
     }
-    let mut raw = vec![0; length];
-    let _ = reader.read_exact(&mut raw);
+    let content_type = heard.header("content-type").unwrap_or_default();
+    let (head, raw) = (heard.head, heard.body);
     let body: Value = serde_json::from_slice(&raw).unwrap_or(Value::Null);
     let request = head.lines().next().unwrap_or("").to_string();
     let (method, path) = {
