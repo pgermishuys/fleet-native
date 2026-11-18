@@ -427,6 +427,11 @@ impl Canvases {
         self.by_session.get(session).cloned().unwrap_or_default()
     }
 
+    /// The id of a session's active tab, without copying its tabs.
+    pub fn session_active_id(&self, session: &str) -> Option<String> {
+        self.by_session.get(session).map(|s| s.active_id.clone())
+    }
+
     fn edit(&mut self, session: &str, change: impl FnOnce(&mut SessionCanvases)) {
         change(self.by_session.entry(session.to_string()).or_default());
     }

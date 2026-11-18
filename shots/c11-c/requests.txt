@@ -1,0 +1,6 @@
+The agent's turn ends (turn.ended on the open session's topic) with src/app.py open,
+against a fake server that logs each GET /api/sessions/{id}/files/content, and a changed
+file's base (GET /api/sessions/{id}/diffs/file) asked for twice:
+
+requests after turn.ended: ["src/app.py"]
+requests for the base: ["src/app.py"]
