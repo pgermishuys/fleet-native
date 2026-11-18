@@ -227,6 +227,12 @@ pub struct FindText {
     pub match_case: bool,
     /// A Ctrl+Shift+F request was taken: the field is to take the keyboard, its text selected (piece P does that).
     pub focus_field: bool,
+    /// Files whose every match is shown, not the first few.
+    pub expanded: Vec<String>,
+    /// The line the arrow keys are on.
+    pub active: Option<VisibleHit>,
+    /// The file and line the last opened hit asked the file view to show (`goToFile.focusOnOpen`).
+    pub opened_at: super::go_to_file::GoToFile,
     run: u64,
     due: Option<f64>,
     /// What the last `sync` looked at: when it changes the search starts again (the `watch` sources).
@@ -279,6 +285,10 @@ impl FindText {
         match answer {
             Ok(found) => {
                 self.failure = None;
+                // A new answer starts over: every file folded, the first line chosen.
+                self.expanded.clear();
+                self.active =
+                    found.files.first().and_then(|f| f.matches.first().map(|m| VisibleHit { path: f.path.clone(), line: m.line }));
                 self.result = Some(found);
                 self.took_ms = took_ms;
             }
@@ -287,6 +297,45 @@ impl FindText {
                 self.result = None;
             }
         }
+    }
+}
+
+impl FindText {
+    /// What a scene draws: `answer` for `query`, as if it had been asked and had come back `took_ms` later. Nothing is sent.
+    pub fn show(&mut self, session: &str, query: &str, answer: Result<TextSearchResult, FindTextFailure>, took_ms: f64) {
+        self.watched = Some((session.to_string(), query.trim().to_string(), self.regex, self.match_case));
+        self.due = None;
+        self.answered(self.run, answer, took_ms);
+        self.loading = false;
+    }
+
+    /// "Show N more in this file".
+    pub fn expand(&mut self, path: &str) {
+        if !self.expanded.iter().any(|p| p == path) {
+            self.expanded.push(path.to_string());
+        }
+    }
+
+    /// The lines on screen, in the order the arrow keys step through them.
+    pub fn hits(&self) -> Vec<VisibleHit> {
+        visible_hits(self.result.as_ref().map_or(&[], |r| &r.files), &self.expanded)
+    }
+
+    /// ArrowDown and ArrowUp (`moveActive`): one line on, stopping at either end.
+    pub fn move_active(&mut self, step: i32) {
+        let hits = self.hits();
+        if hits.is_empty() {
+            return;
+        }
+        let at = hits.iter().position(|h| Some(h) == self.active.as_ref()).map_or(-1, |i| i as i32);
+        let next = (at + step).clamp(0, hits.len() as i32 - 1) as usize;
+        self.active = Some(hits[next].clone());
+    }
+
+    /// Enter: the active line, or the first one.
+    pub fn enter_hit(&self) -> Option<VisibleHit> {
+        let hits = self.hits();
+        hits.iter().find(|h| Some(*h) == self.active.as_ref()).or(hits.first()).cloned()
     }
 }
 
@@ -312,6 +361,17 @@ impl FindInFiles {
 }
 
 impl State {
+    /// A line picked in the results (`openHit`): its file opens in a preview tab at that line, on its source when it has a
+    /// rendered view, and the right panel shows.
+    pub fn open_hit(&mut self, path: &str, line: u32, tx: &mut Tx) {
+        let session = self.files_session();
+        // `State` holds no Go to file store yet (11F adds it); the request waits here for the file view to take.
+        self.find_text.opened_at.ask_focus(&session, path, Some(line));
+        let view = super::canvases::has_rendered_view(path).then_some(super::canvases::FileView::Edit);
+        self.open_file(&session, path, super::canvases::OpenFile { keep: false, view }, tx);
+        self.set_content_open(true);
+    }
+
     /// The palette's "Find in files…" and Ctrl/Cmd+Shift+F: the Files tab of the open session, the right panel shown, and the
     /// request left for the tab to take once it is on screen.
     pub fn find_in_files_ask(&mut self) {
@@ -330,6 +390,8 @@ impl State {
         if on_screen && self.find_in_files.take(&session) {
             self.file_browser.search_in = super::file_browser::SearchIn::Contents;
             self.find_text.focus_field = true;
+            tx.focus(crate::view::files_tab::FIELD, false);
+            tx.select_all_text(crate::view::files_tab::FIELD);
             changed = true;
         }
         let contents = self.file_browser.search_in == super::file_browser::SearchIn::Contents;

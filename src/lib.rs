@@ -68,6 +68,8 @@ mod tests_draft_row;
 #[cfg(test)]
 mod tests_files_tab;
 #[cfg(test)]
+mod tests_find_in_files;
+#[cfg(test)]
 mod tests_find_text;
 #[cfg(test)]
 mod tests_folder_clone;
@@ -4362,6 +4364,18 @@ pub fn spec() -> AppSpec<State> {
             ("files-search-none-light", |s| s.show_files_tab(mock::files_tab::Case::SearchNone, false)),
             ("file-tabs", |s| s.show_file_tabs(true)),
             ("file-tabs-light", |s| s.show_file_tabs(false)),
+            ("find-in-files", |s| s.show_files_tab(mock::files_tab::Case::Find, true)),
+            ("find-in-files-light", |s| s.show_files_tab(mock::files_tab::Case::Find, false)),
+            ("find-in-files-none", |s| s.show_files_tab(mock::files_tab::Case::FindNone, true)),
+            ("find-in-files-none-light", |s| s.show_files_tab(mock::files_tab::Case::FindNone, false)),
+            ("find-in-files-limit", |s| s.show_files_tab(mock::files_tab::Case::FindLimit, true)),
+            ("find-in-files-limit-light", |s| s.show_files_tab(mock::files_tab::Case::FindLimit, false)),
+            ("find-in-files-bad", |s| s.show_files_tab(mock::files_tab::Case::FindBad, true)),
+            ("find-in-files-bad-light", |s| s.show_files_tab(mock::files_tab::Case::FindBad, false)),
+            ("find-in-files-old", |s| s.show_files_tab(mock::files_tab::Case::FindOld, true)),
+            ("find-in-files-old-light", |s| s.show_files_tab(mock::files_tab::Case::FindOld, false)),
+            ("find-in-files-hint", |s| s.show_files_tab(mock::files_tab::Case::FindIdle, true)),
+            ("find-in-files-hint-light", |s| s.show_files_tab(mock::files_tab::Case::FindIdle, false)),
             ("panel-tabs", |s| s.show_tabs(mock::canvas_host::Case::Tabs, true)),
             ("panel-tabs-light", |s| s.show_tabs(mock::canvas_host::Case::Tabs, false)),
             ("panel-tabs-attention", |s| s.show_tabs(mock::canvas_host::Case::Attention, true)),

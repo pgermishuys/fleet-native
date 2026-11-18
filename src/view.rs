@@ -36,6 +36,7 @@ pub mod family;
 pub mod file_tree;
 pub mod files_tab;
 pub mod find;
+pub mod find_in_files;
 mod fold;
 pub mod folder_menu;
 pub mod folder_menu_clone;
