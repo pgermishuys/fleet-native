@@ -43,6 +43,9 @@ pub struct Slot {
     /// Why no shell started, in the server's words.
     pub error: Option<String>,
     pub live: Option<Live>,
+    /// The other tabs' views, connected and kept while the session is open (13.51): switching tabs doesn't reconnect, and
+    /// the shell's output keeps landing in them.
+    pub parked: Vec<Live>,
     /// The size the view's box fits, once it has been laid out.
     pub fitted: Option<(u16, u16)>,
     /// The box has the keyboard.
@@ -74,8 +77,11 @@ impl State {
             self.terminal.replaying = false;
             return;
         }
-        let Some(session) = self.open_id().filter(|_| self.terminals_enabled()) else { return };
+        let Some(session) = self.open_id().filter(|_| self.terminals_shown()) else { return };
         self.follow_terminal_session();
+        if self.pretend_terminals() && !self.terminals.is_loaded(&session) {
+            self.terminals.set_terminals(&session, vec![]);
+        }
         // Normally the list came when the session opened; ask again if it never did (terminals were switched on since). It is
         // asked before the drawer opens, so an empty answer is not read as "left open on a session with no shells".
         if !self.terminals.is_open(&session) && !self.terminals.is_loaded(&session) {
@@ -83,9 +89,94 @@ impl State {
         }
         self.terminals.toggle_open(&session);
         self.persist_terminals();
+        // Closing the drawer clears the error it showed (13.50).
+        self.terminal.error = None;
         if self.terminals.is_open(&session) {
-            self.terminal.error = None;
+            self.sync_terminal();
             tx.focus(VIEW_KEY, false);
+        } else {
+            self.terminal.focused = false;
+        }
+    }
+
+    /// The drawer's Hide: the shells keep running (13.45).
+    pub fn hide_terminal(&mut self) {
+        if let Some(session) = self.terminal.session.clone() {
+            self.terminals.set_open(&session, false);
+            self.persist_terminals();
+        }
+        self.terminal.replaying = false;
+        self.terminal.error = None;
+        self.terminal.focused = false;
+    }
+
+    /// A tab pressed: it shows, and its view takes the keyboard (`activate`, and the view's `shown`).
+    pub fn show_terminal_tab(&mut self, id: &str, tx: &mut Tx) {
+        if let Some(session) = self.terminal.session.clone() {
+            self.terminals.set_active(&session, id);
+        }
+        self.sync_terminal();
+        tx.focus(VIEW_KEY, false);
+    }
+
+    /// The drawer's Clear (`clearActive`): the screen and the scrollback go from here and, for everyone else, from the server.
+    pub fn clear_terminal(&mut self) {
+        let Some(live) = self.terminal.live.as_ref() else { return };
+        live.term.clear();
+        if live.pretend {
+            self.terminal.shells.open(&live.id).clear();
+        }
+        if let Some(socket) = &live.socket {
+            socket.clear();
+        }
+    }
+
+    /// `useCommands`' `terminalSessionId`: the open session, which the toggle acts on.
+    pub fn terminals_shown(&self) -> bool {
+        self.terminals_enabled() || self.pretend_terminals()
+    }
+
+    /// No server: the invented session gets the pretend shell (13.42), unless the server's answer was "off".
+    pub fn pretend_terminals(&self) -> bool {
+        self.is_mock() && self.terminals_allowed != Some(false)
+    }
+
+    /// The header button's state: (the drawer is open, shells are running with it hidden) (13.55).
+    pub fn terminal_toggle_state(&self) -> (bool, bool) {
+        let open = self.terminal_open();
+        let running = !open && self.open_id().is_some_and(|id| !self.terminals.terminals_for(&id).is_empty());
+        (open, running)
+    }
+
+    /// `TerminalToggleButton.vue`'s label and tooltip.
+    pub fn terminal_toggle_words(&self) -> String {
+        let key = if cfg!(target_os = "macos") { "\u{2318} J" } else { "Ctrl J" };
+        match self.terminal_toggle_state() {
+            (true, _) => format!("Hide terminal ({key})"),
+            (_, true) => format!("Show terminal: shells are running ({key})"),
+            _ => format!("Show terminal ({key})"),
+        }
+    }
+
+    /// The tabs the drawer draws: the session's list, or for a scene's stream the one tab it is.
+    pub fn drawer_tabs(&self) -> Vec<(String, String)> {
+        let listed: Vec<_> = self
+            .terminal
+            .session
+            .as_deref()
+            .map(|id| self.terminals.terminals_for(id).iter().map(|t| (t.id.clone(), t.title.clone())).collect())
+            .unwrap_or_default();
+        match (&self.terminal.live, listed.is_empty()) {
+            (Some(live), true) if self.terminal.replaying => vec![(live.id.clone(), live.title.clone())],
+            _ => listed,
+        }
+    }
+
+    /// The id of the tab showing.
+    pub fn drawer_active(&self) -> Option<String> {
+        match (&self.terminal.live, self.terminal.replaying) {
+            (Some(live), true) => Some(live.id.clone()),
+            _ => self.terminal.session.as_deref().and_then(|id| self.terminals.active_for(id)).map(|t| t.id.clone()),
         }
     }
 
@@ -107,9 +198,15 @@ impl State {
 
     /// Opens the socket of `listed` in the slot, replacing what it showed.
     fn attach_terminal(&mut self, session: &str, listed: &Listed) {
-        let Some(link) = self.link_for(session) else { return };
         let fit = self.terminal.fitted.unwrap_or(START_SIZE);
         let term = Arc::new(Terminal::new(fit.0, fit.1));
+        if self.pretend_terminals() {
+            term.feed(self.terminal.shells.open(&listed.id).replay());
+            let (id, title) = (listed.id.clone(), listed.title.clone());
+            self.terminal.live = Some(Live { id, title, term, screen: RefCell::default(), socket: None, pretend: true });
+            return;
+        }
+        let Some(link) = self.link_for(session) else { return };
         let path = format!("/api/sessions/{}/terminals/{}", http::escape(session), http::escape(&listed.id));
         let changed = link.post();
         let socket = Socket::open(&link.base, &path, fit, term.clone(), move || changed.update(|_, _| {}));
@@ -125,28 +222,49 @@ impl State {
 
     /// Keeps what the slot shows in step with the session's tabs: the active tab's view is connected, a view whose tab went is
     /// dropped, and a drawer that is open on a loaded list with no tab starts a shell (13.35). True when it changed.
-    fn sync_terminal(&mut self) -> bool {
+    pub(super) fn sync_terminal(&mut self) -> bool {
         let mut changed = self.follow_terminal_session();
         let Some(session) = self.terminal.session.clone().filter(|_| !self.terminal.replaying) else { return changed };
-        if !self.terminals.is_open(&session) || !self.terminals_enabled() {
+        if !self.terminals.is_open(&session) || !self.terminals_shown() {
             return changed;
         }
         match self.terminals.active_for(&session).cloned() {
             Some(active) if self.terminal.live.as_ref().is_none_or(|l| l.id != active.id) => {
                 self.terminal.error = None;
-                self.attach_terminal(&session, &active);
+                // The tab that was showing stays connected; coming back to one that was shown before takes it from there (13.51).
+                if let Some(was) = self.terminal.live.take() {
+                    self.terminal.parked.push(was);
+                }
+                match self.terminal.parked.iter().position(|l| l.id == active.id) {
+                    Some(at) => {
+                        let back = self.terminal.parked.swap_remove(at);
+                        if let (Some(fit), Some(socket)) = (self.terminal.fitted, &back.socket)
+                            && back.term.size() != fit
+                        {
+                            back.term.resize(fit.0, fit.1);
+                            socket.resize(fit.0, fit.1);
+                        }
+                        self.terminal.live = Some(back);
+                    }
+                    None => self.attach_terminal(&session, &active),
+                }
                 changed = true;
             }
             Some(_) => {}
             None => {
                 changed |= self.terminal.live.take().is_some();
+                self.terminal.parked.clear();
                 if self.terminals.is_loaded(&session) && !self.terminal.starting && self.terminal.error.is_none() {
                     self.open_new_terminal();
                     changed = true;
                 }
             }
         }
-        changed
+        // A view whose tab went (closed here, or in another window) lets go of its socket.
+        let listed = self.terminals.terminals_for(&session);
+        let before = self.terminal.parked.len();
+        self.terminal.parked.retain(|l| listed.iter().any(|t| t.id == l.id));
+        changed | (before != self.terminal.parked.len())
     }
 
     /// The box was laid out at `w` × `h`: fit the terminal to it and tell the shell (13.2, 13.4, 13.5).
@@ -160,6 +278,8 @@ impl State {
         if let Some((live, socket)) = self.terminal.live.as_ref().and_then(|l| l.socket.as_ref().map(|s| (l, s))) {
             live.term.resize(fit.0, fit.1);
             socket.resize(fit.0, fit.1);
+        } else if let Some(live) = self.terminal.live.as_ref().filter(|l| l.pretend && !self.terminal.replaying) {
+            live.term.resize(fit.0, fit.1);
         }
     }
 
@@ -193,6 +313,21 @@ impl State {
     /// cursor is a block while it does, an outline when not). True when something on screen changed.
     pub fn keep_terminal(&mut self, tx: &mut Tx) -> bool {
         let mut changed = self.sync_terminal();
+        // A shell that ended behind the tab showing takes its tab too (`onEnded` of a view that isn't the active one).
+        if let Some(session) = self.terminal.session.clone() {
+            let ended: Vec<String> = self
+                .terminal
+                .parked
+                .iter()
+                .filter(|l| l.socket.as_ref().is_some_and(|s| matches!(s.status(), Status::Ended(_))))
+                .map(|l| l.id.clone())
+                .collect();
+            for id in ended {
+                self.terminal.parked.retain(|l| l.id != id);
+                self.terminals.remove(&session, &id);
+                changed = true;
+            }
+        }
         let pretend_ended = match self.terminal.live.as_ref().filter(|l| l.pretend) {
             Some(live) => self.terminal.shells.open(&live.id).exit_code().is_some(),
             None => false,

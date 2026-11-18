@@ -240,6 +240,8 @@ mod tests_summary_bar;
 #[cfg(test)]
 mod tests_terminal;
 #[cfg(test)]
+mod tests_terminal_drawer;
+#[cfg(test)]
 mod tests_terminal_live;
 #[cfg(test)]
 mod tests_terminal_tabs;
@@ -320,6 +322,8 @@ pub struct State {
     pub sample_headers: bool,
     /// The workspace sheet's measured width; 0 until its first layout.
     pub sheet_w: f32,
+    /// The workspace sheet's height, which the terminal drawer's cap is a share of.
+    pub sheet_h: f32,
     /// The theme the last frame was drawn in, so the theme key can flip what is on screen even
     /// while `dark` still follows the system.
     pub drawn_dark: std::cell::Cell<bool>,
@@ -652,6 +656,7 @@ impl Default for State {
             feeds: mock::feeds(),
             sample_headers: false,
             sheet_w: 0.0,
+            sheet_h: 0.0,
             drawn_dark: std::cell::Cell::new(true),
             code_palette: Default::default(),
             projects: mock::projects(),
@@ -4369,6 +4374,19 @@ pub fn spec() -> AppSpec<State> {
             ("terminal-reconnecting-light", |s| {
                 s.show_terminal_status(mock::terminal_scenes::Stream::GitLog, false, fleet::terminal_socket::Status::Reconnecting)
             }),
+            // Piece D: the drawer around it, in each of its states.
+            ("terminal-drawer", |s| s.show_drawer(mock::terminal_scenes::Drawer::One, true)),
+            ("terminal-drawer-light", |s| s.show_drawer(mock::terminal_scenes::Drawer::One, false)),
+            ("terminal-drawer-two-tabs", |s| s.show_drawer(mock::terminal_scenes::Drawer::Two, true)),
+            ("terminal-drawer-two-tabs-light", |s| s.show_drawer(mock::terminal_scenes::Drawer::Two, false)),
+            ("terminal-drawer-starting", |s| s.show_drawer(mock::terminal_scenes::Drawer::Starting, true)),
+            ("terminal-drawer-starting-light", |s| s.show_drawer(mock::terminal_scenes::Drawer::Starting, false)),
+            ("terminal-drawer-error", |s| s.show_drawer(mock::terminal_scenes::Drawer::Error, true)),
+            ("terminal-drawer-error-light", |s| s.show_drawer(mock::terminal_scenes::Drawer::Error, false)),
+            ("terminal-drawer-long", |s| s.show_drawer(mock::terminal_scenes::Drawer::Long, true)),
+            ("terminal-drawer-long-light", |s| s.show_drawer(mock::terminal_scenes::Drawer::Long, false)),
+            ("terminal-drawer-hidden-dot", |s| s.show_drawer(mock::terminal_scenes::Drawer::HiddenDot, true)),
+            ("terminal-drawer-hidden-dot-light", |s| s.show_drawer(mock::terminal_scenes::Drawer::HiddenDot, false)),
             ("terminal-failed", |s| {
                 s.show_terminal_status(mock::terminal_scenes::Stream::GitLog, true, fleet::terminal_socket::Status::Failed)
             }),

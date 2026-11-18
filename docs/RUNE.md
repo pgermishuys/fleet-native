@@ -1782,3 +1782,10 @@ Read at the pin while planning; nothing built yet.
 - Nothing new about Rune: the piece is plain Rust with no view. One thing learned for the pieces after it: a file's text is kept as its lines (split on the file's own break), because Rune's text elements take lines and a buffer then needs no second copy; positions in `minimal_change` count chars, not CodeMirror's UTF-16 units.
 - A test that drives a `State` over a fake server prints Rune's debug-build "memo(..) replaced its root's key" warning once; `RUNE_PERF_WARN=0` silences it.
 
+
+## Component 13, piece D (the drawer)
+
+- **A press changes state after `poll` ran in that frame**, so a view that follows state in `poll` (`keep_terminal`) shows the change one frame late. A handler that must show at once calls the follower itself (`show_terminal_tab` calls `sync_terminal`).
+- **`truncate_head` cuts a text at its start** with "…" (Fleet's `direction: rtl` folder), and `scroll_x` on a strip with `shrink()` scrolls the tabs sideways with no scrollbar.
+- **A child hidden by `group_opacity(0.0, 1.0)` still takes presses**: the tab's close button is under the pointer wherever it is drawn.
+- Mock sessions have no id, so a scene that needs a session (the drawer is per session) gives one with `set_session_id`.

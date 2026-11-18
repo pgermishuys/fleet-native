@@ -139,22 +139,22 @@ Owner: `13` = this component, with the piece; another number = that component. "
 
 | # | Row | Source | Native today | Owner |
 |---|---|---|---|---|
-| 13.43 | Under the composer, spanning the conversation column; `border-top: 1px --border` (accent at 60 % while a terminal has the keyboard), background `--terminal-bg` = `--panel-bg` 96 % + `--text` (add to `theme.rs`); height from 13.39, capped at 60 % of the column (never under 140); not drawn at all until first opened in this session, then hidden rather than dropped | TD `.terminal-drawer`, `everOpened` | Done in A (plain 272 px box; cap and grip D, E) | 13 A (a plain box), D  |
+| 13.43 | Under the composer, spanning the conversation column; `border-top: 1px --border` (accent at 60 % while a terminal has the keyboard), background `--terminal-bg` = `--panel-bg` 96 % + `--text` (add to `theme.rs`); height from 13.39, capped at 60 % of the column (never under 140); not drawn at all until first opened in this session, then hidden rather than dropped | TD `.terminal-drawer`, `everOpened` | Done (A plain box; D cap, hidden not dropped; grip E) | 13 A (a plain box), D  |
 | 13.44 | Grip: 9 px tall over the top edge (−5 px), row-resize cursor; a 36 × 3 bar, radius 2, `--muted`, shows at 60 % on hover, while dragged or focused; drag sets the height (capped as 13.43); double-click resets to 272; ↑/↓ by 24 when focused; tooltip "Drag to resize, double-click to reset"; label "Resize terminal" | TD `.terminal-drawer__grip` | None | 13 E |
-| 13.45 | Header: 36 px, padding `0 6px 0 8px`, gap 2, bottom border; tabs, **+** (New terminal, `Plus` 14, off while creating), a spacer (≥ 8), the meta, **Clear** (`Eraser` 13, off with no active tab, "Clear"), **Hide** (`ChevronDown` 15, "Hide terminal (Ctrl J). Shells keep running."); icon buttons 26 × 26, radius btn, `--muted`, hover `text` 6 % behind `--text`, off at 40 % | TD `.terminal-drawer__header` | None | 13 D |
-| 13.46 | A tab: 26 px, padding `0 4px 0 8px`, gap 6, radius btn, 12.5 px `--muted`; hover `text` 5 % and `--text`; active `text` 9 %, `--text`, 500; `SquareTerminal` 13 at 70 %; the title (max 160, ellipsis); close 18 × 18, radius 4, `X` 11, shown on hover or when active, hover `text` 10 %, "Close (ends the shell)"; middle-click closes; tabs scroll sideways with no scrollbar | TD `.terminal-tab` | None | 13 D |
-| 13.47 | Meta (mono 11 px, `--muted`, gap 10): the session's folder (max 260, **cut at its start**, 80 %, the whole path as tooltip) and the active size "70×11" (tabular, 80 %, tooltip "70 columns × 11 rows") | TD `.terminal-drawer__meta` | None | 13 D |
+| 13.45 | Header: 36 px, padding `0 6px 0 8px`, gap 2, bottom border; tabs, **+** (New terminal, `Plus` 14, off while creating), a spacer (≥ 8), the meta, **Clear** (`Eraser` 13, off with no active tab, "Clear"), **Hide** (`ChevronDown` 15, "Hide terminal (Ctrl J). Shells keep running."); icon buttons 26 × 26, radius btn, `--muted`, hover `text` 6 % behind `--text`, off at 40 % | TD `.terminal-drawer__header` | Done in D (tabs, New off while starting, spacer, meta, Clear off with no tab, Hide) | 13 D |
+| 13.46 | A tab: 26 px, padding `0 4px 0 8px`, gap 6, radius btn, 12.5 px `--muted`; hover `text` 5 % and `--text`; active `text` 9 %, `--text`, 500; `SquareTerminal` 13 at 70 %; the title (max 160, ellipsis); close 18 × 18, radius 4, `X` 11, shown on hover or when active, hover `text` 10 %, "Close (ends the shell)"; middle-click closes; tabs scroll sideways with no scrollbar | TD `.terminal-tab` | Done in D (middle click, close on hover or active, strip scrolls with no bar; tab keys E) | 13 D |
+| 13.47 | Meta (mono 11 px, `--muted`, gap 10): the session's folder (max 260, **cut at its start**, 80 %, the whole path as tooltip) and the active size "70×11" (tabular, 80 %, tooltip "70 columns × 11 rows") | TD `.terminal-drawer__meta` | Done in D (folder cut at its start with the whole path as tooltip, size from the view) | 13 D |
 | 13.48 | Tab keys (focus on the tab strip): ←/→ wrap, Home, End, Delete closes the active tab; the new active tab takes focus | TD `onTabKeydown` | None | 13 E |
-| 13.49 | Opening an empty drawer starts a shell once the session's list has loaded (not while one is starting, not after an error) | TD watch | None | 13 D |
-| 13.50 | Body states: "Starting a shell…" (`--muted`, 12.5 px, centred) while the first shell starts; an error: its words (max 52ch) and **Try again** (28 px, padding 0 12, border, radius btn, `--panel-bg`, 12.5 px; hover `text` 5 %); closing the drawer clears the error | TD `.terminal-drawer__message` | None | 13 D |
-| 13.51 | A tab's view is made the first time it shows and kept while the session is open, so switching tabs or hiding the drawer doesn't reconnect; only the active one is shown | TD `visited`, `mounted` | None | 13 D |
+| 13.49 | Opening an empty drawer starts a shell once the session's list has loaded (not while one is starting, not after an error) | TD watch | Done in D | 13 D |
+| 13.50 | Body states: "Starting a shell…" (`--muted`, 12.5 px, centred) while the first shell starts; an error: its words (max 52ch) and **Try again** (28 px, padding 0 12, border, radius btn, `--panel-bg`, 12.5 px; hover `text` 5 %); closing the drawer clears the error | TD `.terminal-drawer__message` | Done in D (the error is cut at about 52ch by a fixed width) | 13 D |
+| 13.51 | A tab's view is made the first time it shows and kept while the session is open, so switching tabs or hiding the drawer doesn't reconnect; only the active one is shown | TD `visited`, `mounted` | Done in D (`Slot::parked`; the views of tabs shown before stay connected) | 13 D |
 
 ### 5. The toggle, the command and the status bar (TTB, UC, SB, KB)
 
 | # | Row | Source | Native today | Owner |
 |---|---|---|---|---|
-| 13.55 | The header's terminal button (toolbar icon), only while `terminalEnabled` and not on a phone; pressed look while open (`text` 9 %, `--text`); a 6 px `--running` dot at top 5, right 5, ringed 2 px `--panel-bg`, while shells run with the drawer hidden; words "Hide terminal (Ctrl J)", "Show terminal: shells are running (Ctrl J)", "Show terminal (Ctrl J)" (⌘ J on a Mac) as tooltip and label | TTB | Drawn, does nothing (8's 5.1) | 13 D |
-| 13.56 | `toggle-terminal`: "Hide terminal" / "Show terminal" by the open session's drawer; "Show or hide the terminal under the chat." or, with no session open or terminals off, "Open a session to use its terminal." and off; Mod+J, works from a text field; keywords terminal, shell, console, drawer | UC, KB | Done in A (runs; label D) | 13 A (runs), D (label)  |
+| 13.55 | The header's terminal button (toolbar icon), only while `terminalEnabled` and not on a phone; pressed look while open (`text` 9 %, `--text`); a 6 px `--running` dot at top 5, right 5, ringed 2 px `--panel-bg`, while shells run with the drawer hidden; words "Hide terminal (Ctrl J)", "Show terminal: shells are running (Ctrl J)", "Show terminal (Ctrl J)" (⌘ J on a Mac) as tooltip and label | TTB | Done in D (hidden while terminals are off; with no server it opens the pretend shell) | 13 D |
+| 13.56 | `toggle-terminal`: "Hide terminal" / "Show terminal" by the open session's drawer; "Show or hide the terminal under the chat." or, with no session open or terminals off, "Open a session to use its terminal." and off; Mod+J, works from a text field; keywords terminal, shell, console, drawer | UC, KB | Done (A runs; D: the label follows the drawer) | 13 A (runs), D (label)  |
 | 13.57 | Status bar Ctrl J Terminal hint (shown only while `terminalEnabled`) runs the command | SB | Done (9's 4.6) | 9 |
 
 ### 6. Keys (TK, TV, xterm)
@@ -201,8 +201,8 @@ Owner: `13` = this component, with the piece; another number = that component. "
 | # | Row | Source | Native today | Owner |
 |---|---|---|---|---|
 | 13.85 | Both themes: the drawer, tabs, meta, bubble, notices and every ANSI colour, each in a scene | TT, TD | None | every piece with a view |
-| 13.86 | Long text: a long folder cut at its start, a long tab title cut at 160, many tabs scroll; a long line wraps in the grid and reflows on resize (alacritty) | TD, xterm | None | 13 D, A |
-| 13.87 | Terminals off (`terminalEnabled` false): no button, the command off, nothing loaded | TTB, UST | the hint only | 13 C, D |
+| 13.86 | Long text: a long folder cut at its start, a long tab title cut at 160, many tabs scroll; a long line wraps in the grid and reflows on resize (alacritty) | TD, xterm | Done for D (long folder, long title, many tabs scroll); a long line wraps (A) | 13 D, A |
+| 13.87 | Terminals off (`terminalEnabled` false): no button, the command off, nothing loaded | TTB, UST | Done (C: nothing loads; D: no button) | 13 C, D |
 
 ## Tests to port, by Fleet's name
 
@@ -221,6 +221,17 @@ Owner: `13` = this component, with the piece; another number = that component. "
 | `lib/__tests__/terminal-keys.test.ts` | all 4: "leaves Ctrl J and Ctrl Shift B to Fleet", "copies with Ctrl Shift C and pastes with Ctrl Shift V", "follows a rebound terminal shortcut" (the native app has no rebinding yet: port against the binding table), "leaves Ctrl Shift C to the shell, since ⌘ C copies" | E |
 | `components/layout/__tests__/StatusBar.test.ts` | "hides the terminal from the terminal's own hints, and leaves the rest as text" | E |
 | `lib/__tests__/format-terminal-context.test.ts`, `composables/__tests__/use-draft-terminal-context.test.ts` | done by component 5 (piece O) | 5 |
+
+### Piece D, what was done on 18 November 2026
+
+Done: 13.43 (cap and hidden-not-dropped), 13.45–13.47, 13.49–13.51, 13.55, 13.56 (label), 13.86, 13.87. `view/terminal_drawer.rs` is the drawer (the old box
+in `terminal_view.rs` is now only the view); `Slot::parked` keeps a connected view per tab shown before; `Terminal::clear` is xterm's `clear()`.
+With no server the header button opens the pretend shell and New adds another tab (a scene or the demo). Ported by name: the seven D cases of
+`TerminalDrawer.test.ts` and the three of `TerminalToggleButton.test.ts`.
+Left open and why: the grip, tab keys and the focused border colour's keyboard cases are E; **the "Starting a shell…" and error states are shown by scenes
+only** (a scratch Fleet can't be made to refuse or to be slow); the error's width is 52 × 6.6 px, not the `ch` of the 12.5 px font; the Mac's ⌘ wording
+was not looked at (Linux only); the folder tooltip and the size tooltip are `help` text.
+Pictures: `shots/parity/13-terminal/D/`.
 
 ### Piece C, what was done on 18 November 2026
 
