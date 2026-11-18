@@ -102,7 +102,7 @@ fn tab(s: &State, t: &Theme, canvas: &CanvasInstance, active: bool) -> El {
         .key(tab_key(&id))
         .role("tab")
         .label(title.clone())
-        .help(canvas.file.clone().unwrap_or_else(|| title.clone()))
+        .help(canvas.file.as_ref().map_or_else(|| title.clone(), |f| f.path.clone()))
         .gap(6.0)
         .center_y()
         .h(28.0)

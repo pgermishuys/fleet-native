@@ -500,6 +500,7 @@ mod file_buffers;
 mod files;
 mod find;
 mod finder;
+mod go_to_file;
 mod groups;
 mod header;
 mod history;

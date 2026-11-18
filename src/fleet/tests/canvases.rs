@@ -291,7 +291,11 @@ fn tab(kind: CanvasKind) -> CanvasInstance {
 #[test]
 fn titles_a_canvas_by_its_file_page_browser_payload_or_kind() {
     assert_eq!(tab(CanvasKind::Changes).title(), "Changes");
-    assert_eq!(CanvasInstance { file: Some("src/a/b.ts".into()), ..tab(CanvasKind::File) }.title(), "b.ts");
+    assert_eq!(
+        CanvasInstance { file: Some(FileTab { path: "src/a/b.ts".into(), preview: false, view: FileView::Edit }), ..tab(CanvasKind::File) }
+            .title(),
+        "b.ts"
+    );
     assert_eq!(CanvasInstance { title: Some("Options".into()), ..tab(CanvasKind::Page) }.title(), "Options");
     assert_eq!(CanvasInstance { title: Some("Tab".into()), ..tab(CanvasKind::Browser) }.title(), "Tab");
     let notes = VisualPayload { kind: VisualType::Markdown, title: Some("Notes".into()), source_path: None, content: "# Notes".into() };
@@ -302,7 +306,8 @@ fn titles_a_canvas_by_its_file_page_browser_payload_or_kind() {
 #[test]
 fn icons_a_canvas_by_its_file_payload_or_kind() {
     assert_eq!(tab(CanvasKind::Files).icon().name, CanvasKind::Files.icon().name);
-    let json = CanvasInstance { file: Some("a.json".into()), ..tab(CanvasKind::File) };
+    let json =
+        CanvasInstance { file: Some(FileTab { path: "a.json".into(), preview: false, view: FileView::Edit }), ..tab(CanvasKind::File) };
     assert_eq!(json.icon().name, "lucide-file-braces");
     let html = VisualPayload { kind: VisualType::Html, title: None, source_path: None, content: "<p/>".into() };
     assert_ne!(CanvasInstance { payload: Some(html), ..tab(CanvasKind::Visual) }.icon().name, CanvasKind::Visual.icon().name);
@@ -351,4 +356,188 @@ fn anything_the_person_should_see_is_content() {
     assert!(some(|c| c.agents = true));
     let with_page = [tab(CanvasKind::Changes), tab(CanvasKind::Page)];
     assert!(panel_has_content(PanelContent { canvases: &with_page, ..Default::default() }));
+}
+
+// ---- file tabs (component 11, piece A): canvases.test.ts "useCanvasesStore file tabs" ----
+
+fn files(c: &Canvases) -> Vec<(String, bool, FileView)> {
+    c.session("s1").canvases.iter().filter_map(|t| t.file.as_ref()).map(|f| (f.path.clone(), f.preview, f.view)).collect()
+}
+
+fn entry(path: &str, preview: bool, view: FileView) -> (String, bool, FileView) {
+    (path.to_string(), preview, view)
+}
+
+fn clean(_: &str) -> bool {
+    false
+}
+
+fn keep() -> OpenFile {
+    OpenFile { keep: true, view: None }
+}
+
+// "opens a file as an active preview tab, in Edit, or Rendered for Markdown and HTML"
+#[test]
+fn opens_a_file_as_an_active_preview_tab_in_edit_or_rendered_for_markdown_and_html() {
+    let mut c = Canvases::default();
+    c.open_file("s1", "src/app.ts", OpenFile::default(), &clean);
+    assert_eq!(c.session("s1").active_id, file_id("src/app.ts"));
+    assert_eq!(files(&c), [entry("src/app.ts", true, FileView::Edit)]);
+
+    c.open_file("s1", "docs/guide.md", keep(), &clean);
+    c.open_file("s1", "public/index.html", keep(), &clean);
+    let views: Vec<_> = files(&c).iter().map(|f| f.2).collect();
+    assert_eq!(views, [FileView::Edit, FileView::Rendered, FileView::Rendered]);
+}
+
+// "the next single click replaces a clean preview in place"
+#[test]
+fn the_next_single_click_replaces_a_clean_preview_in_place() {
+    let mut c = Canvases::default();
+    c.open_file("s1", "a.ts", OpenFile::default(), &clean);
+    let at = |c: &Canvases| c.session("s1").canvases.iter().position(|t| t.file.is_some());
+    let before = at(&c);
+
+    let opened = c.open_file("s1", "b.ts", OpenFile::default(), &clean);
+
+    assert_eq!(files(&c), [entry("b.ts", true, FileView::Edit)]);
+    assert_eq!(at(&c), before);
+    assert_eq!(opened.dropped.as_deref(), Some("a.ts"));
+}
+
+// "keeps a preview with unsaved changes and opens the next file beside it" (the predicate says a.ts has unsaved changes)
+#[test]
+fn keeps_a_preview_with_unsaved_changes_and_opens_the_next_file_beside_it() {
+    let mut c = Canvases::default();
+    c.open_file("s1", "a.ts", OpenFile::default(), &clean);
+
+    let opened = c.open_file("s1", "b.ts", OpenFile::default(), &|p| p == "a.ts");
+
+    assert_eq!(files(&c), [entry("a.ts", false, FileView::Edit), entry("b.ts", true, FileView::Edit)]);
+    assert_eq!(opened.dropped, None);
+}
+
+// "a kept open doesn't replace the preview"
+#[test]
+fn a_kept_open_doesnt_replace_the_preview() {
+    let mut c = Canvases::default();
+    c.open_file("s1", "a.ts", OpenFile::default(), &clean);
+    let opened = c.open_file("s1", "b.ts", keep(), &clean);
+    assert_eq!(files(&c), [entry("a.ts", true, FileView::Edit), entry("b.ts", false, FileView::Edit)]);
+    assert_eq!(opened.dropped, None);
+}
+
+// "focuses a file that's open already instead of opening it twice"
+#[test]
+fn focuses_a_file_thats_open_already_instead_of_opening_it_twice() {
+    let mut c = Canvases::default();
+    c.open_file("s1", "a.ts", keep(), &clean);
+    c.open_file("s1", "b.ts", keep(), &clean);
+
+    c.open_file("s1", "a.ts", OpenFile { keep: false, view: Some(FileView::Diff) }, &clean);
+
+    assert_eq!(files(&c).len(), 2);
+    assert_eq!(c.session("s1").active_id, file_id("a.ts"));
+    assert_eq!(files(&c)[0], entry("a.ts", false, FileView::Diff));
+}
+
+// "opening a preview again with keep keeps it"
+#[test]
+fn opening_a_preview_again_with_keep_keeps_it() {
+    let mut c = Canvases::default();
+    c.open_file("s1", "a.ts", OpenFile::default(), &clean);
+    c.open_file("s1", "a.ts", keep(), &clean);
+    assert!(!files(&c)[0].1);
+}
+
+// "keepFile and setFileView change only that tab"
+#[test]
+fn keep_file_and_set_file_view_change_only_that_tab() {
+    let mut c = Canvases::default();
+    c.open_file("s1", "a.md", OpenFile::default(), &clean);
+    c.keep_file("s1", "a.md");
+    c.set_file_view("s1", "a.md", FileView::Edit);
+    assert_eq!(files(&c), [entry("a.md", false, FileView::Edit)]);
+}
+
+// "unpinFile" turns a kept tab into the preview, so the next click replaces it
+#[test]
+fn unpin_file_turns_a_kept_tab_into_the_preview_so_the_next_click_replaces_it() {
+    let mut c = Canvases::default();
+    c.open_file("s1", "a.ts", keep(), &clean);
+
+    c.unpin_file("s1", "a.ts", &clean);
+    assert_eq!(files(&c), [entry("a.ts", true, FileView::Edit)]);
+
+    c.open_file("s1", "b.ts", OpenFile::default(), &clean);
+    assert_eq!(files(&c), [entry("b.ts", true, FileView::Edit)]);
+}
+
+// "unpinFile" closes the previous clean preview, since there's one preview
+#[test]
+fn unpin_file_closes_the_previous_clean_preview_since_theres_one_preview() {
+    let mut c = Canvases::default();
+    c.open_file("s1", "a.ts", keep(), &clean);
+    c.open_file("s1", "b.ts", OpenFile::default(), &clean);
+
+    let dropped = c.unpin_file("s1", "a.ts", &clean);
+
+    assert_eq!(files(&c), [entry("a.ts", true, FileView::Edit)]);
+    assert_eq!(c.session("s1").active_id, file_id("a.ts"));
+    assert_eq!(dropped.as_deref(), Some("b.ts"));
+}
+
+// "unpinFile" keeps the previous preview when it has unsaved changes
+#[test]
+fn unpin_file_keeps_the_previous_preview_when_it_has_unsaved_changes() {
+    let mut c = Canvases::default();
+    c.open_file("s1", "a.ts", keep(), &clean);
+    c.open_file("s1", "b.ts", OpenFile::default(), &clean);
+
+    let dropped = c.unpin_file("s1", "a.ts", &|p| p == "b.ts");
+
+    assert_eq!(files(&c), [entry("a.ts", true, FileView::Edit), entry("b.ts", false, FileView::Edit)]);
+    assert_eq!(c.session("s1").active_id, file_id("b.ts"));
+    assert_eq!(dropped, None);
+}
+
+// "unpinFile" leaves a preview alone
+#[test]
+fn unpin_file_leaves_a_preview_alone() {
+    let mut c = Canvases::default();
+    c.open_file("s1", "a.ts", OpenFile::default(), &clean);
+    let before = c.session("s1");
+
+    assert_eq!(c.unpin_file("s1", "a.ts", &clean), None);
+
+    assert_eq!(c.session("s1"), before);
+}
+
+// "closing a file tab drops its buffer": close returns the tab, whose path is the buffer to drop
+#[test]
+fn closing_a_file_tab_drops_its_buffer() {
+    let mut c = Canvases::default();
+    c.open_file("s1", "a.ts", keep(), &clean);
+
+    let closed = c.close("s1", &file_id("a.ts")).expect("the tab closes");
+
+    assert_eq!(closed.file.map(|f| f.path), Some("a.ts".to_string()));
+    assert!(files(&c).is_empty());
+}
+
+// canvas-registry's file tests: which files open rendered, which are images
+#[test]
+fn names_the_files_that_open_rendered_and_the_images() {
+    for p in ["a.md", "A.MARKDOWN", "x.mdx", "p.htm", "p.HTML"] {
+        assert!(has_rendered_view(p), "{p}");
+    }
+    for p in ["a.ts", "md", "a.md.bak", "a.svg"] {
+        assert!(!has_rendered_view(p), "{p}");
+    }
+    for p in ["a.png", "a.JPG", "a.jpeg", "a.gif", "a.webp", "a.avif", "a.bmp", "a.ico", "a.svg"] {
+        assert!(is_image_path(p), "{p}");
+    }
+    assert!(!is_image_path("a.txt"));
+    assert_eq!(default_file_view("a.md"), FileView::Rendered);
+    assert_eq!(default_file_view("a.svg"), FileView::Edit);
 }

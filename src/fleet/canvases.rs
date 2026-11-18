@@ -130,10 +130,27 @@ pub struct CanvasInstance {
     pub payload: Option<VisualPayload>,
     /// The title of a browser, page or mod pane tab, already without terminal codes.
     pub title: Option<String>,
-    /// A file tab's path.
-    pub file: Option<String>,
+    /// A file tab's path, whether it is a preview and how it shows the file.
+    pub file: Option<FileTab>,
     /// A browser or page tab's canvas on the server: what 14's body reads.
     pub server: Option<ServerTab>,
+}
+
+/// How a file tab shows its file (`FileView`). Markdown and HTML also have Rendered, and their Edit is called Source.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FileView {
+    Rendered,
+    Edit,
+    Diff,
+}
+
+/// A file tab's own part (`FileTab`). A preview tab (italic) is replaced by the next file opened with a single click unless
+/// it has unsaved changes; a kept (pinned) tab isn't.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FileTab {
+    pub path: String,
+    pub preview: bool,
+    pub view: FileView,
 }
 
 /// What a server canvas's tab keeps of it: the id the server knows it by, its version (an older one never replaces a newer
@@ -261,10 +278,44 @@ pub fn file_id(path: &str) -> String {
     format!("file:{path}")
 }
 
+fn ends_with_any(path: &str, extensions: &[&str]) -> bool {
+    let lower = path.to_ascii_lowercase();
+    extensions.iter().any(|e| lower.ends_with(&format!(".{e}")))
+}
+
+/// Markdown and HTML open rendered; images are only ever shown; everything else opens in the editor (`hasRenderedView`).
+pub fn has_rendered_view(path: &str) -> bool {
+    ends_with_any(path, &["md", "markdown", "mdx", "htm", "html"])
+}
+
+/// The image types the server's `/files/image` serves (`isImagePath`).
+pub fn is_image_path(path: &str) -> bool {
+    ends_with_any(path, &["png", "jpg", "jpeg", "gif", "webp", "avif", "bmp", "ico", "svg"])
+}
+
+pub fn default_file_view(path: &str) -> FileView {
+    if has_rendered_view(path) { FileView::Rendered } else { FileView::Edit }
+}
+
+/// What `open_file` asks of the caller.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct OpenFile {
+    /// Keep the tab instead of opening it as a preview.
+    pub keep: bool,
+    pub view: Option<FileView>,
+}
+
+/// A file tab opened or unpinned: its id, and the path of a preview it replaced, whose buffer the caller drops.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Opened {
+    pub id: String,
+    pub dropped: Option<String>,
+}
+
 /// A tab's title (`canvasTitle`): the file, the browser, page or pane's own title, the visual's, else the kind's label.
 pub fn canvas_title(canvas: &CanvasInstance) -> String {
-    if let Some(path) = &canvas.file {
-        return file_name(path).to_string();
+    if let Some(file) = &canvas.file {
+        return file_name(&file.path).to_string();
     }
     if let Some(title) = &canvas.title {
         return title.clone();
@@ -273,8 +324,8 @@ pub fn canvas_title(canvas: &CanvasInstance) -> String {
 }
 
 pub fn canvas_icon(canvas: &CanvasInstance) -> &'static Icon {
-    if let Some(path) = &canvas.file {
-        return file_icon(path);
+    if let Some(file) = &canvas.file {
+        return file_icon(&file.path);
     }
     match canvas.payload.as_ref().map(|p| p.kind) {
         Some(VisualType::Markdown) => &icons::FILE_TEXT,
@@ -455,6 +506,109 @@ impl Canvases {
             }
         });
         id
+    }
+
+    /// Opens a file in its own tab, or focuses it when it is open already. Without `keep` it opens as the preview, which takes
+    /// the place of the previous preview unless that one `is_dirty` (then that one is kept and the new tab goes at the end).
+    /// `dropped` is the path whose buffer is no longer needed (`openFile`).
+    pub fn open_file(&mut self, session: &str, path: &str, options: OpenFile, is_dirty: &dyn Fn(&str) -> bool) -> Opened {
+        let id = file_id(path);
+        let mut dropped = None;
+        self.edit(session, |s| {
+            if let Some(file) = s.canvases.iter_mut().find(|c| c.id == id).and_then(|c| c.file.as_mut()) {
+                file.preview = file.preview && !options.keep;
+                file.view = options.view.unwrap_or(file.view);
+                s.active_id = id.clone();
+                return;
+            }
+            let tab = CanvasInstance {
+                file: Some(FileTab {
+                    path: path.to_string(),
+                    preview: !options.keep,
+                    view: options.view.unwrap_or_else(|| default_file_view(path)),
+                }),
+                ..CanvasInstance { id: id.clone(), ..CanvasInstance::built_in(CanvasKind::File) }
+            };
+            let at = s.canvases.iter().position(|c| c.file.as_ref().is_some_and(|f| f.preview));
+            if let (false, Some(at)) = (options.keep, at)
+                && let Some(old) = s.canvases[at].file.as_ref().map(|f| f.path.clone())
+                && !is_dirty(&old)
+            {
+                dropped = Some(old);
+                s.canvases[at] = tab;
+            } else {
+                // An unsaved preview stays open as a kept tab.
+                if !options.keep {
+                    for f in s.canvases.iter_mut().filter_map(|c| c.file.as_mut()) {
+                        f.preview = false;
+                    }
+                }
+                s.canvases.push(tab);
+            }
+            s.active_id = id.clone();
+        });
+        Opened { id, dropped }
+    }
+
+    /// Keeps (pins) a preview tab: its pin, typing in it, a double-click on it (`keepFile`).
+    pub fn keep_file(&mut self, session: &str, path: &str) {
+        self.with_file(session, path, |f| f.preview = false);
+    }
+
+    /// Shows a file tab's file another way (`setFileView`).
+    pub fn set_file_view(&mut self, session: &str, path: &str, view: FileView) {
+        self.with_file(session, path, |f| f.view = view);
+    }
+
+    fn with_file(&mut self, session: &str, path: &str, change: impl FnOnce(&mut FileTab)) {
+        let id = file_id(path);
+        if self.session(session).canvases.iter().any(|c| c.id == id && c.file.is_some()) {
+            self.edit(session, |s| {
+                if let Some(f) = s.canvases.iter_mut().find(|c| c.id == id).and_then(|c| c.file.as_mut()) {
+                    change(f);
+                }
+            });
+        }
+    }
+
+    /// Unpins a kept tab: it becomes the preview, and the previous preview closes unless it `is_dirty` (then it is kept). The
+    /// active tab stays unless it closed. Unpinning a preview does nothing; the path in `dropped` loses its buffer (`unpinFile`).
+    pub fn unpin_file(&mut self, session: &str, path: &str, is_dirty: &dyn Fn(&str) -> bool) -> Option<String> {
+        let id = file_id(path);
+        if !self.session(session).canvases.iter().any(|c| c.id == id && c.file.as_ref().is_some_and(|f| !f.preview)) {
+            return None;
+        }
+        let mut dropped = None;
+        self.edit(session, |s| {
+            let old = s
+                .canvases
+                .iter()
+                .find(|c| c.file.as_ref().is_some_and(|f| f.preview))
+                .map(|c| (c.id.clone(), c.file.as_ref().unwrap().path.clone()));
+            for c in &mut s.canvases {
+                if c.id == id
+                    && let Some(f) = c.file.as_mut()
+                {
+                    f.preview = true;
+                }
+            }
+            if let Some((old_id, old_path)) = old {
+                if is_dirty(&old_path) {
+                    for c in s.canvases.iter_mut().filter(|c| c.id == old_id) {
+                        if let Some(f) = c.file.as_mut() {
+                            f.preview = false;
+                        }
+                    }
+                } else {
+                    s.canvases.retain(|c| c.id != old_id);
+                    dropped = Some(old_path);
+                }
+            }
+            if !s.canvases.iter().any(|c| c.id == s.active_id) {
+                s.active_id = id.clone();
+            }
+        });
+        dropped
     }
 
     /// Closes a tab, never Changes. The closed tab's left neighbour becomes active, else the one now in its place, else the
