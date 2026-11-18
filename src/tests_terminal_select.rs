@@ -9,7 +9,9 @@ use crate::term::{Terminal, text_of};
 use crate::tests::{FRAME, app, click};
 use crate::view::terminal_bar::slider;
 use crate::view::terminal_pop::{ADD, COPY_KEY, POP, place};
-use rune::{Key, KeyEvent, Mods, Runtime};
+use rune::Runtime;
+#[cfg(not(target_os = "macos"))]
+use rune::{Key, KeyEvent, Mods};
 
 /// The open session's drawer on a terminal that was fed `bytes`, `cols` × `rows`, as the scenes show one.
 fn shown(cols: u16, rows: u16, bytes: &[u8]) -> Runtime<crate::State> {
@@ -259,6 +261,7 @@ fn the_bubbles_copy_puts_the_text_on_the_clipboard_and_clears_the_selection() {
 
 // ---- keys (13.67, 13.68) ------------------------------------------------------------------------------------------------------
 
+#[cfg(not(target_os = "macos"))]
 fn chord(key: Key) -> KeyEvent {
     KeyEvent { key, mods: Mods { ctrl: true, shift: true, ..Mods::default() } }
 }
