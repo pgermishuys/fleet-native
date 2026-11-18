@@ -238,7 +238,16 @@ fn make(p: &super::Placement, name: &str) -> Result<View, String> {
         let window = w.as_ref().ok_or_else(|| "no window yet".to_string())?;
         window.with_raw_handle(|handle| builder.build_as_child(&handle).map_err(|e| e.to_string()))?
     })?;
-    Ok(View { tab: p.tab.clone(), place: p.place, web, load_key: p.load_key.clone(), rect: p.rect, revealed, loaded, born: std::time::Instant::now() })
+    Ok(View {
+        tab: p.tab.clone(),
+        place: p.place,
+        web,
+        load_key: p.load_key.clone(),
+        rect: p.rect,
+        revealed,
+        loaded,
+        born: std::time::Instant::now(),
+    })
 }
 
 /// A link in an agent's document goes to the system's browser; the document stays as it was.
