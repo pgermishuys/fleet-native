@@ -179,7 +179,13 @@ fn serve(mut stream: std::net::TcpStream, seen: Arc<Mutex<Seen>>) {
             seen.log.push(line);
             seen.asked.push(asked.clone());
         }
-        // Long enough that the requests overlap.
+        // Held until the limit's worth are in at once, so the reads overlap however slowly they arrive: a set 60 ms let a busy
+        // machine send them further apart than that and the limit was never seen. Then held a little more, so a read over the
+        // limit would overlap them too and be counted.
+        let deadline = std::time::Instant::now() + crate::test_wait::BOUND;
+        while seen.lock().unwrap().most < MAX_IN_FLIGHT && std::time::Instant::now() < deadline {
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
         std::thread::sleep(std::time::Duration::from_millis(60));
         seen.lock().unwrap().now -= 1;
         json!({"file": asked, "status": "modified", "additions": 1, "deletions": 1, "before": "old", "after": "new"}).to_string()
