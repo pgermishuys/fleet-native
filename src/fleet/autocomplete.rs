@@ -67,6 +67,11 @@ impl Auto {
     }
 }
 
+/// An invented session's `updated`, from how long ago it was last used.
+fn mock_updated(now: i64, ago_secs: Option<i64>) -> f64 {
+    (now - ago_secs.unwrap_or(0) * 1000) as f64
+}
+
 impl State {
     /// Whether the text area's text is a shell command or the popup has nothing to say about it: a `!` draft is sent as
     /// typed, with no `@` references or `/` commands in it.
@@ -78,11 +83,11 @@ impl State {
     /// The sessions the `@` list can offer: the list's own, with the fetched ones (archived, sub-agents) behind them. What the
     /// list holds wins, since its status is live; it keeps no `updated`, so a fetched copy gives that.
     pub(crate) fn mentionable_sessions(&self) -> Vec<SessionItem> {
-        let mut fetched: Vec<SessionItem> = if self.link.is_some() {
-            self.finder.sessions.sessions.clone()
-        } else {
-            crate::mock::finder::other_sessions(self.now_ms.unwrap_or_else(super::link::now_ms))
-        };
+        // One reading of the clock for the whole list: the rows are ranked by `updated`, and two invented sessions with the same
+        // age would otherwise differ by the millisecond that passed between their reads, which put them in either order.
+        let now = self.now_ms.unwrap_or_else(super::link::now_ms);
+        let mut fetched: Vec<SessionItem> =
+            if self.link.is_some() { self.finder.sessions.sessions.clone() } else { crate::mock::finder::other_sessions(now) };
         let mut out = Vec::new();
         for (p, project) in self.projects.iter().enumerate() {
             for (i, session) in project.sessions.iter().enumerate() {
@@ -109,19 +114,13 @@ impl State {
                     updated: if session.row.updated > 0 {
                         session.row.updated as f64
                     } else {
-                        known.map_or_else(|| self.mock_updated(session.ago_secs), |k| k.updated)
+                        known.map_or_else(|| mock_updated(now, session.ago_secs), |k| k.updated)
                     },
                 });
             }
         }
         out.extend(fetched);
         out
-    }
-
-    /// An invented session's `updated`, from how long ago it was last used.
-    fn mock_updated(&self, ago_secs: Option<i64>) -> f64 {
-        let now = self.now_ms.unwrap_or_else(super::link::now_ms);
-        (now - ago_secs.unwrap_or(0) * 1000) as f64
     }
 
     /// What the popup lists from, as the finder has it now. Files are the one list that follows the query, so they are

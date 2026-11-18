@@ -394,9 +394,11 @@ fn switches_to_another_sign_in_and_reads_the_harnesses_and_providers_again() {
     );
     assert_eq!(r.text_of("harness-sign-in-notice"), "Anthropic now uses Personal.");
     assert!(r.has("harness-sign-in-inuse-cred_home") && !r.has("harness-sign-in-inuse-cred_work"));
-    let f = r.fake.lock().unwrap();
-    assert_eq!(f.reads, reads + 1, "the providers");
-    assert!(f.fresh_reads > fresh, "a harness that waited for a sign-in may be ready now");
+    // The harness list is read first and the providers second, but the fake serves each connection on its own thread: the
+    // providers' answer can be in before the fake has counted the harness read, so wait for it.
+    let seen = r.fake.clone();
+    test_wait::until_true("the fake to have heard the harnesses read again", move || seen.lock().unwrap().fresh_reads > fresh);
+    assert_eq!(r.fake.lock().unwrap().reads, reads + 1, "the providers");
 }
 
 #[test]
