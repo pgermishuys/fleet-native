@@ -16,7 +16,7 @@ use crate::fleet::prompts::{PromptStatus, SentPrompt, merge_by_timestamp};
 use crate::fleet::reducer::compare_message_ids;
 use crate::view::conversation::Role;
 use serde_json::Value;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 /// Where a message sits in a run from one sender (`ClusterPosition`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -49,6 +49,50 @@ impl FileStat {
     }
 }
 
+/// A page a call showed in the conversation (`ToolCardPage`).
+#[derive(Clone, Debug, PartialEq)]
+pub struct ToolPage {
+    /// Fleet's copy of the page, as an address on the server (`pageAddress`).
+    pub path: String,
+    pub id: String,
+    /// The file the agent showed (`input.path`): a page shown again from it replaces the earlier show.
+    pub source: String,
+}
+
+/// `toolPage`: the page the call showed, from `metadata.page {id, entry}`; none without both.
+pub fn tool_page(state: &Value) -> Option<ToolPage> {
+    let page = metadata(state, "page")?;
+    let (id, entry) = (text_at(page, "id")?, text_at(page, "entry")?);
+    let source = state.pointer("/input/path").and_then(Value::as_str).unwrap_or_default().to_string();
+    let path =
+        crate::fleet::web_page::page_address(&crate::fleet::web_page::ShownPage { page_id: id.clone(), entry, ..Default::default() });
+    Some(ToolPage { path, id, source })
+}
+
+/// `withoutRedrawnPages`: a page shown again from the same file in one turn (a turn starts at each message of the user's) is
+/// drawn once, at its last show. The calls stay; earlier turns keep theirs. Returns the calls whose page is no longer drawn.
+pub fn without_redrawn_pages(messages: &mut [ListMessage]) -> HashSet<String> {
+    let mut redrawn = HashSet::new();
+    let mut last: HashMap<String, String> = HashMap::new();
+    for message in messages.iter_mut() {
+        if message.role == Role::User {
+            last.clear();
+        }
+        for tool in &message.tools {
+            let Some(page) = tool.page.as_ref().filter(|p| !p.source.is_empty()) else { continue };
+            if let Some(earlier) = last.insert(page.source.clone(), tool.id.clone()) {
+                redrawn.insert(earlier);
+            }
+        }
+    }
+    for tool in messages.iter_mut().flat_map(|m| m.tools.iter_mut()) {
+        if redrawn.contains(&tool.id) {
+            tool.page = None;
+        }
+    }
+    redrawn
+}
+
 /// A call as the list holds it (`ToolCardItem`): only what folding and grouping read. The drawn card comes from the
 /// message's `Part::Tool` with the same id.
 #[derive(Clone, Debug, PartialEq)]
@@ -67,8 +111,8 @@ pub struct ListTool {
     pub delegation: bool,
     /// Fleet kept a screenshot of the call.
     pub screenshot: bool,
-    /// The call showed a page under itself.
-    pub page: bool,
+    /// The page the call showed under itself (`toolPage`).
+    pub page: Option<ToolPage>,
     /// The call opened a canvas.
     pub canvas: bool,
 }
@@ -84,7 +128,7 @@ impl ListTool {
             diff_stat: None,
             delegation: false,
             screenshot: false,
-            page: false,
+            page: None,
             canvas: false,
         }
     }
@@ -365,7 +409,7 @@ fn list_tool(id: &str, kind: &str, call_id: &str, state: &Value, context: &ListC
             && s.get("width").and_then(Value::as_f64).is_some_and(|w| w > 0.0)
             && s.get("height").and_then(Value::as_f64).is_some_and(|h| h > 0.0)
     });
-    tool.page = metadata(state, "page").is_some_and(|p| text_at(p, "id").is_some() && text_at(p, "entry").is_some());
+    tool.page = tool_page(state);
     tool.canvas = state.pointer("/metadata/canvasId").and_then(Value::as_str).is_some_and(|c| !c.is_empty());
     if get_tool(kind).file_write.is_some()
         && let Some(edit) = super::diff::file_edits_of(kind, state).into_iter().next()

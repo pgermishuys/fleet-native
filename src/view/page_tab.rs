@@ -30,7 +30,7 @@ pub fn page_tab(s: &State, t: &Theme, tab: &str, page: &ShownPage) -> El {
 }
 
 /// `.page-canvas__icon`: 28 square, `--muted`, `--accent-dim` and `--text` on hover.
-fn icon_button(t: &Theme, key: &str, tip: &str, glyph: &'static rune::Icon) -> El {
+pub(super) fn icon_button(t: &Theme, key: &str, tip: &str, glyph: &'static rune::Icon) -> El {
     el().key(key.to_string())
         .role("button")
         .label(tip.to_string())

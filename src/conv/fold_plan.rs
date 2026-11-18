@@ -2,7 +2,7 @@
 //! which one hosts each fold row, which tool calls and thinking blocks stay. It is `foldTurns` over `buildList` of the
 //! reducer's messages, kept beside the view's own messages by id (the view's `Message` is drawn from the same ones).
 use super::fold::{FoldOptions, fold_turns, turn_ids_of};
-use super::message_list::{ListContext, ListMessage, build_list};
+use super::message_list::{ListContext, ListMessage, build_list, without_redrawn_pages};
 use crate::fleet::model::Msg;
 use crate::fleet::prompts::SentPrompt;
 use std::collections::{HashMap, HashSet};
@@ -30,6 +30,8 @@ pub struct FoldPlan {
     pub visible: Option<Vec<usize>>,
     /// The turn each message belongs to (`turnIdsOf`), which Find opens when a match is in a folded one.
     pub turns: HashMap<String, String>,
+    /// The calls whose page a later show of the same file in the turn replaced (`withoutRedrawnPages`).
+    pub pages_hidden: HashSet<String>,
 }
 
 impl FoldPlan {
@@ -56,10 +58,11 @@ impl FoldPlan {
     }
 
     pub fn build(messages: &[Msg], sent: &[SentPrompt], context: &ListContext, options: &FoldOptions) -> FoldPlan {
-        let list = build_list(messages, sent, context);
+        let mut list = build_list(messages, sent, context);
+        let pages_hidden = without_redrawn_pages(&mut list);
         let folded = fold_turns(&list, options);
         let shown: HashSet<&str> = folded.iter().map(|m| m.id.as_str()).collect();
-        let mut plan = FoldPlan { turns: turn_ids_of(&list), ..FoldPlan::default() };
+        let mut plan = FoldPlan { turns: turn_ids_of(&list), pages_hidden, ..FoldPlan::default() };
         for before in &list {
             if !shown.contains(before.id.as_str()) {
                 plan.hidden.insert(before.id.clone());

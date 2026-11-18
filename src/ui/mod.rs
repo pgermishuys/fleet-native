@@ -234,6 +234,9 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
     if let Some(update) = crate::view::update::dialog(s, t) {
         layer.extend(update);
     }
+    if let Some(full) = crate::view::page_card::dialog(s, t) {
+        layer.extend(full);
+    }
     if let Some(lightbox) = &s.images.lightbox {
         layer.extend(crate::view::image::lightbox(s, t, lightbox));
     }

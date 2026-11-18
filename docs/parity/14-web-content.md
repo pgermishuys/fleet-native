@@ -189,12 +189,12 @@ Owner: `14` = this component, with the piece; another number = that component. "
 
 | # | Row | Source | Native today | Owner |
 |---|---|---|---|---|
-| 14.90 | `toolPage`: a call's `state.metadata.page {id, entry}` → `{path: pageAddress, id, source: input.path}`; none without both | ATC | The flag only (`tool.page`) | 14 F |
-| 14.91 | A page shown again in the same turn (same `source`) is drawn once, at its last show; earlier turns keep theirs; the calls stay | ATC `withoutRedrawnPages` | None | 14 F |
-| 14.92 | Drawn after the message's calls, outside their box, on the conversation's ground | MTL | None | 14 F |
-| 14.93 | The card (decision 2): `margin 12 0 4`, the call's title, the file name, **Open full size** ("Open full size: {title}", `Maximize2` 14), **Open in a new tab** (`ExternalLink` 14; not when contained); 26 px buttons, `--muted`, hover `--accent-dim` | CP (bar) + ours | None | 14 F |
-| 14.94 | Full size: a dialog over the app (scrim `rgba(0,0,0,.6)`, padding 24), a sheet `min(1200, 100%)` × `min(900, 100%)`, border, `--radius-panel`, `--panel-bg`; head padding 8 10 8 16 with the title (600, ellipsis) and Close (`X` 16); the web view below it (the page's own padding 16 20 comes from Fleet's script); Escape, the scrim and Close put it away; focus on Close when it opens and back where it was after | CP | None | 14 F |
-| 14.95 | Full size gets the place `conversation` in its name (transparent ground, Fleet's text and font) and theme changes | CP; `PageTheme.cs` | None | 14 F (with B) |
+| 14.90 | `toolPage`: a call's `state.metadata.page {id, entry}` → `{path: pageAddress, id, source: input.path}`; none without both | ATC | The flag only (`tool.page`) | **Done (F)**: `conv::message_list::tool_page`; `ToolBody::page` |
+| 14.91 | A page shown again in the same turn (same `source`) is drawn once, at its last show; earlier turns keep theirs; the calls stay | ATC `withoutRedrawnPages` | None | **Done (F)**: `without_redrawn_pages`, kept in `FoldPlan::pages_hidden` (part of the row memo key) |
+| 14.92 | Drawn after the message's calls, outside their box, on the conversation's ground | MTL | None | **Done (F)**: `view::conversation` draws the card after the run of calls, outside their rows |
+| 14.93 | The card (decision 2): `margin 12 0 4`, the call's title, the file name, **Open full size** ("Open full size: {title}", `Maximize2` 14), **Open in a new tab** (`ExternalLink` 14; not when contained); 26 px buttons, `--muted`, hover `--accent-dim` | CP (bar) + ours | None | **Done (F)**: `view::page_card::card` (a `contained` flag for 22 is there; no test, nothing passes it yet) |
+| 14.94 | Full size: a dialog over the app (scrim `rgba(0,0,0,.6)`, padding 24), a sheet `min(1200, 100%)` × `min(900, 100%)`, border, `--radius-panel`, `--panel-bg`; head padding 8 10 8 16 with the title (600, ellipsis) and Close (`X` 16); the web view below it (the page's own padding 16 20 comes from Fleet's script); Escape, the scrim and Close put it away; focus on Close when it opens and back where it was after | CP | None | **Done (F)**: `view::page_card::dialog`, `web::full`: web view in the body; Escape, scrim and Close; focus on Close and back |
+| 14.95 | Full size gets the place `conversation` in its name (transparent ground, Fleet's text and font) and theme changes | CP; `PageTheme.cs` | None | **Done (F)**: `Placement::place`, retheme per view |
 | 14.96 | A mod's page: contained (no new tab, no pop-ups: `allow-scripts allow-forms allow-modals allow-downloads`), address from the mod; "{title}: Page unavailable" (12 px `--muted`) when it can't be built | MP | None | 22 (with 14 F's card) |
 | 14.97 | Fleet's frame sized to the page's reported height | CP | n/a | Out of reach (decision 2) |
 
@@ -206,7 +206,7 @@ Owner: `14` = this component, with the piece; another number = that component. "
 | 14.101 | Page tab, no web view possible (fallback) | scene `page-tab-fallback` | **Done (A)** |
 | 14.102 | Browser tab: loading, a page, an address error, starting with output, exited with code, stopped, build failed with output open, three ports, another machine (both wordings), agent's tab banners | scenes + live | 14 H, I, J |
 | 14.103 | Document tab: markdown, HTML, a long title | scenes `document-*`, `tool-visual*`; the HTML one live on Linux | **Done (E)** |
-| 14.104 | The page card in a conversation, full size open | scenes + live | 14 F |
+| 14.104 | The page card in a conversation, full size open | scenes `page-card`, `page-full` (+ light); live on Linux | **Done (F)** (live: light only) |
 | 14.105 | Every state above in light and dark | pictures | each piece |
 
 ## Tests to port, by Fleet's name
@@ -386,3 +386,11 @@ pick in the page tab, the choice bar under it), `fleet-page-picked-dark.png` (af
 through the preview gateway), `native-opened-dark.png`, `native-opened-light.png` (the native app, debug build of `main` on 17 November 2026,
 against the same scratch Fleet, after pressing **Open page** on the same card: the panel opens on the Plan list; there is no page tab).
 Native pictures are at the window's 2× scale (2560×1520), Fleet's at 1×; both are a 1280×760 window.
+
+## Piece F: what is open (18 November 2026)
+
+- Full size's web view has a white ground (the host builds every view white, row 14.10); Fleet's frame is transparent over `--panel-bg`, so a page
+  with no background of its own shows white in the light theme here and on the panel colour in Fleet. Dark: the page's own style decides.
+- The native view is square at the sheet's bottom corners (it covers Rune's rounded clip).
+- While full size is up, no other web view is shown (the dialog covers the window); closing it brings the tab's page back by the normal rule.
+- Live pictures are the light theme only; the dark ones are scenes (the dialog's body as the fallback panel).

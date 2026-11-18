@@ -157,7 +157,10 @@ fn keeps_failed_rows_visible_and_counts_them() {
 #[test]
 fn keeps_sub_agent_rows_pages_and_screenshots_visible() {
     let delegated = ListTool { delegation: true, ..tool("d", "task") };
-    let page = ListTool { page: true, ..tool("p", "fleet_page_show") };
+    let page = ListTool {
+        page: Some(crate::conv::message_list::ToolPage { path: "/pages/p/i.html".into(), id: "p".into(), source: String::new() }),
+        ..tool("p", "fleet_page_show")
+    };
     let shot = ListTool { screenshot: true, ..tool("s", "browser_take_screenshot") };
     let m = vec![user("u"), said(with_tools(agent("a"), vec![delegated, page, shot, tool("r", "read")]), "x")];
     assert_eq!(tool_ids(&fold(&m, false, false, None, &none())[1]), ["d", "p", "s"]);

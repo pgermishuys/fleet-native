@@ -12,6 +12,7 @@ use super::fold;
 use super::image;
 use super::interrupted;
 use super::message::{self, copy_text};
+use super::page_card;
 use super::prose;
 use super::question;
 use super::reasoning;
@@ -204,6 +205,8 @@ impl Part {
                 shown
                     + (*status as usize) * 7
                     + usize::from(body.screenshot.is_some())
+                    + usize::from(body.page.is_some())
+                    + body.page_title.len()
                     + detail.len()
                     + body.output.len()
                     + body.summary.len()
@@ -478,6 +481,7 @@ fn open_mask(msg: &Message, s: &State) -> u64 {
         && s.summary_open.is_empty()
         && s.shell_wide.is_empty()
         && s.prompt_open.is_empty()
+        && s.fold_plan.pages_hidden.is_empty()
         && !s.inline_diffs
     {
         return 0;
@@ -496,6 +500,7 @@ fn open_mask(msg: &Message, s: &State) -> u64 {
         if let Part::Tool { id, .. } = part {
             s.tool_open.get(id.as_str()).hash(&mut hash);
             s.tool_wide.contains(id.as_str()).hash(&mut hash);
+            s.fold_plan.pages_hidden.contains(id.as_str()).hash(&mut hash);
             s.diff_all.contains(id.as_str()).hash(&mut hash);
             s.inline_diffs.hash(&mut hash);
             // The collapsed runs opened in this card's diff (`tool-<id>-diff#<lines>:<run>`).
@@ -619,6 +624,14 @@ fn message_row(
                 };
                 column = column.child(el().w_full().mt(above(after_tool, true)).py(2.0).child(row));
                 after_tool = Some(true);
+            }
+            // The pages the calls showed come after them, outside their box (`MessageToolList`).
+            for part in &parts[k..end] {
+                if let Part::Tool { id, body, .. } = part
+                    && let Some(page) = body.page.as_ref().filter(|_| !s.fold_plan.pages_hidden.contains(id))
+                {
+                    column = column.child(el().w_full().child(page_card::card(s, t, id, &body.page_title, page, false)));
+                }
             }
             k = end;
             continue;

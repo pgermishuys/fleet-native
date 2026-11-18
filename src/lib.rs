@@ -107,6 +107,8 @@ mod tests_notices;
 #[cfg(test)]
 mod tests_open_in;
 #[cfg(test)]
+mod tests_page_cards;
+#[cfg(test)]
 mod tests_page_tab;
 #[cfg(test)]
 mod tests_pages;
@@ -4179,6 +4181,29 @@ pub fn spec() -> AppSpec<State> {
             ("panel-menu-visuals-light", |s| s.show_tabs(mock::canvas_host::Case::MenuVisuals, false)),
             ("panel-pulse", |s| s.show_tabs(mock::canvas_host::Case::Pulse, true)),
             ("panel-pulse-light", |s| s.show_tabs(mock::canvas_host::Case::Pulse, false)),
+            // Piece F of component 14: a page in the conversation as a card, and full size (the fallback body: a scene has no window).
+            ("page-card", |s| s.show_page_cards(true)),
+            ("page-card-light", |s| s.show_page_cards(false)),
+            ("page-full", |s| {
+                s.show_page_cards(true);
+                s.web.full = Some(web::full::Full {
+                    call: "p2".into(),
+                    session: s.canvas_session(),
+                    title: "Test times by day".into(),
+                    path: "/pages/pg_0123456789abcdef0123456789abcde0/times.html".into(),
+                    return_to: None,
+                });
+            }),
+            ("page-full-light", |s| {
+                s.show_page_cards(false);
+                s.web.full = Some(web::full::Full {
+                    call: "p2".into(),
+                    session: s.canvas_session(),
+                    title: "Test times by day".into(),
+                    path: "/pages/pg_0123456789abcdef0123456789abcde0/times.html".into(),
+                    return_to: None,
+                });
+            }),
             // Piece E of component 14: the tool card's boxes, and the Document tab of each kind (the HTML one as the fallback
             // panel: a scene has no window, so the live web view is a screen grab).
             ("tool-visual", |s| s.show_visual_calls(true)),

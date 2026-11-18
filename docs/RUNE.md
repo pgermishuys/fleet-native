@@ -1674,3 +1674,13 @@ Nothing in Rune was needed.
   frame of a scroll prints Rune's "committed the view on N of N frames" warning.
 - In headless tests `rt.wheel(x, y, dy)` with a **negative** `dy` scrolls further down; `ScrollPos` is `#[non_exhaustive]`, so a test
   can't build one and has to scroll for real.
+
+## Component 14, piece F (page cards and full size)
+
+Nothing in Rune was needed.
+
+- **`modal_tx(true, …)`** gives Escape and the scrim's press with a `Tx`, so a dialog can hand the keyboard back (`tx.focus(key)`) as it closes.
+  `tx.focused()` gives the key to return to; read it before the dialog takes focus.
+- **A mock scene that wants the fold plan** (something that depends on several messages) has to go through `State::stream`, not `show_conversation`,
+  which resets the plan.
+- **A web view in a dialog** is the one `Wanted` placement while the dialog is up; the other views move off screen by the normal rule.

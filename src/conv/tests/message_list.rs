@@ -287,7 +287,7 @@ fn reads_a_screenshot_a_page_and_a_canvas_off_the_calls_metadata() {
     }});
     let out = list(&[tool_msg("m1", "browser_take_screenshot", "c", state)], &[], Thinking::Folded);
     let tool = &out[0].tools[0];
-    assert!(tool.screenshot && tool.page && tool.canvas);
+    assert!(tool.screenshot && tool.page.is_some() && tool.canvas);
     let bare = list(&[tool_msg("m2", "read", "c", json!({"status": "completed"}))], &[], Thinking::Folded);
-    assert!(!bare[0].tools[0].screenshot && !bare[0].tools[0].page && !bare[0].tools[0].canvas);
+    assert!(!bare[0].tools[0].screenshot && bare[0].tools[0].page.is_none() && !bare[0].tools[0].canvas);
 }
