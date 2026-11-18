@@ -60,6 +60,7 @@ pub mod new_session_strip;
 pub mod notice_card;
 pub mod notice_chips;
 pub mod open_in;
+pub mod page_choice;
 pub mod page_tab;
 pub mod pagepick;
 pub mod pages;

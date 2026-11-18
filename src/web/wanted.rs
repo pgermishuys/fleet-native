@@ -37,10 +37,11 @@ impl Wanted {
     }
 }
 
-/// The Fleet a session's page is served from. Another machine's base is piece C's (row 14.16); until then, home's. With no
-/// server, the address the invented pages are served at (`web::Host::mock_base`).
+/// The Fleet a session's page is served from: the machine the session is on (`apiUrlOn(machine.connection, …)`, row 14.16;
+/// `/pages` is anonymous, so no token goes with it). With no server, the address the invented pages are served at
+/// (`web::Host::mock_base`).
 pub fn page_base(s: &State) -> Option<String> {
-    s.link.as_ref().map(|l| l.base.clone()).or_else(|| s.web.mock_base.clone())
+    s.target_of(&s.canvas_session()).map(|t| t.base).or_else(|| s.web.mock_base.clone())
 }
 
 /// The open session's active tab when it is a page tab: its id, and the page its server canvas shows (component 10's
@@ -59,7 +60,8 @@ pub fn shown_tab(s: &State) -> Option<(String, String, String)> {
     }
     let (tab, page) = page_tab(s)?;
     let url = page_url(&page_base(s)?, &page)?;
-    Some((tab, url, format!("{}:{}", page.page_id, page.shown_at)))
+    let reloads = s.web.reloads.get(&tab).copied().unwrap_or(0);
+    Some((tab, url, format!("{}:{}:{reloads}", page.page_id, page.shown_at)))
 }
 
 /// `wanted`: the rule the host follows every frame.

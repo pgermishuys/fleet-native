@@ -59,7 +59,7 @@ fn wanted_places_the_page_where_its_area_is() {
     let expect = Placement {
         tab: "canvas:page_1".into(),
         url: format!("{BASE}/pages/p1/index.html"),
-        load_key: "p1:".into(),
+        load_key: "p1::0".into(),
         rect: [600.0, 60.0, 360.0, 500.0],
     };
     assert_eq!(wanted(&rt.state), Wanted::Shown(expect));

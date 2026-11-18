@@ -10,11 +10,15 @@ use serde_json::Value;
 use std::collections::HashMap;
 
 /// The pick a page waits for, as the canvas's state holds it (`PageChoice`).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PageChoice {
     pub call_id: String,
     pub status: ChoiceStatus,
+    pub value: Option<String>,
+    pub summary: Option<String>,
     pub reason: Option<String>,
+    /// ISO time the choice was made or ended.
+    pub at: String,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -28,15 +32,22 @@ pub enum ChoiceStatus {
 pub fn read_page_choice(value: &Value) -> Option<PageChoice> {
     let record = value.as_object()?;
     let call_id = record.get("callId").and_then(Value::as_str).filter(|s| !s.is_empty())?;
-    record.get("at").and_then(Value::as_str)?;
+    let at = record.get("at").and_then(Value::as_str)?;
     let status = match record.get("status").and_then(Value::as_str)? {
         "waiting" => ChoiceStatus::Waiting,
         "answered" => ChoiceStatus::Answered,
         "not-answered" => ChoiceStatus::NotAnswered,
         _ => return None,
     };
-    let reason = record.get("reason").and_then(Value::as_str).filter(|s| !s.is_empty()).map(str::to_string);
-    Some(PageChoice { call_id: call_id.to_string(), status, reason })
+    let text = |key: &str| record.get(key).and_then(Value::as_str).filter(|s| !s.is_empty()).map(str::to_string);
+    Some(PageChoice {
+        call_id: call_id.to_string(),
+        status,
+        value: text("value"),
+        summary: text("summary"),
+        reason: text("reason"),
+        at: at.to_string(),
+    })
 }
 
 /// A waiting choice is live while the session is in a turn; a Fleet restart leaves "waiting" behind with the session idle
@@ -130,7 +141,7 @@ impl Pages {
 
 impl State {
     /// What the open session is doing, in the words of `activityStatus`.
-    fn open_activity(&self) -> &'static str {
+    pub(crate) fn open_activity(&self) -> &'static str {
         match self.session().status {
             crate::mock::Status::Working => "busy",
             crate::mock::Status::NeedsInput => "waiting_input",

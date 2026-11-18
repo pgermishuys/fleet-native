@@ -5,6 +5,7 @@
 //! every frame `State::keep_web` compares what is wanted with what was last done, and moves, loads or hides the views when
 //! they differ. Headless runs, scenes and builds without the `web` feature never get a window handle, so they draw the
 //! fallback panel instead (decision 9).
+pub mod choice;
 pub mod inject;
 pub mod page_bridge;
 pub mod page_theme;
@@ -36,6 +37,10 @@ pub struct Host {
     pub kept: page_bridge::KeptStates,
     /// The theme the pages were last given, so a change is sent once (row 14.28).
     pub theme: Option<page_theme::PageTheme>,
+    /// The pick each page tab holds while its agent waits (row 14.38), by tab.
+    pub choices: std::collections::HashMap<String, choice::ChoiceUi>,
+    /// How many times each page tab's Reload was pressed; part of the load key (row 14.27).
+    pub reloads: std::collections::HashMap<String, u32>,
     /// What `keep_web` last did, so an unchanged frame touches nothing native.
     pub applied: Option<Wanted>,
     /// The CI walk, while it runs (`demo`).
@@ -90,8 +95,14 @@ impl crate::State {
                 tx.focus("composer", false);
                 None
             }
-            // Only Fleet's bar sends a pick (piece C); one from the page itself isn't taken.
-            page_bridge::PageMessage::Choice { .. } | page_bridge::PageMessage::ChoiceRefused { .. } => None,
+            page_bridge::PageMessage::Choice { value, summary } => {
+                self.page_proposes(tab, value, summary);
+                None
+            }
+            page_bridge::PageMessage::ChoiceRefused { reason } => {
+                self.page_refused(tab, reason);
+                None
+            }
         }
     }
 }
