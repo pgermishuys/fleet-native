@@ -2,6 +2,7 @@
 //! docs/parity/12-changes-and-review.md): a header per hunk, a button for each run of unchanged lines, the lines with their two
 //! numbers, a marker and word marks, sideways scrolling per hunk or wrapping, and Show more past 600 changed lines. Split draws
 //! the same hunks and folds through `review_split` (piece G).
+use super::changes_find::{FindLook, find_marks};
 use super::review_split::split_lines;
 use crate::State;
 use crate::conv::diff::Kind;
@@ -84,6 +85,8 @@ fn hunk_header(t: &Theme, path: &str, hunk: &ReviewHunk, file: &FileDiff, revert
 }
 
 pub struct Tints {
+    /// What the bar looks for, while it is open and has text: the marks on each line.
+    pub find: Option<FindLook>,
     pub add: Color,
     pub del: Color,
     pub add_word: Color,
@@ -93,6 +96,7 @@ pub struct Tints {
 pub(super) fn tints(t: &Theme) -> Tints {
     // `--add-bg` and `--del-bg` over the card's fill, `--add-word` and `--del-word` over those.
     Tints {
+        find: None,
         add: t.mix(t.diff_add(), t.panel_bg, 0.10),
         del: t.mix(t.diff_del(), t.panel_bg, 0.09),
         add_word: t.diff_add().alpha(0.26),
@@ -101,7 +105,7 @@ pub(super) fn tints(t: &Theme) -> Tints {
 }
 
 /// One line: `.rline`. The numbers hold at the left of an unwrapped hunk scrolled sideways (sticky), and sit on the line's tint.
-fn line(t: &Theme, k: &Tints, key: String, l: &ReviewLine, wrap: bool) -> El {
+fn line(t: &Theme, k: &Tints, key: String, path: &str, l: &ReviewLine, wrap: bool) -> El {
     let (fill, mark, ink, word) = match l.line.kind {
         Kind::Add => (k.add, "+", t.diff_add_text(), k.add_word),
         Kind::Remove => (k.del, "\u{2212}", t.diff_del_text(), k.del_word),
@@ -125,7 +129,7 @@ fn line(t: &Theme, k: &Tints, key: String, l: &ReviewLine, wrap: bool) -> El {
     let code = text(l.line.content.clone())
         .font(font)
         .color(t.text)
-        .text_highlights(l.marks.iter().map(|&(a, b)| TextHighlight::new(a..b, word).pad(0.0)));
+        .text_highlights(l.marks.iter().map(|&(a, b)| TextHighlight::new(a..b, word).pad(0.0)).chain(find_marks(k, path, l, true)));
     let code = if wrap { code.wrap_anywhere().shrink().min_w(0.0).grow(1.0) } else { code.single_line() };
     let mut r = row()
         .key(key)
@@ -166,7 +170,7 @@ pub(super) fn region(t: &Theme, key: String, label: String, lines: El, count: us
 fn rows<'a>(t: &Theme, k: &Tints, path: &str, lines: impl Iterator<Item = &'a ReviewLine>, wrap: bool) -> El {
     let mut c = col().w_full();
     for l in lines {
-        c = c.child(line(t, k, format!("review-line-{path}-{}", l.index), l, wrap));
+        c = c.child(line(t, k, format!("review-line-{path}-{}", l.index), path, l, wrap));
     }
     c
 }
@@ -176,7 +180,8 @@ pub fn lines(s: &State, t: &Theme, file: &FileDiff, items: &[ReviewItem]) -> El 
     let path = file.file.as_str();
     let wrap = s.sidebar.changes_wrap();
     let all = s.review.is_drawn_all(path);
-    let k = tints(t);
+    let mut k = tints(t);
+    k.find = super::changes_find::look(s, t);
     let split = s.review_layout() == Layout::Split;
     let mut out = col().key(format!("review-lines-{path}")).w_full();
     for shown in visible(items, all) {

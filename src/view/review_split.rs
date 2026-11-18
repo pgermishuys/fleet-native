@@ -2,6 +2,7 @@
 //! or an opened unchanged run drawn as old and new side by side. Fleet makes one grid per hunk; here each split row is a row of
 //! two equal cells, and a hunk's rows are one column inside the same sideways-scrolling region as Unified, so old and new scroll
 //! as one. A cell with no partner (the shorter side of a change) is padding.
+use super::changes_find::find_marks;
 use super::review_lines::{LINE_H, Tints};
 use crate::conv::diff::Kind;
 use crate::conv::review::{ReviewLine, SplitRow, split_rows};
@@ -16,7 +17,8 @@ const TEXT_PAD: f32 = 16.0;
 const CHAR_W: f32 = 7.2;
 
 /// One side of a row: its number, marker and text on the line's tint, or the padding cell.
-fn cell(t: &Theme, k: &Tints, key: String, l: Option<&ReviewLine>, new_side: bool, wrap: bool, min_w: f32) -> El {
+#[allow(clippy::too_many_arguments)]
+fn cell(t: &Theme, k: &Tints, key: String, path: &str, l: Option<&ReviewLine>, new_side: bool, keyed: bool, wrap: bool, min_w: f32) -> El {
     let font = mono(12.0, 400.0, LINE_H / 12.0);
     let base = row().key(key).items_stretch().min_w(min_w);
     // Wrapped, the two share the region exactly; unwrapped they start at their minimum and share what is left.
@@ -41,7 +43,7 @@ fn cell(t: &Theme, k: &Tints, key: String, l: Option<&ReviewLine>, new_side: boo
     let code = text(l.line.content.clone())
         .font(font)
         .color(t.text)
-        .text_highlights(l.marks.iter().map(|&(a, b)| TextHighlight::new(a..b, word).pad(0.0)));
+        .text_highlights(l.marks.iter().map(|&(a, b)| TextHighlight::new(a..b, word).pad(0.0)).chain(find_marks(k, path, l, keyed)));
     let code = if wrap { code.wrap_anywhere().shrink().min_w(0.0).grow(1.0) } else { code.single_line() };
     let mut c = base
         .fill(if l.line.kind == Kind::Context { Color::TRANSPARENT } else { fill })
@@ -80,12 +82,15 @@ pub fn split_lines(t: &Theme, k: &Tints, path: &str, lines: &[ReviewLine], wrap:
         if !wrap {
             line = line.h(LINE_H);
         }
-        c = c.child(line.child(cell(t, k, format!("review-old-{path}-{id}"), old, false, wrap, old_w)).child(cell(
+        c = c.child(line.child(cell(t, k, format!("review-old-{path}-{id}"), path, old, false, true, wrap, old_w)).child(cell(
             t,
             k,
             format!("review-new-{path}-{id}"),
+            path,
             new,
             true,
+            // An unchanged line is both cells' (the same line twice): only the old copy is scrolled to.
+            old.is_none_or(|o| new.is_none_or(|n| o.index != n.index)),
             wrap,
             new_w,
         )));

@@ -1717,3 +1717,10 @@ Nothing in Rune was needed.
   read by one reader. Damage says nothing when scrolled back or after a resize: both read every row.
 - **A blocking `ws.read()` with a 20 ms timeout hides the UI's queue for that long**: input sent just before `ready` can be written directly after it
   instead of being kept, so a test can't observe the pending queue through a socket; it is tested on the queue itself.
+
+## Component 12, piece K (the find bar, marks and keys)
+
+- **`Tx::scroll_center` centres vertically only**, so a match far to the right of a long line isn't brought sideways (Fleet's `scrollRangeIntoView` does both).
+- **A window key reaches `on_key` only if the field's `on_input_key` returns false**; Esc and Enter are taken in the field and Ctrl+F, F3 and Ctrl+G by the window's handler, which asks `tx.focused()` so the key stops in Changes. A tab stop that is not an input (`review-scroll`, `.focusable(true)`) is what a click in the diff focuses.
+- **A test sends Ctrl+letter as `Key::Command('f')` with `cmd` and `ctrl` held** (not `Key::Text`).
+- **`TextHighlight::key` on two copies of a line** would duplicate the key: only one copy (the old side of an unchanged Split row) is keyed for the scroll.

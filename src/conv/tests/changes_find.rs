@@ -131,3 +131,35 @@ mod selected_query_tests {
         assert_eq!(selected_query(Some(&"x".repeat(201))), "");
     }
 }
+
+mod mark_changes_matches {
+    use super::*;
+    use crate::conv::changes_find::line_marks;
+
+    // `markChangesMatches`: "marks both copies of a line split view draws twice, and the current match on each"
+    #[test]
+    fn marks_both_copies_of_a_line_split_view_draws_twice_and_the_current_match_on_each() {
+        let files = [
+            FindFile { path: "a.ts".into(), lines: vec![line(3, "tag and tag", "h", false)] },
+            FindFile { path: "b.ts".into(), lines: vec![line(3, "tag", "h", false)] },
+        ];
+        let hits = find_changes_hits(&files, "TAG");
+        assert_eq!(hits.len(), 3);
+        // The second hit is a.ts line 3's second match; both drawn copies of that line get the same marks.
+        for _ in 0..2 {
+            let (ranges, current) = line_marks("a.ts", 3, "tag and tag", "TAG", Some(&hits[1]));
+            assert_eq!(ranges, vec![0..3, 8..11]);
+            assert_eq!(current, Some(1));
+        }
+        let (ranges, current) = line_marks("b.ts", 3, "tag", "TAG", Some(&hits[1]));
+        assert_eq!((ranges.len(), current), (1, None), "another file's line 3 is marked, not current");
+    }
+
+    // `markChangesMatches`: "returns no current range when the current match isn't drawn"
+    #[test]
+    fn returns_no_current_range_when_the_current_match_isnt_drawn() {
+        let hits = find_changes_hits(&[FindFile { path: "a.ts".into(), lines: vec![line(9, "tag", "f", true)] }], "tag");
+        let (ranges, current) = line_marks("a.ts", 4, "no match here", "tag", Some(&hits[0]));
+        assert!(ranges.is_empty() && current.is_none());
+    }
+}

@@ -170,6 +170,12 @@ impl State {
         }
     }
 
+    /// The review with the find bar open on `query` (`steps` matches in), over the scratch Fleet's two files or the states one.
+    pub fn show_review_find(&mut self, dark: bool, case: Case, query: &str, steps: usize) {
+        self.show_changes_scene(case, dark);
+        self.show_changes_find(query, steps);
+    }
+
     /// The review of the scratch Fleet's two files with a revert asked about (`hunk`: the one hunk of `src/paginate.py`, else the file
     /// `src/page_size.py`), or with the notice a stale file leaves (`ask` false).
     pub fn show_review_revert(&mut self, dark: bool, ask: bool, hunk: bool) {
