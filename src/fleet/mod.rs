@@ -40,6 +40,7 @@ pub mod file_buffers;
 pub mod find;
 pub mod finder;
 pub mod fork;
+pub mod go_to_file;
 pub mod groups;
 pub mod harness_setup;
 pub mod harness_setup_rows;
