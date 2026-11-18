@@ -7,7 +7,7 @@ use crate::mock::header::Case;
 use crate::tests::{FRAME, app, click};
 use rune::{Key, KeyEvent, Mods, Runtime};
 use serde_json::{Value, json};
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::Write;
 use std::net::{TcpListener, TcpStream};
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
@@ -276,23 +276,11 @@ struct Seen {
 }
 
 fn serve(mut stream: TcpStream, seen: Arc<Mutex<Seen>>) {
-    let mut reader = BufReader::new(stream.try_clone().unwrap());
-    let (mut head, mut length) = (String::new(), 0usize);
-    loop {
-        let mut line = String::new();
-        if reader.read_line(&mut line).unwrap_or(0) == 0 {
-            return;
-        }
-        if line == "\r\n" {
-            break;
-        }
-        if let Some(n) = line.to_ascii_lowercase().strip_prefix("content-length:") {
-            length = n.trim().parse().unwrap_or(0);
-        }
-        head.push_str(&line);
+    let heard = crate::test_http::read(&mut stream);
+    if heard.method.is_empty() {
+        return;
     }
-    let mut raw = vec![0; length];
-    let _ = reader.read_exact(&mut raw);
+    let (head, raw) = (heard.head, heard.body);
     let body: Value = serde_json::from_slice(&raw).unwrap_or(Value::Null);
     let mut parts = head.lines().next().unwrap_or("").split(' ');
     let (method, path) = (parts.next().unwrap_or("").to_string(), parts.next().unwrap_or("").to_string());

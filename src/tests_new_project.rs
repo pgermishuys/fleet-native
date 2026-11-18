@@ -7,7 +7,7 @@ use crate::mock::machines::Case;
 use crate::tests::{FRAME, app, click};
 use rune::{Key, KeyEvent, Mods, Runtime};
 use serde_json::{Value, json};
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::Write;
 use std::net::TcpListener;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
@@ -41,24 +41,12 @@ impl Fake {
     }
 }
 
-fn serve(stream: std::net::TcpStream, log: Heard, status: u16, text: &'static str) {
-    let mut reader = BufReader::new(stream.try_clone().unwrap());
-    let (mut head, mut length) = (String::new(), 0usize);
-    loop {
-        let mut line = String::new();
-        if reader.read_line(&mut line).unwrap_or(0) == 0 {
-            return;
-        }
-        if line == "\r\n" {
-            break;
-        }
-        if let Some(n) = line.to_ascii_lowercase().strip_prefix("content-length:") {
-            length = n.trim().parse().unwrap_or(0);
-        }
-        head.push_str(&line);
+fn serve(mut stream: std::net::TcpStream, log: Heard, status: u16, text: &'static str) {
+    let heard = crate::test_http::read(&mut stream);
+    if heard.method.is_empty() {
+        return;
     }
-    let mut raw = vec![0; length];
-    let _ = reader.read_exact(&mut raw);
+    let (head, raw) = (heard.head, heard.body);
     let mut parts = head.lines().next().unwrap_or("").split(' ');
     let (method, path) = (parts.next().unwrap_or(""), parts.next().unwrap_or("").to_string());
     let (status, text) = if method == "POST" && path == "/api/projects" {

@@ -1408,30 +1408,6 @@ pub(crate) fn finish(stream: &mut std::net::TcpStream) {
     while matches!(stream.read(&mut sink), Ok(n) if n > 0) {}
 }
 
-/// A fake server's read of one request, whole: answering before the client's headers are in makes Windows reset the
-/// connection under the client.
-pub(crate) fn read_request(stream: &mut std::net::TcpStream) -> String {
-    use std::io::Read;
-    let mut got = Vec::new();
-    let mut buf = [0u8; 1024];
-    // The headers and the body can arrive in separate reads (often under load): read on until the whole body is here.
-    loop {
-        if let Some(end) = got.windows(4).position(|w| w == b"\r\n\r\n") {
-            let head = String::from_utf8_lossy(&got[..end]).to_ascii_lowercase();
-            let wanted =
-                head.lines().find_map(|l| l.strip_prefix("content-length:")).and_then(|v| v.trim().parse::<usize>().ok()).unwrap_or(0);
-            if got.len() >= end + 4 + wanted {
-                break;
-            }
-        }
-        match stream.read(&mut buf) {
-            Ok(0) | Err(_) => break,
-            Ok(n) => got.extend_from_slice(&buf[..n]),
-        }
-    }
-    String::from_utf8_lossy(&got).into_owned()
-}
-
 #[test]
 fn stop_and_output_calls_go_to_fleets_item_id_and_read_the_answer_as_the_server_writes_it() {
     use std::io::Write;
@@ -1441,7 +1417,7 @@ fn stop_and_output_calls_go_to_fleets_item_id_and_read_the_answer_as_the_server_
     let log = seen.clone();
     std::thread::spawn(move || {
         for mut stream in listener.incoming().flatten() {
-            let request = read_request(&mut stream);
+            let request = crate::test_http::read(&mut stream).raw();
             let line = request.lines().next().unwrap_or("").to_string();
             let (status, body) = if line.contains("/stop") {
                 ("409 Conflict", r#"{"error":"The session isn't running."}"#)
@@ -1670,7 +1646,7 @@ fn activity_stream_and_work_fleet_stopped_asks_fleet_for_older_work_when_the_str
     let (log, stopped) = (seen.clone(), stopped_shell("sh_dev").1);
     std::thread::spawn(move || {
         for mut stream in listener.incoming().flatten() {
-            let request = read_request(&mut stream);
+            let request = crate::test_http::read(&mut stream).raw();
             log.lock().unwrap().push(request.lines().next().unwrap_or("").to_string());
             let body = serde_json::json!([stopped]).to_string();
             let _ = write!(

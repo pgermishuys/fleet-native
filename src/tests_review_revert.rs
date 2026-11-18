@@ -5,7 +5,7 @@
 use crate::fleet::actions::CONFIRM_ACTION;
 use crate::fleet::diff_contents::Entry;
 use crate::fleet::link::{Job, Link, Post};
-use crate::tests::{FRAME, app, click, finish, read_request};
+use crate::tests::{FRAME, app, click, finish};
 use crate::{State, test_wait};
 use rune::Runtime;
 use serde_json::{Value, json};
@@ -52,7 +52,7 @@ fn rig(items: Vec<Value>, server: Server) -> Rig {
     let list = Arc::new(Mutex::new(items.clone()));
     std::thread::spawn(move || {
         for mut stream in listener.incoming().flatten() {
-            let request = read_request(&mut stream);
+            let request = crate::test_http::read(&mut stream).raw();
             let line = request.lines().next().unwrap_or("").to_string();
             let body = request.split_once("\r\n\r\n").map_or("", |(_, b)| b);
             written.lock().unwrap().push(format!("{line} {body}"));

@@ -8,7 +8,7 @@ use crate::tests::{FRAME, app, click};
 use crate::{Rail, State};
 use rune::{Key, KeyEvent, Mods, Runtime};
 use serde_json::{Value, json};
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::Write;
 use std::net::TcpListener;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
@@ -76,28 +76,14 @@ pub(crate) fn fake(routes: Vec<(&'static str, &'static str, u16, String)>) -> Fa
     Fake { base, heard }
 }
 
-fn serve(stream: std::net::TcpStream, log: &Heard, routes: &[(&'static str, &'static str, u16, String)]) {
-    let mut reader = BufReader::new(stream.try_clone().unwrap());
-    let (mut first, mut length, mut bearer) = (String::new(), 0usize, None);
-    loop {
-        let mut line = String::new();
-        if reader.read_line(&mut line).unwrap_or(0) == 0 {
-            return;
-        }
-        if line == "\r\n" {
-            break;
-        }
-        let lower = line.to_ascii_lowercase();
-        if first.is_empty() {
-            first = line.trim().to_string();
-        } else if let Some(n) = lower.strip_prefix("content-length:") {
-            length = n.trim().parse().unwrap_or(0);
-        } else if let Some(t) = lower.strip_prefix("authorization: bearer ") {
-            bearer = Some(line[line.len() - t.len()..].trim().to_string());
-        }
+fn serve(mut stream: std::net::TcpStream, log: &Heard, routes: &[(&'static str, &'static str, u16, String)]) {
+    let heard = crate::test_http::read(&mut stream);
+    if heard.method.is_empty() {
+        return;
     }
-    let mut raw = vec![0; length];
-    let _ = reader.read_exact(&mut raw);
+    let bearer = heard.header("authorization").and_then(|v| v.strip_prefix("Bearer ").map(str::to_string));
+    let first = heard.head.lines().next().unwrap_or("").to_string();
+    let (_head, raw) = (heard.head, heard.body);
     let mut parts = first.split(' ');
     let (method, path) = (parts.next().unwrap_or("").to_string(), parts.next().unwrap_or("").split('?').next().unwrap_or("").to_string());
     log.lock().unwrap().push((method.clone(), path.clone(), serde_json::from_slice(&raw).unwrap_or(Value::Null), bearer));

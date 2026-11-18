@@ -10,7 +10,7 @@ use crate::mock::machines::Case;
 use crate::tests::{FRAME, app, click};
 use rune::{Key, KeyEvent, Mods, Runtime};
 use serde_json::{Value, json};
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::Write;
 use std::net::TcpListener;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, channel};
@@ -56,29 +56,13 @@ impl Fake {
     }
 }
 
-fn serve(stream: std::net::TcpStream, log: Log, gate: Arc<AtomicBool>, answer: Answer) {
-    let mut reader = BufReader::new(stream.try_clone().unwrap());
-    let (mut head, mut length) = (String::new(), 0usize);
-    let mut token = None;
-    loop {
-        let mut line = String::new();
-        if reader.read_line(&mut line).unwrap_or(0) == 0 {
-            return;
-        }
-        if line == "\r\n" {
-            break;
-        }
-        let lower = line.to_ascii_lowercase();
-        if let Some(n) = lower.strip_prefix("content-length:") {
-            length = n.trim().parse().unwrap_or(0);
-        }
-        if let Some(t) = lower.strip_prefix("authorization: bearer ") {
-            token = Some(t.trim().to_string());
-        }
-        head.push_str(&line);
+fn serve(mut stream: std::net::TcpStream, log: Log, gate: Arc<AtomicBool>, answer: Answer) {
+    let heard = crate::test_http::read(&mut stream);
+    if heard.method.is_empty() {
+        return;
     }
-    let mut raw = vec![0; length];
-    let _ = reader.read_exact(&mut raw);
+    let token = heard.header("authorization").and_then(|v| v.strip_prefix("Bearer ").map(str::to_string));
+    let (head, raw) = (heard.head, heard.body);
     let body: Value = serde_json::from_slice(&raw).unwrap_or(Value::Null);
     let mut parts = head.lines().next().unwrap_or("").split(' ');
     let (method, path) = (parts.next().unwrap_or("").to_string(), parts.next().unwrap_or("").to_string());

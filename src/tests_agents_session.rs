@@ -8,7 +8,7 @@ use crate::tests::{FRAME, app, click};
 use crate::tests_machines_page::{exists, words};
 use crate::{State, test_wait};
 use rune::Runtime;
-use std::io::{Read, Write};
+use std::io::Write;
 use std::net::TcpListener;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
@@ -28,9 +28,7 @@ fn serve(asked: Asked) -> String {
         for mut stream in listener.incoming().flatten() {
             let asked = asked.clone();
             std::thread::spawn(move || {
-                let mut buf = [0u8; 4096];
-                let n = stream.read(&mut buf).unwrap_or(0);
-                let head = String::from_utf8_lossy(&buf[..n]).to_string();
+                let head = crate::test_http::read(&mut stream).head;
                 let path = head.lines().next().unwrap_or("").split(' ').nth(1).unwrap_or("").to_string();
                 let reply = if path.contains("/messages") {
                     MESSAGES.to_string()
