@@ -457,6 +457,9 @@ impl State {
         link.off_thread(http::client_config, |s, _, result| {
             if let Ok(body) = result {
                 s.terminals_allowed = Some(body.get("terminalEnabled").and_then(serde_json::Value::as_bool).unwrap_or(false));
+                if let Some(id) = s.open_id() {
+                    s.load_terminals(&id);
+                }
             }
         });
         // The wizard reads the live machine's harnesses whichever page shows (`HarnessSetupWizard.vue` is always mounted).

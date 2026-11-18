@@ -237,6 +237,15 @@ pub fn terminals(base: &str, session: &str) -> Result<Vec<Terminal>, String> {
     Ok(body.as_array().map(|a| a.iter().filter_map(Terminal::from_json).collect()).unwrap_or_default())
 }
 
+/// What a refused terminal request says: the server's `error`, else the status (`terminal-api.ts`'s `failure`).
+fn terminal_refusal(status: u16, body: &Value) -> String {
+    body.get("error")
+        .and_then(Value::as_str)
+        .filter(|e| !e.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| format!("The terminal request failed (HTTP {status})."))
+}
+
 /// `POST /api/sessions/{id}/terminals {cols, rows}`: a new shell, 201 with its entry; a refusal says why in `error`.
 pub fn terminal_create(base: &str, session: &str, cols: u32, rows: u32) -> Result<Terminal, String> {
     let path = format!("/api/sessions/{}/terminals", escape(session));
@@ -246,12 +255,17 @@ pub fn terminal_create(base: &str, session: &str, cols: u32, rows: u32) -> Resul
     if (200..300).contains(&status) {
         return Terminal::from_json(&body).ok_or_else(|| "The terminal request failed (HTTP 200).".to_string());
     }
-    Err(body
-        .get("error")
-        .and_then(Value::as_str)
-        .filter(|e| !e.is_empty())
-        .map(str::to_string)
-        .unwrap_or_else(|| format!("The terminal request failed (HTTP {status}).")))
+    Err(terminal_refusal(status, &body))
+}
+
+/// `DELETE /api/sessions/{id}/terminals/{terminal}`: ends its shell. A terminal that is already gone (404) is closed.
+pub fn terminal_close(base: &str, session: &str, terminal: &str) -> Result<(), String> {
+    let path = format!("/api/sessions/{}/terminals/{}", escape(session), escape(terminal));
+    let (status, text) = text_with("DELETE", base, &path, None).map_err(|_| "Couldn't reach Fleet to close the terminal.".to_string())?;
+    if (200..300).contains(&status) || status == 404 {
+        return Ok(());
+    }
+    Err(terminal_refusal(status, &serde_json::from_str(&text).unwrap_or(Value::Null)))
 }
 
 /// A session's terminal as the server lists it.

@@ -222,6 +222,22 @@ Owner: `13` = this component, with the piece; another number = that component. "
 | `components/layout/__tests__/StatusBar.test.ts` | "hides the terminal from the terminal's own hints, and leaves the rest as text" | E |
 | `lib/__tests__/format-terminal-context.test.ts`, `composables/__tests__/use-draft-terminal-context.test.ts` | done by component 5 (piece O) | 5 |
 
+### Piece C, what was done on 18 November 2026
+
+Done: 13.33–13.42 and 13.31 (close, words); 13.87 for what C owns (nothing loads and the toggle does nothing while `terminalEnabled` is off).
+`src/fleet/terminals.rs` is the store (tabs, active, loaded, open, height), `src/fleet/session_terminals.rs` loads the list when a session
+opens, after a reconnect, and when `terminalEnabled` arrives, applies `terminal.opened`/`closed` (buffered while a load is out), opens a new
+terminal and closes a tab with put-back; `terminal_slot.rs` keeps the one view in step with the active tab and drops it when the session
+changes; `mock/terminal.rs` is the pretend shell. Open drawers and the height are `terminalOpen` and `terminalHeight` in the settings file.
+Ported by name: all 7 of `terminals.test.ts`, all 9 of `use-session-terminals.test.ts`, all 5 of `terminal-mock-shell.test.ts`.
+Left open and why: the **header button and the command stay enabled with terminals off** (the status bar test needs the command enabled
+while a hint is clicked; the button's absence is D's, 13.87); there is **no tab strip**, so switching tabs is only by the neighbour rule
+(D); the pretend shell is shown by the `terminal-mock` scenes and by `State::terminal_write`, an invented session with no server cannot
+open it from the header (D); a scripted headless run did not write the settings file, so remembering across restarts is proven by the
+settings round-trip test only; the two machine-routing cases (`session-calls-machine` "reads the session's terminals",
+`session-events-machine`) rest on `link_for(session)`, which every session call uses, with no separate test.
+Pictures: `shots/parity/13-terminal/C/`.
+
 ### Piece B, what was done on 18 November 2026
 
 Done: 13.14, 13.17 (damage), 13.20 (other machines), 13.22 (the 4,096-byte queue), 13.23–13.30. `Socket` is now a connection that keeps itself:

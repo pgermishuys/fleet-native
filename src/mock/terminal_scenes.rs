@@ -43,3 +43,18 @@ impl State {
         }
     }
 }
+
+impl State {
+    /// The pretend shell of the app with no server (`mock::terminal`), showing what it printed when it started.
+    pub fn show_terminal_mock(&mut self, dark: bool) {
+        self.dark = Some(dark);
+        let (cols, rows) = (100, 14);
+        let replay = self.terminal.shells.open("mock-1").replay().to_vec();
+        self.terminal.replay(cols, rows, &replay);
+        self.terminal.height = 1.0 + 10.0 + rows as f32 * 19.0;
+        if let Some(live) = self.terminal.live.as_mut() {
+            live.id = "mock-1".into();
+            live.pretend = true;
+        }
+    }
+}
