@@ -18,6 +18,7 @@ pub mod dreaming;
 pub mod export;
 pub mod failure;
 pub mod feeds;
+pub mod files_tab;
 pub mod find;
 pub mod finder;
 pub mod fold;

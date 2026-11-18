@@ -484,6 +484,13 @@ pub fn file_content(base: &str, session: &str, path: &str) -> Result<(u16, Strin
     text_with("GET", base, &format!("/api/sessions/{session}/files/content?path={}", query_value(path)), None)
 }
 
+/// `GET /api/sessions/{id}/files/browse[?path=]`: the entries of a folder of the session's workspace (the root with no path;
+/// `browseSessionDirectory`).
+pub fn files_browse(base: &str, session: &str, path: Option<&str>) -> Result<(u16, String), String> {
+    let query = path.filter(|p| !p.is_empty()).map(|p| format!("?path={}", query_value(p))).unwrap_or_default();
+    text_with("GET", base, &format!("/api/sessions/{session}/files/browse{query}"), None)
+}
+
 /// `PUT /api/sessions/{id}/files/content`: saves `content` if the file still has `base_hash` (`writeSessionFile`).
 pub fn write_file(base: &str, session: &str, path: &str, content: &str, base_hash: &str) -> Result<(u16, String), String> {
     let body = json!({ "path": path, "content": content, "baseHash": base_hash });

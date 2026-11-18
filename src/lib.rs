@@ -64,6 +64,8 @@ mod tests_document;
 #[cfg(test)]
 mod tests_draft_row;
 #[cfg(test)]
+mod tests_files_tab;
+#[cfg(test)]
 mod tests_folder_clone;
 #[cfg(test)]
 mod tests_folder_menu;
@@ -390,6 +392,8 @@ pub struct State {
     /// Which open files are read again, and when (`fleet::file_live`), and the git bases of the changed ones (`fleet::file_base`).
     pub file_live: fleet::file_live::Live,
     pub file_bases: fleet::file_base::Bases,
+    /// The Files tab's tree, its open folders and its search box (`fleet::file_browser`).
+    pub file_browser: fleet::file_browser::FileBrowser,
     /// The review's own state: which sections are shut and the layout picked (`fleet::review`).
     pub review: fleet::review::Review,
     /// Find in Changes: the bar's query and matches, and the machine's search (`fleet::changes_find`).
@@ -696,6 +700,7 @@ impl Default for State {
             diff_contents: Default::default(),
             file_buffers: Default::default(),
             file_live: Default::default(),
+            file_browser: Default::default(),
             file_bases: Default::default(),
             review: Default::default(),
             changes_find: Default::default(),
@@ -1584,6 +1589,7 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     s.clock = now;
     let strip = s.keep_strip(tx) | s.keep_tab_motion(tx);
     s.keep_file_front();
+    s.keep_files_tab(now, tx);
     s.keep_progress_tab();
     let strip = s.keep_turns_tab() | strip;
     s.keep_panel_content();
@@ -4311,6 +4317,16 @@ pub fn spec() -> AppSpec<State> {
                 s.show_report(mock::report::Case::Sent)
             }),
             // Component 10, piece B: the panel's tab strip. `panel-over` is `panel-fresh` drawn in a narrow window.
+            ("files-tab", |s| s.show_files_tab(mock::files_tab::Case::Tree, true)),
+            ("files-tab-light", |s| s.show_files_tab(mock::files_tab::Case::Tree, false)),
+            ("files-tab-selected", |s| s.show_files_tab(mock::files_tab::Case::Selected, true)),
+            ("files-tab-selected-light", |s| s.show_files_tab(mock::files_tab::Case::Selected, false)),
+            ("files-tab-loading", |s| s.show_files_tab(mock::files_tab::Case::Loading, true)),
+            ("files-tab-loading-light", |s| s.show_files_tab(mock::files_tab::Case::Loading, false)),
+            ("files-tab-empty", |s| s.show_files_tab(mock::files_tab::Case::Empty, true)),
+            ("files-tab-empty-light", |s| s.show_files_tab(mock::files_tab::Case::Empty, false)),
+            ("files-tab-error", |s| s.show_files_tab(mock::files_tab::Case::Failed, true)),
+            ("files-tab-error-light", |s| s.show_files_tab(mock::files_tab::Case::Failed, false)),
             ("panel-tabs", |s| s.show_tabs(mock::canvas_host::Case::Tabs, true)),
             ("panel-tabs-light", |s| s.show_tabs(mock::canvas_host::Case::Tabs, false)),
             ("panel-tabs-attention", |s| s.show_tabs(mock::canvas_host::Case::Attention, true)),
