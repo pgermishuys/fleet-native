@@ -33,6 +33,8 @@ mod tests_canvas_host;
 #[cfg(test)]
 mod tests_canvas_show;
 #[cfg(test)]
+mod tests_canvas_strip;
+#[cfg(test)]
 mod tests_changes;
 #[cfg(test)]
 mod tests_chips;
@@ -1512,7 +1514,7 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     // Whole seconds only, so the "Working · 18s" label redraws once a second.
     let ticked = now.floor() != s.clock.floor();
     s.clock = now;
-    let strip = s.keep_strip(tx);
+    let strip = s.keep_strip(tx) | s.keep_tab_motion(tx);
     s.keep_progress_tab();
     let strip = s.keep_turns_tab() | strip;
     s.keep_panel_content();
@@ -4154,6 +4156,12 @@ pub fn spec() -> AppSpec<State> {
             ("panel-widened-light", |s| s.show_tabs(mock::canvas_host::Case::Widened, false)),
             ("panel-fresh", |s| s.show_tabs(mock::canvas_host::Case::Fresh, true)),
             ("panel-fresh-light", |s| s.show_tabs(mock::canvas_host::Case::Fresh, false)),
+            ("panel-overflow", |s| s.show_tabs(mock::canvas_host::Case::Overflow, true)),
+            ("panel-overflow-light", |s| s.show_tabs(mock::canvas_host::Case::Overflow, false)),
+            ("panel-menu-visuals", |s| s.show_tabs(mock::canvas_host::Case::MenuVisuals, true)),
+            ("panel-menu-visuals-light", |s| s.show_tabs(mock::canvas_host::Case::MenuVisuals, false)),
+            ("panel-pulse", |s| s.show_tabs(mock::canvas_host::Case::Pulse, true)),
+            ("panel-pulse-light", |s| s.show_tabs(mock::canvas_host::Case::Pulse, false)),
             ("panel-over", |s| s.show_tabs(mock::canvas_host::Case::Fresh, true)),
             ("panel-over-light", |s| s.show_tabs(mock::canvas_host::Case::Fresh, false)),
             // Component 10, piece M: Agent's view, the picture of the agent's own tab.

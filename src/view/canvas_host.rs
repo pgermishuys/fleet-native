@@ -4,13 +4,29 @@
 use super::right_rail;
 use crate::State;
 use crate::fleet::canvas_host::{Badge, STRIP, close_key, tab_key};
-use crate::fleet::canvases::{CanvasInstance, CanvasKind};
+use crate::fleet::canvases::{CanvasInstance, CanvasKind, VisualType};
+use crate::fleet::tab_motion::{PULSE_ICON_SHARE, bezier, ease_out};
 use crate::icons::*;
 use crate::theme::{RADIUS_BTN, RADIUS_PANEL, Theme, sans};
-use rune::{Cursor, El, Key, KeyEvent, col, el, icon, row, spacer, text};
+use rune::{Cursor, El, Key, KeyEvent, Phase, col, el, icon, row, spacer, text};
+use std::cell::Cell;
 
 /// The `+` button's key, which the menu hangs from.
 pub const ADD: &str = "canvas-add";
+
+thread_local! {
+    /// How far the strip is scrolled, as its scroll box last said; a drag starts from it.
+    static STRIP_X: Cell<f32> = const { Cell::new(0.0) };
+}
+
+/// `useDragScroll`: the strip follows the pointer, so a tab pulled sideways moves the tabs under it.
+fn drag_strip(d: &mut rune::Drag, tx: &mut crate::Tx) {
+    match d.phase {
+        Phase::Down => d.data = STRIP_X.with(Cell::get),
+        Phase::Move if !d.cancelled() => tx.scroll_to_x(STRIP, d.data - d.dx),
+        _ => {}
+    }
+}
 
 /// The open panel: header, body, then the progress strip (hidden while Progress is the tab).
 pub fn host(s: &State, t: &Theme, over: bool) -> El {
@@ -29,7 +45,18 @@ fn header(s: &State, t: &Theme, over: bool) -> El {
     for canvas in &tabs.canvases {
         inner = inner.child(tab(s, t, canvas, canvas.id == tabs.active_id));
     }
-    let strip = el().key(STRIP).role("tablist").label("Canvases").min_w(0.0).shrink().scroll_x().scroll_edge_fade(20.0).child(inner);
+    // `useDragScroll`: the strip follows a drag; the offset it starts from is read off the scroll box as it moves.
+    let strip = el()
+        .key(STRIP)
+        .role("tablist")
+        .label("Canvases")
+        .min_w(0.0)
+        .shrink()
+        .scroll_x()
+        .scroll_edge_fade(20.0)
+        .on_scroll_offset(|at| STRIP_X.with(|x| x.set(at.offset[0])))
+        .on_drag_any(drag_strip)
+        .child(inner);
     let mut head = row().w_full().min_h(56.0).center_y().gap(2.0).pl(10.0).pr(8.0).border_sides([0.0, 0.0, 1.0, 0.0], t.border);
     head = head.child(strip).child(
         icon_button(t, ADD, &PLUS, 15.0, "Open a canvas", s.ui.open == Some(crate::ui::Open::Menu("canvas")))
@@ -87,10 +114,24 @@ fn tab(s: &State, t: &Theme, canvas: &CanvasInstance, active: bool) -> El {
         .hover_group()
         .focus_ring(2.0, -2.0, t.accent)
         .focusable(true)
+        .on_drag_any(drag_strip)
         .tab_index(if active { 0 } else { -1 });
     tab = if active { tab.fill(t.wash(9.0)) } else { tab.hover(t.wash(5.0)) };
+    // A page that updated itself: `--accent` at 22% easing out to nothing, the icon in `--accent-text` for the first 40%.
+    let mut icon_ink = ink;
+    if let Some(p) = s.tab_pulse(&canvas.id) {
+        tab = tab.fill(t.accent.alpha(0.22 * (1.0 - ease_out(p))));
+        if p < PULSE_ICON_SHARE {
+            icon_ink = t.accent_text;
+        }
+    }
+    // A tab that just arrived: 240 ms from opacity 0, 8 px to the right and 96% size.
+    if let Some(p) = s.tab_enter(&canvas.id) {
+        let e = bezier(0.2, 0.8, 0.2, 1.0, p);
+        tab = tab.opacity(e).offset(8.0 * (1.0 - e), 0.0).scale(0.96 + 0.04 * e);
+    }
     tab = tab
-        .child(icon(canvas.icon(), 14.0).color(ink).group_color(t.text))
+        .child(icon(canvas.icon(), 14.0).color(icon_ink).group_color(t.text))
         .child(text(title).font(sans(13.0, weight, 1.3)).color(ink).group_color(t.text).truncate().min_w(0.0));
     if let Some(badge) = badge(s, t, canvas) {
         tab = tab.child(badge);
@@ -215,6 +256,16 @@ pub fn picker(s: &State, t: &Theme) -> Vec<El> {
             hint,
             move |s: &mut State, tx| s.open_built_in(kind, tx),
         ));
+    }
+    let visuals = s.conversation_visuals();
+    if !visuals.is_empty() {
+        list = list.child(crate::ui::controls::separator(t).my(4.0).mx(2.0)).child(group_label(t, "From this conversation"));
+        for (at, (payload, title, open)) in visuals.into_iter().enumerate() {
+            let glyph = if payload.kind == VisualType::Html { &GLOBE } else { &FILE_TEXT };
+            list = list.child(picker_row(t, format!("canvas-picker-visual-{at}"), glyph, &title, open.then_some("Open"), move |s, tx| {
+                s.open_conversation_visual(payload.clone(), tx)
+            }));
+        }
     }
     let panel = col()
         .key("canvas-picker-menu")
