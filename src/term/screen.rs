@@ -10,7 +10,7 @@ use alacritty_terminal::grid::Dimensions;
 use alacritty_terminal::index::{Column, Line};
 use alacritty_terminal::term::cell::{Cell, Flags};
 use alacritty_terminal::term::color::Colors;
-use alacritty_terminal::term::{Term, TermMode};
+use alacritty_terminal::term::{Term, TermDamage, TermMode};
 use alacritty_terminal::vte::ansi::{Color as Ansi, CursorShape, NamedColor};
 use rune::tok::TextStyle;
 use rune::{Color, GridRow, Span};
@@ -58,24 +58,52 @@ pub struct Screen {
     pub mode: TermMode,
     /// Rows built (not reused) by the last read.
     pub built: usize,
+    /// Rows whose cells were read and hashed by the last read: the rows alacritty said had changed, or all of them.
+    pub scanned: usize,
+    look: u64,
 }
 
 impl Screen {
     /// Reads the rows on screen from `term`, building only rows that changed. `look` says which palette the rows were
-    /// built with: another one rebuilds them all.
-    pub fn read<T: EventListener>(&mut self, term: &Term<T>, pal: &Palette, bg: Color, look: u64) {
+    /// built with: another one rebuilds them all. Rows alacritty's damage says are untouched aren't even looked at (13.17);
+    /// reading takes the damage, so one `Screen` reads one terminal.
+    pub fn read<T: EventListener>(&mut self, term: &mut Term<T>, pal: &Palette, bg: Color, look: u64) {
+        let (lines, cols) = (term.screen_lines(), term.columns());
+        let offset = term.grid().display_offset();
+        let damaged = {
+            let mut hit = vec![false; lines];
+            let all = match term.damage() {
+                TermDamage::Full => true,
+                TermDamage::Partial(it) => {
+                    for d in it {
+                        if let Some(h) = hit.get_mut(d.line) {
+                            *h = true;
+                        }
+                    }
+                    false
+                }
+            };
+            term.reset_damage();
+            // Scrolled back, another palette or another size: every row may differ.
+            let all = all || offset != 0 || look != self.look || cols != self.cols || self.rows.len() != lines;
+            (!all).then_some(hit)
+        };
         let content = term.renderable_content();
-        let offset = content.display_offset;
         let grid = term.grid();
-        let (lines, cols) = (grid.screen_lines(), grid.columns());
         if self.cols != cols {
             self.keys.clear();
         }
+        self.look = look;
         self.cols = cols;
         self.rows.resize_with(lines, || Rc::new(GridRow::new("", Vec::new(), style())));
         self.keys.resize(lines, 0);
         self.built = 0;
+        self.scanned = 0;
         for v in 0..lines {
+            if self.keys[v] != 0 && damaged.as_ref().is_some_and(|d| !d[v]) {
+                continue;
+            }
+            self.scanned += 1;
             let row = &grid[Line(v as i32 - offset as i32)];
             let mut h = std::hash::DefaultHasher::new();
             (look, cols).hash(&mut h);

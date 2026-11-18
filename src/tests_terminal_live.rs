@@ -2,7 +2,7 @@
 //! gets the scrollback, ready, and live output"; "sends input as binary and resize and clear as text") and the slice end to end:
 //! the header button lists or starts the session's terminal, its output is drawn, typing reaches it, and a resize is seen.
 use crate::fleet::link::{Job, Link, Post};
-use crate::fleet::terminal_socket::{Socket, Status};
+use crate::fleet::terminal_socket::{MAX_FAILED_ATTEMPTS, Socket, Status, reconnect_delay};
 use crate::term::{Terminal, text_of};
 use crate::test_wait::{drive, until_true};
 use crate::tests::{FRAME, app, click};
@@ -10,9 +10,13 @@ use rune::{Key, KeyEvent, Mods, Runtime};
 use serde_json::{Value, json};
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use tungstenite::Message;
+use tungstenite::protocol::CloseFrame;
+use tungstenite::protocol::frame::coding::CloseCode;
 
 /// What the fake Fleet was asked, and what its socket heard.
 #[derive(Default)]
@@ -23,6 +27,28 @@ struct Heard {
     sockets: Vec<String>,
     input: Vec<u8>,
     texts: Vec<Value>,
+    /// The close codes the client sent (with the reason).
+    closes: Vec<(u16, String)>,
+}
+
+/// What a test tells the fake's socket to do next.
+enum Cmd {
+    /// A text frame (`exit`, `cleared`).
+    Text(Value),
+    /// A close frame with this code, then the socket ends.
+    Close(u16),
+    /// The connection is cut with no close frame (a dropped network).
+    Cut,
+}
+
+/// What every connection of one fake shares: the live output, the commands, and the two switches.
+struct Shared {
+    live: Mutex<Receiver<Vec<u8>>>,
+    cmds: Mutex<Receiver<Cmd>>,
+    /// While set, a socket is accepted at the TCP level and dropped before the upgrade: it never gets the scrollback.
+    refuse: AtomicBool,
+    /// While set, a socket sends its scrollback but holds back `ready`.
+    hold: AtomicBool,
 }
 
 struct Fake {
@@ -30,6 +56,8 @@ struct Fake {
     heard: Arc<Mutex<Heard>>,
     /// Live output for the socket to send.
     live: Sender<Vec<u8>>,
+    cmds: Sender<Cmd>,
+    shared: Arc<Shared>,
 }
 
 impl Fake {
@@ -39,19 +67,29 @@ impl Fake {
         let base = format!("http://{}", listener.local_addr().unwrap());
         let heard = Arc::new(Mutex::new(Heard::default()));
         let (live, rx) = channel();
-        let rx = Arc::new(Mutex::new(Some(rx)));
-        let shared = heard.clone();
+        let (cmds, cmd_rx) = channel();
+        let shared = Arc::new(Shared {
+            live: Mutex::new(rx),
+            cmds: Mutex::new(cmd_rx),
+            refuse: AtomicBool::new(false),
+            hold: AtomicBool::new(false),
+        });
+        let (heard2, shared2) = (heard.clone(), shared.clone());
         std::thread::spawn(move || {
             for stream in listener.incoming().flatten() {
-                let (heard, rx) = (shared.clone(), rx.clone());
-                std::thread::spawn(move || serve(stream, listed, scrollback, heard, rx));
+                let (heard, shared) = (heard2.clone(), shared2.clone());
+                std::thread::spawn(move || serve(stream, listed, scrollback, heard, shared));
             }
         });
-        Fake { base, heard, live }
+        Fake { base, heard, live, cmds, shared }
     }
 
     fn input(&self) -> Vec<u8> {
         self.heard.lock().unwrap().input.clone()
+    }
+
+    fn sockets(&self) -> Vec<String> {
+        self.heard.lock().unwrap().sockets.clone()
     }
 
     fn texts(&self) -> Vec<Value> {
@@ -64,7 +102,7 @@ impl Fake {
     }
 }
 
-fn serve(stream: TcpStream, listed: &[&str], scrollback: &[u8], heard: Arc<Mutex<Heard>>, live: Arc<Mutex<Option<Receiver<Vec<u8>>>>>) {
+fn serve(stream: TcpStream, listed: &[&str], scrollback: &[u8], heard: Arc<Mutex<Heard>>, shared: Arc<Shared>) {
     // Look at the request without taking it: a socket's upgrade is read by `accept` itself.
     let mut buf = [0u8; 4096];
     let head = loop {
@@ -81,8 +119,10 @@ fn serve(stream: TcpStream, listed: &[&str], scrollback: &[u8], heard: Arc<Mutex
     let path = line.split(' ').nth(1).unwrap_or("").to_string();
     if path.contains("/socket?") {
         heard.lock().unwrap().sockets.push(path);
-        let Some(rx) = live.lock().unwrap().take() else { return };
-        return socket(stream, scrollback, heard, rx);
+        if shared.refuse.load(Ordering::SeqCst) {
+            return;
+        }
+        return socket(stream, scrollback, heard, &shared);
     }
     let mut reader = BufReader::new(stream.try_clone().unwrap());
     let mut length = 0usize;
@@ -117,23 +157,44 @@ fn serve(stream: TcpStream, listed: &[&str], scrollback: &[u8], heard: Arc<Mutex
 }
 
 /// `TerminalSocket.cs`'s side: the saved scrollback in binary frames, `ready`, then live output; input and control are heard.
-fn socket(stream: TcpStream, scrollback: &[u8], heard: Arc<Mutex<Heard>>, live: Receiver<Vec<u8>>) {
+fn socket(stream: TcpStream, scrollback: &[u8], heard: Arc<Mutex<Heard>>, shared: &Shared) {
     let Ok(mut ws) = tungstenite::accept(stream) else { return };
     for chunk in scrollback.chunks(16 * 1024) {
         let _ = ws.send(Message::binary(chunk.to_vec()));
     }
+    while shared.hold.load(Ordering::SeqCst) {
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
     let _ = ws.send(Message::text(r#"{"type":"ready"}"#));
     let _ = ws.get_ref().set_read_timeout(Some(std::time::Duration::from_millis(5)));
     loop {
-        while let Ok(out) = live.try_recv() {
+        while let Ok(out) = shared.live.lock().unwrap().try_recv() {
             if ws.send(Message::binary(out)).is_err() {
                 return;
             }
         }
+        let cmd = shared.cmds.lock().unwrap().try_recv();
+        match cmd {
+            Ok(Cmd::Text(v)) => {
+                let _ = ws.send(Message::text(v.to_string()));
+            }
+            Ok(Cmd::Close(code)) => {
+                let _ = ws.close(Some(CloseFrame { code: CloseCode::from(code), reason: "".into() }));
+                let _ = ws.flush();
+                return;
+            }
+            Ok(Cmd::Cut) => return,
+            Err(_) => {}
+        }
         match ws.read() {
             Ok(Message::Binary(b)) => heard.lock().unwrap().input.extend_from_slice(&b),
             Ok(Message::Text(t)) => heard.lock().unwrap().texts.push(serde_json::from_str(&t).unwrap_or(Value::Null)),
-            Ok(Message::Close(_)) | Err(tungstenite::Error::ConnectionClosed) => return,
+            Ok(Message::Close(frame)) => {
+                let (code, reason) = frame.map_or((1005, String::new()), |f| (u16::from(f.code), f.reason.to_string()));
+                heard.lock().unwrap().closes.push((code, reason));
+                return;
+            }
+            Err(tungstenite::Error::ConnectionClosed) => return,
             Err(tungstenite::Error::Io(e)) if matches!(e.kind(), std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut) => {}
             Err(_) => return,
             Ok(_) => {}
@@ -181,6 +242,193 @@ fn a_cursor_position_query_from_the_shell_is_answered_over_the_socket() {
     until_true("the socket to be ready", || socket.status() == Status::Open);
     fake.live.send(b"\x1b[6n".to_vec()).unwrap();
     until_true("the answer", || fake.input() == b"\x1b[2;4R");
+}
+
+// ---- the connection, whole (piece B) -------------------------------------------------------------------------------------------
+
+/// Waits of a few milliseconds, so a test needn't sit through 250 ms to 8 s.
+fn quick(_attempt: u32) -> Duration {
+    Duration::from_millis(2)
+}
+
+fn open_quick(fake: &Fake, path: &str, size: (u16, u16)) -> (Socket, Arc<Terminal>) {
+    let term = Arc::new(Terminal::new(size.0, size.1));
+    (Socket::open_with(&fake.base, path, size, term.clone(), quick, || {}), term)
+}
+
+/// After `what` happened, a connection that must not come stays away: the waits are 2 ms, so this is dozens of them.
+fn nothing_more_comes(fake: &Fake, sockets: usize) {
+    std::thread::sleep(Duration::from_millis(150));
+    assert_eq!(fake.sockets().len(), sockets, "a connection was made that shouldn't have been");
+}
+
+#[test]
+fn the_waits_between_attempts_are_fleets() {
+    let waits: Vec<u128> = (1..=8).map(|n| reconnect_delay(n).as_millis()).collect();
+    assert_eq!(waits, [250, 500, 1000, 2000, 4000, 8000, 8000, 8000]);
+}
+
+// terminal-socket.test.ts: "connects to a terminal that isn't a session's under its base path"
+#[test]
+fn connects_to_a_terminal_that_isnt_a_sessions_under_its_base_path() {
+    let fake = Fake::start(&[], b"");
+    let (socket, _term) = open_quick(&fake, "/api/setup/terminals/t1", (100, 30));
+    until_true("the socket to be ready", || socket.status() == Status::Open);
+    assert_eq!(fake.sockets(), ["/api/setup/terminals/t1/socket?cols=100&rows=30"]);
+}
+
+// session-calls-machine.test.ts: "opens a terminal's socket on the machine provided, with its token in the query"
+#[test]
+fn opens_a_terminals_socket_on_the_machine_provided_with_its_token_in_the_query() {
+    let fake = Fake::start(&[], b"");
+    crate::fleet::auth::set_for(&fake.base, Some("falcon+token/1"));
+    let (socket, _term) = open_quick(&fake, PATH, (80, 24));
+    until_true("the socket to be ready", || socket.status() == Status::Open);
+    crate::fleet::auth::set_for(&fake.base, None);
+    assert_eq!(fake.sockets(), [format!("{PATH}/socket?cols=80&rows=24&access_token=falcon%2Btoken%2F1")]);
+    // Another machine's address carries its own token and never this one's.
+    let url = crate::fleet::terminal_socket::socket_url("https://studio.example.test", PATH, 80, 24).unwrap();
+    assert_eq!(url, format!("wss://studio.example.test:443{PATH}/socket?cols=80&rows=24"));
+}
+
+// terminal-socket.test.ts: "keeps what's typed before the socket is ready and sends it after"
+#[test]
+fn keeps_whats_typed_before_the_socket_is_ready_and_sends_it_after() {
+    let fake = Fake::start(&[], b"");
+    fake.shared.hold.store(true, Ordering::SeqCst);
+    let (socket, _term) = open_quick(&fake, PATH, (80, 24));
+    until_true("the socket to connect", || fake.sockets().len() == 1);
+    socket.write(b"echo early\r".to_vec());
+    assert_eq!(socket.status(), Status::Connecting);
+    fake.shared.hold.store(false, Ordering::SeqCst);
+    until_true("the early input to arrive", || fake.input() == b"echo early\r");
+    assert_eq!(socket.status(), Status::Open);
+}
+
+// terminal-socket.test.ts: "reports the exit and doesn't reconnect after the shell ends"
+#[test]
+fn reports_the_exit_and_doesnt_reconnect_after_the_shell_ends() {
+    let fake = Fake::start(&[], b"");
+    let (socket, _term) = open_quick(&fake, PATH, (80, 24));
+    until_true("the socket to be ready", || socket.status() == Status::Open);
+    fake.cmds.send(Cmd::Text(json!({"type": "exit", "exitCode": 3}))).unwrap();
+    fake.cmds.send(Cmd::Close(1000)).unwrap();
+    until_true("the exit", || socket.status() == Status::Ended(Some(3)));
+    nothing_more_comes(&fake, 1);
+    assert_eq!(socket.status(), Status::Ended(Some(3)), "the close after the exit doesn't take the code away");
+    // Typing at an ended shell goes nowhere.
+    socket.write(b"ls\r".to_vec());
+    assert!(fake.input().is_empty());
+}
+
+// terminal-socket.test.ts: "reports a null exit code when Fleet ended the shell"
+#[test]
+fn reports_a_null_exit_code_when_fleet_ended_the_shell() {
+    let fake = Fake::start(&[], b"");
+    let (socket, _term) = open_quick(&fake, PATH, (80, 24));
+    until_true("the socket to be ready", || socket.status() == Status::Open);
+    fake.cmds.send(Cmd::Text(json!({"type": "exit", "exitCode": null}))).unwrap();
+    until_true("the exit", || socket.status() == Status::Ended(None));
+}
+
+// 13.24: a normal close with no `exit` is an end too.
+#[test]
+fn a_normal_close_ends_it_with_no_reconnect() {
+    let fake = Fake::start(&[], b"");
+    let (socket, _term) = open_quick(&fake, PATH, (80, 24));
+    until_true("the socket to be ready", || socket.status() == Status::Open);
+    fake.cmds.send(Cmd::Close(1000)).unwrap();
+    until_true("the end", || socket.status() == Status::Ended(None));
+    nothing_more_comes(&fake, 1);
+}
+
+// terminal-socket.test.ts: "reconnects after a drop, and the new connection starts from a reset"; ours: 4001, then 1001, then a cut
+#[test]
+fn reconnects_after_a_drop_and_the_new_connection_starts_from_a_reset() {
+    for (n, drop) in [Some(4001), Some(1001), None].into_iter().enumerate() {
+        let fake = Fake::start(&[], b"old output\r\n");
+        // A long wait, so Reconnecting can be seen standing between the two.
+        let term = Arc::new(Terminal::new(80, 24));
+        let socket = Socket::open_with(&fake.base, PATH, (80, 24), term.clone(), |_| Duration::from_millis(400), || {});
+        until_true("the socket to be ready", || socket.status() == Status::Open);
+        fake.live.send(b"live line\r\n".to_vec()).unwrap();
+        until_true("live output", || text_of(&term).iter().any(|r| r == "live line"));
+        fake.cmds.send(drop.map_or(Cmd::Cut, Cmd::Close)).unwrap();
+        until_true("the drop to be noticed", || socket.status() == Status::Reconnecting);
+        until_true("the second connection", || fake.sockets().len() == 2 && socket.status() == Status::Open);
+        // The scrollback replayed into a blank terminal: once, and the live line of the first connection is gone.
+        let rows = text_of(&term);
+        assert_eq!(rows.iter().filter(|r| *r == "old output").count(), 1, "case {n}: {rows:?}");
+        assert!(!rows.iter().any(|r| r == "live line"), "case {n}: {rows:?}");
+        // Input after the reconnect reaches the new socket.
+        socket.write(b"x".to_vec());
+        until_true("input on the new socket", || fake.input() == b"x");
+    }
+}
+
+// terminal-socket.test.ts: "gives up after repeated attempts that never get the scrollback"
+#[test]
+fn gives_up_after_repeated_attempts_that_never_get_the_scrollback() {
+    let fake = Fake::start(&[], b"");
+    fake.shared.refuse.store(true, Ordering::SeqCst);
+    let (socket, _term) = open_quick(&fake, PATH, (80, 24));
+    until_true("the last attempt", || socket.status() == Status::Failed);
+    assert_eq!(fake.sockets().len(), MAX_FAILED_ATTEMPTS as usize);
+    nothing_more_comes(&fake, MAX_FAILED_ATTEMPTS as usize);
+}
+
+// 13.26: an attempt that reached `ready` starts the count again, so a flaky network never fails.
+#[test]
+fn an_attempt_that_reached_ready_starts_the_count_again() {
+    let fake = Fake::start(&[], b"");
+    let (socket, _term) = open_quick(&fake, PATH, (80, 24));
+    until_true("the socket to be ready", || socket.status() == Status::Open);
+    // Four drops that reach `ready`, then refusals: failing takes five of those, not one.
+    for round in 1..=4 {
+        fake.cmds.send(Cmd::Close(4001)).unwrap();
+        until_true("the next connection", || fake.sockets().len() == round + 1 && socket.status() == Status::Open);
+    }
+    fake.shared.refuse.store(true, Ordering::SeqCst);
+    fake.cmds.send(Cmd::Cut).unwrap();
+    until_true("the end", || socket.status() == Status::Failed);
+    assert_eq!(fake.sockets().len(), 5 + MAX_FAILED_ATTEMPTS as usize, "five refusals after the fifth good connection");
+}
+
+// terminal-socket.test.ts: "closes normally when disposed and doesn't reconnect"
+#[test]
+fn closes_normally_when_disposed_and_doesnt_reconnect() {
+    let fake = Fake::start(&[], b"");
+    let (socket, _term) = open_quick(&fake, PATH, (80, 24));
+    until_true("the socket to be ready", || socket.status() == Status::Open);
+    drop(socket);
+    until_true("the close", || !fake.heard.lock().unwrap().closes.is_empty());
+    assert_eq!(fake.heard.lock().unwrap().closes, [(1000, "Closed by the page.".to_string())]);
+    nothing_more_comes(&fake, 1);
+}
+
+// Disposing while it waits to reconnect stops it for good.
+#[test]
+fn disposing_while_reconnecting_stops_the_reconnect() {
+    let fake = Fake::start(&[], b"");
+    let term = Arc::new(Terminal::new(80, 24));
+    let socket = Socket::open_with(&fake.base, PATH, (80, 24), term, |_| Duration::from_millis(300), || {});
+    until_true("the socket to be ready", || socket.status() == Status::Open);
+    fake.cmds.send(Cmd::Cut).unwrap();
+    until_true("the wait", || socket.status() == Status::Reconnecting);
+    drop(socket);
+    std::thread::sleep(Duration::from_millis(500));
+    assert_eq!(fake.sockets().len(), 1, "no second connection after the page let go");
+}
+
+// terminal-socket.test.ts: "passes on a clear from another window"
+#[test]
+fn passes_on_a_clear_from_another_window() {
+    let fake = Fake::start(&[], b"one\r\ntwo");
+    let (socket, term) = open_quick(&fake, PATH, (80, 24));
+    until_true("the socket to be ready", || socket.status() == Status::Open);
+    assert_eq!(text_of(&term)[..2], ["one", "two"]);
+    fake.cmds.send(Cmd::Text(json!({"type": "cleared"}))).unwrap();
+    until_true("the screen to clear", || text_of(&term).iter().all(String::is_empty));
 }
 
 // ---- the slice, end to end --------------------------------------------------------------------------------------------------
@@ -325,4 +573,51 @@ fn ctrl_j_toggles_and_other_keys_stay_the_shells() {
 
 fn fake_input_is(fake: &Fake, want: &[u8]) -> bool {
     fake.input() == want
+}
+
+// ---- what the view shows of the connection (13.29, 13.30, 13.24) -------------------------------------------------------------
+
+fn with_status(status: Status) -> Runtime<crate::State> {
+    let mut rt = app();
+    rt.update(move |s, _| {
+        s.set_session_id((0, 0), "s1");
+        s.terminal.session = s.open_id();
+        s.terminal.replay(60, 6, b"demo $ ls\r\nsrc  tests\r\ndemo $ ");
+        s.terminal.live.as_mut().unwrap().socket = Some(Socket::fixed(status));
+    });
+    rt.frame(FRAME);
+    rt
+}
+
+#[test]
+fn the_reconnecting_notice_shows_only_while_reconnecting() {
+    for (status, notice, failed) in [
+        (Status::Reconnecting, true, false),
+        (Status::Open, false, false),
+        (Status::Connecting, false, false),
+        (Status::Failed, false, true),
+    ] {
+        let rt = with_status(status.clone());
+        assert_eq!((rt.find("terminal-notice").is_some(), rt.find("terminal-failed").is_some()), (notice, failed), "{status:?}");
+    }
+}
+
+#[test]
+fn the_failed_panel_says_why_and_close_tab_ends_the_tab() {
+    let mut rt = with_status(Status::Failed);
+    assert!(rt.find("terminal-close-tab").is_some());
+    click(&mut rt, "terminal-close-tab");
+    assert!(rt.find("terminal-drawer").is_none(), "the tab and its drawer went");
+    assert!(rt.state.terminal.live.is_none());
+}
+
+#[test]
+fn a_shell_that_exits_takes_its_tab_with_it() {
+    let mut live = Live::start(Fake::start(&["t1"], b"demo $ "));
+    click(&mut live.rt, "terminal");
+    live.wait("the socket to open", |s| s.terminal.status() == Some(Status::Open));
+    live.fake.cmds.send(Cmd::Text(json!({"type": "exit", "exitCode": 0}))).unwrap();
+    live.fake.cmds.send(Cmd::Close(1000)).unwrap();
+    live.wait("the tab to go", |s| s.terminal.live.is_none());
+    assert!(live.rt.find("terminal-drawer").is_none());
 }

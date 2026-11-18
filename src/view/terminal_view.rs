@@ -1,10 +1,11 @@
 //! Ports `TerminalView.vue`'s box (component 13, piece A): the terminal's grid in its padded box, the block cursor, the keys.
 //! The drawer around it (tabs, header, grip) is piece D's; here it is a plain 272 px box under the composer
 //! (`TerminalDrawer.vue`'s default height).
-use rune::{El, Key, KeyEvent, Tx, col, el, grid, text};
+use rune::{Cursor, El, Key, KeyEvent, Tx, col, el, grid, row, text};
 
 use crate::State;
 use crate::fleet::terminal_slot::VIEW_KEY;
+use crate::fleet::terminal_socket::Status;
 use crate::term::fit::{CELL_H, CELL_W, PAD};
 use crate::term::palette::Palette;
 use crate::term::screen::style;
@@ -25,8 +26,67 @@ pub fn drawer(s: &State, t: &Theme) -> Option<El> {
             .h(if slot.height > 0.0 { slot.height } else { HEIGHT })
             .fill(t.terminal_bg())
             .child(el().h(1.0).fill(t.border))
-            .child(body(s, t)),
+            .child(area(s, t)),
     )
+}
+
+/// `TerminalView.vue`'s box: the grid and, over it, the "Reconnecting…" notice or the failed panel.
+fn area(s: &State, t: &Theme) -> El {
+    let mut area = col().grow(1.0).min_h(0.0).min_w(0.0).child(body(s, t));
+    match s.terminal.status() {
+        Some(Status::Reconnecting) => area = area.child(notice(t)),
+        Some(Status::Failed) => area = area.child(failed(t)),
+        _ => {}
+    }
+    area
+}
+
+/// `.terminal-view__notice`: top 8, right 12, `--idle` at 14 % behind `--idle-text`; it takes no clicks.
+fn notice(t: &Theme) -> El {
+    row().key("terminal-notice").absolute(0.0, 0.0).w_full().justify_end().pt(8.0).pr(12.0).child(
+        el().px(8.0)
+            .py(2.0)
+            .radius(6.0)
+            .fill(t.idle.alpha(0.14))
+            .child(text("Reconnecting\u{2026}").font(crate::theme::sans(11.5, 500.0, 1.4)).color(t.idle_text)),
+    )
+}
+
+/// `.terminal-view__failed`: over the view, `--panel-bg` at 85 %, the words and Close tab.
+fn failed(t: &Theme) -> El {
+    let button = el()
+        .key("terminal-close-tab")
+        .h(28.0)
+        .px(12.0)
+        .center()
+        .radius(crate::theme::RADIUS_BTN)
+        .border(1.0, t.border)
+        .border_layout()
+        .fill(t.panel_bg)
+        .hover(t.mix(t.panel_bg, t.text, 0.95))
+        .cursor(Cursor::Pointer)
+        .label("Close tab")
+        .on_press(|s: &mut State| s.end_terminal())
+        .child(text("Close tab").font(crate::theme::sans(12.5, 400.0, 1.4)).color(t.text));
+    col()
+        .key("terminal-failed")
+        .absolute(0.0, 0.0)
+        .w_full()
+        .h_full()
+        .center()
+        .gap(10.0)
+        .px(16.0)
+        .py(16.0)
+        .fill(t.panel_bg.alpha(0.85))
+        .child(
+            text("This terminal can't be reached. Its shell may have ended while Fleet was away.")
+                .font(crate::theme::sans(12.5, 400.0, 1.4))
+                .color(t.muted)
+                .max_w(320.0)
+                .align(rune::Align::Center)
+                .wrap(),
+        )
+        .child(button)
 }
 
 fn body(s: &State, t: &Theme) -> El {
@@ -57,7 +117,7 @@ fn body(s: &State, t: &Theme) -> El {
     let look = look_of(t);
     {
         let mut screen = live.screen.borrow_mut();
-        live.term.read(|term| screen.read(term, &pal, t.terminal_bg(), look));
+        live.term.read_damage(|term| screen.read(term, &pal, t.terminal_bg(), look));
     }
     let screen = live.screen.borrow();
     let (cols, rows) = (screen.cols, screen.rows.len());

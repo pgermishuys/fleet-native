@@ -97,26 +97,26 @@ Owner: `13` = this component, with the piece; another number = that component. "
 | 13.11 | The rest of the attributes: dim (half opacity), strikethrough, curly/double/dotted/dashed underlines and the underline colour (SGR 58), hidden, overline; bold with colours 0–7 drawn in their bright colour (xterm's `drawBoldTextInBrightColors`, on by default) | xterm | None | 13 G |
 | 13.12 | Cursor: a block that blinks while focused (`cursorBlink: true`), drawn as an outline while not focused; DECSCUSR shapes (bar, underline, steady); hidden by DECTCEM | TV `cursorBlink`; xterm | Done in A (block and outline done; blink and shapes G) | 13 A (block), G (the rest)  |
 | 13.13 | Focus: a press in the terminal gives it the keyboard; the drawer border turns accent (13.43) and the status bar says so (13.62); **on focus the view sends its own size again**, because another client attaching resized the shell | TV `onFocus` | None | 13 E |
-| 13.14 | `clear()` (the drawer's Clear): clears this view and sends `{"type":"clear"}` so the server drops the scrollback for everyone; `{"type":"cleared"}` from elsewhere clears this view | TV `defineExpose.clear`, `onCleared` | None | 13 B |
+| 13.14 | `clear()` (the drawer's Clear): clears this view and sends `{"type":"clear"}` so the server drops the scrollback for everyone; `{"type":"cleared"}` from elsewhere clears this view | TV `defineExpose.clear`, `onCleared` | Done in B (clear sends `{"type":"clear"}`; `cleared` resets the view; the drawer's Clear button is D's) | 13 B 
 | 13.15 | The window title (OSC 0/2) and the bell are ignored (tab titles come from the server; xterm 6's bell is off) | TV, xterm | n/a | 13 G |
 | 13.16 | Parser answers (DA, DSR cursor position) go back to the shell as input | xterm `onData` | Done in A | 13 A  |
-| 13.17 | A flood keeps the window drawing; rows that didn't change aren't rebuilt (`Rc<GridRow>` reused; alacritty's damage instead of hashing every cell) | research | Done in A (row reuse done; damage and flood B) | 13 A (reuse), B (damage, flood)  |
+| 13.17 | A flood keeps the window drawing; rows that didn't change aren't rebuilt (`Rc<GridRow>` reused; alacritty's damage instead of hashing every cell) | research | Done (reuse in A; damage in B: `Screen::read` takes alacritty's damage and looks at no other row; the flood's live check is below) | 13 A, B 
 
 ### 2. The connection (SO, TA, TC; server)
 
 | # | Row | Source | Native today | Owner |
 |---|---|---|---|---|
-| 13.20 | Socket address `{ws|wss}://<machine>/api/sessions/{id}/terminals/{terminalId}/socket?cols=&rows=` (or under a base path, 13.80), the session's machine, its token as `&access_token=` (`session-calls-machine.test.ts`) | TA `terminalSocketUrl` | Done in A (home machine done; others B) | 13 A (home), B (other machines)  |
+| 13.20 | Socket address `{ws|wss}://<machine>/api/sessions/{id}/terminals/{terminalId}/socket?cols=&rows=` (or under a base path, 13.80), the session's machine, its token as `&access_token=` (`session-calls-machine.test.ts`) | TA `terminalSocketUrl` | Done (A: home; B: another machine's address and token, `socket_url`, test "opens a terminal's socket on the machine provided…") | 13 B 
 | 13.21 | On open: reset the view; then binary frames are the saved scrollback, then `{"type":"ready"}`, then live output | SO | Done in A | 13 A  |
-| 13.22 | Input as binary frames; `resize` and `clear` as text; anything typed before `ready` (or while reconnecting) kept up to 4,096 bytes and sent after `ready`; more is dropped | SO `write`, `MAX_PENDING_INPUT` | Done in A (send done; the 4,096-byte queue B) | 13 A (send), B (pending)  |
-| 13.23 | `{"type":"exit","exitCode":n}`: the shell ended; `exitCode` null when Fleet ended it; no reconnect after | SO | None | 13 B |
-| 13.24 | Close 1000 (or after `exit`): status `ended`, no reconnect; the tab goes (13.34) | SO `NORMAL_CLOSURE` | None | 13 B |
-| 13.25 | Any other close (4001 "fell behind the terminal's output", 1001 Fleet stopping, a dropped network): reconnect after 250, 500, 1000, 2000, 4000, 8000, 8000… ms; each reconnect resets the view and the scrollback replays | SO `RECONNECT_DELAYS_MS` | None | 13 B |
-| 13.26 | 5 attempts in a row that never reached `ready`: status `failed`, stop | SO `MAX_FAILED_ATTEMPTS` | None | 13 B |
-| 13.27 | Statuses `connecting` → `open` → `reconnecting` / `ended` / `failed` | SO | None | 13 B |
-| 13.28 | Dispose (tab closed, session left): close 1000 "Closed by the page.", no reconnect | SO `dispose` | None | 13 B |
-| 13.29 | "Reconnecting…": top 8, right 12, padding 2/8, radius 6, `--idle` at 14 % behind `--idle-text`, 11.5 px/500, no pointer events | TV `.terminal-view__notice` | None | 13 B |
-| 13.30 | Failed: over the view (`--panel-bg` at 85 %), centred, `--muted` 12.5 px, max 44ch: "This terminal can't be reached. Its shell may have ended while Fleet was away." and **Close tab** (28 px, padding 0 12, 1 px border, radius btn, `--panel-bg`, 12.5 px) which ends the tab as 13.34 | TV `.terminal-view__failed` | None | 13 B |
+| 13.22 | Input as binary frames; `resize` and `clear` as text; anything typed before `ready` (or while reconnecting) kept up to 4,096 bytes and sent after `ready`; more is dropped | SO `write`, `MAX_PENDING_INPUT` | Done (A: send; B: the 4,096-byte queue, `Keep::hold`) | 13 B 
+| 13.23 | `{"type":"exit","exitCode":n}`: the shell ended; `exitCode` null when Fleet ended it; no reconnect after | SO | Done in B (`Status::Ended(code)`, no reconnect; input after it is dropped) | 13 B 
+| 13.24 | Close 1000 (or after `exit`): status `ended`, no reconnect; the tab goes (13.34) | SO `NORMAL_CLOSURE` | Done in B (status `Ended`; the view's tab goes: `end_terminal` hides the drawer, which tabs (C) will refine) | 13 B 
+| 13.25 | Any other close (4001 "fell behind the terminal's output", 1001 Fleet stopping, a dropped network): reconnect after 250, 500, 1000, 2000, 4000, 8000, 8000… ms; each reconnect resets the view and the scrollback replays | SO `RECONNECT_DELAYS_MS` | Done in B (`reconnect_delay`; 4001, 1001 and a cut socket each reconnect, the view resets and the scrollback replays) | 13 B 
+| 13.26 | 5 attempts in a row that never reached `ready`: status `failed`, stop | SO `MAX_FAILED_ATTEMPTS` | Done in B (five in a row that never reached `ready`; one that did starts the count again) | 13 B 
+| 13.27 | Statuses `connecting` → `open` → `reconnecting` / `ended` / `failed` | SO | Done in B (`Status`: Connecting, Open, Reconnecting, Ended, Failed) | 13 B 
+| 13.28 | Dispose (tab closed, session left): close 1000 "Closed by the page.", no reconnect | SO `dispose` | Done in B (dropping the `Socket` closes 1000 "Closed by the page."; also while waiting to reconnect) | 13 B 
+| 13.29 | "Reconnecting…": top 8, right 12, padding 2/8, radius 6, `--idle` at 14 % behind `--idle-text`, 11.5 px/500, no pointer events | TV `.terminal-view__notice` | Done in B (`view::terminal_view::notice`, scene `terminal-reconnecting`) | 13 B 
+| 13.30 | Failed: over the view (`--panel-bg` at 85 %), centred, `--muted` 12.5 px, max 44ch: "This terminal can't be reached. Its shell may have ended while Fleet was away." and **Close tab** (28 px, padding 0 12, 1 px border, radius btn, `--panel-bg`, 12.5 px) which ends the tab as 13.34 | TV `.terminal-view__failed` | Done in B (`failed`; Close tab ends the tab as 13.24; scene `terminal-failed`) | 13 B 
 | 13.31 | REST: `GET …/terminals` → `[{id,title,status:"running"|"stopped",createdAt}]` oldest first (a `stopped` one starts a new shell under its old scrollback when its socket opens); `POST {cols,rows}` → 201; `DELETE …/{id}` (404 is fine). A refusal's words are the body's `error`, else "The terminal request failed (HTTP n)."; no answer at all: "Couldn't reach Fleet to open a terminal." Server words seen: "This session already has 8 terminals. Close one to open another.", "This session is archived, so it can't open terminals.", "Terminals are turned off." | TA, UST, `TerminalManager.cs` | `http::setup_terminal_*` only | 13 A (list, create), C (close, words) |
 | 13.32 | Server facts the client lives with: one shell has one size; replay is the last 5,000 lines or 2 MiB with queries stripped; 64 queued frames per client then 4001; at most 8 terminals a session and 32 live; tab titles "zsh", "zsh 2" from the shell's name | server | n/a | written down |
 
@@ -221,6 +221,22 @@ Owner: `13` = this component, with the piece; another number = that component. "
 | `lib/__tests__/terminal-keys.test.ts` | all 4: "leaves Ctrl J and Ctrl Shift B to Fleet", "copies with Ctrl Shift C and pastes with Ctrl Shift V", "follows a rebound terminal shortcut" (the native app has no rebinding yet: port against the binding table), "leaves Ctrl Shift C to the shell, since ⌘ C copies" | E |
 | `components/layout/__tests__/StatusBar.test.ts` | "hides the terminal from the terminal's own hints, and leaves the rest as text" | E |
 | `lib/__tests__/format-terminal-context.test.ts`, `composables/__tests__/use-draft-terminal-context.test.ts` | done by component 5 (piece O) | 5 |
+
+### Piece B, what was done on 18 November 2026
+
+Done: 13.14, 13.17 (damage), 13.20 (other machines), 13.22 (the 4,096-byte queue), 13.23–13.30. `Socket` is now a connection that keeps itself:
+one thread connects, serves, and after a drop waits 250, 500, 1000, 2000, 4000, 8000, 8000… ms (`reconnect_delay`; `Socket::open_with` takes other waits so
+tests needn't sit through them) and connects again, until the shell ends, the page lets go, or five attempts in a row never reached `ready`.
+Ported by name: all nine remaining cases of `terminal-socket.test.ts` and the `session-calls-machine` socket case; ours: 4001, 1001 and a cut
+socket each reconnect into a reset terminal; a normal close ends it; an attempt that reached `ready` resets the failed count; a dispose while waiting
+stops it; the view's notice and failed panel; the shell's exit takes the tab; the damage test.
+Left open and why: the **failed panel's Close tab and a shell's exit only hide the drawer and drop the socket**: closing the tab on the server and
+the neighbouring tab are C's. **Live, not done:** the flood (`yes | head -c 50000000`) and "stop and restart the scratch Fleet, Reconnecting… then back"
+were not run in a real window (the headless clock isn't real time, and driving an Xvfb window by hand didn't work in this session); both are covered by tests
+against a real WebSocket server on loopback (kill and reconnect, replay, reset), and Fleet's side (kill -9 of the scratch server) is in the pictures.
+Written down for Fleet: the reconnect delay index never resets after a good connection, so a long session waits 8 s after its third drop (ported as is);
+a graceful stop of the v0.72.0 server showed no Reconnecting… in Fleet's own page within 8 s, a kill -9 did after about 4 s.
+Pictures: `shots/parity/13-terminal/B/`.
 
 ### Piece A, what was done on 18 November 2026
 

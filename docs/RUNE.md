@@ -1710,3 +1710,10 @@ Nothing in Rune was needed.
 - **`El::on_key` on a `focusable(true)` box** receives every key before the window's `on_key` (Esc, Ctrl K), and a click focuses it with no `on_press`; adding an `on_press_tx` as well swallowed Enter.
 - **A focused box's focus state isn't readable while building the view**: `Tx::focused()` is read in `poll` once a frame and kept in `State` for the cursor's block-or-outline.
 - **`Term::read` closures**: `impl Trait` can't nest in a closure bound; `alacritty_terminal`'s listener type has to be public for a wrapper to name it.
+
+## Component 13, piece B (the connection)
+
+- **`Term::damage()` needs `&mut Term`**, so reading the screen takes the terminal's lock for writing (`Terminal::read_damage`); it must be read and `reset_damage()`d once per
+  read by one reader. Damage says nothing when scrolled back or after a resize: both read every row.
+- **A blocking `ws.read()` with a 20 ms timeout hides the UI's queue for that long**: input sent just before `ready` can be written directly after it
+  instead of being kept, so a test can't observe the pending queue through a socket; it is tested on the queue itself.
