@@ -164,7 +164,13 @@ pub fn all(s: &State) -> Vec<Command> {
         cmd
     };
     list.push(file("go-to-file", "Go to file…", "Open a file from this session by name.", &FILE_SEARCH, "P"));
-    list.push(file("find-in-files", "Find in files…", "Search inside the files of this session's folder.", &TEXT_SEARCH, "Shift+F"));
+    let mut find = file("find-in-files", "Find in files…", "Search inside the files of this session's folder.", &TEXT_SEARCH, "Shift+F");
+    find.run = now(|s, _| s.find_in_files_ask());
+    if !open {
+        find.description = "Open a session to search its files.".into();
+    }
+    find.keywords = &["search", "grep", "text", "contents", "inside", "files"];
+    list.push(find);
     let mut focus = c(
         "focus-prompt",
         "Focus prompt",

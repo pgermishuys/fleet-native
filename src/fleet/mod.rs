@@ -43,6 +43,7 @@ pub mod file_buffers;
 pub mod file_live;
 pub mod file_open;
 pub mod find;
+pub mod find_text;
 pub mod finder;
 pub mod fork;
 pub mod go_to_file;

@@ -1831,3 +1831,9 @@ Read at the pin while planning; nothing built yet.
 
 - A one-line bottom rule on a row is `.border_sides([0.0, 0.0, 1.0, 0.0], c).border_layout()` (top, right, bottom, left); without `border_layout` it takes no room.
 - A debounce that waits for the clock needs a `tx.wake_after` for the remaining time, or a quiet window never draws the answer.
+
+
+## Component 12, piece O (find in files, the logic)
+
+- **Nothing new from Rune.** A debounce is the app's own clock plus `tx.wake_after`, as Find in Changes does; a test runs it by drawing frames until `State.clock` has passed the pause, and waits for the request with `test_wait::drive` before it counts requests.
+- **Ctrl/Cmd+Shift+F is read in `on_key`** like the other window shortcuts; `is_command('f')` ignores the shift, so check `mods.shift` for it and leave Ctrl+F (`is_find_shortcut`) to the find bars.

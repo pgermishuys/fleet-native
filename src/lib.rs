@@ -66,6 +66,8 @@ mod tests_draft_row;
 #[cfg(test)]
 mod tests_files_tab;
 #[cfg(test)]
+mod tests_find_text;
+#[cfg(test)]
 mod tests_folder_clone;
 #[cfg(test)]
 mod tests_folder_menu;
@@ -404,6 +406,9 @@ pub struct State {
     pub annotation: fleet::annotation::Annotation,
     /// Find in Changes: the bar's query and matches, and the machine's search (`fleet::changes_find`).
     pub changes_find: fleet::changes_find::ChangesFind,
+    /// Find in files: the machine's search of the session's folder, and the request for the Files tab to start one (`fleet::find_text`).
+    pub find_text: fleet::find_text::FindText,
+    pub find_in_files: fleet::find_text::FindInFiles,
     /// The page canvas "Open page" asked the content panel to show; the tab is component 14's.
     pub page_target: Option<String>,
     /// The web views over page tabs: where the page area is, and whether this window can host one (`web`).
@@ -711,6 +716,8 @@ impl Default for State {
             review: Default::default(),
             annotation: Default::default(),
             changes_find: Default::default(),
+            find_text: Default::default(),
+            find_in_files: Default::default(),
             page_target: None,
             web: Default::default(),
             allowed_flash: None,
@@ -1504,8 +1511,12 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_attachments(tx)
         | s.keep_new_message(tx)
         | s.keep_new_mentions(now, tx);
-    let scrolled =
-        s.keep_scroll(tx) | s.keep_review_near() | s.keep_review_focus(tx) | s.keep_changes_find(now, tx) | s.keep_review_toast(now, tx);
+    let scrolled = s.keep_scroll(tx)
+        | s.keep_review_near()
+        | s.keep_review_focus(tx)
+        | s.keep_changes_find(now, tx)
+        | s.keep_review_toast(now, tx)
+        | s.keep_find_text(now, tx);
     // The tick asks for the next frame first, so `keep_images` starts it in the same poll.
     let agent_view = s.keep_agent_view(now, tx);
     let pictures = s.keep_images(tx) | agent_view;
@@ -1673,6 +1684,9 @@ fn on_key(s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool {
     } else if ev.is_command('n') && !ev.mods.shift {
         // `Cmd+N` on macOS, `Ctrl+N` elsewhere (A2.5): the page for a session in no project in particular.
         s.open_new_session_page(None);
+    } else if ev.is_command('f') && ev.mods.shift && !ev.mods.alt {
+        // Find in files: the palette's command, from anywhere, the composer too (`allowInEditable`).
+        ui::commands::run(s, tx, "find-in-files");
     } else if ev.is_command('l') && ev.mods.shift {
         // Not a Fleet shortcut: a quick way to see both themes in the prototype.
         s.toggle_theme();
