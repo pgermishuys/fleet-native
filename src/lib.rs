@@ -4258,6 +4258,19 @@ pub fn spec() -> AppSpec<State> {
             ("terminal-git-log-light", |s| s.show_terminal(mock::terminal_scenes::Stream::GitLog, false)),
             ("terminal-unicode", |s| s.show_terminal(mock::terminal_scenes::Stream::Unicode, true)),
             ("terminal-unicode-light", |s| s.show_terminal(mock::terminal_scenes::Stream::Unicode, false)),
+            // Piece B: the connection lost and given up on.
+            ("terminal-reconnecting", |s| {
+                s.show_terminal_status(mock::terminal_scenes::Stream::GitLog, true, fleet::terminal_socket::Status::Reconnecting)
+            }),
+            ("terminal-reconnecting-light", |s| {
+                s.show_terminal_status(mock::terminal_scenes::Stream::GitLog, false, fleet::terminal_socket::Status::Reconnecting)
+            }),
+            ("terminal-failed", |s| {
+                s.show_terminal_status(mock::terminal_scenes::Stream::GitLog, true, fleet::terminal_socket::Status::Failed)
+            }),
+            ("terminal-failed-light", |s| {
+                s.show_terminal_status(mock::terminal_scenes::Stream::GitLog, false, fleet::terminal_socket::Status::Failed)
+            }),
             // Component 10, piece M: Agent's view, the picture of the agent's own tab.
             ("agent-tab", |s| s.show_agent_tab(mock::agent_tab::Case::Ring, true)),
             ("agent-tab-light", |s| s.show_agent_tab(mock::agent_tab::Case::Ring, false)),

@@ -111,6 +111,11 @@ impl Terminal {
     pub fn read<R>(&self, f: impl FnOnce(&Term<Listener>) -> R) -> R {
         f(&self.lock().term)
     }
+
+    /// Reads the grid and takes its damage: what changed since the last read that took it (`Screen::read`).
+    pub fn read_damage<R>(&self, f: impl FnOnce(&mut Term<Listener>) -> R) -> R {
+        f(&mut self.lock().term)
+    }
 }
 
 impl Inner {

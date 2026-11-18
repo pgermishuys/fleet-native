@@ -141,8 +141,21 @@ impl State {
         }
     }
 
-    /// Once a frame: whether the box has the keyboard (the cursor is a block while it does, an outline when not).
+    /// The tab ends (13.34): the shell ended, or "Close tab" on the failed panel. The socket is dropped (a normal close) and the
+    /// drawer hides, as it does when a session's last terminal goes. Closing it on the server is piece C's.
+    pub fn end_terminal(&mut self) {
+        self.terminal.live = None;
+        self.terminal.open = false;
+        self.terminal.focused = false;
+    }
+
+    /// Once a frame: whether the box has the keyboard (the cursor is a block while it does, an outline when not), and
+    /// whether the shell ended (the tab goes).
     pub fn keep_terminal(&mut self, tx: &mut Tx) -> bool {
+        if matches!(self.terminal.status(), Some(Status::Ended(_))) {
+            self.end_terminal();
+            return true;
+        }
         let focused = self.terminal.open && tx.focused().is_some_and(|k| k == VIEW_KEY);
         std::mem::replace(&mut self.terminal.focused, focused) != focused
     }

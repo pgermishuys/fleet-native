@@ -1,6 +1,7 @@
 //! The terminal drawer's scenes (component 13, piece A): a recorded byte stream of an invented project ("lantern", recorded
 //! by `tests/fixtures/terminal/record.sh` at 100 × 30) replayed into the terminal, as if the shell had printed it just now.
 use crate::State;
+use crate::fleet::terminal_socket::{Socket, Status};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Stream {
@@ -32,5 +33,13 @@ impl State {
         // The box: its rule, the padding above and below, and the rows.
         self.terminal.height = 1.0 + 10.0 + ROWS as f32 * 19.0;
         self.terminal.replay(COLS, ROWS, stream.bytes());
+    }
+
+    /// The same, with the connection in `status` (13.29, 13.30): Reconnecting… over the rows, or the failed panel.
+    pub fn show_terminal_status(&mut self, stream: Stream, dark: bool, status: Status) {
+        self.show_terminal(stream, dark);
+        if let Some(live) = self.terminal.live.as_mut() {
+            live.socket = Some(Socket::fixed(status));
+        }
     }
 }

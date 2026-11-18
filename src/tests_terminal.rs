@@ -151,7 +151,7 @@ fn wide_and_combining_characters_keep_their_columns() {
 
 fn read(t: &Terminal, screen: &mut Screen) {
     let pal = Palette::new(&Theme::of(true));
-    t.read(|term| screen.read(term, &pal, Theme::of(true).terminal_bg(), 1));
+    t.read_damage(|term| screen.read(term, &pal, Theme::of(true).terminal_bg(), 1));
 }
 
 // Row 13.17: a row that didn't change is the same `Rc`, so Rune keeps its shaped line.
@@ -170,8 +170,29 @@ fn an_unchanged_row_is_handed_back_as_the_same_rc() {
     assert!(!Rc::ptr_eq(&before[2], &screen.rows[2]));
     // Another theme builds them all again.
     let pal = Palette::new(&Theme::of(false));
-    t.read(|term| screen.read(term, &pal, Theme::of(false).terminal_bg(), 2));
+    t.read_damage(|term| screen.read(term, &pal, Theme::of(false).terminal_bg(), 2));
     assert_eq!(screen.built, 6);
+}
+
+// Row 13.17: alacritty's damage says which rows changed, so the others aren't read at all.
+#[test]
+fn only_the_rows_alacritty_damaged_are_read() {
+    let t = Terminal::new(40, 12);
+    t.feed(b"one\r\ntwo\r\nthree\r\nfour");
+    let mut screen = Screen::default();
+    read(&t, &mut screen);
+    assert_eq!(screen.scanned, 12, "the first read takes the whole screen");
+    read(&t, &mut screen);
+    assert_eq!(screen.scanned, 1, "nothing changed but the cursor's own row");
+    t.feed(b"!");
+    read(&t, &mut screen);
+    assert_eq!((screen.scanned, screen.built), (1, 1), "one row changed");
+    t.feed(b"\x1b[2;1Hx");
+    read(&t, &mut screen);
+    assert_eq!((screen.scanned, screen.built), (2, 1), "the cursor's old row and its new one are looked at; one differs");
+    t.resize(30, 12);
+    read(&t, &mut screen);
+    assert_eq!(screen.scanned, 12, "a new size reads every row");
 }
 
 #[test]
