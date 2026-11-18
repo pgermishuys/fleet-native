@@ -29,6 +29,7 @@ mod sweep;
 mod time;
 mod tool_row;
 mod turn_error;
+mod visual;
 mod work_clock;
 mod work_output;
 mod working;

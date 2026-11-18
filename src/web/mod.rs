@@ -5,6 +5,7 @@
 //! every frame `State::keep_web` compares what is wanted with what was last done, and moves, loads or hides the views when
 //! they differ. Headless runs, scenes and builds without the `web` feature never get a window handle, so they draw the
 //! fallback panel instead (decision 9).
+pub mod body;
 pub mod choice;
 pub mod inject;
 pub mod page_bridge;
@@ -16,6 +17,7 @@ pub mod demo;
 #[cfg(all(feature = "web", not(target_arch = "wasm32")))]
 pub mod platform;
 
+pub use body::{html_body, html_document};
 pub use wanted::{Placement, Wanted, wanted};
 
 /// What the state knows of the web views. The views themselves are native and live on the UI thread (`platform`).

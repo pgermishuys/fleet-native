@@ -130,7 +130,11 @@ fn apply(want: &Wanted, name: &str) -> Result<(), String> {
             match views.iter_mut().find(|v| v.tab == p.tab) {
                 Some(v) if v.load_key != p.load_key => {
                     log(|| format!("load again {}", p.url));
-                    v.web.load_url(&p.url).map_err(|e| e.to_string())?;
+                    match &p.html {
+                        Some(html) => v.web.load_html(html),
+                        None => v.web.load_url(&p.url),
+                    }
+                    .map_err(|e| e.to_string())?;
                     v.load_key = p.load_key.clone();
                 }
                 Some(_) => {}
@@ -155,8 +159,19 @@ fn apply(want: &Wanted, name: &str) -> Result<(), String> {
 fn make(p: &super::Placement, name: &str) -> Result<View, String> {
     log(|| format!("make {} at {:?}", p.url, p.rect));
     let tab = p.tab.clone();
-    let builder = WebViewBuilder::new()
-        .with_url(&p.url)
+    let builder = WebViewBuilder::new();
+    let builder = match &p.html {
+        // A document of the agent's: no scripts (its policy is in the text), and a link goes to the system's browser.
+        Some(html) => builder.with_html(html).with_navigation_handler(|url| {
+            let own = url.starts_with("about:") || url.starts_with("data:") || url.starts_with("blob:");
+            if !own {
+                open_document_link(url);
+            }
+            own
+        }),
+        None => builder.with_url(&p.url),
+    };
+    let builder = builder
         .with_bounds(bounds(p.rect))
         // `.page-canvas__frame { background: #fff }` until the page draws (row 14.10).
         .with_background_color((255, 255, 255, 255))
@@ -170,6 +185,16 @@ fn make(p: &super::Placement, name: &str) -> Result<View, String> {
         window.with_raw_handle(|handle| builder.build_as_child(&handle).map_err(|e| e.to_string()))?
     })?;
     Ok(View { tab: p.tab.clone(), web, load_key: p.load_key.clone(), rect: p.rect })
+}
+
+/// A link in an agent's document goes to the system's browser; the document stays as it was.
+fn open_document_link(url: String) {
+    log(|| format!("outside: {url}"));
+    if let Some(app) = APP.get() {
+        app.update(move |_: &mut State, tx| {
+            let _ = tx.open_url(&url);
+        });
+    }
 }
 
 fn retheme_all(name: &str, message: &serde_json::Value) {

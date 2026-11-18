@@ -61,6 +61,7 @@ fn wanted_places_the_page_where_its_area_is() {
         url: format!("{BASE}/pages/p1/index.html"),
         load_key: "p1::0".into(),
         rect: [600.0, 60.0, 360.0, 500.0],
+        html: None,
     };
     assert_eq!(wanted(&rt.state), Wanted::Shown(expect));
 }
