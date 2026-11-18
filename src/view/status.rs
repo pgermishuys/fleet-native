@@ -87,7 +87,8 @@ pub fn bar(s: &State, t: &Theme) -> El {
             |s: &mut State, tx: &mut crate::Tx| commands::run(s, tx, "toggle-terminal"),
         ));
     }
-    let hints = hints_row;
+    // While a terminal has the keyboard the left side says so, and what goes where (`terminal-keyboard-hint`).
+    let hints = if s.terminal.focused { terminal_hints(t, &terminal, kbd, sep) } else { hints_row };
     let mut session = row().center_y().gap(8.0);
     // A newer build is waiting: an item in the same style as the hints, nothing that pops up.
     if let Some(update) = super::update::item(s, t) {
@@ -128,6 +129,54 @@ pub fn bar(s: &State, t: &Theme) -> El {
         .child(hints)
         .child(spacer().min_w(0.0))
         .child(end(s, t, session))
+}
+
+/// The left side while a terminal has the keyboard: who has it, the keys that go to the shell, Hide terminal (the one button, which
+/// runs `toggle-terminal` and leaves the keyboard where it is) and the copy key.
+fn terminal_hints(t: &Theme, hide: &Hint, kbd: impl Fn(&str) -> El, sep: impl Fn() -> El) -> El {
+    let cmd = if cfg!(target_os = "macos") { "\u{2318}" } else { "Ctrl" };
+    let label = sans(11.0, 400.0, 1.3);
+    let copy = if cfg!(target_os = "macos") { "\u{2318} C".to_string() } else { "Ctrl Shift C".to_string() };
+    let go_to_shell = row()
+        .key("terminal-owner-keys")
+        .center_y()
+        .gap(4.0)
+        .px(5.0)
+        .py(2.0)
+        .child(kbd("Esc"))
+        .child(kbd(&format!("{cmd} K")))
+        .child(kbd(&format!("{cmd} B")))
+        .child(text("go to the shell").font(label).color(t.muted));
+    row()
+        .key("terminal-keyboard-hint")
+        .center_y()
+        .gap(1.0)
+        .shrink()
+        .min_w(0.0)
+        .clip_rounded(0.0)
+        .child(text("Terminal has the keyboard").key("terminal-owner").font(sans(11.0, 500.0, 1.3)).color(t.accent_text).px(5.0).py(2.0))
+        .child(sep())
+        .child(go_to_shell)
+        .child(sep())
+        .child(hint_button(
+            t,
+            "status-hint-hide-terminal",
+            vec![kbd(&format!("{cmd} J"))],
+            "Hide terminal",
+            hide,
+            |s: &mut State, tx: &mut crate::Tx| commands::run(s, tx, "toggle-terminal"),
+        ))
+        .child(sep())
+        .child(
+            row()
+                .key("terminal-copy-hint")
+                .center_y()
+                .gap(4.0)
+                .px(5.0)
+                .py(2.0)
+                .child(kbd(&copy))
+                .child(text("Copy").font(label).color(t.muted)),
+        )
 }
 
 /// `status-bar__end`: running work, the usage chip, the notice chips, then the session part.

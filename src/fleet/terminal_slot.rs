@@ -52,6 +52,8 @@ pub struct Slot {
     pub focused: bool,
     /// The drawer's height for a scene; 0 is the remembered one (`Terminals::height`).
     pub height: f32,
+    /// The grip is held (drawn lit while it is).
+    pub dragging: bool,
 }
 
 impl Slot {
@@ -117,6 +119,25 @@ impl State {
         }
         self.sync_terminal();
         tx.focus(VIEW_KEY, false);
+    }
+
+    /// Copy (Ctrl Shift C, ⌘ C): puts the box's selection on the clipboard. Nothing can be selected until piece F builds
+    /// selection, so the key is taken (the shell never gets ^C from it) and does nothing yet.
+    pub fn copy_terminal_selection(&mut self, _tx: &mut Tx) {}
+
+    /// A tab picked from the keyboard: it shows, and the focus stays on the tab strip (`activate`).
+    pub fn activate_terminal_tab(&mut self, id: &str) {
+        if let Some(session) = self.terminal.session.clone() {
+            self.terminals.set_active(&session, id);
+        }
+        self.sync_terminal();
+    }
+
+    /// The grip moved the drawer: a new height, whole pixels, never under the minimum. A scene's own height gives way. A drag keeps it
+    /// in the settings file when it ends, not at every move.
+    pub fn set_drawer_height(&mut self, height: f32) {
+        self.terminal.height = 0.0;
+        self.terminals.set_height(height);
     }
 
     /// The drawer's Clear (`clearActive`): the screen and the scrollback go from here and, for everyone else, from the server.
@@ -337,6 +358,15 @@ impl State {
             changed = true;
         }
         let focused = self.terminal_open() && tx.focused().is_some_and(|k| k == VIEW_KEY);
-        changed | (std::mem::replace(&mut self.terminal.focused, focused) != focused)
+        let was = std::mem::replace(&mut self.terminal.focused, focused);
+        if focused && !was {
+            // One shell has one size: another client that attached since may have resized it for everyone, so whoever takes
+            // the keyboard says its own size again (`onFocus`).
+            if let Some((live, socket)) = self.terminal.live.as_ref().and_then(|l| l.socket.as_ref().map(|s| (l, s))) {
+                let (cols, rows) = live.term.size();
+                socket.resize(cols, rows);
+            }
+        }
+        changed | (was != focused)
     }
 }

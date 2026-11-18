@@ -144,6 +144,7 @@ pub mod status_hints;
 pub mod store;
 pub mod summary;
 pub mod tab_motion;
+pub mod terminal_keys;
 pub mod terminal_slot;
 pub mod terminal_socket;
 pub mod terminals;
