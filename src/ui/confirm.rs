@@ -7,7 +7,7 @@ use super::dialog::{Dialog, dialog};
 use super::rem;
 use crate::fleet::actions::{CONFIRM_ACTION, CONFIRM_CANCEL, Call};
 use crate::icons::{CIRCLE_ALERT, LOADER_CIRCLE};
-use crate::theme::{RADIUS_CARD, Theme, sans};
+use crate::theme::{RADIUS_CARD, Theme, mono, sans};
 use crate::{State, Tx};
 use rune::{Color, Cycle, El, col, icon, row, text};
 
@@ -93,6 +93,11 @@ impl State {
                 self.ui.confirm = None;
                 self.replace_home_token();
             }
+            // `confirmAction` with no `run`: the dialog closes on Yes and the review does the rest.
+            Call::Revert { path, range } => {
+                self.ui.confirm = None;
+                self.start_revert(&path, range);
+            }
             call => self.send_session_call(call, None, tx),
         }
     }
@@ -164,9 +169,11 @@ pub(crate) fn error_note_with(t: &Theme, key: &str, message: &str, reason: Optio
 /// The dialog and its scrim, to mount over the window; `None` while nothing is asked.
 pub fn view(s: &State, t: &Theme) -> Option<Vec<El>> {
     let c = s.ui.confirm.as_ref()?;
+    // `monoSubject`: a path is set in the code face.
+    let subject_font = if matches!(c.call, Call::Revert { .. }) { mono(rem(0.875), 400.0, 1.4) } else { sans(rem(0.875), 500.0, 1.4) };
     let description = col()
         .gap(rem(0.25))
-        .child(text(c.subject.clone()).key("confirm-subject").font(sans(rem(0.875), 500.0, 1.4)).color(t.text).wrap().w_full())
+        .child(text(c.subject.clone()).key("confirm-subject").font(subject_font).color(t.text).wrap().w_full())
         .child(text(c.body.clone()).key("confirm-body").font(sans(rem(0.875), 400.0, 1.4)).color(t.muted).wrap().w_full());
     let body = c.error.iter().map(|why| error_note(t, "confirm-error", &c.error_message, Some(why))).collect();
     // The dialog opens with focus on Cancel when the action is destructive (`onOpenAutoFocus`).

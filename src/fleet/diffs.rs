@@ -432,6 +432,7 @@ impl State {
             move |s, _, answer| {
                 let next = s.diffs.finish(&ticket, answer);
                 s.send_diffs(next);
+                s.after_revert_list();
                 s.review_sync();
             },
         );

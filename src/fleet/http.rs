@@ -418,6 +418,30 @@ pub fn diff_file(base: &str, session: &str, path: &str) -> Result<(u16, Value), 
     status_of("GET", base, &format!("/api/sessions/{session}/diffs/file?path={}", query_value(path)))
 }
 
+/// `GET /api/sessions/{id}/files/content?path=`: a file as it is on disk now, with its hash (`readSessionFile`).
+pub fn file_content(base: &str, session: &str, path: &str) -> Result<(u16, String), String> {
+    text_with("GET", base, &format!("/api/sessions/{session}/files/content?path={}", query_value(path)), None)
+}
+
+/// `PUT /api/sessions/{id}/files/content`: saves `content` if the file still has `base_hash` (`writeSessionFile`).
+pub fn write_file(base: &str, session: &str, path: &str, content: &str, base_hash: &str) -> Result<(u16, String), String> {
+    let body = json!({ "path": path, "content": content, "baseHash": base_hash });
+    text_with("PUT", base, &format!("/api/sessions/{session}/files/content"), Some(&body))
+}
+
+/// `POST /api/sessions/{id}/files/restore`: puts a file back (`content`) or deletes one the session added (`base_hash`)
+/// (`restoreSessionFile`).
+pub fn restore_file(
+    base: &str,
+    session: &str,
+    path: &str,
+    content: Option<&str>,
+    base_hash: Option<&str>,
+) -> Result<(u16, String), String> {
+    let body = json!({ "path": path, "content": content, "baseHash": base_hash });
+    text_with("POST", base, &format!("/api/sessions/{session}/files/restore"), Some(&body))
+}
+
 /// `GET /api/sessions/{id}/canvases`: the canvases the agent keeps for the session (`use-server-canvases.ts`).
 pub fn canvases(base: &str, session: &str) -> Result<(u16, Value), String> {
     status_of("GET", base, &format!("/api/sessions/{session}/canvases"))

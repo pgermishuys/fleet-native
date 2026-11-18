@@ -20,6 +20,9 @@ pub fn review(s: &State, t: &Theme) -> El {
     // `on_scroll_offset` may not change state: it leaves the place for `poll` (`State::keep_review_near`).
     let probe = s.review.probe.clone();
     let mut body = col().key("review-body").w_full().gap(10.0).px(12.0).pt(12.0).pb(16.0);
+    if let Some(words) = &s.review.notice {
+        body = body.child(notice(t, words));
+    }
     for file in &files {
         body = body.child(section(s, t, file));
     }
@@ -31,6 +34,33 @@ pub fn review(s: &State, t: &Theme) -> El {
             .grow(1.0)
             .min_h(0.0),
     )
+}
+
+/// `.review__notice`: a revert that did nothing or failed says so above the files, with Dismiss.
+fn notice(t: &Theme, words: &str) -> El {
+    let dismiss = row()
+        .key("review-notice-dismiss")
+        .role("button")
+        .label("Dismiss")
+        .cursor(Cursor::Pointer)
+        .focusable(true)
+        .focus_ring(2.0, 0.0, t.accent)
+        .child(text("Dismiss").font(sans(12.5, 400.0, 1.4)).color(t.muted))
+        .on_press(|s: &mut State| s.dismiss_review_notice());
+    row()
+        .key("review-notice")
+        .role("alert")
+        .w_full()
+        .gap(10.0)
+        .items_center()
+        .px(10.0)
+        .py(8.0)
+        .radius(8.0)
+        .border(1.0, t.mix(t.error, t.border, 0.4))
+        .border_layout()
+        .child(text(words.to_string()).key("review-notice-text").font(sans(12.5, 400.0, 1.4)).color(t.text).wrap().shrink())
+        .child(el().grow(1.0))
+        .child(dismiss)
 }
 
 // ── The header ──────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -202,8 +232,13 @@ fn section(s: &State, t: &Theme, file: &FileDiff) -> El {
         .pin(None, Some(5.0), Some(10.0), None)
         .fill(t.mix(t.text, t.panel_bg, 0.07))
         .group_opacity(0.0, 1.0)
-        // Revert is drawn disabled until piece I; Open file until component 11's file tab (13.3).
-        .child(act(t, format!("review-revert-file-{path}"), revert_tip, &UNDO_2, Some("Revert file"), true))
+        // Open file stays off until component 11's file tab (13.3).
+        .child({
+            let off = blocker.is_some() || s.review.reverting;
+            let revert_path = path.clone();
+            let b = act(t, format!("review-revert-file-{path}"), revert_tip, &UNDO_2, Some("Revert file"), off);
+            if off { b } else { b.on_press_tx(move |s: &mut State, tx: &mut Tx| s.ask_revert(&revert_path, None, tx)) }
+        })
         .child(act(t, format!("review-open-file-{path}"), "Opening files comes with the file viewer", &EXTERNAL_LINK, None, true))
         .child(
             act(t, format!("review-copy-path-{path}"), "Copy path", &COPY, None, false)

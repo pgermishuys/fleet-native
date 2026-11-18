@@ -10,7 +10,7 @@ use crate::fleet::diffs::{FileDiff, FileStatus};
 use crate::fleet::review::{Layout, hidden_changes, visible};
 use crate::icons::{ELLIPSIS, UNDO_2};
 use crate::theme::{Theme, mono, sans};
-use rune::{Color, Cursor, El, TextHighlight, col, el, icon, row, text};
+use rune::{Color, Cursor, El, TextHighlight, Tx, col, el, icon, row, text};
 
 /// A line, 12 px at 20 px.
 pub const LINE_H: f32 = 20.0;
@@ -41,12 +41,14 @@ fn fold_button(t: &Theme, key: String, words: String, glyph: bool, press: impl F
     b.child(text(words).font(sans(12.0, 400.0, 1.4)).color(t.muted).group_color(t.text)).on_press(press)
 }
 
-/// `.rhunk`: its name, or "line N", and Revert hunk (drawn disabled until piece I).
-fn hunk_header(t: &Theme, path: &str, hunk: &ReviewHunk, file: &FileDiff) -> El {
+/// `.rhunk`: its name, or "line N", and Revert hunk (asks first; off while a revert runs or when the file isn't a plain edit).
+fn hunk_header(t: &Theme, path: &str, hunk: &ReviewHunk, file: &FileDiff, reverting: bool) -> El {
     let name = if hunk.name.is_empty() { format!("line {}", hunk.start_line) } else { hunk.name.clone() };
     let modified = file.status == FileStatus::Modified;
     let tip = if modified { "Revert hunk" } else { "Revert the whole file instead" };
-    let revert = row()
+    let off = reverting || !modified;
+    let (path_of, range) = (path.to_string(), (hunk.from, hunk.to));
+    let mut revert = row()
         .key(format!("review-revert-hunk-{path}-{}", hunk.id))
         .role("button")
         .label("Revert hunk")
@@ -56,10 +58,16 @@ fn hunk_header(t: &Theme, path: &str, hunk: &ReviewHunk, file: &FileDiff) -> El 
         .gap(5.0)
         .items_center()
         .radius(6.0)
-        .disabled(true)
-        .opacity(0.45)
-        .child(icon(&UNDO_2, 12.0).color(t.muted))
-        .child(text("Revert hunk").font(sans(11.5, 500.0, 1.4)).color(t.muted));
+        .cursor(if off { Cursor::Default } else { Cursor::Pointer })
+        .focusable(!off)
+        .focus_ring(2.0, 0.0, t.accent)
+        .child(icon(&UNDO_2, 12.0).color(t.muted).group_color(t.text))
+        .child(text("Revert hunk").font(sans(11.5, 500.0, 1.4)).color(t.muted).group_color(t.text));
+    revert = if off {
+        revert.disabled(true).opacity(0.45)
+    } else {
+        revert.hover(t.wash(9.0)).hover_group().on_press_tx(move |s: &mut State, tx: &mut Tx| s.ask_revert(&path_of, Some(range), tx))
+    };
     row()
         .key(format!("review-hunk-{path}-{}", hunk.id))
         .w_full()
@@ -194,7 +202,7 @@ pub fn lines(s: &State, t: &Theme, file: &FileDiff, items: &[ReviewItem]) -> El 
             ReviewItem::Hunk(h) => {
                 let at = if h.name.is_empty() { format!("line {}", h.start_line) } else { h.name.clone() };
                 let label = format!("Changes to {path} at {at}");
-                out = out.child(hunk_header(t, path, h, file)).child(region(
+                out = out.child(hunk_header(t, path, h, file, s.review.reverting)).child(region(
                     t,
                     format!("review-region-{path}-{}", h.id),
                     label,

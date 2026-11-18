@@ -143,6 +143,8 @@ mod tests_review_lines;
 #[cfg(test)]
 mod tests_review_near;
 #[cfg(test)]
+mod tests_review_revert;
+#[cfg(test)]
 mod tests_right_panel;
 #[cfg(test)]
 mod tests_row_actions;
@@ -2631,6 +2633,12 @@ pub fn spec() -> AppSpec<State> {
             ("changes-empty-branch-light", |s| s.show_changes_scene(mock::changes::Case::EmptyBranch, false)),
             ("review", |s| s.show_changes_scene(mock::changes::Case::Review, true)),
             ("review-light", |s| s.show_changes_scene(mock::changes::Case::Review, false)),
+            ("review-revert-hunk", |s| s.show_review_revert(true, true, true)),
+            ("review-revert-hunk-light", |s| s.show_review_revert(false, true, true)),
+            ("review-revert-file", |s| s.show_review_revert(true, true, false)),
+            ("review-revert-file-light", |s| s.show_review_revert(false, true, false)),
+            ("review-revert-notice", |s| s.show_review_revert(true, false, false)),
+            ("review-revert-notice-light", |s| s.show_review_revert(false, false, false)),
             ("review-hunks", |s| s.show_review_hunks(true, false)),
             ("review-hunks-light", |s| s.show_review_hunks(false, false)),
             ("review-wrap", |s| s.show_review_hunks(true, true)),
