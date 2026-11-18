@@ -1731,3 +1731,8 @@ Nothing in Rune was needed.
 - **A field has no focus/blur callbacks**: whether it is being edited is read from `Tx::focused()` in `poll` and kept as the change (gained, lost), which is what Fleet's `@focus`/`@blur` give.
 - **A dropped WebKitGTK view stays on screen until GTK's loop runs once more.** `pump` only turns the loop while a view exists, so dropping the last one (a tab showing an error instead of the page) left its pixels there. `platform::keep` now drains GTK's events when a view went and asks Rune for a draw.
 - **WebKitGTK's page cache**: Back to a page it kept whole runs no script and fires `pageshow` with `persisted`, not `load`, so the injected preview script reports the location on that event too.
+
+## Component 13, piece C (tabs per session)
+
+Nothing new about Rune. One thing about the harness: a frame hook (`keep_terminal`) is where state that follows other state is kept in
+step (the shown view follows the active tab), since a handler that changes the tabs doesn't know which views exist.

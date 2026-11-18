@@ -17,13 +17,13 @@ pub const HEIGHT: f32 = 272.0;
 /// The drawer's box, or nothing while no terminal is shown for the open session.
 pub fn drawer(s: &State, t: &Theme) -> Option<El> {
     let slot = &s.terminal;
-    if !slot.open || slot.session != s.open_id() {
+    if !s.terminal_open() || slot.session != s.open_id() {
         return None;
     }
     Some(
         col()
             .key("terminal-drawer")
-            .h(if slot.height > 0.0 { slot.height } else { HEIGHT })
+            .h(if slot.height > 0.0 { slot.height } else { s.terminals.height() as f32 })
             .fill(t.terminal_bg())
             .child(el().h(1.0).fill(t.border))
             .child(area(s, t)),
@@ -66,7 +66,7 @@ fn failed(t: &Theme) -> El {
         .hover(t.mix(t.panel_bg, t.text, 0.95))
         .cursor(Cursor::Pointer)
         .label("Close tab")
-        .on_press(|s: &mut State| s.end_terminal())
+        .on_press(|s: &mut State| s.close_showing_terminal())
         .child(text("Close tab").font(crate::theme::sans(12.5, 400.0, 1.4)).color(t.text));
     col()
         .key("terminal-failed")

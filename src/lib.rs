@@ -234,6 +234,8 @@ mod tests_terminal;
 #[cfg(test)]
 mod tests_terminal_live;
 #[cfg(test)]
+mod tests_terminal_tabs;
+#[cfg(test)]
 mod tests_turns;
 #[cfg(test)]
 mod tests_update_notices;
@@ -467,6 +469,9 @@ pub struct State {
     pub terminals_allowed: Option<bool>,
     /// The open session's terminal (component 13, `fleet::terminal_slot`).
     pub terminal: fleet::terminal_slot::Slot,
+    /// Every session's terminal tabs and open drawers (component 13, piece C).
+    pub terminals: fleet::terminals::Terminals,
+    pub terminal_loads: fleet::session_terminals::Loads,
     /// The Add a machine row was pressed: the form opens when Settings has one (piece K).
     pub add_machine_asked: bool,
     /// Settings → Machines: the rename and token fields, what is busy, the access of this machine (`fleet::machine_actions`).
@@ -720,6 +725,8 @@ impl Default for State {
             machine_menu: None,
             terminals_allowed: None,
             terminal: Default::default(),
+            terminals: Default::default(),
+            terminal_loads: Default::default(),
             add_machine_asked: false,
             machine_page: Default::default(),
             sign_in: Default::default(),
@@ -4292,6 +4299,9 @@ pub fn spec() -> AppSpec<State> {
             ("terminal-unicode", |s| s.show_terminal(mock::terminal_scenes::Stream::Unicode, true)),
             ("terminal-unicode-light", |s| s.show_terminal(mock::terminal_scenes::Stream::Unicode, false)),
             // Piece B: the connection lost and given up on.
+            // Piece C: the pretend shell of the app with no server, showing the first terminal's start.
+            ("terminal-mock", |s| s.show_terminal_mock(true)),
+            ("terminal-mock-light", |s| s.show_terminal_mock(false)),
             ("terminal-reconnecting", |s| {
                 s.show_terminal_status(mock::terminal_scenes::Stream::GitLog, true, fleet::terminal_socket::Status::Reconnecting)
             }),

@@ -63,6 +63,7 @@ impl State {
             self.on_ask_event(topic, event);
             self.on_rules_event(event);
             self.on_server_canvas_event(event);
+            self.on_terminal_event(topic, event);
             self.on_app_event(event);
             self.on_progress_event(topic, event);
             self.on_diffs_event(topic, event);
@@ -145,6 +146,7 @@ impl State {
             self.load_asks(&id);
             self.load_rules(&id);
             self.load_server_canvases(&id);
+            self.load_terminals(&id);
             self.ensure_progress_loaded(&id, false);
             self.diffs_open(&id);
             self.load_retry(&id);
@@ -187,6 +189,7 @@ impl State {
             self.load_asks(&id);
             self.load_rules(&id);
             self.load_server_canvases(&id);
+            self.load_terminals(&id);
             self.reload_apps(&id);
             self.ensure_progress_loaded(&id, true);
             self.refetch_diffs();
@@ -237,6 +240,7 @@ impl State {
         self.seed_feeds_from_settings();
         self.sidebar_open = !self.sidebar.panel_collapsed();
         self.right.widened = self.sidebar.canvas_widened();
+        self.terminals.restore(self.sidebar.terminal_open().to_vec(), self.sidebar.terminal_height());
         for project in &mut self.projects {
             if self.sidebar.is_group_collapsed(&fold_key(project)) {
                 project.open = false;

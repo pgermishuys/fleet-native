@@ -448,6 +448,7 @@ impl Live {
         let mut rt = app();
         rt.update(move |s, _| {
             s.link = Some(link);
+            s.terminals_allowed = Some(true);
             // A session the list holds, so the app has one open; the fake answers whatever it is asked.
             s.set_session_id((0, 0), "s1");
         });
@@ -582,6 +583,7 @@ fn with_status(status: Status) -> Runtime<crate::State> {
     rt.update(move |s, _| {
         s.set_session_id((0, 0), "s1");
         s.terminal.session = s.open_id();
+        s.terminals.add("s1", crate::fleet::http::Terminal { id: "replay".into(), title: "zsh".into(), running: true }, true);
         s.terminal.replay(60, 6, b"demo $ ls\r\nsrc  tests\r\ndemo $ ");
         s.terminal.live.as_mut().unwrap().socket = Some(Socket::fixed(status));
     });

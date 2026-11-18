@@ -90,6 +90,9 @@ pub struct Sidebar {
     canvas_widened: bool,
     /// Wrap long lines in the Changes review (`weave:changes-wrap`).
     changes_wrap: bool,
+    /// Sessions whose terminal drawer is open, and the drawer's height (`weave:terminal-open`, `weave:terminal-height`).
+    terminal_open: Vec<String>,
+    terminal_height: Option<u32>,
     /// The layout picked in the Changes review, `None` until one is (`weave:changes-layout`).
     changes_layout: Option<super::review::Layout>,
     /// The version each machine last reported to this device (`fleet.machineVersions`), for one that stops answering.
@@ -144,6 +147,10 @@ impl Sidebar {
         }
         s.canvas_widened = root.get("canvasWidened") == Some(&Value::Bool(true));
         s.changes_wrap = root.get("changesWrap") == Some(&Value::Bool(true));
+        if let Some(Value::Array(ids)) = root.get("terminalOpen") {
+            s.terminal_open = ids.iter().filter_map(|v| v.as_str().map(String::from)).collect();
+        }
+        s.terminal_height = root.get("terminalHeight").and_then(Value::as_u64).map(|h| h as u32);
         s.changes_layout = match root.get("changesLayout").and_then(Value::as_str) {
             Some("split") => Some(super::review::Layout::Split),
             Some("unified") => Some(super::review::Layout::Unified),
@@ -178,6 +185,12 @@ impl Sidebar {
         }
         if self.changes_wrap {
             root["changesWrap"] = Value::Bool(true);
+        }
+        if !self.terminal_open.is_empty() {
+            root["terminalOpen"] = json!(self.terminal_open);
+        }
+        if let Some(h) = self.terminal_height {
+            root["terminalHeight"] = json!(h);
         }
         if let Some(l) = self.changes_layout {
             root["changesLayout"] = json!(if l == super::review::Layout::Split { "split" } else { "unified" });
@@ -348,6 +361,23 @@ impl Sidebar {
 
     pub fn changes_wrap(&self) -> bool {
         self.changes_wrap
+    }
+
+    pub fn terminal_open(&self) -> &[String] {
+        &self.terminal_open
+    }
+
+    pub fn terminal_height(&self) -> Option<u32> {
+        self.terminal_height
+    }
+
+    pub fn save_terminals(&mut self, open: Vec<String>, height: u32) {
+        let height = Some(height);
+        if self.terminal_open != open || self.terminal_height != height {
+            self.terminal_open = open;
+            self.terminal_height = height;
+            self.dirty = true;
+        }
     }
 
     pub fn changes_layout(&self) -> Option<super::review::Layout> {
