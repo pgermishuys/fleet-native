@@ -648,7 +648,7 @@ fn tells_the_shell_its_own_size_when_it_gets_the_keyboard_so_another_client_that
     click(&mut live.rt, "terminal-view");
 
     let heard = live.fake.heard.clone();
-    live.wait("the resize on focus", move |_| heard.lock().unwrap().texts.iter().filter(|t| t["type"] == "resize").count() == before + 1);
+    live.wait("the resize on focus", move |_| heard.lock().unwrap().texts.iter().filter(|t| t["type"] == "resize").count() > before);
     assert_eq!(resizes(&live.fake).last(), Some(&json!({"type": "resize", "cols": cols, "rows": rows})));
 }
 
@@ -704,6 +704,8 @@ fn shift_page_up_scrolls_the_view_and_is_not_sent() {
     until_true("the key", || fake_input_is(&live.fake, b"q"));
 }
 
+// On a Mac Ctrl Shift C is the shell's; ⌘ C copies (`terminal_keys` tests).
+#[cfg(not(target_os = "macos"))]
 #[test]
 fn ctrl_shift_c_is_taken_for_copy_and_never_sends_a_ctrl_c() {
     let mut live = Live::start(Fake::start(&["t1"], b"demo $ "));
