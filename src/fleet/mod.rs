@@ -17,6 +17,7 @@ pub mod bulk;
 pub mod canvas_host;
 pub mod canvases;
 pub mod catalog;
+pub mod changes_find;
 pub mod command;
 pub mod compact;
 pub mod context;

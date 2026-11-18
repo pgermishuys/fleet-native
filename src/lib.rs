@@ -39,6 +39,8 @@ mod tests_canvas_strip;
 #[cfg(test)]
 mod tests_changes;
 #[cfg(test)]
+mod tests_changes_find;
+#[cfg(test)]
 mod tests_chips;
 #[cfg(test)]
 mod tests_context_tab;
@@ -358,6 +360,8 @@ pub struct State {
     pub diff_contents: fleet::diff_contents::Contents,
     /// The review's own state: which sections are shut and the layout picked (`fleet::review`).
     pub review: fleet::review::Review,
+    /// Find in Changes: the bar's query and matches, and the machine's search (`fleet::changes_find`).
+    pub changes_find: fleet::changes_find::ChangesFind,
     /// The page canvas "Open page" asked the content panel to show; the tab is component 14's.
     pub page_target: Option<String>,
     /// The web views over page tabs: where the page area is, and whether this window can host one (`web`).
@@ -652,6 +656,7 @@ impl Default for State {
             diffs: Default::default(),
             diff_contents: Default::default(),
             review: Default::default(),
+            changes_find: Default::default(),
             page_target: None,
             web: Default::default(),
             allowed_flash: None,
@@ -1442,7 +1447,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_attachments(tx)
         | s.keep_new_message(tx)
         | s.keep_new_mentions(now, tx);
-    let scrolled = s.keep_scroll(tx) | s.keep_review_near();
+    let scrolled = s.keep_scroll(tx) | s.keep_review_near() | s.keep_changes_find(now, tx);
     // The tick asks for the next frame first, so `keep_images` starts it in the same poll.
     let agent_view = s.keep_agent_view(now, tx);
     let pictures = s.keep_images(tx) | agent_view;

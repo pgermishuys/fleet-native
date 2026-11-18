@@ -360,7 +360,7 @@ pub fn lines_worked() -> usize {
 }
 
 /// A file's hunks, worked out once per answer: its lines come from an edit-distance walk that costs far more than drawing them.
-fn review_items(item: &FileDiff) -> std::rc::Rc<Vec<ReviewItem>> {
+pub(crate) fn review_items(item: &FileDiff) -> std::rc::Rc<Vec<ReviewItem>> {
     type Cached = std::collections::HashMap<String, (u64, std::rc::Rc<Vec<ReviewItem>>)>;
     thread_local! {
         static CACHE: std::cell::RefCell<Cached> = Default::default();

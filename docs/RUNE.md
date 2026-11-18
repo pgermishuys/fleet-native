@@ -1689,3 +1689,12 @@ Nothing in Rune was needed.
 
 - **A confirm that has nothing to wait for is a `Call` the dialog closes on.** `ui::confirm`'s dialog holds itself open for a request (Delete session); Fleet's `confirmAction` with no `run` closes at once and the caller does the work after. `Call::Revert` takes that path in `take_confirm`, like the machine calls, so no new dialog was needed.
 - **`rune::El` has no `items_baseline`.** The notice's words and Dismiss are centred instead of baseline-aligned; one line of text makes them the same.
+
+## Component 12, piece J (find in changes, the logic)
+
+- `Mods` off macOS sets `cmd` together with `ctrl`, so a chord that must not fire with Cmd (F3 plain) checks both. `Key::Command(c)` carries
+  the character as given: `Key::Command('G')` does not match `is_command('g')`'s own `to_ascii_lowercase` on the argument side only, so a test
+  sends `'g'` with `shift` held, as a real key arrives.
+- A request that Fleet aborts (`AbortController`) has no cancel here: `Link::off_thread` runs to its end, and the answer is dropped by a run
+  number when a newer query has replaced it. The old request still costs the server a git search; it isn't sent at all inside the debounce.
+- The debounce is `tx.wake_after` from `poll`: nothing else wakes an idle app 120 ms after the last key.

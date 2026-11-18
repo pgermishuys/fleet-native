@@ -418,6 +418,11 @@ pub fn diff_file(base: &str, session: &str, path: &str) -> Result<(u16, Value), 
     status_of("GET", base, &format!("/api/sessions/{session}/diffs/file?path={}", query_value(path)))
 }
 
+/// `GET /api/sessions/{id}/diffs/search?q=`: which changed files hold the text (weave-fleet #941), one git search instead of a request per file.
+pub fn diff_search(base: &str, session: &str, query: &str) -> Result<(u16, Value), String> {
+    status_of("GET", base, &format!("/api/sessions/{session}/diffs/search?q={}", query_value(query)))
+}
+
 /// `GET /api/sessions/{id}/files/content?path=`: a file as it is on disk now, with its hash (`readSessionFile`).
 pub fn file_content(base: &str, session: &str, path: &str) -> Result<(u16, String), String> {
     text_with("GET", base, &format!("/api/sessions/{session}/files/content?path={}", query_value(path)), None)
