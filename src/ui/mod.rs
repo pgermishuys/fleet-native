@@ -220,6 +220,9 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
     if let Some(ask) = confirm::view(s, t) {
         layer.extend(ask);
     }
+    if let Some(open) = crate::view::browser_open::view(s, t) {
+        layer.extend(open);
+    }
     if let Some(fork) = crate::view::fork::view(s, t) {
         layer.extend(fork);
     }

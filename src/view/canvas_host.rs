@@ -216,10 +216,10 @@ fn body(s: &State, t: &Theme) -> El {
             Some((tab, page)) => super::page_tab::page_tab(s, t, &tab, &page),
             None => stand_in(t, CanvasKind::Page),
         },
-        // Component 14's browser canvas hosts Agent's view; until it does, only a scene watches a tab.
-        Some(CanvasKind::Browser) => match &s.agent_view.target {
-            Some((session, tab)) => super::agent_tab::agent_tab(s, t, session, tab),
-            None => match tabs.active().and_then(|c| Some((c.id.clone(), c.browser()?))) {
+        // A browser canvas hosts Agent's view itself (piece J of component 14); a scene may still watch a tab with none.
+        Some(CanvasKind::Browser) => match (&s.agent_view.target, s.web.agent_owned) {
+            (Some((session, tab)), false) => super::agent_tab::agent_tab(s, t, session, tab),
+            _ => match tabs.active().and_then(|c| Some((c.id.clone(), c.browser()?))) {
                 Some((tab, page)) => super::browser_tab::browser_tab(s, t, &tab, &page),
                 None => stand_in(t, CanvasKind::Browser),
             },
@@ -264,6 +264,9 @@ pub fn picker(s: &State, t: &Theme) -> Vec<El> {
             move |s: &mut State, tx| s.open_built_in(kind, tx),
         ));
     }
+    list = list.child(picker_row(t, "canvas-picker-browser".into(), &GLOBE, "Browser\u{2026}", Some("Run or open a page"), |s, tx| {
+        s.open_browser_dialog(tx)
+    }));
     let visuals = s.conversation_visuals();
     if !visuals.is_empty() {
         list = list.child(crate::ui::controls::separator(t).my(4.0).mx(2.0)).child(group_label(t, "From this conversation"));

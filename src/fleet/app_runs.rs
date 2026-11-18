@@ -71,7 +71,7 @@ pub struct SessionApps {
 }
 
 /// An app as `GET .../apps/{id}`, a `POST .../apps` and the list say it (`fromResponse`).
-fn from_response(session: &str, body: &Value) -> Option<AppRun> {
+pub fn from_response(session: &str, body: &Value) -> Option<AppRun> {
     Some(AppRun {
         id: body.get("id")?.as_str()?.to_string(),
         session_id: session.to_string(),

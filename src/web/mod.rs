@@ -7,7 +7,9 @@
 //! fallback panel instead (decision 9).
 pub mod body;
 pub mod browser;
+pub mod browser_agent;
 pub mod browser_app;
+pub mod browser_open;
 pub mod choice;
 pub mod cover;
 pub mod full;
@@ -61,6 +63,10 @@ pub struct Host {
     pub browsers: std::collections::HashMap<String, browser::BrowserUi>,
     /// Scripts for the host to run in a browser tab's page (Back, Forward, Reload).
     pub nav: Vec<browser::NavRequest>,
+    /// The "Open a browser tab" dialog, while it is open (piece J).
+    pub open: Option<browser_open::BrowserOpen>,
+    /// Agent's view is being watched because a browser tab asked for it (a scene may watch a tab without one).
+    pub agent_owned: bool,
     /// The CI walk, while it runs (`demo`).
     #[cfg(all(feature = "web", not(target_arch = "wasm32")))]
     pub walk: Option<demo::Walk>,

@@ -32,7 +32,11 @@ mod tests_asks;
 #[cfg(test)]
 mod tests_browser;
 #[cfg(test)]
+mod tests_browser_agent;
+#[cfg(test)]
 mod tests_browser_app;
+#[cfg(test)]
+mod tests_browser_open;
 #[cfg(test)]
 mod tests_browser_tab;
 #[cfg(test)]
@@ -3528,6 +3532,21 @@ pub fn spec() -> AppSpec<State> {
                 s.dark = Some(false);
                 s.show_page_fallback()
             }),
+            // Component 14, piece J: Your view / Agent's view, and the dialog the + menu's Browser entry opens.
+            ("browser-agent-you", |s| s.show_browser_agent(mock::browser_agent::AgentCase::You, true)),
+            ("browser-agent-you-light", |s| s.show_browser_agent(mock::browser_agent::AgentCase::You, false)),
+            ("browser-agent-watching", |s| s.show_browser_agent(mock::browser_agent::AgentCase::Watching, true)),
+            ("browser-agent-watching-light", |s| s.show_browser_agent(mock::browser_agent::AgentCase::Watching, false)),
+            ("browser-agent-narrow", |s| s.show_browser_agent(mock::browser_agent::AgentCase::Narrow, true)),
+            ("browser-open-empty", |s| s.show_browser_open(mock::browser_agent::OpenCase::Empty, true)),
+            ("browser-open-empty-light", |s| s.show_browser_open(mock::browser_agent::OpenCase::Empty, false)),
+            ("browser-open-command", |s| s.show_browser_open(mock::browser_agent::OpenCase::Command, true)),
+            ("browser-open-command-light", |s| s.show_browser_open(mock::browser_agent::OpenCase::Command, false)),
+            ("browser-open-address", |s| s.show_browser_open(mock::browser_agent::OpenCase::Address, true)),
+            ("browser-open-address-light", |s| s.show_browser_open(mock::browser_agent::OpenCase::Address, false)),
+            ("browser-open-error", |s| s.show_browser_open(mock::browser_agent::OpenCase::Error, true)),
+            ("browser-open-error-light", |s| s.show_browser_open(mock::browser_agent::OpenCase::Error, false)),
+            ("browser-open-busy", |s| s.show_browser_open(mock::browser_agent::OpenCase::Busy, true)),
             // Component 14, piece H: the browser tab's bar and each thing its page area can say.
             ("browser-tab", |s| s.show_browser_tab(mock::browser_tab::BrowserCase::Shown)),
             ("browser-tab-light", |s| {

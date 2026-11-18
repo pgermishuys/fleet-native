@@ -41,6 +41,8 @@ pub struct BrowserUi {
     pub app_id: Option<String>,
     /// What the app's panel, strip and output keep (piece I).
     pub app: super::browser_app::AppUi,
+    /// The user chose Agent's view (`view === 'agent'`); it only counts while the agent has a tab on this page (piece J).
+    pub agent: bool,
 }
 
 /// What the host is to do to a tab's web view besides loading it: run this in the page.
@@ -137,6 +139,7 @@ impl State {
     /// From `poll`: the browser tab on screen shows what it should (`onMounted`, `watch(pageUrl)`), and the address field says
     /// whether it has the keyboard. True when something to draw changed.
     pub fn keep_browser(&mut self, tx: &mut rune::Tx) -> bool {
+        let agent_changed = self.keep_browser_agent();
         let tabs = self.open_canvases();
         let active = tabs.active().filter(|c| c.kind == CanvasKind::Browser).and_then(|c| Some((c.id.clone(), c.browser()?)));
         let on_screen = active.filter(|_| self.rail == crate::Rail::Sessions && self.content_open && !self.browser_elsewhere());
@@ -147,9 +150,9 @@ impl State {
                 ui.app.out_key = None;
             }
         }
-        let Some((tab, page)) = on_screen else { return false };
+        let Some((tab, page)) = on_screen else { return agent_changed };
         let focused = tx.focused() == Some(ADDRESS_KEY);
-        let mut changed = false;
+        let mut changed = agent_changed;
         let want = self.browser_page_of(&page);
         let ui = self.browser_ui_mut(&tab);
         match (focused, ui.focused) {

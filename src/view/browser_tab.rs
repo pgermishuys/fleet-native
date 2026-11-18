@@ -2,8 +2,8 @@
 //! Open in a new tab) and the page area: the preview's web view laid over the panel, or what stands in for it (the panel when
 //! there is no page yet, the error, another machine's note, the fallback where no web view can be made).
 //!
-//! The app's panel, strip and output drawer, and the port select, are `browser_app` (piece I). Not here yet: Your view / Agent's
-//! view (piece J).
+//! The app's panel, strip and output drawer, and the port select, are `browser_app` (piece I). Your view / Agent's view, its
+//! toggle and banners, are `browser_agent_bar` (piece J), over component 10's picture of the agent's tab.
 use crate::State;
 use crate::fleet::browser_tab::BrowserPage;
 use crate::icons::*;
@@ -14,8 +14,8 @@ use crate::web::browser_app::Panel;
 use crate::web::preview_bridge::NavAction;
 use rune::{El, Key, KeyEvent, Tx, col, row, text, text_input};
 
-use super::browser_app;
 use super::page_tab::{fallback, icon_button};
+use super::{browser_agent_bar, browser_app};
 
 /// The whole tab (`.browser-canvas`).
 pub fn browser_tab(s: &State, t: &Theme, tab: &str, page: &BrowserPage) -> El {
@@ -33,7 +33,8 @@ pub fn browser_tab(s: &State, t: &Theme, tab: &str, page: &BrowserPage) -> El {
             }
         })
         .child(bar(s, t, tab, page))
-        .child(body(s, t, tab));
+        .children(browser_agent_bar::banner(s, t, tab, page))
+        .child(body(s, t, tab, page));
     if let Some(app) = browser_app::app_section(s, t, tab) {
         all = all.child(app);
     }
@@ -66,6 +67,7 @@ fn bar(s: &State, t: &Theme, tab: &str, page: &BrowserPage) -> El {
         .child(nav("browser-reload", "Reload", &ROTATE_CW, NavAction::Reload))
         .child(address(s, t, tab, page))
         .children(browser_app::port_select(s, t, tab))
+        .children(browser_agent_bar::views(s, t, tab, page))
         .child(open)
 }
 
@@ -103,10 +105,13 @@ fn address(s: &State, t: &Theme, tab: &str, page: &BrowserPage) -> El {
 }
 
 /// `.browser-canvas__page`: `--panel-bg`, holding the web view's frame, a message, or the fallback.
-fn body(s: &State, t: &Theme, tab: &str) -> El {
+fn body(s: &State, t: &Theme, tab: &str, page: &BrowserPage) -> El {
     let area = |inner: El| col().key("browser-tab-page").w_full().grow(1.0).min_h(0.0).fill(t.panel_bg).child(inner);
     if s.browser_elsewhere() {
         return area(elsewhere(s, t));
+    }
+    if let Some(agent) = s.browser_watching(tab, page) {
+        return area(super::agent_tab::agent_tab(s, t, &s.canvas_session(), &agent.id));
     }
     let ui = s.browser_ui(tab);
     if let Some(error) = ui.and_then(|u| u.error.as_ref()) {
