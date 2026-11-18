@@ -7,6 +7,7 @@
 //! fallback panel instead (decision 9).
 pub mod body;
 pub mod choice;
+pub mod cover;
 pub mod inject;
 pub mod page_bridge;
 pub mod page_theme;
@@ -43,6 +44,10 @@ pub struct Host {
     pub choices: std::collections::HashMap<String, choice::ChoiceUi>,
     /// How many times each page tab's Reload was pressed; part of the load key (row 14.27).
     pub reloads: std::collections::HashMap<String, u32>,
+    /// What the overlay layer covers (row 14.4).
+    pub cover: cover::Cover,
+    /// When the panel finishes easing to its new width (Widen), on the poll clock: the page waits out of the window until then.
+    pub settle_until: f64,
     /// What `keep_web` last did, so an unchanged frame touches nothing native.
     pub applied: Option<Wanted>,
     /// The CI walk, while it runs (`demo`).

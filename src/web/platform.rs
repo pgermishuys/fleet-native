@@ -5,7 +5,8 @@ use super::page_theme::PagePlace;
 use super::{Wanted, inject, wanted};
 use crate::State;
 use rune::{AppHandle, Tx, WindowHandle};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
+use std::rc::Rc;
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, Ordering};
 use wry::dpi::{LogicalPosition, LogicalSize};
@@ -17,6 +18,25 @@ struct View {
     load_key: String,
     /// The last rectangle it had on screen: a hidden view keeps its size, so the page doesn't lay itself out again.
     rect: [f32; 4],
+    /// Linux only: WebKitGTK's view is black until it has drawn, so it waits out of the window until the page has loaded (row
+    /// 14.10); the area under it is the white of `Theme::page_frame` meanwhile. Elsewhere a view is revealed at once.
+    revealed: bool,
+    loaded: Rc<Cell<bool>>,
+    born: std::time::Instant,
+}
+
+/// A page that never reports it has loaded is shown anyway after this long.
+const REVEAL_AFTER: std::time::Duration = std::time::Duration::from_secs(6);
+
+impl View {
+    /// Becomes true once, when the view may come into the window.
+    fn reveal_now(&mut self) -> bool {
+        if self.revealed || !(self.loaded.get() || self.born.elapsed() > REVEAL_AFTER) {
+            return false;
+        }
+        self.revealed = true;
+        true
+    }
 }
 
 thread_local! {
@@ -95,7 +115,14 @@ pub fn keep(s: &mut State, tx: &mut Tx) -> bool {
         s.web.theme = Some(theme);
     }
     let want = wanted(s);
-    if s.web.applied.as_ref() == Some(&want) {
+    // Every view is looked at (no short circuit): each one decides for itself.
+    #[allow(clippy::unnecessary_fold)]
+    let revealed = VIEWS.with(|v| v.borrow_mut().iter_mut().fold(false, |any, view| view.reveal_now() || any));
+    if s.clock < s.web.settle_until {
+        // Waiting for the panel to finish easing (Widen): look again when it has.
+        tx.wake_after(std::time::Duration::from_millis(40));
+    }
+    if !revealed && s.web.applied.as_ref() == Some(&want) {
         return false;
     }
     let result = apply(&want, &name);
@@ -126,6 +153,13 @@ fn pump(tx: &mut Tx) {
 fn apply(want: &Wanted, name: &str) -> Result<(), String> {
     VIEWS.with(|views| {
         let mut views = views.borrow_mut();
+        // A page tab's view lives only while its tab is the one on screen, hidden or not; another tab, another route, a closed
+        // panel or another session drop it (decision 5, row 14.14). What the page saved comes back through `fleet:page-hello`.
+        let before = views.len();
+        views.retain(|v| want.tab() == Some(v.tab.as_str()));
+        if views.len() != before {
+            log(|| format!("dropped {} view(s)", before - views.len()));
+        }
         if let Wanted::Shown(p) = want {
             match views.iter_mut().find(|v| v.tab == p.tab) {
                 Some(v) if v.load_key != p.load_key => {
@@ -145,7 +179,7 @@ fn apply(want: &Wanted, name: &str) -> Result<(), String> {
             let rect = match want {
                 Wanted::Shown(p) if p.tab == v.tab => {
                     v.rect = p.rect;
-                    p.rect
+                    if v.revealed { p.rect } else { away(p.rect) }
                 }
                 _ => away(v.rect),
             };
@@ -159,6 +193,9 @@ fn apply(want: &Wanted, name: &str) -> Result<(), String> {
 fn make(p: &super::Placement, name: &str) -> Result<View, String> {
     log(|| format!("make {} at {:?}", p.url, p.rect));
     let tab = p.tab.clone();
+    let loaded = Rc::new(Cell::new(false));
+    let done = loaded.clone();
+    let revealed = !cfg!(target_os = "linux");
     let builder = WebViewBuilder::new();
     let builder = match &p.html {
         // A document of the agent's: no scripts (its policy is in the text), and a link goes to the system's browser.
@@ -172,7 +209,24 @@ fn make(p: &super::Placement, name: &str) -> Result<View, String> {
         None => builder.with_url(&p.url),
     };
     let builder = builder
-        .with_bounds(bounds(p.rect))
+        .with_bounds(bounds(if revealed { p.rect } else { away(p.rect) }))
+        .with_on_page_load_handler(move |event, _| {
+            if matches!(event, wry::PageLoadEvent::Finished) {
+                done.set(true);
+            }
+        })
+        // `allow-popups` and `allow-downloads` go to the system browser, which has the user's downloads folder and windows
+        // (decision 12). The window is refused; a download is cancelled and the same address opens there.
+        .with_new_window_req_handler(|url, _| {
+            open_document_link(url);
+            wry::NewWindowResponse::Deny
+        })
+        .with_download_started_handler(|url, _| {
+            open_document_link(url);
+            false
+        })
+        // The inspector is for debug builds only (row 14.15); the page's own context menu is the system's.
+        .with_devtools(cfg!(debug_assertions))
         // `.page-canvas__frame { background: #fff }` until the page draws (row 14.10).
         .with_background_color((255, 255, 255, 255))
         // Showing a page doesn't take the keyboard from the composer; a click in it does.
@@ -184,7 +238,7 @@ fn make(p: &super::Placement, name: &str) -> Result<View, String> {
         let window = w.as_ref().ok_or_else(|| "no window yet".to_string())?;
         window.with_raw_handle(|handle| builder.build_as_child(&handle).map_err(|e| e.to_string()))?
     })?;
-    Ok(View { tab: p.tab.clone(), web, load_key: p.load_key.clone(), rect: p.rect })
+    Ok(View { tab: p.tab.clone(), web, load_key: p.load_key.clone(), rect: p.rect, revealed, loaded, born: std::time::Instant::now() })
 }
 
 /// A link in an agent's document goes to the system's browser; the document stays as it was.

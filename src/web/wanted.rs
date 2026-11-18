@@ -90,7 +90,10 @@ pub fn wanted(s: &State) -> Wanted {
         (None, None) => return Wanted::Nothing,
     };
     let Some(rect) = s.web.rect.filter(|r| r[2] >= 1.0 && r[3] >= 1.0) else { return Wanted::Nothing };
-    if s.ui.open.is_some() {
+    // A native view is over everything Rune draws: out of the way for a menu or a dialog, and while the panel eases to its
+    // width (Rune reports where an eased element comes to rest, so the page would be there at once); under a toast or a tooltip
+    // only where they are.
+    if s.ui.open.is_some() || s.web.cover.whole() || s.web.cover.over(rect) || s.clock < s.web.settle_until {
         return Wanted::Hidden { tab };
     }
     Wanted::Shown(Placement { tab, url, load_key, rect, html })

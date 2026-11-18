@@ -1650,3 +1650,10 @@ Nothing in Rune was needed.
   anything but `about:`/`data:`/`blob:` keeps a link in the document from replacing it.
 - **A conversation's "mounted at"** (Fleet's `Date.now()` at mount) is read once per session by `keep_visuals`; a test that drives
   `watch_visuals` with its own clock must count from `Visuals::mounted_at`, since the frames before it already took the real time.
+## Component 14, piece D (the web view host everywhere)
+
+- **Rune has no app-wide press hook.** `on_pointer_move` on the root sees moves only, and a press goes to the nearest element with a handler. A native web view that has the keyboard (Windows, macOS) needs to know when the user pressed anywhere in Rune; only a press that focuses an element shows (`Tx::focused`). Smallest case: blur, then click a rail button; `focused()` stays `None` (`tests_web_host`). A `App::on_press(fn(&mut S, &mut Tx))` before handlers would do.
+- **`on_layout` reports where an eased element comes to rest**, also for an ancestor's spring: a native view placed from it jumps to the new width at once while Widen eases. The host waits out the 200 ms instead (`Host::settle_until`).
+- **`rune::memo::window_layout(key)` works inside the view build with no `Cx`**: `ui::overlays` reads the rect of each floating overlay by key while it builds and the view builds again when one moves.
+- **A keyed element reports no rect until laid out**: read as "might be over the page" (hide) rather than "not".
+- WebKitGTK: a view is black until it first paints; keep it out of the window until `PageLoadEvent::Finished` (6 s cap). `GDK_SCALE` is a whole number, so on X11 at 1.5× the view is placed at 2× positions.

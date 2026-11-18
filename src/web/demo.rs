@@ -10,7 +10,23 @@ use std::sync::Mutex;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
-const STEPS: [&str; 7] = ["1-shown", "2-gutter", "3-palette", "4-palette-closed", "5-page-keys", "6-composer-keys", "7-resized"];
+const STEPS: [&str; 15] = [
+    "1-shown",
+    "2-gutter",
+    "3-palette",
+    "4-palette-closed",
+    "5-page-keys",
+    "6-composer-keys",
+    "7-widened",
+    "8-dialog",
+    "9-dialog-closed",
+    "10-toast",
+    "11-panel-closed",
+    "12-panel-reopened",
+    "13-resized",
+    "14-narrow",
+    "15-narrow-menu",
+];
 /// The page canvas the walk shows, and the page's field it types into.
 const TAB: &str = "page_walk";
 
@@ -92,10 +108,27 @@ fn next(s: &mut State, tx: &mut Tx) {
             walk.due += 4.0;
             type_in_composer(s);
         }
-        Some("7-resized") => {
+        Some("7-widened") => s.set_widened(true, tx),
+        Some("8-dialog") => {
+            s.set_widened(false, tx);
+            let call = crate::fleet::actions::Call::ClearAttachments { id: "s1".into() };
+            s.ask(crate::ui::confirm::Confirm::clear_attachments("tide notes".into(), call), tx);
+        }
+        Some("9-dialog-closed") => s.ui.confirm = None,
+        Some("10-toast") => s.toast("Saved the tide table".into(), None, 20.0, tx),
+        Some("11-panel-closed") => {
+            s.ui.toast = None;
+            s.content_open = false;
+        }
+        // The panel is made again, so is the page: its tick count starts from zero (the page is dropped, decision 5).
+        Some("12-panel-reopened") => s.content_open = true,
+        Some("13-resized") => {
             report(s);
             tx.resize_window_instant((900.0, 600.0));
         }
+        // Too narrow for a third column: the panel lies over the conversation, closed until asked (`rightPanelFits`).
+        Some("14-narrow") => tx.resize_window_instant((700.0, 600.0)),
+        Some("15-narrow-menu") => s.ui.open = Some(crate::ui::Open::Palette),
         _ => {
             report(s);
             tx.quit();

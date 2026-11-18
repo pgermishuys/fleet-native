@@ -89,6 +89,8 @@ impl crate::State {
     pub fn set_widened(&mut self, widened: bool, tx: &mut rune::Tx) {
         if self.right.widened != widened {
             tx.motion_curve(rune::Curve::tween(WIDEN_SECS, rune::Easing::cubic(0.2, 0.8, 0.2, 1.0)));
+            // A web view in the panel waits out of the window while the width eases (`web::wanted`).
+            self.web.settle_until = self.clock + WIDEN_SECS as f64 + 0.05;
         }
         self.right.widened = widened;
         self.sidebar.save_canvas_widened(widened);
