@@ -14,6 +14,7 @@ use wry::{Rect, WebView, WebViewBuilder};
 
 struct View {
     tab: String,
+    place: PagePlace,
     web: WebView,
     load_key: String,
     /// The last rectangle it had on screen: a hidden view keeps its size, so the page doesn't lay itself out again.
@@ -106,11 +107,10 @@ pub fn keep(s: &mut State, tx: &mut Tx) -> bool {
     }
     take_keys_back(s, tx);
     let theme = s.page_theme();
-    let name = theme.frame_name(PagePlace::Tab);
     if s.web.theme.as_ref() != Some(&theme) {
         // A change of theme (or of the font size) reaches every page that's open (row 14.28).
         if s.web.theme.is_some() {
-            retheme_all(&name, &theme.message());
+            retheme_all(&theme);
         }
         s.web.theme = Some(theme);
     }
@@ -125,7 +125,7 @@ pub fn keep(s: &mut State, tx: &mut Tx) -> bool {
     if !revealed && s.web.applied.as_ref() == Some(&want) {
         return false;
     }
-    let result = apply(&want, &name);
+    let result = apply(&want, s.web.theme.as_ref().expect("set above"));
     s.web.applied = Some(want);
     match result {
         Ok(()) => false,
@@ -150,7 +150,7 @@ fn pump(tx: &mut Tx) {
     let _ = tx;
 }
 
-fn apply(want: &Wanted, name: &str) -> Result<(), String> {
+fn apply(want: &Wanted, theme: &super::page_theme::PageTheme) -> Result<(), String> {
     VIEWS.with(|views| {
         let mut views = views.borrow_mut();
         // A page tab's view lives only while its tab is the one on screen, hidden or not; another tab, another route, a closed
@@ -172,7 +172,7 @@ fn apply(want: &Wanted, name: &str) -> Result<(), String> {
                     v.load_key = p.load_key.clone();
                 }
                 Some(_) => {}
-                None => views.push(make(p, name)?),
+                None => views.push(make(p, &theme.frame_name(p.place))?),
             }
         }
         for v in views.iter_mut() {
@@ -238,7 +238,7 @@ fn make(p: &super::Placement, name: &str) -> Result<View, String> {
         let window = w.as_ref().ok_or_else(|| "no window yet".to_string())?;
         window.with_raw_handle(|handle| builder.build_as_child(&handle).map_err(|e| e.to_string()))?
     })?;
-    Ok(View { tab: p.tab.clone(), web, load_key: p.load_key.clone(), rect: p.rect, revealed, loaded, born: std::time::Instant::now() })
+    Ok(View { tab: p.tab.clone(), place: p.place, web, load_key: p.load_key.clone(), rect: p.rect, revealed, loaded, born: std::time::Instant::now() })
 }
 
 /// A link in an agent's document goes to the system's browser; the document stays as it was.
@@ -251,11 +251,11 @@ fn open_document_link(url: String) {
     }
 }
 
-fn retheme_all(name: &str, message: &serde_json::Value) {
-    let js = inject::retheme(name, message);
+fn retheme_all(theme: &super::page_theme::PageTheme) {
+    let message = theme.message();
     VIEWS.with(|views| {
         for v in views.borrow().iter() {
-            let _ = v.web.evaluate_script(&js);
+            let _ = v.web.evaluate_script(&inject::retheme(&theme.frame_name(v.place), &message));
         }
     });
 }

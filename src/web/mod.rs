@@ -8,6 +8,7 @@
 pub mod body;
 pub mod choice;
 pub mod cover;
+pub mod full;
 pub mod inject;
 pub mod page_bridge;
 pub mod page_theme;
@@ -50,6 +51,9 @@ pub struct Host {
     pub settle_until: f64,
     /// What `keep_web` last did, so an unchanged frame touches nothing native.
     pub applied: Option<Wanted>,
+    /// A conversation page open full size (piece F) and where its body is.
+    pub full: Option<full::Full>,
+    pub full_rect: Option<[f32; 4]>,
     /// The CI walk, while it runs (`demo`).
     #[cfg(all(feature = "web", not(target_arch = "wasm32")))]
     pub walk: Option<demo::Walk>,

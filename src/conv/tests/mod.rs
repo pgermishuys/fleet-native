@@ -19,6 +19,7 @@ mod image_sniff;
 mod merge_reads;
 mod message_list;
 mod output;
+mod pages;
 mod pin;
 mod references;
 mod registry;

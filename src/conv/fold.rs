@@ -16,7 +16,7 @@ const OPENS_SOMETHING: [&str; 4] = ["fleet_page_show", "fleet_app_start", "fleet
 /// The call produced something the user opens: its Show button has to stay on screen, so it stays out of the fold and is
 /// not counted as "other".
 fn is_page_show(tool: &ListTool) -> bool {
-    tool.page || tool.canvas || OPENS_SOMETHING.contains(&get_tool(&tool.kind).name.as_str())
+    tool.page.is_some() || tool.canvas || OPENS_SOMETHING.contains(&get_tool(&tool.kind).name.as_str())
 }
 
 /// Claude Code's ExitPlanMode hands over the plan: it reads nothing and changes no file.

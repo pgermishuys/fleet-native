@@ -72,6 +72,10 @@ pub struct ToolBody {
     pub canvas_id: Option<String>,
     /// The output is a document or page the agent rendered: the box shows it instead of the output (`parseVisualPayload`).
     pub visual: Option<crate::fleet::canvases::VisualPayload>,
+    /// The page the call showed in the conversation, drawn as a card after the message's calls (`toolPage`).
+    pub page: Option<super::message_list::ToolPage>,
+    /// What names the page: the call's title (`state.title`, else `input.title`).
+    pub page_title: String,
 }
 
 /// The card's diff lines (`cardDiffLines`, then `withFileEdit`'s fallback for write kinds).
@@ -112,6 +116,12 @@ pub fn tool_body(tool: &str, title: &str, state: &Value) -> ToolBody {
         screenshot: super::image_sniff::tool_screenshot(state),
         canvas_id: canvas_id_of(tool, state),
         visual,
+        page: super::message_list::tool_page(state),
+        page_title: ["/title", "/input/title"]
+            .iter()
+            .find_map(|p| state.pointer(p).and_then(Value::as_str).filter(|t| !t.is_empty()))
+            .unwrap_or(title)
+            .to_string(),
     }
 }
 

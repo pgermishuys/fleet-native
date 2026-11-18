@@ -32,6 +32,7 @@ pub mod machines;
 pub mod machines_page;
 pub mod memory;
 pub mod notices;
+pub mod page_cards;
 pub mod pages;
 pub mod parts;
 pub mod permissions;

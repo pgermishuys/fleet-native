@@ -27,6 +27,8 @@ pub struct Placement {
     pub rect: [f32; 4],
     /// A Document tab's HTML (already with its policy, `html_document`): loaded as it is, and `url` is empty.
     pub html: Option<String>,
+    /// Where the page believes it sits, which its theme is named for (`pageFrameName`).
+    pub place: super::page_theme::PagePlace,
 }
 
 impl Wanted {
@@ -84,6 +86,15 @@ pub fn shown_document(s: &State) -> Option<(String, String, String)> {
 
 /// `wanted`: the rule the host follows every frame.
 pub fn wanted(s: &State) -> Wanted {
+    // Full size covers the whole window, so it is the only web view on screen while it is up.
+    if s.page_full().is_some() {
+        // A toast or notice floating over it hides it only there, as for a tab's page.
+        return match super::full::wanted_full(s) {
+            None => Wanted::Nothing,
+            Some(p) if s.web.cover.over(p.rect) => Wanted::Hidden { tab: p.tab },
+            Some(p) => Wanted::Shown(p),
+        };
+    }
     let (tab, url, html, load_key) = match (shown_tab(s), shown_document(s)) {
         (Some((tab, url, key)), _) => (tab, url, None, key),
         (None, Some((tab, html, key))) => (tab, String::new(), Some(html), key),
@@ -96,5 +107,5 @@ pub fn wanted(s: &State) -> Wanted {
     if s.ui.open.is_some() || s.web.cover.whole() || s.web.cover.over(rect) || s.clock < s.web.settle_until {
         return Wanted::Hidden { tab };
     }
-    Wanted::Shown(Placement { tab, url, load_key, rect, html })
+    Wanted::Shown(Placement { tab, url, load_key, rect, html, place: super::page_theme::PagePlace::Tab })
 }
