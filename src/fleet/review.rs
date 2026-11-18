@@ -1,10 +1,13 @@
 //! The review's own state per session (`ChangesReview.vue`, rows 5.x and 6.x of docs/parity/12-changes-and-review.md): which file
 //! sections are shut, which start shut, the layout the user picked and the order the files are drawn in. Plain Rust with no Rune
 //! in it; `view::review` draws it and the `State` half at the bottom asks for the contents of every open file.
+use super::diff_contents::Entry;
 use super::diffs::FileDiff;
 use crate::State;
 use crate::conv::review::ReviewItem;
+use std::cell::Cell;
 use std::collections::HashSet;
+use std::rc::Rc;
 
 /// A long list opens its first few files; the rest are one click away (`AUTO_OPEN`).
 pub const AUTO_OPEN: usize = 8;
@@ -15,6 +18,41 @@ pub const SPLIT_FROM_WIDTH: f32 = 1100.0;
 
 /// A diff with thousands of changed lines draws its first hunks; the rest is one click away (`MAX_DRAWN_LINES`).
 pub const MAX_DRAWN_LINES: usize = 600;
+
+/// How far past the visible part of the review a file still counts as near (`NEAR_MARGIN`, "600px 0px").
+pub const NEAR_MARGIN: f32 = 600.0;
+/// What the review's scroll box is taken to show before it has said (the panel's usual height).
+const FIRST_VIEWPORT: f32 = 900.0;
+/// The body's top padding, a card's header and its two border rows, and the gap between cards (`review.rs`).
+const BODY_TOP: f32 = 12.0;
+const CARD_CHROME: f32 = 38.0;
+const CARD_GAP: f32 = 10.0;
+/// One line's height in a file's lines (`view::review_lines::LINE_H`).
+const LINE: f32 = 20.0;
+/// A body that is one line of words (binary, too large, failed): `.rfile__note`.
+const NOTE_BODY: f32 = 44.0;
+
+/// `pendingHeight`: the room a file not drawn yet holds, and keeps while it loads.
+pub fn pending_height(file: &FileDiff) -> f32 {
+    (file.additions + file.deletions + 8).min(MAX_DRAWN_LINES as u64) as f32 * LINE
+}
+
+/// The files within `NEAR_MARGIN` of the visible part, from where each one's card is taken to lie. `body` is the height an open
+/// file's body takes as far as is known: the pending height for a file not loaded, which also stands in for one that has (it draws
+/// about as many rows), and a short note's for one that has no lines to draw.
+pub fn near_files(files: &[FileDiff], body: impl Fn(&FileDiff) -> f32, offset: f32, viewport: f32) -> Vec<String> {
+    let (from, to) = (offset - NEAR_MARGIN, offset + viewport + NEAR_MARGIN);
+    let mut top = BODY_TOP;
+    let mut near = Vec::new();
+    for file in files {
+        let height = CARD_CHROME + body(file);
+        if top < to && top + height > from {
+            near.push(file.file.clone());
+        }
+        top += height + CARD_GAP;
+    }
+    near
+}
 
 /// One item of a file's review as drawn: a hunk may be cut to its first `take` lines.
 pub struct Shown<'a> {
@@ -117,13 +155,19 @@ pub struct Review {
     /// Unchanged runs the reader opened (`path`, fold id) and files drawn whole past the cap.
     open_folds: HashSet<(String, String)>,
     drawn_all: HashSet<String>,
+    /// Files that have come near the visible part: they stay drawn (`near`).
+    near: HashSet<String>,
+    /// Where the scroll box is, left by the view's `on_scroll_offset` (which may not change state) for `State::review_sync`.
+    pub probe: Rc<Cell<Option<rune::ScrollPos>>>,
+    /// The last place `keep_near` acted on.
+    seen: Cell<Option<rune::ScrollPos>>,
 }
 
 impl Review {
     /// Another session: a fresh review (Fleet mounts one per session).
     pub fn open(&mut self, session: &str) {
         if self.session != session {
-            *self = Review { session: session.to_string(), ..Default::default() };
+            *self = Review { session: session.to_string(), probe: self.probe.clone(), ..Default::default() };
         }
     }
 
@@ -154,6 +198,25 @@ impl Review {
         self.drawn_all.insert(path.to_string());
     }
 
+    /// The box moved since last asked: the place is now the one acted on.
+    pub fn moved(&self) -> bool {
+        let at = self.probe.get();
+        at.is_some() && self.seen.replace(at) != at
+    }
+
+    pub fn near_count(&self) -> usize {
+        self.near.len()
+    }
+
+    pub fn is_near(&self, path: &str) -> bool {
+        self.near.contains(path)
+    }
+
+    /// `markNear`: for a file something else needs drawn (find, a request to focus it). Returns whether any was new.
+    pub fn mark_near(&mut self, paths: impl IntoIterator<Item = String>) -> bool {
+        paths.into_iter().fold(false, |any, p| self.near.insert(p) | any)
+    }
+
     pub fn is_open(&self, path: &str) -> bool {
         !self.collapsed.contains(path)
     }
@@ -180,7 +243,7 @@ impl State {
         sorted(self.diffs.files())
     }
 
-    /// Settles which sections start shut and asks for the contents of every open one (H narrows this to what is near). Nothing
+    /// Settles which sections start shut and asks for the contents of every open file that is near the visible part (`near`). Nothing
     /// while the panel is closed: a closed panel shows no diffs and asks for none.
     pub fn review_sync(&mut self) {
         let session = self.diffs.session().to_string();
@@ -190,10 +253,29 @@ impl State {
         self.review.open(&session);
         let files = self.review_files();
         self.review.decide(&files);
-        let open: Vec<&FileDiff> = files.iter().filter(|f| self.review.is_open(&f.file)).collect();
+        let (offset, viewport) = self.review.probe.get().map_or((0.0, FIRST_VIEWPORT), |at| (at.offset[1], at.viewport[1]));
+        let body = |f: &FileDiff| match self.diff_contents.entry(&f.file) {
+            _ if !self.review.is_open(&f.file) => 0.0,
+            Some(Entry::Ready(item)) if item.binary || item.truncated => NOTE_BODY,
+            Some(Entry::Error(_)) => NOTE_BODY,
+            _ => pending_height(f),
+        };
+        let near = near_files(&files, body, offset, viewport);
+        self.review.mark_near(near);
+        let open: Vec<&FileDiff> = files.iter().filter(|f| self.review.is_open(&f.file) && self.review.is_near(&f.file)).collect();
         for file in open {
             self.load_diff_file(&session, file);
         }
+    }
+
+    /// The review scrolled or changed its height: files that came near are asked for. Returns whether the view must redraw.
+    pub fn keep_review_near(&mut self) -> bool {
+        if !self.content_open || !self.review.moved() {
+            return false;
+        }
+        let before = self.review.near_count();
+        self.review_sync();
+        self.review.near_count() != before
     }
 
     /// The layout drawn: the user's pick (remembered, `weave:changes-layout`), else by the panel's width.

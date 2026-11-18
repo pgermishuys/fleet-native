@@ -113,7 +113,8 @@ fn offers_try_again_on_a_file_whose_diff_failed_to_load_and_draws_it_when_the_re
     let mut rt = shown(Case::Review);
     rt.update(|s, _| {
         let id = s.diffs.session().to_string();
-        s.diff_contents.put(&id, NOTES, Entry::Error("HTTP 502".into()));
+        let version = crate::fleet::diff_contents::version_of(s.diffs.by_file(NOTES).expect("the file"));
+        s.diff_contents.put_at(&id, NOTES, &version, Entry::Error("HTTP 502".into()));
     });
     let (jobs, queue) = channel::<Job>();
     let jobs = Mutex::new(jobs);

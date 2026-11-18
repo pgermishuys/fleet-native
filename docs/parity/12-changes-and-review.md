@@ -177,9 +177,9 @@ Files tab, each in both themes.
 
 | # | Element / behaviour | Source | Native today |
 |---|---|---|---|
-| 8.1 | An open file's contents are fetched and its lines drawn only once its section comes within 600 px of the visible part of the review, and it stays drawn after (weave-fleet #941) | CR 156-209 | None |
-| 8.2 | A file not drawn yet holds about its height: `min(additions + deletions + 8, 600) × 20` px, so files below it don't all come into view and load at once; it keeps that height while it loads | CR 173-179, 963-974 | None |
-| 8.3 | A file's lines are worked out once per loaded entry and version; another file loading doesn't redo them | CR 220-255 | None |
+| 8.1 | An open file's contents are fetched and its lines drawn only once its section comes within 600 px of the visible part of the review, and it stays drawn after (weave-fleet #941) | CR 156-209 | Done in piece H (18 November 2026), `src/fleet/review.rs`, `src/view/review.rs` |
+| 8.2 | A file not drawn yet holds about its height: `min(additions + deletions + 8, 600) × 20` px, so files below it don't all come into view and load at once; it keeps that height while it loads | CR 173-179, 963-974 | Done in piece H (18 November 2026), `src/fleet/review.rs`, `src/view/review.rs` |
+| 8.3 | A file's lines are worked out once per loaded entry and version; another file loading doesn't redo them | CR 220-255 | Done in piece H (18 November 2026), `src/fleet/review.rs`, `src/view/review.rs` |
 
 ## Part 9: Rendered, and asking about it
 
@@ -414,7 +414,9 @@ rendered HTML (a card with Open).
   doesn't move when the hunk scrolls (the native layout keeps them fixed by construction; say so).
 - **Pictures:** Split beside Fleet's (`fleet-split-*.png`), and at a panel over 1,100 px where it starts as Split.
 
-### Piece H: drawing what's near
+### Piece H: drawing what's near (**done**, 18 November 2026)
+
+Gaps: a file's top is *estimated* from heights known so far (pending height for a file not loaded or that draws lines, one note for binary, too-large or failed), because Rune gives the scroll place but no per-element rects; the 600 px margin absorbs the error. Fleet's "mark near" for find hits and focus requests is `Review::mark_near`, to be called by pieces K and M. No native picture of the review scrolled half-way: scripted runs have no wheel, so it is shown from Fleet only; the scroll is tested with the wheel in `tests_review_near.rs`.
 
 - **Rows:** 8.1-8.3.
 - **Files:** `src/view/review.rs` (`on_scroll_offset` into a `Cell` the state owns; each file's top from the heights

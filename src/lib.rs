@@ -139,6 +139,8 @@ mod tests_review;
 #[cfg(test)]
 mod tests_review_lines;
 #[cfg(test)]
+mod tests_review_near;
+#[cfg(test)]
 mod tests_right_panel;
 #[cfg(test)]
 mod tests_row_actions;
@@ -1436,7 +1438,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_attachments(tx)
         | s.keep_new_message(tx)
         | s.keep_new_mentions(now, tx);
-    let scrolled = s.keep_scroll(tx);
+    let scrolled = s.keep_scroll(tx) | s.keep_review_near();
     // The tick asks for the next frame first, so `keep_images` starts it in the same poll.
     let agent_view = s.keep_agent_view(now, tx);
     let pictures = s.keep_images(tx) | agent_view;
@@ -2634,6 +2636,8 @@ pub fn spec() -> AppSpec<State> {
             ("review-split", |s| s.show_review_split(true, false)),
             ("review-split-light", |s| s.show_review_split(false, false)),
             ("review-split-wrap", |s| s.show_review_split(true, true)),
+            ("review-near", |s| s.show_changes_scene(mock::changes::Case::ReviewNear, true)),
+            ("review-near-light", |s| s.show_changes_scene(mock::changes::Case::ReviewNear, false)),
             ("review-long", |s| s.show_changes_scene(mock::changes::Case::ReviewLong, true)),
             ("review-long-light", |s| s.show_changes_scene(mock::changes::Case::ReviewLong, false)),
             ("review-states", |s| s.show_changes_scene(mock::changes::Case::ReviewStates, true)),
