@@ -54,6 +54,14 @@ pub struct Slot {
     pub height: f32,
     /// The grip is held (drawn lit while it is).
     pub dragging: bool,
+    /// The width of the view's box, padding included, once laid out (the bubble clamps to it).
+    pub box_w: f32,
+    /// The pointer is over the box: the scrollbar shows (xterm 6 fades it out otherwise).
+    pub hover: bool,
+    /// The scrollbar's slider is held.
+    pub bar_held: bool,
+    /// What a wheel left over, in lines, so a trackpad's small steps add up.
+    pub wheel_rem: f32,
 }
 
 impl Slot {
@@ -120,10 +128,6 @@ impl State {
         self.sync_terminal();
         tx.focus(VIEW_KEY, false);
     }
-
-    /// Copy (Ctrl Shift C, ⌘ C): puts the box's selection on the clipboard. Nothing can be selected until piece F builds
-    /// selection, so the key is taken (the shell never gets ^C from it) and does nothing yet.
-    pub fn copy_terminal_selection(&mut self, _tx: &mut Tx) {}
 
     /// A tab picked from the keyboard: it shows, and the focus stays on the tab strip (`activate`).
     pub fn activate_terminal_tab(&mut self, id: &str) {
@@ -290,6 +294,7 @@ impl State {
 
     /// The box was laid out at `w` × `h`: fit the terminal to it and tell the shell (13.2, 13.4, 13.5).
     pub fn fit_terminal(&mut self, w: f32, h: f32) {
+        self.terminal.box_w = w;
         let fit = fit_box(w, h);
         if self.terminal.fitted == Some(fit) {
             return;

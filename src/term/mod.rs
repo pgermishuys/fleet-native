@@ -7,6 +7,7 @@ pub mod fit;
 pub mod keys;
 pub mod palette;
 pub mod screen;
+pub mod selection;
 
 use std::sync::{Arc, Mutex, MutexGuard};
 
@@ -114,6 +115,22 @@ impl Terminal {
         self.lock().term.scroll_display(alacritty_terminal::grid::Scroll::Bottom);
     }
 
+    /// The wheel and the scrollbar: moves the view `lines` back into the scrollback (negative: forward), stopping at either end.
+    pub fn scroll_by(&self, lines: i32) {
+        self.lock().term.scroll_display(alacritty_terminal::grid::Scroll::Delta(lines));
+    }
+
+    /// (lines of scrollback, lines the view is scrolled back, rows on screen): what the scrollbar draws.
+    pub fn scroll_state(&self) -> (usize, usize, usize) {
+        self.read(|t| (t.grid().history_size(), t.grid().display_offset(), t.screen_lines()))
+    }
+
+    /// The scrollbar's slider moved: the view is `offset` lines back.
+    pub fn scroll_to_offset(&self, offset: usize) {
+        let now = self.display_offset() as i32;
+        self.scroll_by(offset as i32 - now);
+    }
+
     /// How many lines the view is scrolled back from the live screen.
     pub fn display_offset(&self) -> usize {
         self.read(|t| t.grid().display_offset())
@@ -146,7 +163,8 @@ impl Terminal {
 
 impl Inner {
     fn new(cols: u16, rows: u16, answers: &Listener) -> Inner {
-        let config = Config { scrolling_history: SCROLLBACK, ..Config::default() };
+        // xterm.js's word separators (`wordSeparator`), for a double click.
+        let config = Config { scrolling_history: SCROLLBACK, semantic_escape_chars: " ()[]{}',\"`".into(), ..Config::default() };
         let size = Size { cols: cols.max(1) as usize, rows: rows.max(1) as usize };
         Inner { term: Term::new(config, &size, answers.clone()), parser: Processor::new() }
     }

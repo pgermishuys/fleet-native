@@ -8,6 +8,7 @@ use std::rc::Rc;
 use alacritty_terminal::event::EventListener;
 use alacritty_terminal::grid::Dimensions;
 use alacritty_terminal::index::{Column, Line};
+use alacritty_terminal::selection::SelectionRange;
 use alacritty_terminal::term::cell::{Cell, Flags};
 use alacritty_terminal::term::color::Colors;
 use alacritty_terminal::term::{Term, TermDamage, TermMode};
@@ -56,6 +57,10 @@ pub struct Screen {
     pub cols: usize,
     pub cursor: Option<Cursor>,
     pub mode: TermMode,
+    /// What the selection is painted with (13.8: the active or the inactive colour), or None to paint none. Set before each read.
+    pub selection: Option<Color>,
+    /// The columns each row had selected when it was last read.
+    spans: Vec<Option<(u16, u16, u64)>>,
     /// Rows built (not reused) by the last read.
     pub built: usize,
     /// Rows whose cells were read and hashed by the last read: the rows alacritty said had changed, or all of them.
@@ -70,6 +75,14 @@ impl Screen {
     pub fn read<T: EventListener>(&mut self, term: &mut Term<T>, pal: &Palette, bg: Color, look: u64) {
         let (lines, cols) = (term.screen_lines(), term.columns());
         let offset = term.grid().display_offset();
+        // Which cells are selected, a row at a time. The selection isn't damage, so a row whose span changed is read again.
+        let range = self.selection.and_then(|_| term.selection.as_ref().and_then(|s| s.to_range(term)));
+        // The colour is part of what a selected row looks like: the other rows don't care which colour it is.
+        let paint =
+            self.selection.map_or(0, |c| [c.r, c.g, c.b].map(f32::to_bits).into_iter().fold(0u64, |h, b| h.rotate_left(7) ^ b as u64));
+        let spans: Vec<Option<(u16, u16, u64)>> = (0..lines)
+            .map(|v| range.as_ref().and_then(|r| span_of(r, v as i32 - offset as i32, cols)).map(|(s, e)| (s, e, paint)))
+            .collect();
         let damaged = {
             let mut hit = vec![false; lines];
             let all = match term.damage() {
@@ -97,24 +110,27 @@ impl Screen {
         self.cols = cols;
         self.rows.resize_with(lines, || Rc::new(GridRow::new("", Vec::new(), style())));
         self.keys.resize(lines, 0);
+        self.spans.resize(lines, None);
         self.built = 0;
         self.scanned = 0;
         for v in 0..lines {
-            if self.keys[v] != 0 && damaged.as_ref().is_some_and(|d| !d[v]) {
+            if self.keys[v] != 0 && self.spans[v] == spans[v] && damaged.as_ref().is_some_and(|d| !d[v]) {
                 continue;
             }
             self.scanned += 1;
             let row = &grid[Line(v as i32 - offset as i32)];
             let mut h = std::hash::DefaultHasher::new();
-            (look, cols).hash(&mut h);
+            (look, cols, spans[v]).hash(&mut h);
             for c in 0..cols {
                 let cell = &row[Column(c)];
                 (cell.c, cell.flags.bits(), code(cell.fg), code(cell.bg), cell.zerowidth()).hash(&mut h);
             }
             let key = h.finish() | 1;
+            self.spans[v] = spans[v];
             if self.keys[v] != key {
                 self.keys[v] = key;
-                self.rows[v] = Rc::new(build_row((0..cols).map(|c| &row[Column(c)]), term.colors(), pal, bg));
+                let sel = spans[v].map(|(s, e, _)| (s, e)).zip(self.selection);
+                self.rows[v] = Rc::new(build_row((0..cols).map(|c| &row[Column(c)]), term.colors(), pal, bg, sel));
                 self.built += 1;
             }
         }
@@ -133,6 +149,19 @@ impl Screen {
         });
         self.mode = content.mode;
     }
+}
+
+/// The columns of the selection on one line (grid line numbers: negative is scrollback), or None when it doesn't touch it.
+fn span_of(r: &SelectionRange, line: i32, cols: usize) -> Option<(u16, u16)> {
+    if line < r.start.line.0 || line > r.end.line.0 {
+        return None;
+    }
+    let (s, e) = if r.is_block {
+        (r.start.column.0.min(r.end.column.0), r.start.column.0.max(r.end.column.0) + 1)
+    } else {
+        (if line == r.start.line.0 { r.start.column.0 } else { 0 }, if line == r.end.line.0 { r.end.column.0 + 1 } else { cols })
+    };
+    (e > s).then_some((s as u16, e.min(cols) as u16))
 }
 
 /// A colour as a number, for the row's hash (vte's colours don't implement `Hash`).
@@ -167,7 +196,13 @@ fn resolve(pal: &Palette, c: Ansi, colors: &Colors, bold: bool, fg_default: Colo
 
 /// One row: narrow cells as one line of text with colour spans, wide and other-face cells pinned to their columns, and
 /// background runs as fills.
-fn build_row<'a>(cells: impl Iterator<Item = &'a Cell>, colors: &Colors, pal: &Palette, bg_default: Color) -> GridRow {
+fn build_row<'a>(
+    cells: impl Iterator<Item = &'a Cell>,
+    colors: &Colors,
+    pal: &Palette,
+    bg_default: Color,
+    selected: Option<((u16, u16), Color)>,
+) -> GridRow {
     let (mut text, mut spans, mut fills, mut pins) = (String::new(), Vec::<Span>::new(), Vec::new(), Vec::new());
     let mut fill: Option<(u16, u16, Color)> = None;
     let mut wraps = false;
@@ -240,6 +275,10 @@ fn build_row<'a>(cells: impl Iterator<Item = &'a Cell>, colors: &Colors, pal: &P
     fills.extend(fill);
     let mut row = GridRow::new(text, spans, style()).wraps(wraps);
     for (s, e, k) in fills {
+        row = row.fill(s, e, k);
+    }
+    // The selection is painted last: over the cell backgrounds, under the text.
+    if let Some(((s, e), k)) = selected {
         row = row.fill(s, e, k);
     }
     for (col, width, glyph, st, fg) in pins {

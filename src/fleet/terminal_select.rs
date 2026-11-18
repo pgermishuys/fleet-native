@@ -1,0 +1,120 @@
+//! What the mouse does in the terminal's box (component 13, piece F): select by dragging, by word and by line, copy, add the
+//! selected lines to the message, the wheel, and the scrollbar's slider. The cells and lines are `term::selection`; the bubble
+//! is `view::terminal_pop`, the slider `view::terminal_bar`.
+use rune::{Drag, Phase, Tx, WheelEvent};
+
+use crate::State;
+use crate::composer::attached::TerminalDraft;
+use crate::term::fit::{CELL_H, CELL_W, PAD};
+use crate::term::selection::Pick;
+
+/// Lines one notch of a wheel scrolls (xterm: three).
+pub const NOTCH_LINES: f32 = 3.0;
+
+/// The cell under a point in the box (padding included), and whether the point is in the cell's right half.
+fn cell_at(x: f32, y: f32) -> (usize, usize, bool) {
+    let (cx, cy) = ((x - PAD[3]) / CELL_W, (y - PAD[0]) / CELL_H);
+    (cx.floor().max(0.0) as usize, cy.floor().max(0.0) as usize, cx - cx.floor() >= 0.5)
+}
+
+impl State {
+    /// The box's drag: a press selects (a word on a double click, a line on a triple), moving extends. A press past the top or
+    /// bottom edge scrolls the view a line with each move, so a selection can reach what is off screen.
+    pub fn terminal_drag(&mut self, d: &Drag) {
+        let Some(live) = self.terminal.live.as_ref() else { return };
+        let (col, row, right) = cell_at(d.x, d.y);
+        match d.phase {
+            Phase::Down => {
+                let pick = match d.clicks {
+                    0 | 1 => Pick::Chars,
+                    2 => Pick::Word,
+                    _ => Pick::Line,
+                };
+                live.term.select_start(pick, col, row, right);
+            }
+            Phase::Move => {
+                if d.y < PAD[0] {
+                    live.term.scroll_by(1);
+                } else if d.y > PAD[0] + live.term.size().1 as f32 * CELL_H {
+                    live.term.scroll_by(-1);
+                }
+                live.term.select_to(col, row, right);
+            }
+            Phase::Up => {}
+        }
+    }
+
+    /// The wheel: the view moves through the scrollback and the shell hears nothing. True when the wheel was ours.
+    pub fn terminal_wheel(&mut self, e: &WheelEvent) -> bool {
+        let Some(live) = self.terminal.live.as_ref() else { return false };
+        // A notch is three lines; a trackpad's steps are points, kept until they add up to a line.
+        let lines = if e.precise { e.dy / CELL_H } else { e.dy.signum() * NOTCH_LINES };
+        self.terminal.wheel_rem += lines;
+        let whole = self.terminal.wheel_rem.trunc();
+        self.terminal.wheel_rem -= whole;
+        if whole != 0.0 {
+            live.term.scroll_by(whole as i32);
+        }
+        true
+    }
+
+    /// Copy (Ctrl Shift C, ⌘ C): the selected text goes on the clipboard and the selection stays.
+    pub fn copy_terminal_selection(&mut self, tx: &mut Tx) {
+        if let Some(text) = self.terminal.live.as_ref().and_then(|l| l.term.selected_text()) {
+            tx.copy(text);
+        }
+    }
+
+    /// The bubble's Copy (`copySelection`): copies, then clears the selection.
+    pub fn copy_and_clear_terminal_selection(&mut self, tx: &mut Tx) {
+        self.copy_terminal_selection(tx);
+        if let Some(live) = self.terminal.live.as_ref() {
+            live.term.clear_selection();
+        }
+    }
+
+    /// The bubble's Add (`onAttach` in `TerminalDrawer.vue`): the lines join the open session's draft as a chip labelled with
+    /// the tab's title, the selection clears and the composer takes the keyboard.
+    pub fn attach_terminal_lines(&mut self, tx: &mut Tx) {
+        let Some(live) = self.terminal.live.as_ref() else { return };
+        let Some(lines) = live.term.selected_lines() else { return };
+        let ms = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis());
+        let context = TerminalDraft {
+            id: format!("{}:{}-{}:{ms}", live.id, lines.from, lines.to),
+            terminal_id: live.id.clone(),
+            label: live.title.clone(),
+            from: lines.from,
+            to: lines.to,
+            text: lines.text,
+        };
+        live.term.clear_selection();
+        self.add_terminal_lines(context);
+        tx.focus("composer", false);
+    }
+
+    /// The slider is pressed or dragged: `start` is the view's offset when it was pressed, `dy` how far the pointer has gone
+    /// down since, and the slider moves with the pointer, so the offset moves by that share of the scrollback.
+    pub fn terminal_bar_drag(&mut self, d: &mut Drag) {
+        let Some(live) = self.terminal.live.as_ref() else { return };
+        let (history, offset, rows) = live.term.scroll_state();
+        match d.phase {
+            Phase::Down => {
+                d.data = offset as f32;
+                self.terminal.bar_held = true;
+            }
+            Phase::Move => {
+                let track = rows as f32 * CELL_H;
+                let (_, slider) = crate::view::terminal_bar::slider(track, history, offset, rows);
+                let per_line = ((track - slider) / history.max(1) as f32).max(f32::EPSILON);
+                let back = d.data - d.dy / per_line;
+                live.term.scroll_to_offset(back.round().clamp(0.0, history as f32) as usize);
+            }
+            Phase::Up => self.terminal.bar_held = false,
+        }
+    }
+
+    /// The pointer came over the box or left it.
+    pub fn terminal_hover(&mut self, inside: bool) {
+        self.terminal.hover = inside;
+    }
+}

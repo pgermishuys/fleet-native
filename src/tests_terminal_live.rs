@@ -706,3 +706,27 @@ fn ctrl_shift_c_is_taken_for_copy_and_never_sends_a_ctrl_c() {
     live.rt.frame(FRAME);
     until_true("the one ^C", || fake_input_is(&live.fake, &[0x03]));
 }
+
+// ---- piece F: paste (13.68) ---------------------------------------------------------------------------------------------------
+
+// On a Mac ⌘ V pastes (`terminal_keys` tests); the bytes are the same.
+#[cfg(not(target_os = "macos"))]
+#[test]
+fn ctrl_shift_v_pastes_into_the_shell_bracketed_only_when_the_program_asked() {
+    let clipboard = rune::clipboard::memory();
+    for (scrollback, want) in [(&b"demo $ "[..], &b"ls\rpwd"[..]), (&b"\x1b[?2004hdemo $ "[..], &b"\x1b[200~ls\rpwd\x1b[201~"[..])] {
+        let mut live = Live::start(Fake::start(&["t1"], scrollback));
+        live.rt.use_clipboard(&clipboard);
+        live.rt.key(chord(Key::Command('j'), true, false));
+        live.rt.frame(FRAME);
+        live.wait("the socket to open", |s| s.terminal.status() == Some(Status::Open));
+        live.wait("the program's request to be read", |s| s.terminal.live.as_ref().is_some_and(|l| !text_of(&l.term)[0].is_empty()));
+        click(&mut live.rt, "terminal-view");
+        clipboard.set_text("ls\npwd");
+        live.rt.key(chord(Key::Command('v'), true, true));
+        until_true("the paste", || {
+            live.rt.frame(FRAME);
+            fake_input_is(&live.fake, want)
+        });
+    }
+}
