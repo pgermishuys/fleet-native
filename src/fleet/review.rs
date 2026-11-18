@@ -3,6 +3,7 @@
 //! in it; `view::review` draws it and the `State` half at the bottom asks for the contents of every open file.
 use super::diffs::FileDiff;
 use crate::State;
+use crate::conv::review::ReviewItem;
 use std::collections::HashSet;
 
 /// A long list opens its first few files; the rest are one click away (`AUTO_OPEN`).
@@ -11,6 +12,45 @@ pub const AUTO_OPEN: usize = 8;
 pub const BIG_DIFF_LINES: u64 = 1500;
 /// Unified below this much panel, Split from it, until the user picks (`SPLIT_FROM_WIDTH`).
 pub const SPLIT_FROM_WIDTH: f32 = 1100.0;
+
+/// A diff with thousands of changed lines draws its first hunks; the rest is one click away (`MAX_DRAWN_LINES`).
+pub const MAX_DRAWN_LINES: usize = 600;
+
+/// One item of a file's review as drawn: a hunk may be cut to its first `take` lines.
+pub struct Shown<'a> {
+    pub item: &'a ReviewItem,
+    pub take: usize,
+}
+
+/// `visibleItems`: every item, or the first `MAX_DRAWN_LINES` changed lines (a hunk that is the whole file is cut too).
+pub fn visible(items: &[ReviewItem], all: bool) -> Vec<Shown<'_>> {
+    let mut out = Vec::new();
+    let mut drawn = 0usize;
+    for item in items {
+        if !all && drawn >= MAX_DRAWN_LINES {
+            break;
+        }
+        match item {
+            ReviewItem::Hunk(h) => {
+                let take = if all { h.lines.len() } else { h.lines.len().min(MAX_DRAWN_LINES - drawn) };
+                out.push(Shown { item, take });
+                drawn += h.lines.len();
+            }
+            ReviewItem::Fold(f) => out.push(Shown { item, take: f.lines.len() }),
+        }
+    }
+    out
+}
+
+/// `hiddenChanges`: the changed lines `visible` leaves out.
+pub fn hidden_changes(items: &[ReviewItem], all: bool) -> usize {
+    if all {
+        return 0;
+    }
+    let total: usize = items.iter().map(|i| if let ReviewItem::Hunk(h) = i { h.lines.len() } else { 0 }).sum();
+    let drawn: usize = visible(items, false).iter().map(|s| if matches!(s.item, ReviewItem::Hunk(_)) { s.take } else { 0 }).sum();
+    total - drawn
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Layout {
@@ -70,6 +110,9 @@ pub struct Review {
     /// The start-shut decision has been made for this review (once, when the first list arrives).
     decided: bool,
     layout_pref: Option<Layout>,
+    /// Unchanged runs the reader opened (`path`, fold id) and files drawn whole past the cap.
+    open_folds: HashSet<(String, String)>,
+    drawn_all: HashSet<String>,
 }
 
 impl Review {
@@ -89,6 +132,22 @@ impl Review {
         self.decided = true;
         self.collapsed =
             files.iter().enumerate().filter(|(i, f)| *i >= AUTO_OPEN || starts_collapsed(f)).map(|(_, f)| f.file.clone()).collect();
+    }
+
+    pub fn fold_open(&self, path: &str, id: &str) -> bool {
+        self.open_folds.contains(&(path.to_string(), id.to_string()))
+    }
+
+    pub fn open_fold(&mut self, path: &str, id: &str) {
+        self.open_folds.insert((path.to_string(), id.to_string()));
+    }
+
+    pub fn is_drawn_all(&self, path: &str) -> bool {
+        self.drawn_all.contains(path)
+    }
+
+    pub fn show_all(&mut self, path: &str) {
+        self.drawn_all.insert(path.to_string());
     }
 
     pub fn is_open(&self, path: &str) -> bool {
@@ -140,6 +199,12 @@ impl State {
         for file in open {
             self.load_diff_file(&session, file);
         }
+    }
+
+    /// Wrap long lines, remembered across sessions and launches.
+    pub fn toggle_review_wrap(&mut self) {
+        let on = !self.sidebar.changes_wrap();
+        self.sidebar.save_changes_wrap(on);
     }
 
     /// A file's header was pressed (click, Enter or Space).
@@ -220,6 +285,18 @@ mod tests {
         assert_eq!(r.layout(1100.0), Layout::Split);
         r.set_layout(Layout::Unified);
         assert_eq!(r.layout(1400.0), Layout::Unified);
+    }
+
+    #[test]
+    fn a_long_diff_shows_its_first_600_changed_lines_and_cuts_a_hunk() {
+        use crate::conv::diff::parse_diff_lines;
+        use crate::conv::review::build_review;
+        let before: String = (0..1200).map(|i| format!("row {i}\n")).collect();
+        let after: String = (0..1200).map(|i| if i % 2 == 1 { format!("row {i}!\n") } else { format!("row {i}\n") }).collect();
+        let items = build_review(&parse_diff_lines(&before, &after));
+        let drawn: usize = visible(&items, false).iter().map(|s| s.take).sum();
+        assert_eq!(drawn, MAX_DRAWN_LINES, "a hunk that is the whole file is cut");
+        assert!(hidden_changes(&items, false) > 1500 - 600 && hidden_changes(&items, true) == 0);
     }
 
     #[test]

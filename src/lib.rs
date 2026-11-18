@@ -131,6 +131,8 @@ mod tests_restart_notice;
 #[cfg(test)]
 mod tests_review;
 #[cfg(test)]
+mod tests_review_lines;
+#[cfg(test)]
 mod tests_right_panel;
 #[cfg(test)]
 mod tests_row_actions;
@@ -2613,6 +2615,12 @@ pub fn spec() -> AppSpec<State> {
             ("changes-empty-branch-light", |s| s.show_changes_scene(mock::changes::Case::EmptyBranch, false)),
             ("review", |s| s.show_changes_scene(mock::changes::Case::Review, true)),
             ("review-light", |s| s.show_changes_scene(mock::changes::Case::Review, false)),
+            ("review-hunks", |s| s.show_review_hunks(true, false)),
+            ("review-hunks-light", |s| s.show_review_hunks(false, false)),
+            ("review-wrap", |s| s.show_review_hunks(true, true)),
+            ("review-wrap-light", |s| s.show_review_hunks(false, true)),
+            ("review-long", |s| s.show_changes_scene(mock::changes::Case::ReviewLong, true)),
+            ("review-long-light", |s| s.show_changes_scene(mock::changes::Case::ReviewLong, false)),
             ("review-states", |s| s.show_changes_scene(mock::changes::Case::ReviewStates, true)),
             ("review-states-light", |s| s.show_changes_scene(mock::changes::Case::ReviewStates, false)),
             ("context-tab-empty", |s| s.show_context_tab_scene(mock::context_tab::Case::Empty, true)),

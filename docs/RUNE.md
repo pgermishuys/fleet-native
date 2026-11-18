@@ -1624,3 +1624,13 @@ Nothing in Rune was needed.
 - **A pinned element needs no "relative" parent**: ring, caption and tag are all `pin(..)` children of the stage. Nothing without a handler takes the pointer, so Fleet's `pointer-events: none` ring needs nothing.
 - **No transition on a position**: Fleet's 200 ms ease of the ring's left, top, width and height is a jump here.
 - **A Browser tab is a server canvas, not a built-in**: `Canvases::open(.., CanvasKind::Browser)` does nothing. A scene stands one in with `canvases.replace` and sets `active_id`.
+
+## Component 12, piece F (hunks, folds and lines)
+
+- **A `scroll_x` viewport lays its own children side by side** (a filmstrip), so rows put straight on it ran off to the right at one height. Put one `col` of rows inside the viewport, as `rune-kit`'s markdown tables do.
+- **A `scroll_x` viewport inside a clipped card shrinks to nothing** when the card's column is squeezed (it has no minimum height of its own): give it `h(n)` and `min_h(n)` when its rows have a known height.
+- **`scroll_edge_fade(28.0)` on a horizontal viewport fades the left edge too once scrolled**, where Fleet's mask only fades the right; `sticky_left` children aren't faded on the edge they stick to, so the line numbers stay clear.
+- **`TextHighlight::new(range, colour).pad(0.0)`** gives Fleet's word marks (`<mark>`), with byte offsets that match `conv::review`'s marks; the corner radius isn't settable.
+- **`text().wrap_anywhere()` with `.shrink().min_w(0.0).grow(1.0)`** is `white-space: pre-wrap; overflow-wrap: anywhere` for a code line beside fixed-width number cells.
+- **Left and Right arrows don't scroll a focused `scroll_x` viewport**, so a hunk's tab stop (Fleet's `tabindex=0` region) can be reached but not scrolled by keyboard.
+

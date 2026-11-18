@@ -19,6 +19,8 @@ pub enum Case {
     Review,
     /// One file in each state its body has: loading, failed, binary, too large, no line changes, and a lockfile that starts shut.
     ReviewStates,
+    /// One file whose diff has 1,200 changed lines: the first 600 draw and Show more draws the rest (piece F).
+    ReviewLong,
 }
 
 pub const FIX: &str = "git config --global --add safe.directory /srv/demo-app";
@@ -31,7 +33,7 @@ impl State {
         self.right.review = false;
         let id = self.canvas_session();
         self.diffs.reset(&id);
-        if matches!(case, Case::Review | Case::ReviewStates) {
+        if matches!(case, Case::Review | Case::ReviewStates | Case::ReviewLong) {
             self.review_scene(case);
             return;
         }
@@ -45,7 +47,7 @@ impl State {
             }
             Case::EmptySession => d.base = Some(Base::Session),
             Case::EmptyBranch => d.base = Some(Base::Branch { branch: Some("main".into()), commit: Some("8a61fdd7c0ffee".into()) }),
-            Case::Review | Case::ReviewStates => {}
+            Case::Review | Case::ReviewStates | Case::ReviewLong => {}
         }
         d.has_loaded = true;
     }
@@ -90,6 +92,13 @@ impl State {
                 held.push(("src/paginate.py", Entry::Ready(paginate)));
                 held.push(("src/page_size.py", Entry::Ready(page_size)));
             }
+            Case::ReviewLong => {
+                let row = |i: usize, changed: bool| format!("    \"item_{i}\": {}{}\n", i * 7, if changed { 1 } else { 0 });
+                let before: String = (0..1200).map(|i| row(i, false)).collect();
+                let after: String = (0..1200).map(|i| row(i, i % 2 == 1)).collect();
+                let long = file("data/items.json", "modified", 600, 600, before, after, [false; 2]);
+                held.push(("data/items.json", Entry::Ready(long)));
+            }
             _ => {
                 let one = |n: &str| (format!("{n} = 1\n"), format!("{n} = 2\n"));
                 let (b, a) = one("alpha");
@@ -117,5 +126,26 @@ impl State {
         self.review.open(&id);
         let files = self.review_files();
         self.review.decide(&files);
+    }
+
+    /// The review of the scratch Fleet's two files with the first unchanged run of `src/paginate.py` opened, or with lines wrapped.
+    pub fn show_review_hunks(&mut self, dark: bool, wrap: bool) {
+        use crate::conv::diff::parse_diff_lines;
+        use crate::conv::review::{ReviewItem, build_review};
+        self.show_changes_scene(Case::Review, dark);
+        self.sidebar.save_changes_wrap(wrap);
+        if wrap {
+            return;
+        }
+        let item = self.diff_contents.entry("src/paginate.py").and_then(|e| match e {
+            crate::fleet::diff_contents::Entry::Ready(f) => Some(f.clone()),
+            _ => None,
+        });
+        if let Some(f) = item {
+            let items = build_review(&parse_diff_lines(&f.before, &f.after));
+            if let Some(ReviewItem::Fold(fold)) = items.iter().find(|i| matches!(i, ReviewItem::Fold(_))) {
+                self.review.open_fold("src/paginate.py", &fold.id);
+            }
+        }
     }
 }

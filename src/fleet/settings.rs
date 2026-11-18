@@ -88,6 +88,8 @@ pub struct Sidebar {
     dreaming_harness: Option<String>,
     /// Widen, for every session (`weave:canvas-widened`).
     canvas_widened: bool,
+    /// Wrap long lines in the Changes review (`weave:changes-wrap`).
+    changes_wrap: bool,
     /// The version each machine last reported to this device (`fleet.machineVersions`), for one that stops answering.
     machine_versions: super::updates::LastSeen,
     dir: Option<PathBuf>,
@@ -139,6 +141,7 @@ impl Sidebar {
             s.machine_versions = super::updates::LastSeen::parse(&map.to_string());
         }
         s.canvas_widened = root.get("canvasWidened") == Some(&Value::Bool(true));
+        s.changes_wrap = root.get("changesWrap") == Some(&Value::Bool(true));
         s.dreaming_harness = root.get("dreamingHarness").and_then(Value::as_str).filter(|h| !h.is_empty()).map(str::to_string);
         s
     }
@@ -165,6 +168,9 @@ impl Sidebar {
         self.appearance.write(&mut root);
         if self.canvas_widened {
             root["canvasWidened"] = Value::Bool(true);
+        }
+        if self.changes_wrap {
+            root["changesWrap"] = Value::Bool(true);
         }
         if let Some(h) = &self.dreaming_harness {
             root["dreamingHarness"] = json!(h);
@@ -328,6 +334,17 @@ impl Sidebar {
     /// Whether the right panel was left widened (`weave:canvas-widened`).
     pub fn canvas_widened(&self) -> bool {
         self.canvas_widened
+    }
+
+    pub fn changes_wrap(&self) -> bool {
+        self.changes_wrap
+    }
+
+    pub fn save_changes_wrap(&mut self, wrap: bool) {
+        if self.changes_wrap != wrap {
+            self.changes_wrap = wrap;
+            self.dirty = true;
+        }
     }
 
     pub fn save_canvas_widened(&mut self, widened: bool) {
