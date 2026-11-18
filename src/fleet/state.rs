@@ -63,6 +63,7 @@ impl State {
             self.on_ask_event(topic, event);
             self.on_rules_event(event);
             self.on_server_canvas_event(event);
+            self.on_app_event(event);
             self.on_progress_event(topic, event);
             self.on_diffs_event(topic, event);
             for (only, listener) in &mut self.subscribers.0 {
@@ -186,6 +187,7 @@ impl State {
             self.load_asks(&id);
             self.load_rules(&id);
             self.load_server_canvases(&id);
+            self.reload_apps(&id);
             self.ensure_progress_loaded(&id, true);
             self.refetch_diffs();
             self.load_retry(&id);

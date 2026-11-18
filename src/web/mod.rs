@@ -12,6 +12,7 @@ pub mod full;
 pub mod inject;
 pub mod page_bridge;
 pub mod page_theme;
+pub mod preview_bridge;
 pub mod wanted;
 
 #[cfg(all(feature = "web", not(target_arch = "wasm32")))]

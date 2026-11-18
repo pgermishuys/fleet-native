@@ -344,6 +344,8 @@ pub struct State {
     /// Every session's page canvases as Fleet last said (`fleet::pages`); the page-pick card reads the open session's.
     pub pages: fleet::pages::Pages,
     pub server_loads: fleet::server_canvases::Loads,
+    /// The apps Fleet runs for browser tabs, kept current by `app.updated` (component 14, piece G).
+    pub apps: fleet::app_runs::AppRuns,
     /// Every session's panel tabs (`fleet::canvases`, component 10).
     pub canvases: fleet::canvases::Canvases,
     /// What the conversation's visuals have been told to the canvases (`fleet::visuals`).
@@ -648,6 +650,7 @@ impl Default for State {
             rules: Default::default(),
             pages: Default::default(),
             server_loads: Default::default(),
+            apps: Default::default(),
             canvases: Default::default(),
             visuals: Default::default(),
             progress: Default::default(),
