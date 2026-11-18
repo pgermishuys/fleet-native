@@ -1,9 +1,9 @@
 //! The review in the Changes tab (`ChangesReview.vue`, rows 5.1 to 5.9 and 6.1 to 6.6 of docs/parity/12-changes-and-review.md): its
 //! header (title, scope, totals, the layout choice, Find, Wrap, Collapse all) and a card per changed file with its sticky
-//! header and its body's states. A file's lines are drawn here as plain rows of the changed lines and the context round them (piece
-//! F draws hunks, folds and word marks, G the Split layout, H only what is near, I Revert).
+//! header and its body's states. A file's hunks, folds and lines are `view::review_lines` (piece F; G draws Split, H only what is
+//! near, I Revert).
 use crate::State;
-use crate::conv::diff::{DiffLine, Kind, parse_diff_lines};
+use crate::conv::diff::{DiffLine, parse_diff_lines};
 use crate::conv::review::{ReviewItem, build_review};
 use crate::fleet::diff_contents::Entry;
 use crate::fleet::diffs::{FileDiff, FileStatus, diff_base_label};
@@ -13,10 +13,8 @@ use crate::theme::{Theme, mono, sans};
 use rune::{Cursor, El, Icon, ScrollSpec, Tx, col, el, icon, row, text};
 use std::hash::{Hash, Hasher};
 
-/// Drawn lines per file until piece F's Show more (`MAX_DRAWN_LINES`).
-const MAX_DRAWN_LINES: usize = 600;
-/// A line, 12 px at 20 px.
-const LINE_H: f32 = 20.0;
+use super::review_lines::LINE_H;
+use crate::fleet::review::MAX_DRAWN_LINES;
 
 pub fn review(s: &State, t: &Theme) -> El {
     let files = s.review_files();
@@ -138,9 +136,12 @@ fn header(s: &State, t: &Theme, files: &[FileDiff]) -> El {
             let to = if id == "split" { Layout::Split } else { Layout::Unified };
             Box::new(move |s: &mut State| s.review.set_layout(to))
         }))
-        // Find and Wrap are drawn now and wired by pieces K and F.
+        // Find is drawn now and wired by piece K.
         .child(icon_button(t, "review-find", "Find in changes (Ctrl+F)", &SEARCH, false))
-        .child(icon_button(t, "review-wrap", "Wrap long lines", &TEXT_WRAP, false))
+        .child(
+            icon_button(t, "review-wrap", "Wrap long lines", &TEXT_WRAP, s.sidebar.changes_wrap())
+                .on_press(|s: &mut State| s.toggle_review_wrap()),
+        )
         .child(icon_button(t, "review-collapse", shut_tip, shut_icon, false).on_press(|s: &mut State| s.toggle_review_all()))
 }
 
@@ -304,7 +305,7 @@ fn body(s: &State, t: &Theme, file: &FileDiff) -> El {
         Some(Entry::Ready(item)) if item.truncated => note(t, key("too-large"), "File too large to diff"),
         Some(Entry::Ready(item)) => {
             let items = review_items(item);
-            if items.is_empty() { note(t, key("empty"), "No line changes.") } else { lines(s, t, file, &items) }
+            if items.is_empty() { note(t, key("empty"), "No line changes.") } else { super::review_lines::lines(s, t, file, &items) }
         }
     }
 }
@@ -330,51 +331,4 @@ fn review_items(item: &FileDiff) -> std::rc::Rc<Vec<ReviewItem>> {
         c.insert(item.file.clone(), (stamp, items.clone()));
         items
     })
-}
-
-/// The changed lines and the context round them as plain rows: two number columns, a marker, the line. Folds and hunk headers wait
-/// for piece F.
-fn lines(_s: &State, t: &Theme, file: &FileDiff, items: &[ReviewItem]) -> El {
-    let add = t.mix(t.running, t.panel_bg, 0.13);
-    let del = t.mix(t.error, t.panel_bg, 0.12);
-    let mut out = col().key(format!("review-lines-{}", file.file)).w_full();
-    let mut drawn = 0usize;
-    let mut left = 0usize;
-    for item in items {
-        let ReviewItem::Hunk(hunk) = item else { continue };
-        for l in &hunk.lines {
-            if drawn >= MAX_DRAWN_LINES {
-                left += 1;
-                continue;
-            }
-            drawn += 1;
-            let (fill, mark, ink) = match l.line.kind {
-                Kind::Add => (add, "+", t.running),
-                Kind::Remove => (del, "-", t.error),
-                Kind::Context => (rune::Color::TRANSPARENT, "", t.muted),
-            };
-            let no = |n: Option<u32>| {
-                text(n.map(|n| n.to_string()).unwrap_or_default()).font(mono(11.5, 400.0, LINE_H / 11.5)).color(t.muted.alpha(0.65))
-            };
-            out = out.child(
-                row()
-                    .w_full()
-                    .h(LINE_H)
-                    .fill(fill)
-                    .items_center()
-                    .child(row().w(36.0).justify_end().pr(8.0).child(no(l.line.old)))
-                    .child(row().w(36.0).justify_end().pr(8.0).border_sides([0.0, 1.0, 0.0, 0.0], t.border).child(no(l.line.new)))
-                    .child(text(mark).font(mono(12.0, 400.0, 1.6)).color(ink).w(20.0).center())
-                    .child(text(l.line.content.clone()).font(mono(12.0, 400.0, 1.6)).color(t.text).single_line().pr(16.0)),
-            );
-        }
-    }
-    if left > 0 {
-        out = out.child(note(
-            t,
-            format!("review-more-{}", file.file),
-            &format!("{left} more changed lines (Show more comes with the next piece)"),
-        ));
-    }
-    out
 }
