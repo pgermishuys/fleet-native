@@ -1,0 +1,4 @@
+{"events": [
+  {"t": 0.3, "type": "tap", "key": "review-view-docs/paging.md-diff"},
+  {"t": 1.0, "type": "mark", "name": "hover"}
+]}

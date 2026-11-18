@@ -299,8 +299,7 @@ impl State {
         });
         let section = Section {
             open: self.review.is_open(&hit.path),
-            // Rendered is component 12's piece M: until it exists no file is viewed as Rendered.
-            rendered: false,
+            rendered: self.review.is_rendered(&hit.path),
             fold_open: self.review.fold_open(&hit.path, &hit.item_id),
             drawn,
         };
@@ -315,6 +314,9 @@ impl State {
             self.review.toggle(&hit.path);
         }
         self.review.mark_near([hit.path.clone()]);
+        if plan.show_diff {
+            self.review.set_rendered(&hit.path, false);
+        }
         if plan.open_fold {
             self.review.open_fold(&hit.path, &hit.item_id);
         }

@@ -5,9 +5,10 @@
 use crate::State;
 use crate::conv::diff::{DiffLine, parse_diff_lines};
 use crate::conv::review::{ReviewItem, build_review};
+use crate::fleet::canvases::{VisualPayload, VisualType};
 use crate::fleet::diff_contents::Entry;
 use crate::fleet::diffs::{FileDiff, FileStatus, diff_base_label};
-use crate::fleet::review::{Layout, dir_of, name_of};
+use crate::fleet::review::{Layout, dir_of, has_rendered_view, is_html_path, name_of};
 use crate::icons::{CHEVRON_DOWN, CHEVRONS_DOWN_UP, CHEVRONS_UP_DOWN, COPY, EXTERNAL_LINK, FILE_TEXT, SEARCH, TEXT_WRAP, UNDO_2};
 use crate::theme::{Theme, mono, sans};
 use rune::{Cursor, El, Icon, ScrollSpec, Tx, col, el, icon, row, text};
@@ -259,6 +260,43 @@ fn act(t: &Theme, key: String, tip: &str, glyph: &'static Icon, words: Option<&s
     if off { b.disabled(true).opacity(0.45) } else { b.hover(t.wash(9.0)).hover_group() }
 }
 
+/// The Diff | Rendered choice of a Markdown or HTML file (6.4).
+fn rendered_seg(s: &State, t: &Theme, path: &str) -> Option<El> {
+    if !has_rendered_view(path) {
+        return None;
+    }
+    let on = s.review.is_rendered(path);
+    let choices = [("diff", "Diff", !on), ("rendered", "Rendered", on)];
+    let path = path.to_string();
+    Some(segment(t, &format!("review-view-{path}"), "View", true, &choices, move |id| {
+        let (path, to) = (path.clone(), id == "rendered");
+        Box::new(move |s: &mut State| s.set_review_rendered(&path, to))
+    }))
+}
+
+/// `.rfile__rendered`: the file's new text drawn as Markdown (padding `8px 14px`), or HTML as component 14's card (decision 1).
+fn rendered_body(t: &Theme, file: &FileDiff, content: &str) -> El {
+    let key = format!("review-rendered-{}", file.file);
+    if is_html_path(&file.file) {
+        let payload = VisualPayload {
+            kind: VisualType::Html,
+            title: Some(name_of(&file.file).to_string()),
+            source_path: Some(file.file.clone()),
+            content: content.to_string(),
+        };
+        let card = super::web_card::html_card(t, &format!("{key}-html"), name_of(&file.file), move |s: &mut State| {
+            s.expand_visual(payload.clone())
+        });
+        return col().key(key).w_full().px(14.0).py(8.0).child(card);
+    }
+    col().key(key.clone()).w_full().px(14.0).py(8.0).child(super::prose::prose(
+        &super::prose::style(t),
+        &format!("{key}-markdown"),
+        content,
+        false,
+    ))
+}
+
 fn section(s: &State, t: &Theme, file: &FileDiff) -> El {
     let open = s.review.is_open(&file.file);
     let path = file.file.clone();
@@ -279,6 +317,7 @@ fn section(s: &State, t: &Theme, file: &FileDiff) -> El {
         .pin(None, Some(5.0), Some(10.0), None)
         .fill(t.mix(t.text, t.panel_bg, 0.07))
         .group_opacity(0.0, 1.0)
+        .children(rendered_seg(s, t, &path))
         // Open file stays off until component 11's file tab (13.3).
         .child({
             let off = blocker.is_some() || s.review.reverting;
@@ -390,6 +429,9 @@ fn body(s: &State, t: &Theme, file: &FileDiff) -> El {
         }
         Some(Entry::Ready(item)) if item.binary => note(t, key("binary"), "Binary file \u{2014} no diff available"),
         Some(Entry::Ready(item)) if item.truncated => note(t, key("too-large"), "File too large to diff"),
+        Some(Entry::Ready(item)) if s.review.is_rendered(&file.file) && has_rendered_view(&file.file) => {
+            rendered_body(t, file, &item.after)
+        }
         Some(Entry::Ready(item)) => {
             let items = review_items(item);
             if items.is_empty() { note(t, key("empty"), "No line changes.") } else { super::review_lines::lines(s, t, file, &items) }
