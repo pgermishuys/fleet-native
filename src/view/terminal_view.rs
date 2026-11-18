@@ -3,6 +3,7 @@
 use rune::{Cursor, El, Key, KeyEvent, Tx, col, el, grid, row, text};
 
 use crate::State;
+use crate::fleet::terminal_keys::{Owner, PASS_THROUGH, terminal_key_owner};
 use crate::fleet::terminal_slot::VIEW_KEY;
 use crate::fleet::terminal_socket::Status;
 use crate::term::fit::{CELL_H, CELL_W, PAD};
@@ -126,20 +127,40 @@ fn look_of(t: &Theme) -> u64 {
 }
 
 /// Everything typed goes to the shell and never to Fleet's own shortcuts, except the two Fleet passes through: Mod+J
-/// (toggle the terminal) and Mod+Shift+B (toggle the right panel) (`terminalKeyOwner`).
-fn on_key(s: &mut State, ev: &KeyEvent, _tx: &mut Tx) -> bool {
-    if ev.is_command('j') || (ev.is_command('b') && ev.mods.shift) {
-        return false;
+/// (toggle the terminal) and Mod+Shift+B (toggle the right panel) (`terminalKeyOwner`); and the copy and paste keys.
+fn on_key(s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool {
+    match terminal_key_owner(ev, cfg!(target_os = "macos"), &PASS_THROUGH) {
+        Owner::Fleet => return false,
+        Owner::Copy => {
+            s.copy_terminal_selection(tx);
+            return true;
+        }
+        Owner::Paste => {
+            tx.read_clipboard(|s: &mut State, content, _| {
+                if !content.text().is_empty() {
+                    paste(s, content.text());
+                }
+            });
+            return true;
+        }
+        Owner::Shell => {}
+    }
+    // Shift+PageUp and Shift+PageDown scroll the view and are not sent (xterm's `scrollPages`).
+    if ev.mods.shift && !ev.mods.ctrl && !ev.mods.alt && matches!(ev.key, Key::PageUp | Key::PageDown) {
+        if let Some(live) = s.terminal.live.as_ref() {
+            live.term.scroll_page(ev.key == Key::PageUp);
+        }
+        return true;
     }
     let app_cursor = s.terminal.live.as_ref().is_some_and(|l| l.term.mode().contains(crate::term::APP_CURSOR));
-    match crate::term::keys::encode(ev, app_cursor) {
-        Some(bytes) => {
-            s.terminal_write(bytes);
-            true
+    if let Some(bytes) = crate::term::keys::encode(ev, app_cursor) {
+        if let Some(live) = s.terminal.live.as_ref() {
+            live.term.scroll_to_bottom();
         }
-        // A key that makes no bytes (a lone modifier) is nobody's.
-        None => matches!(ev.key, Key::Modifier { .. }),
+        s.terminal_write(bytes);
     }
+    // A key that makes no bytes (a lone modifier, a Command shortcut on a Mac) is nobody's: Fleet never sees it.
+    true
 }
 
 fn paste(s: &mut State, text: &str) {

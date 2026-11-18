@@ -1817,3 +1817,12 @@ Read at the pin while planning; nothing built yet.
 - **`tx.clear_text_selection()` inside the selection handler** is fine (the handler is heard once more, with no selection).
 - **Pressing a disabled button takes focus from a text field**: a test that clicks Send while it is off must click the field again before typing.
 - **No block rectangles from `rune_kit::markdown`**, so Fleet's click-on-a-block anchor can't be ported without drawing the Markdown blocks ourselves.
+## Component 13, piece E (height and keyboard)
+
+- **A focused element's `on_key` that returns `true` for every key keeps Fleet's shortcuts out**; return `false` only for what must go on (Mod+J, Mod+Shift+B), and the global `on_key` then sees it.
+- **Ctrl+Shift+V and Ctrl+Shift+C reach `on_key`** (they are chords, not edit commands); `tx.read_clipboard` then gives the text.
+- **A test sends Ctrl+J as `Key::Command('j')` with `cmd` and `ctrl` both set**, as a real Linux or Windows key arrives; `Mods::default()` stops being Ctrl+J once something checks `cmd`.
+- **`on_drag`'s `dy` is the pointer's travel since the press**: keep the start height in `d.data` and set `start - dy`; an element placed `absolute(0, -5)` outside its parent still takes the pointer.
+- **`scroll_display` damages the whole screen**, so the row cache needs nothing extra.
+- A test that waits for the app to react to a focus change must wait with the runtime driving frames (`Live::wait`), not a bare `until_true`.
+

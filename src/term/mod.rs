@@ -103,6 +103,22 @@ impl Terminal {
         self.feed(format!("\x1b[{row}S\x1b[3J\x1b[{row}A").as_bytes());
     }
 
+    /// Shift+PageUp / Shift+PageDown (`scrollPages`): the view moves a page through the scrollback and the shell hears nothing.
+    pub fn scroll_page(&self, up: bool) {
+        use alacritty_terminal::grid::Scroll;
+        self.lock().term.scroll_display(if up { Scroll::PageUp } else { Scroll::PageDown });
+    }
+
+    /// xterm's `scrollOnUserInput`: typing brings the view back to the live screen.
+    pub fn scroll_to_bottom(&self) {
+        self.lock().term.scroll_display(alacritty_terminal::grid::Scroll::Bottom);
+    }
+
+    /// How many lines the view is scrolled back from the live screen.
+    pub fn display_offset(&self) -> usize {
+        self.read(|t| t.grid().display_offset())
+    }
+
     /// What the parser wants sent back to the shell since the last call (13.16).
     pub fn take_answers(&self) -> Vec<u8> {
         std::mem::take(&mut *self.answers.0.lock().unwrap())

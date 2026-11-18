@@ -558,7 +558,7 @@ fn the_toggle_command_runs_and_hides_the_drawer_without_ending_the_shell() {
 #[test]
 fn ctrl_j_toggles_and_other_keys_stay_the_shells() {
     let mut live = Live::start(Fake::start(&["t1"], b"demo $ "));
-    live.rt.key(KeyEvent { key: Key::Command('j'), mods: Mods::default() });
+    live.rt.key(chord(Key::Command('j'), true, false));
     live.rt.frame(FRAME);
     assert!(live.rt.find("terminal-drawer").is_some(), "Ctrl J opened it");
     live.wait("the socket to open", |s| s.terminal.status() == Some(Status::Open));
@@ -569,7 +569,7 @@ fn ctrl_j_toggles_and_other_keys_stay_the_shells() {
     live.rt.frame(FRAME);
     until_true("Esc and Ctrl K to reach the shell", || fake_input_is(&live.fake, &[0x1b, 0x0b]));
     assert!(live.rt.state.ui.open.is_none(), "the palette did not open");
-    live.rt.key(KeyEvent { key: Key::Command('j'), mods: Mods::default() });
+    live.rt.key(chord(Key::Command('j'), true, false));
     live.rt.frame(FRAME);
     assert!(live.rt.find("terminal-drawer").is_none(), "Ctrl J hides it, from inside the terminal");
 }
@@ -624,4 +624,96 @@ fn a_shell_that_exits_takes_its_tab_with_it() {
     live.fake.cmds.send(Cmd::Close(1000)).unwrap();
     live.wait("the tab to go", |s| s.terminal.live.is_none());
     assert!(live.rt.find("terminal-drawer").is_none());
+}
+
+// ---- piece E: the keyboard ----------------------------------------------------------------------------------------------------
+
+fn resizes(fake: &Fake) -> Vec<Value> {
+    fake.texts().into_iter().filter(|t| t["type"] == "resize").collect()
+}
+
+// TerminalView.test.ts
+#[test]
+fn tells_the_shell_its_own_size_when_it_gets_the_keyboard_so_another_client_that_attached_since_doesnt_leave_it_wrapping_at_their_width() {
+    let mut live = Live::start(Fake::start(&["t1"], b"demo $ "));
+    live.rt.update(|s, tx| crate::ui::commands::run(s, tx, "toggle-terminal"));
+    live.rt.frame(FRAME);
+    live.wait("the socket to open", |s| s.terminal.status() == Some(Status::Open));
+    live.rt.update(|_, tx| tx.blur());
+    live.rt.frame(FRAME);
+    assert!(!live.rt.state.terminal.focused);
+    let (cols, rows) = live.rt.state.terminal.live.as_ref().unwrap().term.size();
+    let before = resizes(&live.fake).len();
+
+    click(&mut live.rt, "terminal-view");
+
+    let heard = live.fake.heard.clone();
+    live.wait("the resize on focus", move |_| heard.lock().unwrap().texts.iter().filter(|t| t["type"] == "resize").count() == before + 1);
+    assert_eq!(resizes(&live.fake).last(), Some(&json!({"type": "resize", "cols": cols, "rows": rows})));
+}
+
+fn chord(key: Key, ctrl: bool, shift: bool) -> KeyEvent {
+    KeyEvent { key, mods: Mods { ctrl, shift, cmd: ctrl, ..Mods::default() } }
+}
+
+#[test]
+fn esc_ctrl_k_and_ctrl_b_reach_the_shell_and_not_fleet() {
+    let mut live = Live::start(Fake::start(&["t1"], b"demo $ "));
+    live.rt.key(chord(Key::Command('j'), true, false));
+    live.rt.frame(FRAME);
+    live.wait("the socket to open", |s| s.terminal.status() == Some(Status::Open));
+    click(&mut live.rt, "terminal-view");
+    let sidebar = live.rt.state.sidebar_open;
+    for ev in
+        [KeyEvent { key: Key::Escape, mods: Mods::default() }, chord(Key::Command('k'), true, false), chord(Key::Command('b'), true, false)]
+    {
+        live.rt.key(ev);
+    }
+    live.rt.frame(FRAME);
+    until_true("the three keys to reach the shell", || fake_input_is(&live.fake, &[0x1b, 0x0b, 0x02]));
+    assert!(live.rt.state.ui.open.is_none(), "the palette did not open");
+    assert_eq!(live.rt.state.sidebar_open, sidebar, "Ctrl B did not toggle the sidebar");
+    // Ctrl Shift B is Fleet's: it never reaches the shell.
+    let panel = live.rt.state.content_open;
+    live.rt.key(chord(Key::Command('b'), true, true));
+    live.rt.frame(FRAME);
+    assert_ne!(live.rt.state.content_open, panel);
+    assert_eq!(live.fake.input(), [0x1b, 0x0b, 0x02]);
+}
+
+#[test]
+fn shift_page_up_scrolls_the_view_and_is_not_sent() {
+    let lines: String = (1..=60).map(|n| format!("line {n}\r\n")).collect();
+    let fake = Fake::start(&["t1"], Box::leak(format!("{lines}demo $ ").into_boxed_str()).as_bytes());
+    let mut live = Live::start(fake);
+    live.rt.key(chord(Key::Command('j'), true, false));
+    live.rt.frame(FRAME);
+    live.wait("the scrollback", |s| s.terminal.live.as_ref().is_some_and(|l| text_of(&l.term).iter().any(|r| r == "demo $")));
+    click(&mut live.rt, "terminal-view");
+    let offset = |live: &Live| live.rt.state.terminal.live.as_ref().unwrap().term.display_offset();
+    assert_eq!(offset(&live), 0);
+
+    live.rt.key(KeyEvent { key: Key::PageUp, mods: Mods { shift: true, ..Mods::default() } });
+    live.rt.frame(FRAME);
+    assert!(offset(&live) > 0, "the view moved back through the scrollback");
+    assert!(live.fake.input().is_empty(), "the shell heard nothing");
+
+    // Typing brings the view back to the live screen (xterm's scrollOnUserInput).
+    type_text(&mut live.rt, "q");
+    assert_eq!(offset(&live), 0);
+    until_true("the key", || fake_input_is(&live.fake, b"q"));
+}
+
+#[test]
+fn ctrl_shift_c_is_taken_for_copy_and_never_sends_a_ctrl_c() {
+    let mut live = Live::start(Fake::start(&["t1"], b"demo $ "));
+    live.rt.key(chord(Key::Command('j'), true, false));
+    live.rt.frame(FRAME);
+    live.wait("the socket to open", |s| s.terminal.status() == Some(Status::Open));
+    click(&mut live.rt, "terminal-view");
+    live.rt.key(chord(Key::Command('c'), true, true));
+    // A plain Ctrl C still interrupts the running command.
+    live.rt.key(chord(Key::Command('c'), true, false));
+    live.rt.frame(FRAME);
+    until_true("the one ^C", || fake_input_is(&live.fake, &[0x03]));
 }

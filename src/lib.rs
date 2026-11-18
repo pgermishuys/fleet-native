@@ -248,6 +248,8 @@ mod tests_terminal;
 #[cfg(test)]
 mod tests_terminal_drawer;
 #[cfg(test)]
+mod tests_terminal_keys;
+#[cfg(test)]
 mod tests_terminal_live;
 #[cfg(test)]
 mod tests_terminal_tabs;
