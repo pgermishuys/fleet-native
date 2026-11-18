@@ -2,7 +2,8 @@
 //! with every step ticked, a todo list with no plan, and nothing at all.
 use crate::State;
 use crate::fleet::canvases::CanvasKind;
-use crate::fleet::progress::{Plan, PlanGroup, PlanStep, ProgressDetail, TodoItem, TodoPriority, TodoStatus};
+use crate::fleet::delegations::DelegationStatus;
+use crate::fleet::progress::{Plan, PlanGroup, PlanStep, ProgressDetail, Subagent, TodoItem, TodoPriority, TodoStatus};
 use crate::fleet::row_chips::Progress;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -17,6 +18,32 @@ pub enum Case {
     Todos,
     /// Nothing to track.
     Empty,
+    /// The plan, with a running subagent and a finished one under step 3 and two more in the bottom list.
+    SubagentStep,
+    /// Nothing else to track, and three subagents: one starting, one working and one without a session.
+    Subagents,
+}
+
+fn agent(
+    id: &str,
+    name: &str,
+    title: &str,
+    status: DelegationStatus,
+    step: Option<&str>,
+    count: (u32, u32),
+    now: Option<&str>,
+) -> Subagent {
+    Subagent {
+        delegation_id: id.into(),
+        child_session_id: (id != "d4").then(|| format!("child-{id}")),
+        agent: name.into(),
+        title: Some(format!("{title} (@{name} subagent)")),
+        status,
+        step_key: step.map(Into::into),
+        done: count.0,
+        total: count.1,
+        current: now.map(Into::into),
+    }
 }
 
 fn step(n: usize, title: &str, checked: bool, sub: (u32, u32)) -> PlanStep {
@@ -72,7 +99,7 @@ impl State {
         self.sidebar_open = true;
         let id = self.canvas_session();
         let (detail, summary) = match case {
-            Case::Plan | Case::Flat | Case::Done => {
+            Case::Plan | Case::Flat | Case::Done | Case::SubagentStep => {
                 let ticked = match case {
                     Case::Done => 5,
                     _ => 2,
@@ -81,6 +108,17 @@ impl State {
                 let current = plan.groups.iter().flat_map(|g| &g.steps).find(|s| !s.checked).map(|s| s.title.clone());
                 let summary = Progress { kind: "plan".into(), done: ticked as u32, total: 5, current };
                 let todos = if case == Case::Done { vec![] } else { todos() };
+                let subagents = if case == Case::SubagentStep {
+                    use DelegationStatus::*;
+                    vec![
+                        agent("d1", "shuttle", "Read nextCursor in the list", Running, Some("3"), (2, 5), Some("Editing OrderList.tsx")),
+                        agent("d2", "pattern", "Check the old route", Completed, Some("3"), (4, 4), None),
+                        agent("d3", "thread", "Look for other callers", Pending, None, (0, 0), None),
+                        agent("d4", "tapestry", "Survey the tests", Error, Some("99"), (1, 3), None),
+                    ]
+                } else {
+                    vec![]
+                };
                 (
                     Some(ProgressDetail {
                         session_id: id.clone(),
@@ -88,7 +126,7 @@ impl State {
                         todos,
                         updated_at: "2026-11-17T09:31:00Z".into(),
                         plan: Some(plan),
-                        subagents: vec![],
+                        subagents,
                     }),
                     Some(summary),
                 )
@@ -107,6 +145,23 @@ impl State {
                     }),
                     Some(summary),
                 )
+            }
+            Case::Subagents => {
+                use DelegationStatus::*;
+                let list = vec![
+                    agent("d1", "shuttle", "Add the cursor to the query", Running, None, (2, 5), Some("Editing the handler")),
+                    agent("d3", "thread", "Look for other callers", Pending, None, (0, 0), None),
+                    agent("d4", "tapestry", "Survey the tests", Cancelled, None, (1, 3), None),
+                ];
+                let detail = ProgressDetail {
+                    session_id: id.clone(),
+                    summary: Progress { kind: "none".into(), done: 0, total: 0, current: None },
+                    todos: vec![],
+                    updated_at: "2026-11-17T09:31:00Z".into(),
+                    plan: None,
+                    subagents: list,
+                };
+                (Some(detail), None)
             }
             Case::Empty => (None, None),
         };

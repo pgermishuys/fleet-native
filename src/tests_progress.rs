@@ -145,3 +145,38 @@ fn counts_the_collapsed_rails_ring_from_the_sessions_progress() {
     assert_eq!(words(&rt, "content-rail-pending"), "7");
     assert!(exists(&rt, "content-rail-ring"));
 }
+
+#[test]
+fn shows_a_subagent_under_the_step_it_was_started_for_linking_to_its_session() {
+    let mut rt = shown(Case::SubagentStep);
+    let current = words(&rt, "progress-step-3");
+    assert!(current.contains("shuttle · Read nextCursor in the list") && current.contains("2/5"), "{current}");
+    assert!(current.contains("Now: Editing OrderList.tsx") && current.contains("Finished"), "{current}");
+    assert!(exists(&rt, "subagent-d1") && exists(&rt, "subagent-d2"));
+    assert!(!words(&rt, "progress-step-4").contains("shuttle"), "only the step it was started for");
+    // The card is a link: a click opens the child under this session.
+    let parent = rt.state.canvas_session();
+    click(&mut rt, "subagent-d1");
+    assert_eq!(rt.state.session().id, "child-d1");
+    assert_eq!(rt.state.work.opened_from.as_deref(), Some(parent.as_str()));
+}
+
+#[test]
+fn lists_subagents_with_no_matching_step_on_their_own() {
+    let mut rt = shown(Case::Subagents);
+    assert_eq!(words(&rt, "progress-subagents-label"), "SUBAGENTS");
+    assert!(words(&rt, "subagent-d1").contains("Now: Editing the handler"));
+    assert_eq!(words(&rt, "subagent-d3"), "thread · Look for other callersStarting");
+    assert!(words(&rt, "subagent-d4").ends_with("Cancelled"));
+    // One with no session is plain: a click does nothing.
+    let before = rt.state.session().id.clone();
+    click(&mut rt, "subagent-d4");
+    assert_eq!(rt.state.session().id, before);
+}
+
+#[test]
+fn puts_a_subagent_whose_step_is_unknown_in_the_bottom_list() {
+    let rt = shown(Case::SubagentStep);
+    assert!(exists(&rt, "subagent-d3") && exists(&rt, "subagent-d4"));
+    assert!(!words(&rt, "progress-step-3").contains("tapestry"));
+}

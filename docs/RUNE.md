@@ -1601,3 +1601,8 @@ Nothing in Rune was needed. Learned about the web view:
   `__fleetDeliver` posts, and Fleet's script accepts it (`event.source === parent`).
 - A wry IPC handler runs on the UI thread, so it can call `AppHandle::update` and, inside that, `evaluate_script` on the same view.
 - With a real window, a theme key (Ctrl+Shift+L) needs the keyboard on Rune, not in the composer's text: click something first.
+
+## Component 10, piece H (the subagent cards)
+
+- **A 1 px border that lifts to another colour on hover** has no hover-border in Rune (`hover` is an overlay on the fill). Draw the border as a 1 px padded ring (`fill(border)`, `padding(1.0)`) around the card and give the ring `hover(wash)`; the overlay shows only at the ring. Radius of the inside is the outside's minus 1.
+- **A line-height of 1.4 where CSS inherits 1.5** shortens a card by a few pixels: read `line-height` from the component's cascade (the body's), not from the nearest class.
