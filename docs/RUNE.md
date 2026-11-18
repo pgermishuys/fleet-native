@@ -1744,3 +1744,20 @@ step (the shown view follows the active tab), since a handler that changes the t
 - **`ScrollSpec { stick_bottom: true }` on a column with `max_h(220)`** is the output drawer: it follows the end of new lines and lets go when the user scrolls up, as Fleet's `scrollLogs` does.
 - **No native `<select>`**: the port select is a trigger row plus `ui::select::content` opened through `Open::Select`, so its list is Rune's, not the system's.
 - **A browser tab's width** (Fleet's container query for the strip) is read with `on_layout` on the tab's root and kept in `BrowserUi`.
+
+## Component 11, the plan (files and the file viewer)
+
+Read at the pin while planning; nothing built yet.
+
+- **`Markdown::code_link(colour, f)`** turns inline code that names something into a link (Desktop's path look: coloured, no chip,
+  underlined at 40 % under the pointer), with `on_link_tx` and `link_help`. Component 3 had left file links in messages with no owner
+  because Markdown had no inline hook; this is that hook. Fleet's own look (a dotted underline at rest, `--accent-dim` on hover) isn't
+  settable through it.
+- **`rune_kit::line_selection`** is the line-number gesture (press, Shift, drag) for code and diff views; **`rune_kit::tree`** draws
+  file trees with change counts, dots and badges.
+- **`rune_kit::syntax` colours only the first 128 KiB** of a source; Fleet opens files up to 512 KB, so a larger file draws plain after
+  that point.
+- **`text_input(..).spans(..)`** paints syntax colours over an editable text and keeps them through undo and IME, and `App::on_ime` with
+  `.ime_cursor()` serves an editor the app draws itself: the two ways slice 2's spike (component 11, piece P) compares. `ui::code_box`'s
+  known gap (numbers under a wrapped line sit a row too high; no unwrapped multi-line field) is what makes the first one doubtful for files.
+- **No syntax tree**: the highlighter gives tokens, so there is nothing to fold code by, and no outline or symbols.
