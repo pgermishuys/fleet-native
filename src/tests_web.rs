@@ -63,6 +63,7 @@ fn wanted_places_the_page_where_its_area_is() {
         rect: [600.0, 60.0, 360.0, 500.0],
         html: None,
         place: crate::web::page_theme::PagePlace::Tab,
+        browser: false,
     };
     assert_eq!(wanted(&rt.state), Wanted::Shown(expect));
 }

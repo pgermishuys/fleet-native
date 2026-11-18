@@ -6,6 +6,7 @@
 //! they differ. Headless runs, scenes and builds without the `web` feature never get a window handle, so they draw the
 //! fallback panel instead (decision 9).
 pub mod body;
+pub mod browser;
 pub mod choice;
 pub mod cover;
 pub mod full;
@@ -55,6 +56,10 @@ pub struct Host {
     /// A conversation page open full size (piece F) and where its body is.
     pub full: Option<full::Full>,
     pub full_rect: Option<[f32; 4]>,
+    /// The browser tabs' own state, by tab (piece H).
+    pub browsers: std::collections::HashMap<String, browser::BrowserUi>,
+    /// Scripts for the host to run in a browser tab's page (Back, Forward, Reload).
+    pub nav: Vec<browser::NavRequest>,
     /// The CI walk, while it runs (`demo`).
     #[cfg(all(feature = "web", not(target_arch = "wasm32")))]
     pub walk: Option<demo::Walk>,

@@ -1724,3 +1724,10 @@ Nothing in Rune was needed.
 - **A window key reaches `on_key` only if the field's `on_input_key` returns false**; Esc and Enter are taken in the field and Ctrl+F, F3 and Ctrl+G by the window's handler, which asks `tx.focused()` so the key stops in Changes. A tab stop that is not an input (`review-scroll`, `.focusable(true)`) is what a click in the diff focuses.
 - **A test sends Ctrl+letter as `Key::Command('f')` with `cmd` and `ctrl` held** (not `Key::Text`).
 - **`TextHighlight::key` on two copies of a line** would duplicate the key: only one copy (the old side of an unchanged Split row) is keyed for the scroll.
+
+## Component 14, piece H (the browser tab)
+
+- **`text_input` takes a `&TextEdit`**, not a `String`: the address field keeps a `TextEdit` in state (`BrowserUi::address`) and `on_edit` returns `&mut TextEdit`. A closure that captures the tab id works for `on_edit`; setting the text again (`TextEdit::new`) loses the caret, so it is only done while the field has no keyboard.
+- **A field has no focus/blur callbacks**: whether it is being edited is read from `Tx::focused()` in `poll` and kept as the change (gained, lost), which is what Fleet's `@focus`/`@blur` give.
+- **A dropped WebKitGTK view stays on screen until GTK's loop runs once more.** `pump` only turns the loop while a view exists, so dropping the last one (a tab showing an error instead of the page) left its pixels there. `platform::keep` now drains GTK's events when a view went and asks Rune for a draw.
+- **WebKitGTK's page cache**: Back to a page it kept whole runs no script and fires `pageshow` with `persisted`, not `load`, so the injected preview script reports the location on that event too.

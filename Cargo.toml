@@ -36,6 +36,9 @@ tungstenite = { version = "0.28", default-features = false, features = ["handsha
 # terminal is xterm.js, which has no Rust port; docs/research/terminal.md compares the candidates. Its own pty and I/O loop come
 # along unused (the shell is the server's). Apache-2.0.
 alacritty_terminal = "0.26"
+# `new URL(...)` of the browser tab (src/web/browser.rs): the address bar parses what is typed as the page does. Already in Cargo.lock
+# through wry, built for all three systems; no new crate.
+url = "2"
 
 # The system web view (WebView2, WKWebView, WebKitGTK) as a child of the window, for page canvases (component 14, `src/web/`).
 # `--no-default-features` builds without it: every page then shows the "can't be shown inside the app" panel.

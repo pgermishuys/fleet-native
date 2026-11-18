@@ -219,7 +219,10 @@ fn body(s: &State, t: &Theme) -> El {
         // Component 14's browser canvas hosts Agent's view; until it does, only a scene watches a tab.
         Some(CanvasKind::Browser) => match &s.agent_view.target {
             Some((session, tab)) => super::agent_tab::agent_tab(s, t, session, tab),
-            None => stand_in(t, CanvasKind::Browser),
+            None => match tabs.active().and_then(|c| Some((c.id.clone(), c.browser()?))) {
+                Some((tab, page)) => super::browser_tab::browser_tab(s, t, &tab, &page),
+                None => stand_in(t, CanvasKind::Browser),
+            },
         },
         Some(CanvasKind::Visual) => match tabs.active().and_then(|c| c.payload.as_ref()) {
             Some(payload) => super::document_tab::document_tab(s, t, payload),

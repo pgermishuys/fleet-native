@@ -132,7 +132,7 @@ fn body(s: &State, t: &Theme, url: Option<String>) -> El {
 }
 
 /// The page can't be shown here: say so, and offer the page in the system's browser.
-fn fallback(t: &Theme, url: Option<String>) -> El {
+pub(super) fn fallback(t: &Theme, url: Option<String>) -> El {
     let open = button(t, Variant::Outline, Size::Sm, Some(&EXTERNAL_LINK), "Open in browser").key("page-tab-open-browser");
     let open = match url {
         Some(url) => open.on_press_tx(move |_: &mut State, tx| {

@@ -69,5 +69,6 @@ pub fn wanted_full(s: &State) -> Option<Placement> {
         rect,
         html: None,
         place: PagePlace::Conversation,
+        browser: false,
     })
 }
