@@ -1,0 +1,126 @@
+//! A file's tab (`components/canvas/FileCanvas.vue`, rows 4.1 to 4.4 and 4.6 to 4.8 of docs/parity/11-files.md): the bar with the
+//! file's path as crumbs and the view switch (Rendered, Edit or Source, Diff), and under it the note while the file opens or can't be
+//! shown, or its code. Wrap, the image and the Rendered page, the lines bar and everything of editing are other pieces'.
+use super::code_view::code_view;
+use crate::State;
+use crate::fleet::canvases::{FileView, has_rendered_view};
+use crate::fleet::file_buffers::Status;
+use crate::icons::CHEVRON_RIGHT;
+use crate::theme::{Theme, sans};
+use rune::{Cursor, El, col, el, icon, row, text};
+
+/// `@container (max-width: 430px)`: a panel this narrow shows the file name and not the folders.
+pub const NARROW: f32 = 430.0;
+
+/// Which view shows (rows 4.7, `view`): Diff asked for with nothing changed shows Edit.
+pub fn shown_view(asked: FileView, has_changes: bool) -> FileView {
+    if asked == FileView::Diff && !has_changes { FileView::Edit } else { asked }
+}
+
+/// The folders of a path and its file name.
+pub fn crumbs(path: &str) -> (Vec<&str>, &str) {
+    let mut parts: Vec<&str> = path.split('/').collect();
+    let name = parts.pop().unwrap_or("");
+    (parts, name)
+}
+
+fn crumb_row(s: &State, t: &Theme, path: &str) -> El {
+    let (folders, name) = crumbs(path);
+    let narrow = s.right_shown_w() < NARROW;
+    let mut r = row().key("file-crumbs").help(path).gap(3.0).items_center().shrink().min_w(0.0);
+    if !narrow {
+        for (i, folder) in folders.iter().enumerate() {
+            r = r
+                .child(text(*folder).key(format!("file-crumb-{i}")).font(sans(12.5, 400.0, 1.4)).color(t.muted).single_line())
+                .child(icon(&CHEVRON_RIGHT, 11.0).color(t.muted));
+        }
+    }
+    r.child(text(name).key("file-crumb-name").font(sans(12.5, 500.0, 1.4)).color(t.text).truncate().shrink().min_w(0.0))
+}
+
+fn switch_button(t: &Theme, key: &str, words: &str, on: bool, off: Option<&str>, tip: &str, press: impl Fn(&mut State) + 'static) -> El {
+    let disabled = off.is_some();
+    let mut b = row()
+        .key(key)
+        .role("button")
+        .label(words)
+        .help(tip)
+        .h(22.0)
+        .px(8.0)
+        .items_center()
+        .radius(6.0)
+        .cursor(if disabled { Cursor::Default } else { Cursor::Pointer })
+        .focusable(!disabled)
+        .focus_ring(2.0, 1.0, t.accent)
+        .child(text(words).font(sans(12.0, 400.0, 1.4)).color(if on { t.text } else { t.muted }).group_color(t.text).single_line());
+    if on {
+        b = b.fill(t.wash(10.0));
+    }
+    if disabled {
+        return b.disabled(true).opacity(0.45);
+    }
+    b.hover_group().on_press(press)
+}
+
+/// `.file-canvas__toggle`: Rendered (Markdown and HTML only), Edit (Source when Rendered is there) and Diff.
+fn view_switch(t: &Theme, path: &str, view: FileView, has_changes: bool) -> El {
+    let renderable = has_rendered_view(path);
+    let mut group = row().key("file-view-switch").role("group").label("View").gap(1.0).padding(2.0).radius(8.0).fill(t.wash(5.0));
+    let set = |to: FileView| {
+        let path = path.to_string();
+        move |s: &mut State| s.set_active_file_view(&path, to)
+    };
+    if renderable {
+        group =
+            group.child(switch_button(t, "file-view-rendered", "Rendered", view == FileView::Rendered, None, "", set(FileView::Rendered)));
+    }
+    let edit = if renderable { "Source" } else { "Edit" };
+    group = group.child(switch_button(t, "file-view-edit", edit, view == FileView::Edit, None, "", set(FileView::Edit)));
+    let (off, tip) = if has_changes { (None, "Diff against the last commit") } else { (Some(()), "No changes in this file") };
+    group.child(switch_button(t, "file-view-diff", "Diff", view == FileView::Diff, off.map(|_| tip), tip, set(FileView::Diff)))
+}
+
+/// `.file-canvas__note`: 13 px muted, padding `14px 18px`, said as a status.
+fn note(t: &Theme, key: &str, words: String) -> El {
+    col().role("status").w_full().px(18.0).py(14.0).child(text(words).key(key).font(sans(13.0, 400.0, 1.4)).color(t.muted))
+}
+
+/// The body of the active file tab.
+pub fn file_tab(s: &State, t: &Theme) -> El {
+    let tabs = s.open_canvases();
+    let Some(file) = tabs.active().and_then(|c| c.file.clone()) else { return el() };
+    let (session, path) = (s.canvas_session(), file.path.clone());
+    let machine = s.machine_key_of(&session).to_string();
+    let info = s.file_buffers.info(&machine, &session, &path);
+    let status = info.map(|i| i.status);
+    let ready = status == Some(Status::Ready);
+    let has_changes = (s.diffs.by_file(&path).is_some() && !crate::fleet::canvases::is_image_path(&path)) || info.is_some_and(|i| i.dirty);
+    let view = shown_view(file.view, has_changes);
+
+    let mut bar = row()
+        .key("file-bar")
+        .w_full()
+        .min_h(38.0)
+        .pl(14.0)
+        .pr(10.0)
+        .gap(8.0)
+        .items_center()
+        .border_sides([0.0, 0.0, 1.0, 0.0], t.border)
+        .child(crumb_row(s, t, &path))
+        .child(el().grow(1.0));
+    if ready {
+        bar = bar.child(view_switch(t, &path, view, has_changes));
+    }
+
+    let mut body = col().key("file-canvas").w_full().grow(1.0).shrink().min_h(0.0).child(bar);
+    body = match status {
+        Some(Status::Loading) => body.child(note(t, "file-opening", format!("Opening {path}\u{2026}"))),
+        Some(Status::Unavailable | Status::Error) => {
+            let message = info.and_then(|i| i.message.clone()).unwrap_or_default();
+            body.child(note(t, "file-unavailable", message))
+        }
+        Some(Status::Ready) => body.child(code_view(s, t, &machine, &session, &path)),
+        None => body,
+    };
+    body
+}

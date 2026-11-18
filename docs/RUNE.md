@@ -1860,3 +1860,19 @@ Read at the pin while planning; nothing built yet.
 - **Arrow keys are `Key::Down` and `Key::Up`** (not `ArrowDown`); in a `text_input`'s `on_input_key` returning `true` stops the caret moving.
 - **`tx.focus(key, false)` then `tx.select_all_text(key)` in one poll** focuses a field and selects its text.
 - A press that opens a tab moves the keyboard off the field, so a test that wants more keys in the field presses them before it presses Enter.
+## Component 11, piece G (the file tab's code view)
+
+- **A virtual row's key is the list's, not the element's.** `virtual_rows(count, est, key, build)` keys each row `key(s, i)`
+  whatever key the built element had, so `rt.find("code-line-3")` only works if the `key` closure returns that name. Name the rows
+  in the key closure and key the pieces inside (the text) on the element.
+- **Sideways scrolling and a held gutter on a virtual list** work together: `scroll_xy()` on the viewport, the growth column with
+  `virtual_rows` inside, `sticky_left(0.0)` on each row's number cell. The scrolling width is the widest row built, so a very
+  long line far from the window doesn't widen it until it is near.
+- **Code colours stop at 128 KiB** (`rune_kit::syntax`, `MAX_SOURCE`, cut at a line end): in a file between 128 and 512 KB
+  (what the viewer opens) the lines after that point draw plain, and no 1 MB-style fallback exists. The viewer joins the buffer's
+  lines once per buffer revision and cuts the colours per line (`view::code_view::coloured`); the highlight runs on the UI thread
+  the first time, about the cost of the 128 KiB it colours.
+- **No properties or INI lexer**: `lang_for_path("x.env")`, `.ini` and `.properties` name no language, so those files draw plain
+  where Fleet colours them.
+- **`SyntaxTheme::spans` sets no italic or underline**, only colour and weight; the viewer builds its own `Span`s from the
+  highlights to italicise comments and underline links as Fleet's theme does.

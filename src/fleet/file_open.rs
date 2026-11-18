@@ -19,6 +19,12 @@ impl State {
         self.reveal_active(tx);
     }
 
+    /// A press on the view switch (`setFileView`): the open file tab shows `view`.
+    pub fn set_active_file_view(&mut self, path: &str, view: super::canvases::FileView) {
+        let session = self.canvas_session();
+        self.canvases.set_file_view(&session, path, view);
+    }
+
     /// A double-click on a preview tab keeps it (`keepPreview`); a kept tab does nothing.
     pub fn keep_preview_tab(&mut self, id: &str) {
         let tabs = self.open_canvases();

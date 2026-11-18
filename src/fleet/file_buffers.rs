@@ -114,9 +114,15 @@ pub struct Buffer {
     /// Hash of the disk version the buffer is based on; a save sends it.
     base_hash: Option<String>,
     format: Option<TextFormat>,
+    /// Counts every change to `lines`, so what is worked out from the text (its colours) knows when it is stale.
+    rev: u64,
 }
 
 impl Buffer {
+    pub fn rev(&self) -> u64 {
+        self.rev
+    }
+
     pub fn info(&self) -> &Info {
         &self.info
     }
@@ -157,6 +163,7 @@ impl Buffer {
     fn start_afresh(&mut self, file: &DiskFile) {
         let (text, format) = read_text_format(file.content.as_deref().unwrap_or(""));
         self.lines = split_lines(&text, &format);
+        self.rev += 1;
         self.saved = self.lines.clone();
         self.format = Some(format);
         self.base_hash = file.hash.clone();
@@ -190,6 +197,7 @@ impl Buffer {
             return DiskUpdate::Unchanged;
         };
         self.lines = change.apply(&self.lines);
+        self.rev += 1;
         self.saved = self.lines.clone();
         DiskUpdate::Updated(Some(change.lines))
     }

@@ -66,6 +66,8 @@ mod tests_document;
 #[cfg(test)]
 mod tests_draft_row;
 #[cfg(test)]
+mod tests_file_tab;
+#[cfg(test)]
 mod tests_files_tab;
 #[cfg(test)]
 mod tests_find_in_files;
@@ -4376,6 +4378,18 @@ pub fn spec() -> AppSpec<State> {
             ("find-in-files-old-light", |s| s.show_files_tab(mock::files_tab::Case::FindOld, false)),
             ("find-in-files-hint", |s| s.show_files_tab(mock::files_tab::Case::FindIdle, true)),
             ("find-in-files-hint-light", |s| s.show_files_tab(mock::files_tab::Case::FindIdle, false)),
+            ("file-code", |s| s.show_file(mock::file_tab::Case::Code, true)),
+            ("file-code-light", |s| s.show_file(mock::file_tab::Case::Code, false)),
+            ("file-opening", |s| s.show_file(mock::file_tab::Case::Opening, true)),
+            ("file-opening-light", |s| s.show_file(mock::file_tab::Case::Opening, false)),
+            ("file-too-large", |s| s.show_file(mock::file_tab::Case::TooLarge, true)),
+            ("file-too-large-light", |s| s.show_file(mock::file_tab::Case::TooLarge, false)),
+            ("file-binary", |s| s.show_file(mock::file_tab::Case::Binary, true)),
+            ("file-binary-light", |s| s.show_file(mock::file_tab::Case::Binary, false)),
+            ("file-missing", |s| s.show_file(mock::file_tab::Case::Missing, true)),
+            ("file-missing-light", |s| s.show_file(mock::file_tab::Case::Missing, false)),
+            ("file-markdown", |s| s.show_file(mock::file_tab::Case::Markdown, true)),
+            ("file-markdown-light", |s| s.show_file(mock::file_tab::Case::Markdown, false)),
             ("panel-tabs", |s| s.show_tabs(mock::canvas_host::Case::Tabs, true)),
             ("panel-tabs-light", |s| s.show_tabs(mock::canvas_host::Case::Tabs, false)),
             ("panel-tabs-attention", |s| s.show_tabs(mock::canvas_host::Case::Attention, true)),
