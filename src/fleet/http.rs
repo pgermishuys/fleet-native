@@ -613,6 +613,12 @@ pub fn find_files(base: &str, session: &str, q: &str) -> Result<(u16, Value), St
     status_of("GET", base, &format!("/api/sessions/{session}/find/files?q={}", query_value(q)))
 }
 
+/// `GET /api/sessions/{id}/find/text?q=&regex=&matchCase=`: the lines of the session's folder that have the text, grouped by file
+/// (`use-find-text.ts`). The status and body come back as they are: 400 and 404 mean something to the caller.
+pub fn find_text(base: &str, session: &str, q: &str, regex: bool, match_case: bool) -> Result<(u16, Value), String> {
+    status_of("GET", base, &format!("/api/sessions/{session}/find/text?q={}&regex={regex}&matchCase={match_case}", query_value(q)))
+}
+
 /// `GET /api/directories/find?path=&q=`: the same search in a folder, for a draft with no session yet (component 7).
 pub fn find_in_directory(base: &str, path: &str, q: &str) -> Result<(u16, Value), String> {
     status_of("GET", base, &format!("/api/directories/find?path={}&q={}", query_value(path), query_value(q)))
