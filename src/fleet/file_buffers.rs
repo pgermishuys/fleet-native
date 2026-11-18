@@ -437,6 +437,7 @@ impl State {
     pub fn close_file_buffer(&mut self, session: &str, path: &str) {
         let machine = self.machine_key_of(session).to_string();
         self.file_buffers.remove(&machine, session, path);
+        self.file_live.forget(&machine, session, path);
     }
 
     fn send_file_read(&mut self, request: Option<Request>) {
@@ -450,7 +451,8 @@ impl State {
         link.off_thread(
             move |base| http::file_content(base, &session, &path),
             move |s, _, answer| {
-                s.file_buffers.finish(&request, answer);
+                let update = s.file_buffers.finish(&request, answer);
+                s.after_file_read(&request, update);
             },
         );
     }

@@ -1794,3 +1794,11 @@ Read at the pin while planning; nothing built yet.
 - **`rune_kit` Markdown inside a scrolling list needs no wrapper**: `view::prose::prose` in a padded `col` sits in the review's scroll like any other element, unlike a web view, which is why HTML gets 14's card there.
 - **`tx.scroll_into_view_in(scroll_key, card_key)`** needs the card drawn first, so a request that also opens and marks a file near does the scroll one poll later (`wake_after` 16 ms); it brings the card into view, it doesn't pin its top to the scroll box's.
 - **A script's `tap` is the only pointer event** (no `move`): to show a header's hover actions, tap one of them that changes nothing.
+
+
+## Component 11, piece C (keeping open files in step)
+
+- **`App::on_focus` is the window-focus event**: it fires when the window gets or loses the keyboard, so Fleet's `window` `focus` listener is one line there (`if focused { s.file_window_focus() }`).
+- **No "tab activated" hook in the model**, so a tab coming to the front is seen by comparing the active tab id in `poll` (`keep_file_front`), the way `keep_strip` does for the strip; it reads the id without copying the session's tabs.
+- **A debounce is a generation number and a sleeping `Link::off_thread`**: each queue bumps the number, and the timer that wakes finds itself stale and reads nothing. A test of "once" checks the queue as a rule and a fake server for what is asked.
+- **A test that waits for a second read must wait for the first one to be applied** (`!is_reading`), because a refresh asked while one is on its way is skipped on purpose.

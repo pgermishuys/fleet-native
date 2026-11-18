@@ -387,6 +387,9 @@ pub struct State {
     pub diff_contents: fleet::diff_contents::Contents,
     /// Open files' buffers, per machine, session and path (`fleet::file_buffers`).
     pub file_buffers: fleet::file_buffers::FileBuffers,
+    /// Which open files are read again, and when (`fleet::file_live`), and the git bases of the changed ones (`fleet::file_base`).
+    pub file_live: fleet::file_live::Live,
+    pub file_bases: fleet::file_base::Bases,
     /// The review's own state: which sections are shut and the layout picked (`fleet::review`).
     pub review: fleet::review::Review,
     /// Find in Changes: the bar's query and matches, and the machine's search (`fleet::changes_find`).
@@ -692,6 +695,8 @@ impl Default for State {
             diffs: Default::default(),
             diff_contents: Default::default(),
             file_buffers: Default::default(),
+            file_live: Default::default(),
+            file_bases: Default::default(),
             review: Default::default(),
             changes_find: Default::default(),
             page_target: None,
@@ -1578,6 +1583,7 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     let ticked = now.floor() != s.clock.floor();
     s.clock = now;
     let strip = s.keep_strip(tx) | s.keep_tab_motion(tx);
+    s.keep_file_front();
     s.keep_progress_tab();
     let strip = s.keep_turns_tab() | strip;
     s.keep_panel_content();
@@ -4479,6 +4485,9 @@ pub fn start_desktop() {
         .on_focus(|s, focused, tx| {
             s.each_link(|link| link.window_focus(focused));
             s.quiet.focused = focused;
+            if focused {
+                s.file_window_focus();
+            }
             // Back in Fleet: a waiting card opens now, not at the next look.
             s.keep_notices(s.clock, tx);
         })

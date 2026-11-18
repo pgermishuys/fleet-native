@@ -81,7 +81,7 @@ pub fn parse_diff_lines(before: &str, after: &str) -> Vec<DiffLine> {
 
 /// The edit script between two line lists: 0 keeps a line, -1 removes one from `a`, 1 adds one from `b`. Lines the
 /// two share at the start and end are taken first, then Myers' O(ND) walk finds the shortest script for the middle.
-fn diff_script(a: &[String], b: &[String]) -> Vec<i8> {
+pub(crate) fn diff_script(a: &[String], b: &[String]) -> Vec<i8> {
     let mut head = 0;
     while head < a.len() && head < b.len() && a[head] == b[head] {
         head += 1;
