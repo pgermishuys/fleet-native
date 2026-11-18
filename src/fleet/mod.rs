@@ -36,6 +36,7 @@ pub mod dream_notice;
 pub mod events;
 pub mod export;
 pub mod family;
+pub mod file_buffers;
 pub mod find;
 pub mod finder;
 pub mod fork;

@@ -30,7 +30,7 @@ pub fn stale_words(path: &str) -> String {
     format!("{path} changed while you were reviewing it. Its diff is refreshed; revert again if you still want to.")
 }
 
-fn reason_of(status: u16) -> String {
+pub(crate) fn reason_of(status: u16) -> String {
     let phrase = ureq::http::StatusCode::from_u16(status).ok().and_then(|s| s.canonical_reason()).unwrap_or("");
     format!("{status} {phrase}").trim_end().to_string()
 }

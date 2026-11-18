@@ -1776,3 +1776,9 @@ Read at the pin while planning; nothing built yet.
 - **A dialog's field is not focused by Rune on its own**: `tx.focus(KEY, false)` from the handler that opens it, as the fork dialog does. A test then sends keys with `rt.key`, not the composer helper, which clicks the composer first.
 - **No `aria-pressed`**: the toggle's pressed button is shown by its fill and shadow only.
 - **Shared dialog state that follows other state** (watching the agent's tab while Agent's view is chosen) is kept in step by `keep_browser` in `poll` and by the press handler, so the web view is hidden in the same frame.
+
+## Component 11, piece B (reading a file)
+
+- Nothing new about Rune: the piece is plain Rust with no view. One thing learned for the pieces after it: a file's text is kept as its lines (split on the file's own break), because Rune's text elements take lines and a buffer then needs no second copy; positions in `minimal_change` count chars, not CodeMirror's UTF-16 units.
+- A test that drives a `State` over a fake server prints Rune's debug-build "memo(..) replaced its root's key" warning once; `RUNE_PERF_WARN=0` silences it.
+

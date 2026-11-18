@@ -29,6 +29,7 @@ mod retry;
 mod review;
 mod shell;
 mod sweep;
+mod text_format;
 mod time;
 mod tool_row;
 mod turn_error;
