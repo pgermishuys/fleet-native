@@ -12,7 +12,7 @@ use std::rc::Rc;
 /// What the picker reads: the choice, whether an install is under way, and the repositories; Skills and Tools each keep their own.
 fn parts(s: &State, kind: Kind) -> (&InstallTarget, bool, &[(String, String)]) {
     match kind {
-        Kind::Tools => (&s.settings.tools.target, s.settings.tools.installing, &s.settings.tools.repositories),
+        Kind::Tools | Kind::Config => (&s.settings.tools.target, s.settings.tools.installing, &s.settings.tools.repositories),
         _ => (&s.settings.skills.target, s.settings.skills.installing, &s.settings.skills.repositories),
     }
 }

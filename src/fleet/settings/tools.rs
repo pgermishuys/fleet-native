@@ -1,7 +1,7 @@
 //! Settings → Skills & tools → Tools, as plain data (`composables/use-tools.ts`, `use-tool-catalog.ts`, `ToolsSection.vue`,
 //! `tools/InstalledToolsTab.vue`, `tools/CatalogTab.vue`): the installed tools and the catalog, how the answers are read, the
 //! calls under `/api/tools`, the bodies an install sends, and the page's own state. No Rune and no I/O here; what touches the
-//! app is `tools_actions.rs`. The Custom tab is piece AJ.
+//! app is `tools_actions.rs`.
 use super::install_target::{InstallTarget, to_install_target};
 use super::skills::{Inner, Request};
 use crate::conv::export_history::encode_component;
@@ -219,7 +219,7 @@ pub fn is_installed(installed: &[InstalledTool], name: &str, target: &InstallTar
 /// What the Tools tab keeps while it is the one showing: the list, the install target Catalog and Custom share (separate from
 /// Skills'), and the busy and confirm states (per install, as `InstalledToolsTab.vue` keeps them). Leaving the tab forgets it
 /// all but the target, which `ToolsSection.vue` holds above its inner tabs.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct ToolsPage {
     /// Whether the tab has been opened and its first reads sent; `for_seq` is the Skills page read it was opened under.
     pub active: bool,
@@ -243,4 +243,28 @@ pub struct ToolsPage {
     pub catalog_reads: u64,
     pub installing_name: Option<String>,
     pub install_error: Option<String>,
+    /// Custom: the form showing, what is typed in each (each keeps its own fields while you switch), and the form's error.
+    pub mode: super::tool_custom::Mode,
+    pub native_url: rune::TextEdit,
+    pub mcp_name: rune::TextEdit,
+    pub mcp_command: rune::TextEdit,
+    pub mcp_args: rune::TextEdit,
+    pub mcp_env: rune::TextEdit,
+    pub custom_error: Option<String>,
+}
+
+impl Eq for ToolsPage {}
+
+impl ToolsPage {
+    /// A successful install empties the fields of the form it came from (the other form keeps its own).
+    pub fn clear_custom_fields(&mut self, mode: super::tool_custom::Mode) {
+        use super::tool_custom::Mode;
+        let fields = match mode {
+            Mode::Native => vec![&mut self.native_url],
+            Mode::Mcp => vec![&mut self.mcp_name, &mut self.mcp_command, &mut self.mcp_args, &mut self.mcp_env],
+        };
+        for f in fields {
+            *f = rune::TextEdit::default();
+        }
+    }
 }

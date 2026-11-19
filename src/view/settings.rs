@@ -48,6 +48,7 @@ pub mod skills_installed;
 pub mod skills_tools;
 pub mod tools;
 pub mod tools_catalog;
+pub mod tools_custom;
 pub mod tools_installed;
 pub mod updates;
 pub mod updates_app;

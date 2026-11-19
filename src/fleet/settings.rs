@@ -44,6 +44,7 @@ pub mod skills_install;
 pub mod storage;
 pub mod storage_actions;
 pub mod switches;
+pub mod tool_custom;
 pub mod tools;
 pub mod tools_actions;
 pub mod updates_page;

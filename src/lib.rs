@@ -268,6 +268,8 @@ mod tests_settings_storage;
 #[cfg(test)]
 mod tests_settings_tools;
 #[cfg(test)]
+mod tests_settings_tools_custom;
+#[cfg(test)]
 mod tests_settings_updates;
 #[cfg(test)]
 mod tests_settings_updates_machines;
@@ -1909,6 +1911,22 @@ fn tool_catalog_scene(s: &mut State, dark: bool, change: impl FnOnce(&mut fleet:
     });
 }
 
+/// Tools → Custom as a scene: `mcp` picks the form, `fill` types into it.
+fn tool_custom_scene(s: &mut State, dark: bool, mcp: bool, fill: impl FnOnce(&mut fleet::settings::tools::ToolsPage)) {
+    tools_scene(s, dark, |p| {
+        p.inner = fleet::settings::skills::Inner::Custom;
+        p.mode = if mcp { fleet::settings::tool_custom::Mode::Mcp } else { fleet::settings::tool_custom::Mode::Native };
+        fill(p);
+    });
+}
+
+fn mcp_filled(p: &mut fleet::settings::tools::ToolsPage) {
+    p.mcp_name = rune::TextEdit::new("docs-search");
+    p.mcp_command = rune::TextEdit::new("node");
+    p.mcp_args = rune::TextEdit::new("/work/servers/docs-search.js\n--port\n3000");
+    p.mcp_env = rune::TextEdit::new("API_KEY=demo-key\nDEBUG=true");
+}
+
 /// Skills → Custom as a scene, with `address` typed and the form's error shown.
 fn custom_scene(s: &mut State, dark: bool, address: &str, error: Option<&str>) {
     skills_scene(s, dark, None, |p| {
@@ -2171,6 +2189,33 @@ pub fn spec() -> AppSpec<State> {
                 s.ui.open = Some(ui::Open::Select("skills-target"))
             }),
             ("settings-skills-custom-light", |s| skills_scene(s, false, None, |p| p.inner = fleet::settings::skills::Inner::Custom)),
+            ("settings-tools-custom", |s| tool_custom_scene(s, true, false, |_| {})),
+            ("settings-tools-custom-light", |s| tool_custom_scene(s, false, false, |_| {})),
+            ("settings-tools-custom-error", |s| {
+                tool_custom_scene(s, true, false, |p| {
+                    p.native_url = rune::TextEdit::new("https://github.com/example");
+                    p.custom_error = Some(fleet::settings::tool_custom::NOT_GITHUB_TOOL.into());
+                })
+            }),
+            ("settings-tools-custom-error-light", |s| {
+                tool_custom_scene(s, false, false, |p| {
+                    p.native_url = rune::TextEdit::new("https://github.com/example");
+                    p.custom_error = Some(fleet::settings::tool_custom::NOT_GITHUB_TOOL.into());
+                })
+            }),
+            ("settings-tools-custom-mcp", |s| tool_custom_scene(s, true, true, |_| {})),
+            ("settings-tools-custom-mcp-light", |s| tool_custom_scene(s, false, true, |_| {})),
+            ("settings-tools-custom-mcp-filled", |s| tool_custom_scene(s, true, true, mcp_filled)),
+            ("settings-tools-custom-mcp-filled-light", |s| tool_custom_scene(s, false, true, mcp_filled)),
+            ("settings-tools-custom-mcp-error", |s| {
+                tool_custom_scene(s, true, true, |p| p.custom_error = Some(fleet::settings::tool_custom::NAME_REQUIRED.into()))
+            }),
+            ("settings-tools-custom-installing", |s| {
+                tool_custom_scene(s, true, true, |p| {
+                    mcp_filled(p);
+                    p.installing = true;
+                })
+            }),
             ("settings-tools-installed", |s| tools_scene(s, true, |_| {})),
             ("settings-tools-installed-light", |s| tools_scene(s, false, |_| {})),
             ("settings-tools-warning", |s| {
