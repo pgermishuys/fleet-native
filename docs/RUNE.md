@@ -2012,3 +2012,57 @@ Same recipe as Changes' Rendered view: a `selection_group(true)` column with `on
 - **A dialog taller than the window needs its own cap**: `ui::dialog::Dialog.max_height` (90% of the window, from `ui.sel.window`) caps the panel and scrolls it, as `max-h-[90vh] overflow-y-auto` does.
 - **What appears inside an open dialog fades in**: a test that presses a button right after the state that shows it finds it at opacity < 1 and the press can land on the scrim, closing the dialog. Run 30 frames after each press before the next.
 - **`on_input_key` sees Esc before the dialog does**: returning true from it in the prompt box cancels only the box.
+
+## Component 11, piece P (the editor spike)
+
+Two ways of editing a file in the code view were built and timed on a 20,000-line file (about 400 KB): **A**, the whole file in one
+multi-line `text_input` with `.spans(..)` for the colours and a column of numbers beside it (`view::code_input_spike`, scenes and
+`--bench-editor` only); **B**, an editor the app draws over the viewer's `virtual_rows` (`fleet::code_edit`, `fleet::code_editing`,
+`view::code_edit`), behind `FLEET_NATIVE_EDITOR_SPIKE=1`. B is the way for pieces R to U. What each costs is under "Timings" below.
+
+- **Rune carries an editor the app draws.** `El::on_key` on the focusable scrolling column owns the keyboard while it has focus
+  (it sees keys before focus navigation, the default button and the window's `on_key`, and "a click anywhere inside it focuses
+  it"); `.ime_cursor()` on the drawn caret turns the input method on and places its window there; `App::on_ime` hears
+  `Ime::Preedit` and `Ime::Commit` (used, through `Runtime::ime` in tests and `{"type": "ime", "preedit": …}` / `{"type": "ime",
+  "commit": …}` in a script; not tried with a real input method: this machine's Xvfb has none).
+- **Where a byte sits is Rune's own measure**: `rune::text::advance(&drawn[..byte], style)` gives the caret's x and, searched, the
+  byte under a press, for any text (tabs drawn as spaces, CJK, the mono face at 600) without counting columns.
+- **No layout read-back for a wrapped text.** Nothing gives a laid-out text's line starts or a byte's (x, y) (`Cx::caret` is the
+  focused *field's* caret only; `line_starts` is crate-private and web-only). A wrapped line's caret row is found by measuring the
+  text up to the end of the caret's word with `measure_with(.., Some(width), RichLayoutOptions::new().wrap_anywhere())`; a word
+  longer than the row (which breaks inside itself) puts the caret on its last row. The width comes from `on_layout` of the caret's
+  line, a frame late.
+- **A paste goes to the root's `on_paste` only** (`Runtime::app_paste_handler` reads the root or the open modal): `on_paste` on a
+  focused element is never called. The editor reads the clipboard itself on Ctrl/Cmd+V with `tx.read_clipboard`, as the terminal's
+  keys do. (The element-level `on_paste` in `view::terminal_view` looks unreachable for the same reason; the terminal's paste key reads the clipboard itself and works. Not changed here.)
+- **A focusable column draws Rune's keyboard focus ring once keys are used**; the editor turns it off with `focus_ring(0, 0,
+  TRANSPARENT)`, as CodeMirror's content element has none.
+- **`text_input` is the whole text, every frame.** `text_input(&edit, ..)` clones the `TextEdit` (the text and its undo history)
+  into the element on each view, and the field is one text element: no rows are skipped, it always wraps (so its numbers go out of
+  step under a wrapped line, scene `editor-spike-input-wrap`), and colours over it are the highlighter's run over the whole new text
+  after every key (`rune_kit::syntax::highlight` caches by text, so an edit misses).
+- **What B has to build itself** (all plain Rust, none of it needs Rune changed): the selection model and its history (CodeMirror's
+  500 ms typing groups), caret motion (words, line ends, the goal column), a blink, drawing a selection past a line's end (a
+  `TextHighlight` paints only the text's own bytes, so an empty selected line shows nothing), the language's indent rules (Enter
+  copies the line's indent; Fleet's Python adds a level after `:`), bracket matching and closing, multiple and rectangular
+  selections, drag and drop of text.
+
+**Timings** (`fleet-native --bench-editor`, release build, 19 November 2026, Linux on a 4-core laptop CPU with no GPU, load average
+5 to 12 from other work: the CPU cost of a frame from the key to the end of its layout, before drawing; not real hardware for the
+GPU side, which nobody measured). The file is 20,000 lines, 400 KB, Python; one key a frame.
+
+| ms per frame | B p50 | B p95 | B p99 | B wrapped p50 | B wrapped p99 | A p50 | A p99 |
+|---|--:|--:|--:|--:|--:|--:|--:|
+| type 80 characters | 8.8 | 14.1 | 16.3 | 8.2 | 17.4 | **1,369** | **3,870** |
+| Down 300 times | 6.6 | 8.4 | 9.7 | 7.1 | 10.4 | 11.9 | 15.7 |
+| Page Down 40 times | 10.5 | 19.1 | 19.1 | 10.6 | 12.6 | 11.8 | 15.8 |
+| undo and redo 10 times | 8.9 | 12.9 | 12.9 | 9.1 | 16.1 | **1,417** | **1,880** |
+| scroll 10 s | 1.4 | 5.8 | 7.4 | 1.5 | 8.2 | 6.5 | 10.1 |
+| open (the first frame) | 42 | | | 50 | | 3,484 | |
+
+A is out: each key in a 400 KB `text_input` costs well over a second (the clone, the whole text laid out again, the whole text
+coloured again). B types inside a frame at 60 Hz at the median and touches 16.7 ms at its slowest; a key's cost is the view built
+again (the rows on screen are rebuilt on every caret move, since `virtual_rows_version` is one number for the list) plus, on an
+edit, colouring the first 128 KiB again, joining the lines and diffing them against the saved text for the stripe. All three are
+whole-file work that piece R can make incremental (colour from the edited line, diff only when the stripe shows).
+

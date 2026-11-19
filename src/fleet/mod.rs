@@ -21,6 +21,8 @@ pub mod canvas_host;
 pub mod canvases;
 pub mod catalog;
 pub mod changes_find;
+pub mod code_edit;
+pub mod code_editing;
 pub mod command;
 pub mod compact;
 pub mod context;

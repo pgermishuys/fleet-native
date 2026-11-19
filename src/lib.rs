@@ -56,6 +56,8 @@ mod tests_changes_find_bar;
 #[cfg(test)]
 mod tests_chips;
 #[cfg(test)]
+mod tests_code_edit;
+#[cfg(test)]
 mod tests_context_tab;
 #[cfg(test)]
 mod tests_dashboard;
@@ -448,6 +450,8 @@ pub struct State {
     pub changes_find: fleet::changes_find::ChangesFind,
     /// Find in a file: the panel over the open file's code and its matches (`fleet::file_find`).
     pub file_find: fleet::file_find::FileFind,
+    /// The editor spike over the open file's code (`fleet::code_editing`, component 11 piece P); off unless asked for.
+    pub code_edit: fleet::code_editing::CodeEditing,
     /// Find in files: the machine's search of the session's folder, and the request for the Files tab to start one (`fleet::find_text`).
     pub find_text: fleet::find_text::FindText,
     pub find_in_files: fleet::find_text::FindInFiles,
@@ -771,6 +775,7 @@ impl Default for State {
             annotation: Default::default(),
             changes_find: Default::default(),
             file_find: Default::default(),
+            code_edit: fleet::code_editing::CodeEditing { on: fleet::code_editing::asked(), ..Default::default() },
             find_text: Default::default(),
             find_in_files: Default::default(),
             go_to_file: Default::default(),
@@ -1579,7 +1584,8 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_review_toast(now, tx)
         | s.keep_file_toast(now, tx)
         | s.keep_find_text(now, tx)
-        | s.keep_go_to_file(now, tx);
+        | s.keep_go_to_file(now, tx)
+        | s.keep_code_edit_focus(tx);
     // The tick asks for the next frame first, so `keep_images` starts it in the same poll.
     let agent_view = s.keep_agent_view(now, tx);
     let pictures = s.keep_images(tx) | agent_view | s.keep_session_images(tx);
@@ -1999,7 +2005,7 @@ fn tool_show_scene(s: &mut State, dark: bool) {
 /// What the terminal hears from the window besides its own box: the modifier keys held (Shift takes the pointer back from a
 /// program that asked for the mouse) and text an input method composed.
 pub(crate) fn terminal_hooks(app: App<State>) -> App<State> {
-    app.on_modifiers(|s, mods, _| s.terminal.mods = mods).on_ime(|s, ime, _| s.terminal_ime(ime))
+    app.on_modifiers(|s, mods, _| s.terminal.mods = mods).on_ime(|s, ime, tx| s.code_edit_ime(ime, tx) || s.terminal_ime(ime))
 }
 
 pub fn spec() -> AppSpec<State> {
@@ -4783,6 +4789,19 @@ pub fn spec() -> AppSpec<State> {
             ("file-image-missing-light", |s| s.show_file(mock::file_tab::Case::ImageMissing, false)),
             ("file-html", |s| s.show_file(mock::file_tab::Case::Html, true)),
             ("file-html-light", |s| s.show_file(mock::file_tab::Case::Html, false)),
+            ("editor-spike", |s| s.show_editor_spike(mock::code_edit::Spike::Typed, true)),
+            ("editor-spike-light", |s| s.show_editor_spike(mock::code_edit::Spike::Typed, false)),
+            ("editor-spike-ime", |s| s.show_editor_spike(mock::code_edit::Spike::Ime, true)),
+            ("editor-spike-ime-light", |s| s.show_editor_spike(mock::code_edit::Spike::Ime, false)),
+            ("editor-spike-big", |s| s.show_editor_spike(mock::code_edit::Spike::Big, true)),
+            ("editor-spike-big-light", |s| s.show_editor_spike(mock::code_edit::Spike::Big, false)),
+            ("editor-spike-wrap", |s| s.show_editor_spike(mock::code_edit::Spike::Wrap, true)),
+            ("editor-spike-wrap-light", |s| s.show_editor_spike(mock::code_edit::Spike::Wrap, false)),
+            ("editor-spike-input", |s| s.show_editor_spike(mock::code_edit::Spike::Input, true)),
+            ("editor-spike-input-light", |s| s.show_editor_spike(mock::code_edit::Spike::Input, false)),
+            ("editor-spike-input-wrap", |s| s.show_editor_spike(mock::code_edit::Spike::InputWrap, true)),
+            ("editor-spike-input-wrap-light", |s| s.show_editor_spike(mock::code_edit::Spike::InputWrap, false)),
+            ("editor-spike-input-big", |s| s.show_editor_spike(mock::code_edit::Spike::InputBig, true)),
             ("panel-tabs", |s| s.show_tabs(mock::canvas_host::Case::Tabs, true)),
             ("panel-tabs-light", |s| s.show_tabs(mock::canvas_host::Case::Tabs, false)),
             ("panel-tabs-attention", |s| s.show_tabs(mock::canvas_host::Case::Attention, true)),
@@ -4936,6 +4955,9 @@ pub fn start_desktop() {
     }
     if std::env::args().any(|a| a == "--bench-conversation") {
         return bench::conversation();
+    }
+    if std::env::args().any(|a| a == "--bench-editor") {
+        return bench::editor();
     }
     // The token comes out of the arguments before anything else sees them, and is kept in `fleet::auth` only.
     let (token, args) = fleet::auth::split_token(std::env::args().skip(1));

@@ -20,6 +20,8 @@ pub mod browser_tab;
 pub mod canvas_host;
 pub mod changes;
 pub mod changes_find;
+pub mod code_edit;
+pub mod code_input_spike;
 pub mod code_view;
 mod compaction;
 pub mod composer;

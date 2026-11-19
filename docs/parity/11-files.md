@@ -288,7 +288,7 @@ view, a search panel. Slice 1 needs none of those (it draws the lines itself); s
 
 | # | Row | Source | Native today |
 |---|---|---|---|
-| 13.1 | The code view is an editor: a caret (2 px `--accent`), typing, the selection, the active line (5.9), undo and redo, Tab indents (2 spaces by default), indent on input, brackets close and match, multiple selections and rectangular selection (Alt-drag), drag and drop of text | EE 110-148 | None. Piece P decides how (Rune's `text_input` with `.spans`, or an editor drawn with `ime_cursor`) |
+| 13.1 | The code view is an editor: a caret (2 px `--accent`), typing, the selection, the active line (5.9), undo and redo, Tab indents (2 spaces by default), indent on input, brackets close and match, multiple selections and rectangular selection (Alt-drag), drag and drop of text | EE 110-148 | Not ticked; **the way is chosen (11P)**: an editor the app draws over the code view's `virtual_rows` (`fleet::code_edit`, `fleet::code_editing`, `view::code_edit`), not Rune's `text_input` (1.4 s a key on a 400 KB file). The spike has the caret (2 px `--accent`), typing, Enter with the line's indent, Tab (two spaces), Backspace and Delete (by word too), the selection by Shift and by a drag, the active line, undo and redo in CodeMirror's 500 ms groups, cut, copy, paste and the input method, behind `FLEET_NATIVE_EDITOR_SPIKE=1`. Left for R and U: the blink, a selection drawn past a line's end, the language's indent, brackets, multiple and rectangular selections, drag and drop of text |
 | 13.2 | Dirty is "the text differs from the saved text" (typing back to it is clean again); typing in a preview tab keeps it (the agent's changes don't) | FBF 66-69; FV 98-109; tests "is dirty after typing and clean again when the text goes back", "typing in a preview tab keeps it" | None |
 | 13.3 | The bar while dirty: a 7 px `--idle` dot, "Unsaved", **Save** with its key (`Ctrl S` / `⌘S`, 500 10.5 px `--muted`; the key hides below 430 px): height 24, padding `0 9`, 1 px `--border`, radius 7, `--card-bg`, 12 px 500, hover border `--accent`; "Saving…" while saving | FV 395-419, 669-713 | None |
 | 13.4 | Save (the button, **Ctrl/Cmd+S** in the editor): nothing to save → toast "No changes to save"; else `PUT …/files/content` `{ path, content, baseHash }` with the text in the file's own breaks and BOM; done → "Saved {path}", the buffer is based on the new hash and stays dirty if typing went on during the save; a refusal → "Couldn't save: {reason}" | FV 268-277; BUF 191-227; FBF 71-75, 127-131; `session-files.ts` 61-95; tests "shows Unsaved after typing, and saves with the hash it read", "Ctrl S saves through the editor's keymap", "is clean after a save, and dirty again if typing went on during it" | Partial: the request is in `http.rs` |
@@ -653,6 +653,30 @@ of the earlier pieces and the new `file-markdown-ask-light`). Windows and macOS:
   neither is good enough for a 500 KB file, stop and ask the owner (decision 3 may need to change, for example a
   read-only viewer with "Open in" for editing).
 - **Pictures:** both spikes typing into `paginate.py`.
+- **Done, 19 November 2026.** Both ways were built and timed (`fleet-native --bench-editor`, numbers in `docs/RUNE.md`,
+  "Component 11, piece P"). The file was 20,000 lines (about 400 KB, under the 512 KB Fleet opens), not 10,000.
+  - **A, one `text_input` with `.spans`** (`view::code_input_spike`, scenes `editor-spike-input*`): Rune's field brings the
+    caret, selection, undo, clipboard and input method, but each key costs 1.4 s (p50) on that file, it always wraps so its
+    numbers go out of step under a wrapped line (scene `editor-spike-input-wrap`), and focusing it didn't bring a caret far
+    down into view. Out.
+  - **B, an editor the app draws over G's `virtual_rows`** (`fleet::code_edit`: positions, one replace per change, CodeMirror's
+    history groups, caret motion; `fleet::code_editing`: keys, paste, the input method, presses; `view::code_edit`: the caret
+    with `.ime_cursor()`, the selection, the preedit): 8.8 ms a key (p50; 16.3 ms p99), 6.6 ms a caret move, 1.4 ms a
+    scrolled frame, wrapped or not. Wrapped lines keep their own numbers (each line is a row), and the caret finds its row in a
+    wrapped line by Rune's measure. Colours stay as the viewer's (they stop at 128 KiB; Fleet's own client draws the end of the
+    20,000-line file plain too).
+  - **The choice for pieces R to U: B.** Nothing in Rune needs changing for it, so decision 3 stands. Pieces R and U build what
+    the spike left: the blink, a selection past a line's end, the language's indent (Fleet's Python indents the line after a
+    docstring by two; the spike copies the line's indent), bracket matching and closing, the lines bar for a selection while
+    editing (Fleet docks "L8 1 line" for it), multiple and rectangular selections (not cheap: the model is one selection),
+    drag and drop of text, Page Up and Down from the scroll position (the spike moves the caret a screen and follows it), and
+    the work per key made incremental (colour from the edited line; the stripe's diff only when it shows).
+  - Checked on Linux: 23 tests (`tests_code_edit`, `fleet::code_edit`, `view::code_edit`, `mock::code_edit`), the scenes
+    `editor-spike*` in both themes, and a recorded live walk on a scratch Fleet (v0.72.0) with the 20,000-line file: open it
+    from Files, click into line 5, type, Enter, Shift+Up, undo, redo, Ctrl+End to line 20,002 and type, an input method's
+    preedit and commit (sent by the script: this machine has no input method), Ctrl+Home, scroll, Page Down. Fleet's own
+    client pictures are the same edits on the same scratch Fleet. Not checked: Windows and macOS by hand (CI runs the tests
+    there), a real input method, a GPU. Pictures: `shots/parity/11p-editor-spike/`.
 
 #### Piece Q: buffer edits (plain Rust, no view)
 
