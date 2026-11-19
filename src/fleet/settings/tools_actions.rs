@@ -4,6 +4,7 @@
 //! in `mock::settings_tools` and the buttons change them.
 use super::install_target::InstallTarget;
 use super::skills::{self, Inner, Tab};
+use super::tool_custom::{self, Mode};
 use super::tools::{self, CatalogEntry, InstalledTool, ToolsPage};
 use crate::fleet::new_session::feeds::{self, Repository};
 use crate::{State, Tx};
@@ -19,9 +20,9 @@ fn read_repositories(base: &str) -> Vec<Repository> {
 }
 
 /// What an install thread hands back: the install's own answer and, when it worked, the list read again after it.
-type Installed = Result<Result<Vec<InstalledTool>, String>, String>;
+pub(super) type Installed = Result<Result<Vec<InstalledTool>, String>, String>;
 
-fn install_then_read(base: &str, body: &Value) -> Installed {
+pub(super) fn install_then_read(base: &str, body: &Value) -> Installed {
     let answer = skills::send_with(base, &tools::install(), Some(body))?;
     if answer.is_null() {
         return Err("No data returned".into());
@@ -111,6 +112,12 @@ impl State {
         }
         page.install_error = None;
         page.catalog_error = None;
+        // A tab that is left forgets its words, as Fleet's unmounted one does.
+        page.custom_error = None;
+        page.mode = Mode::default();
+        for field in [&mut page.native_url, &mut page.mcp_name, &mut page.mcp_command, &mut page.mcp_args, &mut page.mcp_env] {
+            *field = rune::TextEdit::default();
+        }
         if was == Inner::Catalog {
             page.catalog.clear();
             page.catalog_reads += 1;
@@ -240,6 +247,70 @@ impl State {
                         s.reload_tools();
                     }
                     Err(e) => s.settings.tools.error = Some(e),
+                }
+            },
+        );
+    }
+
+    /// `setMode`: the other form; what was typed stays, the error goes. Not while an install runs.
+    pub fn set_tool_mode(&mut self, mode: Mode) {
+        let page = &mut self.settings.tools;
+        if page.installing {
+            return;
+        }
+        page.mode = mode;
+        page.custom_error = None;
+    }
+
+    /// `submitInstall`: "Install tool" or "Install MCP server", or Enter in a one-line field.
+    pub fn install_custom_tool(&mut self) {
+        let page = &mut self.settings.tools;
+        if page.installing {
+            return;
+        }
+        let made = match page.mode {
+            Mode::Native => tool_custom::native_install(&page.native_url.text),
+            Mode::Mcp => tool_custom::mcp_install(&page.mcp_name.text, &page.mcp_command.text, &page.mcp_args.text, &page.mcp_env.text),
+        };
+        let entry = match made {
+            Ok(e) => e,
+            Err(e) => {
+                // Nothing is "installing" for a reason the form can give without asking.
+                page.custom_error = Some(e.into());
+                return;
+            }
+        };
+        let (target, seq, mode) = (page.target.clone(), page.for_seq, page.mode);
+        page.installing = true;
+        page.custom_error = None;
+        let Some(link) = self.skills_link() else {
+            let page = &mut self.settings.tools;
+            page.installing = false;
+            if !tools::is_installed(&page.tools, &entry.name, &target) {
+                page.tools.push(crate::mock::settings_tools::from_entry(&entry, target));
+            }
+            page.clear_custom_fields(mode);
+            return;
+        };
+        let body = entry.install_body(&target);
+        link.off_thread(
+            move |base| install_then_read(base, &body),
+            move |s: &mut State, _tx: &mut Tx, got: Installed| {
+                let page = &mut s.settings.tools;
+                if page.for_seq != seq {
+                    return;
+                }
+                page.installing = false;
+                match got {
+                    Ok(list) => {
+                        page.clear_custom_fields(mode);
+                        // A failed read after the install is the list's own error, not the install's.
+                        match list {
+                            Ok(list) => page.tools = list,
+                            Err(e) => page.error = Some(e),
+                        }
+                    }
+                    Err(e) => page.custom_error = Some(e),
                 }
             },
         );

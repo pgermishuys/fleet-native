@@ -2091,3 +2091,8 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 
 - **`ElementInfo::text` is the text of a text element only.** A row that holds a text (a pill, a link) answers `""`; give the row `.label(words)` as well and tests read `label`. A text element with its own key can be read with `text`.
 - **A tab-sized page with eight cards and a diff** adds nothing to the build cost, but `cargo test` of the lib still peaks near 4000M with the default jobs; `CARGO_BUILD_JOBS=1` fits (as in piece AE).
+## Component 16, piece AJ (Tools: Custom)
+
+- **A form's submit button far down the page is missed by a 760-high test window**: `click` hits nothing below the viewport. Open the rig with `app_tall()` (`rig_in`).
+- **`El` text read by key still includes children that are fading out** after a switch (the old form's examples); ask `exists` of the key of what should be gone instead.
+- **The test build was OOM-killed at 4000M even with `-j1` once the lib grew**; 5200M with `-j1` passed.

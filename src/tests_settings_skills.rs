@@ -299,10 +299,14 @@ fn link_to(base: String) -> (Link, Receiver<Job>) {
 
 /// A connected app on Settings → Skills & tools (at `anchor`), the page not yet read.
 pub(crate) fn rig_at(anchor: Option<&str>, setup: impl FnOnce(&mut Fake)) -> Rig {
+    rig_in(app(), anchor, setup)
+}
+
+/// The same, in a window of your own (a tall one, for a button far down a form).
+pub(crate) fn rig_in(mut rt: Runtime<State>, anchor: Option<&str>, setup: impl FnOnce(&mut Fake)) -> Rig {
     let fake: Shared = Default::default();
     setup(&mut fake.lock().unwrap());
     let (link, queue) = link_to(serve(fake.clone()));
-    let mut rt = app();
     let anchor = anchor.map(str::to_string);
     rt.update(move |s, _| {
         s.link = Some(link);
