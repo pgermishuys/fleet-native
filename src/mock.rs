@@ -50,6 +50,7 @@ pub mod rows;
 pub mod rules;
 pub mod running;
 pub mod sign_in;
+pub mod skills;
 pub mod storage;
 pub mod terminal;
 pub mod terminal_scenes;

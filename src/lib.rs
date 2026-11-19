@@ -246,6 +246,8 @@ mod tests_settings_permissions;
 #[cfg(test)]
 mod tests_settings_permissions_more;
 #[cfg(test)]
+mod tests_settings_skills;
+#[cfg(test)]
 mod tests_settings_storage;
 #[cfg(test)]
 mod tests_settings_updates;
@@ -1582,6 +1584,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_summary(now, tx)
         | s.keep_settings_anchor(tx)
         | s.keep_memory(tx)
+        | s.keep_skills(tx)
         | s.keep_harnesses_page(tx)
         | s.keep_permissions_page(tx)
         | s.keep_harness_strips(now, tx)
@@ -1831,6 +1834,23 @@ fn failed_page(p: &fleet::settings::memory::MemoryPage) -> fleet::settings::memo
     }
 }
 
+/// Skills & tools as a scene: the page open on the invented skills, marked as already read.
+fn skills_scene(s: &mut State, dark: bool, anchor: Option<&str>, change: impl FnOnce(&mut fleet::settings::skills::SkillsPage)) {
+    s.dark = Some(dark);
+    s.open_settings("skills", anchor);
+    let key = s.settings.choice.key(&s.machines).to_string();
+    let mut page = fleet::settings::skills::SkillsPage {
+        loaded_for: Some(key),
+        skills: mock::skills::installed(),
+        repositories: mock::skills::repositories(),
+        mods_server: Some(false),
+        ..Default::default()
+    };
+    page.patch("tidy-imports", &fleet::settings::install_target::InstallTarget::Global, |c| c.update_available = true);
+    change(&mut page);
+    s.settings.skills = page;
+}
+
 /// Settings → Folders as a scene: the page open on the invented locations, marked as already read.
 fn locations_scene(s: &mut State, dark: bool, change: impl FnOnce(&mut fleet::settings::locations::LocationsPage)) {
     s.dark = Some(dark);
@@ -2028,6 +2048,62 @@ pub fn spec() -> AppSpec<State> {
             ("settings-folders-browse-roots-light", |s| browse_scene(s, false, None)),
             ("settings-folders-browse-folder", |s| browse_scene(s, true, Some("/work"))),
             ("settings-folders-browse-folder-light", |s| browse_scene(s, false, Some("/work"))),
+            ("settings-skills", |s| skills_scene(s, true, None, |_| {})),
+            ("settings-skills-light", |s| skills_scene(s, false, None, |_| {})),
+            ("settings-skills-confirm", |s| skills_scene(s, true, None, |p| p.confirm_remove = Some("release-notes|global".into()))),
+            ("settings-skills-confirm-light", |s| skills_scene(s, false, None, |p| p.confirm_remove = Some("release-notes|global".into()))),
+            ("settings-skills-empty", |s| skills_scene(s, true, None, |p| p.skills.clear())),
+            ("settings-skills-empty-light", |s| skills_scene(s, false, None, |p| p.skills.clear())),
+            ("settings-skills-loading", |s| skills_scene(s, true, None, |p| p.loading = true)),
+            ("settings-skills-loading-light", |s| skills_scene(s, false, None, |p| p.loading = true)),
+            ("settings-skills-error", |s| {
+                skills_scene(s, true, None, |p| {
+                    p.skills.clear();
+                    p.error = Some("Failed to fetch skills".into())
+                })
+            }),
+            ("settings-skills-error-light", |s| {
+                skills_scene(s, false, None, |p| {
+                    p.skills.clear();
+                    p.error = Some("Failed to fetch skills".into())
+                })
+            }),
+            ("settings-skills-check-error", |s| {
+                skills_scene(s, true, None, |p| {
+                    p.patch("tidy-imports", &fleet::settings::install_target::InstallTarget::Global, |c| {
+                        c.update_available = false;
+                        c.update_check_error = Some("Failed to check for updates".into())
+                    });
+                    p.error = Some("Failed to check for updates".into())
+                })
+            }),
+            ("settings-skills-check-error-light", |s| {
+                skills_scene(s, false, None, |p| {
+                    p.patch("tidy-imports", &fleet::settings::install_target::InstallTarget::Global, |c| {
+                        c.update_available = false;
+                        c.update_check_error = Some("Failed to check for updates".into())
+                    });
+                    p.error = Some("Failed to check for updates".into())
+                })
+            }),
+            ("settings-skills-mods", |s| skills_scene(s, true, None, |p| p.mods_server = Some(true))),
+            ("settings-skills-mods-light", |s| skills_scene(s, false, None, |p| p.mods_server = Some(true))),
+            ("settings-skills-picker", |s| {
+                skills_scene(s, true, None, |p| {
+                    p.inner = fleet::settings::skills::Inner::Custom;
+                    p.target = fleet::settings::install_target::InstallTarget::Project(mock::skills::REPOSITORY.into())
+                });
+                s.ui.open = Some(ui::Open::Select("skills-target"))
+            }),
+            ("settings-skills-custom", |s| skills_scene(s, true, None, |p| p.inner = fleet::settings::skills::Inner::Custom)),
+            ("settings-skills-picker-light", |s| {
+                skills_scene(s, false, None, |p| {
+                    p.inner = fleet::settings::skills::Inner::Custom;
+                    p.target = fleet::settings::install_target::InstallTarget::Project(mock::skills::REPOSITORY.into())
+                });
+                s.ui.open = Some(ui::Open::Select("skills-target"))
+            }),
+            ("settings-skills-custom-light", |s| skills_scene(s, false, None, |p| p.inner = fleet::settings::skills::Inner::Custom)),
             ("settings-memory-off", |s| memory_scene(s, true, |_| {})),
             ("settings-memory-off-light", |s| memory_scene(s, false, |_| {})),
             ("settings-memory-on", |s| memory_scene(s, true, |p| p.overview.as_mut().expect("an overview").enabled = true)),
