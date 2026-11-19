@@ -76,6 +76,7 @@ impl State {
     pub fn activate_tab(&mut self, id: &str, tx: &mut Tx) {
         let id = id.to_string();
         self.edit_canvases(|c, session| c.activate(session, &id));
+        self.reread_active_image();
         self.reveal_active(tx);
     }
 

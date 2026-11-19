@@ -14,9 +14,29 @@ impl State {
         if let Some(old) = opened.dropped {
             self.close_file_buffer(session, &old);
         }
-        self.open_file_buffer(session, path);
+        self.read_file_for_tab(session, path);
         self.sync_review();
         self.reveal_active(tx);
+    }
+
+    /// An image is only ever shown, so it is read as bytes and has no buffer; any other file is read as text.
+    fn read_file_for_tab(&mut self, session: &str, path: &str) {
+        if super::canvases::is_image_path(path) {
+            self.read_session_image(session, path);
+        } else {
+            self.open_file_buffer(session, path);
+        }
+    }
+
+    /// The tab that came to the front is an image: the agent may have changed it while it was behind (`onActivated`).
+    pub fn reread_active_image(&mut self) {
+        let tabs = self.open_canvases();
+        let Some(path) = tabs.active().and_then(|c| c.file.as_ref()).map(|f| f.path.clone()).filter(|p| super::canvases::is_image_path(p))
+        else {
+            return;
+        };
+        let session = self.canvas_session();
+        self.read_session_image(&session, &path);
     }
 
     /// A press on the view switch (`setFileView`): the open file tab shows `view`.

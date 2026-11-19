@@ -1898,3 +1898,11 @@ Read at the pin while planning; nothing built yet.
 - **No negative text indent**: a hanging indent is a fixed-width empty column beside a `wrap_anywhere()` text in a row (`grow`, `shrink`, `min_w(0.0)`); the indent is then not part of a copy.
 - **`virtual_rows` takes rows of different heights**: unvisited rows use the estimate and a measured row keeps its height by key. A row whose height depends on a setting (wrap) needs a different key when the setting changes (`code-line-3w`), or unmounted rows keep the old height.
 - **An element's fill fades**: `ElementInfo.fill` reads a pressed toggle's colour only after about thirty frames in a test.
+
+
+## Component 11, piece I (images and Rendered)
+
+- **`ImageCache::load` decodes SVG too** (and AVIF), without a mime type, but draws an SVG at twice its own size so it stays sharp when scaled: `Image::size()` of an SVG is double its natural size. Halve it to say "96 × 96"; the app's own `sniff_image_mime` is for attachments and doesn't know SVG.
+- **A checkerboard is a `Shape` of squares sized to the picture**, since a shape's points are in the element's own points and `view_box` scales them. The picture's size is worked out in the view from the area `on_layout` last reported (the lightbox does the same), so the first frame uses the panel's width.
+- **A web view of a file is placed by `web::wanted`, not by the view**: the view only draws the frame (`web::html_body`) and reports its rectangle; the file tab's HTML is one more source for `Placement.html`, keyed by its text so a changed file loads again.
+- **A scripted run (`--script`) is headless even with a display**: nothing shows on screen, so a live web view can't be grabbed from one. Open the window under Xvfb and click with `xdotool` (`scripts/web-walk/x-click.sh`). The window opens at 1360x880 whatever the screen.
