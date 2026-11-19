@@ -36,7 +36,7 @@ pub(crate) fn reason_of(status: u16) -> String {
 }
 
 /// The server's `error` when it gave one, else `<what failed>: <status>`.
-fn refusal(status: u16, body: &str, failed: &str) -> String {
+pub(crate) fn refusal(status: u16, body: &str, failed: &str) -> String {
     serde_json::from_str::<Value>(body)
         .ok()
         .and_then(|v| v.get("error").and_then(Value::as_str).filter(|e| !e.is_empty()).map(str::to_string))

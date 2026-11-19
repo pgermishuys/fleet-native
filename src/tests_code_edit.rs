@@ -48,8 +48,14 @@ fn ctrl() -> Mods {
     if cfg!(target_os = "macos") { Mods { cmd: true, ..Mods::default() } } else { Mods { cmd: true, ctrl: true, ..Mods::default() } }
 }
 
+/// The editor of the file under test: the buffer's own.
+fn editor(rt: &Runtime<State>) -> &crate::fleet::code_edit::Editor {
+    let (m, s, p) = rt.state.code_edit.file.as_ref().expect("an editor was started");
+    &rt.state.file_buffers.buffer(m, s, p).expect("the buffer").editor
+}
+
 fn caret(rt: &Runtime<State>) -> Pos {
-    rt.state.code_edit.editor.caret
+    editor(rt).caret
 }
 
 #[test]
@@ -106,7 +112,7 @@ fn shift_selects_and_a_cut_and_a_paste_move_the_text() {
     press(&mut rt, Key::Down, Mods::default());
     let word = if cfg!(target_os = "macos") { Mods { alt: true, shift: true, ..Mods::default() } } else { Mods { shift: true, ..ctrl() } };
     press(&mut rt, Key::Right, word);
-    assert_eq!(rt.state.code_edit.editor.selected_text(&lines(&rt, PATH)), "DEFAULT_SIZE");
+    assert_eq!(editor(&rt).selected_text(&lines(&rt, PATH)), "DEFAULT_SIZE");
     press(&mut rt, Key::Command('x'), ctrl());
     assert_eq!(lines(&rt, PATH)[2], " = 20");
     // What Ctrl+V reads from the clipboard (a headless run has none to read) goes in where a paste goes.
@@ -137,7 +143,7 @@ fn a_press_on_the_code_puts_the_caret_there_and_a_drag_selects() {
     rt.pointer_up(x, y + 40.0);
     rt.frame(FRAME);
     assert_eq!(caret(&rt).line, 4);
-    assert!(rt.state.code_edit.editor.has_selection());
+    assert!(editor(&rt).has_selection());
 }
 
 #[test]
@@ -146,12 +152,12 @@ fn an_input_method_composes_at_the_caret_and_its_commit_is_typed() {
     press(&mut rt, Key::End, Mods::default());
     rt.ime(Ime::Preedit(" ペ".into(), None, Vec::new()));
     rt.frame(FRAME);
-    assert_eq!(rt.state.code_edit.editor.preedit.as_ref().map(|p| p.0.as_str()), Some(" ペ"));
+    assert_eq!(editor(&rt).preedit.as_ref().map(|p| p.0.as_str()), Some(" ペ"));
     assert!(!lines(&rt, PATH)[0].contains('ペ'), "the composition isn't in the text yet");
     rt.ime(Ime::Commit(" ページ".into()));
     rt.frame(FRAME);
     assert!(lines(&rt, PATH)[0].ends_with(" ページ"));
-    assert!(rt.state.code_edit.editor.preedit.is_none());
+    assert!(editor(&rt).preedit.is_none());
     press(&mut rt, Key::Command('z'), ctrl());
     assert!(!lines(&rt, PATH)[0].contains('ペ'), "the commit undoes like typing");
 }

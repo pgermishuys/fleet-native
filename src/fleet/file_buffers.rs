@@ -2,7 +2,9 @@
 //! `lib/code-editor/file-buffer.ts`): what reading a file brings, why a file can't be shown, and what a new version of the
 //! file on disk does to a buffer. `FileBuffers` is pure: it says which read to make and takes the answer; the thread is in
 //! the `State` half at the bottom. Reads of one file are shared: a second open, or a refresh, while one is on its way asks
-//! nothing. The text is the file's lines, split on its own break only; the editing half (typing, undo) is slice 2.
+//! nothing. The text is the file's lines, split on its own break only. A buffer also keeps its `Editor` (the caret and the undo
+//! history) and does its own edits: typing makes it dirty, a save is based on the hash it read, "Use the agent's" is one undo step.
+use super::code_edit::Editor;
 use super::file_lines::{LinePick, map_pick};
 use super::http;
 use crate::State;
@@ -119,6 +121,8 @@ pub struct Buffer {
     rev: u64,
     /// The picked lines (`pickField`): on the buffer, as CodeMirror keeps them in the editor's state, so the agent's edit moves them.
     pick: Option<LinePick>,
+    /// The caret, the selection and the undo history of the text (CodeMirror keeps them in the editor's state, which is the buffer's).
+    pub editor: Editor,
 }
 
 impl Buffer {
@@ -176,8 +180,9 @@ impl Buffer {
         let (text, format) = read_text_format(file.content.as_deref().unwrap_or(""));
         self.lines = split_lines(&text, &format);
         self.rev += 1;
-        // A fresh state has nothing picked.
+        // A fresh state has nothing picked and no history.
         self.pick = None;
+        self.editor = Editor::default();
         self.saved = self.lines.clone();
         self.format = Some(format);
         self.base_hash = file.hash.clone();
@@ -212,11 +217,100 @@ impl Buffer {
         };
         let after = change.apply(&self.lines);
         self.pick = self.pick.map(|p| map_pick(p, &self.lines, &change, &after));
+        // The agent's edit is out of the undo history (`Transaction.addToHistory.of(false)`), so Ctrl+Z never undoes it.
+        self.editor.remote(&self.lines, &change, &after);
         self.lines = after;
         self.rev += 1;
         self.saved = self.lines.clone();
         DiskUpdate::Updated(Some(change.lines))
     }
+
+    fn sync_dirty(&mut self) {
+        self.info.dirty = self.is_dirty();
+    }
+
+    /// Edits through the buffer's editor: `f` changes the text and the editor and says whether it changed the text, which moves the
+    /// revision (so the colours and the stripe follow) and works out dirty again (typing back to the saved text is clean).
+    pub fn edit<R>(&mut self, f: impl FnOnce(&mut Editor, &mut Vec<String>) -> (R, bool)) -> R {
+        self.editor.clamp(&self.lines);
+        let (out, changed) = f(&mut self.editor, &mut self.lines);
+        if changed {
+            self.rev += 1;
+            self.sync_dirty();
+        }
+        out
+    }
+
+    /// A save went through: the buffer is based on the new hash. `sent` is the text that was sent, so typing that went on during the
+    /// save leaves the buffer dirty; without it the text now is what was saved (`markSaved`).
+    pub fn mark_saved(&mut self, hash: &str, sent: Option<Vec<String>>) {
+        self.base_hash = Some(hash.to_string());
+        self.saved = sent.unwrap_or_else(|| self.lines.clone());
+        self.sync_dirty();
+    }
+
+    /// "Use the agent's": the buffer takes the file on disk as one edit of its own that Ctrl+Z takes back (`takeDiskVersion`).
+    /// A different line-break style or BOM can't be applied as an edit, so the buffer starts afresh (its history goes).
+    pub fn take_disk_version(&mut self, conflict: &Conflict, now: f64) {
+        let Some(disk) = conflict.disk_text.as_deref().filter(|_| self.read) else { return };
+        let (text, format) = read_text_format(disk);
+        match self.format.filter(|old| same_text_format(old, &format)) {
+            None => {
+                self.lines = split_lines(&text, &format);
+                self.format = Some(format);
+                self.editor = Editor::default();
+                self.pick = None;
+                self.rev += 1;
+            }
+            Some(old) => {
+                let next = split_lines(&text, &old);
+                if let Some(change) = minimal_change(&self.lines, &next) {
+                    let before = self.lines.clone();
+                    self.editor.isolated(&mut self.lines, &change, now);
+                    self.pick = self.pick.map(|p| map_pick(p, &before, &change, &self.lines));
+                    self.rev += 1;
+                }
+            }
+        }
+        self.base_hash = Some(conflict.hash.clone());
+        self.saved = self.lines.clone();
+        self.sync_dirty();
+    }
+
+    /// After Compare: the buffer, merged against the agent's version, is based on it. A save checks against the agent's hash, and the
+    /// buffer stays unsaved until then (`rebaseOnDisk`).
+    pub fn rebase_on_disk(&mut self, conflict: &Conflict) {
+        let (Some(disk), Some(format)) = (conflict.disk_text.as_deref(), self.format) else { return };
+        if !self.read {
+            return;
+        }
+        self.base_hash = Some(conflict.hash.clone());
+        self.saved = split_lines(&read_text_format(disk).0, &format);
+        self.sync_dirty();
+    }
+}
+
+/// A save to make: what to write and the hash it is based on (`saveBuffer`). Its answer goes to `FileBuffers::finish_save`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SaveRequest {
+    pub machine: String,
+    pub session: String,
+    pub path: String,
+    /// The text in the file's own breaks and BOM.
+    pub content: String,
+    pub base_hash: String,
+    /// The lines that were sent, to tell typing that went on during the save.
+    sent: Vec<String>,
+}
+
+/// What a save came to (`SaveOutcome`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SaveOutcome {
+    Saved,
+    /// The file changed on disk: the conflict is on the info.
+    Conflict,
+    /// Refused or failed: the words.
+    Error(String),
 }
 
 /// Which read an answer is for.
@@ -266,15 +360,88 @@ impl FileBuffers {
         true
     }
 
-    /// The editor spike's way in (piece P): `f` edits the lines in place and says whether it changed them, which moves the revision
-    /// so the colours and the stripe follow. Piece Q puts the buffer's own edits (dirty, the agent's changes out of history) here.
-    pub fn edit_lines<R>(&mut self, machine: &str, session: &str, path: &str, f: impl FnOnce(&mut Vec<String>) -> (R, bool)) -> Option<R> {
+    /// Edits an open file's text through its buffer (`Buffer::edit`); `None` when the file wasn't read.
+    pub fn edit<R>(
+        &mut self,
+        machine: &str,
+        session: &str,
+        path: &str,
+        f: impl FnOnce(&mut Editor, &mut Vec<String>) -> (R, bool),
+    ) -> Option<R> {
         let buffer = self.buffers.get_mut(&key(machine, session, path)).filter(|b| b.read)?;
-        let (out, changed) = f(&mut buffer.lines);
-        if changed {
-            buffer.rev += 1;
+        Some(buffer.edit(f))
+    }
+
+    /// The save to make, or `None` when there is none: the file isn't ready, a save is on its way, or there is no hash to base it on.
+    /// "Keep mine" (`overwrite`) carries the conflicting version's hash, so it replaces exactly the file that was shown and still
+    /// loses to a newer change.
+    pub fn begin_save(&mut self, machine: &str, session: &str, path: &str, overwrite: bool) -> Option<SaveRequest> {
+        let buffer = self.buffers.get_mut(&key(machine, session, path)).filter(|b| b.read)?;
+        if buffer.info.status != Status::Ready || buffer.info.saving {
+            return None;
         }
-        Some(out)
+        let base_hash = match &buffer.info.conflict {
+            Some(c) if overwrite => Some(c.hash.clone()),
+            _ => buffer.base_hash.clone(),
+        };
+        let base_hash = base_hash.filter(|h| !h.is_empty())?;
+        buffer.info.saving = true;
+        Some(SaveRequest {
+            machine: machine.into(),
+            session: session.into(),
+            path: path.into(),
+            content: buffer.disk_text(),
+            base_hash,
+            sent: buffer.lines.clone(),
+        })
+    }
+
+    /// A save that was never sent.
+    pub fn cancel_save(&mut self, request: &SaveRequest) {
+        if let Some(b) = self.buffers.get_mut(&key(&request.machine, &request.session, &request.path)) {
+            b.info.saving = false;
+        }
+    }
+
+    /// The answer to a save. A 409 carries what is on disk now: it becomes the conflict. `None` when the file was closed meanwhile.
+    pub fn finish_save(&mut self, request: &SaveRequest, answer: Result<(u16, String), String>) -> Option<SaveOutcome> {
+        let buffer = self.buffers.get_mut(&key(&request.machine, &request.session, &request.path))?;
+        buffer.info.saving = false;
+        let body = |b: &str| serde_json::from_str::<Value>(b).unwrap_or(Value::Null);
+        let text = |v: &Value, k: &str| v.get(k).and_then(Value::as_str).map(str::to_string);
+        match answer {
+            Ok((status, b)) if (200..300).contains(&status) => {
+                let Some(hash) = text(&body(&b), "hash") else {
+                    return Some(SaveOutcome::Error(format!("Failed to save file: {}", super::revert::reason_of(status))));
+                };
+                buffer.mark_saved(&hash, Some(request.sent.clone()));
+                buffer.info.conflict = None;
+                Some(SaveOutcome::Saved)
+            }
+            Ok((409, b)) => {
+                let v = body(&b);
+                buffer.info.conflict = Some(Conflict { disk_text: text(&v, "content"), hash: text(&v, "hash").unwrap_or_default() });
+                Some(SaveOutcome::Conflict)
+            }
+            Ok((status, b)) => Some(SaveOutcome::Error(super::revert::refusal(status, &b, "Failed to save file"))),
+            Err(why) => Some(SaveOutcome::Error(why)),
+        }
+    }
+
+    /// "Use the agent's" (`useDiskVersion`): takes the conflict's text as one undoable edit and clears the conflict.
+    pub fn use_disk_version(&mut self, machine: &str, session: &str, path: &str, now: f64) -> bool {
+        let Some(buffer) = self.buffers.get_mut(&key(machine, session, path)) else { return false };
+        let Some(conflict) = buffer.info.conflict.take() else { return false };
+        buffer.take_disk_version(&conflict, now);
+        true
+    }
+
+    /// Compare is done (`finishCompare`): the buffer is based on the agent's version, still unsaved, and the conflict is cleared.
+    pub fn finish_compare(&mut self, machine: &str, session: &str, path: &str) -> bool {
+        let Some(buffer) = self.buffers.get_mut(&key(machine, session, path)) else { return false };
+        let Some(conflict) = buffer.info.conflict.take() else { return false };
+        buffer.rebase_on_disk(&conflict);
+        true
     }
 
     /// The buffer for a file, made (loading) if it isn't open yet (`ensure`).
@@ -482,6 +649,37 @@ impl State {
         self.session_images.forget(&machine, session, path);
         self.file_live.forget(&machine, session, path);
         self.file_folds.forget(session, path);
+    }
+
+    /// Saves an open file: the text in its own breaks, with the hash it read (or, for "Keep mine", the conflict's). The answer goes
+    /// to the buffer on the UI thread; nothing is sent with no server, or when there is nothing to base a save on.
+    pub fn save_file_buffer(&mut self, session: &str, path: &str, overwrite: bool) {
+        let machine = self.machine_key_of(session).to_string();
+        let Some(request) = self.file_buffers.begin_save(&machine, session, path, overwrite) else { return };
+        let Some(link) = self.link_for(session) else {
+            self.file_buffers.cancel_save(&request);
+            return;
+        };
+        let sent = request.clone();
+        link.off_thread(
+            move |base| http::write_file(base, &sent.session, &sent.path, &sent.content, &sent.base_hash),
+            move |s, _, answer| {
+                s.file_buffers.finish_save(&request, answer);
+            },
+        );
+    }
+
+    /// "Use the agent's".
+    pub fn use_disk_version(&mut self, session: &str, path: &str) {
+        let machine = self.machine_key_of(session).to_string();
+        let now = self.clock;
+        self.file_buffers.use_disk_version(&machine, session, path, now);
+    }
+
+    /// Compare is done.
+    pub fn finish_compare(&mut self, session: &str, path: &str) {
+        let machine = self.machine_key_of(session).to_string();
+        self.file_buffers.finish_compare(&machine, session, path);
     }
 
     fn send_file_read(&mut self, request: Option<Request>) {

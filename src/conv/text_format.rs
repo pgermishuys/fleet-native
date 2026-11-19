@@ -66,6 +66,12 @@ pub fn to_disk_text(text: &str, format: &TextFormat) -> String {
     if format.bom { format!("{BOM}{text}") } else { text.to_string() }
 }
 
+/// Pasted or dropped text as the editor takes it (`clipboardInputFilter`): every break becomes the one the lines are split on, `\n`,
+/// so it makes new lines instead of landing inside one; [`join_lines`] puts the file's own break back between them when it is saved.
+pub fn paste_text(text: &str) -> String {
+    text.replace("\r\n", "\n").replace('\r', "\n")
+}
+
 pub fn same_text_format(a: &TextFormat, b: &TextFormat) -> bool {
     a == b
 }
