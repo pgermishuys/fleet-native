@@ -487,8 +487,10 @@ fn refetches_the_view_when_the_job_changes_phase() {
     let before = gets(&r);
     serve_route(&r, &format!("GET {RUNTIME}"), 200, make_view(Value::Null, job("verifying"), json!([])));
     event(&mut r, Kind::ModsRuntime, json!({ "job": job("verifying") }));
-    r.wait("the view to be read again", |s| {
-        s.settings.mods_runtime.view.as_ref().and_then(|v| v.job.as_ref()).is_some_and(|j| j.phase == "verifying")
+    // The event already shows the new phase in place; the proof of the re-read is the request.
+    let fake = r.fake.clone();
+    r.wait("the view to be read again", move |_| {
+        fake.lock().unwrap().calls.iter().filter(|(m, p, _)| m == "GET" && p == RUNTIME).count() > before
     });
     assert_eq!(gets(&r), before + 1);
 }
