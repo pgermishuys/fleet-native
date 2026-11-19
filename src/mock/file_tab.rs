@@ -28,7 +28,18 @@ pub enum Case {
     /// A file with long lines, wrapped (the default) and with Wrap turned off (`WrapOff`).
     Wrap,
     WrapOff,
+    /// An image, an image the folder lost, and an HTML file (piece I).
+    Image,
+    ImageMissing,
+    Html,
 }
+
+/// The invented project's logo (`assets/logo.svg`), 96 by 96 as its own size.
+pub const IMAGE_PATH: &str = "assets/logo.svg";
+pub const LOGO: &str = include_str!("file_logo.svg");
+pub const HTML_PATH: &str = "docs/report.html";
+pub const HTML: &str = include_str!("file_report.html");
+pub const MARKDOWN: &str = include_str!("file_readme.md");
 
 /// What the read endpoint answers for `text`.
 pub fn answer(text: &str) -> (u16, String) {
@@ -43,7 +54,9 @@ impl State {
         self.right.widened = true;
         let id = self.canvas_session();
         let path = match case {
-            Case::Markdown => "docs/pagination.md",
+            Case::Markdown => "README.md",
+            Case::Image | Case::ImageMissing => IMAGE_PATH,
+            Case::Html => HTML_PATH,
             Case::Wrap | Case::WrapOff => WRAP_PATH,
             _ => PATH,
         };
@@ -59,9 +72,17 @@ impl State {
         }));
         self.diffs.has_loaded = true;
         self.edit_canvases(|c, id| {
-            let view = if case == Case::Markdown { FileView::Rendered } else { FileView::Edit };
+            let view = if matches!(case, Case::Markdown | Case::Html) { FileView::Rendered } else { FileView::Edit };
             c.open_file(id, path, OpenFile { keep: true, view: Some(view) }, &|_| false);
         });
+        match case {
+            Case::Image => return self.supply_session_image(&id, path, LOGO.as_bytes()),
+            Case::ImageMissing => {
+                self.answer_session_image(&id, path, Ok((404, Vec::new())));
+                return;
+            }
+            _ => {}
+        }
         let machine = self.machine_key_of(&id).to_string();
         let Some(request) = self.file_buffers.open(&machine, &id, path) else { return };
         self.read_for_scene(request, case);
@@ -72,9 +93,9 @@ impl State {
             Case::Opening => return,
             Case::Code => Ok(answer(SOURCE)),
             Case::Wrap | Case::WrapOff => Ok(answer(WRAP_SOURCE)),
-            Case::Markdown => {
-                Ok(answer("# Pagination\n\nPages are `size` rows long.\n\n- first page is 0\n- last page is `last_page(total)`\n"))
-            }
+            Case::Markdown => Ok(answer(MARKDOWN)),
+            Case::Html => Ok(answer(HTML)),
+            Case::Image | Case::ImageMissing => return,
             Case::TooLarge => Ok((200, json!({"content": null, "hash": "h1", "isBinary": false, "isTruncated": true}).to_string())),
             Case::Binary => Ok((200, json!({"content": null, "hash": "h1", "isBinary": true, "isTruncated": false}).to_string())),
             Case::Missing => Err("Failed to read file: 404 Not Found".to_string()),

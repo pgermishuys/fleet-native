@@ -130,6 +130,7 @@ pub mod selector;
 pub mod send_to_agent;
 pub mod server_canvases;
 pub mod session_commands;
+pub mod session_image;
 pub mod session_terminals;
 pub mod sessions;
 pub mod settings;

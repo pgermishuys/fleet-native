@@ -2,9 +2,11 @@
 //! file's path as crumbs and the view switch (Rendered, Edit or Source, Diff), and under it the note while the file opens or can't be
 //! shown, or its code, with Wrap (4.5). The image and the Rendered page, the lines bar and everything of editing are other pieces'.
 use super::code_view::code_view;
+use super::file_media::{image_body, note, rendered_html, rendered_markdown};
 use crate::State;
-use crate::fleet::canvases::{FileView, has_rendered_view};
+use crate::fleet::canvases::{FileView, has_rendered_view, is_image_path};
 use crate::fleet::file_buffers::Status;
+use crate::fleet::session_image::Shown;
 use crate::icons::{CHEVRON_RIGHT, TEXT_WRAP};
 use crate::theme::{Theme, sans};
 use rune::{Cursor, El, col, el, icon, row, text};
@@ -112,24 +114,15 @@ fn view_switch(t: &Theme, path: &str, view: FileView, has_changes: bool) -> El {
     group.child(switch_button(t, "file-view-diff", "Diff", view == FileView::Diff, off.map(|_| tip), tip, set(FileView::Diff)))
 }
 
-/// `.file-canvas__note`: 13 px muted, padding `14px 18px`, said as a status.
-fn note(t: &Theme, key: &str, words: String) -> El {
-    col().role("status").w_full().px(18.0).py(14.0).child(text(words).key(key).font(sans(13.0, 400.0, 1.4)).color(t.muted))
+/// `/\.html?$/i`.
+pub fn is_html(path: &str) -> bool {
+    let p = path.to_ascii_lowercase();
+    p.ends_with(".html") || p.ends_with(".htm")
 }
 
-/// The body of the active file tab.
-pub fn file_tab(s: &State, t: &Theme) -> El {
-    let tabs = s.open_canvases();
-    let Some(file) = tabs.active().and_then(|c| c.file.clone()) else { return el() };
-    let (session, path) = (s.canvas_session(), file.path.clone());
-    let machine = s.machine_key_of(&session).to_string();
-    let info = s.file_buffers.info(&machine, &session, &path);
-    let status = info.map(|i| i.status);
-    let ready = status == Some(Status::Ready);
-    let has_changes = (s.diffs.by_file(&path).is_some() && !crate::fleet::canvases::is_image_path(&path)) || info.is_some_and(|i| i.dirty);
-    let view = shown_view(file.view, has_changes);
-
-    let mut bar = row()
+/// The bar of a file tab: its crumbs, a spacer and what the state says (an image's size).
+fn bar(s: &State, t: &Theme, path: &str) -> El {
+    row()
         .key("file-bar")
         .w_full()
         .min_h(38.0)
@@ -138,8 +131,36 @@ pub fn file_tab(s: &State, t: &Theme) -> El {
         .gap(8.0)
         .items_center()
         .border_sides([0.0, 0.0, 1.0, 0.0], t.border)
-        .child(crumb_row(s, t, &path))
-        .child(el().grow(1.0));
+        .child(crumb_row(s, t, path))
+        .child(el().grow(1.0))
+}
+
+/// An image's tab: the bar with its size, then the picture. It has no buffer, no Wrap and no view switch: it is only ever shown.
+fn image_tab(s: &State, t: &Theme, session: &str, path: &str) -> El {
+    let machine = s.machine_key_of(session).to_string();
+    let mut bar = bar(s, t, path);
+    if let Shown::Picture { meta, .. } = s.session_images.shown(&machine, session, path) {
+        bar = bar.child(text(meta).key("image-meta").font(sans(12.0, 400.0, 1.4)).color(t.muted).single_line());
+    }
+    col().key("file-canvas").w_full().grow(1.0).shrink().min_h(0.0).child(bar).child(image_body(s, t, &machine, session, path))
+}
+
+/// The body of the active file tab.
+pub fn file_tab(s: &State, t: &Theme) -> El {
+    let tabs = s.open_canvases();
+    let Some(file) = tabs.active().and_then(|c| c.file.clone()) else { return el() };
+    let (session, path) = (s.canvas_session(), file.path.clone());
+    if is_image_path(&path) {
+        return image_tab(s, t, &session, &path);
+    }
+    let machine = s.machine_key_of(&session).to_string();
+    let info = s.file_buffers.info(&machine, &session, &path);
+    let status = info.map(|i| i.status);
+    let ready = status == Some(Status::Ready);
+    let has_changes = (s.diffs.by_file(&path).is_some() && !crate::fleet::canvases::is_image_path(&path)) || info.is_some_and(|i| i.dirty);
+    let view = shown_view(file.view, has_changes);
+
+    let mut bar = bar(s, t, &path);
     let wrap = s.sidebar.file_wrap(&path);
     if ready && view != FileView::Rendered {
         bar = bar.child(wrap_button(s, t, &path, wrap));
@@ -154,6 +175,10 @@ pub fn file_tab(s: &State, t: &Theme) -> El {
         Some(Status::Unavailable | Status::Error) => {
             let message = info.and_then(|i| i.message.clone()).unwrap_or_default();
             body.child(note(t, "file-unavailable", message))
+        }
+        Some(Status::Ready) if view == FileView::Rendered && has_rendered_view(&path) => {
+            let content = s.file_buffers.buffer(&machine, &session, &path).map(|b| b.lines().join("\n")).unwrap_or_default();
+            body.child(if is_html(&path) { rendered_html(s, t, &content) } else { rendered_markdown(t, &content) })
         }
         Some(Status::Ready) => body.child(code_view(s, t, &machine, &session, &path, wrap)),
         None => body,

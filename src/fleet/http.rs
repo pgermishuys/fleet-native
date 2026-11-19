@@ -484,6 +484,20 @@ pub fn file_content(base: &str, session: &str, path: &str) -> Result<(u16, Strin
     text_with("GET", base, &format!("/api/sessions/{session}/files/content?path={}", query_value(path)), None)
 }
 
+/// `GET /api/sessions/{id}/files/image?path=`: an image of the session's folder as bytes, with the status that answered
+/// (`useSessionImage`: a 404 and any other refusal say different things). `Err` only when nothing answered.
+pub fn files_image(base: &str, session: &str, path: &str) -> Result<(u16, Vec<u8>), String> {
+    let target = url(base, &format!("/api/sessions/{session}/files/image?path={}", query_value(path)));
+    let agent: ureq::Agent = builder().timeout_global(Some(Duration::from_secs(30))).http_status_as_error(false).build().into();
+    let mut response = agent.get(target).call().map_err(|e| e.to_string())?;
+    let status = response.status().as_u16();
+    if status != 200 {
+        return Ok((status, Vec::new()));
+    }
+    let bytes = response.body_mut().with_config().limit(25 * 1024 * 1024).read_to_vec().map_err(|e| e.to_string())?;
+    Ok((status, bytes))
+}
+
 /// `GET /api/sessions/{id}/files/browse[?path=]`: the entries of a folder of the session's workspace (the root with no path;
 /// `browseSessionDirectory`).
 pub fn files_browse(base: &str, session: &str, path: Option<&str>) -> Result<(u16, String), String> {

@@ -101,6 +101,29 @@ pub fn shown_document(s: &State) -> Option<(String, String, String)> {
     Some((active.id.clone(), super::html_document(&payload.content), key))
 }
 
+/// The file tab the content panel shows when it is an HTML file's Rendered view: its tab, the document to load (scripts refused) and
+/// what makes it load again, which is the text (row 7.6; the tab is added to `wanted` as 14's row 14.86 asks).
+pub fn shown_file_html(s: &State) -> Option<(String, String, String)> {
+    use crate::fleet::canvases::FileView;
+    if s.rail != crate::Rail::Sessions || !s.panel_body_shown(CanvasKind::File) {
+        return None;
+    }
+    let tabs = s.open_canvases();
+    let active = tabs.active()?;
+    let file = active.file.as_ref().filter(|f| crate::view::file_tab::is_html(&f.path))?;
+    let (session, machine) = (s.canvas_session(), s.machine_key_of(&s.canvas_session()).to_string());
+    let info = s.file_buffers.info(&machine, &session, &file.path).filter(|i| i.status == crate::fleet::file_buffers::Status::Ready)?;
+    let has_changes = s.diffs.by_file(&file.path).is_some() || info.dirty;
+    if crate::view::file_tab::shown_view(file.view, has_changes) != FileView::Rendered {
+        return None;
+    }
+    let content = s.file_buffers.buffer(&machine, &session, &file.path)?.lines().join("\n");
+    let mut hash = std::collections::hash_map::DefaultHasher::new();
+    std::hash::Hash::hash(&content, &mut hash);
+    let key = format!("{}:{}:{:x}", active.id, content.len(), std::hash::Hasher::finish(&hash));
+    Some((active.id.clone(), super::html_document(&content), key))
+}
+
 /// `wanted`: the rule the host follows every frame.
 pub fn wanted(s: &State) -> Wanted {
     // Full size covers the whole window, so it is the only web view on screen while it is up.
@@ -113,7 +136,7 @@ pub fn wanted(s: &State) -> Wanted {
         };
     }
     let browser = shown_browser(s);
-    let (tab, url, html, load_key) = match (shown_tab(s), browser.clone(), shown_document(s)) {
+    let (tab, url, html, load_key) = match (shown_tab(s), browser.clone(), shown_document(s).or_else(|| shown_file_html(s))) {
         (Some((tab, url, key)), ..) => (tab, url, None, key),
         (None, Some((tab, url, key)), _) => (tab, url, None, key),
         (None, None, Some((tab, html, key))) => (tab, String::new(), Some(html), key),

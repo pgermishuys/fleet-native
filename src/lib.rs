@@ -66,6 +66,8 @@ mod tests_document;
 #[cfg(test)]
 mod tests_draft_row;
 #[cfg(test)]
+mod tests_file_media;
+#[cfg(test)]
 mod tests_file_tab;
 #[cfg(test)]
 mod tests_files_tab;
@@ -619,6 +621,8 @@ pub struct State {
     pub work: conv::work_clock::WorkStrip,
     /// The pictures the conversation shows (a call's screenshot, a user's images) and the lightbox over them.
     pub images: fleet::images::Images,
+    /// The images of files open in file tabs (`useSessionImage`).
+    pub session_images: fleet::session_image::SessionImages,
     /// Agent's view: the live picture of the agent's own browser tab (`AgentTabView.vue`).
     pub agent_view: fleet::agent_tab::AgentView,
     /// The steps the agent took in its own browser, per session.
@@ -839,6 +843,7 @@ impl Default for State {
             shown: None,
             work: Default::default(),
             images: Default::default(),
+            session_images: Default::default(),
             agent_view: Default::default(),
             browser: Default::default(),
             header_details: Default::default(),
@@ -1529,7 +1534,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_find_text(now, tx);
     // The tick asks for the next frame first, so `keep_images` starts it in the same poll.
     let agent_view = s.keep_agent_view(now, tx);
-    let pictures = s.keep_images(tx) | agent_view;
+    let pictures = s.keep_images(tx) | agent_view | s.keep_session_images(tx);
     let renamed = s.keep_rename(tx) | s.keep_row_rename(tx) | s.keep_header(now, tx);
     let found = s.find_poll(tx) | s.keep_questions(tx) | s.keep_allowed_flash(now, tx);
     let exported = s.export_poll(tx) | s.keep_setup_rows(now, tx) | s.keep_context(now, tx) | s.keep_machine_page(now, tx);
@@ -4397,6 +4402,12 @@ pub fn spec() -> AppSpec<State> {
             ("file-wrap-off-light", |s| s.show_file(mock::file_tab::Case::WrapOff, false)),
             ("file-markdown", |s| s.show_file(mock::file_tab::Case::Markdown, true)),
             ("file-markdown-light", |s| s.show_file(mock::file_tab::Case::Markdown, false)),
+            ("file-image", |s| s.show_file(mock::file_tab::Case::Image, true)),
+            ("file-image-light", |s| s.show_file(mock::file_tab::Case::Image, false)),
+            ("file-image-missing", |s| s.show_file(mock::file_tab::Case::ImageMissing, true)),
+            ("file-image-missing-light", |s| s.show_file(mock::file_tab::Case::ImageMissing, false)),
+            ("file-html", |s| s.show_file(mock::file_tab::Case::Html, true)),
+            ("file-html-light", |s| s.show_file(mock::file_tab::Case::Html, false)),
             ("panel-tabs", |s| s.show_tabs(mock::canvas_host::Case::Tabs, true)),
             ("panel-tabs-light", |s| s.show_tabs(mock::canvas_host::Case::Tabs, false)),
             ("panel-tabs-attention", |s| s.show_tabs(mock::canvas_host::Case::Attention, true)),

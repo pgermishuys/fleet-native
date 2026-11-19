@@ -445,6 +445,7 @@ impl State {
     pub fn close_file_buffer(&mut self, session: &str, path: &str) {
         let machine = self.machine_key_of(session).to_string();
         self.file_buffers.remove(&machine, session, path);
+        self.session_images.forget(&machine, session, path);
         self.file_live.forget(&machine, session, path);
     }
 
