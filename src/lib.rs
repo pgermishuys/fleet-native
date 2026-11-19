@@ -68,6 +68,8 @@ mod tests_draft_row;
 #[cfg(test)]
 mod tests_file_diff;
 #[cfg(test)]
+mod tests_file_find;
+#[cfg(test)]
 mod tests_file_lines;
 #[cfg(test)]
 mod tests_file_media;
@@ -430,6 +432,8 @@ pub struct State {
     pub annotation: fleet::annotation::Annotation,
     /// Find in Changes: the bar's query and matches, and the machine's search (`fleet::changes_find`).
     pub changes_find: fleet::changes_find::ChangesFind,
+    /// Find in a file: the panel over the open file's code and its matches (`fleet::file_find`).
+    pub file_find: fleet::file_find::FileFind,
     /// Find in files: the machine's search of the session's folder, and the request for the Files tab to start one (`fleet::find_text`).
     pub find_text: fleet::find_text::FindText,
     pub find_in_files: fleet::find_text::FindInFiles,
@@ -748,6 +752,7 @@ impl Default for State {
             review: Default::default(),
             annotation: Default::default(),
             changes_find: Default::default(),
+            file_find: Default::default(),
             find_text: Default::default(),
             find_in_files: Default::default(),
             go_to_file: Default::default(),
@@ -1550,6 +1555,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_review_near()
         | s.keep_review_focus(tx)
         | s.keep_changes_find(now, tx)
+        | s.keep_file_find(now, tx)
         | s.keep_review_toast(now, tx)
         | s.keep_file_toast(now, tx)
         | s.keep_find_text(now, tx)
@@ -1700,7 +1706,8 @@ fn on_key(s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool {
     if tx.focused().is_some() {
         s.quiet.typed(s.clock);
     }
-    if s.changes_find_key(ev, tx)
+    if s.file_find_key(ev, tx)
+        || s.changes_find_key(ev, tx)
         || s.file_wrap_key(ev, tx)
         || s.file_lines_key(ev, tx)
         || s.find_key(ev, tx)
@@ -4430,6 +4437,18 @@ pub fn spec() -> AppSpec<State> {
             ("find-in-files-hint-light", |s| s.show_files_tab(mock::files_tab::Case::FindIdle, false)),
             ("file-code", |s| s.show_file(mock::file_tab::Case::Code, true)),
             ("file-code-light", |s| s.show_file(mock::file_tab::Case::Code, false)),
+            ("file-find", |s| {
+                s.show_file(mock::file_tab::Case::Code, true);
+                s.show_file_find("page", Default::default(), 1)
+            }),
+            ("file-find-light", |s| {
+                s.show_file(mock::file_tab::Case::Code, false);
+                s.show_file_find("page", Default::default(), 1)
+            }),
+            ("file-find-case", |s| {
+                s.show_file(mock::file_tab::Case::Code, true);
+                s.show_file_find("Page", conv::file_find::Options { case: true, word: true, ..Default::default() }, 0)
+            }),
             ("file-opening", |s| s.show_file(mock::file_tab::Case::Opening, true)),
             ("file-opening-light", |s| s.show_file(mock::file_tab::Case::Opening, false)),
             ("file-too-large", |s| s.show_file(mock::file_tab::Case::TooLarge, true)),

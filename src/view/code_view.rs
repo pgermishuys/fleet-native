@@ -365,6 +365,8 @@ pub fn flash_tint(t: &Theme, progress: f64) -> Color {
 pub struct Marks {
     pub stripe: Rc<Vec<usize>>,
     pub flash: Option<crate::fleet::file_live::Flash>,
+    /// Find in a file's matches on the line, as ranges of the line as drawn, and whether each is the current one.
+    pub finds: Vec<(Range<usize>, bool)>,
 }
 
 type StripeKey = (String, String, String, u64, u64);
@@ -471,7 +473,12 @@ fn line_row(
     );
     let number = if wrap { gutters } else { gutters.sticky_left(0.0) };
     // `.cm-line`'s `padding: 0 2px 0 6px`. Only the code is selectable: a copy has no line numbers in it.
-    let code = |shown: String, spans: Vec<Span>| {
+    let code = |shown: String, spans: Vec<Span>, from: usize| {
+        let found = marks
+            .finds
+            .iter()
+            .filter(|(r, _)| r.end > from)
+            .map(|(r, now)| super::file_find::highlight(t, r.start.max(from) - from..r.end - from, *now));
         text(shown)
             .key(format!("code-text-{}", i + 1))
             .selectable(true)
@@ -479,6 +486,7 @@ fn line_row(
             .font(font)
             .color(t.text)
             .spans(spans)
+            .text_highlights(found)
     };
     // `.cm-activeLine`: the line a file was opened at, 3 % of `--text` over the code (the number's own fill stays opaque); a picked
     // line takes the pick's fill instead.
@@ -498,7 +506,7 @@ fn line_row(
             .fill(line_fill)
             .items_center()
             .child(number)
-            .child(code(shown, spans).single_line().pl(6.0).pr(2.0));
+            .child(code(shown, spans, 0).single_line().pl(6.0).pr(2.0));
     }
     // Rune has no negative text indent, so the indent is a column of its own and the text wraps beside it: the rows it wraps onto
     // start under the indent (CodeMirror's start two columns further in).
@@ -518,7 +526,7 @@ fn line_row(
     if hang > 0 {
         body = body.child(el().key(format!("code-hang-{}", i + 1)).w(hang as f32 * DIGIT_W).h(LINE_H));
     }
-    let wrapped = code(rest, spans).wrap_anywhere().grow(1.0).shrink().min_w(0.0);
+    let wrapped = code(rest, spans, hang).wrap_anywhere().grow(1.0).shrink().min_w(0.0);
     row().w_full().min_h(LINE_H).fill(line_fill).items_start().child(number).child(body.child(wrapped))
 }
 
@@ -534,7 +542,7 @@ pub fn code_view(s: &State, t: &Theme, machine: &str, session: &str, path: &str,
     let stripe = stripe_lines(s, machine, session, path, buffer);
     // The rows near the window are kept while this stays the same: a flash changes it a hundred times over its second and a half.
     let flash = s.file_live.flashing(machine, session, path, s.clock).map(|f| (f.progress * 100.0) as u32);
-    let version = (path, buffer.rev(), wrap, picked, hash_of(&format!("{stripe:?}")), flash);
+    let version = (path, buffer.rev(), wrap, picked, hash_of(&format!("{stripe:?}")), flash, s.file_find.stamp(session, path));
     let owner = path.to_string();
     let rows = col()
         .key("file-code-lines")
@@ -564,7 +572,10 @@ pub fn code_view(s: &State, t: &Theme, machine: &str, session: &str, path: &str,
                         .shown_line
                         .as_ref()
                         .is_some_and(|(se, pa, n)| *se == session_id && *pa == file && *n as usize == i + 1);
-                    let marks = Marks { stripe: stripe.clone(), flash: s.file_live.flashing(&machine_id, &session_id, &file, s.clock) };
+                    let line = buffer.lines().get(i).map_or("", String::as_str);
+                    let finds = super::file_find::finds(s, &session_id, &file, i, &|r| shown_range(line, r));
+                    let marks =
+                        Marks { stripe: stripe.clone(), flash: s.file_live.flashing(&machine_id, &session_id, &file, s.clock), finds };
                     line_row(&theme, &colours, buffer, &file, i, gutter, wrap, marked, s.file_pick(&machine_id, &session_id, &file), &marks)
                 }
                 None => row().w_full().h(LINE_H),

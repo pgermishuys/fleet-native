@@ -35,6 +35,7 @@ pub mod export;
 pub mod failure;
 pub mod family;
 pub mod file_diff;
+pub mod file_find;
 pub mod file_media;
 pub mod file_tab;
 pub mod file_tree;
