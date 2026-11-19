@@ -22,6 +22,8 @@ pub(crate) fn overlay(key: &str) -> El {
 pub struct Dialog {
     pub key: &'static str,
     pub title: String,
+    /// A title with parts in other fonts (a name in mono); drawn in place of `title`, which stays the dialog's label.
+    pub title_el: Option<El>,
     pub description: Option<String>,
     pub body: Vec<El>,
     pub footer: Vec<El>,
@@ -48,7 +50,7 @@ pub fn dialog(t: &Theme, d: Dialog) -> Vec<El> {
         Some(f) => f(s),
         None => s.ui.open = None,
     };
-    let title = text(d.title.clone()).font(sans(rem(1.125), 600.0, 1.0)).color(t.text);
+    let title = d.title_el.unwrap_or_else(|| text(d.title.clone()).font(sans(rem(1.125), 600.0, 1.0)).color(t.text));
     let title = match d.title_icon {
         Some((glyph, ink)) => row().gap(rem(0.5)).center_y().child(icon(glyph, rem(1.0)).color(ink)).child(title),
         None => title,
@@ -57,7 +59,7 @@ pub fn dialog(t: &Theme, d: Dialog) -> Vec<El> {
     if let Some(desc) = d.description_el {
         head = head.child(desc);
     } else if let Some(desc) = d.description {
-        head = head.child(text(desc).font(sans(rem(0.875), 400.0, 1.4)).color(t.muted));
+        head = head.child(text(desc).font(sans(rem(0.875), 400.0, 1.4)).color(t.muted).wrap().w_full());
     }
     let mut panel = col()
         .key(format!("{}-dialog", d.key))

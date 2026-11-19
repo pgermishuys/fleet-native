@@ -40,6 +40,8 @@ pub mod naming_draft;
 pub mod permissions;
 pub mod permissions_more;
 pub mod plugins;
+pub mod skill_editor;
+pub mod skill_history;
 pub mod skills;
 pub mod skills_actions;
 pub mod skills_catalog;

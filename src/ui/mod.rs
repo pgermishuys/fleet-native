@@ -228,6 +228,12 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
     if let Some(weave) = crate::view::settings::harness_weave_dialog::view(s, t) {
         layer.extend(weave);
     }
+    if let Some(edit) = crate::view::settings::skill_editor::view(s, t) {
+        layer.extend(edit);
+    }
+    if let Some(history) = crate::view::settings::skill_history::view(s, t) {
+        layer.extend(history);
+    }
     if let Some(open) = crate::view::browser_open::view(s, t) {
         layer.extend(open);
     }

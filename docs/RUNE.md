@@ -2104,3 +2104,11 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **A link in a column stretches to the column's width** (its press area too): `.self_start()`.
 - **Skills & tools doesn't read the preferences itself** (only General, Labs and Plugins do), so a test of the Mods tab calls `refresh_preferences()` before opening it, as the app does at start.
 - **`cargo test` (two rustc at once) was killed at the 4000M cap again**; `cargo test -j1` fits.
+
+## Component 16, piece AL (skill Editor and History dialogs)
+
+- **`TextEdit` is not `Eq`.** A state struct inside `SettingsNav` (which derives `Eq`) that holds one needs `impl Eq for X {}` by hand, as the other pages do.
+- **A text field has no length limit** (`maxlength`). The note's 2,000 characters are cut when it is sent.
+- **The dialog description didn't wrap**: `ui::dialog` drew it as one line, so a long one ran out of the panel. It now wraps to the panel's width.
+- **Disabled controls fade on a spring**: a test that reads `opacity` must run a few dozen frames first (`tests_settings_skill_dialogs::disabled`).
+- **A script's `type` event dropped the first five characters** of a text typed into the code box in a live run (the same text sent as one key event in a test arrives whole); I typed a throwaway word first for the picture. Not chased.
