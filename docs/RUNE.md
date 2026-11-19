@@ -1906,3 +1906,10 @@ Read at the pin while planning; nothing built yet.
 - **A checkerboard is a `Shape` of squares sized to the picture**, since a shape's points are in the element's own points and `view_box` scales them. The picture's size is worked out in the view from the area `on_layout` last reported (the lightbox does the same), so the first frame uses the panel's width.
 - **A web view of a file is placed by `web::wanted`, not by the view**: the view only draws the frame (`web::html_body`) and reports its rectangle; the file tab's HTML is one more source for `Placement.html`, keyed by its text so a changed file loads again.
 - **A scripted run (`--script`) is headless even with a display**: nothing shows on screen, so a live web view can't be grabbed from one. Open the window under Xvfb and click with `xdotool` (`scripts/web-walk/x-click.sh`). The window opens at 1360x880 whatever the screen.
+## Component 13, piece H (mouse reporting, modes, input methods)
+
+- **`on_drag` carries no modifiers and no pointer-move-with-button**: keep the held modifiers yourself with `App::on_modifiers` (it isn't called by `App::new(spec())` in a test, so apply the hooks through one function both `main` and the test use) and read the button with `tx.button()` after `El::pointer_buttons([Middle])`. The secondary button never arrives as a drag: `on_secondary_press_local` is a press and its release.
+- **`on_pointer_move_local` fires with no button held, not during a drag**: motion for a mouse mode comes from both handlers.
+- **`El::ime_cursor` on an element over the drawn cursor** turns the input method on for it; `App::on_ime` hears `Ime::Commit` (plain typing still arrives as keys). `Runtime::ime(Ime::Commit(..))` drives it in a test. The preedit has to be drawn by the app.
+- **alacritty_terminal has no mode 9 (X10)**: its parser keeps 1000, 1002, 1003 (and 1005, 1006, 1004, 1007) only.
+- A script's key step takes `"ctrl": true` with `"name": "c"`, not `"Ctrl+C"`.

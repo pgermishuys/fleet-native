@@ -7,6 +7,7 @@ pub mod cells;
 pub mod fit;
 pub mod keys;
 pub mod links;
+pub mod mouse;
 pub mod palette;
 pub mod screen;
 pub mod selection;
