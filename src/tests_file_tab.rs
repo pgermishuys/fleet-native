@@ -145,3 +145,80 @@ fn a_file_of_twenty_thousand_lines_builds_only_the_rows_on_screen() {
     assert!(built > 10, "the window has lines: {built}");
     assert!(built < 300, "and not twenty thousand of them: {built}");
 }
+
+/// Pressed: the file's choice is on, and the button shows it (the fill fades, so it is read after the frames settle).
+fn pressed(rt: &mut Runtime<State>) -> bool {
+    for _ in 0..30 {
+        rt.frame(FRAME);
+    }
+    let on = rt.state.sidebar.file_wrap(crate::mock::file_tab::WRAP_PATH);
+    assert_eq!(el(rt, "file-wrap").fill.a > 0.0, on, "the button shows the choice");
+    on
+}
+
+fn alt_z() -> rune::KeyEvent {
+    rune::KeyEvent { key: rune::Key::Text("z".into()), mods: rune::Mods { alt: true, ..rune::Mods::default() } }
+}
+
+// FileCanvas.test.ts: "wraps long lines by default; the Wrap button turns it off for that file, remembered"
+#[test]
+fn wraps_long_lines_by_default_and_the_wrap_button_turns_it_off_for_that_file_remembered() {
+    let mut rt = open(Case::Wrap);
+    assert!(pressed(&mut rt), "on by default");
+    let wrapped = |rt: &Runtime<State>| el(rt, "code-text-17").rect[3];
+    assert!(wrapped(&rt) >= 40.0, "line 17 takes several rows: {}", wrapped(&rt));
+    assert!(!has(&rt, "code-line-18"), "the wrapped rows are keyed apart from the unwrapped ones");
+    click(&mut rt, "file-wrap");
+    rt.frame(FRAME);
+    rt.frame(FRAME);
+    assert!(!pressed(&mut rt));
+    assert_eq!(wrapped(&rt), 20.0, "one row again, scrolled sideways");
+    // The file opened again, in a new buffer, starts the way it was left: the choice is in the settings file.
+    let json = rt.state.sidebar.to_json();
+    assert!(json.contains("fileWrapOff") && json.contains(crate::mock::file_tab::WRAP_PATH), "{json}");
+    assert!(!crate::fleet::settings::Sidebar::parse(&json).file_wrap(crate::mock::file_tab::WRAP_PATH));
+    assert!(crate::fleet::settings::Sidebar::parse(&json).file_wrap("src/other.py"), "only that file");
+}
+
+// FileCanvas.test.ts: "Alt Z toggles wrap in the editor"
+#[test]
+fn alt_z_toggles_wrap_in_the_code_view() {
+    let mut rt = open(Case::Wrap);
+    assert!(pressed(&mut rt));
+    rt.key(alt_z());
+    rt.frame(FRAME);
+    rt.frame(FRAME);
+    rt.frame(FRAME);
+    assert!(!pressed(&mut rt));
+    rt.key(alt_z());
+    rt.frame(FRAME);
+    rt.frame(FRAME);
+    rt.frame(FRAME);
+    assert!(pressed(&mut rt));
+}
+
+#[test]
+fn the_button_has_its_tooltip_and_loses_its_word_in_a_narrow_panel() {
+    let mut rt = open(Case::Wrap);
+    let tip = el(&rt, "file-wrap").help.unwrap_or_default();
+    assert!(tip.starts_with("Wrap long lines (") && tip.ends_with("Z)"), "{tip}");
+    assert!(rt.elements().iter().any(|e| e.text.as_deref() == Some("Wrap")), "the word");
+    rt.update(|s, _| {
+        s.right.widened = false;
+        s.right.width = 360.0;
+    });
+    rt.frame(FRAME);
+    assert!(!rt.elements().iter().any(|e| e.text.as_deref() == Some("Wrap")), "under 430 px only the icon");
+}
+
+#[test]
+fn a_wrapped_line_hangs_under_its_indent() {
+    let rt = open(Case::Wrap);
+    // Line 22 is indented by eight columns: its text starts after a column of that width and its rows start there too.
+    let text = el(&rt, "code-text-22");
+    let hang = el(&rt, "code-hang-22");
+    assert_eq!(hang.rect[2], 8.0 * 7.5);
+    assert!((text.rect[0] - (hang.rect[0] + hang.rect[2])).abs() < 0.5, "text {} hang {}", text.rect[0], hang.rect[0]);
+    assert!(text.rect[3] > 20.0);
+    assert_eq!(crate::view::code_view::hang_of(&" ".repeat(40)), 22, "at most 22 columns");
+}

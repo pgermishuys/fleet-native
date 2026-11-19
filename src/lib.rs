@@ -1672,6 +1672,7 @@ fn on_key(s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool {
         s.quiet.typed(s.clock);
     }
     if s.changes_find_key(ev, tx)
+        || s.file_wrap_key(ev, tx)
         || s.find_key(ev, tx)
         || view::permission::on_key(s, ev, tx)
         || view::question::on_key(s, ev, tx)
@@ -4390,6 +4391,10 @@ pub fn spec() -> AppSpec<State> {
             ("file-binary-light", |s| s.show_file(mock::file_tab::Case::Binary, false)),
             ("file-missing", |s| s.show_file(mock::file_tab::Case::Missing, true)),
             ("file-missing-light", |s| s.show_file(mock::file_tab::Case::Missing, false)),
+            ("file-wrap", |s| s.show_file(mock::file_tab::Case::Wrap, true)),
+            ("file-wrap-light", |s| s.show_file(mock::file_tab::Case::Wrap, false)),
+            ("file-wrap-off", |s| s.show_file(mock::file_tab::Case::WrapOff, true)),
+            ("file-wrap-off-light", |s| s.show_file(mock::file_tab::Case::WrapOff, false)),
             ("file-markdown", |s| s.show_file(mock::file_tab::Case::Markdown, true)),
             ("file-markdown-light", |s| s.show_file(mock::file_tab::Case::Markdown, false)),
             ("panel-tabs", |s| s.show_tabs(mock::canvas_host::Case::Tabs, true)),

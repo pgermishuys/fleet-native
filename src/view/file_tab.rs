@@ -1,11 +1,11 @@
 //! A file's tab (`components/canvas/FileCanvas.vue`, rows 4.1 to 4.4 and 4.6 to 4.8 of docs/parity/11-files.md): the bar with the
 //! file's path as crumbs and the view switch (Rendered, Edit or Source, Diff), and under it the note while the file opens or can't be
-//! shown, or its code. Wrap, the image and the Rendered page, the lines bar and everything of editing are other pieces'.
+//! shown, or its code, with Wrap (4.5). The image and the Rendered page, the lines bar and everything of editing are other pieces'.
 use super::code_view::code_view;
 use crate::State;
 use crate::fleet::canvases::{FileView, has_rendered_view};
 use crate::fleet::file_buffers::Status;
-use crate::icons::CHEVRON_RIGHT;
+use crate::icons::{CHEVRON_RIGHT, TEXT_WRAP};
 use crate::theme::{Theme, sans};
 use rune::{Cursor, El, col, el, icon, row, text};
 
@@ -62,6 +62,38 @@ fn switch_button(t: &Theme, key: &str, words: &str, on: bool, off: Option<&str>,
     b.hover_group().on_press(press)
 }
 
+/// `.file-canvas__wrap`: 26 high, `wrap-text` and the word "Wrap" (the word goes in a narrow panel), the file's choice pressed.
+fn wrap_button(s: &State, t: &Theme, path: &str, on: bool) -> El {
+    let narrow = s.right_shown_w() < NARROW;
+    let (ink, fill) = if on { (t.accent_text, t.accent_dim) } else { (t.muted, rune::Color::TRANSPARENT) };
+    let tip = if cfg!(target_os = "macos") { "Wrap long lines (\u{2325}Z)" } else { "Wrap long lines (Alt Z)" };
+    let mut b = row()
+        .key("file-wrap")
+        .role("button")
+        .label("Wrap")
+        .help(tip)
+        .h(26.0)
+        .px(if narrow { 6.0 } else { 8.0 })
+        .gap(5.0)
+        .items_center()
+        .radius(7.0)
+        .fill(fill)
+        .cursor(Cursor::Pointer)
+        .focusable(true)
+        .focus_ring(2.0, 1.0, t.accent)
+        .child(if on { icon(&TEXT_WRAP, 14.0).color(ink) } else { icon(&TEXT_WRAP, 14.0).color(ink).group_color(t.text) });
+    if !narrow {
+        b = b.child(text("Wrap").font(sans(12.0, 400.0, 1.4)).color(ink).group_color(if on { ink } else { t.text }).single_line());
+    }
+    if on {
+        b = b.checked(true);
+    } else {
+        b = b.hover_group();
+    }
+    let path = path.to_string();
+    b.on_press(move |s: &mut State| s.set_file_wrap(&path, !on))
+}
+
 /// `.file-canvas__toggle`: Rendered (Markdown and HTML only), Edit (Source when Rendered is there) and Diff.
 fn view_switch(t: &Theme, path: &str, view: FileView, has_changes: bool) -> El {
     let renderable = has_rendered_view(path);
@@ -108,6 +140,10 @@ pub fn file_tab(s: &State, t: &Theme) -> El {
         .border_sides([0.0, 0.0, 1.0, 0.0], t.border)
         .child(crumb_row(s, t, &path))
         .child(el().grow(1.0));
+    let wrap = s.sidebar.file_wrap(&path);
+    if ready && view != FileView::Rendered {
+        bar = bar.child(wrap_button(s, t, &path, wrap));
+    }
     if ready {
         bar = bar.child(view_switch(t, &path, view, has_changes));
     }
@@ -119,7 +155,7 @@ pub fn file_tab(s: &State, t: &Theme) -> El {
             let message = info.and_then(|i| i.message.clone()).unwrap_or_default();
             body.child(note(t, "file-unavailable", message))
         }
-        Some(Status::Ready) => body.child(code_view(s, t, &machine, &session, &path)),
+        Some(Status::Ready) => body.child(code_view(s, t, &machine, &session, &path, wrap)),
         None => body,
     };
     body
