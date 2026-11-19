@@ -99,6 +99,8 @@ pub struct Sidebar {
     changes_layout: Option<super::review::Layout>,
     /// The version each machine last reported to this device (`fleet.machineVersions`), for one that stops answering.
     machine_versions: super::updates::LastSeen,
+    /// The Fleet version this device last ran, by source (`weave:last-version:<source>`), so an update says what's new once.
+    last_versions: super::updates::LastSeen,
     dir: Option<PathBuf>,
     dirty: bool,
 }
@@ -146,6 +148,9 @@ impl Sidebar {
         s.appearance = appearance::Appearance::parse(&root);
         if let Some(map) = root.get("machineVersions") {
             s.machine_versions = super::updates::LastSeen::parse(&map.to_string());
+        }
+        if let Some(map) = root.get("lastVersions") {
+            s.last_versions = super::updates::LastSeen::parse(&map.to_string());
         }
         s.canvas_widened = root.get("canvasWidened") == Some(&Value::Bool(true));
         s.changes_wrap = root.get("changesWrap") == Some(&Value::Bool(true));
@@ -206,6 +211,9 @@ impl Sidebar {
         }
         if !self.machine_versions.0.is_empty() {
             root["machineVersions"] = serde_json::from_str(&self.machine_versions.to_json()).unwrap_or_default();
+        }
+        if !self.last_versions.0.is_empty() {
+            root["lastVersions"] = serde_json::from_str(&self.last_versions.to_json()).unwrap_or_default();
         }
         serde_json::to_string_pretty(&root).unwrap_or_default()
     }
@@ -344,6 +352,18 @@ impl Sidebar {
             self.machine_versions = seen.clone();
             self.dirty = true;
         }
+    }
+
+    /// The version this device last ran under `source` (`readLastVersion`).
+    pub fn last_run_version(&self, source: &str) -> Option<&str> {
+        self.last_versions.get(source)
+    }
+
+    /// Keeps the version this device runs now (`writeLastVersion`); true when it changed and the file should be written.
+    pub fn save_last_run_version(&mut self, source: &str, version: &str) -> bool {
+        let changed = self.last_versions.note([(source, version)]);
+        self.dirty |= changed;
+        changed
     }
 
     /// The default harness another machine last said it has (`readSaved("default-harness", key)`).

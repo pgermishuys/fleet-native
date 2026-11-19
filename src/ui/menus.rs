@@ -56,7 +56,7 @@ pub fn help() -> Vec<Entry> {
         })),
         Entry::Separator,
         Entry::Item(Item::new("What's new").icon(&SPARKLES).on(|s: &mut State, _: &mut Tx| {
-            s.open_settings("updates", None);
+            s.open_whats_new(None, None);
         })),
     ]
 }

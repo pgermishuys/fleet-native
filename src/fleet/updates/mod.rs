@@ -6,10 +6,12 @@
 //!
 //! The desktop app's own row is not here: native keeps its own updater (`src/update/`, decision 4 of the plan) and
 //! piece V draws that row from it.
+pub mod after_update;
 pub mod feed;
 pub mod notes;
 pub mod rows;
 pub mod strip;
+pub mod whats_new;
 
 #[cfg(test)]
 mod tests;
@@ -17,6 +19,8 @@ mod tests;
 mod tests_feed;
 #[cfg(test)]
 mod tests_notes;
+#[cfg(test)]
+mod tests_whats_new;
 
 pub use rows::*;
 pub use strip::*;

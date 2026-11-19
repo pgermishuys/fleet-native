@@ -250,6 +250,8 @@ mod tests_settings_updates;
 #[cfg(test)]
 mod tests_settings_updates_machines;
 #[cfg(test)]
+mod tests_settings_updates_whats_new;
+#[cfg(test)]
 mod tests_sign_in;
 #[cfg(test)]
 mod tests_skills;
@@ -605,6 +607,8 @@ pub struct State {
     pub dream_notices: fleet::dream_notice::DreamNotices,
     /// Settings → Updates & about: each machine's status and notes, the rollout, the restart (`fleet::updates::feed`).
     pub updates: fleet::updates::feed::UpdatesFeed,
+    /// What's new after an update: the version this run found and what is still waiting on the notes.
+    pub after_update: fleet::updates::after_update::AfterUpdate,
     pub place: fleet::notice_place::Place,
     /// The Fleet restarted notice's count and the sessions its buttons reach (piece N).
     pub restart: fleet::restart_notice::RestartNotice,
@@ -825,6 +829,7 @@ impl Default for State {
             memory: Default::default(),
             dream_notices: Default::default(),
             updates: Default::default(),
+            after_update: Default::default(),
             restart: Default::default(),
             update_notices: Default::default(),
             place: Default::default(),
@@ -1577,6 +1582,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_harness_strips(now, tx)
         | s.keep_sign_in_flow(now, tx)
         | s.keep_updates(now, tx)
+        | s.keep_whats_new(now, tx)
         | s.keep_locations(tx)
         | s.keep_dreaming(now, tx)
         | s.keep_nightly(tx)
@@ -2125,6 +2131,16 @@ pub fn spec() -> AppSpec<State> {
             ("settings-updates-failed-light", |s| s.show_updates(false, mock::updates_page::Case::Failed)),
             ("settings-updates-managed", |s| s.show_updates(true, mock::updates_page::Case::Managed)),
             ("settings-updates-managed-light", |s| s.show_updates(false, mock::updates_page::Case::Managed)),
+            ("settings-updates-whats-new", |s| s.show_whats_new(true, mock::updates_whats_new::Case::Waiting)),
+            ("settings-updates-whats-new-light", |s| s.show_whats_new(false, mock::updates_whats_new::Case::Waiting)),
+            ("settings-updates-whats-new-arrived", |s| s.show_whats_new(true, mock::updates_whats_new::Case::Arrived)),
+            ("settings-updates-whats-new-arrived-light", |s| s.show_whats_new(false, mock::updates_whats_new::Case::Arrived)),
+            ("settings-updates-whats-new-stale", |s| s.show_whats_new(true, mock::updates_whats_new::Case::Stale)),
+            ("settings-updates-whats-new-stale-light", |s| s.show_whats_new(false, mock::updates_whats_new::Case::Stale)),
+            ("settings-updates-whats-new-empty", |s| s.show_whats_new(true, mock::updates_whats_new::Case::Empty)),
+            ("settings-updates-whats-new-empty-light", |s| s.show_whats_new(false, mock::updates_whats_new::Case::Empty)),
+            ("settings-updates-whats-new-loading", |s| s.show_whats_new(true, mock::updates_whats_new::Case::Loading)),
+            ("settings-updates-whats-new-loading-light", |s| s.show_whats_new(false, mock::updates_whats_new::Case::Loading)),
             ("settings-updates-machines-available", |s| s.show_updates_machines(true, mock::updates_machines::Case::Available)),
             ("settings-updates-machines-available-light", |s| s.show_updates_machines(false, mock::updates_machines::Case::Available)),
             ("settings-updates-machines-current", |s| s.show_updates_machines(true, mock::updates_machines::Case::Current)),
@@ -3898,6 +3914,12 @@ pub fn spec() -> AppSpec<State> {
                 s.dark = Some(false);
                 mock::notices::restarted(s, true)
             }),
+            ("notice-whats-new", |s| s.show_whats_new_card(true, None)),
+            ("notice-whats-new-light", |s| s.show_whats_new_card(false, None)),
+            ("notice-whats-new-since", |s| s.show_whats_new_card(true, Some("0.70.0"))),
+            ("notice-whats-new-since-light", |s| s.show_whats_new_card(false, Some("0.70.0"))),
+            ("notice-updated-chip", |s| s.show_updated_chip(true)),
+            ("notice-updated-chip-light", |s| s.show_updated_chip(false)),
             ("notice-update", |s| mock::notices::machine_updated(s)),
             ("notice-update-light", |s| {
                 s.dark = Some(false);

@@ -62,6 +62,12 @@ pub fn style(t: &Theme) -> MarkdownStyle {
     s
 }
 
+/// The same for a release's hand-written notes on Settings → Updates & about (`.whats-new__notes`): 13.5 px, a heading a level
+/// down from a message's.
+pub fn notes_style(t: &Theme) -> MarkdownStyle {
+    style(t).body_font(sans(13.5, 400.0, 1.65)).heading_font(3, sans(14.5, 600.0, 1.3)).heading_font(4, sans(13.5, 600.0, 1.3))
+}
+
 /// One text part. `streaming` is true for the part still being written, which keeps its earlier
 /// blocks mounted and its last table row from resizing the columns.
 pub fn prose(style: &MarkdownStyle, id: &str, text: &str, streaming: bool) -> El {

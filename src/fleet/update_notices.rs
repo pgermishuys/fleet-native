@@ -6,6 +6,7 @@
 //! posted. [`card`] and [`chip`] are plain functions; [`State::keep_update_notices`] runs them whenever the notices are kept,
 //! and the buttons tell this module a name that [`State::keep_update_buttons`] acts on.
 use super::notices::{Action, ActionTone, Notice};
+use super::updates::after_update;
 use super::updates::rows::{UpdatedNotice, describe_update_chip, describe_updated_notice, has_update_waiting};
 use super::updates::{
     Rollout, Trigger, UPDATE_RULE_DEFAULT_KEY, UPDATE_RULE_NOTICE_KEY, UPDATE_RULE_OVERRIDES_KEY, UpdateRule, parse_chosen_rule,
@@ -78,6 +79,7 @@ impl State {
     /// change in the notices; a card whose id is in the store already posts nothing (`notices.has`), and one that was shown
     /// before comes back as no card (the store's own rule).
     pub fn keep_update_notices(&mut self) {
+        self.keep_after_update();
         if !self.update_notices.rollout_read && self.link.is_some() {
             self.update_notices.rollout_read = true;
             self.load_rollout();
@@ -131,10 +133,17 @@ impl State {
             if run == OPEN_MACHINES {
                 self.open_settings("updates", Some("machines"));
             } else if let Some(rest) = run.strip_prefix(WHATS_NEW) {
-                // Fleet opens What's new at that version; native's page has no version to scroll to yet (component 16).
-                let id = rest.rsplit_once(':').map_or(rest, |(id, _)| id);
-                self.open_settings("updates", Some("whats-new"));
+                // What's new opens at that version (`openWhatsNew(version)`), and the card closes into its chip.
+                let (id, version) = rest.rsplit_once(':').unwrap_or((rest, ""));
+                self.open_whats_new((!version.is_empty()).then_some(version), None);
                 self.settle_update_card(id);
+            } else if let Some(rest) = run.strip_prefix(after_update::OPEN_CHIP) {
+                let (version, since) = after_update::parse_open(rest);
+                self.open_whats_new(Some(version), since);
+            } else if let Some(rest) = run.strip_prefix(after_update::OPEN_CARD) {
+                let (version, since) = after_update::parse_open(rest);
+                self.open_whats_new(Some(version), since);
+                self.settle_update_card(&after_update::card_id(version));
             } else if let Some(id) = run.strip_prefix(CHANGE_RULE) {
                 self.open_settings("updates", Some("machines"));
                 self.settle_update_card(id);

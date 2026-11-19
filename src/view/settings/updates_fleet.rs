@@ -59,7 +59,8 @@ fn server_rows(t: &Theme, key: &str, status: Option<&UpdateStatus>, busy: bool) 
     left = left.child(text(words::server_label(status)).key("fleet-update-status").font(sans(rem(0.875), 400.0, 1.43)).color(ink(t, tone)));
     let mut right = row().center_y().gap(7.0);
     if words::notes_version(status).is_some() {
-        right = right.child(link(t, "fleet-whats-new", "What's new", |s: &mut State| s.open_settings("updates", Some("whats-new"))));
+        let version = words::notes_version(status);
+        right = right.child(link(t, "fleet-whats-new", "What's new", move |s: &mut State| s.open_whats_new(version.as_deref(), None)));
     }
     if words::can_download(status) {
         let k = key.to_string();

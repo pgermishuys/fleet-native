@@ -57,6 +57,7 @@ pub mod turns;
 pub mod update;
 pub mod updates_machines;
 pub mod updates_page;
+pub mod updates_whats_new;
 pub mod usage;
 pub mod visuals;
 pub mod work;

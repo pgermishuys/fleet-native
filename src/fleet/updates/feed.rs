@@ -172,6 +172,8 @@ pub struct UpdatesFeed {
     pub checking: bool,
     /// What each machine last reported to this device.
     pub last_seen: LastSeen,
+    /// What's new: the request a link made, the rows opened, the flash.
+    pub whats_new: super::whats_new::WhatsNewState,
     /// The settings file's copy has been read in.
     last_seen_loaded: bool,
     /// The machine whose "Updates:" list is open on the Machines group.

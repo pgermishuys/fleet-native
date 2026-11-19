@@ -50,10 +50,12 @@ pub fn targets(page: &Page) -> &'static [(&'static str, &'static str)] {
             ("browser", "settings-anchor-browser"),
         ],
         Page::Folders => &[("storage", "settings-anchor-storage")],
-        // `whats-new` is piece X's.
-        Page::Updates => {
-            &[("fleet", "settings-group-fleet"), ("harnesses", "settings-group-harnesses"), ("machines", "settings-group-machines")]
-        }
+        Page::Updates => &[
+            ("fleet", "settings-group-fleet"),
+            ("harnesses", "settings-group-harnesses"),
+            ("machines", "settings-group-machines"),
+            ("whats-new", "settings-group-whats-new"),
+        ],
         _ => &[],
     }
 }

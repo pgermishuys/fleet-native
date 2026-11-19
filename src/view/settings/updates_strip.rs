@@ -112,8 +112,7 @@ fn headline(t: &Theme, release: &ReleaseLine, latest: Option<&str>) -> El {
     if let (true, Some(latest)) = (available, latest) {
         let version = latest.to_string();
         line = line.child(link_in(t, "updates-whats-new", "What's new", sans(rem(0.875), 400.0, 1.43), move |s: &mut State| {
-            s.open_settings("updates", Some("whats-new"));
-            let _ = &version;
+            s.open_whats_new(Some(&version), None);
         }));
     }
     line

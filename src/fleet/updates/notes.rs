@@ -382,6 +382,24 @@ pub fn whats_new_summary(releases: &[ReleaseNote], previous: &str, current: &str
     })
 }
 
+/// The hand-written intro as Markdown for the page, its `#` and `##` headings pushed down to `###` so they sit under the version's
+/// own row.
+pub fn intro_markdown(notes: &ParsedReleaseNotes) -> String {
+    // Headings in the intro sit under the version's own row, so they start a level down.
+    let intro: Vec<String> = notes
+        .intro
+        .split('\n')
+        .map(|line| {
+            let hashes = line.chars().take_while(|c| *c == '#').count();
+            match line[hashes..].chars().next() {
+                Some(c) if (1..=2).contains(&hashes) && c.is_whitespace() => format!("### {}", &line[hashes + c.len_utf8()..]),
+                _ => line.to_string(),
+            }
+        })
+        .collect();
+    intro.join("\n")
+}
+
 /// The notes as Markdown for Fleet's renderer: the intro, then New and Fixed lists with their pull requests
 /// (`releaseNotesMarkdown`).
 pub fn release_notes_markdown(notes: &ParsedReleaseNotes) -> String {
@@ -399,23 +417,8 @@ pub fn release_notes_markdown(notes: &ParsedReleaseNotes) -> String {
             .collect();
         format!("#### {label}\n\n{}\n", lines.join("\n"))
     };
-    // Headings in the intro sit under the version's own row, so they start a level down.
-    let intro: Vec<String> = notes
-        .intro
-        .split('\n')
-        .map(|line| {
-            let hashes = line.chars().take_while(|c| *c == '#').count();
-            match line[hashes..].chars().next() {
-                Some(c) if (1..=2).contains(&hashes) && c.is_whitespace() => format!("### {}", &line[hashes + c.len_utf8()..]),
-                _ => line.to_string(),
-            }
-        })
-        .collect();
-    [intro.join("\n"), list("New", &notes.added), list("Fixed", &notes.fixed)]
-        .into_iter()
-        .filter(|s| !s.is_empty())
-        .collect::<Vec<_>>()
-        .join("\n\n")
+    let intro = intro_markdown(notes);
+    [intro, list("New", &notes.added), list("Fixed", &notes.fixed)].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join("\n\n")
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
