@@ -95,8 +95,7 @@ fn has_the_machines_group_between_the_harnesses_and_whats_new_with_no_preference
     assert!(has(&rt, "settings-group-machines"));
     assert!(top(&rt, "settings-group-machines") > top(&rt, "settings-group-harnesses"), "after the harnesses");
     assert!(rt.state.pickers.prefs.get("FleetUpdateRule").is_none(), "no preference is set");
-    // What's new is piece X's: nothing is drawn after Machines yet.
-    assert!(!has(&rt, "settings-group-whats-new"));
+    assert!(top(&rt, "settings-group-whats-new") > top(&rt, "settings-group-machines"), "What's new comes last");
 }
 
 #[test]

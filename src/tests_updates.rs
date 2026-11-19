@@ -22,6 +22,11 @@ pub(crate) struct Fake {
     pub(crate) refuse_rollout: Option<(u16, String)>,
     /// `GET /api/machine` fails with a 503 this many times first (the Fleet is restarting).
     pub(crate) down_for: u32,
+    /// `GET /api/update/releases` answers this instead of its one release; `GET /api/update/status` this body.
+    pub(crate) releases: Option<Value>,
+    pub(crate) status: Option<Value>,
+    /// Every request for `/api/update/releases` is counted here.
+    pub(crate) releases_asked: u32,
 }
 
 pub(crate) type Shared = Arc<Mutex<Fake>>;
@@ -55,9 +60,17 @@ fn answer(mut stream: std::net::TcpStream, fake: Shared) {
             f.down_for -= 1;
             (503, "{}".to_string())
         }
-        ("GET", "/api/update/status") => (200, json!({ "currentVersion": f.version, "status": "staged", "latestVersion": "0.59.1" }).to_string()),
+        ("GET", "/api/update/status") => {
+            let body =
+                f.status.clone().unwrap_or_else(|| json!({ "currentVersion": f.version, "status": "staged", "latestVersion": "0.59.1" }));
+            (200, body.to_string())
+        }
         ("GET", "/api/update/releases") => {
-            (200, json!({ "releases": [{ "version": "0.59.1", "publishedAt": null, "body": "x", "url": "u" }], "fetchedAt": null, "error": null }).to_string())
+            f.releases_asked += 1;
+            let body = f.releases.clone().unwrap_or_else(
+                || json!({ "releases": [{ "version": "0.59.1", "publishedAt": null, "body": "x", "url": "u" }], "fetchedAt": null, "error": null }),
+            );
+            (200, body.to_string())
         }
         ("GET", "/api/update/rollout") => (200, rollout_json("running").to_string()),
         ("POST", "/api/update/rollout") => f.refuse_rollout.clone().unwrap_or((200, rollout_json("running").to_string())),
@@ -84,8 +97,14 @@ fn link_to(base: String) -> (Link, Receiver<Job>) {
 
 /// A connected app on Updates & about, with `other` listed as a second machine when given.
 pub(crate) fn rig(version: &str, other: Option<(&Shared, &str)>, pick_other: bool) -> Rig {
+    rig_with(version, other, pick_other, |_| {})
+}
+
+/// [`rig`] with the fake set up before the app asks it anything.
+pub(crate) fn rig_with(version: &str, other: Option<(&Shared, &str)>, pick_other: bool, setup: impl FnOnce(&mut Fake)) -> Rig {
     let home: Shared = Default::default();
     home.lock().unwrap().version = version.into();
+    setup(&mut home.lock().unwrap());
     if let Some((_, base)) = other {
         home.lock().unwrap().machines = vec![json!({ "id": "m-harbor", "name": "harbor", "baseUrl": base, "token": "t-harbor" })];
     }
@@ -157,7 +176,10 @@ fn asks_another_machines_status_and_notes_when_settings_shows_it_never_home() {
     });
     assert_eq!(r.rt.state.updates.status["m-harbor"].status.as_ref().map(|s| s.current_version.as_str()), Some("0.58.0"));
     assert!(r.did(&other, "GET", "/api/update/status") && r.did(&other, "GET", "/api/update/releases"));
-    assert!(!r.did(&r.home, "GET", "/api/update/status") && !r.did(&r.home, "GET", "/api/update/releases"), "home was not asked");
+    // Home's status is read once at start for the version this device runs (What's new after an update, piece X), whatever
+    // the page shows; its notes are not read unless an update was found.
+    assert!(!r.did(&r.home, "GET", "/api/update/releases"), "home's notes were not asked");
+    assert_eq!(r.heard(&r.home).iter().filter(|(_, p, _)| p == "/api/update/status").count(), 1, "home's status once, for the version");
     // The rollout is always home's, whichever machine the switch names.
     assert!(r.did(&r.home, "GET", "/api/update/rollout") && !r.did(&other, "GET", "/api/update/rollout"));
 }

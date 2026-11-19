@@ -1,5 +1,5 @@
 //! Settings → Updates & about (`UpdatesSection.vue`): one column of groups, `grid gap-6` (21). Fleet (with the app's own row), Harnesses
-//! and Machines are drawn; What's new is the piece that follows, so until it lands the page ends with Machines.
+//! Machines and What's new are drawn.
 //! The little pieces the groups share (the pill buttons of `SystemSection`, its status icon and its underlined links) are here.
 use crate::State;
 use crate::fleet::settings::updates_page::Tone;
@@ -20,6 +20,7 @@ pub fn content(s: &State, t: &Theme) -> El {
         .child(super::updates_fleet::group(s, t))
         .child(super::updates_harnesses::group(s, t))
         .child(super::updates_machines::group(s, t))
+        .child(super::updates_whats_new::group(s, t))
 }
 
 /// The ink of a status line (`text-text`, `text-accent-text`, `text-idle-text`, `text-error-text`).

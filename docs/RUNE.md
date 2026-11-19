@@ -1956,3 +1956,10 @@ Read at the pin while planning; nothing built yet.
 - **`TextHighlight::ring(color, width)` is CodeMirror's `outline`**, and `.key(..)` on one gives `scroll_center` a target for sideways centring that `scroll_center_in_instant` on the row can't do.
 - **A row cached by `virtual_rows_version` must carry everything its marks depend on** (the query, the boxes, the current match), or the marks stay as they were.
 - **`regex` is the one new crate** (its `regex-automata`, `regex-syntax`, `aho-corasick` and `memchr` were already in `Cargo.lock` through alacritty_terminal); Rune has no regular expressions to use.
+
+## Component 16, piece X (What's new)
+
+- **`Span` carries `size`, `mono` and `color`**, so one wrapped `rich` text can hold a 12 px muted label, a 13.5 px title and an 11.5 px mono pull request number, as Fleet's CSS gives a list item; `Link::new(range, url)` makes the number pressable. A `rich` text under `.shrink()` (not `.grow()`) is only as wide as its words, so a test can press the end of the line to hit a trailing link.
+- **`Markdown::on_link` takes `(&mut State, &str)`; the one with a `Tx` is `on_link_tx`.** The El-level `.on_link` is the one with a `Tx`.
+- **A headless test on a tall window must wait for a wheel's glide to end** before pressing: `rt.find` reports the element where the last frame drew it, so press once the rect stops changing. A rig with a link to a fake also opens the first-run wizard over the page (`harness_setup.cloud = true` keeps it away).
+- **`Tx::scroll_key_to` needs the element laid out**: the row a request names is only drawn once the notes loaded, so the scroll goes out on the poll after the request opens it (`WhatsNewState::scroll`).
