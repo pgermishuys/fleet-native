@@ -224,6 +224,8 @@ mod tests_settings_harness_sign_in;
 #[cfg(test)]
 mod tests_settings_harness_weave;
 #[cfg(test)]
+mod tests_settings_harness_weave_dialog;
+#[cfg(test)]
 mod tests_settings_harnesses;
 #[cfg(test)]
 mod tests_settings_kit;
@@ -2479,6 +2481,24 @@ pub fn spec() -> AppSpec<State> {
             ("settings-flow-remote-light", |s| s.show_providers(false, mock::harnesses::Providers::FlowRemote)),
             ("settings-flow-refused", |s| s.show_providers(true, mock::harnesses::Providers::FlowRefused)),
             ("settings-flow-refused-light", |s| s.show_providers(false, mock::harnesses::Providers::FlowRefused)),
+            ("settings-weave-config-own", |s| s.show_weave_config(true, mock::weave::ConfigCase::Own)),
+            ("settings-weave-config-own-light", |s| s.show_weave_config(false, mock::weave::ConfigCase::Own)),
+            ("settings-weave-config-fleet", |s| s.show_weave_config(true, mock::weave::ConfigCase::Fleet)),
+            ("settings-weave-config-fleet-light", |s| s.show_weave_config(false, mock::weave::ConfigCase::Fleet)),
+            ("settings-weave-config-prompt", |s| s.show_weave_config(true, mock::weave::ConfigCase::Prompt)),
+            ("settings-weave-config-prompt-light", |s| s.show_weave_config(false, mock::weave::ConfigCase::Prompt)),
+            ("settings-weave-config-adding", |s| s.show_weave_config(true, mock::weave::ConfigCase::Adding)),
+            ("settings-weave-config-adding-light", |s| s.show_weave_config(false, mock::weave::ConfigCase::Adding)),
+            ("settings-weave-config-check-ok", |s| s.show_weave_config(true, mock::weave::ConfigCase::CheckOk)),
+            ("settings-weave-config-check-ok-light", |s| s.show_weave_config(false, mock::weave::ConfigCase::CheckOk)),
+            ("settings-weave-config-check-failed", |s| s.show_weave_config(true, mock::weave::ConfigCase::CheckFailed)),
+            ("settings-weave-config-check-failed-light", |s| s.show_weave_config(false, mock::weave::ConfigCase::CheckFailed)),
+            ("settings-weave-config-applying", |s| s.show_weave_config(true, mock::weave::ConfigCase::Applying)),
+            ("settings-weave-config-applying-light", |s| s.show_weave_config(false, mock::weave::ConfigCase::Applying)),
+            ("settings-weave-config-outdated", |s| s.show_weave_config(true, mock::weave::ConfigCase::Outdated)),
+            ("settings-weave-config-outdated-light", |s| s.show_weave_config(false, mock::weave::ConfigCase::Outdated)),
+            ("settings-weave-config-both", |s| s.show_weave_config(true, mock::weave::ConfigCase::Both)),
+            ("settings-weave-config-both-light", |s| s.show_weave_config(false, mock::weave::ConfigCase::Both)),
             ("settings-weave-asking", |s| s.show_weave(true, mock::weave::Case::Asking)),
             ("settings-weave-asking-light", |s| s.show_weave(false, mock::weave::Case::Asking)),
             ("settings-weave-failed", |s| s.show_weave(true, mock::weave::Case::Failed)),

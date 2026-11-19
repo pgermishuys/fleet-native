@@ -19,6 +19,7 @@ pub mod harness_profiles;
 pub mod harness_sign_in;
 pub mod harness_update;
 pub mod harness_weave;
+pub mod harness_weave_config;
 pub mod harnesses;
 pub mod install_target;
 pub mod locations;

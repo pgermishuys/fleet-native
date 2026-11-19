@@ -37,6 +37,8 @@ pub struct Dialog {
     pub dismiss: Option<fn(&mut State)>,
     /// The window's width when it is not the default `sm:max-w-lg` (`sm:max-w-md` is 28rem).
     pub width: Option<f32>,
+    /// `max-h-[90vh] overflow-y-auto`: the panel is no taller than this and scrolls inside.
+    pub max_height: Option<f32>,
 }
 
 /// `DialogContent`: `max-w-lg` (448), `p-6`, `gap-4`, a border and `shadow-lg`, no radius.
@@ -74,6 +76,9 @@ pub fn dialog(t: &Theme, d: Dialog) -> Vec<El> {
     }
     if d.close_button {
         panel = panel.child(close_x(t, d.key, close));
+    }
+    if let Some(h) = d.max_height {
+        panel = panel.max_h(h).scroll(rune::ScrollSpec { stick_bottom: false });
     }
     let panel = lift(t, panel)
         .transition(Transition::scale_anchor(0.95, Vec2::new(0.5, 0.5)))

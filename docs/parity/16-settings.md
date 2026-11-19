@@ -329,6 +329,15 @@ Built in `src/fleet/settings/harness_weave.rs` (the `weave` view and its parts, 
 - **Fleet's tests ported under their names (HarnessWeaveGroup, 18):** all of them, plus from HarnessesSection "the old Weave id opens the default harness's tab when Weave is asked about there", "... falls to the first harness with Weave when the default has none", "asks the harnesses about Weave once, not on every visit", "holds Add Weave on every tab while one harness's plugin list is being changed", "shows a Weave group only on harnesses Weave supports". Ours: a busy line and spinner while it downloads, both Weaves loaded, notices belong to the page, the view's parse, and plain tests for `describe_install`, `pill`, `loaded`/`outdated`/`usable`.
 - **Differences from Fleet's served client:** none seen in the group. Fleet's side is the scratch Fleet's own OpenCode tab, with `GET /api/weave` and the plugin request answered by Playwright with invented entries; native shows the invented OpenCode 2 tab, so the harness's name, paths and neighbouring groups differ (Providers, the version line). The scratch server answered the real "no Weave" state too.
 
+### Piece Z: done (19 November 2026)
+
+Built in `src/fleet/settings/harness_weave_config.rs` (`Config`: the draft on the page's `Weave`, the starters, file tabs, prompt rule, copy, test, save, the draft rule), `src/view/settings/harness_weave_dialog.rs`, three requests in `src/fleet/http.rs`, `ui::code_box::code_box_flat`, `Dialog.max_height`, `mock::weave::ConfigCase` and scenes `settings-weave-config-*` (+ `-light`), `src/tests_settings_harness_weave_dialog.rs`; pictures in `shots/parity/16-weave-config/` (`fleet/` beside `native/`, both themes: own, fleet, prompt, adding, check-ok, check-failed, applying, outdated, both).
+
+- **Done:** 5.120's Edit… opens the dialog, 5.130 to 5.142. The draft lives on the page's `Weave`, so closing and reopening or a tab switch keeps it (5.130). 5.142: a load fills the draft unless it has changes (dirty is read against the new view, as Fleet reads it); a file of a Weave this machine doesn't run is kept out of sight. 5.138/5.140 take up to 120 s (the harnesses try the files).
+- **Open, with reason:** the code box has no colours, history, bracket matching or auto-close (5.134, no code editor in Rune); a line longer than the box wraps where Fleet's scrolls sideways; the own-file box border is solid (no dashed line); the 3 s follow of a save is piece Y's `keep_weave`, unchanged.
+- **Fleet's tests ported under their names (WeaveConfigDialog, 7):** all seven, plus "keeps the Weave config draft across a tab switch". Ours: Esc in the prompt box cancels the prompt and keeps the dialog, a prompt name must be plain and new, Copy fills the draft and saves nothing, an empty own file, Save waits for a change, a load keeps a draft with changes, plain tests for the prompt rule, `folder_name` and the starters.
+- **Differences from Fleet's served client:** the scratch Fleet's OpenCode has no Weave, so Fleet's side answers `/api/weave`, check and save by Playwright with invented data (the dialog is Fleet's own). Fleet's harness is "OpenCode 2" in the check cards (invented).
+
 ### Piece K: done (17 November 2026)
 
 Built in `src/fleet/settings/harness_sign_in.rs` (`SignIns`, `Provider`, `Connection`, `Panel`; load, use, sign out, `sign_in_done` for L to call; `HarnessEntry::offers_sign_in`), three requests in `src/fleet/http.rs`, `src/view/settings/harness_sign_in.rs`, the `providers` anchor, `mock::harnesses::Providers` and scenes `settings-providers-*`, `src/tests_settings_harness_sign_in.rs` and the plain tests beside the module; pictures in `shots/parity/16-harnesses-k/` (`fleet-*` beside `native-*`: before, asking, many, confirm, search, nomatch, switched, refused, failed, copilot-in, copilot-out; both themes).
@@ -2122,7 +2131,7 @@ native app yet" note (decision 1) and adds its scenes to `spec()`.
 | **W** | Updates: the Machines group | Part 13 local C's rows | V | Part 13, local C | ~600 |
 | **X** | Updates: What's new, and the after-an-update card and chip | Part 13 local D's rows | V; component 9's K and L | Part 13, local D | ~550 |
 | **Y** | Harnesses: the Weave group | 5.26, 5.110-5.122 | G | Part 5, local G | ~600 |
-| **Z** | Harnesses: the Weave config dialog | 5.130-5.142 | Y, I | Part 5, local H | ~650 |
+| **Z** | Harnesses: the Weave config dialog (done) | 5.130-5.142 | Y, I | Part 5, local H | ~650 |
 | **AA** | Folders: Locations (done 17 Nov) | 10.1-10.21 | B, C | Part 10-11, 10-A | ~500 |
 | **AB** | Folders: Worktree naming (done 17 Nov) | 10.22-10.34 | AA | Part 10-11, 10-B | ~400 |
 | **AC** | Folders: Storage (done 17 Nov) | 10.3, 10.35-10.53 | AA | Part 10-11, 10-C | ~600 |

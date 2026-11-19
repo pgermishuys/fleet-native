@@ -256,8 +256,8 @@ pub struct Weave {
     /// The harness whose plugin list is being changed: they can share one opencode.json, so one at a time.
     pub changing: Option<String>,
     pub notices: BTreeMap<String, Notice>,
-    /// Edit… was pressed: the dialog (next piece) opens on this.
-    pub edit_asked: bool,
+    /// The config dialog (Edit…) and its draft, which stay while it is closed.
+    pub config: super::harness_weave_config::Config,
     pub next_poll: Option<i64>,
 }
 
@@ -309,6 +309,7 @@ impl State {
             changed = true;
         }
         changed |= self.pick_weave_tab();
+        changed |= self.settings.harnesses.weave.keep_config();
         let (loading, pending) = {
             let w = &self.settings.harnesses.weave;
             (w.loading, w.view.as_ref().is_some_and(WeaveView::apply_pending))
@@ -440,18 +441,5 @@ impl State {
         if !sent {
             self.settings.harnesses.weave.changing = None;
         }
-    }
-
-    /// Edit…: asks for the config dialog.
-    pub fn edit_weave_config(&mut self) {
-        self.settings.harnesses.weave.edit_asked = true;
-    }
-}
-
-impl Weave {
-    /// `show`: the answer replaces what was there, and a save that still waits is followed.
-    pub fn show(&mut self, view: WeaveView) {
-        self.next_poll = view.apply_pending().then(|| now_ms() + APPLY_POLL_MS);
-        self.view = Some(view);
     }
 }
