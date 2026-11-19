@@ -136,6 +136,7 @@ pub mod session_terminals;
 pub mod sessions;
 pub mod settings;
 pub mod settings_nav;
+pub mod setup_terminal;
 pub mod sign_in;
 pub mod signalr;
 pub mod skills;

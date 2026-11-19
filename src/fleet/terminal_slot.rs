@@ -82,6 +82,8 @@ pub struct Slot {
     /// Every byte written to the shell, for tests.
     #[cfg(test)]
     pub written: Vec<u8>,
+    /// The id of the setup terminal this holds (`setup_terminal.rs`): the view is the setup row's, not a session's.
+    pub setup: Option<String>,
 }
 
 impl Slot {
@@ -105,6 +107,9 @@ impl State {
     pub fn toggle_terminal(&mut self, tx: &mut Tx) {
         if self.terminal.replaying {
             self.terminal.replaying = false;
+            return;
+        }
+        if self.terminal.setup.is_some() {
             return;
         }
         let Some(session) = self.open_id().filter(|_| self.terminals_shown()) else { return };
@@ -234,7 +239,7 @@ impl State {
     /// sockets (13.41); the shells keep running on the server, and the scrollback replays when the view connects again.
     fn follow_terminal_session(&mut self) -> bool {
         let open = self.open_id();
-        if self.terminal.replaying || self.terminal.session == open {
+        if self.terminal.replaying || self.terminal.setup.is_some() || self.terminal.session == open {
             return false;
         }
         self.terminal = Slot { session: open, fitted: self.terminal.fitted, ..Default::default() };
@@ -324,7 +329,9 @@ impl State {
         if let Some((live, socket)) = self.terminal.live.as_ref().and_then(|l| l.socket.as_ref().map(|s| (l, s))) {
             live.term.resize(fit.0, fit.1);
             socket.resize(fit.0, fit.1);
-        } else if let Some(live) = self.terminal.live.as_ref().filter(|l| l.pretend && !self.terminal.replaying) {
+        } else if let Some(live) =
+            self.terminal.live.as_ref().filter(|l| (l.pretend && !self.terminal.replaying) || self.terminal.setup.is_some())
+        {
             live.term.resize(fit.0, fit.1);
         }
     }
@@ -383,11 +390,12 @@ impl State {
             Some(live) => self.terminal.shells.open(&live.id).exit_code().is_some(),
             None => false,
         };
-        if pretend_ended || matches!(self.terminal.status(), Some(Status::Ended(_))) {
+        changed |= self.keep_setup_terminal();
+        if pretend_ended || (self.terminal.setup.is_none() && matches!(self.terminal.status(), Some(Status::Ended(_)))) {
             self.end_terminal();
             changed = true;
         }
-        let focused = self.terminal_open() && tx.focused().is_some_and(|k| k == VIEW_KEY);
+        let focused = (self.terminal_open() || self.terminal.setup.is_some()) && tx.focused().is_some_and(|k| k == VIEW_KEY);
         let was = std::mem::replace(&mut self.terminal.focused, focused);
         if focused != was && self.terminal.live.as_ref().is_some_and(|l| l.term.mode().contains(crate::term::Mode::FOCUS_IN_OUT)) {
             // Focus reporting (mode 1004): the program hears when the box gains or loses the keyboard.

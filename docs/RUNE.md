@@ -1936,3 +1936,9 @@ Read at the pin while planning; nothing built yet.
   press's handler then reads it from `tx.mods()`.
 - **A row's fill over a sticky, opaque cell**: the number gutter is opaque (`--panel-bg`) so code scrolled sideways doesn't show
   through, so a picked line's number takes `--accent` 14 % mixed into `--panel-bg` (`Theme::mix`), not the 14 % alpha the line has.
+
+## Component 13, piece I (the setup terminal)
+
+- One terminal slot serves two hosts (a session's drawer and a setup row inside a window over the app) without a second set of handlers: the slot carries a `setup` marker and every "follow the open session" path steps aside while it is set. Cheaper than a second `Slot`, because the key, pointer, wheel and paste handlers all read `State::terminal`.
+- A test rig whose fake speaks both HTTP and WebSocket must look at the request line without consuming it (`TcpStream::peek`) before choosing: `tungstenite::accept` wants to read the upgrade itself, `test_http::read` would eat it.
+- A background thread's `Post` (here the socket's "changed") only queues a job; a headless test that waits on shared state, not on the job, must run a job or `update` before it looks at the tree.

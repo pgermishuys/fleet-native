@@ -72,6 +72,8 @@ struct Keep {
     /// Input typed while no socket is ready, up to [`MAX_PENDING_INPUT`] bytes.
     pending: Vec<Vec<u8>>,
     pending_bytes: usize,
+    /// Typed once, on the first `ready`; taken then, so a reconnect doesn't type it again.
+    initial: Option<Vec<u8>>,
 }
 
 impl Keep {
@@ -95,7 +97,32 @@ impl Socket {
     pub fn open_with(
         base: &str,
         path: &str,
+        size: (u16, u16),
+        term: Arc<Terminal>,
+        delay: impl Fn(u32) -> Duration + Send + 'static,
+        changed: impl Fn() + Send + 'static,
+    ) -> Socket {
+        Socket::start(base, path, size, None, term, delay, changed)
+    }
+
+    /// [`Socket::open`] that types `initial` into the shell once, the first time the server says `ready` and never again after
+    /// a reconnect (`initialInput`: the setup terminal shows the installer's command, without Enter, for the user to read).
+    pub fn open_typing(
+        base: &str,
+        path: &str,
+        size: (u16, u16),
+        initial: &str,
+        term: Arc<Terminal>,
+        changed: impl Fn() + Send + 'static,
+    ) -> Socket {
+        Socket::start(base, path, size, Some(initial.as_bytes().to_vec()), term, reconnect_delay, changed)
+    }
+
+    fn start(
+        base: &str,
+        path: &str,
         (cols, rows): (u16, u16),
+        initial: Option<Vec<u8>>,
         term: Arc<Terminal>,
         delay: impl Fn(u32) -> Duration + Send + 'static,
         changed: impl Fn() + Send + 'static,
@@ -104,7 +131,7 @@ impl Socket {
         let status = Arc::new(Mutex::new(Status::Connecting));
         let (base, path, shared) = (base.to_string(), path.to_string(), status.clone());
         std::thread::spawn(move || {
-            let mut keep = Keep { cols, rows, pending: Vec::new(), pending_bytes: 0 };
+            let mut keep = Keep { cols, rows, pending: Vec::new(), pending_bytes: 0, initial };
             let set = |s: Status| {
                 *shared.lock().unwrap() = s;
                 changed();
@@ -281,6 +308,9 @@ fn serve(
                             let _ = ws.send(Message::binary(chunk));
                         }
                         keep.pending_bytes = 0;
+                        if let Some(first) = keep.initial.take().filter(|b| !b.is_empty()) {
+                            let _ = ws.send(Message::binary(first));
+                        }
                     }
                     Some("cleared") => {
                         term.reset();
@@ -323,7 +353,7 @@ mod tests {
     // (Not a socket test: whether input reaches `serve` before or after `ready` is a race that changes nothing for the shell.)
     #[test]
     fn what_is_kept_before_ready_is_at_most_4096_bytes() {
-        let mut keep = Keep { cols: 80, rows: 24, pending: Vec::new(), pending_bytes: 0 };
+        let mut keep = Keep { cols: 80, rows: 24, pending: Vec::new(), pending_bytes: 0, initial: None };
         keep.hold(vec![b'a'; MAX_PENDING_INPUT - 100]);
         keep.hold(vec![b'b'; 200]);
         keep.hold(vec![b'c'; 50]);

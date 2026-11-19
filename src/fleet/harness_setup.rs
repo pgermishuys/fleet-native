@@ -263,6 +263,14 @@ impl State {
                     });
                 } else {
                     let terminal_id = (scene == Scene::RowsFound).then(|| "setup-1".to_string());
+                    if scene == Scene::RowsFound {
+                        // The shell as the server sends it: a prompt with the installer typed after it and no Enter.
+                        let typed = format!("demo $ {command}");
+                        self.terminal.replay(100, 14, typed.as_bytes());
+                        self.terminal.replaying = false;
+                        self.terminal.setup = terminal_id.clone();
+                        self.terminal.focused = true;
+                    }
                     rows.active = Some(super::harness_setup_rows::Active {
                         kind,
                         action: super::harness_setup_rows::Action::Install,
