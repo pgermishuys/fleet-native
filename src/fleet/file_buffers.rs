@@ -266,6 +266,17 @@ impl FileBuffers {
         true
     }
 
+    /// The editor spike's way in (piece P): `f` edits the lines in place and says whether it changed them, which moves the revision
+    /// so the colours and the stripe follow. Piece Q puts the buffer's own edits (dirty, the agent's changes out of history) here.
+    pub fn edit_lines<R>(&mut self, machine: &str, session: &str, path: &str, f: impl FnOnce(&mut Vec<String>) -> (R, bool)) -> Option<R> {
+        let buffer = self.buffers.get_mut(&key(machine, session, path)).filter(|b| b.read)?;
+        let (out, changed) = f(&mut buffer.lines);
+        if changed {
+            buffer.rev += 1;
+        }
+        Some(out)
+    }
+
     /// The buffer for a file, made (loading) if it isn't open yet (`ensure`).
     pub fn ensure(&mut self, machine: &str, session: &str, path: &str) -> &Buffer {
         self.buffers.entry(key(machine, session, path)).or_default()

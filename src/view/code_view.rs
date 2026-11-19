@@ -19,9 +19,9 @@ use std::rc::Rc;
 pub const LINE_H: f32 = 20.0;
 /// The scrolling code: it takes the keyboard when a file is opened from Go to file or at a line (row 11.1).
 pub const CODE: &str = "file-code";
-const FONT: f32 = 12.5;
+pub(crate) const FONT: f32 = 12.5;
 /// One mono digit at 12.5 px (JetBrains Mono advances 0.6 em).
-const DIGIT_W: f32 = 7.5;
+pub(crate) const DIGIT_W: f32 = 7.5;
 /// `.cm-content`'s `padding: 6px 0`.
 const PAD_Y: f32 = 6.0;
 /// CodeMirror's tab size.
@@ -104,7 +104,7 @@ fn look(t: &Theme, kind: Syntax) -> Look {
 }
 
 /// The span of a highlight kind, in the line's own bytes.
-fn span_of(t: &Theme, paint: Paint, range: Range<usize>) -> Span {
+pub(crate) fn span_of(t: &Theme, paint: Paint, range: Range<usize>) -> Span {
     let mut s = Span::new(range.start, range.end);
     match paint {
         Paint::Color(c) => s.color = Some(c),
@@ -367,6 +367,12 @@ pub struct Marks {
     pub flash: Option<crate::fleet::file_live::Flash>,
     /// Find in a file's matches on the line, as ranges of the line as drawn, and whether each is the current one.
     pub finds: Vec<(Range<usize>, bool)>,
+    /// The editor spike's caret, selection and composition on the line (piece P), when it edits this file and has the keyboard.
+    pub edit: Option<super::code_edit::LineEdit>,
+    /// The editor spike edits this file: the text takes presses for the caret instead of selecting on its own.
+    pub editing: bool,
+    /// The width the caret's wrapped line was last laid out at.
+    pub text_w: f32,
 }
 
 type StripeKey = (String, String, String, u64, u64);
@@ -429,6 +435,18 @@ fn line_row(
     let font = mono(FONT, 400.0, 1.6);
     let Some(line) = lines.get(i) else { return row().w_full().h(LINE_H) };
     let (shown, spans) = draw_line(t, line, line_highlights(c, i, line.len()));
+    // The editor spike: the caret's place in the drawn text, with an input method's composition put in there.
+    let edit = marks.edit.as_ref();
+    let caret_at = edit.and_then(|e| e.caret).map(|b| shown_range(line, b..b).start);
+    let (shown, spans, caret_at) = match (edit.and_then(|e| e.preedit.as_ref()), caret_at) {
+        (Some(p), Some(at)) => {
+            let (shown, spans, at) = super::code_edit::with_preedit(t, shown, spans, at, p);
+            (shown, spans, Some(at))
+        }
+        _ => (shown, spans, caret_at),
+    };
+    // CodeMirror's active line is the caret's.
+    let active = active || caret_at.is_some();
     let n = i as u32 + 1;
     let is_picked = picked.is_some_and(|r| r.contains(n));
     let (number_fill, number_ink, number_weight) = if is_picked {
@@ -479,14 +497,15 @@ fn line_row(
             .iter()
             .filter(|(r, _)| r.end > from)
             .map(|(r, now)| super::file_find::highlight(t, r.start.max(from) - from..r.end - from, *now));
+        let selected = edit.and_then(|e| e.selected.as_ref()).and_then(|r| super::code_edit::selection_highlight(t, line, r, from));
         text(shown)
             .key(format!("code-text-{}", i + 1))
-            .selectable(true)
+            .selectable(!marks.editing)
             .selection_color(t.accent.alpha(0.3))
             .font(font)
             .color(t.text)
             .spans(spans)
-            .text_highlights(found)
+            .text_highlights(selected.into_iter().chain(found))
     };
     // `.cm-activeLine`: the line a file was opened at, 3 % of `--text` over the code (the number's own fill stays opaque); a picked
     // line takes the pick's fill instead.
@@ -500,13 +519,15 @@ fn line_row(
         Color::TRANSPARENT
     };
     if !wrap {
-        return row()
-            .w_full()
-            .h(LINE_H)
-            .fill(line_fill)
-            .items_center()
-            .child(number)
-            .child(code(shown, spans, 0).single_line().pl(6.0).pr(2.0));
+        let text_el = code(shown.clone(), spans, 0).single_line().pl(6.0).pr(2.0);
+        let code_el = if marks.editing {
+            let caret =
+                caret_at.map(|at| super::code_edit::caret(t, super::code_edit::TEXT_X + super::code_edit::x_of(&shown, at) - 1.0, 0));
+            super::code_edit::on_press(row().h(LINE_H).items_center().child(text_el).children(caret), path.to_string(), i, false)
+        } else {
+            text_el
+        };
+        return row().w_full().h(LINE_H).fill(line_fill).items_center().child(number).child(code_el);
     }
     // Rune has no negative text indent, so the indent is a column of its own and the text wraps beside it: the rows it wraps onto
     // start under the indent (CodeMirror's start two columns further in).
@@ -526,7 +547,25 @@ fn line_row(
     if hang > 0 {
         body = body.child(el().key(format!("code-hang-{}", i + 1)).w(hang as f32 * DIGIT_W).h(LINE_H));
     }
-    let wrapped = code(rest, spans, hang).wrap_anywhere().grow(1.0).shrink().min_w(0.0);
+    let mut wrapped = code(rest.clone(), spans, hang).wrap_anywhere().grow(1.0).shrink().min_w(0.0);
+    if marks.editing {
+        if let Some(at) = caret_at {
+            // The caret's row and place come from Rune's measure of the text at the width it was last laid out at.
+            let (row_i, x) = if at < hang {
+                (0, super::code_edit::x_of(&shown, at))
+            } else {
+                let (r, x) = super::code_edit::wrapped_at(&rest, at - hang, marks.text_w.max(1.0));
+                (r, hang as f32 * DIGIT_W + x)
+            };
+            body = body.child(super::code_edit::caret(t, super::code_edit::TEXT_X + x - 1.0, row_i));
+            wrapped = wrapped.on_layout(|s: &mut State, r: [f32; 4]| {
+                if (s.code_edit.text_w - r[2]).abs() > 0.5 {
+                    s.code_edit.text_w = r[2];
+                }
+            });
+        }
+        body = super::code_edit::on_press(body, path.to_string(), i, true);
+    }
     row().w_full().min_h(LINE_H).fill(line_fill).items_start().child(number).child(body.child(wrapped))
 }
 
@@ -542,7 +581,9 @@ pub fn code_view(s: &State, t: &Theme, machine: &str, session: &str, path: &str,
     let stripe = stripe_lines(s, machine, session, path, buffer);
     // The rows near the window are kept while this stays the same: a flash changes it a hundred times over its second and a half.
     let flash = s.file_live.flashing(machine, session, path, s.clock).map(|f| (f.progress * 100.0) as u32);
-    let version = (path, buffer.rev(), wrap, picked, hash_of(&format!("{stripe:?}")), flash, s.file_find.stamp(session, path));
+    let editing = s.code_edit.on && s.code_edit_target().is_some_and(|(m, se, p)| m == machine && se == session && p == path);
+    let edit_stamp = editing.then(|| (s.code_edit.stamp, s.code_edit.focused, s.code_edit.text_w.to_bits()));
+    let version = (path, buffer.rev(), wrap, picked, hash_of(&format!("{stripe:?}")), flash, s.file_find.stamp(session, path), edit_stamp);
     let owner = path.to_string();
     let rows = col()
         .key("file-code-lines")
@@ -574,8 +615,15 @@ pub fn code_view(s: &State, t: &Theme, machine: &str, session: &str, path: &str,
                         .is_some_and(|(se, pa, n)| *se == session_id && *pa == file && *n as usize == i + 1);
                     let line = buffer.lines().get(i).map_or("", String::as_str);
                     let finds = super::file_find::finds(s, &session_id, &file, i, &|r| shown_range(line, r));
-                    let marks =
-                        Marks { stripe: stripe.clone(), flash: s.file_live.flashing(&machine_id, &session_id, &file, s.clock), finds };
+                    let editor = s.code_edit.editor_of(&machine_id, &session_id, &file);
+                    let marks = Marks {
+                        stripe: stripe.clone(),
+                        flash: s.file_live.flashing(&machine_id, &session_id, &file, s.clock),
+                        finds,
+                        edit: editor.filter(|_| s.code_edit.focused).map(|e| super::code_edit::line_edit(e, buffer.lines(), i)),
+                        editing,
+                        text_w: s.code_edit.text_w,
+                    };
                     line_row(&theme, &colours, buffer, &file, i, gutter, wrap, marked, s.file_pick(&machine_id, &session_id, &file), &marks)
                 }
                 None => row().w_full().h(LINE_H),
@@ -583,7 +631,15 @@ pub fn code_view(s: &State, t: &Theme, machine: &str, session: &str, path: &str,
         )
         .virtual_rows_version(version);
     // Focusable, so a press on the numbers can give it the keyboard and Esc reaches it; no ring (CodeMirror's has none).
-    let view = col().key(CODE).focusable(true).w_full().grow(1.0).shrink().min_h(0.0);
+    let mut view = col().key(CODE).focusable(true).w_full().grow(1.0).shrink().min_h(0.0);
+    if editing {
+        // The editor spike (piece P): the view owns its keyboard, as CodeMirror's content element does.
+        // CodeMirror's content element shows no ring when the keyboard is in it; Rune draws one once keys are used.
+        view = view
+            .focus_ring(0.0, 0.0, Color::TRANSPARENT)
+            .on_key(|s: &mut State, ev: &rune::KeyEvent, tx| s.code_edit_key(ev, tx))
+            .on_layout(|s: &mut State, r: [f32; 4]| s.code_edit.view_h = r[3]);
+    }
     // Wrapped, there is nothing to scroll sideways.
     (if wrap { view.scroll(ScrollSpec { stick_bottom: false }) } else { view.scroll_xy() }).child(rows)
 }

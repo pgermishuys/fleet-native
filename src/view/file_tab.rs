@@ -204,6 +204,9 @@ pub fn file_tab(s: &State, t: &Theme) -> El {
             Some(buffer) => body.child(diff_view(s, t, &machine, &session, &path, buffer, wrap)),
             None => body,
         },
+        Some(Status::Ready) if s.code_edit.input.as_ref().is_some_and(|(f, _)| f.2 == path) => {
+            body.child(super::code_input_spike::input_view(s, t, &path))
+        }
         Some(Status::Ready) => body.children(super::file_find::panel(s, t)).child(code_view(s, t, &machine, &session, &path, wrap)),
         None => body,
     };

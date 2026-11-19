@@ -115,6 +115,9 @@ When none answers, the status bar says where it looked. With no Fleet found the 
 The window opens at the desktop app's size (1360 x 880, no smaller than 720 x 480) and follows the
 system's light or dark theme.
 
+`FLEET_NATIVE_EDITOR_SPIKE=1` lets you type in a file tab's code (the editor spike of component 11, piece P): caret, selection, undo and
+redo, cut, copy and paste, the input method. Nothing is saved yet. `fleet-native --bench-editor` times it on a file of 20,000 lines.
+
 ## What works
 
 | Part | What it does |

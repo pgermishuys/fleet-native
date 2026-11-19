@@ -184,3 +184,70 @@ fn events(name: &str, paragraphs: bool) {
     }
     report(name, times);
 }
+
+/// `fleet-native --bench-editor`: the editor spike (component 11, piece P) on the generated file of twenty thousand lines, both ways:
+/// the editor the app draws over `virtual_rows` (B) and the whole file in one `text_input` (A). Each key is one frame, timed from the
+/// key to the end of its frame's layout: what a keystroke costs before drawing.
+pub fn editor() {
+    use crate::mock::code_edit::Spike;
+    use rune::{Key, KeyEvent, Mods};
+    println!("| case | frames | mean ms | p50 | p95 | p99 | max | over 8 ms | over 16.7 ms |");
+    println!("|---|--:|--:|--:|--:|--:|--:|--:|--:|");
+    let key = |rt: &mut Runtime<State>, k: Key, mods: Mods, times: &mut Vec<f64>| {
+        let start = Instant::now();
+        rt.key(KeyEvent { key: k, mods });
+        rt.frame(FRAME);
+        times.push(start.elapsed().as_secs_f64() * 1000.0);
+    };
+    let ctrl =
+        if cfg!(target_os = "macos") { Mods { cmd: true, ..Mods::default() } } else { Mods { cmd: true, ctrl: true, ..Mods::default() } };
+    for (way, spike, wrap) in [("B", Spike::Big, false), ("B wrapped", Spike::Big, true), ("A", Spike::InputBig, true)] {
+        let mut rt = crate::terminal_hooks(App::new(spec())).headless_runtime(SIZE, Env::new(true, 1.0));
+        rt.frame(0.0);
+        rt.frame(FRAME);
+        let mut times = Vec::new();
+        let start = Instant::now();
+        rt.update(move |s, _| {
+            s.sheet_w = 1400.0;
+            s.show_editor_spike(spike, true);
+            if wrap && spike == Spike::Big {
+                s.sidebar.save_file_wrap(crate::mock::code_edit::BIG_PATH, true);
+            }
+        });
+        rt.frame(FRAME);
+        times.push(start.elapsed().as_secs_f64() * 1000.0);
+        for _ in 0..30 {
+            timed(&mut rt, &mut times);
+        }
+        report(&format!("{way}: open, 0.5 s"), times);
+        let mut times = Vec::new();
+        for c in "  # a comment typed at line 12,345, one key a frame, as a fast typist's keys come".chars() {
+            key(&mut rt, Key::Text(c.to_string()), Mods::default(), &mut times);
+        }
+        report(&format!("{way}: type 80 characters"), times);
+        let mut times = Vec::new();
+        for _ in 0..300 {
+            key(&mut rt, Key::Down, Mods::default(), &mut times);
+        }
+        report(&format!("{way}: Down 300 times"), times);
+        let mut times = Vec::new();
+        for _ in 0..40 {
+            key(&mut rt, Key::PageDown, Mods::default(), &mut times);
+        }
+        report(&format!("{way}: Page Down 40 times"), times);
+        let mut times = Vec::new();
+        for _ in 0..10 {
+            key(&mut rt, Key::Command('z'), ctrl, &mut times);
+            key(&mut rt, Key::Command('z'), Mods { shift: true, ..ctrl }, &mut times);
+        }
+        report(&format!("{way}: undo and redo 10 times"), times);
+        let mut times = Vec::new();
+        for _ in 0..5 {
+            swipe(&mut rt, 1800.0, 1.0, &mut times);
+        }
+        for _ in 0..5 {
+            swipe(&mut rt, -1800.0, 1.0, &mut times);
+        }
+        report(&format!("{way}: scroll 10 s"), times);
+    }
+}
