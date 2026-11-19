@@ -6,8 +6,9 @@
 use crate::State;
 use crate::conv::file_language::language_for;
 use crate::fleet::file_buffers::Buffer;
+use crate::fleet::file_lines::{LineRange, SelectedText, text_line};
 use crate::theme::{Theme, mono};
-use rune::{Color, El, GrowthSpec, ScrollSpec, Span, col, el, row, text};
+use rune::{Color, Drag, El, GrowthSpec, Phase, ScrollSpec, Span, col, el, row, text};
 use rune_kit::syntax::{Highlight, Paint, Syntax, highlight};
 use std::cell::RefCell;
 use std::ops::Range;
@@ -229,11 +230,34 @@ pub fn hang_of(shown: &str) -> usize {
     shown.bytes().take_while(|b| *b == b' ').count().min(MAX_HANG)
 }
 
-fn line_row(t: &Theme, c: &Coloured, buffer: &Buffer, i: usize, gutter: f32, wrap: bool, active: bool) -> El {
+/// One line: its number, which picks it (a press, Shift, a drag down the numbers), and its code. `picked` lines are filled `--accent`
+/// 14 % across, their number `--accent` 600 (`.cm-picked-line`, `.cm-picked-gutter`); `active` is the line a file was opened at.
+#[allow(clippy::too_many_arguments)]
+fn line_row(
+    t: &Theme,
+    c: &Coloured,
+    buffer: &Buffer,
+    path: &str,
+    i: usize,
+    gutter: f32,
+    wrap: bool,
+    active: bool,
+    picked: Option<LineRange>,
+) -> El {
     let lines = buffer.lines();
     let font = mono(FONT, 400.0, 1.6);
     let Some(line) = lines.get(i) else { return row().w_full().h(LINE_H) };
     let (shown, spans) = draw_line(t, line, line_highlights(c, i, line.len()));
+    let n = i as u32 + 1;
+    let is_picked = picked.is_some_and(|r| r.contains(n));
+    let (number_fill, number_ink, number_weight) = if is_picked {
+        (t.mix(t.accent, t.panel_bg, 0.14), t.accent, 600.0)
+    } else if active {
+        (t.panel_bg, t.text, 400.0)
+    } else {
+        (t.panel_bg, t.muted.alpha(0.7), 400.0)
+    };
+    let owner = path.to_string();
     let mut number = row()
         .key(format!("code-no-{}", i + 1))
         .w(gutter)
@@ -243,8 +267,18 @@ fn line_row(t: &Theme, c: &Coloured, buffer: &Buffer, i: usize, gutter: f32, wra
         .justify_end()
         .items_center()
         // Opaque, so code scrolled sideways doesn't show through the numbers.
-        .fill(t.panel_bg)
-        .child(text((i + 1).to_string()).font(font).color(if active { t.text } else { t.muted.alpha(0.7) }).single_line());
+        .fill(number_fill)
+        .child(text(n.to_string()).font(mono(FONT, number_weight, 1.6)).color(number_ink).single_line())
+        // `onNumberMouseDown`: the press picks, and while the button is down the line under the pointer extends the pick. The pointer is
+        // placed by whole lines from the pressed one; wrapped lines are taller, so there the count runs ahead (docs/RUNE.md).
+        .on_drag(move |s: &mut State, d: &mut Drag, tx| match d.phase {
+            Phase::Down => d.data = s.press_line_number(&owner, n, tx.mods().shift, tx) as f32,
+            Phase::Move => {
+                let over = (n as f32 + (d.y / LINE_H).floor()).max(1.0) as u32;
+                s.drag_line_number(&owner, d.data as u32, over);
+            }
+            Phase::Up => {}
+        });
     if !wrap {
         number = number.sticky_left(0.0);
     }
@@ -258,10 +292,23 @@ fn line_row(t: &Theme, c: &Coloured, buffer: &Buffer, i: usize, gutter: f32, wra
             .color(t.text)
             .spans(spans)
     };
-    // `.cm-activeLine`: the line a file was opened at, 3 % of `--text` over the code (the number's own fill stays opaque).
-    let wash = if active { t.wash(3.0) } else { rune::Color::TRANSPARENT };
+    // `.cm-activeLine`: the line a file was opened at, 3 % of `--text` over the code (the number's own fill stays opaque); a picked
+    // line takes the pick's fill instead.
+    let line_fill = if is_picked {
+        t.accent.alpha(0.14)
+    } else if active {
+        t.wash(3.0)
+    } else {
+        Color::TRANSPARENT
+    };
     if !wrap {
-        return row().w_full().h(LINE_H).items_center().fill(wash).child(number).child(code(shown, spans).single_line().pl(6.0).pr(2.0));
+        return row()
+            .w_full()
+            .h(LINE_H)
+            .fill(line_fill)
+            .items_center()
+            .child(number)
+            .child(code(shown, spans).single_line().pl(6.0).pr(2.0));
     }
     // Rune has no negative text indent, so the indent is a column of its own and the text wraps beside it: the rows it wraps onto
     // start under the indent (CodeMirror's start two columns further in).
@@ -282,7 +329,7 @@ fn line_row(t: &Theme, c: &Coloured, buffer: &Buffer, i: usize, gutter: f32, wra
         body = body.child(el().key(format!("code-hang-{}", i + 1)).w(hang as f32 * DIGIT_W).h(LINE_H));
     }
     let wrapped = code(rest, spans).wrap_anywhere().grow(1.0).shrink().min_w(0.0);
-    row().w_full().min_h(LINE_H).items_start().fill(wash).child(number).child(body.child(wrapped))
+    row().w_full().min_h(LINE_H).fill(line_fill).items_start().child(number).child(body.child(wrapped))
 }
 
 /// The viewport of lines for the buffer at (`machine`, `session`, `path`): scrolls both ways, builds the rows near the window only.
@@ -293,12 +340,24 @@ pub fn code_view(s: &State, t: &Theme, machine: &str, session: &str, path: &str,
     let colours = coloured(key, path, buffer.lines());
     let gutter = gutter_width(count);
     let (theme, machine_id, session_id, file) = (*t, machine.to_string(), session.to_string(), path.to_string());
-    let version = (path, buffer.rev(), wrap);
+    let picked = s.file_pick(machine, session, path);
+    let version = (path, buffer.rev(), wrap, picked);
+    let owner = path.to_string();
     let rows = col()
         .key("file-code-lines")
         .w_full()
         .py(PAD_Y)
         .selection_group(true)
+        // A selection counts as the lines it spans for the lines bar, and selecting text takes the pick away (rows 8.3, 8.4).
+        .on_selection_change(move |s: &mut State, change, _| match change.selection() {
+            Some(sel) => {
+                let (texts, _) = crate::fleet::review_pick::picked_texts(sel);
+                let texts: Vec<SelectedText> =
+                    texts.iter().filter_map(|t| Some(SelectedText { line: text_line(&t.key)?, start: t.start, end: t.end })).collect();
+                s.read_file_selection(&owner, &texts);
+            }
+            None => s.clear_file_selection_state(&owner),
+        })
         .growth(GrowthSpec::default())
         .virtual_rows(
             count,
@@ -312,12 +371,13 @@ pub fn code_view(s: &State, t: &Theme, machine: &str, session: &str, path: &str,
                         .shown_line
                         .as_ref()
                         .is_some_and(|(se, pa, n)| *se == session_id && *pa == file && *n as usize == i + 1);
-                    line_row(&theme, &colours, buffer, i, gutter, wrap, marked)
+                    line_row(&theme, &colours, buffer, &file, i, gutter, wrap, marked, s.file_pick(&machine_id, &session_id, &file))
                 }
                 None => row().w_full().h(LINE_H),
             },
         )
         .virtual_rows_version(version);
+    // Focusable, so a press on the numbers can give it the keyboard and Esc reaches it; no ring (CodeMirror's has none).
     let view = col().key(CODE).focusable(true).w_full().grow(1.0).shrink().min_h(0.0);
     // Wrapped, there is nothing to scroll sideways.
     (if wrap { view.scroll(ScrollSpec { stick_bottom: false }) } else { view.scroll_xy() }).child(rows)

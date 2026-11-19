@@ -66,6 +66,8 @@ mod tests_document;
 #[cfg(test)]
 mod tests_draft_row;
 #[cfg(test)]
+mod tests_file_lines;
+#[cfg(test)]
 mod tests_file_media;
 #[cfg(test)]
 mod tests_file_tab;
@@ -411,6 +413,8 @@ pub struct State {
     pub diff_contents: fleet::diff_contents::Contents,
     /// Open files' buffers, per machine, session and path (`fleet::file_buffers`).
     pub file_buffers: fleet::file_buffers::FileBuffers,
+    /// The open file tab's selected lines and its toast (`fleet::file_lines`); the picked lines are on the buffer.
+    pub file_lines: fleet::file_lines::FileLines,
     /// Which open files are read again, and when (`fleet::file_live`), and the git bases of the changed ones (`fleet::file_base`).
     pub file_live: fleet::file_live::Live,
     pub file_bases: fleet::file_base::Bases,
@@ -732,6 +736,7 @@ impl Default for State {
             diffs: Default::default(),
             diff_contents: Default::default(),
             file_buffers: Default::default(),
+            file_lines: Default::default(),
             file_live: Default::default(),
             file_browser: Default::default(),
             file_bases: Default::default(),
@@ -1541,6 +1546,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_review_focus(tx)
         | s.keep_changes_find(now, tx)
         | s.keep_review_toast(now, tx)
+        | s.keep_file_toast(now, tx)
         | s.keep_find_text(now, tx)
         | s.keep_go_to_file(now, tx);
     // The tick asks for the next frame first, so `keep_images` starts it in the same poll.
@@ -1689,6 +1695,7 @@ fn on_key(s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool {
     }
     if s.changes_find_key(ev, tx)
         || s.file_wrap_key(ev, tx)
+        || s.file_lines_key(ev, tx)
         || s.find_key(ev, tx)
         || view::permission::on_key(s, ev, tx)
         || view::question::on_key(s, ev, tx)
@@ -4428,6 +4435,12 @@ pub fn spec() -> AppSpec<State> {
             ("file-wrap-light", |s| s.show_file(mock::file_tab::Case::Wrap, false)),
             ("file-wrap-off", |s| s.show_file(mock::file_tab::Case::WrapOff, true)),
             ("file-wrap-off-light", |s| s.show_file(mock::file_tab::Case::WrapOff, false)),
+            ("file-lines", |s| s.show_file(mock::file_tab::Case::Lines, true)),
+            ("file-lines-light", |s| s.show_file(mock::file_tab::Case::Lines, false)),
+            ("file-lines-copied", |s| s.show_file(mock::file_tab::Case::LinesCopied, true)),
+            ("file-lines-copied-light", |s| s.show_file(mock::file_tab::Case::LinesCopied, false)),
+            ("file-lines-added", |s| s.show_file(mock::file_tab::Case::LinesAdded, true)),
+            ("file-lines-added-light", |s| s.show_file(mock::file_tab::Case::LinesAdded, false)),
             ("file-markdown", |s| s.show_file(mock::file_tab::Case::Markdown, true)),
             ("file-markdown-light", |s| s.show_file(mock::file_tab::Case::Markdown, false)),
             ("file-image", |s| s.show_file(mock::file_tab::Case::Image, true)),

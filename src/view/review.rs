@@ -64,22 +64,9 @@ pub fn review(s: &State, t: &Theme) -> El {
         ));
     }
     if let Some((words, _)) = &s.review.toast {
-        review = review.child(toast(t, words, picked.is_some()));
+        review = review.child(super::lines_bar::toast(t, "review-toast", words, picked.is_some()));
     }
     review
-}
-
-/// `.review__toast`: centred 18 px above the bottom (58 with the bar up), padding `7 12`, radius 9, `--text` on `--panel-bg`, 12.5/500.
-/// It appears at once; Fleet's 160 ms rise isn't drawn.
-fn toast(t: &Theme, words: &str, lifted: bool) -> El {
-    row().key("review-toast").role("status").pin(Some(0.0), None, Some(0.0), Some(if lifted { 58.0 } else { 18.0 })).justify_center().child(
-        row()
-            .px(12.0)
-            .py(7.0)
-            .radius(9.0)
-            .fill(t.text)
-            .child(text(words.to_string()).font(sans(12.5, 500.0, 1.4)).color(t.panel_bg).single_line()),
-    )
 }
 
 /// `.review__notice`: a revert that did nothing or failed says so above the files, with Dismiss.
