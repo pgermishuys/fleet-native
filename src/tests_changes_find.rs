@@ -177,7 +177,7 @@ fn searches_every_file_itself_when_the_machine_cant_say_an_older_fleet_and_for_t
         rt.frame(FRAME);
     }
     assert!(asked.lock().unwrap().searches.is_empty(), "git folds ASCII letters only: the machine is not asked");
-    assert!(asked.lock().unwrap().files.contains(&"f8.ts".to_string()), "every file loads instead");
+    asked_for(&mut rt, &queue, &asked, "f8.ts", "every file loads instead");
     assert_eq!(rt.state.changes_find_count_label(), "1 of 1");
 
     // An older Fleet answers 404: the same, for an ASCII query.
@@ -186,7 +186,13 @@ fn searches_every_file_itself_when_the_machine_cant_say_an_older_fleet_and_for_t
     type_query(&mut rt, "needle");
     found(&mut rt, &queue, "the match in the last file", 1);
     assert_eq!(asked.lock().unwrap().searches, ["needle"]);
-    assert!(asked.lock().unwrap().files.contains(&"f8.ts".to_string()));
+    asked_for(&mut rt, &queue, &asked, "f8.ts", "every file loads instead");
+}
+
+/// Waits for find to ask for `file`. The count says "1 of 1" as soon as one file holds the match, while the others can still be
+/// on their way, so a file that was asked for has to be waited for, not looked for once.
+fn asked_for(rt: &mut Rt, queue: &Receiver<Job>, asked: &Arc<Mutex<Asked>>, file: &str, what: &str) {
+    settled(rt, queue, what, |_| asked.lock().unwrap().files.iter().any(|f| f == file));
 }
 
 // ChangesReview.test.ts: "searches a collapsed file, opens it on the match, and says which collapsed files it can't search"
