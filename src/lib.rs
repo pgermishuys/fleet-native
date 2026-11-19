@@ -248,11 +248,11 @@ mod tests_settings_permissions;
 #[cfg(test)]
 mod tests_settings_permissions_more;
 #[cfg(test)]
+mod tests_settings_plugins;
+#[cfg(test)]
 mod tests_settings_skills;
 #[cfg(test)]
 mod tests_settings_skills_catalog;
-#[cfg(test)]
-mod tests_settings_plugins;
 #[cfg(test)]
 mod tests_settings_storage;
 #[cfg(test)]
