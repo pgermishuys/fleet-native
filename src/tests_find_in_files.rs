@@ -91,7 +91,7 @@ fn opens_a_clicked_line_in_a_preview_tab_and_asks_the_editor_to_go_to_it() {
     rt.frame(FRAME);
     assert_eq!(file_tabs(&rt), [(PAGINATE.to_string(), true, crate::fleet::canvases::FileView::Edit)]);
     let session = rt.state.files_session();
-    assert_eq!(rt.state.find_text.opened_at.take_focus(&session, PAGINATE), Some(Some(4)));
+    assert_eq!(rt.state.go_to_file.take_focus(&session, PAGINATE), Some(Some(4)));
     assert!(rt.state.content_open, "the right panel shows");
 }
 
@@ -117,7 +117,7 @@ fn steps_with_the_arrow_keys_and_opens_the_chosen_line_on_enter() {
     press(&mut rt, Key::Enter);
     let session = rt.state.files_session();
     // The lines shown are docs 3, page_size 1 and 3, then paginate 1, 4, 7: five steps from the first is paginate's line 7.
-    assert_eq!(rt.state.find_text.opened_at.take_focus(&session, PAGINATE), Some(Some(7)));
+    assert_eq!(rt.state.go_to_file.take_focus(&session, PAGINATE), Some(Some(7)));
     assert_eq!(file_tabs(&rt).len(), 1);
 }
 
@@ -128,7 +128,7 @@ fn enter_opens_the_first_line_when_none_was_chosen() {
     click(&mut rt, "files-search");
     press(&mut rt, Key::Enter);
     let session = rt.state.files_session();
-    assert_eq!(rt.state.find_text.opened_at.take_focus(&session, "docs/pagination.md"), Some(Some(3)));
+    assert_eq!(rt.state.go_to_file.take_focus(&session, "docs/pagination.md"), Some(Some(3)));
 }
 
 #[test]

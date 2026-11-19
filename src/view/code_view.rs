@@ -15,6 +15,8 @@ use std::rc::Rc;
 
 /// A line: 12.5 px at CodeMirror's 1.6.
 pub const LINE_H: f32 = 20.0;
+/// The scrolling code: it takes the keyboard when a file is opened from Go to file or at a line (row 11.1).
+pub const CODE: &str = "file-code";
 const FONT: f32 = 12.5;
 /// One mono digit at 12.5 px (JetBrains Mono advances 0.6 em).
 const DIGIT_W: f32 = 7.5;
@@ -227,7 +229,7 @@ pub fn hang_of(shown: &str) -> usize {
     shown.bytes().take_while(|b| *b == b' ').count().min(MAX_HANG)
 }
 
-fn line_row(t: &Theme, c: &Coloured, buffer: &Buffer, i: usize, gutter: f32, wrap: bool) -> El {
+fn line_row(t: &Theme, c: &Coloured, buffer: &Buffer, i: usize, gutter: f32, wrap: bool, active: bool) -> El {
     let lines = buffer.lines();
     let font = mono(FONT, 400.0, 1.6);
     let Some(line) = lines.get(i) else { return row().w_full().h(LINE_H) };
@@ -242,7 +244,7 @@ fn line_row(t: &Theme, c: &Coloured, buffer: &Buffer, i: usize, gutter: f32, wra
         .items_center()
         // Opaque, so code scrolled sideways doesn't show through the numbers.
         .fill(t.panel_bg)
-        .child(text((i + 1).to_string()).font(font).color(t.muted.alpha(0.7)).single_line());
+        .child(text((i + 1).to_string()).font(font).color(if active { t.text } else { t.muted.alpha(0.7) }).single_line());
     if !wrap {
         number = number.sticky_left(0.0);
     }
@@ -256,8 +258,10 @@ fn line_row(t: &Theme, c: &Coloured, buffer: &Buffer, i: usize, gutter: f32, wra
             .color(t.text)
             .spans(spans)
     };
+    // `.cm-activeLine`: the line a file was opened at, 3 % of `--text` over the code (the number's own fill stays opaque).
+    let wash = if active { t.wash(3.0) } else { rune::Color::TRANSPARENT };
     if !wrap {
-        return row().w_full().h(LINE_H).items_center().child(number).child(code(shown, spans).single_line().pl(6.0).pr(2.0));
+        return row().w_full().h(LINE_H).items_center().fill(wash).child(number).child(code(shown, spans).single_line().pl(6.0).pr(2.0));
     }
     // Rune has no negative text indent, so the indent is a column of its own and the text wraps beside it: the rows it wraps onto
     // start under the indent (CodeMirror's start two columns further in).
@@ -278,7 +282,7 @@ fn line_row(t: &Theme, c: &Coloured, buffer: &Buffer, i: usize, gutter: f32, wra
         body = body.child(el().key(format!("code-hang-{}", i + 1)).w(hang as f32 * DIGIT_W).h(LINE_H));
     }
     let wrapped = code(rest, spans).wrap_anywhere().grow(1.0).shrink().min_w(0.0);
-    row().w_full().min_h(LINE_H).items_start().child(number).child(body.child(wrapped))
+    row().w_full().min_h(LINE_H).items_start().fill(wash).child(number).child(body.child(wrapped))
 }
 
 /// The viewport of lines for the buffer at (`machine`, `session`, `path`): scrolls both ways, builds the rows near the window only.
@@ -302,12 +306,19 @@ pub fn code_view(s: &State, t: &Theme, machine: &str, session: &str, path: &str,
             // A row keeps its measured height by key: a wrapped row is measured again, not taken from the unwrapped one.
             move |_: &State, i| std::borrow::Cow::Owned(format!("code-line-{}{}", i + 1, if wrap { "w" } else { "" })),
             move |s: &State, i| match s.file_buffers.buffer(&machine_id, &session_id, &file) {
-                Some(buffer) => line_row(&theme, &colours, buffer, i, gutter, wrap),
+                Some(buffer) => {
+                    let marked = s
+                        .go_to_file
+                        .shown_line
+                        .as_ref()
+                        .is_some_and(|(se, pa, n)| *se == session_id && *pa == file && *n as usize == i + 1);
+                    line_row(&theme, &colours, buffer, i, gutter, wrap, marked)
+                }
                 None => row().w_full().h(LINE_H),
             },
         )
         .virtual_rows_version(version);
-    let view = col().key("file-code").w_full().grow(1.0).shrink().min_h(0.0);
+    let view = col().key(CODE).focusable(true).w_full().grow(1.0).shrink().min_h(0.0);
     // Wrapped, there is nothing to scroll sideways.
     (if wrap { view.scroll(ScrollSpec { stick_bottom: false }) } else { view.scroll_xy() }).child(rows)
 }

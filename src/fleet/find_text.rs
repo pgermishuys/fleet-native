@@ -231,8 +231,6 @@ pub struct FindText {
     pub expanded: Vec<String>,
     /// The line the arrow keys are on.
     pub active: Option<VisibleHit>,
-    /// The file and line the last opened hit asked the file view to show (`goToFile.focusOnOpen`).
-    pub opened_at: super::go_to_file::GoToFile,
     run: u64,
     due: Option<f64>,
     /// What the last `sync` looked at: when it changes the search starts again (the `watch` sources).
@@ -365,8 +363,7 @@ impl State {
     /// rendered view, and the right panel shows.
     pub fn open_hit(&mut self, path: &str, line: u32, tx: &mut Tx) {
         let session = self.files_session();
-        // `State` holds no Go to file store yet (11F adds it); the request waits here for the file view to take.
-        self.find_text.opened_at.ask_focus(&session, path, Some(line));
+        self.go_to_file.ask_focus(&session, path, Some(line));
         let view = super::canvases::has_rendered_view(path).then_some(super::canvases::FileView::Edit);
         self.open_file(&session, path, super::canvases::OpenFile { keep: false, view }, tx);
         self.set_content_open(true);
