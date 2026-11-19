@@ -5,6 +5,9 @@ pub mod appearance;
 pub mod appearance_cards;
 pub mod browser;
 pub mod built_in_skills;
+pub mod credentials;
+pub mod credentials_form;
+pub mod credentials_scene;
 pub mod dream_changes;
 pub mod dream_nightly;
 pub mod dreaming_panel;
@@ -270,6 +273,8 @@ pub fn detail(s: &State, t: &Theme) -> El {
         appearance::content(s, t)
     } else if *page == Page::Memory {
         memory::content(s, t)
+    } else if *page == Page::Credentials {
+        credentials::content(s, t)
     } else if *page == Page::Skills {
         col().w_full().gap(21.0).child(page_header(s, t, page)).child(skills_tools::content(s, t))
     } else if *page == Page::Harnesses {
