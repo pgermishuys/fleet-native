@@ -138,6 +138,15 @@ pub fn respond(stream: &mut TcpStream, status: impl std::fmt::Display, content_t
     let _ = stream.write_all(reply.as_bytes());
 }
 
+/// An address that answers nobody: the port stays bound for the whole run (so no other test's fake can be handed it, as
+/// it could after a bind-then-drop) and each call is closed unanswered.
+pub fn dead_address() -> String {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    std::thread::spawn(move || for _ in listener.incoming() {});
+    base
+}
+
 /// [`respond`] with a JSON body.
 pub fn respond_json(stream: &mut TcpStream, status: impl std::fmt::Display, body: &str) {
     respond(stream, status, "application/json", body);

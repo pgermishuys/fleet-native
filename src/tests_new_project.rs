@@ -194,10 +194,7 @@ fn new_project_dialog_starts_on_the_machine_youre_on_and_lets_you_pick_another()
 fn new_project_dialog_keeps_the_dialog_open_and_names_the_machine_when_it_cant_be_reached() {
     let home = Fake::start(201, CREATED);
     // A port nobody listens on.
-    let closed = {
-        let l = TcpListener::bind("127.0.0.1:0").unwrap();
-        format!("http://{}", l.local_addr().unwrap())
-    };
+    let closed = crate::test_http::dead_address();
     let mut r = Rig::new(&home);
     with_falcon(&mut r.rt, &closed);
     r.rt.update(|s, tx| s.new_project_on("m-falcon", tx));
