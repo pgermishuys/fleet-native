@@ -114,20 +114,30 @@ fn rig(status_kind: &str) -> Rig {
     });
     let mut r = Rig { rt, queue, fake };
     r.wait("the status and the harnesses", |s| {
-        s.updates.status.get("home").is_some_and(|x| x.status.is_some()) && !s.harness_list().all.is_empty() && s.harness_prefs().fetched
+        s.updates.status.get("home").is_some_and(|x| x.status.is_some()) && s.harness_prefs().fetched
+            // The fixture's own kinds, not just "not empty": a list that is something else must not end this wait.
+            && s.harness_list().all.iter().map(|h| h.kind.as_str()).eq(["opencode", "pi", "claude-code"])
     });
     r.frames();
     // The wait above is on state; the rows are drawn from it by frames, and on a loaded runner the layout can lag the state
-    // by more than two. Draw until the first harness's row is there, so a test reads a page that has been drawn.
-    let first = r.rt.state.harness_list().all.first().map(|h| format!("settings-row-harness-version-{}", h.kind)).unwrap_or_default();
+    // by more than two. Draw until every row the fixture lists is there, each with its summary: the keys come from the
+    // fixture, not from the state, so a wait on a state that isn't the fixture's yet can't pass for nothing. A test then
+    // reads a page that has been drawn.
+    let rows: Vec<String> = ["opencode", "pi", "claude-code"].iter().map(|k| format!("settings-row-harness-version-{k}")).collect();
     test_wait::until(
         &mut r,
         "the harness rows to be drawn",
         |r| {
             r.frames();
-            r.info(&first).is_some()
+            rows.iter().all(|k| r.info(k).is_some())
         },
-        |_| format!("no element keyed {first:?}"),
+        |r| {
+            let keys: Vec<_> = r.rt.elements().iter().filter_map(|e| e.key.clone()).filter(|k| k.contains("harness-version")).collect();
+            format!(
+                "rows drawn {keys:?}, harnesses in the state {:?}",
+                r.rt.state.harness_list().all.iter().map(|h| &h.kind).collect::<Vec<_>>()
+            )
+        },
     );
     r
 }
