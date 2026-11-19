@@ -242,6 +242,8 @@ mod tests_settings_memory;
 #[cfg(test)]
 mod tests_settings_memory_notes;
 #[cfg(test)]
+mod tests_settings_mods;
+#[cfg(test)]
 mod tests_settings_naming;
 #[cfg(test)]
 mod tests_settings_nav;
@@ -1598,6 +1600,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_summary(now, tx)
         | s.keep_settings_anchor(tx)
         | s.keep_memory(tx)
+        | s.keep_mods_runtime(tx)
         | s.keep_skills(tx)
         | s.keep_harnesses_page(tx)
         | s.keep_permissions_page(tx)
@@ -2294,6 +2297,46 @@ pub fn spec() -> AppSpec<State> {
             ("settings-plugin-github-off-light", |s| {
                 use view::settings::plugins_scene::{Look, scene};
                 scene(s, Look { dark: false, page: "plugin:github", off: &["github"], mods_on: false, status: None, none_installed: false })
+            }),
+            ("settings-mods-confirm", |s| {
+                use view::settings::plugins_scene::{ModsLook, mods_scene};
+                mods_scene(s, true, ModsLook::Confirm)
+            }),
+            ("settings-mods-confirm-light", |s| {
+                use view::settings::plugins_scene::{ModsLook, mods_scene};
+                mods_scene(s, false, ModsLook::Confirm)
+            }),
+            ("settings-mods-confirm-found", |s| {
+                use view::settings::plugins_scene::{ModsLook, mods_scene};
+                mods_scene(s, true, ModsLook::ConfirmFound)
+            }),
+            ("settings-mods-confirm-found-light", |s| {
+                use view::settings::plugins_scene::{ModsLook, mods_scene};
+                mods_scene(s, false, ModsLook::ConfirmFound)
+            }),
+            ("settings-mods-progress", |s| {
+                use view::settings::plugins_scene::{ModsLook, mods_scene};
+                mods_scene(s, true, ModsLook::Progress)
+            }),
+            ("settings-mods-progress-light", |s| {
+                use view::settings::plugins_scene::{ModsLook, mods_scene};
+                mods_scene(s, false, ModsLook::Progress)
+            }),
+            ("settings-mods-failed", |s| {
+                use view::settings::plugins_scene::{ModsLook, mods_scene};
+                mods_scene(s, true, ModsLook::Failed)
+            }),
+            ("settings-mods-failed-light", |s| {
+                use view::settings::plugins_scene::{ModsLook, mods_scene};
+                mods_scene(s, false, ModsLook::Failed)
+            }),
+            ("settings-mods-ready", |s| {
+                use view::settings::plugins_scene::{ModsLook, mods_scene};
+                mods_scene(s, true, ModsLook::Ready)
+            }),
+            ("settings-mods-ready-light", |s| {
+                use view::settings::plugins_scene::{ModsLook, mods_scene};
+                mods_scene(s, false, ModsLook::Ready)
             }),
             ("settings-plugin-mods", |s| {
                 use view::settings::plugins_scene::{Look, scene};

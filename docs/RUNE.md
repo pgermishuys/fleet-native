@@ -2066,3 +2066,8 @@ again (the rows on screen are rebuilt on every caret move, since `virtual_rows_v
 edit, colouring the first 128 KiB again, joining the lines and diffing them against the saved text for the stripe. All three are
 whole-file work that piece R can make incremental (colour from the edited line, diff only when the stripe shows).
 
+## Component 16, piece AE (Mods runtime panel)
+
+- **Text with a few words in the mono face** (the paths and commands in "Mods need Bun") is `rune::rich(all, vec![Span::new(a, b).mono().size(..).color(..)])`: the spans are byte ranges of the whole string, so build the string and the spans together from `(text, is_code)` parts. A paragraph with an inline *link* can't be one element: the link is its own pressable `row()` in a wrapping row beside the text before and after it, so a line break can fall between them but not inside the link.
+- **A test that waits for "the server answered a button"** can't wait for the request alone: the answer is taken on the UI thread after the thread's job is handed back. Wait for the next request the handler makes after it has set the state (here the preferences read that follows every Mods button), or for the state itself.
+- **`cargo test` of the lib with two rustc at once peaked at 3.9 GB** and the 4000M cap killed it (exit 143). `cargo test -j1` finished inside it in about 3.5 minutes.

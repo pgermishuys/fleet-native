@@ -174,6 +174,8 @@ pub struct SettingsNav {
     /// Folder sizes measured lately, per machine; they outlive the page so a return to Folders reuses them.
     pub storage_sizes: crate::fleet::settings::storage::SizeCache,
     /// Memory's search, add and edit forms and its folds.
+    /// The Bun Mods run on and the install, read from the machine shown while Plugins is open.
+    pub mods_runtime: crate::fleet::settings::mods_runtime::ModsRuntime,
     pub memory_ui: crate::fleet::settings::memory_notes::MemoryUi,
 }
 

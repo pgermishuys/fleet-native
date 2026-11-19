@@ -19,6 +19,10 @@ pub(crate) struct Fake {
     pub(crate) puts: Vec<(String, String)>,
     /// Keys the server refuses to save.
     pub(crate) refuse: Vec<String>,
+    /// Answers for other routes, by "METHOD /path": the status and the body (a test sets the ones it needs).
+    pub(crate) routes: HashMap<String, (u16, Value)>,
+    /// Every request, in order: method, path, body.
+    pub(crate) calls: Vec<(String, String, String)>,
 }
 
 pub(crate) type Shared = Arc<Mutex<Fake>>;
@@ -43,20 +47,24 @@ fn answer(mut stream: std::net::TcpStream, fake: Shared) {
     let (method, path) = (req.method.as_str(), req.path.as_str());
     let body = req.body;
     let mut f = fake.lock().unwrap();
-    let (status, reply) = if method == "GET" && path == "/api/preferences" {
-        ("200 OK", json!(f.prefs))
+    let routed = f.routes.get(&format!("{method} {path}")).cloned();
+    f.calls.push((method.to_string(), path.to_string(), String::from_utf8_lossy(&body).to_string()));
+    let (status, reply) = if let Some((code, body)) = routed {
+        (if code == 200 { "200 OK".to_string() } else { format!("{code} Error") }, body)
+    } else if method == "GET" && path == "/api/preferences" {
+        ("200 OK".to_string(), json!(f.prefs))
     } else if method == "PUT" && path.starts_with("/api/preferences/") {
         let key = path.trim_start_matches("/api/preferences/").replace("%2E", ".");
         let value = serde_json::from_slice::<Value>(&body).ok().and_then(|v| v["value"].as_str().map(str::to_string)).unwrap_or_default();
         f.puts.push((key.clone(), value.clone()));
         if f.refuse.contains(&key) {
-            ("500 Error", json!({ "error": "no" }))
+            ("500 Error".to_string(), json!({ "error": "no" }))
         } else {
             f.prefs.insert(key, value);
-            ("200 OK", json!({}))
+            ("200 OK".to_string(), json!({}))
         }
     } else {
-        ("200 OK", json!({}))
+        ("200 OK".to_string(), json!({}))
     };
     let reply = reply.to_string();
     let out = format!(

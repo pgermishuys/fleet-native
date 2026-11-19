@@ -188,10 +188,8 @@ impl State {
     pub fn set_plugin_enabled(&mut self, id: &str, enabled: bool) {
         let Some(plugin) = find(id) else { return };
         if plugin.own_switch {
-            // Turning Mods on asks about Bun first (piece AE builds the question); until then it can only be turned off.
-            if !enabled {
-                self.save_setting(MODS_KEY, "false");
-            }
+            // Turning Mods on asks about Bun first (`modsOwnSwitch.set`).
+            self.mods_switch(enabled);
             return;
         }
         if plugin.switchless {
