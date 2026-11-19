@@ -4,6 +4,7 @@
 pub mod appearance;
 pub mod appearance_cards;
 pub mod browser;
+pub mod built_in_skills;
 pub mod dream_changes;
 pub mod dream_nightly;
 pub mod dreaming_panel;

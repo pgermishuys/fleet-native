@@ -1,7 +1,7 @@
 //! A plugin's own page (`PluginPage.vue`): the breadcrumb, the header with its switch, the plugin's own settings while it is on
 //! (or a note while it is off), what it adds to Fleet, and where it comes from. It is read from the table in
 //! `fleet::settings::plugins`. Each plugin's own settings are its piece's: GitHub's connection page (`github_connect`), Mods (`mods_plugin`) and the
-//! Built-in skills tab (AK); until they are built the slot says so.
+//! Built-in skills tab (`built_in_skills`).
 use super::plugins::{built_in, glyph, own_panel, switch};
 use crate::State;
 use crate::fleet::settings::plugins::{self, Plugin};
@@ -101,13 +101,16 @@ fn heading_row(t: &Theme, key: &str, left: &str, right: String) -> El {
         .child(text(right).font(sans(rem(0.75), 400.0, 1.33)).color(t.muted))
 }
 
-/// The plugin's own settings slot: GitHub's connection page and Mods' box; the others say so until their piece draws them.
+/// The plugin's own settings slot: GitHub's connection page, Mods' box and the Built-in skills body.
 fn own_settings(s: &State, t: &Theme, p: &Plugin) -> El {
     if p.id == "github" {
         return super::github_connect::content(s, t);
     }
     if p.id == "mods" {
         return super::mods_plugin::page(t);
+    }
+    if p.id == "built-in-skills" {
+        return super::built_in_skills::body(s, t);
     }
     row()
         .key(format!("plugin-config-{}", p.id))

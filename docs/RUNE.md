@@ -2085,3 +2085,9 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **A cargo test build can pass 4000 M**: with the default job count the test build of this crate was OOM-killed twice in a 4000 M scope (exit 143, "Terminated", no error text; `journalctl --user` says `oom-kill`). `cargo test -j1` fits.
 - **A page that mirrors another keeps its own state struct**: Tools has `ToolsPage` beside `SkillsPage`, because Fleet unmounts the Tools section (and its install target) when you leave the tab; the shared picker takes the page by `Kind`.
 - **A test that presses two buttons in a row needs a frame between reading**: after `click` on a second card's Remove, `settle()` before reading the first card's label, or it still reads the old one.
+
+
+## Component 16, piece AK (Built-in skills page)
+
+- **`ElementInfo::text` is the text of a text element only.** A row that holds a text (a pill, a link) answers `""`; give the row `.label(words)` as well and tests read `label`. A text element with its own key can be read with `text`.
+- **A tab-sized page with eight cards and a diff** adds nothing to the build cost, but `cargo test` of the lib still peaks near 4000M with the default jobs; `CARGO_BUILD_JOBS=1` fits (as in piece AE).

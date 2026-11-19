@@ -210,6 +210,8 @@ mod tests_settings_appearance_page;
 #[cfg(test)]
 mod tests_settings_browser;
 #[cfg(test)]
+mod tests_settings_built_in;
+#[cfg(test)]
 mod tests_settings_dreaming;
 #[cfg(test)]
 mod tests_settings_general;
@@ -1606,6 +1608,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_memory(tx)
         | s.keep_mods_runtime(tx)
         | s.keep_skills(tx)
+        | s.keep_built_in(tx)
         | s.keep_harnesses_page(tx)
         | s.keep_permissions_page(tx)
         | s.keep_harness_strips(now, tx)
@@ -2470,6 +2473,24 @@ pub fn spec() -> AppSpec<State> {
             ("settings-mods-failed-light", |s| {
                 use view::settings::plugins_scene::{ModsLook, mods_scene};
                 mods_scene(s, false, ModsLook::Failed)
+            }),
+            ("settings-built-in-list", |s| {
+                view::settings::plugins_scene::built_in_scene(s, true, view::settings::plugins_scene::BuiltInLook::List)
+            }),
+            ("settings-built-in-list-light", |s| {
+                view::settings::plugins_scene::built_in_scene(s, false, view::settings::plugins_scene::BuiltInLook::List)
+            }),
+            ("settings-built-in-changed", |s| {
+                view::settings::plugins_scene::built_in_scene(s, true, view::settings::plugins_scene::BuiltInLook::Changed)
+            }),
+            ("settings-built-in-changed-light", |s| {
+                view::settings::plugins_scene::built_in_scene(s, false, view::settings::plugins_scene::BuiltInLook::Changed)
+            }),
+            ("settings-built-in-failed", |s| {
+                view::settings::plugins_scene::built_in_scene(s, true, view::settings::plugins_scene::BuiltInLook::Failed)
+            }),
+            ("settings-built-in-failed-light", |s| {
+                view::settings::plugins_scene::built_in_scene(s, false, view::settings::plugins_scene::BuiltInLook::Failed)
             }),
             ("settings-mods-ready", |s| {
                 use view::settings::plugins_scene::{ModsLook, mods_scene};
