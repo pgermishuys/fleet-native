@@ -39,9 +39,6 @@ pub struct BuiltInPage {
     pub action_error: Option<String>,
     /// The skill whose Fleet change is open.
     pub fleet_change: Option<FleetChange>,
-    /// The skill the Editor or History dialog was asked for (piece AL draws them).
-    pub editing: Option<String>,
-    pub history: Option<String>,
 }
 
 impl BuiltInPage {
@@ -79,7 +76,7 @@ impl State {
         self.rail == crate::Rail::Settings && matches!(&self.settings.page, Page::Plugin(id) if id == PLUGIN_ID)
     }
 
-    fn built_in_link(&self) -> Option<crate::fleet::link::Link> {
+    pub(crate) fn built_in_link(&self) -> Option<crate::fleet::link::Link> {
         let key = self.settings.choice.key(&self.machines).to_string();
         self.link_for_machine(&key).filter(|_| self.settings_target().is_some())
     }
@@ -129,7 +126,7 @@ impl State {
     }
 
     /// The server's answer for one skill goes into the page's list and the conversation's (8.73).
-    fn built_in_took(&mut self, skill: BuiltInSkill) {
+    pub(crate) fn built_in_took(&mut self, skill: BuiltInSkill) {
         if self.built_in_is_home() {
             self.skills_update(skill.clone());
         }
@@ -258,13 +255,13 @@ impl State {
         self.built_in_run(name, false);
     }
 
-    /// "Edit": the Editor dialog (piece AL) opens for this skill.
+    /// "Edit": the Editor dialog opens for this skill.
     pub fn built_in_edit(&mut self, name: &str) {
-        self.settings.built_in.editing = Some(name.to_string());
+        self.skill_editor_open(name, Default::default(), true);
     }
 
-    /// "History": the History dialog (piece AL) opens for this skill.
+    /// "History": the History dialog opens for this skill.
     pub fn built_in_history(&mut self, name: &str) {
-        self.settings.built_in.history = Some(name.to_string());
+        self.skill_history_open(name, true);
     }
 }

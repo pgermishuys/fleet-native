@@ -88,6 +88,7 @@ pub fn dialog(s: &State, t: &Theme) -> Option<Vec<El>> {
             close_button: !busy,
             click_outside: !busy,
             title_icon: None,
+            title_el: None,
             description_el: None,
             dismiss: Some(|s: &mut State| s.update_close()),
             max_height: None,

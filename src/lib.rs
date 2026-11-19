@@ -262,6 +262,8 @@ mod tests_settings_permissions_more;
 #[cfg(test)]
 mod tests_settings_plugins;
 #[cfg(test)]
+mod tests_settings_skill_dialogs;
+#[cfg(test)]
 mod tests_settings_skills;
 #[cfg(test)]
 mod tests_settings_skills_catalog;
@@ -2559,6 +2561,30 @@ pub fn spec() -> AppSpec<State> {
             ("settings-mods-failed-light", |s| {
                 use view::settings::plugins_scene::{ModsLook, mods_scene};
                 mods_scene(s, false, ModsLook::Failed)
+            }),
+            ("settings-skill-editor", |s| {
+                view::settings::skill_dialogs_scene::scene(s, true, view::settings::skill_dialogs_scene::Look::Editor)
+            }),
+            ("settings-skill-editor-light", |s| {
+                view::settings::skill_dialogs_scene::scene(s, false, view::settings::skill_dialogs_scene::Look::Editor)
+            }),
+            ("settings-skill-editor-changes", |s| {
+                view::settings::skill_dialogs_scene::scene(s, true, view::settings::skill_dialogs_scene::Look::EditorChanges)
+            }),
+            ("settings-skill-editor-changes-light", |s| {
+                view::settings::skill_dialogs_scene::scene(s, false, view::settings::skill_dialogs_scene::Look::EditorChanges)
+            }),
+            ("settings-skill-history", |s| {
+                view::settings::skill_dialogs_scene::scene(s, true, view::settings::skill_dialogs_scene::Look::History)
+            }),
+            ("settings-skill-history-light", |s| {
+                view::settings::skill_dialogs_scene::scene(s, false, view::settings::skill_dialogs_scene::Look::History)
+            }),
+            ("settings-skill-history-compare", |s| {
+                view::settings::skill_dialogs_scene::scene(s, true, view::settings::skill_dialogs_scene::Look::HistoryCompare)
+            }),
+            ("settings-skill-history-compare-light", |s| {
+                view::settings::skill_dialogs_scene::scene(s, false, view::settings::skill_dialogs_scene::Look::HistoryCompare)
             }),
             ("settings-built-in-list", |s| {
                 view::settings::plugins_scene::built_in_scene(s, true, view::settings::plugins_scene::BuiltInLook::List)

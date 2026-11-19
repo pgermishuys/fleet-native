@@ -183,6 +183,9 @@ pub struct SettingsNav {
     pub memory_ui: crate::fleet::settings::memory_notes::MemoryUi,
     /// What the Built-in skills page read from the machine shown, while it is open.
     pub built_in: crate::fleet::settings::built_in_skills::BuiltInPage,
+    /// The skill Editor and History dialogs; each opens from Settings' Edit and History, the Editor also from Improve.
+    pub editor: crate::fleet::settings::skill_editor::SkillEditor,
+    pub history: crate::fleet::settings::skill_history::SkillHistory,
 }
 
 impl SettingsNav {

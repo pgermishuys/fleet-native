@@ -234,13 +234,16 @@ fn a_failed_action_says_why_and_wins_over_the_load_error() {
 }
 
 #[test]
-fn edit_and_history_ask_for_their_dialog_and_leaving_the_page_forgets_them() {
+fn edit_and_history_open_their_dialog_for_that_skill_and_leaving_the_page_forgets_the_list() {
     let base = skills();
     let mut r = mount(vec![with(&base[0], json!({ "versionCount": 1 })), base[1].clone()]);
     click(&mut r.rt, "built-in-skill-edit-fleet-code-review");
+    assert!(r.rt.state.settings.editor.open && r.rt.state.settings.editor.name == "fleet-code-review");
+    // A dialog is modal: the History link sits under its scrim until the Editor closes.
+    r.rt.update(|s, _| s.skill_editor_close());
+    r.frames();
     click(&mut r.rt, "built-in-skill-history-fleet-code-review");
-    assert_eq!(r.rt.state.settings.built_in.editing.as_deref(), Some("fleet-code-review"));
-    assert_eq!(r.rt.state.settings.built_in.history.as_deref(), Some("fleet-code-review"));
+    assert!(r.rt.state.settings.history.open && r.rt.state.settings.history.name == "fleet-code-review");
     r.rt.update(|s, _| s.open_settings("plugins", None));
     r.frames();
     assert_eq!(r.rt.state.settings.built_in, Default::default());
