@@ -57,7 +57,7 @@ impl Page {
             Page::Updates => "Updates & about",
             Page::Credentials => "API keys",
             Page::Plugins => "Plugins",
-            Page::Plugin(_) => "Plugin",
+            Page::Plugin(id) => super::settings::plugins::find(id).map_or("Plugin", |p| p.name),
         }
     }
 
@@ -78,7 +78,7 @@ impl Page {
             Page::Plugins => {
                 "Add-ons that put things in Fleet: rail icons, settings pages and pickers. Turn one off and everything it adds goes with it."
             }
-            Page::Plugin(_) => "",
+            Page::Plugin(id) => super::settings::plugins::find(id).map_or("", |p| p.description),
         }
     }
 
@@ -148,6 +148,10 @@ pub struct SettingsNav {
     pub demo_open: bool,
     /// Preference keys whose save is under way: their switch shows the spinner and doesn't press (`saving`).
     pub saving: std::collections::BTreeSet<String>,
+    /// Plugins in the menu folded (`Some(true)`) or unfolded (`Some(false)`) by hand; `None` follows the open page.
+    pub plugins_folded: Option<bool>,
+    /// Scene and test only: the Plugins page as it is with no plugin installed.
+    pub plugins_none: bool,
     pub demo: crate::view::settings::kit_scene::Demo,
     /// What Harnesses keeps: the machine it asked, the checks under way, the switch being saved.
     pub harnesses: crate::fleet::settings::harnesses::HarnessesPage,
@@ -208,7 +212,7 @@ impl State {
     pub fn open_settings(&mut self, id: &str, anchor: Option<&str>) {
         self.enter_settings();
         self.settings.set(id, anchor);
-        if matches!(self.settings.page, Page::General | Page::Labs) {
+        if matches!(self.settings.page, Page::General | Page::Labs | Page::Plugins | Page::Plugin(_)) {
             self.refresh_preferences();
         }
     }

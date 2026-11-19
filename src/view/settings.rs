@@ -34,6 +34,9 @@ pub mod memory_notes;
 pub mod memory_row;
 pub mod permissions;
 pub mod permissions_rows;
+pub mod plugin_page;
+pub mod plugins;
+pub mod plugins_scene;
 pub mod skills_catalog;
 pub mod skills_installed;
 pub mod skills_tools;
@@ -84,17 +87,63 @@ fn heading(t: &Theme, words: &str) -> El {
     text(words.to_uppercase()).font(sans(rem(0.71429), 600.0, 1.3).tracking(0.5)).color(t.muted)
 }
 
-/// `.settings-nav__item`: 36 high, an icon and the title; the open page has the accent's border and fill.
+/// `.settings-nav__item`: 36 high, an icon and the title; the open page has the accent's border and fill. Plugins also carries
+/// the count and the fold button, and its children follow it.
 fn entry(s: &State, t: &Theme, page: &Page) -> El {
-    let on = s.settings.page.entry() == *page;
-    let ink = if on { t.text } else { t.muted };
+    // Only the entry that is the page lights: a plugin's page lights its child, not Plugins (`modelValue === item.id`).
+    let on = s.settings.page == *page;
     let to = page.id();
-    let mut it = row()
-        .key(format!("settings-nav-{}", page.id()))
+    let mut marks = if *page == Page::Updates { updates_marks(s, t) } else { Vec::new() };
+    if *page == Page::Plugins {
+        marks = plugins_marks(s, t);
+    }
+    let it = item(t, format!("settings-nav-{}", page.id()), page.title(), glyph(page), 16.0, 36.0, on, marks)
+        .on_press(move |s: &mut State| s.open_settings(&to, None));
+    if *page != Page::Plugins {
+        return it;
+    }
+    let it = it.pr(36.0);
+    // The fold button sits over the right end of the entry (`.settings-nav__fold`: 28 wide, 4 from the right).
+    let unfolded = s.plugins_unfolded();
+    let label = if unfolded { "Fold Plugins" } else { "Unfold Plugins" };
+    let fold = row()
+        .key("settings-nav-fold")
         .role("button")
-        .label(page.title())
+        .label(label)
+        .expanded(unfolded)
+        .absolute(s.sidebar_w - 24.0 - 32.0, 0.0)
+        .size(28.0, 36.0)
+        .center()
+        .cursor(Cursor::Pointer)
+        .focusable(true)
+        .focus_ring(2.0, 0.0, t.accent)
+        .child(icon(if unfolded { &CHEVRON_DOWN } else { &CHEVRON_RIGHT }, 14.0).color(t.muted))
+        .on_press(|s: &mut State| s.toggle_plugins_fold());
+    let mut block = col().w_full().gap(4.0).child(row().w_full().child(it).child(fold));
+    if unfolded {
+        for p in crate::fleet::settings::plugins::children(&s.pickers.prefs) {
+            let id = format!("plugin:{}", p.id);
+            let open = s.settings.page == Page::Plugin(p.id.to_string());
+            let child = item(t, format!("settings-nav-{id}"), p.nav_label, plugins::glyph(p.id), 15.0, 32.0, open, Vec::new())
+                .ml(14.0)
+                .w(s.sidebar_w - 24.0 - 14.0)
+                .on_press(move |s: &mut State| s.open_settings(&id, None));
+            block = block.child(child);
+        }
+    }
+    block
+}
+
+/// One menu item: the icon and the title, lit when it is the open page.
+#[allow(clippy::too_many_arguments)]
+fn item(t: &Theme, key: String, title: &'static str, glyph: &'static Icon, size: f32, min_h: f32, on: bool, marks: Vec<El>) -> El {
+    let ink = if on { t.text } else { t.muted };
+    let it = row()
+        .key(key)
+        .role("button")
+        .label(title)
         .w_full()
-        .min_h(36.0)
+        .min_h(min_h)
         .px(12.0)
         .gap(10.0)
         .center_y()
@@ -102,12 +151,16 @@ fn entry(s: &State, t: &Theme, page: &Page) -> El {
         .border(1.0, if on { t.accent.alpha(0.4) } else { rune::Color::TRANSPARENT })
         .cursor(Cursor::Pointer)
         .focus_ring(2.0, 2.0, t.accent)
-        .child(icon(glyph(page), 16.0).color(ink))
-        .child(text(page.title()).font(sans(rem(0.85714), 500.0, 1.4)).color(ink))
-        .children(if *page == Page::Updates { updates_marks(s, t) } else { Vec::new() })
-        .on_press(move |s: &mut State| s.open_settings(&to, None));
-    it = if on { it.fill(t.mix(t.accent, t.panel_bg, 0.12)) } else { it.hover(t.main_bg) };
-    it
+        .child(icon(glyph, size).color(ink))
+        .child(text(title).font(sans(rem(0.85714), 500.0, 1.4)).color(ink))
+        .children(marks);
+    if on { it.fill(t.mix(t.accent, t.panel_bg, 0.12)) } else { it.hover(t.main_bg) }
+}
+
+/// The count on Plugins (`ml-auto`, 11 px, `--muted`): how many plugins are on.
+fn plugins_marks(s: &State, t: &Theme) -> Vec<El> {
+    let n = crate::fleet::settings::plugins::count_on(&s.pickers.prefs);
+    vec![rune::el().grow(1.0).w(0.0), text(n.to_string()).key("settings-nav-count").font(sans(rem(0.78571), 400.0, 1.4)).color(t.muted)]
 }
 
 /// The dot and the badge on Updates & about: the dot while the shown machine has an update out, coming down or ready (accent,
@@ -214,6 +267,10 @@ pub fn detail(s: &State, t: &Theme) -> El {
         folders::content(s, t)
     } else if *page == Page::Machines {
         machines_page::content(s, t)
+    } else if *page == Page::Plugins {
+        plugins::content(s, t)
+    } else if let Page::Plugin(id) = page {
+        plugin_page::content(s, t, id)
     } else {
         col().w_full().gap(21.0).child(page_header(s, t, page)).child(not_yet(t, page))
     };
