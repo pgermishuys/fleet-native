@@ -115,7 +115,7 @@ impl State {
         });
     }
 
-    fn skills_link(&self) -> Option<crate::fleet::link::Link> {
+    pub(super) fn skills_link(&self) -> Option<crate::fleet::link::Link> {
         let key = self.settings.choice.key(&self.machines).to_string();
         self.link_for_machine(&key).filter(|_| self.settings_target().is_some())
     }
@@ -133,6 +133,7 @@ impl State {
         let was = self.settings.skills.inner;
         self.settings.skills.inner = inner;
         self.settings.skills.confirm_remove = None;
+        self.enter_skills_inner(was, inner);
         if inner == skills::Inner::Installed && was != inner {
             self.reload_skills();
         }

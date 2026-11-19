@@ -34,6 +34,7 @@ pub mod memory_notes;
 pub mod memory_row;
 pub mod permissions;
 pub mod permissions_rows;
+pub mod skills_catalog;
 pub mod skills_installed;
 pub mod skills_tools;
 pub mod updates;
