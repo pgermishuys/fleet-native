@@ -497,6 +497,7 @@ mod drafts;
 mod events;
 mod export;
 mod file_browser;
+mod file_buffer_edits;
 mod file_buffers;
 mod file_live;
 mod files;

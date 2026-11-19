@@ -2,6 +2,7 @@
 //! with CodeMirror's `EditorState`, `history()` and the default keymap): a caret and an anchor in a file kept as lines, every change
 //! one replacement of a range, and an undo history that groups typing as CodeMirror's does (a pause of 500 ms or a caret that moved
 //! starts a new step). Plain Rust: the view draws from it and the keys call it.
+use crate::conv::minimal_change::MinimalChange;
 use std::ops::Range;
 
 /// A place in the text: a line (0-based) and a byte inside it, always on a character boundary.
@@ -99,6 +100,25 @@ pub fn replace(lines: &mut Vec<String>, a: Pos, b: Pos, text: &str) -> Pos {
     };
     lines.splice(a.line..=b.line, made);
     end
+}
+
+/// The characters before `at`, a break counting one (the position `MinimalChange` speaks in).
+pub fn offset_of(lines: &[String], at: Pos) -> usize {
+    let before: usize = lines.iter().take(at.line).map(|l| l.chars().count() + 1).sum();
+    before + lines.get(at.line).map_or(0, |l| l[..at.byte.min(l.len())].chars().count())
+}
+
+/// The inverse of [`offset_of`]; past the end is the end.
+pub fn pos_of(lines: &[String], mut offset: usize) -> Pos {
+    for (i, l) in lines.iter().enumerate() {
+        let n = l.chars().count();
+        if offset <= n || i + 1 == lines.len() {
+            let byte = l.char_indices().nth(offset).map_or(l.len(), |(b, _)| b);
+            return Pos::new(i, byte);
+        }
+        offset -= n + 1;
+    }
+    Pos::default()
 }
 
 /// Where `text` inserted at `at` ends.
@@ -240,6 +260,26 @@ impl Editor {
         };
         self.caret = fit(self.caret);
         self.anchor = fit(self.anchor);
+    }
+
+    /// The text changed under the editor without it (the agent's edit on a clean buffer, `Transaction.remote`): the selection moves with
+    /// the change. The history is dropped: its steps name places in the text from before, and CodeMirror's rebases them, which this
+    /// model doesn't (a gap in docs/parity/11-files.md).
+    pub fn remote(&mut self, before: &[String], change: &MinimalChange, after: &[String]) {
+        let map = |p: Pos| pos_of(after, change.map(offset_of(before, p)));
+        self.anchor = map(self.anchor);
+        self.caret = map(self.caret);
+        self.goal = None;
+        self.undo.clear();
+        self.redo.clear();
+        self.preedit = None;
+    }
+
+    /// Makes `change` as one step of its own, never merged with the typing before it or after it (`isolateHistory`): "Use the agent's".
+    pub fn isolated(&mut self, lines: &mut Vec<String>, change: &MinimalChange, now: f64) {
+        let (a, b) = (pos_of(lines, change.from), pos_of(lines, change.to));
+        let before = (self.anchor, self.caret);
+        self.change_from(lines, a, b, &change.insert.join("\n"), Kind::Other, now, before);
     }
 
     pub fn set_caret(&mut self, at: Pos, extend: bool) {

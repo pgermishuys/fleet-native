@@ -615,7 +615,7 @@ pub fn code_view(s: &State, t: &Theme, machine: &str, session: &str, path: &str,
                         .is_some_and(|(se, pa, n)| *se == session_id && *pa == file && *n as usize == i + 1);
                     let line = buffer.lines().get(i).map_or("", String::as_str);
                     let finds = super::file_find::finds(s, &session_id, &file, i, &|r| shown_range(line, r));
-                    let editor = s.code_edit.editor_of(&machine_id, &session_id, &file);
+                    let editor = s.code_edit.is_over(&machine_id, &session_id, &file).then_some(&buffer.editor);
                     let marks = Marks {
                         stripe: stripe.clone(),
                         flash: s.file_live.flashing(&machine_id, &session_id, &file, s.clock),

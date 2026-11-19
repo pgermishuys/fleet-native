@@ -1,5 +1,5 @@
 //! The editor spike in the app (component 11, piece P): the code view of the open file tab takes the keyboard, the pointer, pastes and
-//! the input method, and edits the file's lines through `code_edit::Editor`. Off unless `FLEET_NATIVE_EDITOR_SPIKE=1` (or a scene
+//! the input method, and edits the file's lines through the buffer's `code_edit::Editor`. Off unless `FLEET_NATIVE_EDITOR_SPIKE=1` (or a scene
 //! turns it on): nothing saves yet (piece R), so the app people run stays a viewer until slice 2 is built on it.
 use super::code_edit::{Editor, Move, Pos};
 use super::file_buffers::Status;
@@ -14,9 +14,8 @@ pub type FileKey = (String, String, String);
 pub struct CodeEditing {
     /// Editing is on: the spike's switch.
     pub on: bool,
-    /// The file `editor` belongs to; another file starts a fresh editor.
+    /// The file the keyboard edits: its caret and history are the buffer's own (`Buffer::editor`).
     pub file: Option<FileKey>,
-    pub editor: Editor,
     /// The code view's height as last laid out, for Page Up and Down.
     pub view_h: f32,
     /// Moves with every change of the caret or selection, so the rows on screen are built again.
@@ -37,19 +36,16 @@ pub fn asked() -> bool {
 }
 
 impl CodeEditing {
-    /// The editor for `file`, fresh when it is another file than the last one.
-    pub fn for_file(&mut self, file: &FileKey) -> &mut Editor {
+    /// Makes `file` the one being edited.
+    pub fn for_file(&mut self, file: &FileKey) {
         if self.file.as_ref() != Some(file) {
             self.file = Some(file.clone());
-            self.editor = Editor::default();
         }
-        &mut self.editor
     }
 
-    /// The editor when it is over `file`.
-    pub fn editor_of(&self, machine: &str, session: &str, path: &str) -> Option<&Editor> {
-        let (m, s, p) = self.file.as_ref()?;
-        (self.on && m == machine && s == session && p == path).then_some(&self.editor)
+    /// Whether the editor is on and over this file.
+    pub fn is_over(&self, machine: &str, session: &str, path: &str) -> bool {
+        self.on && self.file.as_ref().is_some_and(|(m, s, p)| m == machine && s == session && p == path)
     }
 }
 
@@ -74,15 +70,18 @@ impl State {
         (info.status == Status::Ready && shown == super::canvases::FileView::Edit).then_some((machine, session, file.path))
     }
 
+    /// The editor of the file being edited: the buffer's own.
+    pub fn current_editor(&self) -> Option<&Editor> {
+        let (m, s, p) = self.code_edit.file.as_ref()?;
+        Some(&self.file_buffers.buffer(m, s, p)?.editor)
+    }
+
     /// Runs `f` on the editor and the lines of the file it edits; the buffer's revision moves when `f` says it changed the text.
     pub(crate) fn with_editor<R>(&mut self, f: impl FnOnce(&mut Editor, &mut Vec<String>) -> (R, bool)) -> Option<R> {
         let file = self.code_edit_target()?;
-        let editor = self.code_edit.for_file(&file);
+        self.code_edit.for_file(&file);
         let (m, s, p) = &file;
-        let out = self.file_buffers.edit_lines(m, s, p, |lines| {
-            editor.clamp(lines);
-            f(editor, lines)
-        });
+        let out = self.file_buffers.edit(m, s, p, f);
         self.code_edit.stamp += 1;
         out
     }
@@ -90,7 +89,7 @@ impl State {
     /// Brings the caret's line into view, and the caret itself sideways (`EditorView.scrollIntoView` on each selection change).
     fn reveal_caret(&mut self, tx: &mut Tx) {
         let wrap = self.code_edit.file.as_ref().is_some_and(|(_, _, p)| self.sidebar.file_wrap(p));
-        let line = self.code_edit.editor.caret.line;
+        let line = self.current_editor().map_or(0, |e| e.caret.line);
         tx.scroll_into_view_in(CODE, row_key(line, wrap));
         tx.scroll_into_view_in(CODE, "code-caret");
     }
@@ -166,8 +165,8 @@ impl State {
             Key::End => motion(self, if m.ctrl || m.cmd { Move::DocEnd } else { Move::LineEnd }).is_some(),
             Key::PageUp => motion(self, Move::Up(page)).is_some(),
             Key::PageDown => motion(self, Move::Down(page)).is_some(),
-            Key::Escape if self.code_edit.editor.has_selection() => {
-                let c = self.code_edit.editor.caret;
+            Key::Escape if self.current_editor().is_some_and(Editor::has_selection) => {
+                let c = self.current_editor().map_or_else(Pos::default, |e| e.caret);
                 self.with_editor(|e, _| (e.set_caret(c, false), false));
                 true
             }
