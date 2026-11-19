@@ -10,7 +10,7 @@ use crate::view::conversation::{Message, Part, Role};
 use serde_json::{Value, json};
 
 /// A built-in skill as Settings lists it (`BuiltInSkill`).
-#[derive(Clone, PartialEq, Debug, Default)]
+#[derive(Clone, PartialEq, Eq, Debug, Default)]
 pub struct BuiltInSkill {
     pub name: String,
     pub description: String,
@@ -19,6 +19,8 @@ pub struct BuiltInSkill {
     pub version: Option<u32>,
     pub fleet_changed: bool,
     pub version_count: u32,
+    /// No switch of its own: it is on while the Mods feature is on.
+    pub with_mods: bool,
 }
 
 /// `GET /api/skills/built-in`: a bare array. Anything else is no skills; an entry with no name is dropped.
@@ -34,6 +36,7 @@ pub fn parse_skills(v: &Value) -> Vec<BuiltInSkill> {
                 version: s.get("version").and_then(Value::as_u64).map(|n| n as u32),
                 fleet_changed: s.get("fleetChanged").and_then(Value::as_bool).unwrap_or(false),
                 version_count: s.get("versionCount").and_then(Value::as_u64).unwrap_or(0) as u32,
+                with_mods: s.get("withMods").and_then(Value::as_bool).unwrap_or(false),
             })
         })
         .collect()

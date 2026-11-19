@@ -181,6 +181,8 @@ pub struct SettingsNav {
     /// The Bun Mods run on and the install, read from the machine shown while Plugins is open.
     pub mods_runtime: crate::fleet::settings::mods_runtime::ModsRuntime,
     pub memory_ui: crate::fleet::settings::memory_notes::MemoryUi,
+    /// What the Built-in skills page read from the machine shown, while it is open.
+    pub built_in: crate::fleet::settings::built_in_skills::BuiltInPage,
 }
 
 impl SettingsNav {

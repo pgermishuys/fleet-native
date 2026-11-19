@@ -316,7 +316,7 @@ impl State {
     }
 
     /// The list takes the skill's new state (`store.update`).
-    fn skills_update(&mut self, saved: BuiltInSkill) {
+    pub(crate) fn skills_update(&mut self, saved: BuiltInSkill) {
         if let Some(list) = self.skills.list.as_mut() {
             match list.iter_mut().find(|s| s.name == saved.name) {
                 Some(slot) => *slot = saved,

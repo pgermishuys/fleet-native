@@ -83,3 +83,67 @@ pub fn mods_scene(s: &mut State, dark: bool, look: ModsLook) {
     scene(s, Look { dark, page: if mods_on { "plugin:mods" } else { "plugins" }, off: &[], mods_on, status: None, none_installed: false });
     s.settings.mods_runtime = run;
 }
+
+/// Which state of the Built-in skills page a `settings-built-in-*` scene shows.
+#[derive(Clone, Copy)]
+pub enum BuiltInLook {
+    /// A skill on, one off, one with the user's version (and History), one that comes with Mods.
+    List,
+    /// A skill Fleet changed, with what changed open.
+    Changed,
+    /// A switch that could not be saved.
+    Failed,
+}
+
+/// The page from an invented list. `loaded_for` is set so the page doesn't read a machine that isn't there.
+pub fn built_in_scene(s: &mut State, dark: bool, look: BuiltInLook) {
+    use crate::fleet::settings::built_in_skills::{BuiltInPage, FleetChange};
+    use crate::fleet::skills::BuiltInSkill;
+    let skill = |name: &str, description: &str, enabled: bool| BuiltInSkill {
+        name: name.into(),
+        description: description.into(),
+        enabled,
+        ..Default::default()
+    };
+    let mut page = BuiltInPage::default();
+    match look {
+        BuiltInLook::List => {
+            page.list = vec![
+                skill("fleet-run", "Run the app to see a change working in the real app, not just in its tests.", true),
+                skill("fleet-code-review", "Review a change for bugs, ranked by severity.", false),
+                BuiltInSkill {
+                    version: Some(2),
+                    version_count: 2,
+                    ..skill("fleet-simplify", "Tidy the code changed on this branch.", true)
+                },
+                BuiltInSkill { with_mods: true, ..skill("fleet-mod", "Make a Fleet mod for the user.", true) },
+            ];
+        }
+        BuiltInLook::Changed => {
+            page.list = vec![
+                BuiltInSkill {
+                    version: Some(1),
+                    version_count: 1,
+                    fleet_changed: true,
+                    ..skill("tidy-docs", "Keep the docs in step with the code.", true)
+                },
+                skill("release-notes", "Draft release notes from merged changes.", false),
+            ];
+            page.fleet_change = Some(FleetChange {
+                name: "tidy-docs".into(),
+                before: crate::view::skill_diff::BEFORE.into(),
+                after: crate::view::skill_diff::AFTER.into(),
+            });
+        }
+        BuiltInLook::Failed => {
+            page.list = vec![
+                skill("fleet-run", "Run the app to see a change working.", true),
+                skill("fleet-code-review", "Review a change for bugs.", false),
+            ];
+            page.save_error = Some("BuiltInSkill with id 'fleet-code-review' was not found.".into());
+        }
+    }
+    scene(s, Look { dark, page: "plugin:built-in-skills", off: &[], mods_on: false, status: None, none_installed: false });
+    page.loaded_for = Some(s.settings.choice.key(&s.machines).to_string());
+    s.settings.built_in = page;
+}
