@@ -163,7 +163,13 @@ pub fn all(s: &State) -> Vec<Command> {
         cmd.disabled = !open;
         cmd
     };
-    list.push(file("go-to-file", "Go to file…", "Open a file from this session by name.", &FILE_SEARCH, "P"));
+    let mut go = file("go-to-file", "Go to file…", "Open a file from this session by name.", &FILE_SEARCH, "P");
+    go.run = now(|s, tx| s.go_to_file_open(tx));
+    go.keywords = &["file", "open", "find", "quick open", "editor"];
+    if !open {
+        go.description = "Open a session to find its files.".into();
+    }
+    list.push(go);
     let mut find = file("find-in-files", "Find in files…", "Search inside the files of this session's folder.", &TEXT_SEARCH, "Shift+F");
     find.run = now(|s, _| s.find_in_files_ask());
     if !open {

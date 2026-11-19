@@ -51,6 +51,8 @@ pub enum Open {
     Select(&'static str),
     Popover(&'static str),
     Directory,
+    /// Go to file (`view::go_to_file`); the session is `State::go_to_file.session`.
+    GoToFile,
     Dialog,
     Alert,
     Sheet(dialog::SheetSide),
@@ -177,6 +179,7 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
         Some(Open::Popover("more")) => crate::view::more_options::overlay(s, t),
         Some(Open::Popover(name)) => gallery::popover_content(s, t, name),
         Some(Open::Directory) => directory_picker::view(s, t, "g-dir"),
+        Some(Open::GoToFile) => crate::view::go_to_file::overlay(s, t),
         Some(Open::Dialog) => gallery::dialog(s, t),
         Some(Open::Alert) => gallery::alert(s, t),
         Some(Open::Sheet(side)) => gallery::sheet(s, t, side),

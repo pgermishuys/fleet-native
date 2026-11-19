@@ -1913,3 +1913,11 @@ Read at the pin while planning; nothing built yet.
 - **`El::ime_cursor` on an element over the drawn cursor** turns the input method on for it; `App::on_ime` hears `Ime::Commit` (plain typing still arrives as keys). `Runtime::ime(Ime::Commit(..))` drives it in a test. The preedit has to be drawn by the app.
 - **alacritty_terminal has no mode 9 (X10)**: its parser keeps 1000, 1002, 1003 (and 1005, 1006, 1004, 1007) only.
 - A script's key step takes `"ctrl": true` with `"name": "c"`, not `"Ctrl+C"`.
+
+
+
+## Component 11, piece L (Go to file)
+
+- **`scroll_center_in_instant(scope, key)` mounts a virtual row and centres it**, so a line far down a long file needs no arithmetic; key it by the row's own key (`code-line-12`, `code-line-12w` when wrapped).
+- **A scrolling `col` takes the keyboard with `.focusable(true)`** and shows no ring of its own, so the code view can take focus when a file opens.
+- **A dialog that is a grid with `gap-4` is a `col().gap(16.0)`**: the 1 px line under its box then sits 16 above the list, as in Fleet.

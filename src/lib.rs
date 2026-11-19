@@ -84,6 +84,8 @@ mod tests_folder_path;
 #[cfg(test)]
 mod tests_fork;
 #[cfg(test)]
+mod tests_go_to_file;
+#[cfg(test)]
 mod tests_harness_setup;
 #[cfg(test)]
 mod tests_harness_setup_rows;
@@ -423,6 +425,10 @@ pub struct State {
     /// Find in files: the machine's search of the session's folder, and the request for the Files tab to start one (`fleet::find_text`).
     pub find_text: fleet::find_text::FindText,
     pub find_in_files: fleet::find_text::FindInFiles,
+    /// Go to file: which session's dialog is open and the file asked to take the keyboard, and the dialog's box and search
+    /// (`fleet::go_to_file`).
+    pub go_to_file: fleet::go_to_file::GoToFile,
+    pub go_to: fleet::go_to_file::GoToDialog,
     /// The page canvas "Open page" asked the content panel to show; the tab is component 14's.
     pub page_target: Option<String>,
     /// The web views over page tabs: where the page area is, and whether this window can host one (`web`).
@@ -734,6 +740,8 @@ impl Default for State {
             changes_find: Default::default(),
             find_text: Default::default(),
             find_in_files: Default::default(),
+            go_to_file: Default::default(),
+            go_to: Default::default(),
             page_target: None,
             web: Default::default(),
             allowed_flash: None,
@@ -1533,7 +1541,8 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_review_focus(tx)
         | s.keep_changes_find(now, tx)
         | s.keep_review_toast(now, tx)
-        | s.keep_find_text(now, tx);
+        | s.keep_find_text(now, tx)
+        | s.keep_go_to_file(now, tx);
     // The tick asks for the next frame first, so `keep_images` starts it in the same poll.
     let agent_view = s.keep_agent_view(now, tx);
     let pictures = s.keep_images(tx) | agent_view | s.keep_session_images(tx);
@@ -1705,6 +1714,9 @@ fn on_key(s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool {
     } else if ev.is_command('f') && ev.mods.shift && !ev.mods.alt {
         // Find in files: the palette's command, from anywhere, the composer too (`allowInEditable`).
         ui::commands::run(s, tx, "find-in-files");
+    } else if ev.is_command('p') && !ev.mods.shift && !ev.mods.alt {
+        // Go to file, from anywhere, the composer too (`allowInEditable`); with no session open it does nothing.
+        ui::commands::run(s, tx, "go-to-file");
     } else if ev.is_command('l') && ev.mods.shift {
         // Not a Fleet shortcut: a quick way to see both themes in the prototype.
         s.toggle_theme();
@@ -4382,6 +4394,14 @@ pub fn spec() -> AppSpec<State> {
             ("files-search-none-light", |s| s.show_files_tab(mock::files_tab::Case::SearchNone, false)),
             ("file-tabs", |s| s.show_file_tabs(true)),
             ("file-tabs-light", |s| s.show_file_tabs(false)),
+            ("go-to-file-open", |s| s.show_go_to_file(mock::go_to_file::Case::Open, true)),
+            ("go-to-file-open-light", |s| s.show_go_to_file(mock::go_to_file::Case::Open, false)),
+            ("go-to-file", |s| s.show_go_to_file(mock::go_to_file::Case::Typed, true)),
+            ("go-to-file-light", |s| s.show_go_to_file(mock::go_to_file::Case::Typed, false)),
+            ("go-to-file-none", |s| s.show_go_to_file(mock::go_to_file::Case::None, true)),
+            ("go-to-file-none-light", |s| s.show_go_to_file(mock::go_to_file::Case::None, false)),
+            ("go-to-file-error", |s| s.show_go_to_file(mock::go_to_file::Case::Failed, true)),
+            ("go-to-file-error-light", |s| s.show_go_to_file(mock::go_to_file::Case::Failed, false)),
             ("find-in-files", |s| s.show_files_tab(mock::files_tab::Case::Find, true)),
             ("find-in-files-light", |s| s.show_files_tab(mock::files_tab::Case::Find, false)),
             ("find-in-files-none", |s| s.show_files_tab(mock::files_tab::Case::FindNone, true)),

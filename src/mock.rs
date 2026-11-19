@@ -24,6 +24,7 @@ pub mod find;
 pub mod finder;
 pub mod fold;
 pub mod frame;
+pub mod go_to_file;
 pub mod groups;
 pub mod harnesses;
 pub mod header;
