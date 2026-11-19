@@ -2034,7 +2034,7 @@ multi-line `text_input` with `.spans(..)` for the colours and a column of number
   line, a frame late.
 - **A paste goes to the root's `on_paste` only** (`Runtime::app_paste_handler` reads the root or the open modal): `on_paste` on a
   focused element is never called. The editor reads the clipboard itself on Ctrl/Cmd+V with `tx.read_clipboard`, as the terminal's
-  keys do. (The element-level `on_paste` in `view::terminal_view` looks unreachable for the same reason; the terminal's paste key reads the clipboard itself and works. Not changed here.)
+  keys do. (The element-level `on_paste` that `view::terminal_view` had was dead for the same reason and is gone; the terminal's paste key reads the clipboard itself and works, tested by `ctrl_shift_v_pastes_into_the_shell_bracketed_only_when_the_program_asked`. Fleet's terminal has no other paste route: no right-click or middle-click paste. Take care never to add a root `on_paste`: `accepts_paste()` then turns true, and Rune takes Ctrl+V for itself before the terminal's `on_key` sees it.)
 - **A focusable column draws Rune's keyboard focus ring once keys are used**; the editor turns it off with `focus_ring(0, 0,
   TRANSPARENT)`, as CodeMirror's content element has none.
 - **`text_input` is the whole text, every frame.** `text_input(&edit, ..)` clones the `TextEdit` (the text and its undo history)

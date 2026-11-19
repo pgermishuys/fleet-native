@@ -98,8 +98,9 @@ fn body(s: &State, t: &Theme) -> El {
         .pointer_buttons([rune::PointerButton::Middle])
         .on_drag(|s: &mut State, d: &mut rune::Drag, tx| s.terminal_drag(d, tx))
         .on_secondary_press_local(|s: &mut State, ev: rune::PointerEvent, _| s.report_right_click(ev.x, ev.y))
-        .on_wheel(|s: &mut State, e: rune::WheelEvent, _: &mut Tx| s.terminal_wheel(&e))
-        .on_paste(|s: &mut State, text: &str, _| paste(s, text));
+        // No `on_paste` here: Rune only calls one on the root or an open modal, never on a focused element. Pasting is the
+        // paste key in `on_key` (Fleet has no other way to paste into the terminal), which reads the clipboard itself.
+        .on_wheel(|s: &mut State, e: rune::WheelEvent, _: &mut Tx| s.terminal_wheel(&e));
     let Some(live) = &slot.live else {
         // Nothing to draw: the drawer says why ("Starting a shell…" or the error) over this box.
         return host;
