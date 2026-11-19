@@ -151,6 +151,7 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
         Some(Open::Select("dream-nightly-model")) => crate::view::settings::dream_nightly::model_list(s, t),
         Some(Open::Select("dream-budget")) => crate::view::settings::dream_nightly::budget_list(s, t),
         Some(Open::Select("dreaming-harness")) => crate::view::settings::dreaming_panel::harness_list(s, t),
+        Some(Open::Select("skills-target")) => crate::view::settings::install_picker::list(s, t, "skills-target"),
         Some(Open::Select("memory-repository")) => crate::view::settings::memory_notes::repository_list(s, t),
         Some(Open::Select("permission-chip")) => crate::view::settings::permissions::chip_list(s, t),
         Some(Open::Select("permission-machine")) => crate::view::settings::permissions_rows::machine_list(s, t),

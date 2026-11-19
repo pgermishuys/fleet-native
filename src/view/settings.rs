@@ -21,6 +21,7 @@ pub mod harness_sign_in;
 pub mod harness_sign_in_flow;
 pub mod harness_update;
 pub mod harnesses;
+pub mod install_picker;
 pub mod kit;
 pub mod kit_scene;
 pub mod labs;
@@ -32,6 +33,8 @@ pub mod memory_notes;
 pub mod memory_row;
 pub mod permissions;
 pub mod permissions_rows;
+pub mod skills_installed;
+pub mod skills_tools;
 pub mod updates;
 pub mod updates_app;
 pub mod updates_fleet;
@@ -197,6 +200,8 @@ pub fn detail(s: &State, t: &Theme) -> El {
         appearance::content(s, t)
     } else if *page == Page::Memory {
         memory::content(s, t)
+    } else if *page == Page::Skills {
+        col().w_full().gap(21.0).child(page_header(s, t, page)).child(skills_tools::content(s, t))
     } else if *page == Page::Harnesses {
         harnesses::content(s, t)
     } else if *page == Page::Permissions {

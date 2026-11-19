@@ -1981,3 +1981,9 @@ Read at the pin while planning; nothing built yet.
 ## Asking about text in a file tab's Rendered Markdown (11O)
 
 Same recipe as Changes' Rendered view: a `selection_group(true)` column with `on_selection_change` calling `read_rendered_selection`, and an `on_pointer_move_local` on the scrolling parent that remembers the pointer (a selection change carries no position). The selection group must sit inside the scroll, not around it, or the scroll's own drags are taken for selections.
+
+## Component 16, piece AG (Skills & tools)
+
+- **Rune's `select::content` has no group labels and no rows you can't choose**, so Fleet's "Repository" label over the repositories and "Loading repositories…" in the "Install to" list can't be drawn without changing `ui/select.rs`; the list shows Global and the repositories only.
+- **A button that appears (Cancel beside Confirm remove) slides in**, and `tests::click` presses where it is drawn that frame: run a few frames before clicking it, or the press lands off to the side.
+- **A flex child that holds wrapping text needs `.w(0.0).grow(1.0).min_w(0.0)`** beside a fixed-width group of buttons; `.shrink()` alone let the buttons run past the card in a narrow window.

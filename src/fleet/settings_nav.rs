@@ -159,6 +159,8 @@ pub struct SettingsNav {
     pub choice: crate::fleet::machine_choice::MachineChoice,
     /// What Memory read from the machine shown, while the page is open.
     pub memory: crate::fleet::settings::memory::MemoryPage,
+    /// What Skills & tools read from the machine shown: the skills, the picker's repositories and the Mods switch.
+    pub skills: crate::fleet::settings::skills::SkillsPage,
     /// What Folders read from the machine shown: the locations, the add box and the folder browser.
     pub locations: crate::fleet::settings::locations::LocationsPage,
     /// What Folders' Worktrees card read from the machine shown: the user's layer, the fields and the sample.
