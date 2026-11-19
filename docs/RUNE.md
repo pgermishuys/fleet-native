@@ -2112,3 +2112,17 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **The dialog description didn't wrap**: `ui::dialog` drew it as one line, so a long one ran out of the panel. It now wraps to the panel's width.
 - **Disabled controls fade on a spring**: a test that reads `opacity` must run a few dozen frames first (`tests_settings_skill_dialogs::disabled`).
 - **A script's `type` event dropped the first five characters** of a text typed into the code box in a live run (the same text sent as one key event in a test arrives whole); I typed a throwaway word first for the picture. Not chased.
+
+### The desktop shell (component 24's plan, 19 November 2026, pin `f1f54ce8`)
+
+- **What the pin has for an app's own shell**, read in its source, not yet used: `rune::single_instance(id)` (Windows named pipe,
+  Linux socket in `$XDG_RUNTIME_DIR`; a second launch hands its links to `on_open_url` or reopens the first);
+  `App::keep_running`, `on_close`, `on_quit`, `on_reopen`; `rune::tray` (Windows and Linux StatusNotifierItem; not macOS);
+  `App::menu_item` / `AppHandle::set_menu` / `standard_menus` (macOS only, `Unsupported` elsewhere); `rune-notify`, a separate
+  crate in Rune's repository (macOS for a bundled app, Windows toasts; nothing on Linux).
+- **No event says the window moved or was resized.** `WindowHandle::placement()` reads position, size, maximized and the display
+  on the UI thread (`None` on Wayland), so saving the window's place means polling it and saving on close and quit.
+- **`on_quit` can't cancel a quit.** A system quit (macOS Cmd-Q, logout) can't be held for a "sessions are still working" question;
+  only quits the app starts itself can ask first.
+- **`Tx::open_url` takes `http`, `https` and `mailto` only**, which is exactly Fleet's desktop link rule; opening a folder (Open logs)
+  needs the system's opener on a thread.
