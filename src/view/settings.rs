@@ -13,6 +13,8 @@ pub mod folders_locations;
 pub mod folders_naming;
 pub mod folders_storage;
 pub mod general;
+pub mod github_connect;
+pub mod github_scene;
 pub mod harness_install;
 pub mod harness_path;
 pub mod harness_profile_editor;

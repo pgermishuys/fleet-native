@@ -921,3 +921,18 @@ pub fn report_file(base: &str, body: &Value) -> Result<(String, Vec<u8>), String
 pub fn put_worktree_naming(base: &str, body: &Value) -> Result<(u16, String), String> {
     text_with("PUT", base, "/api/worktrees/naming", Some(body))
 }
+
+/// `GET {api}/user` with a personal access token, to see whose it is (`testPersonalAccessToken`). The agent is the plain one:
+/// Fleet's own access token must never go to GitHub.
+pub fn github_user(api: &str, token: &str) -> Result<(u16, String), String> {
+    let agent: ureq::Agent = plain_builder().timeout_global(Some(Duration::from_secs(15))).http_status_as_error(false).build().into();
+    let mut response = agent
+        .get(url(api, "/user"))
+        .header("Authorization", format!("Bearer {token}"))
+        .header("Accept", "application/vnd.github+json")
+        .header("User-Agent", "fleet-native")
+        .call()
+        .map_err(|e| e.to_string())?;
+    let status = response.status().as_u16();
+    Ok((status, response.body_mut().read_to_string().unwrap_or_default()))
+}

@@ -1,6 +1,6 @@
 //! A plugin's own page (`PluginPage.vue`): the breadcrumb, the header with its switch, the plugin's own settings while it is on
 //! (or a note while it is off), what it adds to Fleet, and where it comes from. It is read from the table in
-//! `fleet::settings::plugins`. Each plugin's own settings are its piece's: GitHub's connection page (AF), Mods (`mods_plugin`) and the
+//! `fleet::settings::plugins`. Each plugin's own settings are its piece's: GitHub's connection page (`github_connect`), Mods (`mods_plugin`) and the
 //! Built-in skills tab (AK); until they are built the slot says so.
 use super::plugins::{built_in, glyph, own_panel, switch};
 use crate::State;
@@ -101,8 +101,11 @@ fn heading_row(t: &Theme, key: &str, left: &str, right: String) -> El {
         .child(text(right).font(sans(rem(0.75), 400.0, 1.33)).color(t.muted))
 }
 
-/// The plugin's own settings slot: Mods' box is `mods_plugin`'s; the others say so until their piece draws them.
-fn own_settings(t: &Theme, p: &Plugin) -> El {
+/// The plugin's own settings slot: GitHub's connection page and Mods' box; the others say so until their piece draws them.
+fn own_settings(s: &State, t: &Theme, p: &Plugin) -> El {
+    if p.id == "github" {
+        return super::github_connect::content(s, t);
+    }
     if p.id == "mods" {
         return super::mods_plugin::page(t);
     }
@@ -218,8 +221,9 @@ pub fn content(s: &State, t: &Theme, id: &str) -> El {
         body = body.child(panel);
     }
     if on {
-        body =
-            body.child(heading_row(t, "plugin-settings-heading", "Settings", format!("{}'s own page", p.name))).child(own_settings(t, p));
+        body = body
+            .child(heading_row(t, "plugin-settings-heading", "Settings", format!("{}'s own page", p.name)))
+            .child(own_settings(s, t, p));
     } else {
         body = body.child(off_note(t, p));
     }
