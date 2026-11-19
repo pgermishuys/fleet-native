@@ -41,8 +41,8 @@ jobs:
       - name: Linux packages
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libxkbcommon-dev libwayland-dev libwebkit2gtk-4.1-dev libxkbcommon-x11-0 mesa-vulkan-drivers xvfb xdotool ffmpeg
+          sudo apt-get -o Acquire::Retries=5 update
+          sudo apt-get -o Acquire::Retries=5 install -y libxkbcommon-dev libwayland-dev libwebkit2gtk-4.1-dev libxkbcommon-x11-0 mesa-vulkan-drivers xvfb xdotool ffmpeg
 
       - name: Rust (rust-toolchain.toml)
         run: rustup show
@@ -145,8 +145,8 @@ jobs:
       - name: Linux packages
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libxkbcommon-dev libwayland-dev libwebkit2gtk-4.1-dev
+          sudo apt-get -o Acquire::Retries=5 update
+          sudo apt-get -o Acquire::Retries=5 install -y libxkbcommon-dev libwayland-dev libwebkit2gtk-4.1-dev
 
       - name: Rust (rust-toolchain.toml)
         run: rustup show
