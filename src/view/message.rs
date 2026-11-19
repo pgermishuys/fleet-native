@@ -203,8 +203,15 @@ fn file_chip(t: &Theme, file: &AttachedFileRef) -> El {
         .hover(t.wash(6.0))
         .help(file.path.clone())
         .label(file.name.clone())
-        // Opening the file belongs to the content panel (component 10); the chip is drawn and pressable.
-        .on_press(|_: &mut State| {})
+        // A preview tab; Ctrl/Cmd-click keeps it (`open-file` of MessageBubble.vue).
+        .on_press_tx({
+            let path = file.path.clone();
+            move |s: &mut State, tx| {
+                let keep = tx.mods().ctrl || tx.mods().cmd;
+                let session = s.canvas_session();
+                s.open_file_at(&session, &path, None, keep, tx);
+            }
+        })
         .child(
             text(file_extension_label(&file.name))
                 .font(mono(9.0, 400.0, 1.55))
@@ -245,7 +252,14 @@ pub fn user_bubble(t: &Theme, s: &State, md: &Styles, msg: &Message, id: &str, b
         }
         None if typed.trim().is_empty() => {}
         None if looks_like_markdown(&typed) => {
-            content = content.child(prose::prose_marked(&md.prose, id, &typed, false, s.find_marks(id, false).as_ref()))
+            content = content.child(prose::prose_marked(
+                &md.prose,
+                id,
+                &typed,
+                false,
+                s.find_marks(id, false).as_ref(),
+                prose::Files::of(s, t).as_ref(),
+            ))
         }
         None => {
             let marks = s.find_marks(id, false).map(|m| super::marks::over(t, &typed, &m)).unwrap_or_default();

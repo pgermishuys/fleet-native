@@ -2,10 +2,12 @@
 //! 15px body at 1.65, headings tinted toward the accent, a hairline card around code, inline code
 //! on a 7% wash, tables with the same rules. Highlighting is Rune's built-in lexers painted with Fleet's eight
 //! `--syntax-*` colours (`Theme::syntax`); highlight.js and Rune split tokens a little differently (see `docs/RUNE.md`).
+use crate::State;
 use crate::conv::find::Marks;
+use crate::fleet::file_links::{self, Found};
 use crate::fleet::find::MARK;
 use crate::theme::{Theme, mono, sans};
-use rune::El;
+use rune::{Color, El};
 use rune_kit::markdown::{self, Case, Highlight, Markdown, MarkdownStyle};
 use rune_kit::syntax::Syntax;
 
@@ -74,14 +76,47 @@ pub fn prose(style: &MarkdownStyle, id: &str, text: &str, streaming: bool) -> El
     Markdown::new(text).selectable(true).streaming(streaming).render(style).key(id)
 }
 
+/// The files a message names that the server said are files in the session's folder, to draw as links
+/// (`MessageBubble.vue`'s `.file-ref`).
+#[derive(Clone)]
+pub struct Files {
+    found: Found,
+    color: Color,
+}
+
+impl Files {
+    /// What the open session's messages name that is a file in its folder (nothing, until the server has said).
+    pub fn of(s: &State, t: &Theme) -> Option<Files> {
+        Some(Files { found: s.file_links.found(&s.canvas_session()), color: t.accent })
+    }
+
+    /// Inline code that names such a file becomes a link, so does a Markdown link to one; a press opens it and its tooltip says so.
+    /// Web addresses open in the browser.
+    fn wire(&self, md: Markdown) -> Markdown {
+        let found = self.found.clone();
+        md.code_link(self.color, move |code| file_links::link_for(&found, code)).link_help(file_links::help).on_link_tx(
+            |s: &mut State, url, tx| {
+                let mods = tx.mods();
+                s.open_file_link(url, mods, tx)
+            },
+        )
+    }
+}
+
 /// The same with find's marks over every match in what the text draws (`Markdown` maps them across bold, code, lists and
-/// tables), the current one keyed so a scroll can find it.
-pub fn prose_marked(style: &MarkdownStyle, id: &str, text: &str, streaming: bool, marks: Option<&Marks>) -> El {
-    let Some(marks) = marks else { return prose(style, id, text, streaming) };
-    let found = markdown::find(text, &marks.query, Case::Insensitive);
-    let highlights = found.into_iter().enumerate().map(|(i, ranges)| {
-        let on = Some(i) == marks.current;
-        (ranges, if on { Highlight::current().key(MARK) } else { Highlight::new() })
-    });
-    Markdown::new(text).selectable(true).streaming(streaming).highlights(highlights).render(style).key(id)
+/// tables), the current one keyed so a scroll can find it; and the files it names as links.
+pub fn prose_marked(style: &MarkdownStyle, id: &str, text: &str, streaming: bool, marks: Option<&Marks>, files: Option<&Files>) -> El {
+    let mut md = Markdown::new(text).selectable(true).streaming(streaming);
+    if let Some(files) = files {
+        md = files.wire(md);
+    }
+    if let Some(marks) = marks {
+        let found = markdown::find(text, &marks.query, Case::Insensitive);
+        let highlights = found.into_iter().enumerate().map(|(i, ranges)| {
+            let on = Some(i) == marks.current;
+            (ranges, if on { Highlight::current().key(MARK) } else { Highlight::new() })
+        });
+        md = md.highlights(highlights);
+    }
+    md.render(style).key(id)
 }

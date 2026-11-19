@@ -94,6 +94,11 @@ const ALL_FILES: [&str; 11] = [
     "src/ledger/",
 ];
 
+/// Whether `path` is a file of the invented project (what the resolve endpoint answers for it).
+pub fn is_file(path: &str) -> bool {
+    (ALL_FILES.contains(&path) && !path.ends_with('/')) || path == super::file_tab::PATH
+}
+
 /// What the find endpoint answers for the invented project: files and the folder, ranked as Fleet's server does.
 pub fn find(query: &str) -> Vec<String> {
     let all: Vec<String> = ALL_FILES.iter().map(|p| p.to_string()).collect();

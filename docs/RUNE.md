@@ -1963,3 +1963,13 @@ Read at the pin while planning; nothing built yet.
 - **`Markdown::on_link` takes `(&mut State, &str)`; the one with a `Tx` is `on_link_tx`.** The El-level `.on_link` is the one with a `Tx`.
 - **A headless test on a tall window must wait for a wheel's glide to end** before pressing: `rt.find` reports the element where the last frame drew it, so press once the rect stops changing. A rig with a link to a fake also opens the first-run wizard over the page (`harness_setup.cloud = true` keeps it away).
 - **`Tx::scroll_key_to` needs the element laid out**: the row a request names is only drawn once the notes loaded, so the scroll goes out on the poll after the request opens it (`WhatsNewState::scroll`).
+
+## Component 11, piece M (file links in messages)
+
+- **`Markdown::code_link(color, f)` works for resolved paths, and its look is Rune's**: the code draws in the colour, no chip, and an underline at 40 % under the pointer. Fleet draws a dotted `--accent` 70 % underline at rest on a chip. A space shows before the punctuation that follows such a link (", and" reads ", and" with a gap). Not worked around.
+- **A link's destination is its key** (`rt.find("fleet-file:src/a.py#L24")` clicks it), so tests and scripts click a link by the destination the app chose.
+- **`tx.mods()` inside `on_link_tx` is the click's modifiers**, which is how Ctrl/Cmd-click keeps a tab. Shift-click and Alt-click are the handler's to ignore.
+- **No selection check from a handler.** `selected_text()` lives on the runtime, not `Tx`, so Fleet's "a click that ended a drag selecting text opens nothing" can't be asked. A drag that begins in other words and ends on the link opens nothing (the press isn't the link's); one that begins on the link and ends on it opens it.
+- **Links are Tab stops before the composer**, so `Shift+Tab` from the composer reaches the last link, and Enter opens it. Focusing the text's own key doesn't put focus on a link.
+- **`on_link_tx` makes every link in the text pressable**, so a handler that opens web addresses is needed with it (`tx.open_url`).
+

@@ -119,6 +119,81 @@ pub fn parse_file_reference(text: &str) -> Option<FileReference> {
     Some(FileReference { path: path.to_string(), line: suffix.map(|(_, n)| n).filter(|&n| n > 0) })
 }
 
+/// The files a message's Markdown names, in the order it names them, each once: inline code that reads as a file and Markdown
+/// links to one. Fenced code and web links name nothing (`file-references.ts`, `fileRefs` of the renderer). Whether a path is a
+/// file in the session's folder is the server's to say.
+pub fn markdown_file_paths(text: &str) -> Vec<String> {
+    let mut found: Vec<String> = Vec::new();
+    let mut add = |path: &str| {
+        if !found.iter().any(|p| p == path) {
+            found.push(path.to_string());
+        }
+    };
+    // Fenced code is left out first, line by line.
+    let mut open: Option<(char, usize)> = None;
+    let mut prose = String::with_capacity(text.len());
+    for line in text.lines() {
+        let trimmed = line.trim_start();
+        let fence = trimmed.chars().next().filter(|c| matches!(c, '`' | '~')).map(|c| (c, trimmed.chars().take_while(|&x| x == c).count()));
+        match (open, fence) {
+            (None, Some((c, n))) if n >= 3 && line.len() - trimmed.len() < 4 => open = Some((c, n)),
+            (Some((c, n)), Some((d, m))) if c == d && m >= n && trimmed.trim_start_matches(c).trim().is_empty() => open = None,
+            (None, _) => {
+                prose.push_str(line);
+                prose.push('\n');
+            }
+            _ => {}
+        }
+    }
+    let bytes = prose.as_bytes();
+    let mut at = 0;
+    while at < bytes.len() {
+        match bytes[at] {
+            b'`' => {
+                let run = bytes[at..].iter().take_while(|&&b| b == b'`').count();
+                let start = at + run;
+                // The closing run is the next one of the same length.
+                let mut close = None;
+                let mut i = start;
+                while i < bytes.len() {
+                    if bytes[i] == b'`' {
+                        let n = bytes[i..].iter().take_while(|&&b| b == b'`').count();
+                        if n == run {
+                            close = Some(i);
+                            break;
+                        }
+                        i += n;
+                    } else {
+                        i += 1;
+                    }
+                }
+                let Some(end) = close else {
+                    at = start;
+                    continue;
+                };
+                if let Some(reference) = parse_file_reference(&prose[start..end]) {
+                    add(&reference.path);
+                }
+                at = end + run;
+            }
+            b']' if bytes.get(at + 1) == Some(&b'(') => {
+                let rest = &prose[at + 2..];
+                if let Some(close) = rest.find(')') {
+                    let url = &rest[..close];
+                    if !url.contains(char::is_whitespace)
+                        && let Some(reference) = parse_file_reference(url)
+                    {
+                        add(&reference.path);
+                    }
+                }
+                at += 2;
+            }
+            _ => at += 1,
+        }
+    }
+    found
+}
+
 /// A slash command as the user typed it: `/name arguments` (`formatSlashCommand`).
 pub fn format_slash_command(name: &str, arguments: Option<&str>) -> String {
     match arguments {

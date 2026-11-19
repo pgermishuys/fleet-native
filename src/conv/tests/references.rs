@@ -53,3 +53,38 @@ fn formats_a_slash_command_as_typed() {
     assert_eq!(format_slash_command("init", None), "/init");
     assert_eq!(format_slash_command("init", Some("")), "/init");
 }
+
+// "file references in rendered Markdown" of `file-references.test.ts`: what a message names, before the server says which are files.
+#[test]
+fn collects_the_files_inline_code_names_with_their_lines() {
+    assert_eq!(
+        markdown_file_paths("See `/home/sam/dev/harbor-api/src/billing/invoice-service.ts:17`."),
+        ["/home/sam/dev/harbor-api/src/billing/invoice-service.ts"]
+    );
+}
+
+#[test]
+fn collects_a_markdown_link_to_a_file() {
+    assert_eq!(markdown_file_paths("The rule is in [tax.ts](src/billing/tax.ts#L18)."), ["src/billing/tax.ts"]);
+}
+
+#[test]
+fn collects_every_path_named_in_order_and_skips_what_is_not_a_path() {
+    assert_eq!(
+        markdown_file_paths("`src/billing/tax.ts:13` and `src/billing/legacy-rates.ts`, not `lineTotal`, and `src/billing/tax.ts` again."),
+        ["src/billing/tax.ts", "src/billing/legacy-rates.ts"]
+    );
+}
+
+#[test]
+fn leaves_paths_in_code_blocks_and_web_links_alone() {
+    assert!(markdown_file_paths("```\nsrc/billing/tax.ts\n```\n\n[docs](https://example.com/tax.ts)").is_empty());
+    assert!(markdown_file_paths("~~~ts\n`src/billing/tax.ts`\n~~~\n").is_empty());
+    assert_eq!(markdown_file_paths("```\nx\n```\nafter `a/b.ts`"), ["a/b.ts"]);
+}
+
+#[test]
+fn double_backticks_hold_a_single_one_and_an_unclosed_run_names_nothing() {
+    assert_eq!(markdown_file_paths("``src/a.ts``"), ["src/a.ts"]);
+    assert!(markdown_file_paths("a ` b src/a.ts").is_empty());
+}
