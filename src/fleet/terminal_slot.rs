@@ -71,6 +71,17 @@ pub struct Slot {
     pub blink_off: bool,
     /// The link under the pointer (13.75).
     pub link: Option<crate::term::links::Link>,
+    /// The modifier keys held now (`App::on_modifiers`): Shift forces a selection over a program that asked for the mouse.
+    pub mods: rune::Mods,
+    /// The cell the pointer was last reported in, so motion is sent once per cell.
+    pub mouse_cell: Option<(usize, usize)>,
+    /// The button held for a gesture the program is hearing, so the rest of it goes the same way even if Shift changes.
+    pub mouse_held: Option<crate::term::mouse::Button>,
+    /// A gesture that began as a selection stays one.
+    pub selecting: bool,
+    /// Every byte written to the shell, for tests.
+    #[cfg(test)]
+    pub written: Vec<u8>,
 }
 
 impl Slot {
@@ -321,6 +332,8 @@ impl State {
     /// Bytes for the shell: typed keys and pastes. A pretend shell (no server) answers into the grid itself.
     pub fn terminal_write(&mut self, bytes: Vec<u8>) {
         let Some(live) = self.terminal.live.as_ref() else { return };
+        #[cfg(test)]
+        self.terminal.written.extend_from_slice(&bytes);
         // Typing lights the cursor and starts its blink again.
         self.terminal.blink_from = self.clock;
         self.terminal.blink_off = false;
@@ -376,6 +389,10 @@ impl State {
         }
         let focused = self.terminal_open() && tx.focused().is_some_and(|k| k == VIEW_KEY);
         let was = std::mem::replace(&mut self.terminal.focused, focused);
+        if focused != was && self.terminal.live.as_ref().is_some_and(|l| l.term.mode().contains(crate::term::Mode::FOCUS_IN_OUT)) {
+            // Focus reporting (mode 1004): the program hears when the box gains or loses the keyboard.
+            self.terminal_write(crate::term::mouse::focus(focused).to_vec());
+        }
         if focused && !was {
             // One shell has one size: another client that attached since may have resized it for everyone, so whoever takes
             // the keyboard says its own size again (`onFocus`).

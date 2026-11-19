@@ -264,6 +264,8 @@ mod tests_terminal_keys;
 #[cfg(test)]
 mod tests_terminal_live;
 #[cfg(test)]
+mod tests_terminal_mouse;
+#[cfg(test)]
 mod tests_terminal_select;
 #[cfg(test)]
 mod tests_terminal_tabs;
@@ -1899,6 +1901,12 @@ fn tool_show_scene(s: &mut State, dark: bool) {
         s.canvases.apply_canvas_event(&id, fleet::canvases::CanvasEvent::Updated(canvas));
     }
     s.set_content_open(true);
+}
+
+/// What the terminal hears from the window besides its own box: the modifier keys held (Shift takes the pointer back from a
+/// program that asked for the mouse) and text an input method composed.
+pub(crate) fn terminal_hooks(app: App<State>) -> App<State> {
+    app.on_modifiers(|s, mods, _| s.terminal.mods = mods).on_ime(|s, ime, _| s.terminal_ime(ime))
 }
 
 pub fn spec() -> AppSpec<State> {
@@ -4582,7 +4590,7 @@ pub fn start_desktop() {
         LIVE.store(true, std::sync::atomic::Ordering::Relaxed);
     }
     // The server hears whether the window has the keyboard and is on screen (`fleet::presence`).
-    let app = App::new(spec())
+    let app = terminal_hooks(App::new(spec()))
         .args(rest)
         .on_focus(|s, focused, tx| {
             s.each_link(|link| link.window_focus(focused));

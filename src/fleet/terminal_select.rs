@@ -1,7 +1,7 @@
 //! What the mouse does in the terminal's box (component 13, piece F): select by dragging, by word and by line, copy, add the
 //! selected lines to the message, the wheel, and the scrollbar's slider. The cells and lines are `term::selection`; the bubble
 //! is `view::terminal_pop`, the slider `view::terminal_bar`.
-use rune::{Drag, Phase, Tx, WheelEvent};
+use rune::{Drag, Phase, PointerButton, Tx, WheelEvent};
 
 use crate::State;
 use crate::composer::attached::TerminalDraft;
@@ -20,7 +20,14 @@ fn cell_at(x: f32, y: f32) -> (usize, usize, bool) {
 impl State {
     /// The box's drag: a press selects (a word on a double click, a line on a triple), moving extends. A press past the top or
     /// bottom edge scrolls the view a line with each move, so a selection can reach what is off screen.
-    pub fn terminal_drag(&mut self, d: &Drag) {
+    pub fn terminal_drag(&mut self, d: &Drag, tx: &Tx) {
+        if self.report_drag(d, tx) {
+            return;
+        }
+        // Without a program asking for the mouse, only the primary button selects.
+        if tx.button() != PointerButton::Primary {
+            return;
+        }
         let Some(live) = self.terminal.live.as_ref() else { return };
         let (col, row, right) = cell_at(d.x, d.y);
         match d.phase {
@@ -46,6 +53,9 @@ impl State {
 
     /// The wheel: the view moves through the scrollback and the shell hears nothing. True when the wheel was ours.
     pub fn terminal_wheel(&mut self, e: &WheelEvent) -> bool {
+        if self.report_wheel(e) {
+            return true;
+        }
         let Some(live) = self.terminal.live.as_ref() else { return false };
         // A notch is three lines; a trackpad's steps are points, kept until they add up to a line.
         let lines = if e.precise { e.dy / CELL_H } else { e.dy.signum() * NOTCH_LINES };
@@ -124,6 +134,12 @@ impl State {
     /// The pointer moved over the box: the link under it, if any, is underlined and clickable (13.75, 13.76).
     pub fn terminal_pointer(&mut self, x: f32, y: f32) {
         let Some(live) = self.terminal.live.as_ref() else { return };
+        // A program that asked for the mouse owns the pointer: no link under it, and plain motion goes to the program.
+        if self.mouse_taken() {
+            self.terminal.link = None;
+            self.report_motion(x, y);
+            return;
+        }
         let (cols, rows) = live.term.size();
         let (cx, cy) = ((x - PAD[3]) / CELL_W, (y - PAD[0]) / CELL_H);
         let link =

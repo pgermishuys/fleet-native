@@ -94,7 +94,10 @@ fn body(s: &State, t: &Theme) -> El {
         .on_layout(|s: &mut State, [_, _, w, h]| s.fit_terminal(w, h))
         .on_key(on_key)
         .on_pointer_move_local(|s: &mut State, ev: rune::PointerEvent, _: &mut Tx| s.terminal_pointer(ev.x, ev.y))
-        .on_drag(|s: &mut State, d: &mut rune::Drag, _| s.terminal_drag(d))
+        // The middle button reports to a program that asked for the mouse (the secondary one is `on_secondary_press_local`).
+        .pointer_buttons([rune::PointerButton::Middle])
+        .on_drag(|s: &mut State, d: &mut rune::Drag, tx| s.terminal_drag(d, tx))
+        .on_secondary_press_local(|s: &mut State, ev: rune::PointerEvent, _| s.report_right_click(ev.x, ev.y))
         .on_wheel(|s: &mut State, e: rune::WheelEvent, _: &mut Tx| s.terminal_wheel(&e))
         .on_paste(|s: &mut State, text: &str, _| paste(s, text));
     let Some(live) = &slot.live else {
@@ -119,6 +122,11 @@ fn body(s: &State, t: &Theme) -> El {
         stack = links(stack, link, &pal);
     }
     if let Some(c) = &screen.cursor {
+        // The input method (dead keys, CJK, the emoji picker) opens at the cursor while the box has the keyboard.
+        if slot.focused {
+            stack = stack
+                .child(el().key("terminal-ime").absolute(c.col as f32 * CELL_W, c.line as f32 * CELL_H).size(CELL_W, CELL_H).ime_cursor());
+        }
         let w = if c.wide { 2.0 * CELL_W } else { CELL_W };
         let at = |e: El| e.absolute(c.col as f32 * CELL_W, c.line as f32 * CELL_H);
         let outline = || at(el().key("terminal-cursor").size(w, CELL_H).border(1.0, pal.fg).border_layout());
