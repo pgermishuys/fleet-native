@@ -433,13 +433,6 @@ fn says_where_a_tool_lands_under_the_picker_and_lists_the_repositories() {
     assert_eq!(r.text("tools-target-line"), "Sessions in this repository \u{b7} /src/app/.opencode/tools/");
 }
 
-#[test]
-fn leaves_custom_to_the_next_piece() {
-    let mut r = tools_open(|_| {});
-    r.press("tools-tab-custom");
-    assert!(r.exists("tools-custom-not-yet"));
-}
-
 // ─── with no Fleet to ask ───────────────────────────────────────────────────────
 
 #[test]
