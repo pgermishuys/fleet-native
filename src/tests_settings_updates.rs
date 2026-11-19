@@ -114,7 +114,10 @@ fn rig(status_kind: &str) -> Rig {
     });
     let mut r = Rig { rt, queue, fake };
     r.wait("the status and the harnesses", |s| {
-        s.updates.status.get("home").is_some_and(|x| x.status.is_some()) && !s.harness_list().all.is_empty() && s.harness_prefs().fetched
+        s.updates.status.get("home").is_some_and(|x| x.status.is_some()) && s.harness_prefs().fetched
+            // The app starts with the invented harness list (mock feeds), so "not empty" is true before the fixture's read has
+            // landed: wait for the fixture's own kinds.
+            && s.harness_list().all.iter().map(|h| h.kind.as_str()).eq(["opencode", "pi", "claude-code"])
     });
     r.frames();
     // The wait above is on state; the rows are drawn from it by frames, and on a loaded runner the layout can lag the state
