@@ -1,6 +1,6 @@
 //! Settings → Skills & tools → Skills → Installed (`skills/InstalledSkillsTab.vue`): a card per install with its badges, where
 //! it came from, the folders Fleet wrote it to, and Check for updates, Update and Remove (which asks first).
-use super::skills_tools::{error_box, loading};
+use super::skills_tools::{empty_state, error_box, loading};
 use crate::State;
 use crate::fleet::settings::skills::{InstalledSkill, SkillsPage, Source};
 use crate::icons::{BRAIN, REFRESH_CW, TRASH_2, TRIANGLE_ALERT};
@@ -148,19 +148,7 @@ fn card(s: &State, t: &Theme, skill: &InstalledSkill) -> El {
 }
 
 fn empty(t: &Theme) -> El {
-    col()
-        .key("skills-empty")
-        .w_full()
-        .center()
-        .gap(3.5)
-        .padding(21.0)
-        .radius(RADIUS_CARD)
-        .border(1.0, t.border)
-        .border_layout()
-        .border_dash(3.0, 3.0)
-        .child(icon(&BRAIN, 28.0).color(t.muted).mb(7.0))
-        .child(text("No skills installed").font(sans(14.0, 600.0, 1.4)).color(t.text))
-        .child(text("Install a skill from the Catalog or Custom tab.").font(sans(rem(0.875), 400.0, 1.43)).color(t.muted).wrap())
+    empty_state(t, "skills-empty", &BRAIN, "No skills installed", "Install a skill from the Catalog or Custom tab.")
 }
 
 /// The tab: a loading line, the error alone when there is nothing to list, the empty state, or the cards with the error under.

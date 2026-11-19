@@ -2,8 +2,10 @@
 //! installed skills and how the list answer is read, the calls under `/api/skills`, the page's own state, and which tab opens.
 //! No Rune and no I/O here but [`send`], which a thread calls; what touches the app is `skills_actions.rs`.
 use super::install_target::{InstallTarget, to_install_target};
+use super::skills_catalog::CatalogEntry;
 use crate::conv::export_history::encode_component;
 use crate::fleet::http;
+use rune::TextEdit;
 use serde_json::Value;
 
 /// The three tabs of the page. Mods exists only while the Mods switch is on.
@@ -183,7 +185,12 @@ pub fn extract_error(body: &str, fallback: &str) -> String {
 
 /// Sends one call to the machine at `base`: the body (null when it had none), or why not. Blocking: a thread calls it.
 pub fn send(base: &str, req: &Request) -> Result<Value, String> {
-    let (status, body) = http::text_with(req.method, base, &req.path, None)?;
+    send_with(base, req, None)
+}
+
+/// [`send`] with a JSON body.
+pub fn send_with(base: &str, req: &Request, body: Option<&Value>) -> Result<Value, String> {
+    let (status, body) = http::text_with(req.method, base, &req.path, body)?;
     if !(200..300).contains(&status) {
         return Err(extract_error(&body, req.fallback));
     }
@@ -244,7 +251,7 @@ pub fn parse_github_url(url: &str) -> Option<GitHubUrl> {
 
 /// What Skills & tools keeps while it is open: the machine it asked, the list, the install target the Catalog and Custom tabs
 /// share, and the busy and confirm states (per install, as `InstalledSkillsTab.vue` keeps them).
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct SkillsPage {
     pub loaded_for: Option<String>,
     pub tab: Tab,
@@ -271,7 +278,22 @@ pub struct SkillsPage {
     pub updating: Option<String>,
     pub removing: Option<String>,
     pub confirm_remove: Option<String>,
+    /// Catalog (`useSkillCatalog`): read each time the tab opens.
+    pub catalog: Vec<CatalogEntry>,
+    pub catalog_loading: bool,
+    pub catalog_error: Option<String>,
+    /// Numbers the catalog's reads, so an answer to one the tab has left is dropped.
+    pub catalog_reads: u64,
+    /// The catalog card being installed (the others keep working; the picker is disabled).
+    pub installing_name: Option<String>,
+    /// The failure of a catalog install, under the grid.
+    pub install_error: Option<String>,
+    /// Custom: the address field and the form's own error; both are forgotten when the tab is left.
+    pub custom: TextEdit,
+    pub custom_error: Option<String>,
 }
+
+impl Eq for SkillsPage {}
 
 impl SkillsPage {
     /// The Mods switch (`isSwitchedOn`): the user's choice (the `Mods` preference, which is the app's own) wins as soon as it
@@ -315,4 +337,9 @@ impl SkillsPage {
             change(s);
         }
     }
+}
+
+/// Whether `skill` is `name` at `target` (the catalog's "Installed" check).
+pub fn installed_key_matches(skill: &InstalledSkill, name: &str, target: &InstallTarget) -> bool {
+    skill.name == name && skill.target.is_same(target)
 }

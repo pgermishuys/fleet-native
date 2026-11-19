@@ -19,7 +19,7 @@ fn project(path: &str) -> InstallTarget {
 }
 
 /// `createSkillEntry`.
-fn entry(name: &str, over: Value) -> Value {
+pub(crate) fn entry(name: &str, over: Value) -> Value {
     let mut v = json!({
         "name": name, "source": 1, "repoUrl": format!("https://github.com/example/{name}"), "ref": "main", "subPath": null,
         "localPath": null, "targetHarnesses": ["opencode"], "scope": "global", "projectPath": null,
@@ -160,20 +160,26 @@ fn reads_a_github_address_the_way_the_custom_tab_does() {
 // ─── SkillsToolsPage.test.ts and the page, over a fake Fleet ────────────────────
 
 #[derive(Default)]
-struct Fake {
-    skills: Vec<Value>,
+pub(crate) struct Fake {
+    pub(crate) skills: Vec<Value>,
     /// Every call heard on /api/skills: method and path with its query.
-    heard: Vec<(String, String)>,
+    pub(crate) heard: Vec<(String, String)>,
     /// What `GET /api/skills` answers instead of the list.
-    broken: Option<(u16, String)>,
+    pub(crate) broken: Option<(u16, String)>,
     /// What the check, the update and the remove answer.
-    check: Option<(u16, String)>,
-    update: Option<(u16, String)>,
-    remove: Option<(u16, String)>,
-    mods_on: Option<bool>,
-    repositories: Vec<Value>,
+    pub(crate) check: Option<(u16, String)>,
+    pub(crate) update: Option<(u16, String)>,
+    pub(crate) remove: Option<(u16, String)>,
+    pub(crate) mods_on: Option<bool>,
+    pub(crate) repositories: Vec<Value>,
     /// Whether `GET /api/repositories` was asked.
-    asked_repositories: bool,
+    pub(crate) asked_repositories: bool,
+    /// What `GET /api/skills/catalog` answers instead of the entries, the entries, and what the install answers.
+    pub(crate) catalog: Option<(u16, String)>,
+    pub(crate) entries: Vec<Value>,
+    pub(crate) install: Option<(u16, String)>,
+    /// The bodies of the installs heard.
+    pub(crate) installs: Vec<Value>,
 }
 
 type Shared = Arc<Mutex<Fake>>;
@@ -215,6 +221,21 @@ fn answer(mut stream: std::net::TcpStream, fake: Shared) {
             }
             answer
         }
+        ("GET", "/api/skills/catalog") => {
+            f.catalog.clone().unwrap_or_else(|| (200, json!({ "entries": f.entries, "isStale": false }).to_string()))
+        }
+        ("POST", "/api/skills/install") => {
+            let sent = req.json();
+            f.installs.push(sent.clone());
+            let answer = f.install.clone().unwrap_or_else(|| (200, json!({ "name": sent["name"], "syncResults": [] }).to_string()));
+            if answer.0 < 300 {
+                let (name, scope) = (sent["name"].as_str().unwrap_or("x").to_string(), sent["scope"].clone());
+                let mut e = entry(&name, json!({ "scope": scope, "projectPath": sent["projectPath"] }));
+                e["source"] = sent["source"].clone();
+                f.skills.push(e);
+            }
+            answer
+        }
         ("GET", "/api/features/mods") => match f.mods_on {
             Some(on) => (200, json!({ "on": on }).to_string()),
             None => (404, String::new()),
@@ -230,10 +251,10 @@ fn answer(mut stream: std::net::TcpStream, fake: Shared) {
     crate::test_http::respond_json(&mut stream, status, &reply);
 }
 
-struct Rig {
-    rt: Runtime<State>,
-    queue: Receiver<Job>,
-    fake: Shared,
+pub(crate) struct Rig {
+    pub(crate) rt: Runtime<State>,
+    pub(crate) queue: Receiver<Job>,
+    pub(crate) fake: Shared,
 }
 
 fn link_to(base: String) -> (Link, Receiver<Job>) {
@@ -257,16 +278,16 @@ fn rig_at(anchor: Option<&str>, setup: impl FnOnce(&mut Fake)) -> Rig {
     Rig { rt, queue, fake }
 }
 
-fn rig(setup: impl FnOnce(&mut Fake)) -> Rig {
+pub(crate) fn rig(setup: impl FnOnce(&mut Fake)) -> Rig {
     rig_at(None, setup)
 }
 
 impl Rig {
-    fn wait(&mut self, what: &str, done: impl FnMut(&State) -> bool) {
+    pub(crate) fn wait(&mut self, what: &str, done: impl FnMut(&State) -> bool) {
         test_wait::drive(&mut self.rt, &self.queue, what, done, |s| format!("{:?}", s.settings.skills));
     }
     /// The page read: the list, the repositories and the Mods answer are all in.
-    fn read(&mut self) {
+    pub(crate) fn read(&mut self) {
         self.wait("the page to be read", |s| {
             let p = &s.settings.skills;
             p.loaded_for.is_some() && !p.loading && !p.repos_loading && p.mods_server.is_some() == (s.settings.skills.mods_server.is_some())
@@ -275,7 +296,7 @@ impl Rig {
         test_wait::until_true("the Mods and repositories questions to be answered", || fake.lock().unwrap().asked_repositories);
         self.settle();
     }
-    fn settle(&mut self) {
+    pub(crate) fn settle(&mut self) {
         for _ in 0..3 {
             while let Ok(job) = self.queue.try_recv() {
                 self.rt.update(job);
@@ -283,28 +304,28 @@ impl Rig {
             self.rt.frame(FRAME);
         }
     }
-    fn exists(&self, key: &str) -> bool {
+    pub(crate) fn exists(&self, key: &str) -> bool {
         self.rt.elements().iter().any(|e| e.key.as_deref() == Some(key) && !e.exiting)
     }
-    fn text(&self, key: &str) -> String {
+    pub(crate) fn text(&self, key: &str) -> String {
         let all = self.rt.elements();
         let it = all.iter().find(|e| e.key.as_deref() == Some(key) && !e.exiting).unwrap_or_else(|| panic!("no element keyed {key:?}"));
         all.iter().filter(|e| e.path.starts_with(&it.path)).filter_map(|e| e.text.clone()).collect::<Vec<_>>().join("")
     }
-    fn page(&self) -> &skills::SkillsPage {
+    pub(crate) fn page(&self) -> &skills::SkillsPage {
         &self.rt.state.settings.skills
     }
     /// The calls heard on /api/skills.
-    fn heard(&self) -> Vec<(String, String)> {
+    pub(crate) fn heard(&self) -> Vec<(String, String)> {
         self.fake.lock().unwrap().heard.clone()
     }
-    fn heard_count(&self, method: &str, prefix: &str) -> usize {
+    pub(crate) fn heard_count(&self, method: &str, prefix: &str) -> usize {
         self.heard().iter().filter(|(m, p)| m == method && p.starts_with(prefix)).count()
     }
-    fn press(&mut self, key: &str) {
+    pub(crate) fn press(&mut self, key: &str) {
         click(&mut self.rt, key);
     }
-    fn tabs(&self) -> Vec<String> {
+    pub(crate) fn tabs(&self) -> Vec<String> {
         self.rt
             .elements()
             .iter()
@@ -395,7 +416,7 @@ fn can_be_called_manually_to_refresh() {
     assert_eq!(r.heard_count("GET", "/api/skills"), 1);
     r.fake.lock().unwrap().skills.push(entry("skill-two", json!({})));
     // The Installed tab reads each time it is opened: leave it and come back.
-    r.press("skills-tab-catalog");
+    r.press("skills-tab-custom");
     r.press("skills-tab-installed");
     r.wait("the second read", |s| s.settings.skills.skills.len() == 2);
     assert_eq!(r.heard_count("GET", "/api/skills"), 2);

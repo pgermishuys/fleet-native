@@ -1,10 +1,9 @@
 //! Settings → Skills & tools (`SkillsToolsPage.vue`, `SkillsSection.vue`): the page's tab strip (Skills, Tools and, while the
 //! Mods switch is on, Mods), and Skills' own: the intro line and Installed, Catalog and Custom. The Installed tab is
-//! `skills_installed.rs`; Catalog, Custom, Tools and Mods are later pieces and show a note until they are built. Also here, for
+//! `skills_installed.rs`, Catalog and Custom are `skills_catalog.rs`; Tools and Mods are later pieces and show a note until they are built. Also here, for
 //! them to share: the error note and the loading line every tab of the page uses (`ErrorNote`, `Spinner`).
-use super::{install_picker, skills_installed};
+use super::{skills_catalog, skills_installed};
 use crate::State;
-use crate::fleet::settings::install_target::Kind;
 use crate::fleet::settings::skills::{Inner, Tab};
 use crate::icons::CIRCLE_ALERT;
 use crate::theme::{RADIUS_CARD, Theme, sans};
@@ -38,6 +37,23 @@ pub fn error_box(t: &Theme, key: &str, message: &str) -> El {
         .fill(t.error.alpha(0.1))
         .child(icon(&CIRCLE_ALERT, 16.0).color(t.error_text).mt(1.0))
         .child(text(message.to_string()).font(sans(rem(0.875), 400.0, 1.43)).color(t.error_text).wrap().shrink().min_w(0.0))
+}
+
+/// `EmptyState` with `bordered`: a dashed box with a glyph, a title and a line under it.
+pub fn empty_state(t: &Theme, key: &str, glyph: &'static rune::Icon, title: &str, description: &str) -> El {
+    col()
+        .key(key.to_string())
+        .w_full()
+        .center()
+        .gap(3.5)
+        .padding(21.0)
+        .radius(RADIUS_CARD)
+        .border(1.0, t.border)
+        .border_layout()
+        .border_dash(3.0, 3.0)
+        .child(icon(glyph, 28.0).color(t.muted).mb(7.0))
+        .child(text(title.to_string()).font(sans(14.0, 600.0, 1.4)).color(t.text))
+        .child(text(description.to_string()).font(sans(rem(0.875), 400.0, 1.43)).color(t.muted).wrap())
 }
 
 /// What a tab that isn't built yet shows (the same note a page not built yet shows).
@@ -91,16 +107,8 @@ fn skills_section(s: &State, t: &Theme) -> El {
     );
     let body = match page.inner {
         Inner::Installed => skills_installed::tab(s, t),
-        Inner::Catalog => col().w_full().gap(14.0).child(install_picker::picker(s, t, "skills-target", Kind::Skills)).child(not_yet(
-            t,
-            "skills-catalog-not-yet",
-            "The skill catalog",
-        )),
-        Inner::Custom => col().w_full().gap(14.0).child(install_picker::picker(s, t, "skills-target", Kind::Skills)).child(not_yet(
-            t,
-            "skills-custom-not-yet",
-            "Installing from a URL or path",
-        )),
+        Inner::Catalog => skills_catalog::catalog_tab(s, t),
+        Inner::Custom => skills_catalog::custom_tab(s, t),
     };
     col()
         .key("skills-section")

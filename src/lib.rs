@@ -250,6 +250,8 @@ mod tests_settings_permissions_more;
 #[cfg(test)]
 mod tests_settings_skills;
 #[cfg(test)]
+mod tests_settings_skills_catalog;
+#[cfg(test)]
 mod tests_settings_storage;
 #[cfg(test)]
 mod tests_settings_updates;
@@ -1853,6 +1855,26 @@ fn skills_scene(s: &mut State, dark: bool, anchor: Option<&str>, change: impl Fn
     s.settings.skills = page;
 }
 
+/// Skills → Catalog as a scene, with the invented catalog read.
+fn catalog_scene(s: &mut State, dark: bool, change: impl FnOnce(&mut fleet::settings::skills::SkillsPage)) {
+    skills_scene(s, dark, None, |p| {
+        p.inner = fleet::settings::skills::Inner::Catalog;
+        p.catalog = mock::skills::catalog();
+        // Nothing of the catalog installed yet, as in the scratch Fleet the pictures are compared with.
+        p.skills.clear();
+        change(p);
+    });
+}
+
+/// Skills → Custom as a scene, with `address` typed and the form's error shown.
+fn custom_scene(s: &mut State, dark: bool, address: &str, error: Option<&str>) {
+    skills_scene(s, dark, None, |p| {
+        p.inner = fleet::settings::skills::Inner::Custom;
+        p.custom = rune::TextEdit::new(address);
+        p.custom_error = error.map(str::to_string);
+    });
+}
+
 /// Settings → Folders as a scene: the page open on the invented locations, marked as already read.
 fn locations_scene(s: &mut State, dark: bool, change: impl FnOnce(&mut fleet::settings::locations::LocationsPage)) {
     s.dark = Some(dark);
@@ -2106,6 +2128,32 @@ pub fn spec() -> AppSpec<State> {
                 s.ui.open = Some(ui::Open::Select("skills-target"))
             }),
             ("settings-skills-custom-light", |s| skills_scene(s, false, None, |p| p.inner = fleet::settings::skills::Inner::Custom)),
+            ("settings-skills-catalog", |s| catalog_scene(s, true, |_| {})),
+            ("settings-skills-catalog-light", |s| catalog_scene(s, false, |_| {})),
+            ("settings-skills-catalog-installed", |s| {
+                catalog_scene(s, true, |p| {
+                    p.skills =
+                        vec![mock::skills::from_entry(&mock::skills::catalog()[0], fleet::settings::install_target::InstallTarget::Global)]
+                })
+            }),
+            ("settings-skills-catalog-installed-light", |s| {
+                catalog_scene(s, false, |p| {
+                    p.skills =
+                        vec![mock::skills::from_entry(&mock::skills::catalog()[0], fleet::settings::install_target::InstallTarget::Global)]
+                })
+            }),
+            ("settings-skills-catalog-installing", |s| catalog_scene(s, true, |p| p.installing_name = Some("api-probe".into()))),
+            ("settings-skills-catalog-installing-light", |s| catalog_scene(s, false, |p| p.installing_name = Some("api-probe".into()))),
+            ("settings-skills-catalog-error", |s| catalog_scene(s, true, |p| p.install_error = Some("Skill already exists".into()))),
+            ("settings-skills-catalog-error-light", |s| catalog_scene(s, false, |p| p.install_error = Some("Skill already exists".into()))),
+            ("settings-skills-catalog-empty", |s| catalog_scene(s, true, |p| p.catalog.clear())),
+            ("settings-skills-catalog-empty-light", |s| catalog_scene(s, false, |p| p.catalog.clear())),
+            ("settings-skills-catalog-loading", |s| catalog_scene(s, true, |p| p.catalog_loading = true)),
+            ("settings-skills-catalog-loading-light", |s| catalog_scene(s, false, |p| p.catalog_loading = true)),
+            ("settings-skills-custom-error", |s| custom_scene(s, true, "", Some("Skill URL or path is required."))),
+            ("settings-skills-custom-error-light", |s| custom_scene(s, false, "", Some("Skill URL or path is required."))),
+            ("settings-skills-custom-filled", |s| custom_scene(s, true, "https://github.com/acme-labs/tidy-imports", None)),
+            ("settings-skills-custom-filled-light", |s| custom_scene(s, false, "https://github.com/acme-labs/tidy-imports", None)),
             ("settings-memory-off", |s| memory_scene(s, true, |_| {})),
             ("settings-memory-off-light", |s| memory_scene(s, false, |_| {})),
             ("settings-memory-on", |s| memory_scene(s, true, |p| p.overview.as_mut().expect("an overview").enabled = true)),
