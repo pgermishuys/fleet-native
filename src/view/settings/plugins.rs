@@ -30,26 +30,24 @@ pub fn built_in(t: &Theme, key: String) -> El {
         .child(text("Built in").font(sans(rem(0.71429), 600.0, 1.4)).color(t.muted))
 }
 
-/// A plugin's switch, for the row and for its page. The Mods switch is its own preference and shows its saving; turning Mods
-/// on waits for the Bun question (piece AE), so a Mods switch that is off doesn't press.
+/// A plugin's switch, for the row and for its page. The Mods switch is its own preference and shows its saving; while the
+/// panel asks whether to install Bun it stays off with a ring (`pending`), and pressing it again cancels.
 pub fn switch(s: &State, t: &Theme, p: &Plugin, key: String) -> El {
     let on = p.enabled(&s.pickers.prefs);
     let saving = p.own_switch && s.setting_saving(plugins::MODS_KEY);
-    let locked = p.own_switch && !on;
-    let state = SwitchState { saving, disabled: s.preferences_loading() || saving || locked, pending: false };
+    let pending = p.own_switch && s.settings.mods_runtime.confirming;
+    let state = SwitchState { saving, disabled: s.preferences_loading() || saving, pending };
     let id = p.id;
     kit::setting_switch(t, &key, &format!("{} on or off", p.name), on, state, move |s: &mut State| s.plugin_press(id))
 }
 
-/// What stands under a Mods row that is off, in the slot Fleet gives the plugin's own panel (`basis-full pl-12`).
+/// What stands under a Mods row, in the slot Fleet gives the plugin's own panel (`basis-full pl-12`): the question about Bun,
+/// the install, why it failed, or the Bun in use.
 pub fn own_panel(s: &State, t: &Theme, p: &Plugin, key: String) -> Option<El> {
-    (p.own_switch && !p.enabled(&s.pickers.prefs)).then(|| {
-        text("Mods can't be turned on from this app yet: that comes with the question about Bun.")
-            .key(key)
-            .font(sans(rem(0.75), 400.0, 1.33))
-            .color(t.muted)
-            .wrap()
-    })
+    if !p.own_switch {
+        return None;
+    }
+    super::mods_panel::panel(s, t, key)
 }
 
 fn chip(t: &Theme, key: String, words: &str) -> El {

@@ -157,10 +157,7 @@ fn the_mods_switch_is_the_mods_preference_not_the_list() {
     r.wait_put("Mods", "false");
     assert!(!r.rt.state.plugin_enabled("mods"));
     assert!(r.puts().iter().all(|(k, _)| k != DISABLED_PLUGINS_KEY));
-    assert!(r.info("plugin-panel-mods").is_some(), "off: the note about Bun stands in the panel slot");
-    click(&mut r.rt, "plugin-switch-mods");
-    r.frames();
-    assert_eq!(r.puts().len(), 1, "turning Mods on waits for the Bun question (AE)");
+    assert!(r.info("plugin-panel-mods").is_none(), "off with nothing to say: the panel slot is empty (tests_settings_mods has the rest)");
 }
 
 #[test]
