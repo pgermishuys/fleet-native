@@ -321,3 +321,45 @@ fn the_drafts_are_on_disk_before_the_app_restarts() {
     assert!(file.contains("typed a moment ago"), "{file}");
     assert_eq!(rt.state.drafts.text_of("mock.0.0"), "half a thought", "the text area's own text is put away first");
 }
+
+#[test]
+fn a_swap_windows_refuses_as_in_use_is_tried_again_until_it_goes_through() {
+    let mut calls = 0;
+    let got = install::while_locked(
+        || {
+            calls += 1;
+            if calls < 3 { Err(std::io::Error::from_raw_os_error(32)) } else { Ok("swapped") }
+        },
+        20,
+        std::time::Duration::ZERO,
+    );
+    assert_eq!(got.unwrap(), "swapped");
+    assert_eq!(calls, 3);
+}
+
+#[test]
+fn another_failure_is_not_tried_again_and_a_file_that_stays_held_gives_up() {
+    let mut calls = 0;
+    let got: std::io::Result<()> = install::while_locked(
+        || {
+            calls += 1;
+            Err(std::io::Error::new(std::io::ErrorKind::NotFound, "gone"))
+        },
+        20,
+        std::time::Duration::ZERO,
+    );
+    assert_eq!(got.unwrap_err().kind(), std::io::ErrorKind::NotFound);
+    assert_eq!(calls, 1, "a missing file won't appear by waiting");
+
+    let mut calls = 0;
+    let got: std::io::Result<()> = install::while_locked(
+        || {
+            calls += 1;
+            Err(std::io::Error::from_raw_os_error(32))
+        },
+        4,
+        std::time::Duration::ZERO,
+    );
+    assert_eq!(got.unwrap_err().raw_os_error(), Some(32));
+    assert_eq!(calls, 4);
+}
