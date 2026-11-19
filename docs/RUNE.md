@@ -1994,6 +1994,7 @@ Same recipe as Changes' Rendered view: a `selection_group(true)` column with `on
 - **"Seen" has no equivalent**: Fleet asks when the group scrolls into view (`IntersectionObserver`). Here a per-frame `keep_` hook on the page asks once when the group is first built, and a state with no answer yet draws a spinner group under a different key (`settings-group-weave-loading`), so an anchor to `weave` keeps waiting for the real group.
 - **A disabled button is `opacity < 1` in a test**: `ElementInfo` has no disabled flag; `button::disabled` fades it, and the fade takes a few frames to finish after a state change, so a test that checks it came back must run frames first.
 - **`role("alert")` on a text element, not its row**: a test that reads the element by key gets the text's role, so put the role on the keyed element.
+
 ## Component 16, piece AH (Skills: Catalog and Custom)
 
 - **`El::max_lines(n)` is Rune's `line-clamp`**: wrapped text that ends the last line with "…". Fleet's three-line card description uses it; it is not `.truncate()`, which is one line.
