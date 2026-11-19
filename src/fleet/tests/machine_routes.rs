@@ -237,8 +237,7 @@ fn serve(route: impl Fn(&str) -> Option<(&'static str, String)> + Send + Sync + 
 
 /// A port nothing listens on.
 fn nobody_home() -> String {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-    format!("http://{}", listener.local_addr().unwrap())
+    crate::test_http::dead_address()
 }
 
 fn who(id: &'static str) -> impl Fn(&str) -> Option<(&'static str, String)> + Send + Sync + 'static {

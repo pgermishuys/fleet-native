@@ -100,9 +100,7 @@ fn refresh(m: &mut Machines) -> Option<bool> {
 }
 
 fn nobody_home() -> String {
-    // A port nothing listens on any more.
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-    format!("http://{}", listener.local_addr().unwrap())
+    crate::test_http::dead_address()
 }
 
 fn app_row(id: &str, title: &str) -> crate::mock::Session {

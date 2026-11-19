@@ -334,9 +334,7 @@ fn says_what_the_server_said_else_the_fallback() {
 #[test]
 fn a_server_that_does_not_answer_gets_the_footers_words() {
     // Nothing listens on this port.
-    let dead = TcpListener::bind("127.0.0.1:0").unwrap();
-    let base = format!("http://{}", dead.local_addr().unwrap());
-    drop(dead);
+    let base = crate::test_http::dead_address();
     assert_eq!(crate::fleet::http::report_prepare(&base, &json!({})).unwrap_err(), PREPARE_FAILED);
     assert_eq!(crate::fleet::http::report_send(&base, &json!({})).unwrap_err(), SEND_FAILED);
     assert_eq!(crate::fleet::http::report_file(&base, &json!({})).unwrap_err(), SAVE_FAILED);

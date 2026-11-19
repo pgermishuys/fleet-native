@@ -235,10 +235,7 @@ fn says_what_fleet_answered_when_it_refuses() {
 #[test]
 fn says_so_when_fleet_cannot_be_reached() {
     // A server that listened a moment ago and is gone.
-    let dead = {
-        let l = TcpListener::bind("127.0.0.1:0").expect("a port");
-        format!("http://{}", l.local_addr().expect("an address"))
-    };
+    let dead = crate::test_http::dead_address();
     let mut r = rig_at(Case::PopBlocked, |_| Some(dead));
     click(&mut r.rt, "session-pr-fix");
     r.wait("the error line", |s| s.agent_sends.error(SESSION).is_some());
