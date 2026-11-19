@@ -1977,3 +1977,7 @@ Read at the pin while planning; nothing built yet.
 
 - A headless `--script` run drives the app's clock, not wall time, while a socket thread (and a server killed from outside) runs in real time: a script that waits "20 s" for a Reconnecting… notice can see the whole backoff pass in one frame run. To catch a live reconnect, put a small TCP proxy between the app and the server and stop and start the proxy; a full server restart (about 15 s) outlasts Fleet's five attempts, so it ends on the failed panel in both clients.
 - `tap` with a `key` focuses an element (the grip) and `key` events then reach it by name (`Up`, not `ArrowUp`); a script that moves a keyboard-driven grip needs nothing else.
+
+## Asking about text in a file tab's Rendered Markdown (11O)
+
+Same recipe as Changes' Rendered view: a `selection_group(true)` column with `on_selection_change` calling `read_rendered_selection`, and an `on_pointer_move_local` on the scrolling parent that remembers the pointer (a selection change carries no position). The selection group must sit inside the scroll, not around it, or the scroll's own drags are taken for selections.
