@@ -69,7 +69,7 @@ fn answer(mut stream: std::net::TcpStream, fake: Shared) {
     } else if method == "GET" && path == "/api/preferences" {
         ("200 OK", json!(f.prefs))
     } else if path == "/api/weave" {
-        // Weave asks nothing of these pages: an empty answer draws no Weave group, so the controls stay where the tests click.
+        // Weave asks nothing of these pages: an empty answer draws no Weave group (the rigs wait for it, so the layout is still).
         ("200 OK", json!({"source": "own", "files": {}, "harnesses": []}))
     } else if method == "GET" && path == "/api/agent-browser/settings" {
         if f.browser_garbage { ("200 OK", json!({})) } else { ("200 OK", browser_json(&f)) }
@@ -187,7 +187,7 @@ fn rig(prefs: &[(&str, &str)]) -> Rig {
     let mut r = Rig { rt, queue, fake };
     r.rt.frame(FRAME);
     r.wait("the harnesses and the preferences", |s| {
-        s.harness_list().all.len() == 4 && s.harness_prefs().fetched && !s.harnesses_checking()
+        s.harness_list().all.len() == 4 && s.harness_prefs().fetched && !s.harnesses_checking() && s.settings.harnesses.weave.view.is_some()
     });
     r
 }
