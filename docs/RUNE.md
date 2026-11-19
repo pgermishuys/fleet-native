@@ -2006,3 +2006,9 @@ Same recipe as Changes' Rendered view: a `selection_group(true)` column with `on
 - A fixed-size element needs no "don't shrink" call: Rune items only shrink where `.shrink()` is asked, so an icon tile or switch beside a `.grow(1.0).shrink()` text column keeps its size.
 - A button laid over the end of another (Settings' menu fold button over the Plugins entry) is `absolute(x, 0)` from the parent's left; there is no `right:` offset, so x is worked out from the known width of the panel.
 - There is no baseline alignment (`items-baseline`); `items_center` stands in where a heading and a small line share a row.
+
+## Component 16, piece Z (the Weave config dialog)
+
+- **A dialog taller than the window needs its own cap**: `ui::dialog::Dialog.max_height` (90% of the window, from `ui.sel.window`) caps the panel and scrolls it, as `max-h-[90vh] overflow-y-auto` does.
+- **What appears inside an open dialog fades in**: a test that presses a button right after the state that shows it finds it at opacity < 1 and the press can land on the scrim, closing the dialog. Run 30 frames after each press before the next.
+- **`on_input_key` sees Esc before the dialog does**: returning true from it in the prompt box cancels only the box.

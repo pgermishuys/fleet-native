@@ -234,7 +234,7 @@ pub fn group(s: &State, t: &Theme, harness: &str) -> Option<El> {
                 };
                 let edit = button::button(t, Variant::Outline, Size::Sm, None, "Edit\u{2026}")
                     .key("weave-edit-config")
-                    .on_press(|s: &mut State| s.edit_weave_config());
+                    .on_press(|s: &mut State| s.open_weave_config());
                 rows.push(Row::new("weave-config", "Config").summary(words).control(edit).build(s, t));
             }
             Some(kit::group(t, "weave", TITLE, Some(HINT), rows))

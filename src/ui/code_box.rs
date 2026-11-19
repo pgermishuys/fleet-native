@@ -43,6 +43,30 @@ pub fn code_box(
     access: for<'a> fn(&'a mut State) -> &'a mut TextEdit,
     save: impl Fn(&mut State) + 'static,
 ) -> El {
+    boxed(t, key, label, edit, access, save, false)
+}
+
+/// The same box with no border or radius of its own, for a container that has them (`class="rounded-none border-0"`).
+pub fn code_box_flat(
+    t: &Theme,
+    key: &str,
+    label: &str,
+    edit: &TextEdit,
+    access: for<'a> fn(&'a mut State) -> &'a mut TextEdit,
+    save: impl Fn(&mut State) + 'static,
+) -> El {
+    boxed(t, key, label, edit, access, save, true)
+}
+
+fn boxed(
+    t: &Theme,
+    key: &str,
+    label: &str,
+    edit: &TextEdit,
+    access: for<'a> fn(&'a mut State) -> &'a mut TextEdit,
+    save: impl Fn(&mut State) + 'static,
+    flat: bool,
+) -> El {
     let active = caret_line(edit);
     let mut numbers = col().key(format!("{key}-lines")).min_w(34.0).items_end().py(6.0).px(8.0).fill(t.panel_bg);
     for n in 0..line_count(&edit.text) {
@@ -81,12 +105,9 @@ pub fn code_box(
         .scroll(ScrollSpec { stick_bottom: false })
         .child(row().w_full().min_h(MIN_HEIGHT - 2.0).child(numbers).child(field));
     let border = if edit.focused { t.accent_border(55.0) } else { t.border };
-    el().key(format!("{key}-box"))
-        .w_full()
-        .radius(RADIUS_BTN)
-        .border(1.0, border)
-        .border_layout()
-        .fill(t.main_bg)
-        .clip_rounded(RADIUS_BTN)
-        .child(scroll)
+    let frame = el().key(format!("{key}-box")).w_full().fill(t.main_bg);
+    if flat {
+        return frame.child(scroll);
+    }
+    frame.radius(RADIUS_BTN).border(1.0, border).border_layout().clip_rounded(RADIUS_BTN).child(scroll)
 }

@@ -2,6 +2,7 @@
 //! draws it in. Package names are the public ones; paths are invented.
 use crate::State;
 use crate::fleet::settings::harness_weave::{Apply, Detection, Flavor, Install, Notice, NoticeTone, Weave, WeaveView};
+use crate::fleet::settings::harness_weave_config::Check;
 use std::collections::BTreeMap;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -155,5 +156,107 @@ impl State {
             w.notices.insert("opencode2".into(), n);
         }
         self.settings.harnesses.weave = w;
+    }
+}
+
+/// The config dialog's cases (component 16, piece Z).
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum ConfigCase {
+    /// Weave reads the user's own file.
+    Own,
+    /// Fleet keeps the config: `config.weave` as saved.
+    Fleet,
+    /// A prompt file beside it, open.
+    Prompt,
+    /// The "+ prompt" form with a name that is already taken.
+    Adding,
+    /// Test passed.
+    CheckOk,
+    /// Save refused by OpenCode: nothing saved.
+    CheckFailed,
+    /// Saved, and one folder still waits to reload.
+    Applying,
+    /// Only a Weave Legacy too old to read Fleet's folder: Fleet's card is off.
+    Outdated,
+    /// Both Weaves load: both files have a tab.
+    Both,
+}
+
+const SAVED_CONFIG: &str = "# Fleet's Weave config. Weave reads it in place of ~/.weave/config.weave in Fleet sessions.\n\
+# A repo's own .weave/config.weave still applies on top.\n\
+\n\
+agent reviewer {\n  model = \"claude-sonnet\"\n  prompt_file = \"reviewer.md\"\n}\n";
+
+impl State {
+    /// The Weave config dialog, open over Settings → Harnesses.
+    pub fn show_weave_config(&mut self, dark: bool, case: ConfigCase) {
+        let base = match case {
+            ConfigCase::Own => Case::Own,
+            ConfigCase::Outdated => Case::Outdated,
+            ConfigCase::Both => Case::Both,
+            _ => Case::Loaded,
+        };
+        self.show_weave(dark, base);
+        let w = &mut self.settings.harnesses.weave;
+        let Some(mut view) = w.view.take() else { return };
+        let mut files = BTreeMap::new();
+        let fleet = !matches!(case, ConfigCase::Own | ConfigCase::Outdated);
+        if fleet {
+            files.insert("config.weave".to_string(), SAVED_CONFIG.to_string());
+        }
+        if matches!(case, ConfigCase::Prompt | ConfigCase::Adding | ConfigCase::CheckOk | ConfigCase::Applying) {
+            files.insert(
+                "prompts/reviewer.md".to_string(),
+                "You review changes for bugs first and style second.\nQuote the line you mean.\n".into(),
+            );
+        }
+        if case == ConfigCase::Both {
+            files.insert(
+                "weave-opencode.jsonc".to_string(),
+                "{\n  // Fleet's Weave Legacy config.\n  \"agents\": { \"reviewer\": { \"model\": \"claude-sonnet\" } }\n}\n".into(),
+            );
+        }
+        view.fleet_source = fleet;
+        view.files = files;
+        if case == ConfigCase::Applying {
+            view.apply = Some(Apply { folders: vec![("/work/alpha".into(), true), ("/work/beta-service".into(), false)], error: None });
+        }
+        w.config = Default::default();
+        w.show(view);
+        w.config.open = true;
+        let c = &mut w.config;
+        match case {
+            ConfigCase::Prompt => c.select("prompts/reviewer.md"),
+            ConfigCase::Adding => {
+                c.adding = true;
+                c.new_prompt = rune::TextEdit::new("reviewer");
+            }
+            ConfigCase::CheckOk => {
+                c.checks = Some(vec![Check {
+                    harness_name: "OpenCode 2".into(),
+                    flavor: Flavor::Weave,
+                    ok: true,
+                    agents: vec!["loom".into(), "reviewer".into(), "tapestry".into()],
+                    error: None,
+                    details: Vec::new(),
+                }])
+            }
+            ConfigCase::CheckFailed => {
+                c.files.insert("config.weave".into(), "agent reviewer {\n  model = \"claude-sonnet\"\n".into());
+                c.select("config.weave");
+                c.checks = Some(vec![Check {
+                    harness_name: "OpenCode 2".into(),
+                    flavor: Flavor::Weave,
+                    ok: false,
+                    agents: Vec::new(),
+                    error: Some("OpenCode started, but Weave added no agents.".into()),
+                    details: vec!["config.weave:3:1 UnclosedBlock".into()],
+                }]);
+            }
+            ConfigCase::Applying => {
+                c.notice = Some("Saved. New sessions use it, and running ones pick it up as each folder goes idle.".into())
+            }
+            _ => {}
+        }
     }
 }

@@ -29,11 +29,20 @@ pub(crate) struct Fake {
     /// The `/api/weave` paths asked, query included, and the plugin requests `(method, path)`.
     pub reads: Vec<String>,
     pub plugin_calls: Vec<(String, String)>,
+    /// The config dialog's side: the saved files and apply status `GET /api/weave` answers, what the own-file, check and save
+    /// requests answer (`None` is a default), and every such request `(method, route, query, body)`.
+    pub files: Value,
+    pub apply: Value,
+    pub own: Value,
+    pub check: Option<(u16, Value)>,
+    pub save: Option<(u16, Value)>,
+    pub config_calls: Vec<(String, String, String, Value)>,
 }
 pub(crate) type Shared = Arc<Mutex<Fake>>;
 
 fn view(f: &Fake) -> Value {
-    json!({"source": if f.source.is_empty() { "own" } else { f.source }, "files": {}, "updatedAt": null, "apply": null, "harnesses": f.weave})
+    let files = if f.files.is_null() { json!({}) } else { f.files.clone() };
+    json!({"source": if f.source.is_empty() { "own" } else { f.source }, "files": files, "updatedAt": null, "apply": f.apply, "harnesses": f.weave})
 }
 
 fn serve(fake: Shared) -> String {
@@ -75,6 +84,17 @@ fn answer(mut stream: std::net::TcpStream, fake: Shared) {
         (200, json!({}))
     } else if method == "GET" && path == "/api/agent-browser/settings" {
         (200, json!({"enabled": true}))
+    } else if req.route() == "/api/weave/own" || req.route() == "/api/weave/check" || (method == "PUT" && req.route() == "/api/weave") {
+        let query = path.split_once('?').map(|(_, q)| q.to_string()).unwrap_or_default();
+        f.config_calls.push((method.clone(), req.route().to_string(), query.clone(), req.json()));
+        match req.route() {
+            "/api/weave/own" => {
+                let flavor = query.trim_start_matches("flavor=").to_string();
+                (200, f.own.get(&flavor).cloned().unwrap_or(json!({"path": "", "files": {}})))
+            }
+            "/api/weave/check" => f.check.clone().unwrap_or((200, json!([]))),
+            _ => f.save.clone().unwrap_or((200, json!({"saved": true, "checks": [], "config": view(&f)}))),
+        }
     } else if method == "GET" && path.starts_with("/api/weave") {
         f.reads.push(path.clone());
         if f.refuse_reads > 0 {
@@ -306,7 +326,7 @@ fn asks_for_the_config_dialog_from_edit_and_says_whose_config_weave_reads() {
     r.answered();
     assert!(r.words().contains("Kept in Fleet. Weave reads it in Fleet sessions."));
     r.click("weave-edit-config");
-    assert!(r.rt.state.settings.harnesses.weave.edit_asked);
+    assert!(r.rt.state.settings.harnesses.weave.config.open);
     let mut own = rig(Fake { weave: vec![opencode(vec![weave_install()])], ..Fake::default() });
     own.answered();
     assert!(own.words().contains("Weave reads your own file in Fleet sessions."));

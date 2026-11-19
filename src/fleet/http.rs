@@ -785,6 +785,23 @@ pub fn weave_plugin(base: &str, harness: &str, add: bool) -> Result<(u16, String
     text_within(if add { "POST" } else { "DELETE" }, base, &format!("/api/weave/harnesses/{}/plugin", escape(harness)), None, 120)
 }
 
+/// `GET /api/weave/own?flavor=`: the user's own Weave files for one flavour (`weave` or `legacy`).
+pub fn weave_own(base: &str, flavor: &str) -> Result<(u16, String), String> {
+    text_with("GET", base, &format!("/api/weave/own?flavor={}", escape(flavor)), None)
+}
+
+/// `POST /api/weave/check` `{flavor, files}`: each harness that loads this Weave tries the files and says what it loads.
+pub fn weave_check(base: &str, flavor: &str, files: &Value) -> Result<(u16, String), String> {
+    let body = json!({ "flavor": flavor, "files": files });
+    text_within("POST", base, "/api/weave/check", Some(&body), 120)
+}
+
+/// `PUT /api/weave` `{source, files}`: with `fleet` the harnesses try the files first and a failed check saves nothing.
+pub fn weave_save(base: &str, source: &str, files: &Value) -> Result<(u16, String), String> {
+    let body = json!({ "source": source, "files": files });
+    text_within("PUT", base, "/api/weave", Some(&body), 120)
+}
+
 /// `GET /api/harnesses/{type}/sign-in`: the providers a harness can sign in to, which asks (and starts) the harness.
 pub fn sign_in_list(base: &str, harness: &str) -> Result<(u16, String), String> {
     text_with("GET", base, &format!("/api/harnesses/{}/sign-in", escape(harness)), None)

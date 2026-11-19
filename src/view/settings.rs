@@ -21,6 +21,7 @@ pub mod harness_sign_in;
 pub mod harness_sign_in_flow;
 pub mod harness_update;
 pub mod harness_weave;
+pub mod harness_weave_dialog;
 pub mod harnesses;
 pub mod install_picker;
 pub mod kit;
