@@ -2071,3 +2071,9 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **Text with a few words in the mono face** (the paths and commands in "Mods need Bun") is `rune::rich(all, vec![Span::new(a, b).mono().size(..).color(..)])`: the spans are byte ranges of the whole string, so build the string and the spans together from `(text, is_code)` parts. A paragraph with an inline *link* can't be one element: the link is its own pressable `row()` in a wrapping row beside the text before and after it, so a line break can fall between them but not inside the link.
 - **A test that waits for "the server answered a button"** can't wait for the request alone: the answer is taken on the UI thread after the thread's job is handed back. Wait for the next request the handler makes after it has set the state (here the preferences read that follows every Mods button), or for the state itself.
 - **`cargo test` of the lib with two rustc at once peaked at 3.9 GB** and the 4000M cap killed it (exit 143). `cargo test -j1` finished inside it in about 3.5 minutes.
+## Component 16, piece AF (GitHub's connection page)
+
+- **A test can't set the app's clock by hand**: `poll` writes `State.clock` from the runtime's time on every frame, so `s.clock = x` is overwritten. Advance time with `rt.frame(seconds)` (a long frame runs every timer that is due, once).
+- **A plain `.row()` button in a column stretches to the full width**; `.self_start()` gives Fleet's inline-sized button.
+- **`border_sides` is `[top, left, bottom, right]`** (a divider above a row is `[1.0, 0.0, 0.0, 0.0]`).
+- **`TextEdit::secure()` fits a token box**: bullets, `[redacted]` in `Debug`; keep it out of a state's own `Debug` anyway.

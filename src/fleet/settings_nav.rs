@@ -165,6 +165,8 @@ pub struct SettingsNav {
     pub memory: crate::fleet::settings::memory::MemoryPage,
     /// What Skills & tools read from the machine shown: the skills, the picker's repositories and the Mods switch.
     pub skills: crate::fleet::settings::skills::SkillsPage,
+    /// GitHub's connection page: the status, the device flow, the token box.
+    pub github: crate::fleet::settings::github_auth::Github,
     /// What Folders read from the machine shown: the locations, the add box and the folder browser.
     pub locations: crate::fleet::settings::locations::LocationsPage,
     /// What Folders' Worktrees card read from the machine shown: the user's layer, the fields and the sample.

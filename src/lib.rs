@@ -214,6 +214,8 @@ mod tests_settings_dreaming;
 #[cfg(test)]
 mod tests_settings_general;
 #[cfg(test)]
+mod tests_settings_github;
+#[cfg(test)]
 mod tests_settings_harness_editor;
 #[cfg(test)]
 mod tests_settings_harness_flow;
@@ -1606,6 +1608,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_permissions_page(tx)
         | s.keep_harness_strips(now, tx)
         | s.keep_sign_in_flow(now, tx)
+        | s.keep_github(now, tx)
         | s.keep_updates(now, tx)
         | s.keep_whats_new(now, tx)
         | s.keep_locations(tx)
@@ -2261,6 +2264,34 @@ pub fn spec() -> AppSpec<State> {
             ("settings-plugins-none-light", |s| {
                 use view::settings::plugins_scene::{Look, scene};
                 scene(s, Look { dark: false, page: "plugins", off: &[], mods_on: false, status: None, none_installed: true })
+            }),
+            ("settings-github-checking", |s| view::settings::github_scene::scene(s, true, view::settings::github_scene::Which::Checking)),
+            ("settings-github-checking-light", |s| {
+                view::settings::github_scene::scene(s, false, view::settings::github_scene::Which::Checking)
+            }),
+            ("settings-github-connected", |s| view::settings::github_scene::scene(s, true, view::settings::github_scene::Which::Connected)),
+            ("settings-github-connected-light", |s| {
+                view::settings::github_scene::scene(s, false, view::settings::github_scene::Which::Connected)
+            }),
+            ("settings-github-idle", |s| view::settings::github_scene::scene(s, true, view::settings::github_scene::Which::Idle)),
+            ("settings-github-idle-light", |s| view::settings::github_scene::scene(s, false, view::settings::github_scene::Which::Idle)),
+            ("settings-github-waiting", |s| view::settings::github_scene::scene(s, true, view::settings::github_scene::Which::Waiting)),
+            ("settings-github-waiting-light", |s| {
+                view::settings::github_scene::scene(s, false, view::settings::github_scene::Which::Waiting)
+            }),
+            ("settings-github-denied", |s| view::settings::github_scene::scene(s, true, view::settings::github_scene::Which::Denied)),
+            ("settings-github-denied-light", |s| {
+                view::settings::github_scene::scene(s, false, view::settings::github_scene::Which::Denied)
+            }),
+            ("settings-github-token", |s| view::settings::github_scene::scene(s, true, view::settings::github_scene::Which::TokenTested)),
+            ("settings-github-token-light", |s| {
+                view::settings::github_scene::scene(s, false, view::settings::github_scene::Which::TokenTested)
+            }),
+            ("settings-github-token-refused", |s| {
+                view::settings::github_scene::scene(s, true, view::settings::github_scene::Which::TokenRefused)
+            }),
+            ("settings-github-token-refused-light", |s| {
+                view::settings::github_scene::scene(s, false, view::settings::github_scene::Which::TokenRefused)
             }),
             ("settings-plugin-github", |s| {
                 use view::settings::plugins_scene::{Look, scene};
