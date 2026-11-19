@@ -149,6 +149,58 @@ fn bar(s: &State, t: &Theme, path: &str) -> El {
         .child(el().grow(1.0))
 }
 
+/// `.file-canvas__state` while the file has unsaved text or is being saved: a 7 px `--idle` dot, "Unsaved" and Save with its key (the
+/// key goes in a narrow panel); "Saving\u{2026}" while the request is out. A file in conflict is piece S's state.
+fn save_state(s: &State, t: &Theme, session: &str, path: &str, info: &crate::fleet::file_buffers::Info) -> Option<El> {
+    if info.conflict.is_some() {
+        return None;
+    }
+    let words = |w: &str| text(w.to_string()).font(sans(12.0, 400.0, 1.4)).color(t.muted).single_line();
+    if info.saving {
+        return Some(row().key("file-state").items_center().child(words("Saving\u{2026}")));
+    }
+    if !info.dirty {
+        return None;
+    }
+    let narrow = s.right_shown_w() < NARROW;
+    // A border that turns to the accent on hover isn't in Rune (docs/RUNE.md): a 1 px ring round the button takes the hover instead.
+    let mut inner = row()
+        .h(22.0)
+        .px(8.0)
+        .gap(5.0)
+        .items_center()
+        .radius(6.0)
+        .fill(t.card_bg)
+        .child(text("Save").font(sans(12.0, 500.0, 1.4)).color(t.text).single_line());
+    if !narrow {
+        let key = if cfg!(target_os = "macos") { "\u{2318}S" } else { "Ctrl S" };
+        inner = inner.child(text(key).font(sans(10.5, 500.0, 1.4)).color(t.muted).single_line());
+    }
+    let save = row()
+        .key("file-save")
+        .role("button")
+        .label("Save")
+        .padding(1.0)
+        .radius(7.0)
+        .fill(t.border)
+        .hover(t.accent)
+        .cursor(Cursor::Pointer)
+        .focusable(true)
+        .focus_ring(2.0, 1.0, t.accent)
+        .child(inner);
+    let (session, path) = (session.to_string(), path.to_string());
+    let save = save.on_press_tx(move |s: &mut State, tx| s.save_file(&session, &path, tx));
+    Some(
+        row()
+            .key("file-state")
+            .gap(8.0)
+            .items_center()
+            .child(el().w(7.0).h(7.0).radius(3.5).fill(t.idle))
+            .child(words("Unsaved"))
+            .child(save),
+    )
+}
+
 /// An image's tab: the bar with its size, then the picture. It has no buffer, no Wrap and no view switch: it is only ever shown.
 fn image_tab(s: &State, t: &Theme, session: &str, path: &str) -> El {
     let machine = s.machine_key_of(session).to_string();
@@ -176,6 +228,9 @@ pub fn file_tab(s: &State, t: &Theme) -> El {
 
     let mut bar = bar(s, t, &path);
     let wrap = s.sidebar.file_wrap(&path);
+    if let Some(state) = info.and_then(|i| save_state(s, t, &session, &path, i)) {
+        bar = bar.child(state);
+    }
     if ready && view != FileView::Rendered {
         bar = bar.child(wrap_button(s, t, &path, wrap));
     }

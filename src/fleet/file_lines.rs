@@ -145,6 +145,15 @@ impl State {
         if let Some(range) = self.file_pick(&machine, &session, &path) {
             return Some((path, range));
         }
+        // The editor's own selection (`selectedLines`): the lines it spans, less the last when it ends at that line's start.
+        if self.code_edit.on
+            && let Some(e) = self.file_buffers.buffer(&machine, &session, &path).map(|b| &b.editor)
+            && e.has_selection()
+        {
+            let (a, b) = e.range();
+            let last = if b.line > a.line && b.byte == 0 { b.line - 1 } else { b.line };
+            return Some((path, LineRange { first: a.line as u32 + 1, last: last as u32 + 1 }));
+        }
         match &self.file_lines.selected {
             Some((s, p, range)) if *s == session && *p == path => Some((path, *range)),
             _ => None,
@@ -201,6 +210,11 @@ impl State {
         if self.file_pick(&machine, &session, &path).is_some() {
             self.file_buffers.set_pick(&machine, &session, &path, None);
             return;
+        }
+        // The editor's selection collapses to its caret (the bar's × and Esc, as `clearLines` does).
+        if self.code_edit.on && self.current_editor().is_some_and(|e| e.has_selection()) {
+            let caret = self.current_editor().map_or_else(Default::default, |e| e.caret);
+            self.with_editor(|e, _| (e.set_caret(caret, false), false));
         }
         tx.clear_text_selection();
         self.file_lines.selected = None;

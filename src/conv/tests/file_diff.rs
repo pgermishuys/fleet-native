@@ -106,3 +106,27 @@ fn a_file_with_nothing_changed_shows_whole_and_an_opened_fold_shows_its_rows() {
     assert!(folds(&open).is_empty());
     assert_eq!(open.len(), closed.len() - 1 + hidden);
 }
+
+#[test]
+fn each_change_is_a_chunk_that_reverts_to_the_bases_lines_alone() {
+    use crate::conv::file_diff::{chunks, reverted};
+    let base = base_lines("a\nb\nc\n");
+    let text = doc(&["a", "B", "c", "f", ""]);
+    let cs = chunks(&rows(&base, &text));
+    assert_eq!(cs.len(), 2, "b to B, then f added");
+    assert_eq!((cs[0].doc.clone(), cs[0].base.clone()), (1..2, 1..2));
+    assert_eq!((cs[1].doc.clone(), cs[1].base.clone()), (3..4, 3..3));
+    assert_eq!(reverted(&text, &base, &cs[0]), doc(&["a", "b", "c", "f", ""]));
+    assert_eq!(reverted(&text, &base, &cs[1]), doc(&["a", "B", "c", ""]), "the other change stays");
+}
+
+#[test]
+fn a_pure_deletion_is_a_chunk_with_no_lines_of_the_text_and_reverts_by_putting_them_back() {
+    use crate::conv::file_diff::{chunks, reverted};
+    let base = base_lines("a\nb\nc\n");
+    let text = doc(&["a", "c", ""]);
+    let cs = chunks(&rows(&base, &text));
+    assert_eq!(cs.len(), 1);
+    assert_eq!((cs[0].doc.clone(), cs[0].base.clone()), (1..1, 1..2));
+    assert_eq!(reverted(&text, &base, &cs[0]), doc(&["a", "b", "c", ""]));
+}

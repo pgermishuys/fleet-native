@@ -45,6 +45,9 @@ pub enum Case {
     Diff,
     Stripe,
     Deleted,
+    /// `Code` after typing into it: the bar says Unsaved with Save (`Unsaved`), and while the save is on its way (`Saving`) (piece R).
+    Unsaved,
+    Saving,
 }
 
 /// The invented project's logo (`assets/logo.svg`), 96 by 96 as its own size.
@@ -94,7 +97,7 @@ impl State {
                 | Case::Diff
                 | Case::Stripe
                 | Case::Deleted
-        ) || matches!(case, Case::Lines | Case::LinesCopied | Case::LinesAdded)
+        ) || matches!(case, Case::Lines | Case::LinesCopied | Case::LinesAdded | Case::Unsaved | Case::Saving)
         {
             self.sidebar.save_file_wrap(path, false);
         }
@@ -136,6 +139,17 @@ impl State {
                 }
             }
             Case::LinesAdded => self.append_draft_reference(&id, "@src/paginate.py:17-21"),
+            Case::Unsaved | Case::Saving => {
+                self.file_buffers.edit(&machine, &id, path, |e, l| {
+                    e.set_caret(crate::fleet::code_edit::Pos::new(2, 0), false);
+                    e.insert(l, "# the page size is a count of rows\n", 0.0);
+                    ((), true)
+                });
+                self.code_edit.for_file(&(machine.clone(), id.clone(), path.to_string()));
+                if case == Case::Saving {
+                    self.file_buffers.set_saving(&machine, &id, path, true);
+                }
+            }
             _ => {}
         }
     }
@@ -152,7 +166,7 @@ impl State {
     fn read_for_scene(&mut self, request: Request, case: Case) {
         let body = match case {
             Case::Opening => return,
-            Case::Code | Case::Lines | Case::LinesCopied | Case::LinesAdded => Ok(answer(SOURCE)),
+            Case::Code | Case::Lines | Case::LinesCopied | Case::LinesAdded | Case::Unsaved | Case::Saving => Ok(answer(SOURCE)),
             Case::Diff | Case::Stripe => Ok(answer(EDITED)),
             Case::Deleted => Err("Failed to read file: 404 Not Found".to_string()),
             Case::Wrap | Case::WrapOff => Ok(answer(WRAP_SOURCE)),

@@ -247,6 +247,19 @@ pub struct Decor {
     pub change: Option<Option<Color>>,
     /// The line a file was opened at: its number in `--text` and a 3 % wash over the line.
     pub active: bool,
+    /// Diff is editable: what the editor marks on this line, and where a press on it lands.
+    pub edit: Option<DiffEdit>,
+}
+
+/// An editable line of Diff (`Decor::edit`): the editor's marks on it, the line's own text, and which line and row it is.
+pub struct DiffEdit {
+    pub path: String,
+    /// The line of the text (0-based) and the row of the diff it is drawn in.
+    pub line: usize,
+    pub row: usize,
+    pub raw: String,
+    pub marks: Option<super::code_edit::LineEdit>,
+    pub text_w: f32,
 }
 
 /// The keys of one line's parts, so a test or a picture can find them.
@@ -276,13 +289,26 @@ pub fn shown_range(line: &str, r: Range<usize>) -> Range<usize> {
 /// One line of code: the gutters (its number, and the bars), then its text, wrapped or on one line.
 pub fn code_line(t: &Theme, keys: LineKeys, gutter: f32, shown: String, spans: Vec<Span>, wrap: bool, d: &Decor) -> El {
     let font = mono(FONT, 400.0, 1.6);
+    // Diff, editable: the caret's place in the drawn text, with an input method's composition put in there.
+    let marks = d.edit.as_ref().and_then(|e| e.marks.as_ref());
+    let caret_at = marks.and_then(|m| m.caret).zip(d.edit.as_ref()).map(|(b, e)| shown_range(&e.raw, b..b).start);
+    let (shown, spans, caret_at) = match (marks.and_then(|m| m.preedit.as_ref()), caret_at) {
+        (Some(p), Some(at)) => {
+            let (shown, spans, at) = super::code_edit::with_preedit(t, shown, spans, at, p);
+            (shown, spans, Some(at))
+        }
+        _ => (shown, spans, caret_at),
+    };
+    let blink_off = marks.is_some_and(|m| m.blink_off);
+    // CodeMirror's active line is the caret's.
+    let active = d.active || caret_at.is_some();
     let stripe_key = format!("{}-stripe", keys.number);
     let number_key = keys.number.clone();
     let mut number_col = row().key(keys.number).w(gutter).h(LINE_H).pl(8.0).pr(10.0).justify_end().items_center().child(
         text(d.number.map(|n| n.to_string()).unwrap_or_default())
             .key(format!("{number_key}-t"))
             .font(font)
-            .color(if d.active { t.text } else { t.muted.alpha(0.7) })
+            .color(if active { t.text } else { t.muted.alpha(0.7) })
             .single_line(),
     );
     number_col = number_col.fill(t.panel_bg);
@@ -310,24 +336,48 @@ pub fn code_line(t: &Theme, keys: LineKeys, gutter: f32, shown: String, spans: V
         gutters = gutters.sticky_left(0.0);
     }
     // `.cm-line`'s `padding: 0 2px 0 6px`. Only the code is selectable: a copy has no line numbers in it.
+    let past = marks.is_some_and(|m| m.past_end);
+    let editing = d.edit.is_some();
     let code = |shown: String, spans: Vec<Span>, words: Vec<TextHighlight>| {
-        text(shown).selectable(true).selection_color(t.accent.alpha(0.3)).font(font).color(t.text).spans(spans).text_highlights(words)
+        let shown = if past { format!("{shown} ") } else { shown };
+        text(shown).selectable(!editing).selection_color(t.accent.alpha(0.3)).font(font).color(t.text).spans(spans).text_highlights(words)
     };
     let words = |from: usize| -> Vec<TextHighlight> {
-        d.words
+        let mut out: Vec<TextHighlight> = d
+            .words
             .iter()
             .filter(|(r, _)| r.end > from)
             .map(|(r, c)| TextHighlight::new(r.start.max(from) - from..r.end - from, *c).pad(0.0))
-            .collect()
+            .collect();
+        if let (Some(e), Some(m)) = (d.edit.as_ref(), marks) {
+            out.extend(m.selected.as_ref().and_then(|r| super::code_edit::selection_highlight(t, &e.raw, r, from, past)));
+            out.extend(super::code_edit::bracket_highlights(t, &e.raw, &m.brackets, from));
+        }
+        out
     };
     // `.cm-activeLine`: 3 % of `--text` over the code (the number's own fill stays opaque); a tint (Diff, the flash) goes over it.
     let tint = |r: El| match d.fill {
         Some(f) => r.fill(f),
-        None if d.active => r.fill(t.wash(3.0)),
+        None if active => r.fill(t.wash(3.0)),
         None => r,
     };
     if !wrap {
-        let code = code(shown, spans, words(0)).key(keys.text).single_line().pl(6.0).pr(2.0);
+        let code = code(shown.clone(), spans, words(0)).key(keys.text).single_line().pl(6.0).pr(2.0);
+        let code = match &d.edit {
+            Some(e) => {
+                let caret = caret_at.map(|at| {
+                    super::code_edit::caret(t, super::code_edit::TEXT_X + super::code_edit::x_of(&shown, at) - 1.0, 0, blink_off)
+                });
+                super::code_edit::on_press_diff(
+                    row().h(LINE_H).items_center().child(code).children(caret),
+                    e.path.clone(),
+                    e.row,
+                    e.line,
+                    false,
+                )
+            }
+            None => code,
+        };
         return tint(row().w_full().h(LINE_H).items_center()).child(gutters).child(code);
     }
     // Rune has no negative text indent, so the indent is a column of its own and the text wraps beside it: the rows it wraps onto
@@ -348,7 +398,24 @@ pub fn code_line(t: &Theme, keys: LineKeys, gutter: f32, shown: String, spans: V
     if hang > 0 {
         body = body.child(el().key(keys.hang).w(hang as f32 * DIGIT_W).h(LINE_H));
     }
-    let wrapped = code(rest, spans, words(hang)).key(keys.text).wrap_anywhere().grow(1.0).shrink().min_w(0.0);
+    let mut wrapped = code(rest.clone(), spans, words(hang)).key(keys.text).wrap_anywhere().grow(1.0).shrink().min_w(0.0);
+    if let Some(e) = &d.edit {
+        if let Some(at) = caret_at {
+            let (row_i, x) = if at < hang {
+                (0, super::code_edit::x_of(&shown, at))
+            } else {
+                let (r, x) = super::code_edit::wrapped_at(&rest, at - hang, e.text_w.max(1.0));
+                (r, hang as f32 * DIGIT_W + x)
+            };
+            body = body.child(super::code_edit::caret(t, super::code_edit::TEXT_X + x - 1.0, row_i, blink_off));
+            wrapped = wrapped.on_layout(|s: &mut State, r: [f32; 4]| {
+                if (s.code_edit.text_w - r[2]).abs() > 0.5 {
+                    s.code_edit.text_w = r[2];
+                }
+            });
+        }
+        body = super::code_edit::on_press_diff(body, e.path.clone(), e.row, e.line, true);
+    }
     tint(row().w_full().min_h(LINE_H).items_start()).child(gutters).child(body.child(wrapped))
 }
 
@@ -497,7 +564,11 @@ fn line_row(
             .iter()
             .filter(|(r, _)| r.end > from)
             .map(|(r, now)| super::file_find::highlight(t, r.start.max(from) - from..r.end - from, *now));
-        let selected = edit.and_then(|e| e.selected.as_ref()).and_then(|r| super::code_edit::selection_highlight(t, line, r, from));
+        let past = edit.is_some_and(|e| e.past_end);
+        let selected = edit.and_then(|e| e.selected.as_ref()).and_then(|r| super::code_edit::selection_highlight(t, line, r, from, past));
+        let brackets = edit.map(|e| super::code_edit::bracket_highlights(t, line, &e.brackets, from)).unwrap_or_default();
+        // A selected line break is a space's width past the line's text.
+        let shown = if past { format!("{shown} ") } else { shown };
         text(shown)
             .key(format!("code-text-{}", i + 1))
             .selectable(!marks.editing)
@@ -505,7 +576,7 @@ fn line_row(
             .font(font)
             .color(t.text)
             .spans(spans)
-            .text_highlights(selected.into_iter().chain(found))
+            .text_highlights(selected.into_iter().chain(brackets).chain(found))
     };
     // `.cm-activeLine`: the line a file was opened at, 3 % of `--text` over the code (the number's own fill stays opaque); a picked
     // line takes the pick's fill instead.
@@ -521,8 +592,14 @@ fn line_row(
     if !wrap {
         let text_el = code(shown.clone(), spans, 0).single_line().pl(6.0).pr(2.0);
         let code_el = if marks.editing {
-            let caret =
-                caret_at.map(|at| super::code_edit::caret(t, super::code_edit::TEXT_X + super::code_edit::x_of(&shown, at) - 1.0, 0));
+            let caret = caret_at.map(|at| {
+                super::code_edit::caret(
+                    t,
+                    super::code_edit::TEXT_X + super::code_edit::x_of(&shown, at) - 1.0,
+                    0,
+                    edit.is_some_and(|e| e.blink_off),
+                )
+            });
             super::code_edit::on_press(row().h(LINE_H).items_center().child(text_el).children(caret), path.to_string(), i, false)
         } else {
             text_el
@@ -557,7 +634,7 @@ fn line_row(
                 let (r, x) = super::code_edit::wrapped_at(&rest, at - hang, marks.text_w.max(1.0));
                 (r, hang as f32 * DIGIT_W + x)
             };
-            body = body.child(super::code_edit::caret(t, super::code_edit::TEXT_X + x - 1.0, row_i));
+            body = body.child(super::code_edit::caret(t, super::code_edit::TEXT_X + x - 1.0, row_i, edit.is_some_and(|e| e.blink_off)));
             wrapped = wrapped.on_layout(|s: &mut State, r: [f32; 4]| {
                 if (s.code_edit.text_w - r[2]).abs() > 0.5 {
                     s.code_edit.text_w = r[2];
@@ -582,8 +659,17 @@ pub fn code_view(s: &State, t: &Theme, machine: &str, session: &str, path: &str,
     // The rows near the window are kept while this stays the same: a flash changes it a hundred times over its second and a half.
     let flash = s.file_live.flashing(machine, session, path, s.clock).map(|f| (f.progress * 100.0) as u32);
     let editing = s.code_edit.on && s.code_edit_target().is_some_and(|(m, se, p)| m == machine && se == session && p == path);
-    let edit_stamp = editing.then(|| (s.code_edit.stamp, s.code_edit.focused, s.code_edit.text_w.to_bits()));
+    let edit_stamp = editing.then(|| (s.code_edit.stamp, s.code_edit.focused, s.code_edit.text_w.to_bits(), s.code_edit.blink_off));
     let version = (path, buffer.rev(), wrap, picked, hash_of(&format!("{stripe:?}")), flash, s.file_find.stamp(session, path), edit_stamp);
+    // The matched brackets are found once for the frame: the caret's neighbours and what they pair with.
+    let pair = if editing && s.code_edit.focused {
+        s.code_edit.file.as_ref().and_then(|_| {
+            let e = &buffer.editor;
+            (!e.has_selection()).then(|| crate::fleet::brackets::matching(buffer.lines(), e.caret)).flatten()
+        })
+    } else {
+        None
+    };
     let owner = path.to_string();
     let rows = col()
         .key("file-code-lines")
@@ -620,7 +706,9 @@ pub fn code_view(s: &State, t: &Theme, machine: &str, session: &str, path: &str,
                         stripe: stripe.clone(),
                         flash: s.file_live.flashing(&machine_id, &session_id, &file, s.clock),
                         finds,
-                        edit: editor.filter(|_| s.code_edit.focused).map(|e| super::code_edit::line_edit(e, buffer.lines(), i)),
+                        edit: editor
+                            .filter(|_| s.code_edit.focused)
+                            .map(|e| super::code_edit::line_edit(e, buffer.lines(), i, pair, s.code_edit.blink_off)),
                         editing,
                         text_w: s.code_edit.text_w,
                     };

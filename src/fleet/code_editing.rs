@@ -1,10 +1,10 @@
-//! The editor spike in the app (component 11, piece P): the code view of the open file tab takes the keyboard, the pointer, pastes and
-//! the input method, and edits the file's lines through the buffer's `code_edit::Editor`. Off unless `FLEET_NATIVE_EDITOR_SPIKE=1` (or a scene
-//! turns it on): nothing saves yet (piece R), so the app people run stays a viewer until slice 2 is built on it.
+//! The editor in the app (component 11, pieces P and R): the code view of the open file tab takes the keyboard, the pointer, pastes and
+//! the input method, and edits the file's lines through the buffer's `code_edit::Editor`. Ctrl/Cmd+S saves (`fleet::file_save`).
 use super::code_edit::{Editor, Move, Pos};
 use super::file_buffers::Status;
 use crate::State;
 use crate::view::code_view::{CODE, LINE_H};
+use crate::view::file_diff::DIFF;
 use rune::{Ime, Key, KeyEvent, Tx};
 
 /// The file the editor is over: (machine, session, path).
@@ -12,7 +12,7 @@ pub type FileKey = (String, String, String);
 
 #[derive(Debug, Default)]
 pub struct CodeEditing {
-    /// Editing is on: the spike's switch.
+    /// Editing is on: always in the app; the bench and a scene of the viewer turn it off.
     pub on: bool,
     /// The file the keyboard edits: its caret and history are the buffer's own (`Buffer::editor`).
     pub file: Option<FileKey>,
@@ -26,13 +26,11 @@ pub struct CodeEditing {
     pub text_w: f32,
     /// The other way the spike compares: the file in one of Rune's `text_input`s (`view::code_input_spike`), for scenes and the bench.
     pub input: Option<(FileKey, rune::TextEdit)>,
+    /// When the caret last moved or text changed (the blink starts bright then), and whether it is in the dark half now.
+    pub blink_from: f64,
+    pub blink_off: bool,
     /// The element a scene or the bench asks to take the keyboard on the next poll, with the caret then brought into view.
     pub take_focus: Option<&'static str>,
-}
-
-/// Whether the spike is asked for in the environment.
-pub fn asked() -> bool {
-    std::env::var("FLEET_NATIVE_EDITOR_SPIKE").is_ok_and(|v| v == "1")
 }
 
 impl CodeEditing {
@@ -48,6 +46,9 @@ impl CodeEditing {
         self.on && self.file.as_ref().is_some_and(|(m, s, p)| m == machine && s == session && p == path)
     }
 }
+
+/// Half of CodeMirror's 1200 ms caret blink, in seconds.
+const BLINK_HALF: f64 = 0.6;
 
 /// The row key of a line in the code view (as its `virtual_rows` key closure names it).
 pub fn row_key(line: usize, wrap: bool) -> String {
@@ -67,7 +68,21 @@ impl State {
         let info = self.file_buffers.info(&machine, &session, &file.path)?;
         let has_changes = self.diffs.by_file(&file.path).is_some() || info.dirty;
         let shown = crate::view::file_tab::shown_view(file.view, has_changes);
-        (info.status == Status::Ready && shown == super::canvases::FileView::Edit).then_some((machine, session, file.path))
+        (info.status == Status::Ready && matches!(shown, super::canvases::FileView::Edit | super::canvases::FileView::Diff))
+            .then_some((machine, session, file.path))
+    }
+
+    /// The element that has the keyboard while the file is edited: Edit's code, or Diff's lines.
+    pub fn edit_surface(&self) -> &'static str {
+        let tabs = self.open_canvases();
+        let diff = tabs.active().and_then(|c| c.file.as_ref()).is_some_and(|f| {
+            let session = self.canvas_session();
+            let machine = self.machine_key_of(&session).to_string();
+            let changed =
+                self.diffs.by_file(&f.path).is_some() || self.file_buffers.info(&machine, &session, &f.path).is_some_and(|i| i.dirty);
+            crate::view::file_tab::shown_view(f.view, changed) == super::canvases::FileView::Diff
+        });
+        if diff { DIFF } else { CODE }
     }
 
     /// The editor of the file being edited: the buffer's own.
@@ -81,13 +96,26 @@ impl State {
         let file = self.code_edit_target()?;
         self.code_edit.for_file(&file);
         let (m, s, p) = &file;
+        self.code_edit.blink_from = self.clock;
+        let before = self.file_buffers.buffer(m, s, p).map(|b| b.rev());
         let out = self.file_buffers.edit(m, s, p, f);
         self.code_edit.stamp += 1;
+        // A selection made in the text takes the picked lines away (`tr.isUserEvent("select") && !tr.newSelection.main.empty`).
+        if self.file_buffers.buffer(m, s, p).is_some_and(|b| b.editor.has_selection() && b.pick().is_some()) {
+            self.file_buffers.set_pick(m, s, p, None);
+        }
+        // Typing in a preview tab keeps it (the agent's changes don't).
+        if before != self.file_buffers.buffer(m, s, p).map(|b| b.rev()) {
+            self.canvases.keep_file(s, p);
+        }
         out
     }
 
     /// Brings the caret's line into view, and the caret itself sideways (`EditorView.scrollIntoView` on each selection change).
     fn reveal_caret(&mut self, tx: &mut Tx) {
+        if self.edit_surface() == DIFF {
+            return self.reveal_in_diff(tx);
+        }
         let wrap = self.code_edit.file.as_ref().is_some_and(|(_, _, p)| self.sidebar.file_wrap(p));
         let line = self.current_editor().map_or(0, |e| e.caret.line);
         tx.scroll_into_view_in(CODE, row_key(line, wrap));
@@ -170,6 +198,11 @@ impl State {
                 self.with_editor(|e, _| (e.set_caret(c, false), false));
                 true
             }
+            // `Mod-s` in the editor's keymap: the same as the Save button.
+            Key::Command('s') if !shift => {
+                self.save_active_file(tx);
+                return true;
+            }
             Key::Command('a') if !shift => {
                 self.with_editor(|e, l| (e.select_all(l), false));
                 // Selecting everything doesn't move the view, as CodeMirror's doesn't.
@@ -237,7 +270,7 @@ impl State {
 
     /// What an input method composed (`App::on_ime`): the preedit is drawn at the caret, a commit is typed.
     pub fn code_edit_ime(&mut self, ime: &Ime, tx: &mut Tx) -> bool {
-        if self.code_edit_target().is_none() || tx.focused() != Some(CODE) {
+        if self.code_edit_target().is_none() || tx.focused() != Some(self.edit_surface()) {
             return false;
         }
         let now = self.clock;
@@ -273,9 +306,16 @@ impl State {
                 self.reveal_caret(tx);
             }
         }
-        let focused = self.code_edit.on && tx.focused() == Some(CODE);
+        let focused = self.code_edit.on && tx.focused() == Some(self.edit_surface());
+        // `cursorBlinkRate: 1200`: 600 ms bright, 600 ms dark, bright again from every move.
+        let off = focused && (((self.clock - self.code_edit.blink_from) / BLINK_HALF) as u64) % 2 == 1;
+        let blinked = off != self.code_edit.blink_off;
+        self.code_edit.blink_off = off;
+        if focused {
+            tx.wake_after(std::time::Duration::from_millis(250));
+        }
         if focused == self.code_edit.focused {
-            return false;
+            return blinked;
         }
         self.code_edit.focused = focused;
         // Focus from a click on the numbers or Go to file starts the caret where nothing was yet.
@@ -287,7 +327,7 @@ impl State {
 
     /// A press (and a drag) on line `line` of the code at byte `byte`: the caret goes there, Shift or a drag extends the selection.
     pub fn code_edit_press(&mut self, at: Pos, extend: bool, tx: &mut Tx) {
-        tx.focus(CODE, false);
+        tx.focus(self.edit_surface(), false);
         self.with_editor(|e, _| (e.set_caret(at, extend), false));
     }
 }
