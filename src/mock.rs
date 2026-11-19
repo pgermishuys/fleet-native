@@ -50,6 +50,7 @@ pub mod ring;
 pub mod rows;
 pub mod rules;
 pub mod running;
+pub mod settings_tools;
 pub mod sign_in;
 pub mod skills;
 pub mod storage;

@@ -9,17 +9,20 @@ use crate::ui::{Open, rem, select};
 use rune::{El, Span, col, rich, row, text};
 use std::rc::Rc;
 
-/// What the select shows: the choice, "Global" or the repository's name.
-fn shown(s: &State) -> String {
-    s.settings.skills.target.label()
+/// What the picker reads: the choice, whether an install is under way, and the repositories; Skills and Tools each keep their own.
+fn parts(s: &State, kind: Kind) -> (&InstallTarget, bool, &[(String, String)]) {
+    match kind {
+        Kind::Tools => (&s.settings.tools.target, s.settings.tools.installing, &s.settings.tools.repositories),
+        _ => (&s.settings.skills.target, s.settings.skills.installing, &s.settings.skills.repositories),
+    }
 }
 
 /// The label, the select (disabled while `busy`), and the line under it. `name` keys it and its open list.
 pub fn picker(s: &State, t: &Theme, name: &'static str, kind: Kind) -> El {
-    let target = &s.settings.skills.target;
+    let (target, installing, _) = parts(s, kind);
     let label = text("INSTALL TO").font(sans(rem(0.75), 500.0, 1.33).tracking(0.525)).color(t.muted);
-    let trigger = select::trigger(t, &shown(s), false, false, 0.0).w_full().key(name.to_string());
-    let trigger = if s.settings.skills.installing {
+    let trigger = select::trigger(t, &target.label(), false, false, 0.0).w_full().key(name.to_string());
+    let trigger = if installing {
         crate::ui::button::disabled(trigger)
     } else {
         trigger.on_press(move |s: &mut State| s.ui.open = Some(Open::Select(name)))
@@ -38,15 +41,20 @@ fn row_line(line: El, name: &str) -> El {
 
 /// The open list: Global, then every repository by name; none are listed while they are still being read.
 pub fn list(s: &State, t: &Theme, name: &'static str) -> Vec<El> {
-    let page = &s.settings.skills;
+    let kind = if name == "tools-target" { Kind::Tools } else { Kind::Skills };
+    let (target, _, repositories) = parts(s, kind);
     let global = InstallTarget::Global.key();
     let mut keys = vec![global.clone()];
     let mut labels = vec!["Global".to_string()];
-    for (path, repo) in &page.repositories {
+    for (path, repo) in repositories {
         keys.push(InstallTarget::Project(path.clone()).key());
         labels.push(repo.clone());
     }
     let options: Vec<(&str, &str)> = keys.iter().zip(&labels).map(|(k, l)| (k.as_str(), l.as_str())).collect();
-    let choose: select::Choose = Rc::new(|s: &mut State, key: &str| s.choose_skills_target(key));
-    select::content(t, &format!("{name}-list"), name, 280.0, &options, Some(&page.target.key()), choose)
+    let choose: select::Choose = if kind == Kind::Tools {
+        Rc::new(|s: &mut State, key: &str| s.choose_tools_target(key))
+    } else {
+        Rc::new(|s: &mut State, key: &str| s.choose_skills_target(key))
+    };
+    select::content(t, &format!("{name}-list"), name, 280.0, &options, Some(&target.key()), choose)
 }

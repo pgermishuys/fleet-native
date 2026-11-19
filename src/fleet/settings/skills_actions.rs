@@ -42,7 +42,7 @@ impl State {
         if self.rail != crate::Rail::Settings || self.settings.page != Page::Skills {
             let had = self.settings.skills != SkillsPage::default();
             self.settings.skills = SkillsPage::default();
-            return had;
+            return self.keep_tools() || had;
         }
         let before = self.settings.skills.clone();
         let (anchor, pref) = (self.settings.anchor.clone(), self.mods_preference());
@@ -57,7 +57,7 @@ impl State {
             self.load_skills_page(key);
             return true;
         }
-        self.settings.skills != before
+        self.keep_tools() || self.settings.skills != before
     }
 
     /// The page's first read: the list, the repositories the picker offers and the Mods switch, each on its own thread.

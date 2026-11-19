@@ -43,6 +43,8 @@ pub mod skills_install;
 pub mod storage;
 pub mod storage_actions;
 pub mod switches;
+pub mod tools;
+pub mod tools_actions;
 pub mod updates_page;
 
 use super::new_session::defaults::{DEFAULTS_KEY, NewSessionDefaults, defaults_key};

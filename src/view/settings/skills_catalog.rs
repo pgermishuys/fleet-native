@@ -67,13 +67,20 @@ fn card(s: &State, t: &Theme, entry: &CatalogEntry) -> El {
 
 /// `grid gap-3 sm:grid-cols-2`: rows of two equal columns; a last card on its own keeps its half.
 fn grid(s: &State, t: &Theme, page: &SkillsPage) -> El {
-    let mut g = col().key("skills-catalog-grid").w_full().gap(10.5);
-    for pair in page.catalog.chunks(2) {
+    grid_of("skills-catalog-grid", page.catalog.iter().map(|entry| card(s, t, entry)).collect())
+}
+
+/// The grid itself, for a catalog of any kind: `cards` two to a row.
+pub(super) fn grid_of(key: &str, cards: Vec<El>) -> El {
+    let mut g = col().key(key.to_string()).w_full().gap(10.5);
+    let mut cards = cards.into_iter();
+    while let Some(first) = cards.next() {
+        let second = cards.next();
         let mut r = row().w_full().gap(10.5);
-        for entry in pair {
-            r = r.child(col().w(0.0).grow(1.0).min_w(0.0).child(card(s, t, entry).grow(1.0)));
-        }
-        if pair.len() == 1 {
+        r = r.child(col().w(0.0).grow(1.0).min_w(0.0).child(first.grow(1.0)));
+        if let Some(entry) = second {
+            r = r.child(col().w(0.0).grow(1.0).min_w(0.0).child(entry.grow(1.0)));
+        } else {
             r = r.child(col().w(0.0).grow(1.0));
         }
         g = g.child(r);

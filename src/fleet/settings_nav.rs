@@ -167,6 +167,8 @@ pub struct SettingsNav {
     pub skills: crate::fleet::settings::skills::SkillsPage,
     /// GitHub's connection page: the status, the device flow, the token box.
     pub github: crate::fleet::settings::github_auth::Github,
+    /// What the Tools tab of that page read from the machine shown, while the tab is the one showing.
+    pub tools: crate::fleet::settings::tools::ToolsPage,
     /// What Folders read from the machine shown: the locations, the add box and the folder browser.
     pub locations: crate::fleet::settings::locations::LocationsPage,
     /// What Folders' Worktrees card read from the machine shown: the user's layer, the fields and the sample.

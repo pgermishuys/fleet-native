@@ -180,6 +180,15 @@ pub(crate) struct Fake {
     pub(crate) install: Option<(u16, String)>,
     /// The bodies of the installs heard.
     pub(crate) installs: Vec<Value>,
+    /// Tools (`/api/tools`): the list, what it answers instead, the catalog entries and what they answer instead, what the
+    /// install and the remove answer, and the bodies of the installs heard.
+    pub(crate) tools: Vec<Value>,
+    pub(crate) tools_broken: Option<(u16, String)>,
+    pub(crate) tool_entries: Vec<Value>,
+    pub(crate) tool_catalog: Option<(u16, String)>,
+    pub(crate) tool_install: Option<(u16, String)>,
+    pub(crate) tool_remove: Option<(u16, String)>,
+    pub(crate) tool_installs: Vec<Value>,
 }
 
 type Shared = Arc<Mutex<Fake>>;
@@ -201,7 +210,7 @@ fn answer(mut stream: std::net::TcpStream, fake: Shared) {
     let (method, path) = (req.method.clone(), req.path.clone());
     let mut f = fake.lock().unwrap();
     let route = path.split('?').next().unwrap_or("").to_string();
-    if route.starts_with("/api/skills") {
+    if route.starts_with("/api/skills") || route.starts_with("/api/tools") {
         f.heard.push((method.clone(), path.clone()));
     }
     let (status, reply) = match (method.as_str(), route.as_str()) {
@@ -236,6 +245,31 @@ fn answer(mut stream: std::net::TcpStream, fake: Shared) {
             }
             answer
         }
+        ("GET", "/api/tools") => f.tools_broken.clone().unwrap_or_else(|| (200, json!({ "tools": f.tools }).to_string())),
+        ("GET", "/api/tools/catalog") => {
+            f.tool_catalog.clone().unwrap_or_else(|| (200, json!({ "entries": f.tool_entries, "isStale": false }).to_string()))
+        }
+        ("POST", "/api/tools/install") => {
+            let sent = req.json();
+            f.tool_installs.push(sent.clone());
+            let answer = f.tool_install.clone().unwrap_or_else(|| (200, json!({ "name": sent["name"] }).to_string()));
+            if answer.0 < 300 {
+                let name = sent["name"].as_str().unwrap_or("x").to_string();
+                let mut t = crate::tests_settings_tools::tool(&name, json!({ "scope": sent["scope"], "projectPath": sent["projectPath"] }));
+                t["toolType"] = sent["toolType"].clone();
+                f.tools.push(t);
+            }
+            answer
+        }
+        ("DELETE", r) if r.starts_with("/api/tools/") => {
+            let answer = f.tool_remove.clone().unwrap_or((204, String::new()));
+            if answer.0 < 300 {
+                let name = r.trim_start_matches("/api/tools/").to_string();
+                let scope_project = path.contains("scope=project");
+                f.tools.retain(|t| !(t["name"] == name && (t["scope"] == "project") == scope_project));
+            }
+            answer
+        }
         ("GET", "/api/features/mods") => match f.mods_on {
             Some(on) => (200, json!({ "on": on }).to_string()),
             None => (404, String::new()),
@@ -264,7 +298,7 @@ fn link_to(base: String) -> (Link, Receiver<Job>) {
 }
 
 /// A connected app on Settings → Skills & tools (at `anchor`), the page not yet read.
-fn rig_at(anchor: Option<&str>, setup: impl FnOnce(&mut Fake)) -> Rig {
+pub(crate) fn rig_at(anchor: Option<&str>, setup: impl FnOnce(&mut Fake)) -> Rig {
     let fake: Shared = Default::default();
     setup(&mut fake.lock().unwrap());
     let (link, queue) = link_to(serve(fake.clone()));
@@ -350,7 +384,8 @@ fn opens_the_tools_tab_for_the_old_tools_id_and_the_mods_tab_for_the_old_mods_id
     let mut r = rig_at(Some("tools"), |f| f.mods_on = Some(true));
     r.read();
     assert_eq!(r.page().tab, Tab::Tools);
-    assert!(r.exists("tools-not-yet"));
+    r.settle();
+    assert!(r.exists("tools-section"));
     let mut r = rig_at(Some("mods"), |f| f.mods_on = Some(true));
     r.read();
     assert_eq!(r.page().tab, Tab::Mods, "landing on mods before the switch was read opens it as soon as it is known to be on");
