@@ -16,6 +16,9 @@ use crate::term::screen::Screen;
 /// What a shell is started with while the view hasn't measured itself yet (`openNewTerminal`'s 120 × 14).
 pub const START_SIZE: (u16, u16) = (120, 14);
 
+/// How long the cursor stays lit, and how long dark.
+pub const BLINK_SECS: f64 = 0.6;
+
 /// The key of the terminal's focusable box.
 pub const VIEW_KEY: &str = "terminal-view";
 
@@ -62,6 +65,12 @@ pub struct Slot {
     pub bar_held: bool,
     /// What a wheel left over, in lines, so a trackpad's small steps add up.
     pub wheel_rem: f32,
+    /// When the cursor's blink last restarted, on the app's clock: typing keeps it lit (xterm restarts it with each key).
+    pub blink_from: f64,
+    /// The blink is in its dark half.
+    pub blink_off: bool,
+    /// The link under the pointer (13.75).
+    pub link: Option<crate::term::links::Link>,
 }
 
 impl Slot {
@@ -312,6 +321,9 @@ impl State {
     /// Bytes for the shell: typed keys and pastes. A pretend shell (no server) answers into the grid itself.
     pub fn terminal_write(&mut self, bytes: Vec<u8>) {
         let Some(live) = self.terminal.live.as_ref() else { return };
+        // Typing lights the cursor and starts its blink again.
+        self.terminal.blink_from = self.clock;
+        self.terminal.blink_off = false;
         if let Some(socket) = &live.socket {
             socket.write(bytes);
         } else if live.pretend {
@@ -372,6 +384,21 @@ impl State {
                 socket.resize(cols, rows);
             }
         }
-        changed | (was != focused)
+        changed | (was != focused) | self.keep_cursor_blink(tx)
+    }
+
+    /// The cursor's blink: 600 ms lit, 600 ms dark while the box has the keyboard and the program hasn't asked for a steady
+    /// one (`cursorBlink`). It flips on the app's clock, so a scene's picture and a test's clock agree. True on a flip.
+    fn keep_cursor_blink(&mut self, tx: &mut Tx) -> bool {
+        let blinking = self.terminal.focused
+            && self.terminal.live.as_ref().is_some_and(|l| l.screen.borrow().cursor.as_ref().is_some_and(|c| c.blinking));
+        if !blinking {
+            return std::mem::replace(&mut self.terminal.blink_off, false);
+        }
+        let seen = ((self.clock - self.terminal.blink_from).max(0.0) / BLINK_SECS).floor();
+        let off = seen as i64 % 2 == 1;
+        let next = (seen + 1.0) * BLINK_SECS - (self.clock - self.terminal.blink_from).max(0.0);
+        tx.wake_after(std::time::Duration::from_secs_f64(next.max(0.01)));
+        std::mem::replace(&mut self.terminal.blink_off, off) != off
     }
 }

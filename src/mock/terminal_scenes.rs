@@ -11,6 +11,8 @@ pub enum Stream {
     GitLog,
     /// Wide, combining and emoji characters, attributes, 256 colours, true colour and box drawing.
     Unicode,
+    /// Every cell attribute, box drawing and blocks, and links (piece G).
+    Cells,
 }
 
 const COLS: u16 = 100;
@@ -22,6 +24,7 @@ impl Stream {
             Stream::Vim => include_bytes!("../../tests/fixtures/terminal/vim.bin"),
             Stream::GitLog => include_bytes!("../../tests/fixtures/terminal/git-log.bin"),
             Stream::Unicode => include_bytes!("../../tests/fixtures/terminal/unicode.bin"),
+            Stream::Cells => include_bytes!("../../tests/fixtures/terminal/cells.bin"),
         }
     }
 }
@@ -31,8 +34,16 @@ impl State {
     pub fn show_terminal(&mut self, stream: Stream, dark: bool) {
         self.dark = Some(dark);
         // The box: its rule, the padding above and below, and the rows.
-        self.terminal.height = 1.0 + 10.0 + ROWS as f32 * 19.0;
-        self.terminal.replay(COLS, ROWS, stream.bytes());
+        // The cells stream is laid out for the 70 columns Fleet's drawer has at 1280 px, so the two wrap alike.
+        let (cols, rows) = if stream == Stream::Cells { (70, 33) } else { (COLS, ROWS) };
+        self.terminal.height = 1.0 + 10.0 + rows as f32 * 19.0;
+        self.terminal.replay(cols, rows, stream.bytes());
+    }
+
+    /// The cells stream with the pointer over the link at `(row, col)`.
+    pub fn show_terminal_link(&mut self, dark: bool, row: usize, col: usize) {
+        self.show_terminal(Stream::Cells, dark);
+        self.terminal.link = self.terminal.live.as_ref().and_then(|l| l.term.link_at(row, col));
     }
 
     /// The same, with the connection in `status` (13.29, 13.30): Reconnecting… over the rows, or the failed panel.

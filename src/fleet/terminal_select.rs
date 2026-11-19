@@ -116,5 +116,27 @@ impl State {
     /// The pointer came over the box or left it.
     pub fn terminal_hover(&mut self, inside: bool) {
         self.terminal.hover = inside;
+        if !inside {
+            self.terminal.link = None;
+        }
+    }
+
+    /// The pointer moved over the box: the link under it, if any, is underlined and clickable (13.75, 13.76).
+    pub fn terminal_pointer(&mut self, x: f32, y: f32) {
+        let Some(live) = self.terminal.live.as_ref() else { return };
+        let (cols, rows) = live.term.size();
+        let (cx, cy) = ((x - PAD[3]) / CELL_W, (y - PAD[0]) / CELL_H);
+        let link =
+            (cx >= 0.0 && cy >= 0.0 && cx < cols as f32 && cy < rows as f32).then(|| live.term.link_at(cy as usize, cx as usize)).flatten();
+        if link != self.terminal.link {
+            self.terminal.link = link;
+        }
+    }
+
+    /// A click on a link opens it in the system browser (`window.open(uri, "_blank", "noopener,noreferrer")`).
+    pub fn open_terminal_link(&mut self, tx: &mut Tx) {
+        if let Some(link) = self.terminal.link.as_ref() {
+            let _ = tx.open_url(&link.url);
+        }
     }
 }

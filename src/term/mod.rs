@@ -3,8 +3,10 @@
 //!
 //! A `Terminal` is shared between the connection's thread, which feeds it output, and the UI thread, which reads the rows
 //! on screen; each holds the lock for one chunk or one read.
+pub mod cells;
 pub mod fit;
 pub mod keys;
+pub mod links;
 pub mod palette;
 pub mod screen;
 pub mod selection;
@@ -19,7 +21,7 @@ pub use alacritty_terminal::term::TermMode as Mode;
 /// The modes the view asks about.
 pub const APP_CURSOR: Mode = TermMode::APP_CURSOR;
 pub const BRACKETED_PASTE: Mode = TermMode::BRACKETED_PASTE;
-use alacritty_terminal::vte::ansi::{Processor, StdSyncHandler};
+use alacritty_terminal::vte::ansi::{CursorShape, CursorStyle, Processor, StdSyncHandler};
 
 /// The scrollback Fleet's xterm keeps (`TerminalView.vue`), as the server's replay does.
 pub const SCROLLBACK: usize = 5000;
@@ -155,6 +157,11 @@ impl Terminal {
         f(&self.lock().term)
     }
 
+    /// The link under a cell of the view (13.75, 13.76).
+    pub fn link_at(&self, row: usize, col: usize) -> Option<links::Link> {
+        self.read(|t| links::link_at(t, row, col))
+    }
+
     /// Reads the grid and takes its damage: what changed since the last read that took it (`Screen::read`).
     pub fn read_damage<R>(&self, f: impl FnOnce(&mut Term<Listener>) -> R) -> R {
         f(&mut self.lock().term)
@@ -164,7 +171,14 @@ impl Terminal {
 impl Inner {
     fn new(cols: u16, rows: u16, answers: &Listener) -> Inner {
         // xterm.js's word separators (`wordSeparator`), for a double click.
-        let config = Config { scrolling_history: SCROLLBACK, semantic_escape_chars: " ()[]{}',\"`".into(), ..Config::default() };
+        // `cursorBlink: true`: a cursor the shell hasn't set blinks, and one it asked to be steady doesn't.
+        let default_cursor_style = CursorStyle { shape: CursorShape::Block, blinking: true };
+        let config = Config {
+            scrolling_history: SCROLLBACK,
+            default_cursor_style,
+            semantic_escape_chars: " ()[]{}',\"`".into(),
+            ..Config::default()
+        };
         let size = Size { cols: cols.max(1) as usize, rows: rows.max(1) as usize };
         Inner { term: Term::new(config, &size, answers.clone()), parser: Processor::new() }
     }
