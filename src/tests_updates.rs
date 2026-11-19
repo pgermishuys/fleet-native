@@ -176,7 +176,10 @@ fn asks_another_machines_status_and_notes_when_settings_shows_it_never_home() {
     });
     assert_eq!(r.rt.state.updates.status["m-harbor"].status.as_ref().map(|s| s.current_version.as_str()), Some("0.58.0"));
     assert!(r.did(&other, "GET", "/api/update/status") && r.did(&other, "GET", "/api/update/releases"));
-    assert!(!r.did(&r.home, "GET", "/api/update/status") && !r.did(&r.home, "GET", "/api/update/releases"), "home was not asked");
+    // Home's status is read once at start for the version this device runs (What's new after an update, piece X), whatever
+    // the page shows; its notes are not read unless an update was found.
+    assert!(!r.did(&r.home, "GET", "/api/update/releases"), "home's notes were not asked");
+    assert_eq!(r.heard(&r.home).iter().filter(|(_, p, _)| p == "/api/update/status").count(), 1, "home's status once, for the version");
     // The rollout is always home's, whichever machine the switch names.
     assert!(r.did(&r.home, "GET", "/api/update/rollout") && !r.did(&other, "GET", "/api/update/rollout"));
 }

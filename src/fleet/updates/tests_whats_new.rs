@@ -38,7 +38,7 @@ fn the_behind_the_scenes_line_says_one_or_many() {
 fn the_empty_and_stale_lines_name_the_reason() {
     assert_eq!(empty_line(Some("Couldn't reach GitHub")), "Fleet couldn't get the release notes (Couldn't reach GitHub).");
     assert_eq!(empty_line(None), "There are no release notes yet.");
-    assert_eq!(stale_line("offline", "Nov 9, 2026"), "Couldn't check GitHub for newer notes (offline). These are from 9 Nov 2026.");
+    assert_eq!(stale_line("offline", "Nov 9, 2026"), "Couldn't check GitHub for newer notes (offline). These are from Nov 9, 2026.");
 }
 
 #[test]
@@ -84,7 +84,7 @@ fn the_card_says_what_it_leaves_out() {
     let summary = whats_new_summary(&releases, "0.36.1", "0.37.0", 3).expect("notes");
     let copy = whats_new_copy(&summary, "0.36.1", "0.37.0", "Nov 16");
     assert_eq!(copy.title, "What's new in Fleet 0.37");
-    assert_eq!(copy.body, "Updated from 0.36.1 \u{b7} 16 Nov");
+    assert_eq!(copy.body, "Updated from 0.36.1 \u{b7} Nov 16");
     assert_eq!(copy.more.as_deref(), Some("+2 more fixes"));
     assert_eq!(whats_new_copy(&summary, "0.36.1", "0.37.0", "").body, "Updated from 0.36.1", "no date, no dot");
 }
