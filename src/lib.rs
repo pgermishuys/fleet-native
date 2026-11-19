@@ -264,6 +264,8 @@ mod tests_settings_skills_catalog;
 #[cfg(test)]
 mod tests_settings_storage;
 #[cfg(test)]
+mod tests_settings_tools;
+#[cfg(test)]
 mod tests_settings_updates;
 #[cfg(test)]
 mod tests_settings_updates_machines;
@@ -1882,6 +1884,28 @@ fn catalog_scene(s: &mut State, dark: bool, change: impl FnOnce(&mut fleet::sett
     });
 }
 
+/// Skills & tools → Tools as a scene: the tab open on the tools the scratch Fleet has, marked as already read.
+fn tools_scene(s: &mut State, dark: bool, change: impl FnOnce(&mut fleet::settings::tools::ToolsPage)) {
+    skills_scene(s, dark, Some("tools"), |p| p.tab = fleet::settings::skills::Tab::Tools);
+    let mut page = fleet::settings::tools::ToolsPage {
+        active: true,
+        tools: mock::settings_tools::as_scratch(),
+        repositories: mock::skills::repositories(),
+        ..Default::default()
+    };
+    change(&mut page);
+    s.settings.tools = page;
+}
+
+/// Tools → Catalog as a scene, with the invented catalog read.
+fn tool_catalog_scene(s: &mut State, dark: bool, change: impl FnOnce(&mut fleet::settings::tools::ToolsPage)) {
+    tools_scene(s, dark, |p| {
+        p.inner = fleet::settings::skills::Inner::Catalog;
+        p.catalog = mock::settings_tools::catalog();
+        change(p);
+    });
+}
+
 /// Skills → Custom as a scene, with `address` typed and the form's error shown.
 fn custom_scene(s: &mut State, dark: bool, address: &str, error: Option<&str>) {
     skills_scene(s, dark, None, |p| {
@@ -2144,6 +2168,92 @@ pub fn spec() -> AppSpec<State> {
                 s.ui.open = Some(ui::Open::Select("skills-target"))
             }),
             ("settings-skills-custom-light", |s| skills_scene(s, false, None, |p| p.inner = fleet::settings::skills::Inner::Custom)),
+            ("settings-tools-installed", |s| tools_scene(s, true, |_| {})),
+            ("settings-tools-installed-light", |s| tools_scene(s, false, |_| {})),
+            ("settings-tools-warning", |s| {
+                tools_scene(s, true, |p| p.tools.push(mock::settings_tools::installed().pop().expect("a tool with no file")))
+            }),
+            ("settings-tools-installed-all", |s| tools_scene(s, true, |p| p.tools = mock::settings_tools::installed())),
+            ("settings-tools-warning-light", |s| {
+                tools_scene(s, false, |p| p.tools.push(mock::settings_tools::installed().pop().expect("a tool with no file")))
+            }),
+            ("settings-tools-installed-all-light", |s| tools_scene(s, false, |p| p.tools = mock::settings_tools::installed())),
+            ("settings-tools-confirm", |s| tools_scene(s, true, |p| p.confirm_remove = Some("csv-peek|global".into()))),
+            ("settings-tools-confirm-light", |s| tools_scene(s, false, |p| p.confirm_remove = Some("csv-peek|global".into()))),
+            ("settings-tools-empty", |s| tools_scene(s, true, |p| p.tools.clear())),
+            ("settings-tools-empty-light", |s| tools_scene(s, false, |p| p.tools.clear())),
+            ("settings-tools-loading", |s| tools_scene(s, true, |p| p.loading = true)),
+            ("settings-tools-loading-light", |s| tools_scene(s, false, |p| p.loading = true)),
+            ("settings-tools-error", |s| {
+                tools_scene(s, true, |p| {
+                    p.tools.clear();
+                    p.error = Some("Failed to fetch tools".into())
+                })
+            }),
+            ("settings-tools-error-light", |s| {
+                tools_scene(s, false, |p| {
+                    p.tools.clear();
+                    p.error = Some("Failed to fetch tools".into())
+                })
+            }),
+            ("settings-tools-catalog", |s| tool_catalog_scene(s, true, |_| {})),
+            ("settings-tools-catalog-light", |s| tool_catalog_scene(s, false, |_| {})),
+            ("settings-tools-catalog-installing", |s| {
+                tool_catalog_scene(s, true, |p| {
+                    p.installing = true;
+                    p.installing_name = Some("clock".into())
+                })
+            }),
+            ("settings-tools-catalog-installing-light", |s| {
+                tool_catalog_scene(s, false, |p| {
+                    p.installing = true;
+                    p.installing_name = Some("clock".into())
+                })
+            }),
+            ("settings-tools-catalog-empty", |s| tool_catalog_scene(s, true, |p| p.catalog.clear())),
+            ("settings-tools-catalog-empty-light", |s| tool_catalog_scene(s, false, |p| p.catalog.clear())),
+            ("settings-tools-catalog-loading", |s| {
+                tool_catalog_scene(s, true, |p| {
+                    p.catalog.clear();
+                    p.catalog_loading = true
+                })
+            }),
+            ("settings-tools-catalog-loading-light", |s| {
+                tool_catalog_scene(s, false, |p| {
+                    p.catalog.clear();
+                    p.catalog_loading = true
+                })
+            }),
+            ("settings-tools-catalog-error", |s| {
+                tool_catalog_scene(s, true, |p| {
+                    p.catalog.clear();
+                    p.catalog_error = Some("Failed to fetch tool catalog".into())
+                })
+            }),
+            ("settings-tools-catalog-error-light", |s| {
+                tool_catalog_scene(s, false, |p| {
+                    p.catalog.clear();
+                    p.catalog_error = Some("Failed to fetch tool catalog".into())
+                })
+            }),
+            ("settings-tools-catalog-install-error", |s| {
+                tool_catalog_scene(s, true, |p| p.install_error = Some("Tool already exists".into()))
+            }),
+            ("settings-tools-catalog-install-error-light", |s| {
+                tool_catalog_scene(s, false, |p| p.install_error = Some("Tool already exists".into()))
+            }),
+            ("settings-tools-picker", |s| {
+                tool_catalog_scene(s, true, |p| {
+                    p.target = fleet::settings::install_target::InstallTarget::Project(mock::skills::REPOSITORY.into())
+                });
+                s.ui.open = Some(ui::Open::Select("tools-target"))
+            }),
+            ("settings-tools-picker-light", |s| {
+                tool_catalog_scene(s, false, |p| {
+                    p.target = fleet::settings::install_target::InstallTarget::Project(mock::skills::REPOSITORY.into())
+                });
+                s.ui.open = Some(ui::Open::Select("tools-target"))
+            }),
             ("settings-skills-catalog", |s| catalog_scene(s, true, |_| {})),
             ("settings-skills-catalog-light", |s| catalog_scene(s, false, |_| {})),
             ("settings-skills-catalog-installed", |s| {

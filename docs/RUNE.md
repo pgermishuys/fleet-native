@@ -2077,3 +2077,11 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **A plain `.row()` button in a column stretches to the full width**; `.self_start()` gives Fleet's inline-sized button.
 - **`border_sides` is `[top, left, bottom, right]`** (a divider above a row is `[1.0, 0.0, 0.0, 0.0]`).
 - **`TextEdit::secure()` fits a token box**: bullets, `[redacted]` in `Debug`; keep it out of a state's own `Debug` anyway.
+
+
+
+## Component 16, piece AI (Tools: Installed and Catalog)
+
+- **A cargo test build can pass 4000 M**: with the default job count the test build of this crate was OOM-killed twice in a 4000 M scope (exit 143, "Terminated", no error text; `journalctl --user` says `oom-kill`). `cargo test -j1` fits.
+- **A page that mirrors another keeps its own state struct**: Tools has `ToolsPage` beside `SkillsPage`, because Fleet unmounts the Tools section (and its install target) when you leave the tab; the shared picker takes the page by `Kind`.
+- **A test that presses two buttons in a row needs a frame between reading**: after `click` on a second card's Remove, `settle()` before reading the first card's label, or it still reads the old one.

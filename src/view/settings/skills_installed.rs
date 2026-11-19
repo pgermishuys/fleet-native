@@ -11,7 +11,7 @@ use crate::ui::controls::{BadgeVariant, badge};
 use crate::ui::rem;
 use rune::{El, col, icon, row, text};
 
-fn small_mono(t: &Theme, words: &str) -> El {
+pub(super) fn small_mono(t: &Theme, words: &str) -> El {
     text(words.to_string()).font(mono(rem(0.75), 400.0, 1.33)).color(t.muted).wrap().shrink().min_w(0.0)
 }
 
@@ -34,9 +34,9 @@ fn title(t: &Theme, skill: &InstalledSkill, id: &str) -> El {
 }
 
 /// `border-coral/30 bg-coral/10`: a skill no harness reads.
-fn unreachable_note(t: &Theme, id: &str) -> El {
+pub(super) fn unreachable_note(t: &Theme, key: String, words: &str) -> El {
     row()
-        .key(format!("skill-no-folder-{id}"))
+        .key(key)
         .mt(7.0)
         .gap(7.0)
         .items_start()
@@ -47,18 +47,11 @@ fn unreachable_note(t: &Theme, id: &str) -> El {
         .border_layout()
         .fill(t.coral.alpha(0.1))
         .child(icon(&TRIANGLE_ALERT, 12.0).color(t.coral_text).mt(2.0))
-        .child(
-            text("Not in any folder a harness reads. Remove it and install it again.")
-                .font(sans(rem(0.75), 400.0, 1.33))
-                .color(t.coral_text)
-                .wrap()
-                .shrink()
-                .min_w(0.0),
-        )
+        .child(text(words.to_string()).font(sans(rem(0.75), 400.0, 1.33)).color(t.coral_text).wrap().shrink().min_w(0.0))
 }
 
 /// A button whose label and spinner change while its work runs.
-fn working(t: &Theme, v: Variant, glyph: &'static rune::Icon, ink: rune::Color, busy: bool, idle: &str, doing: &str) -> El {
+pub(super) fn working(t: &Theme, v: Variant, glyph: &'static rune::Icon, ink: rune::Color, busy: bool, idle: &str, doing: &str) -> El {
     let lead = if busy { spinner(ink) } else { icon(glyph, 16.0).color(ink) };
     button_lead(t, v, Size::Sm, Some(lead), if busy { doing } else { idle })
 }
@@ -127,7 +120,11 @@ fn card(s: &State, t: &Theme, skill: &InstalledSkill) -> El {
         words = words.child(row().mt(3.5).child(small_mono(t, &format!("\u{2192} {installed}"))));
     }
     if skill.installed_paths.is_empty() {
-        words = words.child(unreachable_note(t, &id));
+        words = words.child(unreachable_note(
+            t,
+            format!("skill-no-folder-{id}"),
+            "Not in any folder a harness reads. Remove it and install it again.",
+        ));
     }
     if let Some(e) = &skill.update_check_error {
         words = words.child(col().mt(7.0).child(error_box(t, &format!("skill-check-error-{id}"), e)));
