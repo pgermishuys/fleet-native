@@ -156,11 +156,41 @@ pub fn replace_windows(archive: &Path, work: &Path) -> Result<(), String> {
         return Err("The download isn't a program for this system.".to_string());
     }
     #[cfg(windows)]
-    let result = self_replace::self_replace(&staged).map_err(|e| format!("Couldn't swap the app: {e}"));
+    let result =
+        while_locked(|| self_replace::self_replace(&staged), SWAP_TRIES, SWAP_PAUSE).map_err(|e| format!("Couldn't swap the app: {e}"));
     #[cfg(not(windows))]
     let result: Result<(), String> = Err("This is not Windows.".to_string());
     let _ = fs::remove_file(&staged);
     result
+}
+
+/// How long a swap Windows refuses because a file is in use is tried again: about five seconds in all.
+#[cfg_attr(not(windows), allow(dead_code))]
+const SWAP_TRIES: u32 = 20;
+#[cfg_attr(not(windows), allow(dead_code))]
+const SWAP_PAUSE: Duration = Duration::from_millis(250);
+
+/// Runs `attempt` until it succeeds, fails for another reason, or `tries` run out. On Windows a file just written or just run
+/// is often held for a moment (a virus scanner reading the new exe, the process that just exited), and the swap is then
+/// refused as in use (os error 32) or denied (5), though a second later it goes through; CI's updater check failed that way.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) fn while_locked<T>(mut attempt: impl FnMut() -> std::io::Result<T>, tries: u32, pause: Duration) -> std::io::Result<T> {
+    let mut left = tries.max(1);
+    loop {
+        match attempt() {
+            Err(e) if left > 1 && held(&e) => {
+                left -= 1;
+                std::thread::sleep(pause);
+            }
+            result => return result,
+        }
+    }
+}
+
+/// Windows' "access denied", "in use by another process" and "locked": what a file held for a moment says.
+#[cfg_attr(not(windows), allow(dead_code))]
+fn held(e: &std::io::Error) -> bool {
+    matches!(e.raw_os_error(), Some(5 | 32 | 33))
 }
 
 /// The `.app` that holds the program at `exe` (`X.app/Contents/MacOS/name`), if it is in one.
