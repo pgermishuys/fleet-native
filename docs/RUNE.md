@@ -1973,3 +1973,7 @@ Read at the pin while planning; nothing built yet.
 - **Links are Tab stops before the composer**, so `Shift+Tab` from the composer reaches the last link, and Enter opens it. Focusing the text's own key doesn't put focus on a link.
 - **`on_link_tx` makes every link in the text pressable**, so a handler that opens web addresses is needed with it (`tx.open_url`).
 
+## Component 13, piece J (the sweep)
+
+- A headless `--script` run drives the app's clock, not wall time, while a socket thread (and a server killed from outside) runs in real time: a script that waits "20 s" for a Reconnecting… notice can see the whole backoff pass in one frame run. To catch a live reconnect, put a small TCP proxy between the app and the server and stop and start the proxy; a full server restart (about 15 s) outlasts Fleet's five attempts, so it ends on the failed panel in both clients.
+- `tap` with a `key` focuses an element (the grip) and `key` events then reach it by name (`Up`, not `ArrowUp`); a script that moves a keyboard-driven grip needs nothing else.

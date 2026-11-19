@@ -200,7 +200,7 @@ Owner: `13` = this component, with the piece; another number = that component. "
 
 | # | Row | Source | Native today | Owner |
 |---|---|---|---|---|
-| 13.85 | Both themes: the drawer, tabs, meta, bubble, notices and every ANSI colour, each in a scene | TT, TD | None | every piece with a view |
+| 13.85 | Both themes: the drawer, tabs, meta, bubble, notices and every ANSI colour, each in a scene | TT, TD | Done (each piece's scenes and pictures; J looked again live in both themes: open, two tabs, selection and bubble, the chip in the composer, a taller drawer, mouse reporting) | every piece with a view |
 | 13.86 | Long text: a long folder cut at its start, a long tab title cut at 160, many tabs scroll; a long line wraps in the grid and reflows on resize (alacritty) | TD, xterm | Done for D (long folder, long title, many tabs scroll); a long line wraps (A) | 13 D, A |
 | 13.87 | Terminals off (`terminalEnabled` false): no button, the command off, nothing loaded | TTB, UST | Done (C: nothing loads; D: no button) | 13 C, D |
 
@@ -227,6 +227,36 @@ Owner: `13` = this component, with the piece; another number = that component. "
 Done: 13.77, 13.78, 13.64 (in part). `term/mouse.rs` (the bytes: which modes want what, the three encodings, wheel arrows, focus), `fleet/terminal_mouse.rs` (the gesture, the wheel, IME), `fleet/terminal_select.rs` and `view/terminal_view.rs` (the box asks first), `lib.rs` (`terminal_hooks`: `on_modifiers`, `on_ime`), `fleet/terminal_slot.rs` (focus reports).
 No Fleet test belongs to this piece; ours (`tests_terminal_mouse.rs`): which events each mode wants, the default, UTF-8 and SGR bytes, modifiers, a press and release, drags once per cell in 1002 and not in 1000, plain motion in 1003 only, Shift selects instead, the wheel reported or turned into arrows or scrolling, focus in and out, an input method's commit.
 Left open: mode 9; the preedit; a real input method (not run anywhere); right-button drags. Pictures: `shots/parity/13-terminal/H/` (a program that asked for SGR mouse reporting echoing what it hears, and `less` scrolled by the wheel in the alternate screen, beside Fleet's, both themes; scripts `scripts/terminal-mouse.json`, `scripts/terminal-less.json`, which expect an `m.sh` and `src/pager.ts` in the session's folder). Same bytes in both clients for the same three gestures (`^[[<0;8;3M^[[<0;8;3m^[[<0;29;5M^[[<0;29;5m^[[<64;44;4M`). Fleet's picture has its right panel open, so its box is 70 columns wide and `less` wraps; that is not a difference in the terminal.
+
+### Piece J, what was done on 19 November 2026 (the sweep)
+
+Every row above read again against the code and the pictures. **Component 13 is closed**; what stays open is listed here, each with its owner.
+
+**Fleet's tests, by name.** All 58 terminal cases of the files in "Tests to port" are ported under their names (checked by a script that turns each Fleet name into a Rust test name and looks for it, then the few it missed by hand): `terminal-theme` (the mix and alpha cases are `mix_…`/`with_alpha_…` in `tests_terminal.rs`), `terminal-socket` (10), `terminal-mock-shell` (5, `the_pretend_shell_…` in `tests_terminal_tabs.rs`), `terminals` (7), `use-session-terminals` (9), `TerminalDrawer` (10), `TerminalToggleButton` (3), `TerminalView` (1), `terminal-keys` (4, in `fleet/terminal_keys.rs`), StatusBar's terminal case, and `session-calls-machine`'s terminal case. Two cases are covered without a test of their own name: `session-calls-machine` "reads the session's terminals" and `session-events-machine` "follows the session's terminals" rest on `link_for(session)`, which every session call uses (piece C). The other cases in those two files and in StatusBar are other components'.
+
+**Rows.** Every row is `Done` or has its gap written in its own row. What stays open, with its owner:
+
+| Gap | Row | Owner |
+|---|---|---|
+| Overline (SGR 53): alacritty has no flag for it | 13.11 | Rune/alacritty; nothing to do here |
+| Dashed box lines drawn solid | 13.11 | 13, left (cosmetic) |
+| No application keypad (Rune has no keypad key) | 13.61 | Rune |
+| Shift+click extends the selection (Rune's `Drag` carries no modifiers) | 13.66 | Rune |
+| Autoscroll while dragging past the box: a line per pointer move, no timer | 13.66 | 13, left |
+| No fade for the scrollbar and the bubble; a click on the empty scrollbar track does nothing | 13.7, 13.69 | 13, left (cosmetic) |
+| A drag that starts on a link opens it instead of selecting | 13.75 | 13, left |
+| OSC 8: no confirm dialog; only http, https and mailto open | 13.76 | 13, by decision |
+| Mouse mode 9 (alacritty ignores it); right-button drags; back/forward buttons | 13.77 | alacritty / left |
+| The input method's preedit isn't drawn; no real input method was run anywhere | 13.64 | Rune (no way to drive one here) |
+| The Mac rows (⌘C, ⌘V, Option types) are written, never run on a Mac | 13.63 | whoever has a Mac |
+| The setup terminal replaces the session's drawer while it is open (Fleet keeps both) | 13.80 | 13, by design (one terminal slot) |
+
+**Live end-to-end run, 19 November 2026, Linux, debug build, scratch Fleet v0.72.0 (own ports), scripted by `--script`:** open the drawer from the header button (a shell starts, "demo $", `ls`, `cat src/pager.ts`), a second tab with the + button ("zsh 2"), typing in it, selecting two lines by drag (the bubble says "Add lines 2–3 to message"), Add (the chip "zsh 2 lines 2–3" is in the composer), the grip focused and moved four steps with the arrow keys (the drawer grows, the readout goes from 115×11 to 115×16 and the shell sees it), and a program that asked for SGR mouse reporting (`printf '\033[?1000;1006h'; cat -v`) echoing the clicks. Beside Fleet's own client doing the same at the same size in both themes (`shots/parity/13-terminal/J/`): the same states, same words, the same tab titles, the same bubble. Differences seen: Fleet's picture has its right panel open, so its box is 70 columns, native's is 115 (the native panel is closed until a file changes; not the terminal); native's drawer has no grip bar until it is hovered or focused, as Fleet's. The setup terminal was run live in piece I and is not repeated (`shots/parity/13-terminal/I/`).
+
+**Reconnect, live.** A full restart of the scratch Fleet takes about 15 s, longer than the five attempts (250 + 500 + 1000 + 2000 + 4000 ms, about 8 s), so **both clients end on "This terminal can't be reached…"** (`native-after-restart-dark.png`, `fleet-after-restart-dark.png`): that is Fleet's rule, ported as it is. Through a small proxy I stopped for 3 s, the native terminal dropped and came back by itself with the whole scrollback replayed (`native-reconnected-dark.png`; the Reconnecting… notice is in scene `terminal-reconnecting`, a live picture of it wasn't caught because the headless clock doesn't run in real time). One difference found and **left open**: after the failed attempts the native view shows only the new shell's prompt dimmed behind the failed panel, where Fleet's keeps the replay of the last attempt ("— Fleet restarted —", `demo $ ls`…) behind it. Both say the same words and Close tab does the same.
+
+**Not done or not checked.** The flood (`yes | head -c 50000000`) was not run live; the damage test and the row reuse cover it, and speed on a GPU is unmeasured. **Windows and macOS have only been checked by CI (builds, lints, tests and scenes): nobody has typed into the native terminal there.** Fleet's own picture in the light theme of the same run has a third tab ("zsh 3") because a second browser context started before the first one's shells were cleaned up; that is the run, not Fleet.
+Pictures: `shots/parity/13-terminal/J/` (`native-*` and `fleet-*` for open, tabs, selected, added, resized, mouse, both themes where the state exists; `native-reconnected-dark.png`, `*-after-restart-dark.png`).
 
 ### Piece I, what was done on 19 November 2026
 
