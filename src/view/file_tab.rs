@@ -1,6 +1,7 @@
 //! A file's tab (`components/canvas/FileCanvas.vue`, rows 4.1 to 4.4 and 4.6 to 4.8 of docs/parity/11-files.md): the bar with the
 //! file's path as crumbs and the view switch (Rendered, Edit or Source, Diff), and under it the note while the file opens or can't be
-//! shown, or its code, with Wrap (4.5). The image and the Rendered page, the lines bar and everything of editing are other pieces'.
+//! shown, or its code, with Wrap (4.5); at its foot the lines bar while lines are picked (`LinesBar.vue`, 8.5) and the tab's toast
+//! (4.9). The image and the Rendered page and everything of editing are other pieces'.
 use super::code_view::code_view;
 use super::file_media::{image_body, note, rendered_html, rendered_markdown};
 use crate::State;
@@ -183,5 +184,29 @@ pub fn file_tab(s: &State, t: &Theme) -> El {
         Some(Status::Ready) => body.child(code_view(s, t, &machine, &session, &path, wrap)),
         None => body,
     };
+    // The lines bar, docked at the foot while lines are picked or selected and the code shows (rows 8.5 to 8.7), and the toast.
+    let lines = s.file_lines();
+    if let Some((path, range)) = &lines {
+        let (label, count) = (range.label(), range.count());
+        let link = crate::conv::line_quote::line_reference(path, range.first, range.last);
+        let bar = super::lines_bar::Bar {
+            file: None,
+            label: &label,
+            count: &count,
+            link: Some(&link),
+            narrow: s.right_shown_w() - 16.0 <= 404.0,
+        };
+        body = body.child(super::lines_bar::lines_bar(
+            t,
+            &bar,
+            |s, tx| s.copy_file_link(tx),
+            |s, tx| s.copy_file_quote(tx),
+            |s, tx| s.add_file_lines_to_message(tx),
+            |s, tx| s.clear_file_lines(tx),
+        ));
+    }
+    if let Some((words, _)) = &s.file_lines.toast {
+        body = body.child(super::lines_bar::toast(t, "file-toast", words, lines.is_some()));
+    }
     body
 }

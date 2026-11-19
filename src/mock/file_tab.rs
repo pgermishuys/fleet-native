@@ -32,6 +32,12 @@ pub enum Case {
     Image,
     ImageMissing,
     Html,
+    /// `Code` with lines 17 to 21 picked and the lines bar docked (piece K).
+    Lines,
+    /// `Lines` after Copy link: the tab's toast, lifted over the bar.
+    LinesCopied,
+    /// `Code` after Add to message: the reference in the draft, the pick gone.
+    LinesAdded,
 }
 
 /// The invented project's logo (`assets/logo.svg`), 96 by 96 as its own size.
@@ -61,7 +67,9 @@ impl State {
             _ => PATH,
         };
         // The scenes of 11G were taken with Wrap off, as Fleet's pictures were; every file wraps unless it says otherwise.
-        if matches!(case, Case::Code | Case::TooLarge | Case::Binary | Case::Missing | Case::Opening | Case::WrapOff) {
+        if matches!(case, Case::Code | Case::TooLarge | Case::Binary | Case::Missing | Case::Opening | Case::WrapOff)
+            || matches!(case, Case::Lines | Case::LinesCopied | Case::LinesAdded)
+        {
             self.sidebar.save_file_wrap(path, false);
         }
         self.diffs.reset(&id);
@@ -86,12 +94,23 @@ impl State {
         let machine = self.machine_key_of(&id).to_string();
         let Some(request) = self.file_buffers.open(&machine, &id, path) else { return };
         self.read_for_scene(request, case);
+        match case {
+            Case::Lines | Case::LinesCopied => {
+                let pick = crate::fleet::file_lines::LinePick { anchor: 17, head: 21 };
+                self.file_buffers.set_pick(&machine, &id, path, Some(pick));
+                if case == Case::LinesCopied {
+                    self.file_lines.toast = Some(("Copied src/paginate.py:17-21".to_string(), self.clock + 60.0));
+                }
+            }
+            Case::LinesAdded => self.append_draft_reference(&id, "@src/paginate.py:17-21"),
+            _ => {}
+        }
     }
 
     fn read_for_scene(&mut self, request: Request, case: Case) {
         let body = match case {
             Case::Opening => return,
-            Case::Code => Ok(answer(SOURCE)),
+            Case::Code | Case::Lines | Case::LinesCopied | Case::LinesAdded => Ok(answer(SOURCE)),
             Case::Wrap | Case::WrapOff => Ok(answer(WRAP_SOURCE)),
             Case::Markdown => Ok(answer(MARKDOWN)),
             Case::Html => Ok(answer(HTML)),

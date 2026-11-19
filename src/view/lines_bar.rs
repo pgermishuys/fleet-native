@@ -54,6 +54,28 @@ fn button(t: &Theme, key: &str, label: &str, tip: &str, glyph: &'static Icon, wo
     if primary { b.hover(t.accent.alpha(0.88)) } else { b.hover(t.wash(7.0)) }
 }
 
+/// The toast of a panel with a lines bar (`.review__toast`, `.file-canvas__toast`, row 4.9 of docs/parity/11-files.md): centred 18 px
+/// above the bottom (58 with the bar up), at most the width less 32, padding `7 12`, radius 9, `--text` on `--panel-bg`, 12.5/500,
+/// one line with an ellipsis. It appears at once; Fleet's 160 ms rise isn't drawn.
+pub fn toast(t: &Theme, key: &str, words: &str, lifted: bool) -> El {
+    row()
+        .key(key.to_string())
+        .role("status")
+        .pin(Some(0.0), None, Some(0.0), Some(if lifted { 58.0 } else { 18.0 }))
+        .px(16.0)
+        .justify_center()
+        .child(
+            row()
+                .shrink()
+                .min_w(0.0)
+                .px(12.0)
+                .py(7.0)
+                .radius(9.0)
+                .fill(t.text)
+                .child(text(words.to_string()).font(sans(12.5, 500.0, 1.4)).color(t.panel_bg).truncate().shrink().min_w(0.0)),
+        )
+}
+
 /// `.lines-bar`: margin `0 8 8`, padding `5 6 5 12`, a 1px border, radius 10, `--card-bg`, a soft shadow, one line.
 pub fn lines_bar(
     t: &Theme,

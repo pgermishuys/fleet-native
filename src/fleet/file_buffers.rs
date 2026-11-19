@@ -3,6 +3,7 @@
 //! file on disk does to a buffer. `FileBuffers` is pure: it says which read to make and takes the answer; the thread is in
 //! the `State` half at the bottom. Reads of one file are shared: a second open, or a refresh, while one is on its way asks
 //! nothing. The text is the file's lines, split on its own break only; the editing half (typing, undo) is slice 2.
+use super::file_lines::{LinePick, map_pick};
 use super::http;
 use crate::State;
 use crate::conv::minimal_change::minimal_change;
@@ -116,11 +117,17 @@ pub struct Buffer {
     format: Option<TextFormat>,
     /// Counts every change to `lines`, so what is worked out from the text (its colours) knows when it is stale.
     rev: u64,
+    /// The picked lines (`pickField`): on the buffer, as CodeMirror keeps them in the editor's state, so the agent's edit moves them.
+    pick: Option<LinePick>,
 }
 
 impl Buffer {
     pub fn rev(&self) -> u64 {
         self.rev
+    }
+
+    pub fn pick(&self) -> Option<LinePick> {
+        self.pick
     }
 
     pub fn info(&self) -> &Info {
@@ -164,6 +171,8 @@ impl Buffer {
         let (text, format) = read_text_format(file.content.as_deref().unwrap_or(""));
         self.lines = split_lines(&text, &format);
         self.rev += 1;
+        // A fresh state has nothing picked.
+        self.pick = None;
         self.saved = self.lines.clone();
         self.format = Some(format);
         self.base_hash = file.hash.clone();
@@ -196,7 +205,9 @@ impl Buffer {
             self.saved = self.lines.clone();
             return DiskUpdate::Unchanged;
         };
-        self.lines = change.apply(&self.lines);
+        let after = change.apply(&self.lines);
+        self.pick = self.pick.map(|p| map_pick(p, &self.lines, &change, &after));
+        self.lines = after;
         self.rev += 1;
         self.saved = self.lines.clone();
         DiskUpdate::Updated(Some(change.lines))
@@ -241,6 +252,13 @@ impl FileBuffers {
 
     pub fn info(&self, machine: &str, session: &str, path: &str) -> Option<&Info> {
         self.buffer(machine, session, path).map(Buffer::info)
+    }
+
+    /// Picks lines in an open file, or clears them (`setPick`); `false` when it isn't open.
+    pub fn set_pick(&mut self, machine: &str, session: &str, path: &str, pick: Option<LinePick>) -> bool {
+        let Some(buffer) = self.buffers.get_mut(&key(machine, session, path)) else { return false };
+        buffer.pick = pick;
+        true
     }
 
     /// The buffer for a file, made (loading) if it isn't open yet (`ensure`).

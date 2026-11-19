@@ -1921,3 +1921,18 @@ Read at the pin while planning; nothing built yet.
 - **`scroll_center_in_instant(scope, key)` mounts a virtual row and centres it**, so a line far down a long file needs no arithmetic; key it by the row's own key (`code-line-12`, `code-line-12w` when wrapped).
 - **A scrolling `col` takes the keyboard with `.focusable(true)`** and shows no ring of its own, so the code view can take focus when a file opens.
 - **A dialog that is a grid with `gap-4` is a `col().gap(16.0)`**: the 1 px line under its box then sits 16 above the list, as in Fleet.
+
+## Component 11, piece K (picking lines, the lines bar)
+
+- **`rune_kit::line_selection` is Pierre's gesture, not CodeMirror's `line-pick.ts`**: a press on the one selected line clears it on
+  release, and Shift keeps the end of the selection the press is away from (Shift on 12 after 18–27 gives 12–27; Fleet's file tab gives
+  12–18, from where the pick started). So the file tab's rule is ported in plain Rust (`fleet::file_lines::press`), and the number
+  cell drives it with `on_drag`: `Phase::Down` reads Shift from `tx.mods()` and keeps the anchor in `Drag::data`, `Phase::Move` counts
+  whole lines from the pressed cell by `Drag::y`.
+- **No way to ask which row is under the pointer** from a handler (no element rects on `Tx`): a drag down the numbers of wrapped
+  lines counts 20 px per line, so on wrapped rows taller than one line the pick runs ahead of the pointer. Unwrapped (every row 20
+  px) it is exact.
+- **A test holds Shift for a pointer press** with `rt.physical_input(PhysicalInput::Modifiers(Mods { shift: true, .. }))`; the
+  press's handler then reads it from `tx.mods()`.
+- **A row's fill over a sticky, opaque cell**: the number gutter is opaque (`--panel-bg`) so code scrolled sideways doesn't show
+  through, so a picked line's number takes `--accent` 14 % mixed into `--panel-bg` (`Theme::mix`), not the 14 % alpha the line has.
