@@ -710,12 +710,12 @@ fn part_view(t: &Theme, s: &State, md: &Styles, msg: &Message, part: &Part, live
     match (part, msg.role) {
         // The notice's own words are the helper's: no bubble, an assistant-side message under its chip.
         (Part::Text { id, text: body }, Role::User) if msg.meta.background.is_some() => {
-            prose::prose_marked(&md.prose, id, body, false, s.find_marks(id, false).as_ref())
+            prose::prose_marked(&md.prose, id, body, false, s.find_marks(id, false).as_ref(), prose::Files::of(s, t).as_ref())
         }
         (Part::Text { id, text: body }, Role::User) => message::user_bubble(t, s, md, msg, id, body),
         (Part::Text { id, text: body }, Role::Shell) => message::user_bubble(t, s, md, msg, id, body),
         (Part::Text { id, text: body }, Role::Assistant) => {
-            prose::prose_marked(&md.prose, id, body, live, s.find_marks(id, false).as_ref())
+            prose::prose_marked(&md.prose, id, body, live, s.find_marks(id, false).as_ref(), prose::Files::of(s, t).as_ref())
         }
         (Part::Tool { .. }, _) => toolrow::tool_entry(t, s, part),
         (Part::Reasoning { id, text: body, summary }, _) => {

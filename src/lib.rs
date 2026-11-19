@@ -72,6 +72,8 @@ mod tests_file_find;
 #[cfg(test)]
 mod tests_file_lines;
 #[cfg(test)]
+mod tests_file_links;
+#[cfg(test)]
 mod tests_file_media;
 #[cfg(test)]
 mod tests_file_tab;
@@ -443,6 +445,8 @@ pub struct State {
     /// (`fleet::go_to_file`).
     pub go_to_file: fleet::go_to_file::GoToFile,
     pub go_to: fleet::go_to_file::GoToDialog,
+    /// The files the messages name (`fleet::file_links`).
+    pub file_links: fleet::file_links::FileLinks,
     /// The page canvas "Open page" asked the content panel to show; the tab is component 14's.
     pub page_target: Option<String>,
     /// The web views over page tabs: where the page area is, and whether this window can host one (`web`).
@@ -760,6 +764,7 @@ impl Default for State {
             find_text: Default::default(),
             find_in_files: Default::default(),
             go_to_file: Default::default(),
+            file_links: Default::default(),
             go_to: Default::default(),
             page_target: None,
             web: Default::default(),
@@ -1658,6 +1663,7 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     s.keep_file_front();
     s.keep_file_base();
     let flashing = s.keep_file_flash(tx);
+    s.keep_file_links(now);
     s.keep_files_tab(now, tx);
     s.keep_progress_tab();
     let strip = s.keep_turns_tab() | strip;
@@ -4614,6 +4620,10 @@ pub fn spec() -> AppSpec<State> {
             ("agent-tab-closed-light", |s| s.show_agent_tab(mock::agent_tab::Case::Closed, false)),
             ("agent-tab-narrow", |s| s.show_agent_tab(mock::agent_tab::Case::Narrow, true)),
             ("agent-tab-narrow-light", |s| s.show_agent_tab(mock::agent_tab::Case::Narrow, false)),
+            ("message-file-links", |s| s.show_message_file_links(true, false)),
+            ("message-file-links-light", |s| s.show_message_file_links(false, false)),
+            ("message-file-links-open", |s| s.show_message_file_links(true, true)),
+            ("message-file-links-open-light", |s| s.show_message_file_links(false, true)),
         ],
         fonts: &[include_bytes!("../assets/fonts/InterVariable.ttf"), include_bytes!("../assets/fonts/JetBrainsMono-Variable.ttf")],
         families: ("Inter", "JetBrains Mono"),

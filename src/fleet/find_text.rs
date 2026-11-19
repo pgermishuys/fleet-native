@@ -363,10 +363,7 @@ impl State {
     /// rendered view, and the right panel shows.
     pub fn open_hit(&mut self, path: &str, line: u32, tx: &mut Tx) {
         let session = self.files_session();
-        self.go_to_file.ask_focus(&session, path, Some(line));
-        let view = super::canvases::has_rendered_view(path).then_some(super::canvases::FileView::Edit);
-        self.open_file(&session, path, super::canvases::OpenFile { keep: false, view }, tx);
-        self.set_content_open(true);
+        self.open_file_at(&session, path, Some(line), false, tx);
     }
 
     /// The palette's "Find in files…" and Ctrl/Cmd+Shift+F: the Files tab of the open session, the right panel shown, and the

@@ -505,6 +505,13 @@ pub fn files_browse(base: &str, session: &str, path: Option<&str>) -> Result<(u1
     text_with("GET", base, &format!("/api/sessions/{session}/files/browse{query}"), None)
 }
 
+/// `POST /api/sessions/{id}/files/resolve` `{ paths }`: which of the paths a message names are files in the session's folder, and
+/// where from that folder (`resolveSessionFiles`).
+pub fn files_resolve(base: &str, session: &str, paths: &[String]) -> Result<(u16, String), String> {
+    let body = json!({ "paths": paths });
+    text_with("POST", base, &format!("/api/sessions/{session}/files/resolve"), Some(&body))
+}
+
 /// `PUT /api/sessions/{id}/files/content`: saves `content` if the file still has `base_hash` (`writeSessionFile`).
 pub fn write_file(base: &str, session: &str, path: &str, content: &str, base_hash: &str) -> Result<(u16, String), String> {
     let body = json!({ "path": path, "content": content, "baseHash": base_hash });
