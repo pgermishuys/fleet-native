@@ -2000,3 +2000,9 @@ Same recipe as Changes' Rendered view: a `selection_group(true)` column with `on
 - **`El::max_lines(n)` is Rune's `line-clamp`**: wrapped text that ends the last line with "…". Fleet's three-line card description uses it; it is not `.truncate()`, which is one line.
 - **A grid row with cards of equal height**: make the row's children `col().w(0.0).grow(1.0)` with the card `.grow(1.0)` inside, and leave the row's `items_start` off (stretch is the default); a lone last card needs an empty `col().w(0.0).grow(1.0)` beside it to keep its half.
 - **A `text_input` can be `.disabled(true)` but doesn't dim**; Fleet's disabled input doesn't either, so nothing else is drawn.
+
+## Component 16, piece AD (Plugins)
+
+- A fixed-size element needs no "don't shrink" call: Rune items only shrink where `.shrink()` is asked, so an icon tile or switch beside a `.grow(1.0).shrink()` text column keeps its size.
+- A button laid over the end of another (Settings' menu fold button over the Plugins entry) is `absolute(x, 0)` from the parent's left; there is no `right:` offset, so x is worked out from the known width of the panel.
+- There is no baseline alignment (`items-baseline`); `items_center` stands in where a heading and a small line share a row.

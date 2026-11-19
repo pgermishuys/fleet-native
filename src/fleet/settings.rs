@@ -36,6 +36,7 @@ pub mod skills;
 pub mod skills_actions;
 pub mod skills_catalog;
 pub mod skills_install;
+pub mod plugins;
 pub mod storage;
 pub mod storage_actions;
 pub mod switches;

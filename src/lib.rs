@@ -252,6 +252,8 @@ mod tests_settings_skills;
 #[cfg(test)]
 mod tests_settings_skills_catalog;
 #[cfg(test)]
+mod tests_settings_plugins;
+#[cfg(test)]
 mod tests_settings_storage;
 #[cfg(test)]
 mod tests_settings_updates;
@@ -2224,6 +2226,102 @@ pub fn spec() -> AppSpec<State> {
             ("settings-labs-machines-light", |s| labs_scene(s, false, true, false)),
             ("settings-labs-on", |s| labs_scene(s, true, true, true)),
             ("settings-labs-on-light", |s| labs_scene(s, false, true, true)),
+            // Piece AD: Plugins and a plugin's page.
+            ("settings-plugins", |s| {
+                use view::settings::plugins_scene::{Look, scene};
+                scene(s, Look { dark: true, page: "plugins", off: &[], mods_on: false, status: None, none_installed: false })
+            }),
+            ("settings-plugins-light", |s| {
+                use view::settings::plugins_scene::{Look, scene};
+                scene(s, Look { dark: false, page: "plugins", off: &[], mods_on: false, status: None, none_installed: false })
+            }),
+            ("settings-plugins-off", |s| {
+                use view::settings::plugins_scene::{Look, scene};
+                scene(s, Look { dark: true, page: "plugins", off: &["github"], mods_on: true, status: None, none_installed: false })
+            }),
+            ("settings-plugins-off-light", |s| {
+                use view::settings::plugins_scene::{Look, scene};
+                scene(s, Look { dark: false, page: "plugins", off: &["github"], mods_on: true, status: None, none_installed: false })
+            }),
+            ("settings-plugins-none", |s| {
+                use view::settings::plugins_scene::{Look, scene};
+                scene(s, Look { dark: true, page: "plugins", off: &[], mods_on: false, status: None, none_installed: true })
+            }),
+            ("settings-plugins-none-light", |s| {
+                use view::settings::plugins_scene::{Look, scene};
+                scene(s, Look { dark: false, page: "plugins", off: &[], mods_on: false, status: None, none_installed: true })
+            }),
+            ("settings-plugin-github", |s| {
+                use view::settings::plugins_scene::{Look, scene};
+                scene(
+                    s,
+                    Look {
+                        dark: true,
+                        page: "plugin:github",
+                        off: &[],
+                        mods_on: false,
+                        status: Some("disconnected"),
+                        none_installed: false,
+                    },
+                )
+            }),
+            ("settings-plugin-github-light", |s| {
+                use view::settings::plugins_scene::{Look, scene};
+                scene(
+                    s,
+                    Look {
+                        dark: false,
+                        page: "plugin:github",
+                        off: &[],
+                        mods_on: false,
+                        status: Some("disconnected"),
+                        none_installed: false,
+                    },
+                )
+            }),
+            ("settings-plugin-github-off", |s| {
+                use view::settings::plugins_scene::{Look, scene};
+                scene(s, Look { dark: true, page: "plugin:github", off: &["github"], mods_on: false, status: None, none_installed: false })
+            }),
+            ("settings-plugin-github-off-light", |s| {
+                use view::settings::plugins_scene::{Look, scene};
+                scene(s, Look { dark: false, page: "plugin:github", off: &["github"], mods_on: false, status: None, none_installed: false })
+            }),
+            ("settings-plugin-mods", |s| {
+                use view::settings::plugins_scene::{Look, scene};
+                scene(s, Look { dark: true, page: "plugin:mods", off: &[], mods_on: true, status: None, none_installed: false })
+            }),
+            ("settings-plugin-mods-light", |s| {
+                use view::settings::plugins_scene::{Look, scene};
+                scene(s, Look { dark: false, page: "plugin:mods", off: &[], mods_on: true, status: None, none_installed: false })
+            }),
+            ("settings-plugin-mods-off", |s| {
+                use view::settings::plugins_scene::{Look, scene};
+                scene(s, Look { dark: true, page: "plugin:mods", off: &[], mods_on: false, status: None, none_installed: false })
+            }),
+            ("settings-plugin-mods-off-light", |s| {
+                use view::settings::plugins_scene::{Look, scene};
+                scene(s, Look { dark: false, page: "plugin:mods", off: &[], mods_on: false, status: None, none_installed: false })
+            }),
+            ("settings-plugin-skills", |s| {
+                use view::settings::plugins_scene::{Look, scene};
+                scene(s, Look { dark: true, page: "plugin:built-in-skills", off: &[], mods_on: false, status: None, none_installed: false })
+            }),
+            ("settings-plugin-skills-light", |s| {
+                use view::settings::plugins_scene::{Look, scene};
+                scene(
+                    s,
+                    Look { dark: false, page: "plugin:built-in-skills", off: &[], mods_on: false, status: None, none_installed: false },
+                )
+            }),
+            ("settings-plugin-missing", |s| {
+                use view::settings::plugins_scene::{Look, scene};
+                scene(s, Look { dark: true, page: "plugin:nothing", off: &[], mods_on: false, status: None, none_installed: false })
+            }),
+            ("settings-plugin-missing-light", |s| {
+                use view::settings::plugins_scene::{Look, scene};
+                scene(s, Look { dark: false, page: "plugin:nothing", off: &[], mods_on: false, status: None, none_installed: false })
+            }),
             ("settings-general-pastes", |s| {
                 s.dark = Some(true);
                 s.open_settings("general", None);
