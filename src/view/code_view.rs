@@ -7,7 +7,7 @@ use crate::State;
 use crate::conv::file_language::language_for;
 use crate::fleet::file_buffers::Buffer;
 use crate::theme::{Theme, mono};
-use rune::{Color, El, GrowthSpec, Span, col, el, row, text};
+use rune::{Color, El, GrowthSpec, ScrollSpec, Span, col, el, row, text};
 use rune_kit::syntax::{Highlight, Paint, Syntax, highlight};
 use std::cell::RefCell;
 use std::ops::Range;
@@ -22,6 +22,8 @@ const DIGIT_W: f32 = 7.5;
 const PAD_Y: f32 = 6.0;
 /// CodeMirror's tab size.
 const TAB: usize = 4;
+/// `hangingIndents`: a wrapped line hangs under its indent, at most this many columns (Fleet's `min(indent + 2, 24)` less its two).
+const MAX_HANG: usize = 22;
 
 /// The colours of the whole text, as the highlighter gives them, with where each line starts in it.
 pub struct Coloured {
@@ -220,12 +222,17 @@ pub fn gutter_width(count: usize) -> f32 {
     (digits * DIGIT_W + 18.0).max(34.0)
 }
 
-fn line_row(t: &Theme, c: &Coloured, buffer: &Buffer, i: usize, gutter: f32) -> El {
+/// The leading spaces of a drawn line that a wrapped line hangs under, and how many columns they are (tabs are spaces by now).
+pub fn hang_of(shown: &str) -> usize {
+    shown.bytes().take_while(|b| *b == b' ').count().min(MAX_HANG)
+}
+
+fn line_row(t: &Theme, c: &Coloured, buffer: &Buffer, i: usize, gutter: f32, wrap: bool) -> El {
     let lines = buffer.lines();
     let font = mono(FONT, 400.0, 1.6);
     let Some(line) = lines.get(i) else { return row().w_full().h(LINE_H) };
     let (shown, spans) = draw_line(t, line, line_highlights(c, i, line.len()));
-    let number = row()
+    let mut number = row()
         .key(format!("code-no-{}", i + 1))
         .w(gutter)
         .h(LINE_H)
@@ -235,31 +242,54 @@ fn line_row(t: &Theme, c: &Coloured, buffer: &Buffer, i: usize, gutter: f32) -> 
         .items_center()
         // Opaque, so code scrolled sideways doesn't show through the numbers.
         .fill(t.panel_bg)
-        .sticky_left(0.0)
         .child(text((i + 1).to_string()).font(font).color(t.muted.alpha(0.7)).single_line());
+    if !wrap {
+        number = number.sticky_left(0.0);
+    }
     // `.cm-line`'s `padding: 0 2px 0 6px`. Only the code is selectable: a copy has no line numbers in it.
-    let code = text(shown)
-        .key(format!("code-text-{}", i + 1))
-        .selectable(true)
-        .selection_color(t.accent.alpha(0.3))
-        .font(font)
-        .color(t.text)
-        .spans(spans)
-        .single_line()
-        .pl(6.0)
-        .pr(2.0);
-    row().w_full().h(LINE_H).items_center().child(number).child(code)
+    let code = |shown: String, spans: Vec<Span>| {
+        text(shown)
+            .key(format!("code-text-{}", i + 1))
+            .selectable(true)
+            .selection_color(t.accent.alpha(0.3))
+            .font(font)
+            .color(t.text)
+            .spans(spans)
+    };
+    if !wrap {
+        return row().w_full().h(LINE_H).items_center().child(number).child(code(shown, spans).single_line().pl(6.0).pr(2.0));
+    }
+    // Rune has no negative text indent, so the indent is a column of its own and the text wraps beside it: the rows it wraps onto
+    // start under the indent (CodeMirror's start two columns further in).
+    let hang = hang_of(&shown);
+    let rest = shown[hang..].to_string();
+    let cut = hang as u32;
+    let spans: Vec<Span> = spans
+        .into_iter()
+        .filter(|s| s.end > cut)
+        .map(|mut s| {
+            s.start = s.start.max(cut) - cut;
+            s.end -= cut;
+            s
+        })
+        .collect();
+    let mut body = row().grow(1.0).shrink().min_w(0.0).items_start().pl(6.0).pr(2.0);
+    if hang > 0 {
+        body = body.child(el().key(format!("code-hang-{}", i + 1)).w(hang as f32 * DIGIT_W).h(LINE_H));
+    }
+    let wrapped = code(rest, spans).wrap_anywhere().grow(1.0).shrink().min_w(0.0);
+    row().w_full().min_h(LINE_H).items_start().child(number).child(body.child(wrapped))
 }
 
 /// The viewport of lines for the buffer at (`machine`, `session`, `path`): scrolls both ways, builds the rows near the window only.
-pub fn code_view(s: &State, t: &Theme, machine: &str, session: &str, path: &str) -> El {
+pub fn code_view(s: &State, t: &Theme, machine: &str, session: &str, path: &str, wrap: bool) -> El {
     let Some(buffer) = s.file_buffers.buffer(machine, session, path) else { return el() };
     let count = buffer.lines().len();
     let key: Key = (machine.into(), session.into(), path.into(), buffer.rev());
     let colours = coloured(key, path, buffer.lines());
     let gutter = gutter_width(count);
     let (theme, machine_id, session_id, file) = (*t, machine.to_string(), session.to_string(), path.to_string());
-    let version = (path, buffer.rev());
+    let version = (path, buffer.rev(), wrap);
     let rows = col()
         .key("file-code-lines")
         .w_full()
@@ -269,14 +299,17 @@ pub fn code_view(s: &State, t: &Theme, machine: &str, session: &str, path: &str)
         .virtual_rows(
             count,
             LINE_H,
-            |_: &State, i| std::borrow::Cow::Owned(format!("code-line-{}", i + 1)),
+            // A row keeps its measured height by key: a wrapped row is measured again, not taken from the unwrapped one.
+            move |_: &State, i| std::borrow::Cow::Owned(format!("code-line-{}{}", i + 1, if wrap { "w" } else { "" })),
             move |s: &State, i| match s.file_buffers.buffer(&machine_id, &session_id, &file) {
-                Some(buffer) => line_row(&theme, &colours, buffer, i, gutter),
+                Some(buffer) => line_row(&theme, &colours, buffer, i, gutter, wrap),
                 None => row().w_full().h(LINE_H),
             },
         )
         .virtual_rows_version(version);
-    col().key("file-code").w_full().grow(1.0).shrink().min_h(0.0).scroll_xy().child(rows)
+    let view = col().key("file-code").w_full().grow(1.0).shrink().min_h(0.0);
+    // Wrapped, there is nothing to scroll sideways.
+    (if wrap { view.scroll(ScrollSpec { stick_bottom: false }) } else { view.scroll_xy() }).child(rows)
 }
 
 #[cfg(test)]

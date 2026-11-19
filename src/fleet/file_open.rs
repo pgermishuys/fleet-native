@@ -25,6 +25,32 @@ impl State {
         self.canvases.set_file_view(&session, path, view);
     }
 
+    /// The Wrap button and Alt+Z (`setWrap`): the file's choice, kept in the settings file when it differs from the default.
+    pub fn set_file_wrap(&mut self, path: &str, wrap: bool) {
+        self.sidebar.save_file_wrap(path, wrap);
+    }
+
+    /// Alt+Z (`toggleWrap`, in the editor's keymap): turns wrap on or off for the open file while its code shows. Fleet binds it
+    /// in the editor, so a key typed in the composer or another field is left to that field.
+    pub fn file_wrap_key(&mut self, ev: &rune::KeyEvent, tx: &rune::Tx) -> bool {
+        let pressed = ev.mods.alt && !ev.mods.ctrl && !ev.mods.cmd && !ev.mods.shift;
+        let z = matches!(&ev.key, rune::Key::Text(t) if t.eq_ignore_ascii_case("z") || t == "\u{3a9}" || t == "\u{b8}");
+        if !pressed || !z || tx.focused().is_some_and(|k| !(k.starts_with("file-") || k.starts_with("code-"))) {
+            return false;
+        }
+        let tabs = self.open_canvases();
+        let Some(file) = tabs.active().and_then(|c| c.file.clone()) else { return false };
+        let session = self.canvas_session();
+        let machine = self.machine_key_of(&session).to_string();
+        let ready = self.file_buffers.info(&machine, &session, &file.path).is_some_and(|i| i.status == super::file_buffers::Status::Ready);
+        if !ready || file.view == super::canvases::FileView::Rendered {
+            return false;
+        }
+        let on = self.sidebar.file_wrap(&file.path);
+        self.set_file_wrap(&file.path, !on);
+        true
+    }
+
     /// A double-click on a preview tab keeps it (`keepPreview`); a kept tab does nothing.
     pub fn keep_preview_tab(&mut self, id: &str) {
         let tabs = self.open_canvases();

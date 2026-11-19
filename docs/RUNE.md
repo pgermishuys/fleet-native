@@ -1885,3 +1885,10 @@ Read at the pin while planning; nothing built yet.
 - **`on_pointer_move_local` gives the pointer in the element's own points**, the way to find the cell under it; a small child with `.cursor(Cursor::Pointer)` and `on_press_tx` is the way to get a hand over just a link.
 - **Rune's `Runtime::take_url_requests()` returns what `tx.open_url` asked for in a test.**
 - A blink is the app's clock plus `tx.wake_after` for the time left in the half period; alacritty's default cursor style must be set to blinking in its `Config` (`default_cursor_style`) or a cursor the program never set is steady.
+
+
+## Component 11, piece H (Wrap)
+
+- **No negative text indent**: a hanging indent is a fixed-width empty column beside a `wrap_anywhere()` text in a row (`grow`, `shrink`, `min_w(0.0)`); the indent is then not part of a copy.
+- **`virtual_rows` takes rows of different heights**: unvisited rows use the estimate and a measured row keeps its height by key. A row whose height depends on a setting (wrap) needs a different key when the setting changes (`code-line-3w`), or unmounted rows keep the old height.
+- **An element's fill fades**: `ElementInfo.fill` reads a pressed toggle's colour only after about thirty frames in a test.

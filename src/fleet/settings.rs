@@ -90,6 +90,8 @@ pub struct Sidebar {
     canvas_widened: bool,
     /// Wrap long lines in the Changes review (`weave:changes-wrap`).
     changes_wrap: bool,
+    /// Files whose code view doesn't wrap, the latest 200 (`fleet.editor.wrap`).
+    file_wrap: super::wrap_pref::WrapPrefs,
     /// Sessions whose terminal drawer is open, and the drawer's height (`weave:terminal-open`, `weave:terminal-height`).
     terminal_open: Vec<String>,
     terminal_height: Option<u32>,
@@ -147,6 +149,7 @@ impl Sidebar {
         }
         s.canvas_widened = root.get("canvasWidened") == Some(&Value::Bool(true));
         s.changes_wrap = root.get("changesWrap") == Some(&Value::Bool(true));
+        s.file_wrap = super::wrap_pref::WrapPrefs::parse(root.get("fileWrapOff"));
         if let Some(Value::Array(ids)) = root.get("terminalOpen") {
             s.terminal_open = ids.iter().filter_map(|v| v.as_str().map(String::from)).collect();
         }
@@ -185,6 +188,9 @@ impl Sidebar {
         }
         if self.changes_wrap {
             root["changesWrap"] = Value::Bool(true);
+        }
+        if let Some(v) = self.file_wrap.to_json() {
+            root["fileWrapOff"] = v;
         }
         if !self.terminal_open.is_empty() {
             root["terminalOpen"] = json!(self.terminal_open);
@@ -357,6 +363,17 @@ impl Sidebar {
     /// Whether the right panel was left widened (`weave:canvas-widened`).
     pub fn canvas_widened(&self) -> bool {
         self.canvas_widened
+    }
+
+    /// Whether a file's code view wraps (`wrapFor`).
+    pub fn file_wrap(&self, path: &str) -> bool {
+        self.file_wrap.wrap_for(path)
+    }
+
+    pub fn save_file_wrap(&mut self, path: &str, wrap: bool) {
+        if self.file_wrap.set_wrap_for(path, wrap) {
+            self.dirty = true;
+        }
     }
 
     pub fn changes_wrap(&self) -> bool {

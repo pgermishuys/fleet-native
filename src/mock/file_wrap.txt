@@ -1,0 +1,27 @@
+"""Notes on how the rows are cut into pages."""
+
+DEFAULT_SIZE = 20
+MAX_SIZE = 200
+MIN_SIZE = 1
+
+
+def clamp_size(size):
+    """Keep a page size between one row and MAX_SIZE rows."""
+    return max(1, min(size, MAX_SIZE))
+
+
+class Pager:
+    """Hands out the pages of a list of rows."""
+
+    def __init__(self, rows, size=DEFAULT_SIZE):
+        """Keeps the rows as they are and cuts them into pages of size rows each, the last page holding whatever is left over when the rows do not divide evenly."""
+        self.rows = rows
+        self.size = clamp_size(size)
+
+    def page(self, number):
+        # A page past the end is empty rather than an error, so a caller can keep asking for the next page until one comes back with no rows in it.
+        start = number * self.size
+        return self.rows[start:start + self.size]
+
+    def describe(self, number):
+        return f"Page {number + 1} of {self.page_total()} with {len(self.page(number))} rows out of {len(self.rows)} rows in all"
