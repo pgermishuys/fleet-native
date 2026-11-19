@@ -10,6 +10,8 @@ pub const PATH: &str = "src/paginate.py";
 pub const WRAP_PATH: &str = "src/pager.py";
 const WRAP_SOURCE: &str = include_str!("file_wrap.txt");
 const SOURCE: &str = include_str!("changes/paginate.before.txt");
+/// The file as the session left it: `SOURCE` is its git base.
+const EDITED: &str = include_str!("changes/paginate.after.txt");
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Case {
@@ -38,6 +40,11 @@ pub enum Case {
     LinesCopied,
     /// `Code` after Add to message: the reference in the draft, the pick gone.
     LinesAdded,
+    /// The file changed against its git base: Diff (`Diff`), Edit with the stripe in the gutter (`Stripe`), and a file the session
+    /// deleted (`Deleted`).
+    Diff,
+    Stripe,
+    Deleted,
 }
 
 /// The invented project's logo (`assets/logo.svg`), 96 by 96 as its own size.
@@ -67,20 +74,34 @@ impl State {
             _ => PATH,
         };
         // The scenes of 11G were taken with Wrap off, as Fleet's pictures were; every file wraps unless it says otherwise.
-        if matches!(case, Case::Code | Case::TooLarge | Case::Binary | Case::Missing | Case::Opening | Case::WrapOff)
-            || matches!(case, Case::Lines | Case::LinesCopied | Case::LinesAdded)
+        if matches!(
+            case,
+            Case::Code
+                | Case::TooLarge
+                | Case::Binary
+                | Case::Missing
+                | Case::Opening
+                | Case::WrapOff
+                | Case::Diff
+                | Case::Stripe
+                | Case::Deleted
+        ) || matches!(case, Case::Lines | Case::LinesCopied | Case::LinesAdded)
         {
             self.sidebar.save_file_wrap(path, false);
         }
         self.diffs.reset(&id);
         self.diffs.apply(&json!({
-            "diffs": [{"file": PATH, "status": "modified", "additions": 3, "deletions": 3}],
+            "diffs": [{"file": PATH, "status": if case == Case::Deleted { "deleted" } else { "modified" }, "additions": 3, "deletions": 3}],
             "available": true,
             "base": {"kind": "branch", "branch": "main", "commit": "8a61fdd7c0ffee"},
         }));
         self.diffs.has_loaded = true;
         self.edit_canvases(|c, id| {
-            let view = if matches!(case, Case::Markdown | Case::Html) { FileView::Rendered } else { FileView::Edit };
+            let view = match case {
+                Case::Markdown | Case::Html => FileView::Rendered,
+                Case::Diff => FileView::Diff,
+                _ => FileView::Edit,
+            };
             c.open_file(id, path, OpenFile { keep: true, view: Some(view) }, &|_| false);
         });
         match case {
@@ -92,6 +113,9 @@ impl State {
             _ => {}
         }
         let machine = self.machine_key_of(&id).to_string();
+        if matches!(case, Case::Diff | Case::Stripe | Case::Deleted) {
+            self.give_base(&id, path);
+        }
         let Some(request) = self.file_buffers.open(&machine, &id, path) else { return };
         self.read_for_scene(request, case);
         match case {
@@ -107,10 +131,21 @@ impl State {
         }
     }
 
+    /// The git base the changes are compared with, as the server answered for the file.
+    fn give_base(&mut self, id: &str, path: &str) {
+        let machine = self.machine_key_of(id).to_string();
+        let base = crate::fleet::diffs::Base::key(self.diffs.base.as_ref());
+        if let crate::fleet::file_base::Found::Ask(request) = self.file_bases.fetch(&machine, id, &base, path) {
+            self.file_bases.finish(&request, Ok((200, json!({"before": SOURCE, "after": EDITED}))));
+        }
+    }
+
     fn read_for_scene(&mut self, request: Request, case: Case) {
         let body = match case {
             Case::Opening => return,
             Case::Code | Case::Lines | Case::LinesCopied | Case::LinesAdded => Ok(answer(SOURCE)),
+            Case::Diff | Case::Stripe => Ok(answer(EDITED)),
+            Case::Deleted => Err("Failed to read file: 404 Not Found".to_string()),
             Case::Wrap | Case::WrapOff => Ok(answer(WRAP_SOURCE)),
             Case::Markdown => Ok(answer(MARKDOWN)),
             Case::Html => Ok(answer(HTML)),

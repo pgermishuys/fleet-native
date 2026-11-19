@@ -4,11 +4,12 @@
 //! built (`virtual_rows`), so a file of twenty thousand lines costs what a screenful does; what is worked out from the whole text
 //! (the colours) is cached by the buffer's revision.
 use crate::State;
+use crate::conv::changed_lines::{base_lines, changed_lines};
 use crate::conv::file_language::language_for;
 use crate::fleet::file_buffers::Buffer;
 use crate::fleet::file_lines::{LineRange, SelectedText, text_line};
 use crate::theme::{Theme, mono};
-use rune::{Color, Drag, El, GrowthSpec, Phase, ScrollSpec, Span, col, el, row, text};
+use rune::{Color, Drag, El, GrowthSpec, Phase, ScrollSpec, Span, TextHighlight, col, el, row, text};
 use rune_kit::syntax::{Highlight, Paint, Syntax, highlight};
 use std::cell::RefCell;
 use std::ops::Range;
@@ -207,7 +208,7 @@ pub fn draw_line(t: &Theme, line: &str, base: Vec<(Range<usize>, Paint)>) -> (St
 }
 
 /// The highlights of line `i`, moved to start at its first byte, and cut at its end where a block comment runs on.
-fn line_highlights(c: &Coloured, i: usize, len: usize) -> Vec<(Range<usize>, Paint)> {
+pub(super) fn line_highlights(c: &Coloured, i: usize, len: usize) -> Vec<(Range<usize>, Paint)> {
     let (a, b) = (c.starts[i], c.starts[i] + len);
     let first = c.highlights.partition_point(|(r, _)| r.end <= a);
     c.highlights[first..]
@@ -230,6 +231,183 @@ pub fn hang_of(shown: &str) -> usize {
     shown.bytes().take_while(|b| *b == b' ').count().min(MAX_HANG)
 }
 
+/// What a line is drawn with besides its text: the tint behind it, the words marked in it, and the thin bars in the gutters after
+/// its number.
+#[derive(Default)]
+pub struct Decor {
+    /// The line's number; none for a removed line in Diff.
+    pub number: Option<usize>,
+    /// The tint of the whole line (a changed or removed line in Diff, the flash).
+    pub fill: Option<Color>,
+    /// Words marked inside the line, as byte ranges of the line's own text.
+    pub words: Vec<(Range<usize>, Color)>,
+    /// Edit's stripe gutter (`.cm-agent-gutter`, 3 px and 2 px of margin): drawn when it is `Some`, with the bar when `true`.
+    pub stripe: Option<bool>,
+    /// Diff's change gutter (`.cm-changeGutter`, 3 px): drawn when it is `Some`, with this colour (none for an unchanged line).
+    pub change: Option<Option<Color>>,
+    /// The line a file was opened at: its number in `--text` and a 3 % wash over the line.
+    pub active: bool,
+}
+
+/// The keys of one line's parts, so a test or a picture can find them.
+pub struct LineKeys {
+    pub number: String,
+    pub text: String,
+    pub hang: String,
+}
+
+/// A byte range of `line` as the same range of the line as drawn, where tabs became spaces and special characters their placeholder.
+pub fn shown_range(line: &str, r: Range<usize>) -> Range<usize> {
+    if !needs_rewrite(line) {
+        return r;
+    }
+    let (mut at, mut col, mut out) = (Vec::with_capacity(line.len() + 1), 0, 0);
+    for (i, c) in line.char_indices() {
+        at.resize(i, 0);
+        let n = if c == '\t' { TAB - col % TAB } else { placeholder(c).map_or(c.len_utf8(), char::len_utf8) };
+        at.extend(std::iter::repeat_n(out, c.len_utf8()));
+        out += n;
+        col += if c == '\t' { n } else { 1 };
+    }
+    at.push(out);
+    at[r.start]..at[r.end]
+}
+
+/// One line of code: the gutters (its number, and the bars), then its text, wrapped or on one line.
+pub fn code_line(t: &Theme, keys: LineKeys, gutter: f32, shown: String, spans: Vec<Span>, wrap: bool, d: &Decor) -> El {
+    let font = mono(FONT, 400.0, 1.6);
+    let stripe_key = format!("{}-stripe", keys.number);
+    let number_key = keys.number.clone();
+    let mut number_col = row().key(keys.number).w(gutter).h(LINE_H).pl(8.0).pr(10.0).justify_end().items_center().child(
+        text(d.number.map(|n| n.to_string()).unwrap_or_default())
+            .key(format!("{number_key}-t"))
+            .font(font)
+            .color(if d.active { t.text } else { t.muted.alpha(0.7) })
+            .single_line(),
+    );
+    number_col = number_col.fill(t.panel_bg);
+    // The bars share the gutter's opaque ground, so code scrolled sideways doesn't show through them either.
+    let bar = |w: f32, margin: f32, color: Option<Color>, key: String| {
+        let mut b = row().w(w + margin).h(LINE_H).items_stretch().fill(t.panel_bg);
+        if let Some(color) = color {
+            b = b.child(el().key(key).w(w).h(LINE_H).radius(2.0).fill(color));
+        }
+        b
+    };
+    let mut gutters = row().items_center().child(number_col);
+    if let Some(marked) = d.stripe {
+        gutters = gutters.child(bar(3.0, 2.0, marked.then_some(t.accent), stripe_key));
+    }
+    if let Some(color) = d.change {
+        // The change gutter's bar is square: Fleet's `.cm-changedLineGutter` has no radius.
+        let mut b = row().w(3.0).h(LINE_H).fill(t.panel_bg);
+        if let Some(c) = color {
+            b = b.fill(c);
+        }
+        gutters = gutters.child(b);
+    }
+    if !wrap {
+        gutters = gutters.sticky_left(0.0);
+    }
+    // `.cm-line`'s `padding: 0 2px 0 6px`. Only the code is selectable: a copy has no line numbers in it.
+    let code = |shown: String, spans: Vec<Span>, words: Vec<TextHighlight>| {
+        text(shown).selectable(true).selection_color(t.accent.alpha(0.3)).font(font).color(t.text).spans(spans).text_highlights(words)
+    };
+    let words = |from: usize| -> Vec<TextHighlight> {
+        d.words
+            .iter()
+            .filter(|(r, _)| r.end > from)
+            .map(|(r, c)| TextHighlight::new(r.start.max(from) - from..r.end - from, *c).pad(0.0))
+            .collect()
+    };
+    // `.cm-activeLine`: 3 % of `--text` over the code (the number's own fill stays opaque); a tint (Diff, the flash) goes over it.
+    let tint = |r: El| match d.fill {
+        Some(f) => r.fill(f),
+        None if d.active => r.fill(t.wash(3.0)),
+        None => r,
+    };
+    if !wrap {
+        let code = code(shown, spans, words(0)).key(keys.text).single_line().pl(6.0).pr(2.0);
+        return tint(row().w_full().h(LINE_H).items_center()).child(gutters).child(code);
+    }
+    // Rune has no negative text indent, so the indent is a column of its own and the text wraps beside it: the rows it wraps onto
+    // start under the indent (CodeMirror's start two columns further in).
+    let hang = hang_of(&shown);
+    let rest = shown[hang..].to_string();
+    let cut = hang as u32;
+    let spans: Vec<Span> = spans
+        .into_iter()
+        .filter(|s| s.end > cut)
+        .map(|mut s| {
+            s.start = s.start.max(cut) - cut;
+            s.end -= cut;
+            s
+        })
+        .collect();
+    let mut body = row().grow(1.0).shrink().min_w(0.0).items_start().pl(6.0).pr(2.0);
+    if hang > 0 {
+        body = body.child(el().key(keys.hang).w(hang as f32 * DIGIT_W).h(LINE_H));
+    }
+    let wrapped = code(rest, spans, words(hang)).key(keys.text).wrap_anywhere().grow(1.0).shrink().min_w(0.0);
+    tint(row().w_full().min_h(LINE_H).items_start()).child(gutters).child(body.child(wrapped))
+}
+
+/// The tint of the flash on a line: `--accent` 28 % easing out to nothing (`cm-agent-flash`, 1.6 s `ease-out`).
+pub fn flash_tint(t: &Theme, progress: f64) -> Color {
+    let left = 1.0 - progress;
+    // `ease-out` is cubic-bezier(0, 0, 0.58, 1): close to this.
+    let eased = 1.0 - left * left;
+    t.accent.alpha(0.28 * (1.0 - eased as f32))
+}
+
+/// What the view marks besides the text: the lines of the stripe and the lines flashing.
+#[derive(Default, Clone)]
+pub struct Marks {
+    pub stripe: Rc<Vec<usize>>,
+    pub flash: Option<crate::fleet::file_live::Flash>,
+}
+
+type StripeKey = (String, String, String, u64, u64);
+
+thread_local! {
+    /// The stripe of the last few files: worked out once per revision of the text and of its base.
+    static STRIPES: RefCell<Vec<(StripeKey, Rc<Vec<usize>>)>> = const { RefCell::new(Vec::new()) };
+}
+
+fn hash_of(text: &str) -> u64 {
+    use std::hash::{DefaultHasher, Hash, Hasher};
+    let mut h = DefaultHasher::new();
+    text.hash(&mut h);
+    h.finish()
+}
+
+/// The lines that differ from the git base, for the stripe (`markStripe`): from the base when the file is among the changes and its
+/// base has loaded, else from the text as last read or saved, which only differs once the buffer is edited (slice 2).
+pub fn stripe_lines(s: &State, machine: &str, session: &str, path: &str, buffer: &Buffer) -> Rc<Vec<usize>> {
+    let base = s.file_base(session, path);
+    if base.is_none() && !buffer.is_dirty() {
+        return Rc::default();
+    }
+    let key: StripeKey = (machine.into(), session.into(), path.into(), buffer.rev(), base.map_or(0, hash_of));
+    if let Some(hit) = STRIPES.with(|c| c.borrow().iter().find(|(k, _)| *k == key).map(|(_, v)| v.clone())) {
+        return hit;
+    }
+    let reference = match base {
+        Some(before) => base_lines(before),
+        None => buffer.saved_lines().to_vec(),
+    };
+    let made = Rc::new(changed_lines(&reference, buffer.lines()));
+    STRIPES.with(|c| {
+        let mut c = c.borrow_mut();
+        c.retain(|(k, _)| !(k.0 == key.0 && k.1 == key.1 && k.2 == key.2));
+        c.push((key, made.clone()));
+        if c.len() > 4 {
+            c.remove(0);
+        }
+    });
+    made
+}
+
 /// One line: its number, which picks it (a press, Shift, a drag down the numbers), and its code. `picked` lines are filled `--accent`
 /// 14 % across, their number `--accent` 600 (`.cm-picked-line`, `.cm-picked-gutter`); `active` is the line a file was opened at.
 #[allow(clippy::too_many_arguments)]
@@ -243,6 +421,7 @@ fn line_row(
     wrap: bool,
     active: bool,
     picked: Option<LineRange>,
+    marks: &Marks,
 ) -> El {
     let lines = buffer.lines();
     let font = mono(FONT, 400.0, 1.6);
@@ -258,7 +437,7 @@ fn line_row(
         (t.panel_bg, t.muted.alpha(0.7), 400.0)
     };
     let owner = path.to_string();
-    let mut number = row()
+    let number = row()
         .key(format!("code-no-{}", i + 1))
         .w(gutter)
         .h(LINE_H)
@@ -279,9 +458,18 @@ fn line_row(
             }
             Phase::Up => {}
         });
-    if !wrap {
-        number = number.sticky_left(0.0);
-    }
+    // Edit's stripe gutter: a 3 px bar in `--accent` on the numbers' own ground, 2 px from them (`.cm-agent-gutter`).
+    let mut gutters = row().items_center().child(number);
+    gutters = gutters.child(
+        row().w(5.0).h(LINE_H).items_stretch().fill(t.panel_bg).children(
+            marks
+                .stripe
+                .binary_search(&(n as usize))
+                .is_ok()
+                .then(|| el().key(format!("code-no-{n}-stripe")).w(3.0).h(LINE_H).radius(2.0).fill(t.accent)),
+        ),
+    );
+    let number = if wrap { gutters } else { gutters.sticky_left(0.0) };
     // `.cm-line`'s `padding: 0 2px 0 6px`. Only the code is selectable: a copy has no line numbers in it.
     let code = |shown: String, spans: Vec<Span>| {
         text(shown)
@@ -296,6 +484,8 @@ fn line_row(
     // line takes the pick's fill instead.
     let line_fill = if is_picked {
         t.accent.alpha(0.14)
+    } else if let Some(f) = marks.flash.as_ref().filter(|f| (f.lines.0..=f.lines.1).contains(&(n as usize))) {
+        flash_tint(t, f.progress)
     } else if active {
         t.wash(3.0)
     } else {
@@ -341,7 +531,10 @@ pub fn code_view(s: &State, t: &Theme, machine: &str, session: &str, path: &str,
     let gutter = gutter_width(count);
     let (theme, machine_id, session_id, file) = (*t, machine.to_string(), session.to_string(), path.to_string());
     let picked = s.file_pick(machine, session, path);
-    let version = (path, buffer.rev(), wrap, picked);
+    let stripe = stripe_lines(s, machine, session, path, buffer);
+    // The rows near the window are kept while this stays the same: a flash changes it a hundred times over its second and a half.
+    let flash = s.file_live.flashing(machine, session, path, s.clock).map(|f| (f.progress * 100.0) as u32);
+    let version = (path, buffer.rev(), wrap, picked, hash_of(&format!("{stripe:?}")), flash);
     let owner = path.to_string();
     let rows = col()
         .key("file-code-lines")
@@ -371,7 +564,8 @@ pub fn code_view(s: &State, t: &Theme, machine: &str, session: &str, path: &str,
                         .shown_line
                         .as_ref()
                         .is_some_and(|(se, pa, n)| *se == session_id && *pa == file && *n as usize == i + 1);
-                    line_row(&theme, &colours, buffer, &file, i, gutter, wrap, marked, s.file_pick(&machine_id, &session_id, &file))
+                    let marks = Marks { stripe: stripe.clone(), flash: s.file_live.flashing(&machine_id, &session_id, &file, s.clock) };
+                    line_row(&theme, &colours, buffer, &file, i, gutter, wrap, marked, s.file_pick(&machine_id, &session_id, &file), &marks)
                 }
                 None => row().w_full().h(LINE_H),
             },

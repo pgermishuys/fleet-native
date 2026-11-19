@@ -40,6 +40,7 @@ pub mod family;
 pub mod file_base;
 pub mod file_browser;
 pub mod file_buffers;
+pub mod file_diff;
 pub mod file_lines;
 pub mod file_live;
 pub mod file_open;

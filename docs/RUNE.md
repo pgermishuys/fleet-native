@@ -1942,3 +1942,10 @@ Read at the pin while planning; nothing built yet.
 - One terminal slot serves two hosts (a session's drawer and a setup row inside a window over the app) without a second set of handlers: the slot carries a `setup` marker and every "follow the open session" path steps aside while it is set. Cheaper than a second `Slot`, because the key, pointer, wheel and paste handlers all read `State::terminal`.
 - A test rig whose fake speaks both HTTP and WebSocket must look at the request line without consuming it (`TcpStream::peek`) before choosing: `tungstenite::accept` wants to read the upgrade itself, `test_http::read` would eat it.
 - A background thread's `Post` (here the socket's "changed") only queues a job; a headless test that waits on shared state, not on the job, must run a job or `update` before it looks at the tree.
+
+## Component 11, piece J (Diff, the stripe, a deleted file)
+
+- **`linear_gradient(PI, stops)` fades a bar's two ends** (CodeMirror's `.cm-collapsedLines`); a fill under it is not needed.
+- **`text_highlights` takes byte ranges of the drawn string**, so marks made on the file's text must be moved through the tab/placeholder rewrite (`code_view::shown_range`).
+- **A virtual row's version must include everything the row reads**: the stripe lines and the flash step went into `virtual_rows_version`, or rows built earlier keep the old tint.
+- Fonts have no glyph for ⦚ (U+299A): the fold bar draws ¦.

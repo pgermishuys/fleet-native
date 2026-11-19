@@ -87,7 +87,7 @@ fn the_view_switch_offers_edit_and_a_diff_only_a_changed_file_has() {
     click(&mut rt, "file-view-diff");
     rt.frame(FRAME);
     assert_eq!(rt.state.open_canvases().active().unwrap().file.as_ref().unwrap().view, crate::fleet::canvases::FileView::Diff);
-    assert!(has(&rt, "file-code"), "the code shows for Diff too");
+    assert!(has(&rt, "file-diff"), "the diff shows for Diff");
 }
 
 #[test]

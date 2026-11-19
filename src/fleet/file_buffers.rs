@@ -142,6 +142,11 @@ impl Buffer {
         self.format.as_ref()
     }
 
+    /// The lines as last read from or saved to disk (what a file git sees as unchanged is compared with).
+    pub fn saved_lines(&self) -> &[String] {
+        &self.saved
+    }
+
     pub fn base_hash(&self) -> Option<&str> {
         self.base_hash.as_deref()
     }
@@ -465,6 +470,7 @@ impl State {
         self.file_buffers.remove(&machine, session, path);
         self.session_images.forget(&machine, session, path);
         self.file_live.forget(&machine, session, path);
+        self.file_folds.forget(session, path);
     }
 
     fn send_file_read(&mut self, request: Option<Request>) {
