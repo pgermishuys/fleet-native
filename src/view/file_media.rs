@@ -1,9 +1,9 @@
 //! What a file tab shows besides code (component 11, piece I): an image over its checkerboard, rendered Markdown, and rendered HTML
 //! (`FileCanvas.vue`'s `.file-canvas__image` and `.file-canvas__rendered`; rows 7.1 to 7.6 of docs/parity/11-files.md).
 use super::prose;
-use crate::State;
 use crate::fleet::session_image::Shown;
 use crate::theme::{Theme, sans};
+use crate::{State, Tx};
 use rune::{El, ScrollSpec, Shape, SurfaceFit, col, el, text};
 
 /// The picture is kept this far from the tab's edges (`padding: 24px`).
@@ -77,14 +77,25 @@ pub fn image_body(s: &State, t: &Theme, machine: &str, session: &str, path: &str
 
 /// `.file-canvas__rendered`: the text through the Markdown renderer, padding `16px 22px 28px`, scrolling. It shares the Document
 /// tab's style (`prose`).
-pub fn rendered_markdown(t: &Theme, content: &str) -> El {
+pub fn rendered_markdown(t: &Theme, path: &str, content: &str) -> El {
+    // Selecting text asks the agent about it (`FileCanvas.vue` `annotatable`, row 7.5); the popover opens where the drag lets go.
+    let owner = path.to_string();
+    let text = col()
+        .w_full()
+        .selection_group(true)
+        .on_selection_change(move |s: &mut State, change, tx| s.read_rendered_selection(&owner, change.selection(), change.dragging(), tx))
+        .child(prose::prose(&prose::style(t), "file-markdown", content, false));
     col()
         .w_full()
         .pt(16.0)
         .pr(22.0)
         .pb(28.0)
         .pl(22.0)
-        .child(prose::prose(&prose::style(t), "file-markdown", content, false))
+        .on_pointer_move_local(|s: &mut State, p: rune::PointerEvent, tx: &mut Tx| {
+            s.annotation.pointer = (p.window_x, p.window_y);
+            tx.live_only();
+        })
+        .child(text)
         .scroll(ScrollSpec { stick_bottom: false })
         .key("file-rendered")
         .grow(1.0)

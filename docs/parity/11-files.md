@@ -172,7 +172,7 @@ view, a search panel. Slice 1 needs none of those (it draws the lines itself); s
 | 3.3 | Why a file can't be shown: truncated → "Too large to edit here (over 512 KB)."; binary, no content or no hash → "This file is binary or not UTF-8 text, so it can't be edited here." (status `unavailable`). A failed read → status `error`: "This file isn't in the session's folder any more." when the failure says 404, else "The file couldn't be read." | FBF 21-29; BUF 113-120; tests "says why a file can't be edited", FV "says why a file too large to edit can't be opened", "says why a binary file can't be opened" | Done (11B): both messages, the 404 and the general failure, under Fleet's test names |
 | 3.4 | The text format: a leading BOM is taken off the text and remembered; the line break is the file's most common one (`\r\n`, `\r` or `\n`; ties and none are `\n`); the text keeps every byte otherwise (a file with mixed breaks keeps the odd ones inside its lines) | TF all; `text-format.test.ts` (round trips for LF, CRLF, CR, mixed, BOM; "keeps the BOM out of the editor text", "splits a CRLF file into lines") | Done (11B): `conv::text_format` (`read_text_format`, `to_disk_text`, `same_text_format`), all 14 round-trip layouts plus the two read cases; "editing keeps the file's line breaks" (3) is piece Q's |
 | 3.5 | Lines are split on the file's own break only, numbered from 1 | TF 64-71 | Done (11B): `split_lines` / `join_lines`; `a\n` is two lines. Lines are char strings, not CodeMirror's UTF-16 units: any column or position another piece takes from them counts chars |
-| 3.6 | A buffer leaves when its tab closes, when a preview it was is replaced, or when the session goes; `openPaths(session)` lists a session's open files for the live updates (Part 10) | FB 104-121; CS 337, 391 | Done (11B): `remove`, `open_paths`, `unsaved`, and `State::close_file_buffer`. Piece F wired the tab closing (`close_tab`) and the pin's unpin; a preview replaced is wired by `open_file`; open: the session going (piece C) |
+| 3.6 | A buffer leaves when its tab closes, when a preview it was is replaced, or when the session goes; `openPaths(session)` lists a session's open files for the live updates (Part 10) | FB 104-121; CS 337, 391 | Done (11B): `remove`, `open_paths`, `unsaved`, and `State::close_file_buffer`. Piece F wired the tab closing (`close_tab`) and the pin's unpin; a preview replaced is wired by `open_file`. **Closed (11O):** a removed session's buffers stay until the app restarts. Fleet's store does the same (it drops a buffer only through `remove`, from a tab closing or a preview replaced), so there is nothing to port |
 
 ## Part 4: the file tab's bar and states (`FileCanvas.vue`)
 
@@ -197,7 +197,7 @@ view, a search panel. Slice 1 needs none of those (it draws the lines itself); s
 | 5.3 | Colours by language (`languageFor`): CodeMirror's language-data by file name, plus aliases (`csproj fsproj vbproj props targets slnx nuspec xaml axaml resx plist` → XML; `jsonc json5` → JSON; `zsh` → shell; `env editorconfig` → properties; a dotfile such as `.env.local` counts by its parts); anything else plain | LG all; `completion.test.ts` "languageFor" (2) | Done (11G): `conv::file_language::language_for` over `lang_for_path` with Fleet's aliases, the 12 cases of `languageFor` and the plain ones. Gap: Rune has no lexer for properties files, so `.env` and `.editorconfig` draw plain (the name is Fleet's, `properties`) |
 | 5.4 | Token colours: keywords `--syntax-keyword`; strings, regexps, characters `--syntax-string`; numbers `--syntax-number`; booleans, null, atoms, self, escapes, units, links (underlined) `--syntax-literal`; comments `--syntax-comment` **italic**; meta and annotations `--syntax-comment`; function names `--syntax-function`; types, classes, namespaces, tag names `--syntax-type`; properties, attributes, labels `--syntax-attr`; headings `--md-heading` 600; strong 600; emphasis italic; strikethrough; punctuation, brackets, operators `--muted`; invalid `--error-text`; inserted `--running-text`; deleted `--error-text` (the last three newer than v0.72.0) | TH 11-31 | Done (11G) kind by kind from `Theme::syntax`: keyword, string and regexp, number, comment (italic), function, property and attribute, type, link (underlined), heading (600; `--md-heading` is only defined inside a reasoning block, so it keeps `--text`), punctuation and operators `--muted`, inserted `--running-text`, deleted `--error-text`. Gaps: Rune's kinds don't split booleans and null (`--syntax-literal`) from numbers, nor namespaces and tag names from other names, so those take the number and type colours or none; bold and italic Markdown aren't kinds |
 | 5.5 | **Wrap**, on by default for every file; a file turned off is remembered (only files that differ from the default, the latest 200; a broken stored value is ignored); the button and **Alt+Z** toggle it for this file | WP all; EE 50-107, 138; `wrap-preference.test.ts` (5); FV tests "wraps long lines by default; the Wrap button turns it off for that file, remembered", "Alt Z toggles wrap in the editor" | Done (11H): `fleet::wrap_pref::WrapPrefs` with the 5 tests, kept in the settings file as `fileWrapOff` (a list of paths, oldest first; Fleet's localStorage object); Alt+Z acts while the file's code shows and focus is not in another field (the code view takes no focus here) |
-| 5.6 | A wrapped line hangs: its first row starts where it always does, the rows it wraps onto start under its indent plus two columns (`padding-left: (indent+2)ch + 6px; text-indent: -(indent+2)ch`), the indent counted with tabs, at most 24 columns | EE 52-89 | None. Rune has no negative text indent: draw the line's leading whitespace as its own fixed column and wrap the rest beside it (rows hang under the indent, not indent + 2); say so in the piece |
+| 5.6 | A wrapped line hangs: its first row starts where it always does, the rows it wraps onto start under its indent plus two columns (`padding-left: (indent+2)ch + 6px; text-indent: -(indent+2)ch`), the indent counted with tabs, at most 24 columns | EE 52-89 | **Done (11H):** the leading whitespace is its own fixed column and the rest wraps beside it, so rows hang under the indent (not indent + 2: Rune has no negative text indent); test `a_wrapped_line_hangs_under_its_indent`. Closed in the sweep (11O) |
 | 5.7 | Unwrapped, long lines scroll sideways under the fixed gutter | TH 45-46 | Done (11G): long lines scroll sideways under the held gutter (`scroll_xy`); wrapping is piece H |
 | 5.8 | Selecting text with the pointer and copying it (Ctrl/Cmd+C) | CodeMirror | Done (11G): each line's text is `selectable` in one `selection_group`, the numbers stay out of a copy; the selection is `--accent` 30 %. Tabs are drawn as spaces to the next stop of 4, so a copy has spaces |
 | 5.9 | The active line (where the caret is): fill `--text` 3 %; the selection `--accent` 30 %; the caret 2 px `--accent`; matching brackets `--accent` 25 %; other occurrences of the selected word `--accent` 14 %; special characters (control characters) drawn as `--error` placeholders | TH 41-61; EE 113-126 | Selection colour and special characters done (11G: control characters as `--error` placeholders, as CodeMirror's `specialChars`); the rest is **slice 2** (a caret is an editor's) |
@@ -226,7 +226,7 @@ view, a search panel. Slice 1 needs none of those (it draws the lines itself); s
 | 7.2 | Shown centred, padding 24, scaled down to fit (never up), over a checkerboard of `--border` squares (16 px) with a 1 px `--border` ring; the bar says "{w} × {h} · {size}" (`formatBytes`), or the size alone for an SVG with no size of its own | FV 223-229, 817-834; FV test "shows an SVG as a picture too, with its size alone when it has no pixel size" | Done (11I): `view::file_media::image_body`: centred, padding 24, scaled down by `fit` and never up, checkerboard of `--border` squares (the gradient's squares are 8 px in a 16 px tile) and a 1 px `--border` ring; the bar's "96 × 96 · 366 B" (`formatBytes`), size alone for an SVG whose root has no own width and height (`svg_has_own_size`, read from the root tag where a browser reads `naturalWidth`). Rune also decodes AVIF; BMP and ICO say "This image couldn't be shown." (gap). Checked beside Fleet: same text, same placement |
 | 7.3 | "This file isn't in the session's folder any more." on a 404, else "The image couldn't be read."; a picture that doesn't decode: "This image couldn't be shown." | USI 375-389; FV 222; FV test "says so when the image is no longer there" | Done (11I): the 404 and the general words, and "This image couldn't be shown." for bytes that don't decode, under Fleet's test name |
 | 7.4 | **Rendered Markdown**: the file's text through Fleet's Markdown renderer, padding `16px 22px 28px`, scrolls; it follows the text as it changes (slice 2: unsaved edits too) | FV 243-253, 582-594, 798-803; FV test "Markdown opens rendered from the buffer, annotatable, with Source and Diff beside it" | Done (11I) but for the style: `view::file_media::rendered_markdown`, padding `16 22 28`, scrolls, from the buffer's text (`prose`, the Document tab's too). Gap, shared with 14's row 14.83: Fleet's `MarkdownRenderer` is smaller (about 13 px body), tints headings with the accent and draws a rule under h1 and h2, and doesn't colour code blocks; ours is the conversation's text style. Slice 2 follows unsaved edits |
-| 7.5 | Rendered Markdown can be asked about: selecting text offers the annotation popover (12's row 9.2) | FV 251-253, 591-592 | Open (11I): the rendered text is selectable but `State::open_annotation` is not called; 12's piece N has made `fleet::annotation`, wiring it here is left for the sweep (O) |
+| 7.5 | Rendered Markdown can be asked about: selecting text offers the annotation popover (12's row 9.2) | FV 251-253, 591-592 | **Done (11O):** `view::file_media::rendered_markdown` is a `selection_group` that calls `read_rendered_selection` when a drag lets go and remembers the pointer, the same as Changes' Rendered view, so the popover opens over the pick and Send puts the prompt in the draft and sends it. Test `rendered_markdown_in_a_file_tab_can_be_asked_about`. HTML isn't annotatable (a card), as in Fleet. Gap: a click on a block with no selection (12's row 9.2) |
 | 7.6 | **Rendered HTML**: the file's text in a sandboxed frame, no padding, no scripts; not annotatable | FV 249, 585, 805-808 | Done (11I): `view::file_media::rendered_html` through `web::html_body`; `web::wanted::shown_file_html` adds the file tab (14's row 14.86), keyed by tab and a hash of the text, hidden under overlays like the Document tab; scripts refused. Checked live under Xvfb on Linux against a scratch Fleet: the page's own script (turning the page red) did not run. Headless it is the fallback panel |
 
 ## Part 8: picking lines and the lines bar (`line-pick.ts`, `LinesBar.vue`, `line-quote.ts`)
@@ -582,6 +582,61 @@ for the theme; the Files tab is `[role=tab]` "Files", tree rows are `.file-brows
 - **Pictures:** closing pictures of every state beside Fleet's, both themes; a live run on the scratch Fleet: open from
   the tree, from Go to file, from a message link and from Changes' Open file; `edit-file` on an open file (the flash);
   the window regaining focus reading it again.
+
+**Sweep result (piece O, 19 November 2026).** Slice 1 is done. Fleet's `main` read for this sweep is `010be57`.
+
+*Rows.* Every slice 1 row is Done, or open with its reason and owner:
+
+| Row | State | Reason, owner |
+|---|---|---|
+| 1.17 | Not ported | The phone layout; a desktop window never meets it with the panel inline |
+| 2.10 | Not needed | Native state is never dropped with a view; slice 2 keeps text and undo per session and path |
+| 3.6 | Closed | A removed session's buffers stay until restart; Fleet's store does the same |
+| 5.6, 7.5 | Done in the sweep's check | 5.6 was built in H (row text was stale); 7.5 is wired here |
+| 5.10 | Gap | Folding: Rune's highlighter gives tokens, not a syntax tree. Slice 2's piece U decides on indentation folding |
+| 5.3, 5.4, 6.4, 7.4, 12.1 | Done with gaps | Written in each row (properties files, boolean colours, Fleet's fold bar's own look, Markdown text style, find's "all" and caret) |
+| 8.1, 11.3 | Done with a gap | A drag over wrapped rows runs ahead; a drag that starts on a link and ends on it still opens it (both Rune, `docs/RUNE.md`) |
+| 2.8, 2.9, 6.6, 10.4, 12.3, 13.x | Slice 2 | Pieces Q to U |
+| 14.2 to 14.4 | Not built in Fleet | Port when Fleet ships it |
+
+*Fleet's tests of slice 1, by name* (all 178 cases of the 19 files listed in "Fleet's tests and where each goes"; a Rust
+test has Fleet's name in snake case, or says Fleet's name in the comment above it):
+
+| Fleet's file | Cases | Where |
+|---|---|---|
+| `canvases.test.ts` "file tabs" | 14 | `src/fleet/tests/canvases.rs` (the `unpin_file` four by name) |
+| `file-buffers.test.ts` | 4 | `src/fleet/tests/file_buffers.rs` |
+| `text-format.test.ts` | 6 | `src/conv/tests/text_format.rs` (read side); "a new line in a CRLF file uses CRLF", "pasted LF text becomes CRLF" and "keeps the bytes of ..." for editing: Q |
+| `file-buffer.test.ts` | 20 | `src/conv/tests/text_format.rs` and `src/fleet/tests/file_buffers.rs` for `minimalChange`, opening, "says why a file can't be edited", the hash, the agent's change, CRLF, a fresh state, a file that became binary; typing, Compare and saving: Q (the mounted-editor case is CodeMirror's own) |
+| `use-file-live-updates.test.ts` | 7 | `src/fleet/tests/file_live.rs` |
+| `use-diff-base.test.ts` | 4 | `src/fleet/tests/file_live.rs` |
+| `FileBrowserTreeNode.test.ts`, `use-file-browser.test.ts`, `FileBrowserPanel.test.ts` Tree and File selection | 2, 2, 5 | `src/tests_files_tab.rs`, `src/fleet/tests/file_browser.rs` |
+| `FileBrowserPanel.test.ts` Find in files | 9 | 12's piece P (`src/tests_find_in_files.rs`, e.g. `a_ctrl_shift_f_request_takes_the_keyboard_for_the_field`) |
+| `CanvasHost.test.ts` file tabs | 3 + 3 | `src/tests_files_tab.rs` (`shows_a_file_tab_by_name_with_its_path`, the italics, the pin); the unsaved dot, the close ask and "saves and closes": T |
+| `wrap-preference.test.ts` | 5 | `src/fleet/wrap_pref.rs` (in-module tests) |
+| `completion.test.ts` | 2 + 7 | `languageFor` 2 in `src/conv/file_language.rs` (in-module, G); `importFolder` and `importPathSource`: U |
+| `FileCanvas.test.ts` | 21 | slice 1: `src/tests_file_tab.rs` (opens, too large, binary, missing, wrap, Alt Z), `src/tests_file_media.rs` (images, Markdown, now with the annotation), `src/tests_file_diff.rs`, `src/tests_file_lines.rs`, `src/tests_go_to_file.rs` and `src/tests_file_links.rs` (opens at a line, moves an open file, past the end); typing, Save, Ctrl S, the conflict cases and Diff's editable half: R and S |
+| `line-pick.test.ts` | 8 | `src/fleet/file_lines.rs` (in-module), `src/tests_file_lines.rs` |
+| `GoToFileDialog.test.ts` | 5 | `src/tests_go_to_file.rs` |
+| `MessageBubble.file-links.test.ts`, the attached-files chip test | 4 + 1 | `src/tests_file_links.rs` |
+| `MessageBubble.attached-files.test.ts` other cases | 2 | `src/conv/tests/attached.rs` (the note and what it parses back) and the chip drawn (3E) |
+| `file-references.test.ts` | 7 | `src/conv/tests/references.rs` (collects the files inline code names with their lines, a Markdown link, every path named, code blocks and web links left alone), `src/tests_file_links.rs` (links only what the server resolved) |
+| `use-unsaved-files-guard.test.ts` | 1 | T |
+
+*Live walk.* See "Live walk" below.
+
+**Live walk (piece O, 19 November 2026).** A scratch Fleet (v0.72.0 server, scripted model, invented "Ledger Lite" project
+with an extra `assets/swatch.png`) and the native app on it, dark, 1280×760, pictures in `shots/parity/11o-sweep/`
+(`native-live-*` beside `fleet-*`). Walked: a message naming `src/paginate.py:24` and `src/page_size.py` (links drawn
+only for what the server resolved; `no/such/file.py` stays code), the Files tree with the changed files marked, search
+by name, opening from the tree (a preview tab, wrapped), Wrap off, an image, README Rendered, `paginate.py` in Edit with the
+stripe on lines 26 to 28 and in Diff with the folds, picking lines 17 to 21 and the lines bar, find in a file, Go to file,
+and Changes' Open file (it lands on Diff). Differences found: none new in layout; the known ones stay (Fleet tints
+rendered headings and draws a rule under h1 and h2, row 7.4; Fleet's folded-lines bar, row 6.4; find's "all", row 12.1).
+11D's tree, checked here for the first time against a live Fleet, matched Fleet's rows, badges and counts.
+Not made live: the `edit-file` flash on an open file (1.6 s, tested from the clock), the window regaining focus (needs a
+real window), the light theme (a live native run draws dark whatever the settings say; light is drawn from the scenes
+of the earlier pieces and the new `file-markdown-ask-light`). Windows and macOS: CI.
 
 ### Slice 2: editing and saving
 

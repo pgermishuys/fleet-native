@@ -4503,6 +4503,8 @@ pub fn spec() -> AppSpec<State> {
             ("file-deleted-light", |s| s.show_file(mock::file_tab::Case::Deleted, false)),
             ("file-markdown", |s| s.show_file(mock::file_tab::Case::Markdown, true)),
             ("file-markdown-light", |s| s.show_file(mock::file_tab::Case::Markdown, false)),
+            ("file-markdown-ask", |s| s.show_file_markdown_ask(true)),
+            ("file-markdown-ask-light", |s| s.show_file_markdown_ask(false)),
             ("file-image", |s| s.show_file(mock::file_tab::Case::Image, true)),
             ("file-image-light", |s| s.show_file(mock::file_tab::Case::Image, false)),
             ("file-image-missing", |s| s.show_file(mock::file_tab::Case::ImageMissing, true)),

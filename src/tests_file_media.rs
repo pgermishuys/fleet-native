@@ -1,5 +1,5 @@
 //! The file tab's images and Rendered views (component 11, piece I): `FileCanvas.test.ts`'s three image cases and "Markdown opens
-//! rendered from the buffer, with Source and Diff beside it" (the annotation waits for 12's piece N), on the scenes' invented files.
+//! rendered from the buffer, with Source and Diff beside it" (the annotation half is wired in the sweep, piece O), on the scenes' invented files.
 use crate::State;
 use crate::mock::file_tab::{Case, IMAGE_PATH};
 use crate::tests::{FRAME, app, click};
@@ -199,4 +199,29 @@ fn rendered_html_is_a_frame_with_no_padding_and_the_file_tab_is_wanted_as_a_page
     // Source shows the code and no page.
     rt.update(|s, _| s.set_active_file_view("docs/report.html", crate::fleet::canvases::FileView::Edit));
     assert_eq!(wanted(&rt.state), Wanted::Nothing);
+}
+
+// FileCanvas.test.ts "Markdown opens rendered from the buffer, with Source and Diff beside it": the annotation half, wired in the sweep (row 7.5)
+#[test]
+fn rendered_markdown_in_a_file_tab_can_be_asked_about() {
+    use rune::{Key, KeyEvent, Mods};
+    let mut rt = open(Case::Markdown);
+    assert!(rt.state.annotation.open.is_none(), "nothing asks until text is selected");
+    let r = rt.elements().into_iter().find(|e| e.key.as_deref() == Some("file-markdown") && !e.exiting).expect("the text").rect;
+    let (y, x0, x1) = (r[1] + 10.0, r[0] + 2.0, r[0] + r[2] * 0.6);
+    rt.pointer_move(x0, y);
+    rt.pointer_down(x0, y);
+    rt.frame(FRAME);
+    rt.pointer_move(x1, y);
+    rt.frame(FRAME);
+    rt.pointer_up(x1, y);
+    for _ in 0..6 {
+        rt.frame(FRAME);
+    }
+    let open = rt.state.annotation.open.clone().expect("letting go of a selection opens the popover");
+    assert_eq!(open.path, "README.md");
+    assert!(!open.anchor_text.trim().is_empty());
+    rt.key(KeyEvent { key: Key::Escape, mods: Mods::default() });
+    rt.frame(FRAME);
+    assert!(rt.state.annotation.open.is_none());
 }

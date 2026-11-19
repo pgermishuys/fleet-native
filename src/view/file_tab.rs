@@ -198,7 +198,7 @@ pub fn file_tab(s: &State, t: &Theme) -> El {
         }
         Some(Status::Ready) if view == FileView::Rendered && has_rendered_view(&path) => {
             let content = s.file_buffers.buffer(&machine, &session, &path).map(|b| b.lines().join("\n")).unwrap_or_default();
-            body.child(if is_html(&path) { rendered_html(s, t, &content) } else { rendered_markdown(t, &content) })
+            body.child(if is_html(&path) { rendered_html(s, t, &content) } else { rendered_markdown(t, &path, &content) })
         }
         Some(Status::Ready) if view == FileView::Diff => match s.file_buffers.buffer(&machine, &session, &path) {
             Some(buffer) => body.child(diff_view(s, t, &machine, &session, &path, buffer, wrap)),

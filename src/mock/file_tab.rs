@@ -60,6 +60,15 @@ pub fn answer(text: &str) -> (u16, String) {
 }
 
 impl State {
+    /// A file tab's Rendered README with the popover that asks the agent about the text picked in it (11O, row 7.5).
+    pub fn show_file_markdown_ask(&mut self, dark: bool) {
+        self.show_file(Case::Markdown, dark);
+        let text = "A small library that keeps a ledger and splits it into pages.";
+        self.annotation.open =
+            Some(crate::fleet::annotation::Open { anchor_text: text.to_string(), path: "README.md".to_string(), at: (900.0, 220.0) });
+        self.annotation.field = rune::TextEdit::new("Does it keep the ledger on disk?");
+    }
+
     /// The panel open on a file tab held in `case`, widened so the whole bar shows.
     pub fn show_file(&mut self, case: Case, dark: bool) {
         self.show_tabs(super::canvas_host::Case::Fresh, dark);
