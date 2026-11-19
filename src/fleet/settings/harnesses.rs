@@ -133,6 +133,8 @@ pub struct HarnessesPage {
     pub path: super::harness_path::PathField,
     /// Providers: the lists and what the panel of the shown harness is doing (`HarnessSignInPanel`).
     pub sign_in: super::harness_sign_in::Panel,
+    /// Weave: which Weave each harness loads, shared by every tab (`useWeaveConfig`).
+    pub weave: super::harness_weave::Weave,
 }
 
 impl Eq for HarnessesPage {}
@@ -204,6 +206,7 @@ impl State {
         if !here {
             // Leaving the page ends a sign-in that was open: a browser attempt is cancelled and a key is wiped.
             self.end_flow();
+            self.forget_weave_error();
             return std::mem::take(&mut self.settings.harnesses.asked).is_some();
         }
         let machine = self.harness_machine();
@@ -211,7 +214,11 @@ impl State {
             // The label's clock runs every 15 s.
             tx.wake_after(Duration::from_secs(15));
         }
-        let profiles = self.keep_profiles_panel() | self.limit_profile_name() | self.keep_harness_path() | self.keep_sign_in_panel();
+        let profiles = self.keep_profiles_panel()
+            | self.limit_profile_name()
+            | self.keep_harness_path()
+            | self.keep_sign_in_panel()
+            | self.keep_weave(tx);
         if self.settings.harnesses.asked.as_deref() == Some(machine.as_str()) {
             return profiles;
         }

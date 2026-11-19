@@ -775,6 +775,16 @@ pub fn profile_update(base: &str, harness: &str, id: &str, name: &str, content: 
     text_with("PUT", base, &format!("/api/harnesses/{}/profiles/{}", escape(harness), escape(id)), Some(&body))
 }
 
+/// `GET /api/weave` (`?redetect=true` asks the harnesses again, which can start one): which Weave each harness loads.
+pub fn weave_read(base: &str, redetect: bool) -> Result<(u16, String), String> {
+    text_with("GET", base, if redetect { "/api/weave?redetect=true" } else { "/api/weave" }, None)
+}
+
+/// `POST` (Add Weave) or `DELETE` (Remove) `/api/weave/harnesses/{type}/plugin`: Fleet edits the harness's plugin list.
+pub fn weave_plugin(base: &str, harness: &str, add: bool) -> Result<(u16, String), String> {
+    text_within(if add { "POST" } else { "DELETE" }, base, &format!("/api/weave/harnesses/{}/plugin", escape(harness)), None, 120)
+}
+
 /// `GET /api/harnesses/{type}/sign-in`: the providers a harness can sign in to, which asks (and starts) the harness.
 pub fn sign_in_list(base: &str, harness: &str) -> Result<(u16, String), String> {
     text_with("GET", base, &format!("/api/harnesses/{}/sign-in", escape(harness)), None)

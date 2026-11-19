@@ -288,6 +288,8 @@ fn slots(s: &State, t: &Theme, h: &HarnessEntry) -> (Vec<El>, Vec<El>) {
     if h.offers_sign_in() {
         before.push(super::harness_sign_in::section(s, t, &h.kind, &h.display_name));
     }
+    // Weave sits between "What it may do" and Profiles; it is absent where Fleet can't ask the harness about Weave.
+    after.extend(super::harness_weave::group(s, t, &h.kind));
     if h.supports_profiles {
         after.push(super::harness_profiles::section(s, t, &h.kind, &h.display_name, h.card.profile_note.as_deref()));
     }

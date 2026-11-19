@@ -222,6 +222,8 @@ mod tests_settings_harness_profiles;
 #[cfg(test)]
 mod tests_settings_harness_sign_in;
 #[cfg(test)]
+mod tests_settings_harness_weave;
+#[cfg(test)]
 mod tests_settings_harnesses;
 #[cfg(test)]
 mod tests_settings_kit;
@@ -2331,6 +2333,34 @@ pub fn spec() -> AppSpec<State> {
             ("settings-flow-remote-light", |s| s.show_providers(false, mock::harnesses::Providers::FlowRemote)),
             ("settings-flow-refused", |s| s.show_providers(true, mock::harnesses::Providers::FlowRefused)),
             ("settings-flow-refused-light", |s| s.show_providers(false, mock::harnesses::Providers::FlowRefused)),
+            ("settings-weave-asking", |s| s.show_weave(true, mock::weave::Case::Asking)),
+            ("settings-weave-asking-light", |s| s.show_weave(false, mock::weave::Case::Asking)),
+            ("settings-weave-failed", |s| s.show_weave(true, mock::weave::Case::Failed)),
+            ("settings-weave-failed-light", |s| s.show_weave(false, mock::weave::Case::Failed)),
+            ("settings-weave-none", |s| s.show_weave(true, mock::weave::Case::None)),
+            ("settings-weave-none-light", |s| s.show_weave(false, mock::weave::Case::None)),
+            ("settings-weave-loaded", |s| s.show_weave(true, mock::weave::Case::Loaded)),
+            ("settings-weave-loaded-light", |s| s.show_weave(false, mock::weave::Case::Loaded)),
+            ("settings-weave-own", |s| s.show_weave(true, mock::weave::Case::Own)),
+            ("settings-weave-own-light", |s| s.show_weave(false, mock::weave::Case::Own)),
+            ("settings-weave-outdated", |s| s.show_weave(true, mock::weave::Case::Outdated)),
+            ("settings-weave-outdated-light", |s| s.show_weave(false, mock::weave::Case::Outdated)),
+            ("settings-weave-both", |s| s.show_weave(true, mock::weave::Case::Both)),
+            ("settings-weave-both-light", |s| s.show_weave(false, mock::weave::Case::Both)),
+            ("settings-weave-did-not-load", |s| s.show_weave(true, mock::weave::Case::DidntLoad)),
+            ("settings-weave-did-not-load-light", |s| s.show_weave(false, mock::weave::Case::DidntLoad)),
+            ("settings-weave-adding", |s| s.show_weave(true, mock::weave::Case::Adding)),
+            ("settings-weave-adding-light", |s| s.show_weave(false, mock::weave::Case::Adding)),
+            ("settings-weave-notice-ok", |s| s.show_weave(true, mock::weave::Case::NoticeOk)),
+            ("settings-weave-notice-ok-light", |s| s.show_weave(false, mock::weave::Case::NoticeOk)),
+            ("settings-weave-notice-warn", |s| s.show_weave(true, mock::weave::Case::NoticeWarn)),
+            ("settings-weave-notice-warn-light", |s| s.show_weave(false, mock::weave::Case::NoticeWarn)),
+            ("settings-weave-notice-error", |s| s.show_weave(true, mock::weave::Case::NoticeError)),
+            ("settings-weave-notice-error-light", |s| s.show_weave(false, mock::weave::Case::NoticeError)),
+            ("settings-weave-recheck-error", |s| s.show_weave(true, mock::weave::Case::RecheckError)),
+            ("settings-weave-recheck-error-light", |s| s.show_weave(false, mock::weave::Case::RecheckError)),
+            ("settings-weave-checking", |s| s.show_weave(true, mock::weave::Case::Checking)),
+            ("settings-weave-checking-light", |s| s.show_weave(false, mock::weave::Case::Checking)),
             ("settings-browser", |s| s.show_browser_group(true, mock::permissions::Browser::Default)),
             ("settings-browser-light", |s| s.show_browser_group(false, mock::permissions::Browser::Default)),
             ("settings-browser-off", |s| s.show_browser_group(true, mock::permissions::Browser::Off)),

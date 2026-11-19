@@ -51,6 +51,9 @@ fn answer(mut stream: std::net::TcpStream, fake: Shared) {
         (200, f.harnesses.clone())
     } else if method == "GET" && path == "/api/preferences" {
         (200, json!(f.prefs))
+    } else if path == "/api/weave" {
+        // Weave asks nothing of these pages: an empty answer draws no Weave group (the rigs wait for it, so the layout is still).
+        (200, json!({"source": "own", "files": {}, "harnesses": []}))
     } else if method == "GET" && path == "/api/agent-browser/settings" {
         (200, json!({"enabled": true}))
     } else if method == "PUT" && path.starts_with("/api/preferences/") {
@@ -117,7 +120,7 @@ fn rig(list: Value) -> Rig {
     r.rt.frame(FRAME);
     let n = list.as_array().map_or(0, Vec::len);
     r.wait("the harnesses and the preferences", move |s| {
-        s.harness_list().all.len() == n && s.harness_prefs().fetched && !s.harnesses_checking()
+        s.harness_list().all.len() == n && s.harness_prefs().fetched && !s.harnesses_checking() && s.settings.harnesses.weave.view.is_some()
     });
     r
 }
