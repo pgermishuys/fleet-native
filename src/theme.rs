@@ -260,6 +260,12 @@ impl Theme {
         self.text.alpha(percent / 100.0)
     }
 
+    /// The bar over a folded run in a file's Diff is `@codemirror/merge`'s own `.cm-collapsedLines` (`#f3f3f3` fading in and out, `#888`
+    /// ink), which Fleet's theme doesn't restyle: the same in both themes, so a white band on dark. Ported as it is.
+    pub fn merge_fold(&self) -> (Color, Color) {
+        (c("#f3f3f3"), c("#888888"))
+    }
+
     /// `rgba(239, 68, 68, a)`: the red of the list's "showing cached sessions" banner. Fleet writes it as a literal, so
     /// it is the same in both themes (`--error` is `#ef4444` dark and `#dc2626` light).
     pub fn feedback_red(&self, alpha: f32) -> Color {

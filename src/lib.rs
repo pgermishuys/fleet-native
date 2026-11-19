@@ -66,6 +66,8 @@ mod tests_document;
 #[cfg(test)]
 mod tests_draft_row;
 #[cfg(test)]
+mod tests_file_diff;
+#[cfg(test)]
 mod tests_file_lines;
 #[cfg(test)]
 mod tests_file_media;
@@ -418,6 +420,8 @@ pub struct State {
     /// Which open files are read again, and when (`fleet::file_live`), and the git bases of the changed ones (`fleet::file_base`).
     pub file_live: fleet::file_live::Live,
     pub file_bases: fleet::file_base::Bases,
+    /// The folded runs of a file's Diff that were opened (`fleet::file_diff`).
+    pub file_folds: fleet::file_diff::DiffFolds,
     /// The Files tab's tree, its open folders and its search box (`fleet::file_browser`).
     pub file_browser: fleet::file_browser::FileBrowser,
     /// The review's own state: which sections are shut and the layout picked (`fleet::review`).
@@ -740,6 +744,7 @@ impl Default for State {
             file_live: Default::default(),
             file_browser: Default::default(),
             file_bases: Default::default(),
+            file_folds: Default::default(),
             review: Default::default(),
             annotation: Default::default(),
             changes_find: Default::default(),
@@ -1639,6 +1644,8 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     s.clock = now;
     let strip = s.keep_strip(tx) | s.keep_tab_motion(tx);
     s.keep_file_front();
+    s.keep_file_base();
+    let flashing = s.keep_file_flash(tx);
     s.keep_files_tab(now, tx);
     s.keep_progress_tab();
     let strip = s.keep_turns_tab() | strip;
@@ -1667,7 +1674,7 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         }
         None => false,
     };
-    if archiving || plain || picked || strip {
+    if archiving || plain || picked || strip || flashing {
         return true;
     }
     match s.reply {
@@ -4441,6 +4448,12 @@ pub fn spec() -> AppSpec<State> {
             ("file-lines-copied-light", |s| s.show_file(mock::file_tab::Case::LinesCopied, false)),
             ("file-lines-added", |s| s.show_file(mock::file_tab::Case::LinesAdded, true)),
             ("file-lines-added-light", |s| s.show_file(mock::file_tab::Case::LinesAdded, false)),
+            ("file-diff", |s| s.show_file(mock::file_tab::Case::Diff, true)),
+            ("file-diff-light", |s| s.show_file(mock::file_tab::Case::Diff, false)),
+            ("file-stripe", |s| s.show_file(mock::file_tab::Case::Stripe, true)),
+            ("file-stripe-light", |s| s.show_file(mock::file_tab::Case::Stripe, false)),
+            ("file-deleted", |s| s.show_file(mock::file_tab::Case::Deleted, true)),
+            ("file-deleted-light", |s| s.show_file(mock::file_tab::Case::Deleted, false)),
             ("file-markdown", |s| s.show_file(mock::file_tab::Case::Markdown, true)),
             ("file-markdown-light", |s| s.show_file(mock::file_tab::Case::Markdown, false)),
             ("file-image", |s| s.show_file(mock::file_tab::Case::Image, true)),

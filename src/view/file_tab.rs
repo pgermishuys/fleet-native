@@ -3,9 +3,11 @@
 //! shown, or its code, with Wrap (4.5); at its foot the lines bar while lines are picked (`LinesBar.vue`, 8.5) and the tab's toast
 //! (4.9). The image and the Rendered page and everything of editing are other pieces'.
 use super::code_view::code_view;
+use super::file_diff::{deleted_view, diff_view};
 use super::file_media::{image_body, note, rendered_html, rendered_markdown};
 use crate::State;
 use crate::fleet::canvases::{FileView, has_rendered_view, is_image_path};
+use crate::fleet::diffs::FileStatus;
 use crate::fleet::file_buffers::Status;
 use crate::fleet::session_image::Shown;
 use crate::icons::{CHEVRON_RIGHT, TEXT_WRAP};
@@ -121,6 +123,17 @@ pub fn is_html(path: &str) -> bool {
     p.ends_with(".html") || p.ends_with(".htm")
 }
 
+/// The note over a deleted file's last version (`FileCanvas.vue` 533-540), said as a status like every note.
+pub const DELETED_NOTE: &str = "This file was deleted in this session. Its last version:";
+
+/// A file the session deleted (`deleted`): among the changes as deleted, its read failed and its base is known.
+pub fn is_deleted(s: &State, session: &str, path: &str, status: Option<Status>) -> bool {
+    status == Some(Status::Error)
+        && s.diffs.session() == session
+        && s.diffs.by_file(path).is_some_and(|d| d.status == FileStatus::Deleted)
+        && s.file_base(session, path).is_some()
+}
+
 /// The bar of a file tab: its crumbs, a spacer and what the state says (an image's size).
 fn bar(s: &State, t: &Theme, path: &str) -> El {
     row()
@@ -170,8 +183,14 @@ pub fn file_tab(s: &State, t: &Theme) -> El {
         bar = bar.child(view_switch(t, &path, view, has_changes));
     }
 
+    let deleted = is_deleted(s, &session, &path, status);
     let mut body = col().key("file-canvas").w_full().grow(1.0).shrink().min_h(0.0).child(bar);
     body = match status {
+        _ if deleted => {
+            let before = s.file_base(&session, &path).unwrap_or_default();
+            body.child(note(t, "file-deleted-note", DELETED_NOTE.to_string()))
+                .child(deleted_view(s, t, &machine, &session, &path, before, false))
+        }
         Some(Status::Loading) => body.child(note(t, "file-opening", format!("Opening {path}\u{2026}"))),
         Some(Status::Unavailable | Status::Error) => {
             let message = info.and_then(|i| i.message.clone()).unwrap_or_default();
@@ -181,6 +200,10 @@ pub fn file_tab(s: &State, t: &Theme) -> El {
             let content = s.file_buffers.buffer(&machine, &session, &path).map(|b| b.lines().join("\n")).unwrap_or_default();
             body.child(if is_html(&path) { rendered_html(s, t, &content) } else { rendered_markdown(t, &content) })
         }
+        Some(Status::Ready) if view == FileView::Diff => match s.file_buffers.buffer(&machine, &session, &path) {
+            Some(buffer) => body.child(diff_view(s, t, &machine, &session, &path, buffer, wrap)),
+            None => body,
+        },
         Some(Status::Ready) => body.child(code_view(s, t, &machine, &session, &path, wrap)),
         None => body,
     };

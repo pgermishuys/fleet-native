@@ -140,6 +140,7 @@ struct Probe {
     machine: String,
     id: String,
     reads: Vec<String>,
+    bases: Vec<String>,
 }
 
 impl Probe {
@@ -213,8 +214,11 @@ impl Fake {
             &self.jobs,
             what,
             |s| {
-                let reads = seen.lock().unwrap().reads.clone();
-                done(s, &Probe { machine: machine.clone(), id: id.clone(), reads })
+                let (reads, bases) = {
+                    let seen = seen.lock().unwrap();
+                    (seen.reads.clone(), seen.bases.clone())
+                };
+                done(s, &Probe { machine: machine.clone(), id: id.clone(), reads, bases })
             },
             |s| format!("{}; reads {:?}", crate::test_wait::app_state(s), described.lock().unwrap().reads),
         );
@@ -452,4 +456,27 @@ fn only_loads_while_the_file_is_among_the_changes() {
     assert_eq!(f.rt.state.file_base(&id, "assets/logo.svg"), None);
     let _ = m;
     println!("requests for the base: {:?}", f.seen.lock().unwrap().bases);
+}
+
+// ─── the base of the tab in front (component 11, piece J) ─────────────────────
+
+#[test]
+fn the_tab_in_front_reads_its_base_once_and_a_failed_read_waits_for_a_change() {
+    use crate::fleet::canvases::OpenFile;
+    let mut f = Fake::start();
+    f.seen.lock().unwrap().base_status = 404;
+    f.seen.lock().unwrap().before = "old\n".into();
+    f.wait("the changes", |s, _| s.diffs.by_file(PATH).is_some());
+    let id = f.id.clone();
+    f.rt.update(move |s, tx| s.open_file(&id, PATH, OpenFile { keep: true, view: None }, tx));
+    f.wait("the first ask to be answered", |s, p| !p.bases.is_empty() && !s.file_bases.is_reading(&p.id, PATH));
+    for _ in 0..30 {
+        f.rt.frame(crate::tests::FRAME);
+    }
+    // A sentinel: asking by hand is the one more read, so nothing else came between.
+    let id = f.id.clone();
+    f.rt.update(move |s, _| s.load_file_base(&id, PATH));
+    f.wait("the sentinel", |_, p| p.bases.len() >= 2);
+    assert_eq!(f.seen.lock().unwrap().bases, [PATH, PATH], "one ask when the tab came forward, none on the frames after a failure");
+    assert_eq!(f.rt.state.file_base(&f.id, PATH), None, "a failed read leaves no base");
 }

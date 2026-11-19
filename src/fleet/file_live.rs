@@ -164,6 +164,19 @@ impl State {
         }
     }
 
+    /// Keeps frames coming while the open file's changed lines flash (`cm-agent-flash`); true while one does.
+    pub fn keep_file_flash(&mut self, tx: &mut rune::Tx) -> bool {
+        let Some(session) = self.open_id() else { return false };
+        let active = self.canvases.session_active_id(&session);
+        let Some(path) = active.as_deref().and_then(|id| id.strip_prefix("file:")) else { return false };
+        let machine = self.machine_key_of(&session).to_string();
+        let on = self.file_live.flashing(&machine, &session, path, self.clock).is_some();
+        if on {
+            tx.wake_after(Duration::from_millis(16));
+        }
+        on
+    }
+
     fn open_file_paths(&self, session: &str) -> Vec<String> {
         self.file_buffers.open_paths(self.machine_key_of(session), session)
     }

@@ -14,6 +14,7 @@ mod compaction;
 mod diff;
 mod export;
 mod export_history;
+mod file_diff;
 mod find;
 mod fold;
 mod gist;

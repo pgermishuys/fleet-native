@@ -43,12 +43,20 @@ pub struct Bases {
     items: HashMap<Key, Option<String>>,
     /// Oldest first; a use moves a key to the end.
     order: VecDeque<Key>,
+    /// What the open file tab last asked about: `useDiffBase` reads when its inputs change, not every frame, so a failed read
+    /// isn't asked again until something moves.
+    watched: Option<(String, String, String, bool)>,
 }
 
 impl Bases {
     /// The base once it has loaded; `None` until then and when it can't be read.
     pub fn get(&self, machine: &str, session: &str, base: &str, path: &str) -> Option<&str> {
         self.items.get(&key(machine, session, base, path))?.as_deref()
+    }
+
+    /// Whether a read of this file's base is on its way.
+    pub fn is_reading(&self, session: &str, path: &str) -> bool {
+        self.items.iter().any(|(k, v)| k.1 == session && k.3 == path && v.is_none())
     }
 
     /// Asks for a file's base: the read to make, or `Known` when it is kept or already being read (`fetchDiffBase`).
@@ -94,6 +102,14 @@ impl Bases {
         }
     }
 
+    /// Whether the inputs of the base differ from the last time this was asked (a watcher's trigger).
+    fn changed(&mut self, session: &str, path: &str, base: &str, in_changes: bool) -> bool {
+        let now = Some((session.to_string(), path.to_string(), base.to_string(), in_changes));
+        let moved = self.watched != now;
+        self.watched = now;
+        moved
+    }
+
     /// Forgets every base.
     pub fn clear(&mut self) {
         self.items.clear();
@@ -130,6 +146,18 @@ impl State {
                 s.file_bases.finish(&request, answer);
             },
         );
+    }
+
+    /// The active file tab's base is read when the tab, the file's place among the changes or what they are compared with changes
+    /// (`useDiffBase` watches `inDiff` and the base key). Called every frame; only a change does anything.
+    pub fn keep_file_base(&mut self) {
+        let Some(session) = self.open_id() else { return };
+        let active = self.canvases.session_active_id(&session);
+        let Some(path) = active.as_deref().and_then(|id| id.strip_prefix("file:")).map(str::to_string) else { return };
+        let (in_changes, base) = (self.file_in_changes(&session, &path), Base::key(self.diffs.base.as_ref()));
+        if self.file_bases.changed(&session, &path, &base, in_changes) {
+            self.load_file_base(&session, &path);
+        }
     }
 
     /// The base of a file while it is among the session's changes; `None` otherwise, or until it has loaded.
