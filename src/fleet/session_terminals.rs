@@ -151,6 +151,10 @@ impl State {
 
     /// Closes the tab showing (the failed panel's Close tab).
     pub fn close_showing_terminal(&mut self) {
+        // The setup row's view: its `@ended` closes the setup terminal.
+        if self.terminal.setup.is_some() {
+            return self.close_setup_terminal();
+        }
         match self.terminal.live.as_ref().map(|l| l.id.clone()) {
             // A recorded stream has no shell on a server to close.
             Some(id) if !self.terminal.replaying => self.close_terminal_tab(&id),

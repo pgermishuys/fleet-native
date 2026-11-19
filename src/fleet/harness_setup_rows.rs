@@ -336,11 +336,12 @@ impl State {
         match outcome {
             Outcome::Started(id) if wanted => {
                 if let Some(active) = rows.active.as_mut() {
-                    active.terminal_id = Some(id);
+                    active.terminal_id = Some(id.clone());
                 }
                 // `startChecking`: the list is read again every 3 s from now.
                 rows.check_due = Some(self.clock + CHECK_EVERY_SECS);
                 tx.wake_after(Duration::from_secs_f64(CHECK_EVERY_SECS));
+                self.attach_setup_terminal(&id, &command, tx);
             }
             // Another harness's terminal was opened (or this one closed) meanwhile: end the one just made (C13.53).
             Outcome::Started(id) => {
@@ -375,6 +376,7 @@ impl State {
     /// `closeTerminal`: stop checking, drop the terminal, and if the server had made one, check once more and end it (a 404 or
     /// any other answer is ignored).
     pub fn close_setup_terminal(&mut self) {
+        self.release_setup_terminal();
         let rows = &mut self.harness_setup.rows;
         rows.check_due = None;
         rows.seq += 1;

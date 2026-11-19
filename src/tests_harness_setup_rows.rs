@@ -1,9 +1,11 @@
 //! Piece O: the harnesses step's rows (`HarnessSetupRows.test.ts`, rows C13.1-C13.73), against a fake Fleet that answers the harness
 //! list, its client config and the setup terminal, and records every request. The cases keep Fleet's names. The terminal's widget is
-//! component 13's, so "the terminal shows the command" is the stand-in body here.
+//! component 13's (piece I): the fake speaks the terminal's WebSocket too, so "the terminal shows the command" is the shell hearing
+//! it typed.
 use crate::fleet::harness_setup::Step;
 use crate::fleet::link::{Job, Link, Post};
 use crate::fleet::new_session::harness_choice::Load;
+use crate::fleet::terminal_socket::Status;
 use crate::tests::{FRAME, app, click};
 use crate::{State, test_wait};
 use rune::Runtime;
@@ -20,6 +22,14 @@ struct Fake {
     /// What `POST /api/setup/terminals` answers: (status, body).
     terminal_answer: Option<(u16, Value)>,
     log: Vec<(String, String, String)>,
+    /// The paths of the setup terminal's sockets, one per connection.
+    sockets: Vec<String>,
+    /// What the shell was typed, over all connections.
+    input: Vec<u8>,
+    /// Lines for the shell's socket to act on: `cut` drops the connection, anything else is sent as a text frame.
+    script: std::collections::VecDeque<String>,
+    /// While set, a socket is dropped before the upgrade.
+    refuse_sockets: bool,
 }
 
 type Shared = Arc<Mutex<Fake>>;
@@ -36,7 +46,58 @@ fn serve(fake: Shared) -> String {
     base
 }
 
+/// The request path, looked at without taking the request: a socket's upgrade is read by `accept` itself.
+fn peek_path(stream: &std::net::TcpStream) -> String {
+    let mut buf = [0u8; 4096];
+    loop {
+        let n = stream.peek(&mut buf).unwrap_or(0);
+        if n == 0 {
+            return String::new();
+        }
+        let text = String::from_utf8_lossy(&buf[..n]).to_string();
+        if let Some(end) = text.find("\r\n\r\n") {
+            return text[..end].lines().next().unwrap_or("").split(' ').nth(1).unwrap_or("").to_string();
+        }
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
+}
+
+/// `TerminalSocket.cs`'s side, as far as the setup terminal needs: `ready` at once, input heard, the script acted on.
+fn shell_socket(stream: std::net::TcpStream, path: String, fake: Shared) {
+    {
+        let mut f = fake.lock().unwrap();
+        f.sockets.push(path);
+        if f.refuse_sockets {
+            return;
+        }
+    }
+    let Ok(mut ws) = tungstenite::accept(stream) else { return };
+    let _ = ws.send(tungstenite::Message::text(r#"{"type":"ready"}"#));
+    let _ = ws.get_ref().set_read_timeout(Some(std::time::Duration::from_millis(5)));
+    loop {
+        let next = fake.lock().unwrap().script.pop_front();
+        match next.as_deref() {
+            Some("cut") => return,
+            Some(line) => {
+                let _ = ws.send(tungstenite::Message::text(line.to_string()));
+            }
+            None => {}
+        }
+        match ws.read() {
+            Ok(tungstenite::Message::Binary(b)) => fake.lock().unwrap().input.extend_from_slice(&b),
+            Ok(tungstenite::Message::Close(_)) | Err(tungstenite::Error::ConnectionClosed) => return,
+            Err(tungstenite::Error::Io(e)) if matches!(e.kind(), std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut) => {}
+            Err(_) => return,
+            Ok(_) => {}
+        }
+    }
+}
+
 fn answer(mut stream: std::net::TcpStream, fake: Shared) {
+    let path = peek_path(&stream);
+    if path.contains("/socket?") {
+        return shell_socket(stream, path, fake);
+    }
     let req = crate::test_http::read(&mut stream);
     if req.method.is_empty() {
         return;
@@ -205,6 +266,13 @@ impl Rig {
         self.settle();
     }
 
+    /// The shell has been typed exactly `command` (no Enter, nothing else).
+    fn wait_typed(&mut self, command: &str) {
+        let (fake, want) = (self.fake.clone(), command.as_bytes().to_vec());
+        self.wait("the installer typed into the shell", move |_| fake.lock().unwrap().input == want);
+        self.settle();
+    }
+
     fn wait_request(&mut self, method: &str, path: &str) {
         let (fake, method, path) = (self.fake.clone(), method.to_string(), path.to_string());
         self.wait(&format!("{method} {path}"), move |_| fake.lock().unwrap().log.iter().any(|(m, p, _)| *m == method && *p == path));
@@ -296,7 +364,7 @@ fn lets_the_user_pick_where_opencode_2_goes_and_types_the_picked_places_installe
     assert!(checked(&r, "default") && !checked(&r, "separate"));
     click(&mut r.rt, "harness-setup-install-opencode2");
     r.wait_terminal();
-    assert!(r.words("harness-setup-terminal-body").contains(&format!("$ {MAIN}")), "{}", r.words("harness-setup-terminal-body"));
+    r.wait_typed(MAIN);
 }
 
 #[test]
@@ -339,7 +407,7 @@ fn types_the_installer_into_a_setup_terminal_and_turns_on_a_harness_that_was_off
     r.wait_terminal();
     let create = r.log().into_iter().find(|(m, p, _)| m == "POST" && p == "/api/setup/terminals").expect("the shell was asked for");
     assert_eq!(serde_json::from_str::<Value>(&create.2).unwrap(), json!({ "cols": 100, "rows": 14 }));
-    assert!(r.words("harness-setup-terminal-body").contains("$ curl -fsSL https://claude.ai/install.sh | bash"));
+    r.wait_typed("curl -fsSL https://claude.ai/install.sh | bash");
     assert!(r.words("harness-setup-terminal").contains("Check the command, then press Enter to run it. Fleet won't run it for you."));
     assert!(r.words("harness-setup-terminal").contains("Install Claude Code · home folder"));
     r.wait_request("PUT", "/api/preferences/claude-code.enabled");
@@ -378,7 +446,7 @@ fn offers_the_sign_in_once_claude_code_is_installed() {
     assert_eq!(r.label("harness-setup-sign-in-claude-code"), "Sign in to Claude Code");
     click(&mut r.rt, "harness-setup-sign-in-claude-code");
     r.wait_terminal();
-    assert!(r.words("harness-setup-terminal-body").contains("/usr/local/bin/claude auth login"));
+    r.wait_typed("/usr/local/bin/claude auth login");
     assert!(r.words("harness-setup-terminal").contains("Sign in to Claude Code · home folder"));
 }
 
@@ -392,7 +460,7 @@ fn offers_to_update_a_harness_thats_too_old_with_its_installer() {
     assert_eq!(r.label("harness-setup-install-opencode"), "Update OpenCode");
     click(&mut r.rt, "harness-setup-install-opencode");
     r.wait_terminal();
-    assert!(r.words("harness-setup-terminal-body").contains("curl -fsSL https://opencode.ai/install | bash"));
+    r.wait_typed("curl -fsSL https://opencode.ai/install | bash");
 }
 
 #[test]
@@ -481,4 +549,80 @@ fn the_state_is_the_servers_word_or_ready_when_available_else_not_working() {
     assert_eq!(h("", true).setup_state(), "ready");
     assert_eq!(h("", false).setup_state(), "not-working");
     assert_eq!(h("update-needed", true).setup_state(), "update-needed");
+}
+
+// ---- piece I: the setup terminal is the Terminal component's view (13.80 to 13.82) ----------------------------------------------------
+
+// 13.80: the view is hosted under `/api/setup/terminals`, session id `setup`: the socket is the setup shell's.
+#[test]
+fn the_setup_terminal_connects_under_the_setup_base_path_and_shows_the_shell() {
+    let mut r = rig(vec![opencode("not-installed")]);
+    click(&mut r.rt, "harness-setup-install-opencode");
+    r.wait_terminal();
+    r.wait_typed("curl -fsSL https://opencode.ai/install | bash");
+    let sockets = r.fake.lock().unwrap().sockets.clone();
+    assert!(sockets[0].starts_with("/api/setup/terminals/t_setup/socket?cols=100&rows=14"), "{sockets:?}");
+    assert!(r.has("harness-setup-terminal-body") && r.has("terminal-view"), "the grid is drawn in the row's body");
+    assert!(!r.has("terminal-drawer"), "no drawer and no tabs around it");
+    // The setup row's terminal takes the keyboard when it opens (`:shown="true"`).
+    assert!(r.rt.state.setup_terminal_shown());
+}
+
+// 13.81: `initialInput` is typed on the first `ready` only: a reconnect is ready again and the command may have run.
+#[test]
+fn the_command_is_typed_once_on_the_first_ready_and_not_again_after_a_reconnect() {
+    let mut r = rig(vec![opencode("not-installed")]);
+    click(&mut r.rt, "harness-setup-install-opencode");
+    r.wait_terminal();
+    let command = "curl -fsSL https://opencode.ai/install | bash";
+    r.wait_typed(command);
+    r.fake.lock().unwrap().script.push_back("cut".into());
+    let fake = r.fake.clone();
+    r.wait("the second connection", move |_| fake.lock().unwrap().sockets.len() == 2);
+    r.wait("the second connection to be ready", |s| s.terminal.status() == Some(Status::Open));
+    // What the user types now goes after the command and nothing is typed in between.
+    r.rt.update(|s, _| s.terminal_write(b"x".to_vec()));
+    let (fake, want) = (r.fake.clone(), format!("{command}x").into_bytes());
+    r.wait("the probe key", move |_| fake.lock().unwrap().input == want);
+}
+
+// 13.82: the shell's `exit` is `ended`, which closes the setup terminal (DELETE, and checking stops).
+#[test]
+fn the_shell_ending_closes_the_setup_terminal() {
+    let mut r = rig(vec![opencode("not-installed")]);
+    click(&mut r.rt, "harness-setup-install-opencode");
+    r.wait_terminal();
+    r.fake.lock().unwrap().script.push_back(r#"{"type":"exit","exitCode":0}"#.into());
+    r.wait_request("DELETE", "/api/setup/terminals/t_setup");
+    r.wait("the terminal to go", |s| s.harness_setup.rows.active.is_none() && !s.setup_terminal_shown());
+    r.settle();
+    assert!(!r.has("harness-setup-terminal"));
+    assert_eq!(r.rt.state.harness_setup.step, Step::Harnesses, "the wizard stays where it was");
+}
+
+// 13.82: a terminal that can't be reached says so, and its Close tab closes the setup terminal the same way.
+#[test]
+fn close_tab_on_an_unreachable_setup_terminal_closes_it() {
+    let mut r = rig(vec![opencode("not-installed")]);
+    r.fake.lock().unwrap().refuse_sockets = true;
+    click(&mut r.rt, "harness-setup-install-opencode");
+    r.wait("the terminal to be given up on", |s| s.terminal.status() == Some(Status::Failed));
+    // The socket thread asks for a redraw as it gives up; here that is an update.
+    r.rt.update(|_, _| {});
+    r.settle();
+    assert!(r.has("terminal-failed"));
+    click(&mut r.rt, "terminal-close-tab");
+    r.wait_request("DELETE", "/api/setup/terminals/t_setup");
+    assert!(r.rt.state.harness_setup.rows.active.is_none() && !r.rt.state.setup_terminal_shown());
+}
+
+// Leaving the wizard (or starting another harness) lets go of the socket; the session's drawer is back afterwards.
+#[test]
+fn closing_the_setup_terminal_gives_the_slot_back() {
+    let mut r = rig(vec![opencode("not-installed")]);
+    click(&mut r.rt, "harness-setup-install-opencode");
+    r.wait_terminal();
+    assert!(r.rt.state.setup_terminal_shown());
+    click(&mut r.rt, "harness-setup-terminal-close");
+    assert!(!r.rt.state.setup_terminal_shown() && r.rt.state.terminal.live.is_none());
 }

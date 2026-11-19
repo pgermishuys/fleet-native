@@ -1,7 +1,7 @@
 //! `HarnessSetupRows.vue` (`components/harness-setup`): the rows of the setup wizard's harnesses step. Each has the harness's icon,
 //! name, state chip and one button (Install, Update, Sign in, or Download); under it the install places, the notes, the setup
-//! terminal with the found banner, and a failure with the command to copy. The setup terminal's widget and the update strip and
-//! sign-in panel (`HarnessUpdateStrip.vue`, `HarnessSignInPanel.vue`) are components 13's and 16's: the words and boxes around
+//! terminal (component 13's view, `terminal_view`) with the found banner, and a failure with the command to copy. The update strip
+//! and sign-in panel (`HarnessUpdateStrip.vue`, `HarnessSignInPanel.vue`) are components 16's: the words and boxes around
 //! them are drawn, their buttons say so. Sizes are the component's own scoped CSS (literal px), as in `harness_setup.rs`.
 use crate::fleet::harness_setup_rows::{Action, Choice, rows};
 use crate::fleet::new_session::harness_choice::{HarnessEntry, Harnesses};
@@ -322,7 +322,7 @@ fn terminal(s: &State, t: &Theme, all: &Harnesses) -> El {
                 .child(icon(&X, 13.0).color(t.muted).group_color(t.text))
                 .on_press(|s: &mut State| s.close_setup_terminal()),
         );
-    // The shell itself is component 13's widget: the body shows what would be typed into it.
+    // `TerminalView` fills the nearest positioned box: the 220 px body.
     let body = if active.terminal_id.is_none() {
         row()
             .key("harness-setup-starting")
@@ -331,22 +331,10 @@ fn terminal(s: &State, t: &Theme, all: &Harnesses) -> El {
             .padding(12.0)
             .child(spinner(t))
             .child(text("Starting a terminal…").font(sans(12.5, 400.0, 1.4)).color(t.muted))
+    } else if s.setup_terminal_shown() {
+        col().key("harness-setup-terminal-body").w_full().h_full().child(super::terminal_view::area(s, t))
     } else {
-        col()
-            .key("harness-setup-terminal-body")
-            .w_full()
-            .items_start()
-            .gap(10.0)
-            .padding(12.0)
-            .child(text(format!("$ {}", active.command)).font(mono(12.0, 400.0, 1.5)).color(t.text).wrap().w_full())
-            .child(
-                text("The live terminal comes with the Terminal component. Copy the command to run it in your own terminal.")
-                    .font(sans(12.0, 400.0, 1.4))
-                    .color(t.muted)
-                    .wrap()
-                    .w_full(),
-            )
-            .child(copy_button(s, t, &active.command))
+        col().key("harness-setup-terminal-body")
     };
     let hint = text("Check the command, then press Enter to run it. Fleet won't run it for you.")
         .font(sans(12.0, 400.0, 1.4))

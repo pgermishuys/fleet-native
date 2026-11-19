@@ -192,9 +192,9 @@ Owner: `13` = this component, with the piece; another number = that component. "
 
 | # | Row | Source | Native today | Owner |
 |---|---|---|---|---|
-| 13.80 | The view hosted outside a session: base path `/api/setup/terminals`, session id `setup`, in the setup row's 220 px body; no drawer, no tabs | HSR 411-421, TA | Stand-in body (7 O) | 13 I |
-| 13.81 | `initialInput`: typed into the shell once, on the first `ready` only (not again after a reconnect), without Enter | TV `onReady` | None | 13 I |
-| 13.82 | `ended` (or Close tab on a failed one) closes the setup terminal (`close_setup_terminal`: DELETE, stop checking) | HSR | Close exists (7 O) | 13 I |
+| 13.80 | The view hosted outside a session: base path `/api/setup/terminals`, session id `setup`, in the setup row's 220 px body; no drawer, no tabs | HSR 411-421, TA | Done in I (`fleet/setup_terminal.rs`; the one slot holds it, the session's drawer steps aside) | 13 I |
+| 13.81 | `initialInput`: typed into the shell once, on the first `ready` only (not again after a reconnect), without Enter | TV `onReady` | Done in I (`Socket::open_typing`, the first `ready` only) | 13 I |
+| 13.82 | `ended` (or Close tab on a failed one) closes the setup terminal (`close_setup_terminal`: DELETE, stop checking) | HSR | Done in I (the shell's `exit`, Close tab on a failed one, and the X all go through `close_setup_terminal`) | 13 I |
 
 ### 10. States and both themes
 
@@ -227,6 +227,13 @@ Owner: `13` = this component, with the piece; another number = that component. "
 Done: 13.77, 13.78, 13.64 (in part). `term/mouse.rs` (the bytes: which modes want what, the three encodings, wheel arrows, focus), `fleet/terminal_mouse.rs` (the gesture, the wheel, IME), `fleet/terminal_select.rs` and `view/terminal_view.rs` (the box asks first), `lib.rs` (`terminal_hooks`: `on_modifiers`, `on_ime`), `fleet/terminal_slot.rs` (focus reports).
 No Fleet test belongs to this piece; ours (`tests_terminal_mouse.rs`): which events each mode wants, the default, UTF-8 and SGR bytes, modifiers, a press and release, drags once per cell in 1002 and not in 1000, plain motion in 1003 only, Shift selects instead, the wheel reported or turned into arrows or scrolling, focus in and out, an input method's commit.
 Left open: mode 9; the preedit; a real input method (not run anywhere); right-button drags. Pictures: `shots/parity/13-terminal/H/` (a program that asked for SGR mouse reporting echoing what it hears, and `less` scrolled by the wheel in the alternate screen, beside Fleet's, both themes; scripts `scripts/terminal-mouse.json`, `scripts/terminal-less.json`, which expect an `m.sh` and `src/pager.ts` in the session's folder). Same bytes in both clients for the same three gestures (`^[[<0;8;3M^[[<0;8;3m^[[<0;29;5M^[[<0;29;5m^[[<64;44;4M`). Fleet's picture has its right panel open, so its box is 70 columns wide and `less` wraps; that is not a difference in the terminal.
+
+### Piece I, what was done on 19 November 2026
+
+Done: 13.80, 13.81, 13.82. `fleet/setup_terminal.rs` (the setup row's terminal held in the one terminal slot: `Slot::setup`, `attach_setup_terminal` when the shell was made, `release_setup_terminal`, ended closes), `fleet/terminal_socket.rs` (`Socket::open_typing`: the command typed once, on the first `ready`), `view/harness_setup_rows.rs` (the stand-in body is gone; `terminal_view::area` fills the 220 px body), `close_showing_terminal` (Close tab) and `attach_terminal_lines` (the bubble's Add only lets go of the selection, as Fleet's row listens to nothing).
+Ours (`tests_harness_setup_rows.rs`, the fake now speaks the terminal's WebSocket): the socket is under `/api/setup/terminals/<id>/socket`; the command is typed once and not again after a reconnect; the shell's `exit` closes the setup terminal (DELETE); Close tab on an unreachable one closes it; closing gives the slot back. Fleet's own names kept; the old "$ command" stand-in asserts became "the shell was typed the command".
+Gaps: the session's drawer is not drawn and its views are dropped while a setup terminal is open (Fleet keeps both mounted; the setup rows sit in a window over the app, so one terminal is on screen at a time; the shells keep running and replay when the drawer is back). The scene's cursor isn't drawn (a replayed scene stream, not live). A prompt-plus-command line that was one column too long for the box showed only its last word after the fit in the scene (seen once with a 77-column prompt; not chased, live is fine). The Found banner can't be made live (no harness installs on this machine), so it is shown from the scene only. Live light isn't possible (a live `--server` run draws dark), so the light picture is the scene.
+Pictures: `shots/parity/13-terminal/I/` (Fleet's row with its terminal, both themes; native live dark against a scratch Fleet with no harness on its PATH; native scenes, both themes).
 
 ### Piece G, what was done on 18 November 2026
 

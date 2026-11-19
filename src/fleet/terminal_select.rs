@@ -87,6 +87,11 @@ impl State {
     /// the tab's title, the selection clears and the composer takes the keyboard.
     pub fn attach_terminal_lines(&mut self, tx: &mut Tx) {
         let Some(live) = self.terminal.live.as_ref() else { return };
+        // The setup row listens to nothing: the bubble's Add only lets go of the selection (13.80).
+        if self.terminal.setup.is_some() {
+            live.term.clear_selection();
+            return;
+        }
         let Some(lines) = live.term.selected_lines() else { return };
         let ms = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis());
         let context = TerminalDraft {
