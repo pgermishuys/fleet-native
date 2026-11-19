@@ -393,7 +393,7 @@ fn opens_the_tools_tab_for_the_old_tools_id_and_the_mods_tab_for_the_old_mods_id
     let mut r = rig_at(Some("mods"), |f| f.mods_on = Some(true));
     r.read();
     assert_eq!(r.page().tab, Tab::Mods, "landing on mods before the switch was read opens it as soon as it is known to be on");
-    assert!(r.exists("mods-not-yet"));
+    assert!(r.exists("mods-section"), "the Mods tab is piece AM's");
 }
 
 #[test]

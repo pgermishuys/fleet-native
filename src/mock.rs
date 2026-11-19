@@ -38,6 +38,7 @@ pub mod long;
 pub mod machines;
 pub mod machines_page;
 pub mod memory;
+pub mod mods;
 pub mod notices;
 pub mod page_cards;
 pub mod pages;

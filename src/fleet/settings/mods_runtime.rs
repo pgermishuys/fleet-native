@@ -388,6 +388,7 @@ impl State {
     /// `mods.runtime` and `mods.changed` on the `sessions` topic. Progress changes the job in place; any other phase reads the
     /// view again; the server turning the switch off after a failed install makes the preferences be read again.
     pub fn on_mods_event(&mut self, topic: &Topic, event: &Event) {
+        self.on_mods_kept_event(topic, event);
         if *topic != Topic::Sessions || !self.mods_panel_open() {
             return;
         }

@@ -38,6 +38,8 @@ pub mod memory_notes;
 pub mod memory_row;
 pub mod mods_panel;
 pub mod mods_plugin;
+pub mod mods_showcase;
+pub mod mods_tab;
 pub mod permissions;
 pub mod permissions_rows;
 pub mod plugin_page;

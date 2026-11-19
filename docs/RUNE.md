@@ -2096,3 +2096,11 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **A form's submit button far down the page is missed by a 760-high test window**: `click` hits nothing below the viewport. Open the rig with `app_tall()` (`rig_in`).
 - **`El` text read by key still includes children that are fading out** after a switch (the old form's examples); ask `exists` of the key of what should be gone instead.
 - **The test build was OOM-killed at 4000M even with `-j1` once the lib grew**; 5200M with `-j1` passed.
+
+
+## Component 16, piece AM (Mods tab)
+
+- **A flex row with a wrapping text and a button** (Fleet's `flex-wrap` callout) puts the button under the text if the row wraps, because a wrapping text asks for the full width. Drop `flex_wrap` on the row and let the text `.shrink()` so the button stays beside it.
+- **A link in a column stretches to the column's width** (its press area too): `.self_start()`.
+- **Skills & tools doesn't read the preferences itself** (only General, Labs and Plugins do), so a test of the Mods tab calls `refresh_preferences()` before opening it, as the app does at start.
+- **`cargo test` (two rustc at once) was killed at the 4000M cap again**; `cargo test -j1` fits.

@@ -291,6 +291,8 @@ pub struct SkillsPage {
     /// Custom: the address field and the form's own error; both are forgotten when the tab is left.
     pub custom: TextEdit,
     pub custom_error: Option<String>,
+    /// Mods (`ModsSection`): read each time the tab opens.
+    pub mods: super::mods_kept::ModsTab,
 }
 
 impl Eq for SkillsPage {}

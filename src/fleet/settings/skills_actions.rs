@@ -57,6 +57,7 @@ impl State {
             self.load_skills_page(key);
             return true;
         }
+        self.keep_mods_tab(&key);
         self.keep_tools() || self.settings.skills != before
     }
 
