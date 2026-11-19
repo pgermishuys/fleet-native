@@ -18,6 +18,9 @@ rune-kit = { git = "https://github.com/anomalyco/rune", rev = "f1f54ce8bf485ee3a
 
 # The server connection (src/fleet/). Blocking calls on plain threads, no async runtime.
 serde_json = "1"
+# Find in a file's "regexp" box (src/conv/file_find.rs). Already built for alacritty_terminal's search (regex-automata, regex-syntax);
+# `regex` itself is the one new crate, with the Unicode tables only.
+regex = { version = "1", default-features = false, features = ["std", "unicode"] }
 # `rustls` is for the updater (https://github.com/.../releases) and for every machine served over https (a Fleet behind
 # `tailscale serve`): the same TLS stack as the hub's wss socket below. Not a new crate.
 ureq = { version = "3", default-features = false, features = ["rustls"] }

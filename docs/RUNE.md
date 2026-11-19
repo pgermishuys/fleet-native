@@ -1949,3 +1949,10 @@ Read at the pin while planning; nothing built yet.
 - **`text_highlights` takes byte ranges of the drawn string**, so marks made on the file's text must be moved through the tab/placeholder rewrite (`code_view::shown_range`).
 - **A virtual row's version must include everything the row reads**: the stripe lines and the flash step went into `virtual_rows_version`, or rows built earlier keep the old tint.
 - Fonts have no glyph for ⦚ (U+299A): the fold bar draws ¦.
+
+## Component 11, piece N (find in a file)
+
+- **A test click needs the pointer over the control for a few frames first.** `tests::click` moves and presses with no frame between, and a control drawn only a moment ago ignores it (the first three clicks on a new panel were lost); move, run 4 frames, then press.
+- **`TextHighlight::ring(color, width)` is CodeMirror's `outline`**, and `.key(..)` on one gives `scroll_center` a target for sideways centring that `scroll_center_in_instant` on the row can't do.
+- **A row cached by `virtual_rows_version` must carry everything its marks depend on** (the query, the boxes, the current match), or the marks stay as they were.
+- **`regex` is the one new crate** (its `regex-automata`, `regex-syntax`, `aho-corasick` and `memchr` were already in `Cargo.lock` through alacritty_terminal); Rune has no regular expressions to use.

@@ -204,7 +204,7 @@ pub fn file_tab(s: &State, t: &Theme) -> El {
             Some(buffer) => body.child(diff_view(s, t, &machine, &session, &path, buffer, wrap)),
             None => body,
         },
-        Some(Status::Ready) => body.child(code_view(s, t, &machine, &session, &path, wrap)),
+        Some(Status::Ready) => body.children(super::file_find::panel(s, t)).child(code_view(s, t, &machine, &session, &path, wrap)),
         None => body,
     };
     // The lines bar, docked at the foot while lines are picked or selected and the code shows (rows 8.5 to 8.7), and the toast.

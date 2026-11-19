@@ -15,6 +15,7 @@ pub mod export;
 pub mod export_dialog;
 pub mod export_history;
 pub mod file_diff;
+pub mod file_find;
 pub mod file_language;
 pub mod find;
 pub mod fold;
