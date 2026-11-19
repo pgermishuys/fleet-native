@@ -56,18 +56,6 @@ pub fn empty_state(t: &Theme, key: &str, glyph: &'static rune::Icon, title: &str
         .child(text(description.to_string()).font(sans(rem(0.875), 400.0, 1.43)).color(t.muted).wrap())
 }
 
-/// What a tab that isn't built yet shows (the same note a page not built yet shows).
-fn not_yet(t: &Theme, key: &str, what: &str) -> El {
-    row()
-        .key(key.to_string())
-        .w_full()
-        .px(14.0)
-        .py(10.5)
-        .radius(crate::theme::RADIUS_BTN)
-        .border(1.0, t.border)
-        .child(text(format!("{what} isn't in the native app yet.")).font(sans(rem(0.875), 400.0, 1.5)).color(t.muted))
-}
-
 fn outer_strip(s: &State, t: &Theme) -> El {
     let page = &s.settings.skills;
     let mut items = vec![("skills", "Skills", Tab::Skills), ("tools", "Tools", Tab::Tools)];
