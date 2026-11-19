@@ -104,6 +104,10 @@ fn rig(status_kind: &str) -> Rig {
     let link = Link::start(base, Post::new(move |job| drop(jobs.lock().unwrap().send(job))));
     let mut rt = crate::tests::app();
     rt.update(move |s, _| {
+        // As `connect_to` does: the invented feeds go before a server is linked. Kept, their two harnesses (opencode2,
+        // claude-code) counted as read, the wait below could end before the fake's three arrived, and the rows it then
+        // drew were the invented ones.
+        s.feeds = Default::default();
         s.link = Some(link);
         s.rail = Rail::Settings;
         s.open_settings("updates", None);
