@@ -24,7 +24,7 @@ impl State {
     pub fn keep_credentials(&mut self, _tx: &mut Tx) -> bool {
         if self.rail != Rail::Settings || self.settings.page != Page::Credentials {
             let had = self.settings.credentials.loaded_for.is_some();
-            self.settings.credentials = CredentialsPage::default();
+            *self.settings.credentials = CredentialsPage::default();
             return had;
         }
         let key = self.settings.choice.key(&self.machines).to_string();
@@ -32,7 +32,7 @@ impl State {
             return false;
         }
         let page = &mut self.settings.credentials;
-        *page = CredentialsPage { loaded_for: Some(key.clone()), request: page.request + 1, loading: true, ..CredentialsPage::default() };
+        **page = CredentialsPage { loaded_for: Some(key.clone()), request: page.request + 1, loading: true, ..CredentialsPage::default() };
         self.read_credentials(&key);
         true
     }

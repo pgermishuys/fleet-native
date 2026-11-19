@@ -41,5 +41,5 @@ pub fn scene(s: &mut State, dark: bool, which: Which) {
         }
         Which::Empty | Which::List => {}
     }
-    s.settings.credentials = page;
+    *s.settings.credentials = page;
 }
