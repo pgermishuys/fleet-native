@@ -1,7 +1,7 @@
 //! Settings → Skills & tools (`SkillsToolsPage.vue`, `SkillsSection.vue`): the page's tab strip (Skills, Tools and, while the
 //! Mods switch is on, Mods), and Skills' own: the intro line and Installed, Catalog and Custom. The Installed tab is
-//! `skills_installed.rs`, Catalog and Custom are `skills_catalog.rs`; Tools is `tools.rs`; Mods is a later piece and shows a
-//! note until it is built. Also here, for them to share: the error note and the loading line every tab of the page uses (`ErrorNote`, `Spinner`).
+//! `skills_installed.rs`, Catalog and Custom are `skills_catalog.rs`; Tools is `tools.rs`; Mods is `mods_tab.rs`. Also here, for them to
+//! share: the error note and the loading line every tab of the page uses (`ErrorNote`, `Spinner`).
 use super::{skills_catalog, skills_installed};
 use crate::State;
 use crate::fleet::settings::skills::{Inner, Tab};
@@ -124,7 +124,7 @@ pub fn content(s: &State, t: &Theme) -> El {
     let body = match page.tab {
         Tab::Skills => skills_section(s, t),
         Tab::Tools => super::tools::section(s, t),
-        Tab::Mods => not_yet(t, "mods-not-yet", "Mods"),
+        Tab::Mods => super::mods_tab::tab(s, t),
     };
     col().w_full().child(outer_strip(s, t)).child(body)
 }

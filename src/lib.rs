@@ -248,6 +248,8 @@ mod tests_settings_memory_notes;
 #[cfg(test)]
 mod tests_settings_mods;
 #[cfg(test)]
+mod tests_settings_mods_kept;
+#[cfg(test)]
 mod tests_settings_naming;
 #[cfg(test)]
 mod tests_settings_nav;
@@ -1878,6 +1880,27 @@ fn skills_scene(s: &mut State, dark: bool, anchor: Option<&str>, change: impl Fn
     s.settings.skills = page;
 }
 
+/// Skills & tools → Mods as a scene: the tab open on the invented kept mods, marked as already read.
+fn mods_scene(s: &mut State, dark: bool, change: impl FnOnce(&mut fleet::settings::skills::SkillsPage)) {
+    use fleet::settings::mods_kept::Switch;
+    // The invented mods were kept on 8 to 10 October 2026: the scene's clock is two days after.
+    s.now_ms = Some(1_791_633_600_000);
+    skills_scene(s, dark, Some("mods"), |p| {
+        p.mods_server = Some(true);
+        p.mods_seen_on = true;
+        p.tab = fleet::settings::skills::Tab::Mods;
+        p.anchor_seen = Some("mods".into());
+        let key = p.loaded_for.clone();
+        p.mods = fleet::settings::mods_kept::ModsTab {
+            loaded_for: key,
+            switch: Some(Switch { on: true, safe_mode: false }),
+            kept: Some(mock::mods::kept()),
+            ..Default::default()
+        };
+        change(p);
+    });
+}
+
 /// Skills → Catalog as a scene, with the invented catalog read.
 fn catalog_scene(s: &mut State, dark: bool, change: impl FnOnce(&mut fleet::settings::skills::SkillsPage)) {
     skills_scene(s, dark, None, |p| {
@@ -2171,8 +2194,26 @@ pub fn spec() -> AppSpec<State> {
                     p.error = Some("Failed to check for updates".into())
                 })
             }),
-            ("settings-skills-mods", |s| skills_scene(s, true, None, |p| p.mods_server = Some(true))),
-            ("settings-skills-mods-light", |s| skills_scene(s, false, None, |p| p.mods_server = Some(true))),
+            ("settings-skills-mods", |s| mods_scene(s, true, |_| {})),
+            ("settings-skills-mods-light", |s| mods_scene(s, false, |_| {})),
+            ("settings-mods-empty", |s| mods_scene(s, true, |p| p.mods.kept = Some(Default::default()))),
+            ("settings-mods-empty-light", |s| mods_scene(s, false, |p| p.mods.kept = Some(Default::default()))),
+            ("settings-mods-safe", |s| mods_scene(s, true, |p| p.mods.kept.as_mut().unwrap().safe_mode = true)),
+            ("settings-mods-safe-light", |s| mods_scene(s, false, |p| p.mods.kept.as_mut().unwrap().safe_mode = true)),
+            ("settings-mods-off", |s| {
+                mods_scene(s, true, |p| {
+                    p.mods_server = Some(false);
+                    p.mods.switch = Some(fleet::settings::mods_kept::Switch::default())
+                })
+            }),
+            ("settings-mods-off-light", |s| {
+                mods_scene(s, false, |p| {
+                    p.mods_server = Some(false);
+                    p.mods.switch = Some(fleet::settings::mods_kept::Switch::default())
+                })
+            }),
+            ("settings-mods-error", |s| mods_scene(s, true, |p| p.mods.error = Some("Couldn't reach Mods (500).".into()))),
+            ("settings-mods-error-light", |s| mods_scene(s, false, |p| p.mods.error = Some("Couldn't reach Mods (500).".into()))),
             ("settings-skills-picker", |s| {
                 skills_scene(s, true, None, |p| {
                     p.inner = fleet::settings::skills::Inner::Custom;
