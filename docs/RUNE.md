@@ -1854,6 +1854,12 @@ Read at the pin while planning; nothing built yet.
 - A child's `on_press_tx` (the pin, the close button) doesn't reach the tab's own press, so no `stopPropagation` is needed.
 
 
+## Component 12, piece Q (the sweep)
+
+- **`--script` has no `shortcut` for app-level keys** ("unknown shortcut registration"): reach a state by tapping its keyed element (`content-rail`, `canvas-tab-files`, `files-mode-contents`) instead of Ctrl+Shift+F.
+- **`--script --server <url> --snap … --at mark:<name>` draws a live scratch Fleet headless**, so a live walk is one run per picture (about 25 s each); a tap on a key that isn't on screen yet stops the script, so leave 1.5 s after a click that opens something.
+- **A tap lands where the element is drawn**: tapping a file header whose hover actions overlay it can hit "Rendered". Tap a line or a button, not the header, in a walk.
+
 ## Component 12, piece P (find in files, the view)
 
 - **Marked words in one line of text are `Span`s with a `bg`**, set with `.spans(...)` on a single `text` (byte offsets into the string you built): no row of little elements, and `.truncate()` still ends the line with an ellipsis.

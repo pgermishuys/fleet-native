@@ -5,7 +5,7 @@
 use crate::State;
 use crate::conv::diff::{DiffLine, parse_diff_lines};
 use crate::conv::review::{ReviewItem, build_review};
-use crate::fleet::canvases::{VisualPayload, VisualType};
+use crate::fleet::canvases::{FileView, OpenFile, VisualPayload, VisualType};
 use crate::fleet::diff_contents::Entry;
 use crate::fleet::diffs::{FileDiff, FileStatus, diff_base_label};
 use crate::fleet::review::{Layout, dir_of, has_rendered_view, is_html_path, name_of};
@@ -333,14 +333,23 @@ fn section(s: &State, t: &Theme, file: &FileDiff) -> El {
         .fill(t.mix(t.text, t.panel_bg, 0.07))
         .group_opacity(0.0, 1.0)
         .children(rendered_seg(s, t, &path))
-        // Open file stays off until component 11's file tab (13.3).
         .child({
             let off = blocker.is_some() || s.review.reverting;
             let revert_path = path.clone();
             let b = act(t, format!("review-revert-file-{path}"), revert_tip, &UNDO_2, Some("Revert file"), off);
             if off { b } else { b.on_press_tx(move |s: &mut State, tx: &mut Tx| s.ask_revert(&revert_path, None, tx)) }
         })
-        .child(act(t, format!("review-open-file-{path}"), "Opening files comes with the file viewer", &EXTERNAL_LINK, None, true))
+        .child({
+            let open_path = path.clone();
+            // 11's file tab, kept, on its Diff view (`openFile(path, { keep: true, view: "diff" })`).
+            act(t, format!("review-open-file-{path}"), "Open file", &EXTERNAL_LINK, None, false).on_press_tx(
+                move |s: &mut State, tx: &mut Tx| {
+                    let Some(session) = s.open_id() else { return };
+                    let options = OpenFile { keep: true, view: Some(FileView::Diff) };
+                    s.open_file(&session, &open_path, options, tx);
+                },
+            )
+        })
         .child(
             act(t, format!("review-copy-path-{path}"), "Copy path", &COPY, None, false)
                 .on_press_tx(move |_: &mut State, tx: &mut Tx| tx.copy(copy_path.clone())),

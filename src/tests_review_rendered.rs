@@ -78,13 +78,20 @@ fn rendered_html_is_a_card_whose_expand_opens_it_as_a_tab() {
     assert!(tab.payload.as_ref().is_some_and(|p| p.content.contains("Page 2 of 5")));
 }
 
-// ChangesReview.test.ts: "opens a changed file in a file tab on Diff from its header" (its disabled form until component 11)
+// ChangesReview.test.ts: "opens a changed file in a file tab on Diff from its header"
 #[test]
-fn open_file_is_off_with_its_reason_until_the_file_viewer_exists() {
-    let rt = shown(Case::ReviewDocs);
+fn opens_a_changed_file_in_a_file_tab_on_diff_from_its_header() {
+    let mut rt = shown(Case::ReviewDocs);
+    hover_head(&mut rt, MD);
     let e = rt.elements().into_iter().find(|e| e.key.as_deref() == Some(&format!("review-open-file-{MD}"))).expect("button");
-    assert!(!e.focusable, "drawn off");
-    assert_eq!(e.help.as_deref(), Some("Opening files comes with the file viewer"));
+    assert!(e.focusable, "Open file is on");
+    assert_eq!(e.help.as_deref(), Some("Open file"));
+    click(&mut rt, &format!("review-open-file-{MD}"));
+    settle(&mut rt);
+    let open = rt.state.open_canvases();
+    let tab = open.canvases.iter().find_map(|c| c.file.as_ref().filter(|f| f.path == MD)).expect("a file tab for the path");
+    assert!(!tab.preview, "kept, not a preview");
+    assert_eq!(tab.view, crate::fleet::canvases::FileView::Diff);
 }
 
 #[test]
