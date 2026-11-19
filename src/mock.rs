@@ -62,6 +62,7 @@ pub mod updates_page;
 pub mod updates_whats_new;
 pub mod usage;
 pub mod visuals;
+pub mod weave;
 pub mod work;
 pub mod working;
 

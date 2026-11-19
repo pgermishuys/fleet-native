@@ -158,6 +158,9 @@ fn answer(mut stream: std::net::TcpStream, fake: Shared) {
         } else {
             ("200 OK", json!({}))
         }
+    } else if path == "/api/weave" {
+        // Weave asks nothing of these pages: an empty answer draws no Weave group, so the controls stay where the tests click.
+        ("200 OK", json!({"source": "own", "files": {}, "harnesses": []}))
     } else if path == "/api/agent-browser/settings" {
         ("200 OK", json!({"enabled": true}))
     } else {

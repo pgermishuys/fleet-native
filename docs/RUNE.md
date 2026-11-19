@@ -1987,3 +1987,10 @@ Same recipe as Changes' Rendered view: a `selection_group(true)` column with `on
 - **Rune's `select::content` has no group labels and no rows you can't choose**, so Fleet's "Repository" label over the repositories and "Loading repositories…" in the "Install to" list can't be drawn without changing `ui/select.rs`; the list shows Global and the repositories only.
 - **A button that appears (Cancel beside Confirm remove) slides in**, and `tests::click` presses where it is drawn that frame: run a few frames before clicking it, or the press lands off to the side.
 - **A flex child that holds wrapping text needs `.w(0.0).grow(1.0).min_w(0.0)`** beside a fixed-width group of buttons; `.shrink()` alone let the buttons run past the card in a narrow window.
+
+
+## Component 16, piece Y (the Weave group)
+
+- **"Seen" has no equivalent**: Fleet asks when the group scrolls into view (`IntersectionObserver`). Here a per-frame `keep_` hook on the page asks once when the group is first built, and a state with no answer yet draws a spinner group under a different key (`settings-group-weave-loading`), so an anchor to `weave` keeps waiting for the real group.
+- **A disabled button is `opacity < 1` in a test**: `ElementInfo` has no disabled flag; `button::disabled` fades it, and the fade takes a few frames to finish after a state change, so a test that checks it came back must run frames first.
+- **`role("alert")` on a text element, not its row**: a test that reads the element by key gets the text's role, so put the role on the keyed element.

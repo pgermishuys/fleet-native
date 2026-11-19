@@ -38,6 +38,7 @@ pub fn targets(page: &Page) -> &'static [(&'static str, &'static str)] {
             ("default-harness", "settings-group-default-harness"),
             ("may-do", "settings-anchor-may-do"),
             ("providers", "settings-group-providers"),
+            ("weave", "settings-group-weave"),
             ("profiles", "settings-group-profiles"),
             ("harness-settings", "settings-group-harness-settings"),
         ],
@@ -101,6 +102,10 @@ impl State {
     /// Called from `poll` while Settings is showing: scrolls to the page's anchor, once.
     pub fn keep_settings_anchor(&mut self, tx: &mut Tx) -> bool {
         if self.rail != crate::Rail::Settings {
+            return false;
+        }
+        // The old Weave link waits for Fleet's answer: the tab and the group are picked from it (`HarnessesSection.vue`).
+        if self.settings.anchor.as_deref() == Some("weave") && self.settings.harnesses.weave.pending() {
             return false;
         }
         match self.settings.settle_anchor() {

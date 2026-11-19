@@ -68,6 +68,9 @@ fn answer(mut stream: std::net::TcpStream, fake: Shared) {
         ("200 OK", f.harnesses.clone())
     } else if method == "GET" && path == "/api/preferences" {
         ("200 OK", json!(f.prefs))
+    } else if path == "/api/weave" {
+        // Weave asks nothing of these pages: an empty answer draws no Weave group, so the controls stay where the tests click.
+        ("200 OK", json!({"source": "own", "files": {}, "harnesses": []}))
     } else if method == "GET" && path == "/api/agent-browser/settings" {
         if f.browser_garbage { ("200 OK", json!({})) } else { ("200 OK", browser_json(&f)) }
     } else if method == "PUT" && path == "/api/agent-browser/settings" {
