@@ -12,7 +12,7 @@ use std::time::{Duration, Instant};
 const SECRET: &str = "s3cret-token-value-1234";
 
 /// The home token is the process's: every test that sets it takes this first.
-pub(super) static HOME_TOKEN: Mutex<()> = Mutex::new(());
+pub(crate) static HOME_TOKEN: Mutex<()> = Mutex::new(());
 
 fn env<'a>(pairs: &'a [(&'a str, &'a str)]) -> impl Fn(&str) -> Option<String> + 'a {
     move |k| pairs.iter().find(|(n, _)| *n == k).map(|(_, v)| v.to_string())

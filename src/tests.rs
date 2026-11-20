@@ -56,7 +56,13 @@ fn every_scene_draws_a_frame() {
         }
         // So are the splash and the error page (`start-*`).
         if let Some(page) = name.strip_prefix("start-") {
-            let key = if page.starts_with("splash") { "start-splash" } else { "start-error" };
+            let key = if page.starts_with("splash") {
+                "start-splash"
+            } else if page.starts_with("running-fleet") {
+                "start-running-page"
+            } else {
+                "start-error"
+            };
             assert!(rt.find(key).is_some(), "scene {name} lost the page");
             continue;
         }

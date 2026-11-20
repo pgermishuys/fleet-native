@@ -2162,3 +2162,10 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **Nothing new from Rune.** The state is plain Rust (`fleet/side.rs`) with the clock passed in, so an Undo window is tested by running the headless clock (`rt.frame(9.0)`), not by waiting.
 - **Test fakes that keep state** (a side conversation that a `DELETE` moves to "discarded" and a `POST /restore` brings back) are small enough to write per file over `test_http`; the fake records `(method, route, body)` and a test waits for the call it means before asserting.
 - **`cargo test` needs `-j1` at the 4000M cap** (the default two rustc were OOM-killed, exit 143, no message) and takes about 5 minutes for the lib's test build.
+
+## Component 24, piece D (a Fleet that wants its key)
+
+- **`autofocus()` is for modals** (the control a modal focuses when it opens); a page that isn't one asks with `tx.focus("<key>", false)` from `poll`, once, on the second poll after the page was posted (a counter in the state), because the key has to be in the drawn tree.
+- **`max-width: 100%` on a fixed width**: `max_w` takes pixels only, so the card is 470 px at any window width. The app's window can't go narrower than that card plus its padding.
+- A test that touches the process's one home token (`fleet::auth`) must hold `fleet::tests::auth::HOME_TOKEN`, now `pub(crate)`, even from `desktop`'s tests.
+- **Return on a focused button** goes to the window's *default button* (`.default_button()`), not to the focused one; only Space presses the focused button. A page whose one button should answer Return (as an HTML button does) marks it the default.

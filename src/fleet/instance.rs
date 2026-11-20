@@ -15,6 +15,8 @@ pub struct Instance {
     pub database_path: String,
     pub desktop: bool,
     pub started_at: String,
+    /// Whether even this computer needs the machine's key (a `fleet node` does). Missing from older Fleets: false.
+    pub requires_token: bool,
 }
 
 /// The instance file in the data folder.
@@ -53,6 +55,8 @@ pub fn parse_instance(json: &str) -> Option<Instance> {
         database_path: text("databasePath", ""),
         desktop: record.get("desktop") == Some(&Value::Bool(true)),
         started_at: text("startedAt", ""),
+        // Only an exact `true` counts, as in Fleet: a missing key, "true" or 1 is a Fleet that asks for nothing.
+        requires_token: record.get("requiresToken") == Some(&Value::Bool(true)),
     })
 }
 

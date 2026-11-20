@@ -978,6 +978,28 @@ impl State {
         };
     }
 
+    /// The `start-running-fleet` scenes: the card that asks whether the app may use the Fleet already running here.
+    fn show_running_fleet(&mut self, dark: bool) {
+        self.dark = Some(dark);
+        self.clock = 0.35;
+        self.start.phase = desktop::start::Phase::RunningFleet(desktop::start::RunningCard {
+            host: "studio".into(),
+            version: "0.73.0".into(),
+            since: "2026-11-12T12:00:00Z".into(),
+            found: fleet::discover::Found { url: "http://127.0.0.1:6262".into(), place: fleet::discover::Place::Port(6262) },
+            pressed: false,
+            focused: 0,
+        });
+    }
+
+    /// **Use it**: the choice is kept for every later start, then the key is read and tried.
+    pub fn use_running_fleet(&mut self) {
+        if self.start.use_it() {
+            self.sidebar.save_use_running_fleet();
+            self.save_settings();
+        }
+    }
+
     /// Discovery found no Fleet: say so, and leave the window empty.
     pub fn on_no_fleet(&mut self, notice: String) {
         self.searching = false;
@@ -2993,6 +3015,8 @@ pub fn spec() -> AppSpec<State> {
             ("start-splash-light", |s| s.show_start(false, false)),
             ("start-error", |s| s.show_start(true, true)),
             ("start-error-light", |s| s.show_start(false, true)),
+            ("start-running-fleet", |s| s.show_running_fleet(true)),
+            ("start-running-fleet-light", |s| s.show_running_fleet(false)),
             ("content-open", |s| s.content_open = true),
             ("content-open-light", |s| {
                 s.dark = Some(false);
@@ -5489,10 +5513,11 @@ pub fn start_desktop() {
                     std::thread::spawn(move || keep_looking(servers));
                 }),
             ));
-            let again = config.clone();
+            let (again, using) = (config.clone(), config.clone());
             post.update(move |s, _| {
                 s.start.actions = Some(desktop::start::Actions {
                     retry: std::sync::Arc::new(move || desktop::start::begin(again.clone())),
+                    use_running: std::sync::Arc::new(move |found| desktop::start::use_running(using.clone(), found)),
                     open_logs: std::sync::Arc::new(desktop::start::open_folder),
                 });
             });

@@ -124,6 +124,8 @@ pub struct Sidebar {
     last_versions: super::updates::LastSeen,
     /// The port this app's own Fleet used last time, so the client's local storage (keyed by address) survives a restart.
     desktop_port: Option<u16>,
+    /// The person said the app may use the Fleet already running here that wants its key (`useRunningFleet`).
+    use_running_fleet: bool,
     dir: Option<PathBuf>,
     dirty: bool,
 }
@@ -188,6 +190,7 @@ impl Sidebar {
             _ => None,
         };
         s.desktop_port = root.get("desktopPort").and_then(Value::as_u64).and_then(|p| u16::try_from(p).ok()).filter(|p| *p > 0);
+        s.use_running_fleet = root.get("useRunningFleet") == Some(&Value::Bool(true));
         s.dreaming_harness = root.get("dreamingHarness").and_then(Value::as_str).filter(|h| !h.is_empty()).map(str::to_string);
         s
     }
@@ -232,6 +235,9 @@ impl Sidebar {
         }
         if let Some(p) = self.desktop_port {
             root["desktopPort"] = json!(p);
+        }
+        if self.use_running_fleet {
+            root["useRunningFleet"] = json!(true);
         }
         if let Some(h) = &self.dreaming_harness {
             root["dreamingHarness"] = json!(h);
@@ -415,6 +421,18 @@ impl Sidebar {
     pub fn save_desktop_port(&mut self, port: u16) {
         if self.desktop_port != Some(port) {
             self.desktop_port = Some(port);
+            self.dirty = true;
+        }
+    }
+
+    /// Whether the person already said the app may use the Fleet running here that wants its key.
+    pub fn use_running_fleet(&self) -> bool {
+        self.use_running_fleet
+    }
+
+    pub fn save_use_running_fleet(&mut self) {
+        if !self.use_running_fleet {
+            self.use_running_fleet = true;
             self.dirty = true;
         }
     }
