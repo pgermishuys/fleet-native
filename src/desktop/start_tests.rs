@@ -25,7 +25,7 @@ struct Rig {
 
 /// An app with nothing running, whose server is the stand-in in `mode`. `places` is where a running Fleet is looked for.
 fn rig(name: &str, mode: &str, server_bin: Option<PathBuf>, places: Vec<Place>) -> Rig {
-    let scratch = Scratch::new(name);
+    let scratch = Scratch::new(&format!("start-{name}"));
     let (tx, jobs) = channel::<Job>();
     let tx = Mutex::new(tx);
     let post = Post::new(move |job| {
@@ -154,7 +154,7 @@ fn another_fleet_on_the_data_that_never_answers_shows_the_error_page() {
 #[test]
 fn another_fleet_that_took_the_data_is_used_once_it_answers() {
     // The stand-in "taken" exits 75 at once; the other Fleet is one that answers on a port of its own.
-    let kept = Scratch::new("taken-other");
+    let kept = Scratch::new("start-taken-other");
     let other = FleetServer::start(options(&kept, "serve")).unwrap();
     let place = Place::Port(other.port());
     test_wait::until_true("the other Fleet to answer", || crate::fleet::discover::find_in(std::slice::from_ref(&place)).is_some());
@@ -190,7 +190,7 @@ fn try_again_starts_again() {
 
 #[test]
 fn a_fleet_that_runs_already_is_used_and_not_started_again() {
-    let kept = Scratch::new("found-other");
+    let kept = Scratch::new("start-found-other");
     let other = FleetServer::start(options(&kept, "serve")).unwrap();
     let place = Place::Port(other.port());
     test_wait::until_true("the running Fleet to answer", || crate::fleet::discover::find_in(std::slice::from_ref(&place)).is_some());
