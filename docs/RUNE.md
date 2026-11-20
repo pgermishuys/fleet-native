@@ -2328,3 +2328,7 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 
 - **`regex` has no look-ahead, and `(?-u:\b)` is the ASCII word boundary a JavaScript pattern means.** Fleet's `(?![\w'])` is written `(?-u:\b)(?P<e>)`: the empty named group gives the position to check for a `'` by hand. The group is numbered too, so a port that reads groups by number must leave it out.
 - **A debug test build wants `-j1` under `MemoryMax=4000M`:** with the default jobs the kernel killed it at 3.9 GB (the scope reports "Terminated", exit 143, and no compiler error); `cargo test -j1` built in 2m41s inside the cap.
+
+## Component 19, piece B (the automations data and their words)
+
+- **Nothing new about Rune:** the piece is plain Rust. What it learned is about the server: a `POST /api/automations/{id}/run` answers the run at once with `"state":"starting"`, and a run that can't make its worktree ends `failed` with `error` "Couldn't start: Couldn't create the worktree: there's no branch origin/main to start from" (a scratch project has no `origin`), which is a ready-made failed run to draw. `targetType` is `new_session` (not `session`) for a session target.
