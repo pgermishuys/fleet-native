@@ -236,7 +236,8 @@ mod tests {
     fn fakes_read_requests_through_test_http() {
         // A fake that reads over something other than a bare `TcpStream`. tls.rs reads through rustls, byte by byte to the
         // blank line and then exactly Content-Length bytes, so it cannot half-read a request.
-        const OTHER_STREAMS: &[&str] = &["src/fleet/tests/tls.rs"];
+        // desktop/server.rs binds only to find a free port and reads no request.
+        const OTHER_STREAMS: &[&str] = &["src/fleet/tests/tls.rs", "src/desktop/server.rs"];
         let mut bad = Vec::new();
         let mut stack = vec![std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src")];
         while let Some(dir) = stack.pop() {
