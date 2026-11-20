@@ -540,6 +540,7 @@ mod settings;
 mod side;
 mod side_panel;
 mod side_stream;
+mod side_tab;
 mod smart_links;
 mod state;
 mod store;

@@ -1,5 +1,5 @@
 //! The side conversation's panel (`/btw`): a card docked above the composer. Ports `components/session/SideConversationPanel.vue`
-//! (its header, its body and the fold); the tab it folds into, the peek and Undo are piece D's. The body draws the side session's
+//! (its header, its body and the fold); the tab it folds into, the peek and Undo are `side_tab`. The body draws the side session's
 //! conversation with the same stream as the main one (`conversation::stream`, `Which::Side`).
 use super::conversation::{COLUMN, Scroll, Which, stream};
 use crate::State;
@@ -151,7 +151,7 @@ fn body(s: &State, t: &Theme, forked: bool) -> El {
     col().key("side-body").w_full().grow(1.0).min_h(0.0).child(stream)
 }
 
-/// The section above the composer: the card while it is open, folding to nothing (the tab is piece D's). Nothing at all with no
+/// The section above the composer: the card while it is open, folding to nothing (the tab is `side_tab`'s). Nothing at all with no
 /// side conversation.
 pub fn panel(s: &State, t: &Theme) -> Option<El> {
     let st = s.side_shown()?;
@@ -186,5 +186,12 @@ pub fn panel(s: &State, t: &Theme) -> Option<El> {
         .pt(if folded { 0.0 } else { 6.0 })
         .px(if narrow(s) { 12.0 } else { 24.0 })
         .child(fold);
+    // Folded, the tab takes its place on the composer's edge (piece D, `view::side_tab`).
+    // The tab paints over the composer's top edge (z-index 2): the composer comes after it in the column.
+    let section = if folded && forked {
+        section.paint_order(2).child(super::side_tab::tab(s, t, st, (s.sheet_w - 2.0 * if narrow(s) { 12.0 } else { 24.0 }).max(0.0)))
+    } else {
+        section
+    };
     Some(section)
 }
