@@ -18,15 +18,15 @@ use std::sync::atomic::Ordering;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
-struct Rig {
-    rt: Runtime<State>,
-    queue: Receiver<Job>,
-    home: Fake,
-    harbor: Fake,
+pub(crate) struct Rig {
+    pub(crate) rt: Runtime<State>,
+    pub(crate) queue: Receiver<Job>,
+    pub(crate) home: Fake,
+    pub(crate) harbor: Fake,
 }
 
 /// The app connected to a fake Fleet, with `m-harbor` answering at a second fake. The page isn't open yet.
-fn rig(home: Vec<Value>, harbor: Vec<Value>) -> Rig {
+pub(crate) fn rig(home: Vec<Value>, harbor: Vec<Value>) -> Rig {
     let (home, harbor) = (fake(home), fake(harbor));
     let (jobs, queue) = channel::<Job>();
     let jobs = Mutex::new(jobs);
@@ -45,7 +45,7 @@ fn rig(home: Vec<Value>, harbor: Vec<Value>) -> Rig {
 }
 
 impl Rig {
-    fn wait(&mut self, what: &str, done: impl FnMut(&State) -> bool) {
+    pub(crate) fn wait(&mut self, what: &str, done: impl FnMut(&State) -> bool) {
         test_wait::drive(&mut self.rt, &self.queue, what, done, |s| {
             let a = s.shown_automations();
             format!(
@@ -59,14 +59,14 @@ impl Rig {
     }
 
     /// Opens the page and waits for its first read to have been heard.
-    fn open(&mut self) {
+    pub(crate) fn open(&mut self) {
         self.rt.update(|s, _| s.press_rail(Rail::Automations));
         self.frames();
         let heard = self.home.handle();
         self.wait("the list to be asked for", move |_| heard("GET", "/api/automations") > 0);
     }
 
-    fn frames(&mut self) {
+    pub(crate) fn frames(&mut self) {
         while let Ok(job) = self.queue.try_recv() {
             self.rt.update(job);
         }
@@ -74,20 +74,20 @@ impl Rig {
         self.rt.frame(FRAME);
     }
 
-    fn has(&self, key: &str) -> bool {
+    pub(crate) fn has(&self, key: &str) -> bool {
         self.rt.find(key).is_some()
     }
 
-    fn words(&self) -> String {
+    pub(crate) fn words(&self) -> String {
         self.rt.elements().iter().filter_map(|e| e.text.clone()).collect::<Vec<_>>().join("\n")
     }
 
-    fn texts_of(&self, key: &str) -> Vec<String> {
+    pub(crate) fn texts_of(&self, key: &str) -> Vec<String> {
         self.rt.elements().iter().filter(|e| e.key.as_deref() == Some(key)).filter_map(|e| e.text.clone()).collect()
     }
 
     /// The list's row names, top to bottom.
-    fn rows(&self) -> Vec<String> {
+    pub(crate) fn rows(&self) -> Vec<String> {
         self.rt
             .elements()
             .iter()
@@ -97,11 +97,11 @@ impl Rig {
     }
 }
 
-fn running(id: &str, state: &str) -> Value {
+pub(crate) fn running(id: &str, state: &str) -> Value {
     json!({"id": format!("run-{id}"), "automationId": id, "trigger": "schedule", "startedAt": "2026-09-15T09:00:00Z", "state": state})
 }
 
-fn weekly(id: &str, name: &str, extra: Value) -> Value {
+pub(crate) fn weekly(id: &str, name: &str, extra: Value) -> Value {
     let mut extra = extra;
     extra["name"] = json!(name);
     extra["nextRunAt"] = extra.get("nextRunAt").cloned().unwrap_or(json!("2026-09-18T07:00:00Z"));

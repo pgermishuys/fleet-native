@@ -102,14 +102,14 @@ pub fn grow(field: El, max_lines: usize) -> El {
 /// `Switch.vue`: a 28 × 16.1 track, a 14px thumb that slides `100% - 2px`. The caller adds the
 /// key and the toggle handler.
 pub fn switch(t: &Theme, on: bool) -> El {
+    let off = if t.dark { t.input().alpha(0.18 * 0.8) } else { t.input() };
+    switch_with(t, on, off)
+}
+
+/// `switch` with its own unchecked track (Automations draws "off" in 22 % text so it shows against the bar).
+pub fn switch_with(t: &Theme, on: bool, off: Color) -> El {
     let (w, h, thumb) = (rem(2.0), rem(1.15), rem(1.0));
-    let track = if on {
-        t.accent
-    } else if t.dark {
-        t.input().alpha(0.18 * 0.8)
-    } else {
-        t.input()
-    };
+    let track = if on { t.accent } else { off };
     // The unchecked track is `bg-input` (`dark:bg-input/80`); the thumb is `--background` or, in
     // dark, the text colour when off and the primary foreground when on.
     let knob = if t.dark { if on { t.primary_fg } else { t.text } } else { t.panel_bg };

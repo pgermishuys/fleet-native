@@ -35,6 +35,8 @@ mod tests_archived;
 #[cfg(test)]
 mod tests_asks;
 #[cfg(test)]
+mod tests_automations_header;
+#[cfg(test)]
 mod tests_automations_page;
 #[cfg(test)]
 mod tests_automations_store;
@@ -5148,6 +5150,16 @@ pub fn spec() -> AppSpec<State> {
             ("automation-open", |s| s.show_automations(true, mock::automations::Scene::Open)),
             ("automation-open-light", |s| s.show_automations(false, mock::automations::Scene::Open)),
             ("analytics-rail", |s| s.rail = Rail::Analytics),
+            ("automation-detail", |s| s.show_automations(true, mock::automations::Scene::Started)),
+            ("automation-detail-light", |s| s.show_automations(false, mock::automations::Scene::Started)),
+            ("automation-detail-off", |s| s.show_automations(true, mock::automations::Scene::Off)),
+            ("automation-detail-off-light", |s| s.show_automations(false, mock::automations::Scene::Off)),
+            ("automation-notice-error", |s| s.show_automations(true, mock::automations::Scene::Skipped)),
+            ("automation-notice-error-light", |s| s.show_automations(false, mock::automations::Scene::Skipped)),
+            ("automation-more", |s| s.show_automations(true, mock::automations::Scene::Menu)),
+            ("automation-more-light", |s| s.show_automations(false, mock::automations::Scene::Menu)),
+            ("automation-delete", |s| s.show_automations(true, mock::automations::Scene::Delete)),
+            ("automation-delete-light", |s| s.show_automations(false, mock::automations::Scene::Delete)),
             ("rail-labs-on", |s| rail_labs_on(s, false)),
             ("rail-labs-on-light", |s| rail_labs_on(s, true)),
             ("rail-tip", |s| s.rail_tip = Some(Rail::Automations)),

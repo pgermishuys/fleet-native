@@ -46,6 +46,22 @@ impl Confirm {
         }
     }
 
+    /// `confirmDelete` of `AutomationDetailPanel`.
+    pub fn delete_automation(subject: String, call: Call) -> Confirm {
+        Confirm {
+            title: "Delete this automation?".into(),
+            subject,
+            body: "It stops running. The sessions its runs started stay in Sessions.".into(),
+            confirm_label: "Delete automation".into(),
+            busy_label: "Deleting…".into(),
+            error_message: "Couldn't delete the automation.".into(),
+            destructive: true,
+            busy: false,
+            error: None,
+            call,
+        }
+    }
+
     /// `handleDelete`.
     pub fn delete_session(subject: String, call: Call) -> Confirm {
         Confirm {
@@ -97,6 +113,10 @@ impl State {
             Call::Revert { path, range } => {
                 self.ui.confirm = None;
                 self.start_revert(&path, range);
+            }
+            Call::DeleteAutomation { machine, id } => {
+                self.ui.confirm = None;
+                self.automation_delete_now(&machine, &id, tx);
             }
             call => self.send_session_call(call, None, tx),
         }

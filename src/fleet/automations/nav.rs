@@ -22,6 +22,15 @@ pub struct Draft {
     pub name: String,
 }
 
+/// A short note over the open automation: that a run started, or why the switch, Run now or Delete failed (`notice`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Notice {
+    pub error: bool,
+    pub text: String,
+    /// When an info note goes (4 s after it came); an error stays.
+    pub until: Option<i64>,
+}
+
 /// The words of a load that failed while the list is empty and a retry is running.
 pub const RETRYING: &str = "Trying again…";
 
@@ -37,6 +46,10 @@ pub struct Nav {
     pub draft: Draft,
     /// Try again is running (`retrying`).
     pub retrying: bool,
+    /// The note over the open automation (`notice`); opening another one clears it.
+    pub notice: Option<Notice>,
+    /// The switch is waiting for the server (`isTogglingEnabled`).
+    pub toggling: bool,
     /// The machine whose list was asked for since the page opened; another machine, or the next visit, asks again.
     asked_for: Option<String>,
     last_tick: i64,
@@ -59,22 +72,29 @@ impl Nav {
         self.asked_for = Some(machine.to_string());
     }
 
+    /// Opening another automation, or changing mode, drops what the page said about the one before (`watch([activeAutomationId,
+    /// viewMode])`); the same one opened again changes nothing.
+    fn moved(&mut self, active: Option<String>, mode: ViewMode) {
+        if self.active != active || self.mode != mode {
+            self.notice = None;
+        }
+        self.active = active;
+        self.mode = mode;
+    }
+
     /// `setActiveAutomation`.
     pub fn set_active(&mut self, id: &str) {
-        self.active = Some(id.to_string());
-        self.mode = ViewMode::Edit;
+        self.moved(Some(id.to_string()), ViewMode::Edit);
     }
 
     /// `startCreate`.
     pub fn start_create(&mut self) {
-        self.active = None;
-        self.mode = ViewMode::Create;
+        self.moved(None, ViewMode::Create);
     }
 
     /// `clearSelection`.
     pub fn clear_selection(&mut self) {
-        self.active = None;
-        self.mode = ViewMode::List;
+        self.moved(None, ViewMode::List);
     }
 
     /// `resetDraft`.
@@ -151,6 +171,11 @@ impl State {
             changed = true;
         }
         let now = crate::view::message::now_ms(self);
+        // An info note goes after 4 s.
+        if self.automations_nav.notice.as_ref().and_then(|n| n.until).is_some_and(|until| now >= until) {
+            self.automations_nav.notice = None;
+            changed = true;
+        }
         if now - self.automations_nav.last_tick >= TICK_MS {
             self.automations_nav.last_tick = now;
             changed = true;
