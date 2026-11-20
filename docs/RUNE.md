@@ -2212,3 +2212,13 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **`tx.focus` runs from a handler, not from a view,** so "opening puts the caret back in the composer" is in the handler (`side_set_minimized`), and a test reads `tx.focused()` through `rt.update`.
 - **The window's size** for a `max-width` media query or a `vh` is `s.ui.sel.window`, set by the frame's `on_layout`; a test makes a runtime of that size with `headless_runtime((w, h), …)`.
 - **`State` size again (Windows web walk, 20 November 2026):** `SideView` (a `Session` and a fold plan) added to `State` overflowed the 1 MB main stack at start, as the API keys page did. It is `Box`ed in `State`; Linux and macOS never showed it. Box any field holding a `Session`.
+
+
+## Component 24, piece G (the window's place, one instance)
+
+- **No event for a move or resize.** An app that wants to remember its window reads `WindowHandle::placement()` itself. An idle Rune app isn't polled, so a window the person moves wakes nothing: the poll must ask `tx.wake_after` for its next look, or a move is only seen when something else draws. Here that is a wake every 250 ms while a window exists (headless runs have no handle and ask for nothing).
+- **The displays come only with `run_windows`.** `App::run` gives no list of displays, so the window can't be checked against the screens before it opens. `run_windows_with_args(RunOptions::default(), args, |displays| [WindowSpec::from_app(key, app.maximized(m).window_options(opts))])` does, and `AppHandle`s taken from the `App` before still work. Pass the app's own arguments as the second argument (`App::args` isn't read there); keep `App::run` for headless runs.
+- **Wayland: `placement()` is `None`, and nothing else reports the window's size** (`Cx` has no window size). A native app can't keep even the size there. A `WindowHandle::size()` or a size in `placement()` on Wayland would let row 24.58 ("restore the size only") be done.
+- **On Linux `placement().restore` is `None` while maximised**, so the normal frame is whatever the app saw last before it grew.
+- **`single_instance` works as documented:** the second process exited 0 in 60 to 430 ms with no window, over a runtime folder of its own (`XDG_RUNTIME_DIR`); `FLEET_NATIVE_DATA_DIR` runs skip it by the app's rule. On Xvfb with openbox the first window's raise couldn't be shown (openbox did not act on iconify or key requests from `xdotool` there).
+- **Memory for the test build:** `cargo test` of this crate is killed at 4000M with `CARGO_BUILD_JOBS=3`; with 1 it finishes (4 min).

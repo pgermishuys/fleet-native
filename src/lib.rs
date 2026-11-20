@@ -327,12 +327,15 @@ mod tests_web;
 #[cfg(test)]
 mod tests_web_host;
 #[cfg(test)]
+mod tests_window;
+#[cfg(test)]
 mod tests_workspace;
 mod theme;
 pub mod ui;
 pub mod update;
 pub mod view;
 pub mod web;
+mod window_place;
 
 use conv::tools::ToolStatus;
 use fleet::link::{Connection, Link, Post};
@@ -714,6 +717,8 @@ pub struct State {
     pub start: desktop::start::StartState,
     /// Closing, quitting and the tray (component 24, piece E).
     pub close: desktop::close::CloseState,
+    /// Where the window was left, written 400 ms after it stops moving (`window_place`, component 24 G).
+    pub window_place: desktop::window::Keeper,
     /// The rule that lands the first `/` of a start on Mission control (component 9, piece C).
     pub landing: fleet::dashboard::Landing,
     /// What the home page keeps while it is shown: another machine's sessions, "Show N more" (piece E).
@@ -946,6 +951,7 @@ impl Default for State {
             no_fleet: false,
             start: desktop::start::StartState::new(STARTING.load(std::sync::atomic::Ordering::Relaxed)),
             close: Default::default(),
+            window_place: Default::default(),
             live: false,
             landing: fleet::dashboard::Landing::at_start(true),
             dash: Default::default(),
@@ -1642,6 +1648,7 @@ fn end_tools(session: &mut Session) {
 }
 
 fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
+    s.keep_window(now, tx);
     let composer_changed = s.keep_composer_state(now)
         | s.keep_autocomplete(now, tx)
         | s.keep_attachments(tx)
@@ -5384,7 +5391,7 @@ pub fn spec() -> AppSpec<State> {
         poll: Some(poll),
         on_key: Some(on_key),
         // The desktop app's own window: 1360 x 880, no smaller than 720 x 480 (`desktop/src/main.ts`).
-        ..AppSpec::new("Weave Fleet", (1360.0, 880.0), State::default, view::root)
+        ..AppSpec::new("Fleet", (1360.0, 880.0), State::default, view::root)
     }
 }
 
@@ -5443,9 +5450,17 @@ pub fn start_desktop() {
         LIVE.store(true, std::sync::atomic::Ordering::Relaxed);
     }
     let get_env = |k: &str| std::env::var(k).ok();
+    // A second launch brings the first one's window forward and ends here, before a window or a server of its own (decision 10).
+    // Rune answers it itself, so it is the first thing a normal start does.
+    if desktop::window::single_instance_wanted(headless, demo, server.is_some(), &get_env)
+        && !rune::single_instance(desktop::window::INSTANCE_ID)
+    {
+        return;
+    }
     let starts_own = desktop::start::wanted(headless, demo, server.is_some(), &get_env);
     STARTING.store(starts_own, std::sync::atomic::Ordering::Relaxed);
     // The server hears whether the window has the keyboard and is on screen (`fleet::presence`).
+    let app_args = rest.clone();
     let app = terminal_hooks(App::new(spec()))
         .args(rest)
         .on_focus(|s, focused, tx| {
@@ -5468,6 +5483,7 @@ pub fn start_desktop() {
         })
         // A Fleet this app started goes with it: its input closes (the server stops by itself), and a thread waits for it.
         .on_quit(|s, _| {
+            s.flush_window();
             if s.start.owned.is_some() {
                 s.start.stop_owned();
                 rune::exit_deadline(std::time::Duration::from_secs(25));
@@ -5475,10 +5491,21 @@ pub fn start_desktop() {
         });
     // Closing the window doesn't end the app: `window_closed` decides (macOS: the Dock; elsewhere: quit, or the tray while the
     // Fleet it started has sessions working). A picture or a scripted run has no window to close.
-    let app = if headless { app } else { app.keep_running().on_close(|s, tx| s.window_closed(tx)) };
+    let app = if headless {
+        app
+    } else {
+        app.keep_running().on_close(|s, tx| {
+            // Whatever the window did since the last look is written before it goes (component 24, piece G).
+            s.flush_window();
+            s.window_closed(tx)
+        })
+    };
     // The window's native handle, for the web views laid over page tabs (`web::platform`). Headless runs never get one.
-    #[cfg(all(feature = "web", not(target_arch = "wasm32")))]
-    let app = app.on_window(web::platform::on_window);
+    let app = app.on_window(|window| {
+        window_place::on_window(window);
+        #[cfg(all(feature = "web", not(target_arch = "wasm32")))]
+        web::platform::on_window(window);
+    });
     let handle = app.handle();
     if !headless {
         let post = Post::from_handle(handle.clone());
@@ -5488,6 +5515,15 @@ pub fn start_desktop() {
             s.close.surface = Some(surface);
             s.close.post = Some(post);
         });
+    }
+    // Where the window was left. Read here, once, before it opens (a few hundred bytes, before the event loop exists), because
+    // the window can't move to it after it is shown without flashing at the default place.
+    let saved_window = (!headless && web_walk.is_none())
+        .then(|| composer::drafts::app_dir(|k| std::env::var(k).ok()))
+        .flatten()
+        .and_then(|dir| fleet::settings::load(&dir).window());
+    if !headless && web_walk.is_none() {
+        handle.update(move |s, _| s.window_place = desktop::window::Keeper::new(saved_window));
     }
     #[cfg(all(feature = "web", not(target_arch = "wasm32")))]
     {
@@ -5580,7 +5616,18 @@ pub fn start_desktop() {
             std::thread::spawn(move || keep_looking(Vec::new()));
         }
     }
-    app.run();
+    if headless || web_walk.is_some() {
+        return app.run();
+    }
+    // The window opens where it was left, if that is still on a screen now (`desktop::window::opening`); the displays are only
+    // known once the event loop exists, which is what `run_windows` hands the factory.
+    let args = app_args;
+    rune::run_windows_with_args(rune::RunOptions::default(), args, move |displays| {
+        let screens: Vec<_> = displays.iter().map(|d| (d.position, d.size)).collect();
+        let open = desktop::window::opening(saved_window, &screens);
+        let options = rune::WindowOptions { position: open.position, physical_size: open.size, ..Default::default() };
+        [rune::WindowSpec::from_app("main", app.maximized(open.maximized).window_options(options))]
+    });
 }
 
 /// Starts the connection to the Fleet at `url`. Until discovery finds one, the invented data stays so there is a window to look at.
