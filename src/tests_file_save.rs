@@ -63,6 +63,25 @@ fn shows_unsaved_after_typing_and_the_save_key_goes_when_the_text_goes_back() {
     assert!(rt.find("file-state").is_none(), "typing back to the saved text is clean again");
 }
 
+// FileCanvas.vue `hasChanges` (rows 6.2 and 6.5): a file git sees as unchanged has changes once its text is unsaved, so Diff turns
+// on and compares with the saved text; typing back to the saved text turns it off again.
+#[test]
+fn an_unsaved_file_has_changes_so_diff_turns_on_against_the_saved_text() {
+    let mut rt = open();
+    rt.update(|s, _| {
+        let id = s.canvas_session();
+        s.diffs.reset(&id);
+    });
+    rt.frame(FRAME);
+    let diff_on =
+        |rt: &Runtime<State>| rt.elements().into_iter().find(|e| e.key.as_deref() == Some("file-view-diff")).is_some_and(|e| e.focusable);
+    assert!(!diff_on(&rt), "no changes: Diff is off");
+    typed(&mut rt, "#");
+    assert!(diff_on(&rt), "unsaved text: Diff is on");
+    press(&mut rt, Key::Backspace, Mods::default());
+    assert!(!diff_on(&rt), "typed back to the saved text: off again");
+}
+
 #[test]
 fn typing_in_a_preview_tab_keeps_it() {
     let mut rt = open();
