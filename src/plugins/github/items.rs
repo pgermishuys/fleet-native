@@ -6,8 +6,8 @@
 use super::where_::{Kind, Where};
 use crate::fleet::new_session::request::GitHubPreset;
 use crate::fleet::pr_state::{
-    CheckCounts, Lifecycle, PrFacts, PrState, Reviewer, checks_from_counts, checks_from_rollup, parse_reviewers, pr_state,
-    pr_words, review_decision,
+    CheckCounts, Lifecycle, PrFacts, PrState, Reviewer, checks_from_counts, checks_from_rollup, parse_reviewers, pr_state, pr_words,
+    review_decision,
 };
 use crate::fleet::smart_links::{
     SmartLink, SummaryState, is_pull_request, link_diff, link_href, link_labels, link_number, link_reviewers, link_title, summarize_checks,
