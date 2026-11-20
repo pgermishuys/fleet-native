@@ -233,14 +233,14 @@ for the theme (native: the app's theme). Icon `icon.png`.
 
 | # | Row | Source | Native | Owner |
 |---|---|---|---|---|
-| 24.90 | On hiding to the tray: "Fleet is still running", "A session is still working. Quit from the tray icon when you're done." / "<n> sessions are still working. …", silent, if the system can | MAIN `hideToTray` | None | 24 F |
-| 24.91 | Session notifications: when `DesktopNotifications` is "true" and a `session_notification` event comes for a session not in front (open, window visible and focused): title `payload.title` or "Weave Fleet", body `payload.body`, tagged with the session id (one per session) | `use-session-notifications.ts` | None (the switch is saved, 16 piece D) | 24 F |
-| 24.92 | Click: window forward, that session opens | same | None | 24 F |
-| 24.93 | Opening the session, or the window coming forward on it, takes its notification down | same `clearFor` | None | 24 F |
-| 24.94 | Fleet asks the browser for permission; native has none to ask (macOS asks on the first post itself) | `requestNotificationPermission`; 16 rows 2.12, 2.13 | Open in 16 | 24 F (the macOS case), 16 |
-| 24.95 | Focus is reported to the server only while recap or notifications are on | 02 row 6.6, `presence.rs` `REPORT_FOCUS` | Always reported | 24 F |
-| 24.96 | Linux: none from Rune; freedesktop notifications over D-Bus (decision 8) | — | — | 24 F |
-| 24.97 | macOS: only a bundled app can post (`rune-notify::available()`); an unbundled build posts nothing | Rune | — | 24 F, 25 |
+| 24.90 | On hiding to the tray: "Fleet is still running", "A session is still working. Quit from the tray icon when you're done." / "<n> sessions are still working. …", silent, if the system can | MAIN `hideToTray` | **Done** (F): `State::post_still_running` as `hide_to_tray` runs, silent; a click on it only shows the window | 24 F |
+| 24.91 | Session notifications: when `DesktopNotifications` is "true" and a `session_notification` event comes for a session not in front (open, window visible and focused): title `payload.title` or "Weave Fleet", body `payload.body`, tagged with the session id (one per session) | `use-session-notifications.ts` | **Done** (F): `fleet::notifications` (`on_notification_event`): the preference, not looking (open, visible, focused), title or "Weave Fleet", body, tag = session id; the system replaces a notification of the same tag | 24 F |
+| 24.92 | Click: window forward, that session opens | same | **Done** (F): `notification_clicked`: window forward (`Surface::show_window`), session opens | 24 F |
+| 24.93 | Opening the session, or the window coming forward on it, takes its notification down | same `clearFor` | **Done** (F): `clear_notification_for_open` on every route change and when the window gains the keyboard or comes on screen | 24 F |
+| 24.94 | Fleet asks the browser for permission; native has none to ask (macOS asks on the first post itself) | `requestNotificationPermission`; 16 rows 2.12, 2.13 | **Done** (F) as: native asks for nothing; where the system won't take a post (macOS, not a bundled app) the General row says so (see 24.97). Windows registers the AppUserModelID in `Real::new`; macOS asks on the first post itself | 24 F (the macOS case), 16 |
+| 24.95 | Focus is reported to the server only while recap or notifications are on | 02 row 6.6, `presence.rs` `REPORT_FOCUS` | **Done** earlier (16 AQ, `report_focus_wanted`: recap or notifications on, or preferences not read yet); F's test checks it with the switch | 24 F |
+| 24.96 | Linux: none from Rune; freedesktop notifications over D-Bus (decision 8) | — | **Done** (F): `desktop::notify` `linux::Bus`, `Notify` / `CloseNotification` / `ActionInvoked` / `NotificationClosed` over zbus on a thread; checked on a session bus (see the pull request) | 24 F |
+| 24.97 | macOS: only a bundled app can post (`rune-notify::available()`); an unbundled build posts nothing | Rune | **Done** (F): `Notifier::can_post` is `rune_notify::available()`; unbundled, nothing posts and the General row says "This app can't show them from here." | 24 F, 25 |
 
 ### 10. Menus (MENU)
 
@@ -463,7 +463,9 @@ the scratch folder, HOME there too), the released server binary, and their own p
 - **Rune:** write the "can't cancel a system quit" case into `docs/RUNE.md`.
 - **About:** 600 lines.
 
-### Piece F: notifications
+### Piece F: notifications — **built, 21 November 2026**
+
+**Built:** `src/desktop/notify.rs` (`Notifier`, `Real`: `rune-notify` on macOS and Windows, the freedesktop protocol over `zbus` on a thread of its own on Linux; `NotifyState`; a test `Recorder`), `src/fleet/notifications.rs` (`looking_at`, `on_notification_event`, `clear_notification_for_open`, `notification_clicked`, `post_still_running`), `src/tests_notifications.rs` (the eight `use-session-notifications.test.ts` cases under their names, plus the title default, the click, the tray note, the Settings line). The General row's line "This app doesn't show them yet." is gone; it now shows only where the system won't take a post. **Open:** the toast's icon on Windows (`rune-notify` wants a file path; the app has the PNG only embedded) and a real toast or banner on Windows and macOS: CI builds only. **New dependencies:** `rune-notify` (Rune's own crate, MIT, a sixth place for Rune's rev), and `zbus`, `tokio`, `futures-util` named directly on Linux at versions Cargo.lock already holds, so no crate was added.
 
 - **Rows:** 24.90–24.97.
 - **Files:** `Cargo.toml` (`rune-notify` at Rune's rev, a sixth rev line; `zbus` as a direct dependency at the version in

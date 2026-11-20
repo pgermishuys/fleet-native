@@ -147,6 +147,8 @@ mod tests_notice_chips;
 #[cfg(test)]
 mod tests_notices;
 #[cfg(test)]
+mod tests_notifications;
+#[cfg(test)]
 mod tests_open_in;
 #[cfg(test)]
 mod tests_page_cards;
@@ -719,6 +721,8 @@ pub struct State {
     pub close: desktop::close::CloseState,
     /// Where the window was left, written 400 ms after it stops moving (`window_place`, component 24 G).
     pub window_place: desktop::window::Keeper,
+    /// System notifications: who posts them and which are on screen (component 24, piece F).
+    pub notify: desktop::notify::NotifyState,
     /// The rule that lands the first `/` of a start on Mission control (component 9, piece C).
     pub landing: fleet::dashboard::Landing,
     /// What the home page keeps while it is shown: another machine's sessions, "Show N more" (piece E).
@@ -952,6 +956,7 @@ impl Default for State {
             start: desktop::start::StartState::new(STARTING.load(std::sync::atomic::Ordering::Relaxed)),
             close: Default::default(),
             window_place: Default::default(),
+            notify: Default::default(),
             live: false,
             landing: fleet::dashboard::Landing::at_start(true),
             dash: Default::default(),
@@ -5470,6 +5475,7 @@ pub fn start_desktop() {
                 s.file_window_focus();
             }
             // Back in Fleet: a waiting card opens now, not at the next look.
+            s.clear_notification_for_open();
             s.keep_notices(s.clock, tx);
         })
         .on_visibility(|s, visible, tx| {
@@ -5479,6 +5485,7 @@ pub fn start_desktop() {
                 // However the window came back, the tray icon has done its work (`showWindow`).
                 s.window_visible();
             }
+            s.clear_notification_for_open();
             s.keep_notices(s.clock, tx);
         })
         // A Fleet this app started goes with it: its input closes (the server stops by itself), and a thread waits for it.
@@ -5511,8 +5518,11 @@ pub fn start_desktop() {
         let post = Post::from_handle(handle.clone());
         let surface: std::sync::Arc<dyn desktop::close::Surface> =
             std::sync::Arc::new(desktop::tray::Real::new(handle.clone(), post.clone()));
+        // Made here, not in the job: on Windows it registers the app's identity.
+        let notifier: std::sync::Arc<dyn desktop::notify::Notifier> = std::sync::Arc::new(desktop::notify::Real::new(post.clone()));
         handle.update(move |s, _| {
             s.close.surface = Some(surface);
+            s.notify.notifier = Some(notifier);
             s.close.post = Some(post);
         });
     }

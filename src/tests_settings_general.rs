@@ -323,9 +323,10 @@ fn every_switch_saves_its_own_key_and_the_board_comes_to_the_rail() {
 }
 
 #[test]
-fn desktop_notifications_are_saved_and_the_row_says_this_app_shows_none_yet() {
+fn desktop_notifications_are_saved_and_the_row_has_no_line_unless_the_system_cannot_post() {
     let mut r = rig(&[]);
-    assert!(r.words().contains("This app doesn't show them yet."));
+    assert!(r.rt.find("notifications-later").is_none());
+    assert!(!r.words().contains("This app can't show them from here."));
     click(&mut r.rt, "notifications-switch");
     r.wait_put("DesktopNotifications", "true");
     assert!(r.on(sw::DESKTOP_NOTIFICATIONS));

@@ -95,6 +95,7 @@ pub mod new_project;
 pub mod new_session;
 pub mod notice_place;
 pub mod notices;
+pub mod notifications;
 pub mod open_in;
 pub mod pages;
 pub mod pairing;

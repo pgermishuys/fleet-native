@@ -155,16 +155,22 @@ pub fn large_pastes_list(s: &State, t: &Theme) -> Vec<El> {
     select::content(t, "large-pastes-list", LARGE_PASTES_KEY, 140.0, &LARGE_PASTES, Some(large_pastes_choice(s)), choose)
 }
 
-/// The line under Desktop notifications: this app saves the choice (the phone and the browser honour it) but shows nothing
-/// itself yet (owner's decision 3, docs/parity/16-settings.md).
-fn notifications_note(t: &Theme) -> El {
-    row().key("notifications-later").mt(7.0).child(
-        text("This app doesn't show them yet. The choice is kept for Fleet on your phone and in the browser.")
-            .font(sans(rem(0.75), 400.0, 1.33))
-            .color(t.muted)
-            .wrap()
-            .shrink()
-            .min_w(0.0),
+/// The line under Desktop notifications, only where the system won't take this app's posts (a macOS build that isn't a bundled
+/// app, `rune-notify::available()`; rows 2.12, 24.97): the choice is still saved, and the phone and the browser honour it.
+/// Fleet's own page has no line here; its browser raises the error when the switch is turned on.
+fn notifications_note(s: &State, t: &Theme) -> Option<El> {
+    if !s.notify.notifier.as_ref().is_some_and(|n| !n.can_post()) {
+        return None;
+    }
+    Some(
+        row().key("notifications-later").mt(7.0).child(
+            text("This app can't show them from here. The choice is kept for Fleet on your phone and in the browser.")
+                .font(sans(rem(0.75), 400.0, 1.33))
+                .color(t.muted)
+                .wrap()
+                .shrink()
+                .min_w(0.0),
+        ),
     )
 }
 
@@ -178,7 +184,11 @@ pub fn content(s: &State, t: &Theme) -> El {
             .build(s, t),
     ];
     let away = vec![
-        r(&NOTIFICATIONS).below(notifications_note(t)).build(s, t),
+        match notifications_note(s, t) {
+            Some(note) => r(&NOTIFICATIONS).below(note),
+            None => r(&NOTIFICATIONS),
+        }
+        .build(s, t),
         r(&RECAP).build(s, t),
         r(&RESTART_CONTINUE).build(s, t),
         r(&RETRY).build(s, t),

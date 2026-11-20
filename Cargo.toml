@@ -16,6 +16,10 @@ rune = { git = "https://github.com/anomalyco/rune", rev = "f1f54ce8bf485ee3a9580
 # Rune's own lexer crates; no other new crates.
 rune-kit = { git = "https://github.com/anomalyco/rune", rev = "f1f54ce8bf485ee3a95804deace315f53a8970f6", features = ["markdown"] }
 
+# System notifications (src/desktop/notify.rs): UNUserNotificationCenter on macOS, toasts on Windows; off those every call does nothing, so
+# it is named for every target. Rune's own crate, at Rune's rev (a sixth place a pin move changes).
+rune-notify = { git = "https://github.com/anomalyco/rune", rev = "f1f54ce8bf485ee3a95804deace315f53a8970f6" }
+
 # The server connection (src/fleet/). Blocking calls on plain threads, no async runtime.
 serde_json = "1"
 # Find in a file's "regexp" box (src/conv/file_find.rs). Already built for alacritty_terminal's search (regex-automata, regex-syntax);
@@ -55,6 +59,11 @@ wry = { version = "0.57", optional = true }
 # WebKitGTK runs on GTK's main loop, which the app turns from `poll`; wry needs `gtk::init` before its first web view.
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk = { version = "0.18", optional = true }
+# Linux notifications (src/desktop/notify.rs): `org.freedesktop.Notifications` over D-Bus, on a thread with its own small runtime. All
+# three are in Cargo.lock already through Rune's tray and file dialogs, at these versions.
+zbus = { version = "6", default-features = false, features = ["tokio", "proxy"] }
+tokio = { version = "1", default-features = false, features = ["rt", "sync", "macros"] }
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
 
 [features]
 default = ["web"]

@@ -62,6 +62,7 @@ impl State {
             self.on_list_work_event(event);
             self.on_queue_event(event);
             self.on_ask_event(topic, event);
+            self.on_notification_event(event);
             self.on_rules_event(event);
             self.on_server_canvas_event(event);
             self.on_terminal_event(topic, event);
