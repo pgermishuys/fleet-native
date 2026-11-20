@@ -355,6 +355,8 @@ mod tests_workflow_run_box;
 #[cfg(test)]
 mod tests_workflow_runs;
 #[cfg(test)]
+mod tests_workflow_stepper;
+#[cfg(test)]
 mod tests_workflows_page;
 #[cfg(test)]
 mod tests_workspace;
@@ -2610,6 +2612,12 @@ pub fn spec() -> AppSpec<State> {
             ("workflow-run-models-light", |s| s.show_roles(false, mock::workflows::RolesScene::Popover)),
             ("workflow-run-models-changed", |s| s.show_roles(true, mock::workflows::RolesScene::PopoverChanged)),
             ("workflow-run-models-changed-light", |s| s.show_roles(false, mock::workflows::RolesScene::PopoverChanged)),
+            ("workflow-stepper", |s| s.show_workflow_stepper(true, mock::workflow_stepper::Case::Stepper)),
+            ("workflow-stepper-light", |s| s.show_workflow_stepper(false, mock::workflow_stepper::Case::Stepper)),
+            ("workflow-stepper-note", |s| s.show_workflow_stepper(true, mock::workflow_stepper::Case::Note)),
+            ("workflow-stepper-note-light", |s| s.show_workflow_stepper(false, mock::workflow_stepper::Case::Note)),
+            ("workflow-step-mark", |s| s.show_workflow_stepper(true, mock::workflow_stepper::Case::Mark)),
+            ("workflow-step-mark-light", |s| s.show_workflow_stepper(false, mock::workflow_stepper::Case::Mark)),
             ("workflow-detail", |s| s.show_workflows(true, mock::workflows::Scene::Detail)),
             ("workflow-detail-light", |s| s.show_workflows(false, mock::workflows::Scene::Detail)),
             ("workflow-detail-errors", |s| s.show_workflows(true, mock::workflows::Scene::DetailErrors)),

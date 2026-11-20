@@ -620,7 +620,11 @@ fn message_row(
     let fold_only = kept.is_some_and(|k| k.fold_only);
     let parts = drawn_parts(msg, kept);
     // The gap above a message goes above its marks, not between them and the bubble.
-    let marks = message::marks(t, msg, lead);
+    // Fleet's own prompts into a workflow step wear a mark (`workflowStep`); only the open session has a run.
+    let workflow = (which == Which::Open && msg.role == Role::User && s.stepper_run().is_some())
+        .then(|| s.workflow_mark(&msg.id, &msg.text()))
+        .flatten();
+    let marks = message::marks(t, msg, lead, workflow);
     let mut lead_spent = marks.is_some();
     column = column.children(marks);
     // The chip of a notice that background work finished, above its words.

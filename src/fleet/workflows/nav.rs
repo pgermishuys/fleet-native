@@ -76,6 +76,8 @@ pub struct Nav {
     pub roles_open: bool,
     /// The dialog's own state: its harness, the role being saved, the menu open.
     pub roles: super::roles::Roles,
+    /// The stepper under a step session's header: its switch and the error under it (piece F).
+    pub stepper: super::stepper::Stepper,
     /// Turn on is saving.
     pub turning_on: bool,
     /// Something asked for the library to be read again: the folder changed, or Turn on saved.

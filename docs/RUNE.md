@@ -2377,3 +2377,20 @@ whole-file work that piece R can make incremental (colour from the edited line, 
   reads a note's words keys the text (`automation-action-message-text`), not the bordered row around it.
 - A `Confirm` whose action needs no dialog-held request (Fleet's `confirmAction` with no `run`) closes on the button and lets the
   page do the rest; `Call::DeleteAutomation` follows `Revert` and `ForgetMachine` in `take_confirm` for that.
+
+## Component 18, piece F (the stepper)
+
+- **A header strip is one child in the sheet's column.** `view::sheet` puts `workflows::stepper::stepper` between the header and the
+  banners as `.children(Option<El>)`; with no run it adds nothing, so the conversation keeps its height and nothing moves.
+- **A wrapping row with a joint in each item:** Fleet's `<li>` holds the 14 px rule and the pill together so a wrap never strands a
+  rule at a line's end; here each item is a small `row()` with the rule first, inside `flex_wrap().gaps(4.0, 0.0)` (row gap first,
+  column gap second). A rule can start a wrapped line, as it does in Fleet.
+- **A disabled pill is an element with no press handler plus `.disabled(true)`;** `.disabled` is on every `El`, not only on fields.
+- **A pill's switch track is drawn, not a `Switch`:** Fleet's `.wf-check` is a 26 × 15 track with an 11 px thumb, unlike `Switch.vue`'s
+  28 × 16, so it is a `row().size(26.0, 15.0)` with a thumb margin of 2 (off) or 13 (on).
+- **A mark above a bubble needs state, a bubble does not have it:** `message::marks` takes the label from the caller
+  (`State::workflow_mark`), computed only while a run holds the open session, so the stream does no run lookups for sessions that
+  are not steps.
+- **A scripted live picture leaves the server changed.** The snap ends the process at its mark, so a run's switch flipped by the
+  script stays flipped for the next picture: set it back through the API (`PUT …/check-with-me`) before each one.
+- **A test build can be OOM-killed (exit 143) at 4000M** again here: 5600M built `cargo test --no-run` in 1 m 40 s.

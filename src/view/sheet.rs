@@ -28,6 +28,7 @@ pub fn sheet(s: &State, t: &Theme) -> El {
         .h_full()
         .min_h(0.0)
         .child(super::header::header(s, t, centre_w(s)))
+        .children(super::workflows::stepper::stepper(s, t))
         .children(super::header_banners::banners(s, t, &s.header_model()))
         .child(stream(
             t,
