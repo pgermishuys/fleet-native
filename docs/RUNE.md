@@ -2292,3 +2292,15 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **A headless run answers a paste request with nothing** (no one reads the clipboard), so a test can check Cut and Copy (the memory clipboard) but only that a Paste pick closes the menu and leaves the field focused.
 - **Links:** `Markdown::on_link_secondary` and `El::on_link_secondary` take the press from the elements around, and `Tx::open_url` refuses anything but `http`, `https` and `mailto` with an `Err`, so the link rule needs no code of ours; `Runtime::take_url_requests` is what a test reads.
 
+
+## Component 18, piece B (the Workflows page, the off notice and the Library list)
+
+- **No hover border.** Fleet's dashed New workflow and Model roles buttons mix the accent into the border on hover. `El::hover` only
+  changes the fill, and `group_color` only the ink, so these buttons change their text colour on hover and keep the border. Smallest case: a
+  row with `.border(1.0, c).border_dash(4.0, 3.0)` and nothing that recolours the border under the pointer.
+- **A border takes no room unless asked:** a dashed button without `.border_layout()` came out 4 px shorter than Fleet's (the border was drawn
+  over the padding). Every bordered row that must match a CSS box wants `.border_layout()`.
+- **`ElementInfo` has no `disabled`:** a test reads a dimmed, disabled element through its `opacity` and `help` (the tooltip it was given).
+- **A held route in a fake server is how a test sees a request in flight:** the fake in `tests_workflow_runs.rs` answers a route made with
+  `hold` only once the test gives it an answer, so "still loading" can be asserted while the request is out.
+- **Memory for the test build:** `cargo test` was OOM-killed at `MemoryMax=4000M` again (3.9G peak); 5500M built it in 1m42s.

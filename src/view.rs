@@ -36,6 +36,7 @@ pub mod drop_zones;
 pub mod export;
 pub mod failure;
 pub mod family;
+pub mod feature_off;
 pub mod file_compare;
 pub mod file_diff;
 pub mod file_find;
@@ -148,6 +149,7 @@ pub mod usage_popover;
 pub mod web_card;
 pub mod work;
 pub mod work_output;
+pub mod workflows;
 pub mod working;
 pub mod workspace_picker;
 
@@ -186,6 +188,13 @@ pub fn root(s: &State, cx: &mut Cx<State>) -> El {
             main.child(settings::menu(s, &t).ml(8.0)).child(gutter(&t)).child(settings::detail(s, &t))
         }
         Rail::Settings => main.child(settings::detail(s, &t).ml(8.0)),
+        Rail::Workflows => {
+            let mut panes = workflows::page(s, &t).into_iter();
+            if let Some(first) = panes.next() {
+                main = main.child(first.ml(8.0));
+            }
+            main.children(panes)
+        }
         other => main.child(notice(&t, other).ml(8.0)),
     };
     // The window's size, for the selector menu's width and height caps (`100vw - 16px`, `60vh`).

@@ -69,6 +69,7 @@ pub mod usage;
 pub mod visuals;
 pub mod weave;
 pub mod work;
+pub mod workflows;
 pub mod working;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

@@ -1,11 +1,11 @@
 //! Ports `NSD/StarterChips.vue`: the quiet line of pills under "What should we work on?" (rows B9, A15). A pill fills the box
 //! and sends nothing; the "…" button opens a menu with Hide starters.
+use crate::State;
 use crate::fleet::new_session::starters::BUILT_IN;
 use crate::icons::*;
 use crate::theme::{Theme, sans};
 use crate::ui::Open;
 use crate::ui::chip::{Option_, option, pop, pop_note};
-use crate::{State, Tx};
 use rune::{Align, Cursor, El, Icon, Side, icon, row, text};
 
 /// The menu's width. B9.12 says 260 (`.ns-starters__pop`), but Fleet's own client draws it 344 wide, the plain `.ns-pop`: the
@@ -72,10 +72,7 @@ pub fn line(s: &State, t: &Theme) -> El {
                         .border(1.0, t.border)
                         .child(text("workflow").font(sans(10.5, 400.0, 1.4)).color(t.muted)),
                 )
-                .on_press_tx(|s: &mut State, tx: &mut Tx| {
-                    s.open_fix_a_bug();
-                    s.toast("Workflows isn't in the native app yet (component 22 of the port).".into(), None, 4.0, tx);
-                }),
+                .on_press(|s: &mut State| s.open_fix_a_bug()),
         );
     }
     r.child(pill(t, MENU, &ELLIPSIS, None, menu_open).on_press(|s: &mut State| s.ui.open = Some(Open::Popover("starters"))))

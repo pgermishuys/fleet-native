@@ -338,6 +338,8 @@ mod tests_window;
 #[cfg(test)]
 mod tests_workflow_runs;
 #[cfg(test)]
+mod tests_workflows_page;
+#[cfg(test)]
 mod tests_workspace;
 mod theme;
 pub mod ui;
@@ -536,6 +538,8 @@ pub struct State {
     pub skills: fleet::skills::Skills,
     /// Every machine's workflow runs (`fleet::workflows`).
     pub workflows: fleet::workflows::runs::Workflows,
+    /// The Workflows page: its Library, the open workflow, the machine it shows (`fleet::workflows::nav`).
+    pub workflows_nav: fleet::workflows::nav::Nav,
     /// The links to the other machines, started when a session there needs one (`fleet::routing`).
     pub links: fleet::routing::Links,
     pub connection: Connection,
@@ -857,6 +861,7 @@ impl Default for State {
             open_in: Default::default(),
             skills: Default::default(),
             workflows: Default::default(),
+            workflows_nav: Default::default(),
             links: Default::default(),
             connection: Connection::Connecting,
             open_reads: Default::default(),
@@ -1715,7 +1720,8 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_naming(now, tx)
         | s.keep_storage(tx)
         | s.keep_terminal(tx)
-        | s.keep_browser(tx);
+        | s.keep_browser(tx)
+        | s.keep_workflows(tx);
     // "Copied" on a message's button ends by itself.
     let copied = match &s.copied {
         Some((_, until)) if now >= *until => {
@@ -2532,6 +2538,22 @@ pub fn spec() -> AppSpec<State> {
                 flip_general(s);
             }),
             // Piece T: Labs with everything off, with another machine listed, and with everything on.
+            ("workflows", |s| s.show_workflows(true, mock::workflows::Scene::Library)),
+            ("workflows-light", |s| s.show_workflows(false, mock::workflows::Scene::Library)),
+            ("workflows-off", |s| s.show_workflows(true, mock::workflows::Scene::Off)),
+            ("workflows-off-light", |s| s.show_workflows(false, mock::workflows::Scene::Off)),
+            ("workflows-repo-loading", |s| s.show_workflows(true, mock::workflows::Scene::RepoLoading)),
+            ("workflows-repo-loading-light", |s| s.show_workflows(false, mock::workflows::Scene::RepoLoading)),
+            ("workflows-no-repo", |s| s.show_workflows(true, mock::workflows::Scene::NoRepo)),
+            ("workflows-no-repo-light", |s| s.show_workflows(false, mock::workflows::Scene::NoRepo)),
+            ("workflows-error", |s| s.show_workflows(true, mock::workflows::Scene::Failed)),
+            ("workflows-error-light", |s| s.show_workflows(false, mock::workflows::Scene::Failed)),
+            ("workflows-loading", |s| s.show_workflows(true, mock::workflows::Scene::Loading)),
+            ("workflows-loading-light", |s| s.show_workflows(false, mock::workflows::Scene::Loading)),
+            ("workflows-machines", |s| s.show_workflows(true, mock::workflows::Scene::Machines)),
+            ("workflows-machines-light", |s| s.show_workflows(false, mock::workflows::Scene::Machines)),
+            ("workflows-machine-off", |s| s.show_workflows(true, mock::workflows::Scene::MachineOff)),
+            ("workflows-machine-off-light", |s| s.show_workflows(false, mock::workflows::Scene::MachineOff)),
             ("settings-labs", |s| labs_scene(s, true, false, false)),
             ("settings-labs-light", |s| labs_scene(s, false, false, false)),
             ("settings-labs-machines", |s| labs_scene(s, true, true, false)),

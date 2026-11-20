@@ -25,3 +25,14 @@ pub fn compact_described(t: &Theme, key: &str, glyph: Option<&'static Icon>, tit
     c.child(text(title.to_string()).font(sans(rem(0.875), 500.0, 1.43)).color(t.text).wrap().align(Align::Center))
         .child(text(description.to_string()).font(sans(rem(0.75), 400.0, 1.33)).color(t.muted).wrap().align(Align::Center))
 }
+
+/// The compact `EmptyState` with a title only and no icon.
+pub fn compact_bare(t: &Theme, key: &str, title: &str) -> El {
+    col()
+        .key(key.to_string())
+        .w_full()
+        .items_center()
+        .px(rem(0.75))
+        .py(rem(1.0))
+        .child(text(title.to_string()).font(sans(rem(0.875), 500.0, 1.43)).color(t.text).wrap().align(Align::Center))
+}
