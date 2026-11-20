@@ -2338,6 +2338,7 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 
 - **Nothing new about Rune:** the piece is plain Rust over `Link::off_thread`. Two Rust points: a `static` empty store (what `automations_of` hands out before anything asked) needs `Sync`, which a `Vec<Box<dyn FnOnce + Send>>` isn't, so the waiters of a load in flight sit in a `Mutex` (read with `get_mut`, no locking); and the test build needed `-j1` again under `MemoryMax=4000M` (two rustc at about 2 GB each were OOM-killed, the scope reporting "Terminated").
 
+
 ## Component 11, piece V (the sweep)
 
 - **A live walk of editing needs a wait after every step that loads text** (11V). Keys sent to a code view before its file has been read go
