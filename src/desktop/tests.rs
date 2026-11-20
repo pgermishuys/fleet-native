@@ -145,9 +145,11 @@ mod paths {
 
     #[test]
     fn mentions_a_staged_update_the_launcher_would_apply() {
-        let note = staged_update_note(Path::new("/h/.weave/fleet/app/WeaveFleet.Api"), &|p| p == Path::new("/h/.weave/fleet/update"));
-        assert!(note.is_some_and(|n| n.contains("/h/.weave/fleet/update")));
-        assert_eq!(staged_update_note(Path::new("/h/.weave/fleet/app/WeaveFleet.Api"), &|_| false), None);
+        // Built with `join`, so the separators are the system's own.
+        let update = Path::new("/h/.weave/fleet").join("update");
+        let note = staged_update_note(&Path::new("/h/.weave/fleet").join("app").join("WeaveFleet.Api"), &|p| p == update);
+        assert!(note.is_some_and(|n| n.contains(&update.display().to_string())));
+        assert_eq!(staged_update_note(&Path::new("/h/.weave/fleet").join("app").join("WeaveFleet.Api"), &|_| false), None);
     }
 }
 
