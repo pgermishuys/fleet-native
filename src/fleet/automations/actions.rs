@@ -90,12 +90,12 @@ impl State {
         }
     }
 
-    /// `handleRunNow`: a skipped run is an error note with its reason; any other says it started. The run in the runs list is
-    /// piece F's.
+    /// `handleRunNow`: a skipped run is an error note with its reason; any other says it started. The run goes to the top of the runs.
     pub fn automation_run_now(&mut self, tx: &mut Tx) {
         let Some(a) = self.open_automation() else { return };
         let machine = self.automations_machine();
         if self.link_for_machine(&machine).is_none() {
+            self.automation_run_started(None);
             self.automation_say(false, STARTED);
             return;
         }
@@ -109,8 +109,14 @@ impl State {
                     return;
                 }
                 match result {
-                    Ok(run) if run.state == RunState::Skipped => s.automation_say(true, words_of(run.error.unwrap_or_default(), SKIPPED)),
-                    Ok(_) => s.automation_say(false, STARTED),
+                    Ok(run) if run.state == RunState::Skipped => {
+                        s.automation_run_started(Some(run.clone()));
+                        s.automation_say(true, words_of(run.error.unwrap_or_default(), SKIPPED))
+                    }
+                    Ok(run) => {
+                        s.automation_run_started(Some(run));
+                        s.automation_say(false, STARTED)
+                    }
                     Err(e) => s.automation_say(true, words_of(e, RUN_FAILED)),
                 }
             }),

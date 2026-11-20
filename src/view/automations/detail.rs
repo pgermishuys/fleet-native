@@ -1,6 +1,6 @@
 //! An open automation's page (`AutomationDetailPanel.vue`, the existing-automation branch): the bar with its name, the switch
 //! and the line beside it, Run now and the ⋯ menu, and the body under it, which starts with the note the actions leave. The
-//! runs (piece F) and the composer (pieces H to N) go under the note.
+//! runs go under it, and the composer (pieces H to N) go under the note.
 use crate::State;
 use crate::fleet::automations::actions::header_meta;
 use crate::fleet::automations::model::Automation;
@@ -54,10 +54,13 @@ pub fn more_menu(t: &Theme) -> Vec<El> {
 }
 
 /// What the body holds, from the top: the note (`.automation-page__notice`) and what later pieces add.
-pub fn body(t: &Theme, s: &State) -> El {
+pub fn body(t: &Theme, s: &State, a: &Automation) -> El {
     let mut body = col().w_full().items_center();
     if let Some(note) = &s.automations_nav.notice {
         body = body.child(notice(t, note));
+    }
+    if let Some(runs) = super::runs::section(s, t, a) {
+        body = body.child(runs);
     }
     body
 }

@@ -50,6 +50,8 @@ pub struct Nav {
     pub notice: Option<Notice>,
     /// The switch is waiting for the server (`isTogglingEnabled`).
     pub toggling: bool,
+    /// The open automation's runs.
+    pub runs: super::runs::Runs,
     /// The machine whose list was asked for since the page opened; another machine, or the next visit, asks again.
     asked_for: Option<String>,
     last_tick: i64,
@@ -120,6 +122,8 @@ impl State {
         if self.rail != crate::Rail::Automations {
             self.automations_nav.choice.reset();
             self.automations_nav.asked_for = None;
+            // The runs stop with the page and are read again when it opens (the poll's timer ends on unmount).
+            self.automations_nav.runs = Default::default();
         }
         self.rail = crate::Rail::Automations;
     }
@@ -176,6 +180,7 @@ impl State {
             self.automations_nav.notice = None;
             changed = true;
         }
+        changed |= self.keep_automation_runs(tx);
         if now - self.automations_nav.last_tick >= TICK_MS {
             self.automations_nav.last_tick = now;
             changed = true;

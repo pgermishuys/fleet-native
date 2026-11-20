@@ -102,6 +102,37 @@ pub fn runs(automation: &str) -> Vec<AutomationRun> {
     ]
 }
 
+/// Every state a run can be in, and each way a note shows: one that is starting, one going, one that needs you, a failure with
+/// its error, a skipped one, one on another machine that didn't answer, a night's summary, an event run, a catch-up and one
+/// that finished with a session to open.
+pub fn runs_states(automation: &str) -> Vec<AutomationRun> {
+    let at = |mut r: AutomationRun, started: &str| {
+        r.started_at = started.into();
+        r
+    };
+    let mut failed = run("r-failed", automation, "manual", RunState::Failed);
+    failed.error = Some("Couldn't start: Couldn't create the worktree: there's no branch origin/main to start from".into());
+    let mut away = run("r-away", automation, "schedule", RunState::Unanswered);
+    away.machine_name = Some("atlas".into());
+    let mut skipped = run("r-skipped", automation, "schedule", RunState::Skipped);
+    skipped.error = Some("Another run was still going".into());
+    let mut night = run("r-night", automation, "schedule", RunState::Done);
+    night.summary = Some("Kept 4 memories and dropped 2 that said the same thing.".into());
+    let session = |r: AutomationRun| AutomationRun { session_id: Some("s-1".into()), ..r };
+    vec![
+        at(session(run("r-starting", automation, "manual", RunState::Starting)), "2026-09-15T10:00:00Z"),
+        at(session(run("r-running", automation, "schedule", RunState::Running)), "2026-09-15T09:00:01Z"),
+        at(session(run("r-waiting", automation, "schedule", RunState::Waiting)), "2026-09-14T09:00:02Z"),
+        failed,
+        skipped,
+        away,
+        night,
+        run("r-event", automation, "session_created", RunState::Ended),
+        run("r-catch", automation, "catch_up", RunState::Done),
+        session(run("r-done", automation, "schedule", RunState::Done)),
+    ]
+}
+
 /// What a picture or a test of the Automations page shows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Scene {
@@ -124,6 +155,12 @@ pub enum Scene {
     Menu,
     /// Delete asked for: the confirm.
     Delete,
+    /// An automation open with its runs (the Run now note over them).
+    Runs,
+    /// Open, and no run yet.
+    RunsEmpty,
+    /// Open, with a run in every state and each kind of note.
+    RunsStates,
 }
 
 impl crate::State {
@@ -143,15 +180,38 @@ impl crate::State {
                 store.is_loading = false;
                 store.error = Some("Fleet is restarting".into());
             }
-            Scene::List | Scene::Create | Scene::Open | Scene::Started | Scene::Off | Scene::Skipped | Scene::Menu | Scene::Delete => {
+            Scene::List
+            | Scene::Create
+            | Scene::Open
+            | Scene::Started
+            | Scene::Off
+            | Scene::Skipped
+            | Scene::Menu
+            | Scene::Delete
+            | Scene::Runs
+            | Scene::RunsEmpty
+            | Scene::RunsStates => {
                 store.is_loading = false;
                 store.list = automations();
             }
         }
         match scene {
             Scene::Create => self.automations_nav.start_create(),
-            Scene::Open | Scene::Started | Scene::Skipped | Scene::Menu | Scene::Delete => self.automations_nav.set_active("a-weekly"),
+            Scene::Open
+            | Scene::Started
+            | Scene::Skipped
+            | Scene::Menu
+            | Scene::Delete
+            | Scene::Runs
+            | Scene::RunsEmpty
+            | Scene::RunsStates => self.automations_nav.set_active("a-weekly"),
             Scene::Off => self.automations_nav.set_active("a-paused"),
+            _ => {}
+        }
+        match scene {
+            Scene::RunsEmpty => self.automations_nav.runs.show(HOME_MACHINE_KEY, "a-weekly", Vec::new()),
+            Scene::RunsStates => self.automations_nav.runs.show(HOME_MACHINE_KEY, "a-weekly", runs_states("a-weekly")),
+            Scene::Runs => self.automations_nav.runs.show(HOME_MACHINE_KEY, "a-weekly", runs("a-weekly")),
             _ => {}
         }
         match scene {

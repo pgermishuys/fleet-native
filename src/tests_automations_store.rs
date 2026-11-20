@@ -30,6 +30,12 @@ pub(crate) struct Fake {
     pub(crate) refuse_verb: Arc<Mutex<Option<(String, String)>>>,
     /// What the next Run now answers with, merged into the run it makes (a skipped one).
     pub(crate) run_answer: Arc<Mutex<Option<Value>>>,
+    /// What `GET …/runs` answers, newest first; Run now puts its run first.
+    pub(crate) runs: Arc<Mutex<Vec<Value>>>,
+    /// While set, the runs are held back: the request is heard but not answered.
+    pub(crate) hold_runs: Arc<AtomicBool>,
+    /// The next read of the runs is refused.
+    pub(crate) refuse_runs: Arc<AtomicBool>,
 }
 
 /// Takes the refusal waiting for `verb`, if that is the one.
@@ -61,11 +67,16 @@ pub(crate) fn fake(initial: Vec<Value>) -> Fake {
     let refuse_list = list_refusal.clone();
     let (refuse_verb, run_answer) = (Arc::new(Mutex::new(None)), Arc::new(Mutex::new(None::<Value>)));
     let (verb_gate, run_gate) = (refuse_verb.clone(), run_answer.clone());
+    let runs_of = |id: &str, n: u32, state: &str| json!({"id": format!("r{n}"), "automationId": id, "trigger": "schedule", "startedAt": "2026-09-15T10:00:00Z", "state": state});
+    let runs = Arc::new(Mutex::new(vec![runs_of("a1", 2, "running"), runs_of("a1", 1, "done")]));
+    let (hold_runs, refuse_runs) = (Arc::new(AtomicBool::new(false)), Arc::new(AtomicBool::new(false)));
+    let (runs_gate, hold_gate, refuse_gate) = (runs.clone(), hold_runs.clone(), refuse_runs.clone());
     std::thread::spawn(move || {
         for mut stream in listener.incoming().flatten() {
             let (log, items, refuse_next, gate) = (log.clone(), items.clone(), refuse_next.clone(), gate.clone());
             let refuse_list = refuse_list.clone();
             let (verb_gate, run_gate) = (verb_gate.clone(), run_gate.clone());
+            let (runs_gate, hold_gate, refuse_gate) = (runs_gate.clone(), hold_gate.clone(), refuse_gate.clone());
             std::thread::spawn(move || {
                 let req = crate::test_http::read(&mut stream);
                 if !req.route().starts_with(BASE) {
@@ -119,19 +130,29 @@ pub(crate) fn fake(initial: Vec<Value>) -> Fake {
                         crate::test_http::respond_json(&mut stream, "204 X", "");
                     }
                     ("POST", _, Some((id, "run"))) => {
-                        let mut run = json!({"id": "r1", "automationId": id, "trigger": "manual", "startedAt": "2026-09-15T10:00:00Z", "state": "starting"});
+                        let n = runs_gate.lock().unwrap().len() + 1;
+                        let mut run = json!({"id": format!("rn{n}"), "automationId": id, "trigger": "manual", "startedAt": "2026-09-15T10:00:00Z", "state": "starting"});
                         for (k, v) in run_gate.lock().unwrap().take().as_ref().and_then(Value::as_object).into_iter().flatten() {
                             run[k] = v.clone();
                         }
+                        if run["state"] != "skipped" {
+                            runs_gate.lock().unwrap().insert(0, run.clone());
+                        }
                         crate::test_http::respond_json(&mut stream, "201 X", &run.to_string());
                     }
-                    ("GET", _, Some((id, "runs"))) => {
-                        let run = |n: u32, state: &str| json!({"id": format!("r{n}"), "automationId": id, "trigger": "schedule", "startedAt": "2026-09-15T10:00:00Z", "state": state});
-                        crate::test_http::respond_json(
-                            &mut stream,
-                            "200 X",
-                            &json!({"runs": [run(2, "running"), run(1, "done")]}).to_string(),
-                        );
+                    ("GET", _, Some((_, "runs"))) => {
+                        if refuse_gate.swap(false, Ordering::SeqCst) {
+                            return crate::test_http::respond_json(
+                                &mut stream,
+                                "503 X",
+                                &json!({"error": "Fleet is restarting"}).to_string(),
+                            );
+                        }
+                        while hold_gate.load(Ordering::SeqCst) {
+                            std::thread::sleep(std::time::Duration::from_millis(5));
+                        }
+                        let all = runs_gate.lock().unwrap().clone();
+                        crate::test_http::respond_json(&mut stream, "200 X", &json!({"runs": all}).to_string());
                     }
                     ("PUT", _, None) => crate::test_http::respond_json(&mut stream, "200 X", "{}"),
                     ("DELETE", _, None) => {
@@ -152,7 +173,18 @@ pub(crate) fn fake(initial: Vec<Value>) -> Fake {
             });
         }
     });
-    Fake { base, heard, refuse_next_create: refuse, refuse_next_list: list_refusal, hold_list: hold, refuse_verb, run_answer }
+    Fake {
+        base,
+        heard,
+        refuse_next_create: refuse,
+        refuse_next_list: list_refusal,
+        hold_list: hold,
+        refuse_verb,
+        run_answer,
+        runs,
+        hold_runs,
+        refuse_runs,
+    }
 }
 
 impl Fake {
@@ -393,7 +425,7 @@ fn a_run_comes_back_still_starting_and_the_list_is_read_again() {
     r.rt.update(move |s, tx| s.automation_run(HOME, "a1", tx, done));
     let run = r.answer("the run", &ran).expect("run");
 
-    assert_eq!((run.id.as_str(), run.state, run.trigger.as_str()), ("r1", RunState::Starting, "manual"));
+    assert_eq!((run.id.as_str(), run.state, run.trigger.as_str()), ("rn3", RunState::Starting, "manual"));
     assert_eq!(r.home.list_calls(), 2);
 }
 
