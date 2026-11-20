@@ -54,6 +54,12 @@ fn rig(name: &str, mode: &str, server_bin: Option<PathBuf>, places: Vec<Place>) 
     });
     let mut config = Config::new(post, get, Arc::new(move || places.clone()), connect, keep_looking);
     config.env.push(("FAKE_FLEET_MODE".into(), mode.into()));
+    // No real shell is asked: this one puts an invented folder first in PATH, as a login shell's would.
+    config.login_env = Arc::new(|mut env| {
+        let app = env.iter().position(|(k, _)| k == "PATH").map(|i| env.remove(i).1).unwrap_or_default();
+        env.push(("PATH".into(), format!("/login-shell/bin:{app}")));
+        env
+    });
     config.ports = Some(vec![]);
     config.ready_timeout = Duration::from_secs(2);
     config.taken_for = Duration::from_millis(600);
@@ -106,6 +112,18 @@ fn a_fake_server_reaches_the_shell_and_the_fleet_is_owned() {
     r.rt.state.start.stop_owned();
     let log = r.log();
     r.wait("the server to be stopped", |_| std::fs::read_to_string(&log).is_ok_and(|t| t.contains("Fleet exited")));
+}
+
+#[test]
+fn the_server_starts_with_the_login_shells_environment() {
+    let mut r = rig("login-env", "serve", None, vec![]);
+    start::begin(r.config.clone());
+    r.wait("the Fleet", |s| s.start.phase == Phase::Owned);
+    let log = r.log();
+    r.wait("the server to print its environment", |_| std::fs::read_to_string(&log).is_ok_and(|t| t.contains("env PATH=")));
+    let text = r.log_text();
+    assert!(text.contains("env PATH=/login-shell/bin:"), "{text}");
+    r.rt.state.start.stop_owned();
 }
 
 #[test]

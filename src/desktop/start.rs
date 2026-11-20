@@ -87,6 +87,9 @@ const TAKEN_WORDS: &str = "Another Fleet is using your data, but it isn't answer
 /// Reads an environment variable (a test gives its own).
 pub type Getter = Arc<dyn Fn(&str) -> Option<String> + Send + Sync>;
 
+/// Takes the app's environment and returns it with the login shell's merged in.
+pub type EnvMerge = Arc<dyn Fn(Vec<(String, String)>) -> Vec<(String, String)> + Send + Sync>;
+
 /// Everything the flow needs from outside, so a test can give it a fake server, a scratch folder and no real Fleet.
 #[derive(Clone)]
 pub struct Config {
@@ -100,6 +103,9 @@ pub struct Config {
     pub keep_looking: Arc<dyn Fn(Vec<PathBuf>) + Send + Sync>,
     /// Added to the server's environment (a test picks its stand-in's mode here).
     pub env: Vec<(String, String)>,
+    /// Adds the login shell's environment to what the server gets (`shell_env::merged`); a test gives its own so no real
+    /// shell is asked. Runs on the start thread, so a slow shell only delays the splash, never the window.
+    pub login_env: EnvMerge,
     /// Ports to try, in order; `None` is the remembered one, then Fleet's 6262.
     pub ports: Option<Vec<u16>>,
     pub ready_timeout: Duration,
@@ -122,6 +128,7 @@ impl Config {
             connect,
             keep_looking,
             env: Vec::new(),
+            login_env: Arc::new(super::shell_env::merged),
             ports: None,
             ready_timeout: Duration::from_secs(60),
             taken_every: TAKEN_EVERY,
@@ -187,6 +194,7 @@ fn connect(config: &Config) {
     options.preferred_ports =
         config.ports.clone().unwrap_or_else(|| remembered_port(&app_dir).into_iter().chain([server::DEFAULT_PORT]).collect());
     options.env.extend(config.env.iter().cloned());
+    options.env = (config.login_env)(std::mem::take(&mut options.env));
     let server = match FleetServer::start(options) {
         Ok(server) => server,
         Err(e) => return fail(config, format!("Couldn't start Fleet: {e}"), shown),

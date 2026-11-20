@@ -15,9 +15,15 @@ fn main() {
     let mode = std::env::var("FAKE_FLEET_MODE").unwrap_or_else(|_| "serve".into());
     println!("fake fleet {mode} args={}", args[1..].join(" "));
     eprintln!("fake fleet stderr line");
-    for key in
-        ["Fleet__Host", "Fleet__Port", "Fleet__Desktop__Enabled", "ASPNETCORE_ENVIRONMENT", "ELECTRON_RUN_AS_NODE", "FLEET_NATIVE_TOKEN"]
-    {
+    for key in [
+        "PATH",
+        "Fleet__Host",
+        "Fleet__Port",
+        "Fleet__Desktop__Enabled",
+        "ASPNETCORE_ENVIRONMENT",
+        "ELECTRON_RUN_AS_NODE",
+        "FLEET_NATIVE_TOKEN",
+    ] {
         println!("env {key}={}", std::env::var(key).unwrap_or_else(|_| "(unset)".into()));
     }
     println!("cwd={}", std::env::current_dir().map(|d| d.display().to_string()).unwrap_or_default());
