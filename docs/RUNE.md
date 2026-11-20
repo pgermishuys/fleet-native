@@ -2292,7 +2292,6 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **A headless run answers a paste request with nothing** (no one reads the clipboard), so a test can check Cut and Copy (the memory clipboard) but only that a Paste pick closes the menu and leaves the field focused.
 - **Links:** `Markdown::on_link_secondary` and `El::on_link_secondary` take the press from the elements around, and `Tx::open_url` refuses anything but `http`, `https` and `mailto` with an `Err`, so the link rule needs no code of ours; `Runtime::take_url_requests` is what a test reads.
 
-
 ## Component 18, piece B (the Workflows page, the off notice and the Library list)
 
 - **No hover border.** Fleet's dashed New workflow and Model roles buttons mix the accent into the border on hover. `El::hover` only

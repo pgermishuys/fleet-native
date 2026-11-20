@@ -278,7 +278,7 @@ impl State {
         }
         if self.rail != crate::Rail::Workflows {
             // The Run box's repository is followed from any page (a session row can be the first to ask).
-            if self.workflows_nav.reload_wanted && self.workflows_feature() == Some(true) {
+            if self.workflows_nav.reload_wanted && self.workflows_feature() == Some(true) && !self.workflows_nav.turning_on {
                 self.workflows_reload(tx);
                 return true;
             }
@@ -297,7 +297,8 @@ impl State {
             self.workflows_nav.prefs_asked = true;
             self.read_preferences(&machine);
         }
-        if self.workflows_feature() != Some(true) {
+        // While Turn on saves, the server still refuses the library: read it once, after the save, not in the gap too.
+        if self.workflows_feature() != Some(true) || self.workflows_nav.turning_on {
             return changed;
         }
         let nav = &self.workflows_nav;
