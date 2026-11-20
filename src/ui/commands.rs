@@ -1,5 +1,6 @@
 //! Fleet's command list (`composables/use-commands.ts`, shortcuts from `lib/keybinding-types.ts`).
 //! A command either runs here, waits on the component that owns its target, or opens a level.
+use crate::desktop::menu::{self, Item};
 use crate::icons::*;
 use crate::{Rail, State, Tx};
 use rune::Icon;
@@ -383,7 +384,16 @@ pub fn all(s: &State) -> Vec<Command> {
             &["theme"],
             now(|s, _| s.toggle_theme()),
         ),
-        c("toggle-fullscreen", "Toggle full screen", "Enter or exit fullscreen mode.", &MAXIMIZE_2, View, None, &[], Run::Waiting(24)),
+        c(
+            "toggle-fullscreen",
+            "Toggle full screen",
+            "Enter or exit fullscreen mode.",
+            &MAXIMIZE_2,
+            View,
+            None,
+            &[],
+            now(|s, tx| s.menu_run(Item::ToggleFullScreen, tx)),
+        ),
         c("zoom-in", "Zoom in", "Increase the interface scale.", &ZOOM_IN, View, Some(md("=")), &["larger"], Run::Waiting(9)),
         c("zoom-out", "Zoom out", "Decrease the interface scale.", &ZOOM_OUT, View, Some(md("-")), &["smaller"], Run::Waiting(9)),
         c(
@@ -419,6 +429,15 @@ pub fn all(s: &State) -> Vec<Command> {
             Run::Waiting(22),
         ),
     ]);
+    // Fleet's menu bar has these; Rune draws one on macOS only, so the palette carries them (24 H, decision 9).
+    for (item, id, label, description) in menu::palette() {
+        let icon = match item {
+            Item::Quit => &POWER_OFF,
+            Item::CheckForUpdates => &REFRESH_CW,
+            _ => &FOLDER_OPEN,
+        };
+        list.push(c(id, label, description, icon, Fleet, None, &[], now(move |s, tx| s.menu_run(item, tx))));
+    }
     list
 }
 

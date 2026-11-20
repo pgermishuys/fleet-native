@@ -196,7 +196,7 @@ for the theme (native: the app's theme). Icon `icon.png`.
 | 24.54 | Background before the first paint (`#0d0d10` / `#F3F2EF`) | MAIN | n/a: Rune paints the first frame itself | — |
 | 24.55 | `autoHideMenuBar` on Windows and Linux | MAIN | n/a (no menu bar there) | — |
 | 24.56 | Spell check in fields | MAIN `spellcheck: true` | Out of reach: Rune's text fields have no spell checker | — |
-| 24.57 | Toggle full screen (View menu; the palette entry waits on 24) | MENU `togglefullscreen`; `ui/commands.rs` | Palette entry drawn, `Run::Waiting(24)` | 24 H |
+| 24.57 | Toggle full screen (View menu; the palette entry waits on 24) | MENU `togglefullscreen`; `ui/commands.rs` | Done (palette entry live: `Tx::toggle_full_screen`; macOS View menu item) | 24 H |
 | 24.58 | Wayland hides window positions: restore the size only | Rune | **Open**: `placement()` is `None` on Wayland and nothing else in Rune reports the window's size, so nothing is saved there and the window opens at its default (written in `docs/RUNE.md`) | Rune |
 
 ### 6. One instance (MAIN)
@@ -246,15 +246,15 @@ for the theme (native: the app's theme). Icon `icon.png`.
 
 | # | Row | Source | Native | Owner |
 |---|---|---|---|---|
-| 24.100 | macOS "Fleet": About, **Check for Updates…**, Services, Hide, Hide Others, Show All, Quit | MENU | None | 24 H |
-| 24.101 | Windows/Linux "File": **Quit Fleet** | MENU | None (decision 9: palette) | 24 H |
-| 24.102 | Edit: Undo, Redo, Cut, Copy, Paste, Select All, then **Find in Conversation** shown with ⌘F/Ctrl+F but the key left to the app (`registerAccelerator: false`; Windows shows "Find in Conversation\tCtrl+F" as text) | MENU; MT ×2 | Key done (03 P); `State::find_request` | 24 H (macOS item; `standard_menus` brings Edit) |
+| 24.100 | macOS "Fleet": About, **Check for Updates…**, Services, Hide, Hide Others, Show All, Quit | MENU | Check for Updates… done (app menu, after About); About, Services, Hide, Hide Others, Show All, Quit are Rune's own default items (macOS, CI only) | 24 H |
+| 24.101 | Windows/Linux "File": **Quit Fleet** | MENU | Done as a palette entry, "Quit Fleet" (decision 9), through E's quit rules | 24 H |
+| 24.102 | Edit: Undo, Redo, Cut, Copy, Paste, Select All, then **Find in Conversation** shown with ⌘F/Ctrl+F but the key left to the app (`registerAccelerator: false`; Windows shows "Find in Conversation\tCtrl+F" as text) | MENU; MT ×2 | Done (macOS: Edit → Find in Conversation with ⌘F, key left to the app by `keys_first`; `standard_menus` brings the Edit items) | 24 H (macOS item; `standard_menus` brings Edit) |
 | 24.103 | View: Reload, Force Reload, Toggle DevTools | MENU | n/a: no page to reload | — |
 | 24.104 | View: Actual Size, Zoom In, Zoom Out | MENU | The palette's zoom entries (component 9) and Appearance's font size (16) | 9, 16 |
-| 24.105 | View: Toggle Full Screen | MENU | see 24.57 | 24 H |
-| 24.106 | Window (role): Minimize, Close (and Zoom on macOS) | MENU | None | 24 H (`standard_menus`) |
-| 24.107 | Help: **Report a Problem…** (shows the window, opens the report), **Check for Updates…** (not macOS), **Open Logs Folder**, **Open Fleet Data Folder** | MENU, PRE `onReportProblem` | Report opens from the rail's Help (9) | 24 H |
-| 24.108 | Check for Updates… says in a dialog: "This build of Fleet doesn't update itself." / "You're on the latest version (<v>)." / "Fleet is already checking for updates." / "Fleet <v> is downloading. Fleet lets you know when it's ready to install." / "Couldn't check for updates: <error>"; a found one opens the update card | UPD `updateCheckMessage`; UT "Check for Updates… from the menu" ×3 | Native updater has its own words (builds, not versions) | 25 / 9 V (words); 24 H (the menu entry wakes the checker) |
+| 24.105 | View: Toggle Full Screen | MENU | Done (macOS View menu with ⌃⌘F; palette entry everywhere) | 24 H |
+| 24.106 | Window (role): Minimize, Close (and Zoom on macOS) | MENU | Done on macOS (`standard_menus`: Minimize, Close; Zoom is the system's); none elsewhere (no bar) | 24 H (`standard_menus`) |
+| 24.107 | Help: **Report a Problem…** (shows the window, opens the report), **Check for Updates…** (not macOS), **Open Logs Folder**, **Open Fleet Data Folder** | MENU, PRE `onReportProblem` | macOS Help: Report a Problem…, Open Logs Folder, Open Fleet Data Folder; elsewhere palette: Report a problem (9), Check for updates, Open logs folder, Open Fleet data folder | 24 H |
+| 24.108 | Check for Updates… says in a dialog: "This build of Fleet doesn't update itself." / "You're on the latest version (<v>)." / "Fleet is already checking for updates." / "Fleet <v> is downloading. Fleet lets you know when it's ready to install." / "Couldn't check for updates: <error>"; a found one opens the update card | UPD `updateCheckMessage`; UT "Check for Updates… from the menu" ×3 | Entry done (wakes the checker; opens the card when a build is found; notes "Checking for updates…", "Fleet is already checking for updates.", "This build of Fleet doesn't update itself."); the "latest version" and "Couldn't check" words stay with 25 / 9 V | 25 / 9 V (words); 24 H (the menu entry wakes the checker) |
 | 24.109 | Right-click: up to 5 spelling suggestions and "Add to Dictionary" | MENU `showContextMenu` | Out of reach (no spell checker) | — |
 | 24.110 | Right-click on a link (http, https, mailto): **Open Link in Browser**, **Copy Link** | MENU | None | 24 I |
 | 24.111 | Right-click in a field: Cut, Copy, Paste (each enabled by what it can do), separator, Select All | MENU | None | 24 I |
@@ -288,7 +288,7 @@ for the theme (native: the app's theme). Icon `icon.png`.
 | 24.141 | `openLogs`, `retry`, `useRunningFleet` | PRE | Done (`Actions::{open_logs, retry, use_running}`) | — |
 | 24.142 | `getUpdateState`, `onUpdateState`, `checkForUpdates`, `installUpdate`, `onShowUpdate` | PRE, UPD | Native updater (25) | 25, 9 V |
 | 24.143 | `captureWindow` | PRE | Out of reach (09 row 9.12) | — |
-| 24.144 | `onReportProblem`, `onFindInConversation` | PRE | Menu items call `report_open` and `find_request` | 24 H |
+| 24.144 | `onReportProblem`, `onFindInConversation` | PRE | Done (`State::menu_run`: report_open, find_request) | 24 H |
 
 ### 14. Updates and packages (UPD, `electron-builder.config.js`)
 
@@ -509,6 +509,8 @@ the scratch folder, HOME there too), the released server binary, and their own p
 - **OS:** the menu bar is macOS only: CI builds it; no picture from this machine.
 - **Pictures:** the palette with the new entries beside Electron's Help menu (Fleet's words), both themes.
 - **About:** 300 lines.
+
+**Built (20 November 2026):** `src/desktop/menu.rs` (the macOS list as data, the palette's four entries, Fleet's words), `src/menu_bar.rs` (`State::menu_run`, `MenuState` for the folders and the opener, `install` which adds `standard_menus` and the items on macOS only), `src/desktop/menu_tests.rs`. **Differences:** Electron's Reload, Force Reload and DevTools have no page here; zoom stays the palette's; "Open Fleet Data Folder" opens Fleet's data (`~/.weave`, as PA), "Open Logs Folder" the app's own `logs/`. "Find in Conversation" uses `keys_first` (the window sees ⌘F before the menu), the nearest Rune has to `registerAccelerator: false`. **Checked by hand (Linux):** the palette entries drawn (`shots/parity/24h-menus/`) beside Fleet's own client's palette for the same searches. **Not seen anywhere:** the macOS menu bar (Rune builds it on macOS only; CI builds it and the headless tests read the list), and Electron's native Help menu (Playwright can't draw a system menu, so Fleet's words are in the pull request as text).
 
 ### Piece I: the right-click menu on text, and the link rule's test
 

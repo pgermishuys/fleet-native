@@ -9,6 +9,7 @@ pub mod conv;
 pub mod desktop;
 pub mod fleet;
 mod icons;
+mod menu_bar;
 mod mock;
 mod script;
 pub mod term;
@@ -727,6 +728,8 @@ pub struct State {
     pub window_place: desktop::window::Keeper,
     /// System notifications: who posts them and which are on screen (component 24, piece F).
     pub notify: desktop::notify::NotifyState,
+    /// What the menus open and where (`menu_bar`, component 24 H).
+    pub menu: menu_bar::MenuState,
     /// The rule that lands the first `/` of a start on Mission control (component 9, piece C).
     pub landing: fleet::dashboard::Landing,
     /// What the home page keeps while it is shown: another machine's sessions, "Show N more" (piece E).
@@ -962,6 +965,7 @@ impl Default for State {
             close: Default::default(),
             window_place: Default::default(),
             notify: Default::default(),
+            menu: Default::default(),
             live: false,
             landing: fleet::dashboard::Landing::at_start(true),
             dash: Default::default(),
@@ -5477,7 +5481,7 @@ pub fn start_desktop() {
     STARTING.store(starts_own, std::sync::atomic::Ordering::Relaxed);
     // The server hears whether the window has the keyboard and is on screen (`fleet::presence`).
     let app_args = rest.clone();
-    let app = terminal_hooks(App::new(spec()))
+    let app = menu_bar::install(terminal_hooks(App::new(spec())))
         .args(rest)
         .on_focus(|s, focused, tx| {
             s.each_link(|link| link.window_focus(focused));
