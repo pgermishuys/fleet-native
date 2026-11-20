@@ -115,6 +115,27 @@ When none answers, the status bar says where it looked. With no Fleet found the 
 The window opens at the desktop app's size (1360 x 880, no smaller than 720 x 480) and follows the
 system's light or dark theme.
 
+**The desktop shell** (component 24), as Fleet's desktop app does it, on Linux, macOS and Windows:
+
+- With no Fleet running on this computer's data, the app starts its own (the server bundled beside the app, `FLEET_NATIVE_SERVER_BIN`,
+  the CLI install, Fleet's own desktop app's copy, or `fleet` on PATH, in that order) in desktop mode, shows a splash while it starts and an
+  error page if it can't, and stops it when the app quits. A Fleet it didn't start is left running. The server's log is
+  `logs/fleet-server.log` in the app's own data folder. `FLEET_NATIVE_START_SERVER=0` turns this off.
+- A Fleet that asks for its key (a `fleet node`) gets Fleet's "already runs on this computer" card the first time; this machine's key is read from
+  the machine file beside its database.
+- One instance: a second launch exits and brings the first window forward. The window opens where it was left, at its size, maximised if it was.
+- Closing: on macOS the window hides; elsewhere closing quits, unless the app's own Fleet has sessions working, when the app goes to the tray
+  with a "Fleet is still running" note. Quitting with sessions working asks first. The tray needs a tray host on Linux (GNOME needs an extension).
+- Notifications (the "session needs you" ones, when Settings > General has them on) and the tray note are the system's; on Linux they go over
+  D-Bus, and on macOS only a bundled app can post them.
+- Menus: the macOS menu bar has Fleet's items; elsewhere the same items are command-palette entries (Open logs folder, Open Fleet data folder,
+  Check for updates, Quit Fleet, Toggle full screen). A right-click on a field, a selection or a link has Fleet's menu.
+- `scripts/smoke-desktop.sh <app>` is Fleet's `smoke.mjs`: start the app on scratch data, check its Fleet, kill the app hard, check the Fleet
+  stops and the next start gets the lock. Component 25's packages will run it.
+
+Not here: spell check (Rune's fields have none), Reload and DevTools (no page), a Windows twin of the smoke script, and everything that is
+the packages' (the icon, the bundled server, the installers).
+
 A file tab's code can be edited (component 11, piece R): caret, selection, undo and redo, cut, copy and paste, the input method, Ctrl/Cmd+S
 or the Save button to write it through the server. `fleet-native --bench-editor` times the editor on a file of 20,000 lines.
 

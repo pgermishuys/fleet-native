@@ -135,7 +135,7 @@ No event tells the app the window moved or was resized; a piece polls `placement
 | 24.3 | Packaged: `<resources>/fleet/WeaveFleet.Api`, content root that folder; `.exe` on Windows | PA; DT "uses the bundled server when packaged", "names the Windows binary with .exe" | Path done (`<exe dir>/fleet/`, mac `Contents/Resources/fleet`); no bundle until 25 | 25 (the bundle) |
 | 24.4 | Development: the repository's Release build `src/WeaveFleet.Api/bin/Release/net10.0/<rid>/` | PA; DT "uses the repo's Release build in development" | n/a: the native app isn't built inside weave-fleet; the override covers it | — |
 | 24.5 | The other installs (decision 1): CLI install, Fleet's desktop app's copy, `fleet` on PATH | native only | Done (`desktop::paths::candidates`: beside the app, CLI install, Fleet's own app, `fleet` on PATH) | — |
-| 24.6 | No binary anywhere: "Fleet isn't where the app expects it: <path>" (native: the places it looked) | SRV `launch` | Words done (`paths::not_found_message`, one place: Fleet's sentence; several: the list); page in B | 24 B (page) |
+| 24.6 | No binary anywhere: "Fleet isn't where the app expects it: <path>" (native: the places it looked) | SRV `launch` | Words done (`paths::not_found_message`). **Open by design** (decision 4): with no server found the old notice and 3 s search stay, so the page isn't shown; the notice names the places | — |
 
 ### 2. Starting, watching and stopping it (SRV, MAIN `connect`)
 
@@ -147,16 +147,16 @@ No event tells the app the window moved or was resized; a piece polls `placement
 | 24.13 | Port: the one used last time if free (keeps the client's local storage; for native, its settings) else 6262 else any free one. "Free" = nothing accepts a loopback connect within 1 s **and** a 127.0.0.1 bind succeeds (Windows binds beside a 0.0.0.0 holder) | SRV `pickPort`, `canListen`; MAIN `DEFAULT_PORT`; DT "ports" ×3 | Done (`pick_port`, `can_listen`; preferred ports are a list, the caller passes the remembered one then 6262) | — |
 | 24.14 | Ready: `/readyz` every 250 ms (1 s timeout each) for up to 60 s; stops waiting if the process exits | SRV `waitUntilReady`, INS `isReady` | Done (the supervisor looks every 250 ms, 1 s each, 60 s; stops at the exit) | — |
 | 24.15 | Ready → remember the port, connect the app to it, marked *owned* | MAIN `onServerEvent` "ready" | Done (`desktop::start::watch`: remembers the port in `settings.json` as `desktopPort`, connects, marks `owned`) | — |
-| 24.16 | Exit code 75 (another Fleet took the data first) → look for that Fleet every 500 ms for 30 s and use it; else "Another Fleet is using your data, but it isn't answering." | SRV exit; MAIN "taken" | Event done (`Event::Taken`, no restart after it); wiring and words in B | 24 B (wiring, words) |
+| 24.16 | Exit code 75 (another Fleet took the data first) → look for that Fleet every 500 ms for 30 s and use it; else "Another Fleet is using your data, but it isn't answering." | SRV exit; MAIN "taken" | **Done** (B: `Event::Taken`, then every 500 ms for 30 s the Fleet that took the data is looked for and used; else Fleet's "isn't answering" page; `start_tests` "another fleet that took the data is used once it answers") | — |
 | 24.17 | Crash → restart: at once the first time in a minute, then 1 s, 2 s, 4 s; the fifth crash in a minute gives up: "Fleet keeps stopping unexpectedly." | SRV `restartDelay`; DT "restarts" ×3 | Done (`restart_delay`; `Event::Restarting`, then `Failed`) | — |
 | 24.18 | Never answered within 60 s while running → "Fleet started but never answered." | SRV | Done (`Event::Failed`) | — |
 | 24.19 | Spawn failure → "Couldn't start Fleet: <error>" and a log line `── could not start Fleet: …` | SRV | Done (`Event::Failed`, log line) | — |
 | 24.20 | Stop: close stdin (the server's `StandardInputWatcher` shuts down cleanly with its agents), wait 20 s, then SIGTERM, 5 s, SIGKILL (Windows: terminate) | SRV `stop` | Done (`FleetServer::stop`: stdin, grace, SIGTERM, 5 s, kill; Windows: stdin, then terminate) | — |
-| 24.21 | The app dying any way at all closes the pipe, so the server stops by itself and frees the lock (`scripts/smoke.mjs` kills the app and checks) | server `StandardInputWatcher`; smoke | Done in the server (its stdin closes with the app); the live check against the released server is still open (see piece B) | 24 B (live check open) |
+| 24.21 | The app dying any way at all closes the pipe, so the server stops by itself and frees the lock (`scripts/smoke.mjs` kills the app and checks) | server `StandardInputWatcher`; smoke | **Done** (J, 20 November 2026): the server stops by itself when its input closes; `scripts/smoke-desktop.sh` kills the app with SIGKILL against the released server on Linux, sees the Fleet stop, and starts the app again on the same data. Windows and macOS: the script is for 25's packages to run (Windows needs a PowerShell twin) | 25 (other systems) |
 | 24.22 | Stopped only if the app started it; a Fleet it found keeps running after quit | MAIN `before-quit`, `fleet.owned` | Done (`StartState::owned` is only set for a server this app started; quit stops that one, never a found one) | — |
 | 24.23 | Log file (decision 6): header line per start, stdout and stderr appended, exit line, rotate to `.1` past 10 MB | SRV `openLog` | Done (`desktop::log`) | — |
 | 24.24 | A restart after a crash fires "ready" again with the same URL; the app doesn't reload a window already on it | MAIN "ready" | Done (`watch` skips a second `Ready` for the address it is on) | — |
-| 24.25 | Restarting: log `Fleet stopped (exit code N); restarting in M ms.` | MAIN "restarting" | Done as the event (`Event::Restarting`); the log line is the app's to write in B | — |
+| 24.25 | Restarting: log `Fleet stopped (exit code N); restarting in M ms.` | MAIN "restarting" | **Done** (B: `start.rs` writes the line to the log) | — |
 | 24.26 | Off the UI thread: spawning, waiting, reading output, stopping | AGENTS.md | Done (one supervisor thread; the app reads a channel) | — |
 
 ### 3. The start pages (`static/`, MAIN `showPage`, `showError`)
@@ -296,7 +296,7 @@ for the theme (native: the app's theme). Icon `icon.png`.
 |---|---|---|---|---|
 | 24.150 | Update mode: install on Windows and AppImage, notify on macOS and the .deb, off unpackaged or `FLEET_DESKTOP_UPDATES=off`; check after 10 s and every 4 h; `nextState` rules | UPD; UT "update mode" ×3, "update state" ×7 | Native updater: every 4 h, its own rules | 25 |
 | 24.151 | Installers with the server inside (`resources/fleet`), app id `com.pgermishuys.fleet`, Linux `StartupWMClass: Fleet`, category Development | builder config | None | 25 |
-| 24.152 | Smoke test of a packaged app: start on scratch data, Fleet answers, kill the app hard, Fleet stops and frees the lock | `scripts/smoke.mjs` | None | 24 B (as a live check), 25 (in CI on packages) |
+| 24.152 | Smoke test of a packaged app: start on scratch data, Fleet answers, kill the app hard, Fleet stops and frees the lock | `scripts/smoke.mjs` | **Done** (J): `scripts/smoke-desktop.sh <app>` is `smoke.mjs` in bash; passes on Linux against the debug build and the released v0.72.0 server | 25 (run it on each package; a Windows twin) |
 
 ### 15. Deep links
 
@@ -388,7 +388,7 @@ the scratch folder, HOME there too), the released server binary, and their own p
 
 ### Piece B: start its own Fleet: in the app, the splash and the error page — **built, 20 November 2026**
 
-**Built:** `src/desktop/start.rs` (`Config`, `begin`, `StartState`, `Phase`), `src/view/start_page.rs`, `Sidebar::desktop_port`, `FleetServer::stopper` (a shareable handle: the server itself holds a `Receiver`, which isn't `Sync`), scenes `start-splash`/`start-error` (+ `-light`), `src/desktop/start_tests.rs` (11 tests). **Differences:** the owned server is a `Stopper` in `StartState`, not the whole `FleetServer`; quitting closes its input and waits on a thread, with `rune::exit_deadline(25 s)`; with no server binary found the old 3 s search stays (decision 4) and the notice names the places, so row 24.6's page isn't shown. **Open:** the live check (Xvfb, the released server, SIGKILL of the app) and Windows/macOS runs; row 24.21's live part and 24.152 stay open. Fleet's own pictures are the reduced-motion ones in this folder.
+**Built:** `src/desktop/start.rs` (`Config`, `begin`, `StartState`, `Phase`), `src/view/start_page.rs`, `Sidebar::desktop_port`, `FleetServer::stopper` (a shareable handle: the server itself holds a `Receiver`, which isn't `Sync`), scenes `start-splash`/`start-error` (+ `-light`), `src/desktop/start_tests.rs` (11 tests). **Differences:** the owned server is a `Stopper` in `StartState`, not the whole `FleetServer`; quitting closes its input and waits on a thread, with `rune::exit_deadline(25 s)`; with no server binary found the old 3 s search stays (decision 4) and the notice names the places, so row 24.6's page isn't shown. **Open then, done in J:** the live check (Xvfb, the released server, SIGKILL of the app) is `scripts/smoke-desktop.sh` and the live run below; Windows and macOS stay CI only. Fleet's own pictures are the reduced-motion ones in this folder.
 
 - **Rows:** 24.6 (page), 24.15, 24.16 (wiring), 24.21, 24.22, 24.24, 24.30–24.33, 24.35, 24.141 (`openLogs`, `retry`),
   24.152 (as a live check).
@@ -526,9 +526,96 @@ the scratch folder, HOME there too), the released server binary, and their own p
 
 **Built (21 November 2026):** `src/ui/text_menu.rs` (`rows` is Fleet's `showContextMenu` as data; `text_input` wraps Rune's and adds the handler on Linux; `selectable`, `on_link`), `Open::TextMenu`, `Ui::text_menu`, four scenes (`text-menu-field`, `text-menu-link`, each with its light twin), `tests_text_menu.rs` (13 cases: each menu's rows, the drawn menu, Cut/Copy through the composer, and LNK's cases against `take_url_requests`). **Differences:** a native menu is not Electron's (Rune's own on macOS and Windows); the Linux one is Fleet's menu look. Paste is always enabled. The caret doesn't move to the click, and the menu has no spelling rows (24.109). **Checked by hand (Linux, lavapipe):** the live menu over the composer with a selection (`shots/parity/24i-text-menu/live-field.png`) and the four scenes, both themes. **Not seen:** Electron's own menus (an OS menu, Playwright can't draw it; Fleet's words are in the pull request as its source), macOS and Windows (CI only; they keep Rune's native menus). **Open:** Copy on tool output, shell commands, the start page and the code view; terminal links.
 
-### Piece J: sweep
+### Piece J: the sweep — **done, 20 November 2026**
 
-- **Rows:** every row left open above gets its reason or owner; 24.152's smoke check written as `scripts/smoke-desktop.sh`
-  for 25's packages to run; README's "what works"; `docs/PORT.md` row 24 set to done.
-- **Depends on:** A–I.
-- **Pictures:** every start page beside Electron's once more, both themes.
+**Component 24 is done.** What this piece did: read every row against the code on `main`; accounted for every desktop test of Fleet (below);
+wrote `scripts/smoke-desktop.sh` (24.152); walked the app live on Linux, on a scratch data folder, the released v0.72.0 server and its own
+ports, and put the start pages beside Electron's once more. Pictures: `shots/parity/24j-sweep/` (`start-pages-dark.png`,
+`start-pages-light.png` are the native scenes beside Fleet's own pages, reduced motion as before; `1-` to `6-` are the live run).
+
+#### Every row that isn't plainly done
+
+Rows not listed here are **Done** in the tables above, with the piece named there.
+
+| Row | State | Why, and who |
+|---|---|---|
+| 24.3 | Path done; no bundle | The server bundled beside the app is component 25's package. |
+| 24.4 | n/a | The app isn't built inside weave-fleet; `FLEET_NATIVE_SERVER_BIN` covers it. |
+| 24.6 | Open by design | With no server found anywhere the old notice and 3 s search stay (decision 4); Fleet's "isn't where the app expects it" page isn't shown. |
+| 24.30 | Done bar one thing | Reduced motion isn't read (Rune has no such query): the bar always slides. |
+| 24.34 | Done bar one thing | The card is 470 wide whatever the window (Fleet: `max-width: 100%`); the minimum window is wider. Native's **Use it** shows no focus ring; Fleet's autofocus does (look at `start-pages-*.png`). |
+| 24.46 | n/a | Native sends the key on every request; there's no cookie to sign in. |
+| 24.50 | Open | The app icon comes with 25's packages. **Owner: 25.** |
+| 24.53 | Tests only | Maximised: the virtual display's window manager here has no maximise. |
+| 24.54, 24.55 | n/a | Rune paints the first frame itself; there's no menu bar on Windows and Linux. |
+| 24.56, 24.109 | Out of reach | Rune's text fields have no spell checker. **Owner: Rune.** |
+| 24.58 | Open | Wayland: `placement()` is `None` and nothing else reports the size, so nothing is kept there (`docs/RUNE.md`, piece G). **Owner: Rune.** |
+| 24.60 | Done bar one thing | The first window coming forward from behind or minimised was not seen under the bare virtual display (no window manager acts on it); seen from the tray (`4-live-second-launch-forward.png`). |
+| 24.76 | Open | The updater's "Updating restarts Fleet, which stops them." warning needs the working count in the update card. **Owner: 9 V.** |
+| 24.84 | A note | With no tray host the icon never shows; the window then comes back only by a second launch. Rune can't tell whether a host runs. |
+| 24.100, 24.102, 24.105, 24.106 | CI only | The macOS menu bar is built by Rune on macOS only; the headless tests read the list. |
+| 24.103 | n/a | There is no page to reload. |
+| 24.104 | Elsewhere | Zoom is the palette's (9) and Appearance's font size (16). |
+| 24.108 | Open (words) | "You're on the latest version" and "Couldn't check" stay with the updater. **Owner: 25 / 9 V.** |
+| 24.112 | Open (small) | Copy on selected text is drawn for messages, the question and the failure text; not yet on tool output, shell commands, the start page's log or the code view; terminal links are 13's. No piece owns it: a follow-up with `ui::text_menu::selectable`. |
+| 24.120 | n/a | Native draws Fleet's own pages. |
+| 24.123 | Elsewhere | Web views' own navigation is 14's. |
+| 24.142, 24.150, 24.151 | Elsewhere | The updater's states and modes, the installers with the server inside, the app id, `StartupWMClass`. **Owner: 25** (native's updater is not Electron's). |
+| 24.143 | Out of reach | Rune can't read its own frame back (09 row 9.12). |
+| 24.152 | **Done** | `scripts/smoke-desktop.sh`; Windows needs a PowerShell twin (25). |
+
+Out of reach, as before: cancelling a system quit to ask first (macOS Cmd-Q, logout: Rune's `on_quit` can't cancel), and a Mac or Windows
+look at the tray, the toasts and the menu bar: **Windows and macOS are checked by CI only** (build, clippy, the headless tests with their fake
+server process on all three).
+
+#### Fleet's desktop tests, all accounted for (45 cases)
+
+Fleet's names are in `desktop/test/*.ts`; native's are the same sentence in snake case.
+
+| Fleet case | Native test (file) |
+|---|---|
+| paths: shares ~/.weave with CLI installs; uses the bundled server when packaged; takes overrides for scratch runs; names the Windows binary with .exe | `shares_the_weave_folder_with_cli_installs`, `uses_the_server_bundled_beside_the_app`, `takes_overrides_for_scratch_runs`, `names_the_windows_binary_with_exe` (`desktop/tests.rs`) |
+| paths: uses the repo's Release build in development | n/a (24.4) |
+| instance file: reads what the server writes; knows a Fleet that wants its key; only trusts loopback URLs | `parses_a_valid_instance_file`, `knows_a_fleet_that_wants_its_key_but_only_when_it_says_so_exactly`, `rejects_a_remote_url` with `accepts_localhost_and_ipv6_loopback` (`fleet/tests/instance.rs`) |
+| the key: is in the machine file; is read from what the server saves (and "is not taken from" ×5); is read from disk, null when missing; reports a key Fleet turned away | `the_key_is_in_the_machine_file_beside_the_database`, `the_key_is_read_from_what_the_server_saves`, `the_key_is_not_taken_from_what_is_not_a_key`, `the_key_is_read_from_disk_and_nothing_when_the_file_is_missing`, `a_key_fleet_turned_away_is_reported_with_its_own_words` (`fleet/tests/local_token.rs`) |
+| the key: signs the window in by posting it to the Fleet's login | n/a (24.46) |
+| links: opens web and mail links in the browser; blocks everything else | `opens_web_and_mail_links_in_the_browser`, `blocks_everything_else` (`tests_text_menu.rs`) |
+| links: keeps Fleet's own pages in the window | n/a (24.120) |
+| server environment ×2 | `runs_fleet_in_desktop_mode_on_the_shared_data_directory`, `drops_electrons_variables_and_inherited_listen_urls` |
+| restarts ×3 | `restarts_straight_away_after_the_first_crash_then_backs_off`, `gives_up_after_five_crashes_in_a_minute`, `forgets_crashes_older_than_a_minute` |
+| ports ×3 | `keeps_the_preferred_port_when_its_free`, `picks_another_port_when_the_preferred_one_is_taken`, `picks_another_port_when_the_preferred_one_is_held_on_all_addresses` |
+| window bounds ×3 | `restores_bounds_that_are_still_on_a_screen`, `drops_bounds_on_a_monitor_thats_gone`, `drops_bounds_too_small_to_use` (`desktop/window.rs`) |
+| login shell environment ×3 | `reads_each_variable_between_its_markers_ignoring_shell_noise`, `asks_the_shell_with_printenv_for_each_name`, `puts_the_shells_path_first_and_keeps_the_apps_extra_entries` (`desktop/tests_shell_env.rs`) |
+| menu.test.ts ×2 | `has_edit_find_in_conversation_shown_with_the_command_key_but_with_the_key_left_to_the_app` and, for Windows' "shown as text", `on_windows_and_linux_the_items_found_nowhere_else_are_in_the_palette` (`desktop/menu_tests.rs`) |
+| updates.test.ts ×13 (update mode, update state, Check for Updates…) | Not ported: Electron's updater is not native's. Native's own updater (component 25) has its tests in `update/tests.rs` and `fleet/updates/`; the menu entry's words are in `menu_tests.rs` (24.108). **Owner: 25.** |
+| `use-session-notifications.test.ts` ×8 (a client test) | `tests_notifications.rs`, piece F, under their names |
+
+#### The smoke script (24.152)
+
+`bash scripts/smoke-desktop.sh <app> [args]` is `smoke.mjs`: a scratch folder (HOME, the app's data and the Fleet's data inside it, a free
+port written into the app's settings so it never takes 6262), the app started on it, the Fleet's instance file, `/readyz`, the UI, `/api/desktop/status`,
+a repository listed (git runs from Fleet), `kill -9` of the app and the Fleet gone within 30 s, then the app started again on the same data
+(the lock was freed) and killed again. With no display on Linux it runs the app under `xvfb-run`. Run on this machine against the debug build and
+the released server, twice, it printed `Smoke test passed.` (Fleet 0.74.0 started in about 1 s; listed the repository in under a second).
+Windows needs a PowerShell twin (no SIGKILL in bash): **25 runs it on each package**.
+
+#### The live run (Linux, 20 November 2026)
+
+The debug build under Xvfb with a session D-Bus (`dbus-run-session`, `dbus-monitor` on the notification and tray interfaces), a scratch HOME, runtime
+and data folders, the released v0.72.0 server wrapped so it waits 5 s before it starts (so the splash can be seen), `Fleet__Auth__RequireToken=true`,
+a scripted model, no window manager and no notification daemon or tray host. Nothing but the scratch folders and its own ports was touched.
+
+| Step | What happened |
+|---|---|
+| Nothing running; app started | The splash (`1-live-splash.png`), then the Fleet's instance file with `desktop: true` and `requiresToken: true`, then the shell. |
+| The key | The log said "using this machine's access token from Fleet's data folder"; the shell loaded with no card (`2-live-shell-with-key.png`). |
+| The login shell | The app's own PATH was `/usr/bin:/bin`; the server's PATH had the folder a scratch `~/.bash_profile` added (`opencode` ran, so sessions could start). |
+| Quit with a session working | The palette's "Quit Fleet" asked "A session is still working. Quitting Fleet stops them." Cancel kept it (`3-live-quit-question.png`). |
+| Window place | Moved to 300,180 at 1000x640, then closed. `settings.json` held `"window": {x: 300, y: 180, width: 1000, height: 640}`; the next start opened there (`5-live-reopened-where-left.png`). |
+| Close with a session working | The window went (no visible window) and the app kept running. D-Bus saw `Notify("Fleet", …, "Fleet is still running", "A session is still working. Quit from the tray icon when you're done.", actions [default, Open], hints desktop-entry, suppress-sound)` and a `RegisterStatusNotifierItem` call to a watcher that wasn't there (no tray host, as the checklist's 24.84 says). |
+| Second launch while hidden | Exit code 0 at once, no second window, the first window back (`4-live-second-launch-forward.png`). |
+| A session asks a question | With `DesktopNotifications` on, D-Bus saw `Notify("Fleet", …, "Needs an answer", "Asked you a question.", …)` (`6-live-session-asks-notification-posted.png`). The preference was set through the API after the app connected and was seen only after a restart of the app; nothing here says Fleet's own client does otherwise. The daemon was missing, so the app logged one "notification wasn't posted (…ServiceUnknown)" line, as designed. |
+| Quit with nothing working | The app and its Fleet were gone and `fleet.instance.json` removed; the Fleet is only stopped because the app started it. |
+
+**Not seen:** the tray icon and its menu (no host here), a real toast or banner (no daemon), the macOS menu bar and Dock, the Windows tray and
+toasts; Electron's own native menus and message boxes (an operating system's, Playwright can't draw them).
