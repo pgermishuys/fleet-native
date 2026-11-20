@@ -14,10 +14,6 @@ pub const PRESENCE_INTERVAL: Duration = Duration::from_secs(30);
 /// (`FOCUS_SETTLE_MS`).
 pub const FOCUS_SETTLE: Duration = Duration::from_millis(250);
 
-/// Fleet reports focus only while session recaps or desktop notifications are switched on (two preferences
-/// of Settings, component 16). Until Settings exists they count as on, as `docs/parity/02` decides.
-pub const REPORT_FOCUS: bool = true;
-
 /// A hub call to make.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Call {
@@ -41,11 +37,15 @@ pub struct Presence {
     reported: Option<(String, bool)>,
     /// When a focus or visibility change has settled enough to report.
     settle_at: Option<Instant>,
+    /// Fleet reports focus only while session recaps (on this machine) or desktop notifications (here) are
+    /// switched on (`use-session-recap.ts`'s `enabled`). On until `set_enabled` says otherwise, so a link that
+    /// starts before the preferences are read still reports.
+    enabled: bool,
 }
 
 impl Default for Presence {
     fn default() -> Self {
-        Presence { focused: true, visible: true, next_tick: None, subscribed: None, reported: None, settle_at: None }
+        Presence { focused: true, visible: true, next_tick: None, subscribed: None, reported: None, settle_at: None, enabled: true }
     }
 }
 
@@ -98,6 +98,15 @@ impl Presence {
         self.report()
     }
 
+    /// The two preferences changed: nothing is reported while both are off. Turning it on says where the window is.
+    pub fn set_enabled(&mut self, enabled: bool) -> Vec<Call> {
+        if self.enabled == enabled {
+            return vec![];
+        }
+        self.enabled = enabled;
+        self.report()
+    }
+
     /// Another session is now the open one. Tells the server the old one is no longer looked at.
     pub fn left(&mut self) -> Vec<Call> {
         let calls = match self.reported.take() {
@@ -134,7 +143,7 @@ impl Presence {
     /// `report()`: the open session's focus, unless it is what the server already has.
     fn report(&mut self) -> Vec<Call> {
         let Some(id) = self.subscribed.clone() else { return vec![] };
-        if !REPORT_FOCUS {
+        if !self.enabled {
             return vec![];
         }
         let looking = self.looking();

@@ -66,6 +66,8 @@ pub enum Cmd {
     WindowFocus(bool),
     /// The window went off screen or came back.
     WindowVisible(bool),
+    /// Whether the focus report is wanted at all (Session recap or Desktop notifications on).
+    ReportFocus(bool),
 }
 
 /// What the UI keeps of the connection. A clone shares the same threads.
@@ -80,6 +82,8 @@ pub struct Link {
     /// Keeps the `/api/plugins` poll running (`plugin_poll`); the poll ends when the last clone of the link is gone.
     _plugins: Option<Sender<()>>,
     post: Post,
+    /// What the hub thread was last told about `Cmd::ReportFocus`; a hub starts out reporting.
+    focus_wanted: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -100,7 +104,15 @@ impl Link {
         std::thread::spawn(move || run(super::settings::HOME_MACHINE_KEY.to_string(), b, rx, p));
         let machines = super::machine_poll::start(base.clone(), post.clone());
         let plugins = super::plugin_poll::start(base.clone(), post.clone(), super::plugin_poll::EVERY);
-        Link { base, key: super::settings::HOME_MACHINE_KEY.to_string(), cmds, machines, _plugins: Some(plugins), post }
+        Link {
+            base,
+            key: super::settings::HOME_MACHINE_KEY.to_string(),
+            cmds,
+            machines,
+            _plugins: Some(plugins),
+            post,
+            focus_wanted: Default::default(),
+        }
     }
 
     /// A link to another machine (`key` is its id): the same hub and calls, aimed at that machine's address, which the
@@ -112,7 +124,7 @@ impl Link {
         std::thread::spawn(move || run(k, b, rx, p));
         // Nothing reads the other end: a machine link has no machine poll, and its sends are dropped.
         let (machines, _) = channel();
-        Link { base, key, machines, cmds, _plugins: None, post }
+        Link { base, key, machines, cmds, _plugins: None, post, focus_wanted: Default::default() }
     }
 
     pub fn is_home(&self) -> bool {
@@ -154,6 +166,13 @@ impl Link {
             self.refresh_machines();
         }
         let _ = self.cmds.send(Cmd::WindowFocus(focused));
+    }
+
+    /// Whether the open session's focus is reported (`enabled` in `use-session-recap.ts`); said only when it changes.
+    pub fn report_focus(&self, wanted: bool) {
+        if self.focus_wanted.swap(wanted, std::sync::atomic::Ordering::Relaxed) != wanted {
+            let _ = self.cmds.send(Cmd::ReportFocus(wanted));
+        }
     }
 
     /// The window went off screen or came back (Rune's `on_visibility`).
@@ -317,6 +336,9 @@ fn run(key: String, base: String, rx: Receiver<Cmd>, post: Post) {
                 }
                 Ok(Cmd::WindowVisible(visible)) => {
                     presence.visibility_changed(visible, Instant::now());
+                }
+                Ok(Cmd::ReportFocus(wanted)) => {
+                    presence.set_enabled(wanted);
                 }
                 // Not connected: no page can come (`loadSessionHistory` answers null).
                 Ok(Cmd::LoadOlder { session, cursor }) => history_failed(&post, session, cursor, "not connected"),
@@ -519,6 +541,7 @@ fn serve(
                     refresh.set_visible(visible, Instant::now());
                     presence.visibility_changed(visible, Instant::now()).into_iter().try_for_each(|c| send_call(&mut call, &mut ws, c))
                 }
+                Cmd::ReportFocus(wanted) => presence.set_enabled(wanted).into_iter().try_for_each(|c| send_call(&mut call, &mut ws, c)),
                 Cmd::LoadOlder { session, cursor } => (|| {
                     let n = call(&mut ws, "LoadHistoryAsync", vec![json!(session), json!(cursor)])?;
                     pending.add(n.to_string(), session, cursor);
