@@ -5,6 +5,9 @@ pub mod agent_tab;
 pub mod agents;
 pub mod agents_tab;
 pub mod asks;
+// Nothing draws these until piece D (the page and the list); the tests read them now.
+#[allow(dead_code)]
+pub mod automations;
 pub mod browser;
 pub mod browser_agent;
 pub mod browser_tab;

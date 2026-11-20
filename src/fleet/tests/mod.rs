@@ -485,6 +485,7 @@ mod attach;
 pub(crate) mod auth;
 mod autocomplete;
 mod automation_schedule;
+mod automations;
 mod canvases;
 mod cards;
 mod catalog;
