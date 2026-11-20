@@ -69,8 +69,7 @@ pub fn tooltip(working: usize) -> String {
     if working == 1 { "Fleet: a session is working".into() } else { format!("Fleet: {working} sessions are working") }
 }
 
-/// The note Fleet posts as it goes to the tray: (title, body). Delivered by the notifications piece (24 F); until then the
-/// tooltip is all that says so.
+/// The note Fleet posts as it goes to the tray: (title, body). Posted by `State::post_still_running` (24 F).
 pub fn still_running(working: usize) -> (String, String) {
     let who = if working == 1 { "A session is".to_string() } else { format!("{working} sessions are") };
     ("Fleet is still running".into(), format!("{who} still working. Quit from the tray icon when you're done."))
@@ -221,6 +220,7 @@ impl State {
     /// The window is gone and the Fleet keeps working: the tray icon is the way back.
     pub fn hide_to_tray(&mut self, working: usize) {
         self.close.in_tray = Some(working);
+        self.post_still_running(working);
         if let Some(surface) = &self.close.surface {
             surface.show_tray(working);
         }

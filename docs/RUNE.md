@@ -2222,3 +2222,13 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **On Linux `placement().restore` is `None` while maximised**, so the normal frame is whatever the app saw last before it grew.
 - **`single_instance` works as documented:** the second process exited 0 in 60 to 430 ms with no window, over a runtime folder of its own (`XDG_RUNTIME_DIR`); `FLEET_NATIVE_DATA_DIR` runs skip it by the app's rule. On Xvfb with openbox the first window's raise couldn't be shown (openbox did not act on iconify or key requests from `xdotool` there).
 - **Memory for the test build:** `cargo test` of this crate is killed at 4000M with `CARGO_BUILD_JOBS=3`; with 1 it finishes (4 min).
+
+## Component 24, piece F (notifications)
+
+- **`rune-notify` has no Linux side** ("off those, `available()` is false and every call does nothing"), so Linux speaks `org.freedesktop.Notifications`
+  itself. Rune's `dbus` feature brings `zbus 6` and `tokio` in already; the app names them as Linux-only direct dependencies with the same features
+  (`zbus`: `tokio`, `proxy`; `tokio`: `rt`, `sync`, `macros`), which adds no crate to `Cargo.lock`. A thread with a current-thread runtime owns the bus
+  connection; a `ActionInvoked` signal with key `default` is a click on the notification itself.
+- **A click carries only strings.** `rune-notify` hands back the notification's id and its `info` pairs; the app puts the tag in `info("tag", ...)` and routes the
+  click into the app as a job, like the tray's.
+- **No way to ask whether a Linux notification daemon listens** without calling it, so `can_post` is true there and a refused call is logged once.

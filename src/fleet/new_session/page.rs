@@ -61,6 +61,7 @@ impl State {
             self.read_folder_feeds();
             self.read_harness_feeds();
         }
+        self.clear_notification_for_open();
     }
 
     /// `/sessions/new` with an optional `projectId`: the list's button, a project's +, the draft row, the palette, Ctrl+N.

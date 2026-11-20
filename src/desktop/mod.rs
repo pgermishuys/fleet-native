@@ -4,6 +4,7 @@
 //! own and talks back over a channel.
 pub mod close;
 pub mod log;
+pub mod notify;
 pub mod paths;
 pub mod server;
 pub mod shell_env;
@@ -13,6 +14,8 @@ pub mod window;
 
 #[cfg(test)]
 mod close_tests;
+#[cfg(all(test, target_os = "linux"))]
+mod notify_dbus_tests;
 #[cfg(test)]
 mod start_tests;
 #[cfg(test)]
