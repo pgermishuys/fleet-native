@@ -143,13 +143,13 @@ fn tab(s: &State, t: &Theme, canvas: &CanvasInstance, active: bool) -> El {
         tab = tab.child(pin_button(t, &id, &canvas.title(), file.preview, active));
     }
     if canvas.closable() {
-        tab = tab.child(close_button(t, &id, &canvas.title(), active));
+        tab = tab.child(close_button(t, &id, &canvas.title(), active, s.is_tab_unsaved(canvas)));
     }
     let (press, middle) = (id.clone(), id);
     let keep = press.clone();
     let tab = tab.on_press_tx(move |s: &mut State, tx| s.activate_tab(&press, tx));
     let tab = if canvas.file.is_some() { tab.on_double_press(move |s: &mut State| s.keep_preview_tab(&keep)) } else { tab };
-    if canvas.closable() { tab.on_middle_press(move |s: &mut State, tx| s.close_tab(&middle, tx)) } else { tab }
+    if canvas.closable() { tab.on_middle_press(move |s: &mut State, tx| s.request_close_tab(&middle, tx)) } else { tab }
 }
 
 /// A preview tab's name is italic (`.canvas-tab--preview .canvas-tab__label`).
@@ -195,11 +195,16 @@ fn pin_button(t: &Theme, id: &str, title: &str, preview: bool, active: bool) -> 
         .child(icon(if preview { &PIN } else { &PIN_FILLED }, 12.0).color(t.muted).group_color(t.text))
 }
 
-fn close_button(t: &Theme, id: &str, title: &str, active: bool) -> El {
+/// `canvas-tab__close`. With unsaved changes it shows a 7 px dot in the tab's ink, always, which turns back into the `x` on hover
+/// (`.canvas-tab__close--unsaved`); the label says so.
+fn close_button(t: &Theme, id: &str, title: &str, active: bool, unsaved: bool) -> El {
     let id = id.to_string();
-    el().key(close_key(&id))
+    let label = if unsaved { format!("Close {title} (unsaved changes)") } else { format!("Close {title}") };
+    let ink = if active { t.text } else { t.muted };
+    let mut b = el()
+        .key(close_key(&id))
         .role("button")
-        .label(format!("Close {title}"))
+        .label(label)
         .size(16.0, 16.0)
         .min_w(16.0)
         .mr(-4.0)
@@ -208,9 +213,14 @@ fn close_button(t: &Theme, id: &str, title: &str, active: bool) -> El {
         .cursor(Cursor::Pointer)
         .hover(t.wash(10.0))
         .hover_group()
-        .group_opacity(if active { 1.0 } else { 0.0 }, 1.0)
-        .on_press_tx(move |s: &mut State, tx| s.close_tab(&id, tx))
-        .child(icon(&X, 12.0).color(t.muted).group_color(t.text))
+        .group_opacity(if active || unsaved { 1.0 } else { 0.0 }, 1.0)
+        .on_press_tx(move |s: &mut State, tx| s.request_close_tab(&id, tx));
+    if unsaved {
+        // The dot gives way to the `x` while the button is hovered.
+        b = b.child(el().key("canvas-tab-unsaved-dot").size(7.0, 7.0).radius(3.5).fill(ink).group_opacity(1.0, 0.0));
+        return b.child(icon(&X, 12.0).color(t.muted).group_color(t.text).group_opacity(0.0, 1.0));
+    }
+    b.child(icon(&X, 12.0).color(t.muted).group_color(t.text))
 }
 
 /// `onTabKeydown`: the arrows move to the next or previous tab and wrap, Home and End go to the ends, Delete closes the
@@ -227,7 +237,7 @@ fn strip_key(s: &mut State, ev: &KeyEvent, tx: &mut crate::Tx) -> bool {
         Key::Delete => {
             let tabs = s.open_canvases();
             let Some(active) = tabs.active().filter(|c| c.closable()) else { return true };
-            s.close_tab(&active.id.clone(), tx);
+            s.request_close_tab(&active.id.clone(), tx);
             tx.focus(tab_key(&s.active_canvas()), true);
             return true;
         }

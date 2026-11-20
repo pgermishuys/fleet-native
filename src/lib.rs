@@ -85,6 +85,8 @@ mod tests_file_save;
 #[cfg(test)]
 mod tests_file_tab;
 #[cfg(test)]
+mod tests_file_unsaved;
+#[cfg(test)]
 mod tests_files_tab;
 #[cfg(test)]
 mod tests_find_in_files;
@@ -467,6 +469,8 @@ pub struct State {
     /// The folded runs of a file's Diff that were opened (`fleet::file_diff`).
     pub file_folds: fleet::file_diff::DiffFolds,
     pub file_compare: fleet::file_compare::FileCompare,
+    /// Closing a file, or quitting, with unsaved text: the question (component 11, piece T).
+    pub unsaved: fleet::unsaved::Unsaved,
     /// The Files tab's tree, its open folders and its search box (`fleet::file_browser`).
     pub file_browser: fleet::file_browser::FileBrowser,
     /// The review's own state: which sections are shut and the layout picked (`fleet::review`).
@@ -812,6 +816,7 @@ impl Default for State {
             file_bases: Default::default(),
             file_folds: Default::default(),
             file_compare: Default::default(),
+            unsaved: Default::default(),
             review: Default::default(),
             annotation: Default::default(),
             changes_find: Default::default(),
@@ -5232,6 +5237,12 @@ pub fn spec() -> AppSpec<State> {
             ("file-lines-added-light", |s| s.show_file(mock::file_tab::Case::LinesAdded, false)),
             ("file-unsaved", |s| s.show_file(mock::file_tab::Case::Unsaved, true)),
             ("file-unsaved-light", |s| s.show_file(mock::file_tab::Case::Unsaved, false)),
+            ("file-unsaved-tab", |s| s.show_unsaved_tab(true)),
+            ("file-unsaved-tab-light", |s| s.show_unsaved_tab(false)),
+            ("file-unsaved-close", |s| s.show_close_question(true)),
+            ("file-unsaved-close-light", |s| s.show_close_question(false)),
+            ("file-unsaved-quit", |s| s.show_quit_question(true)),
+            ("file-unsaved-quit-light", |s| s.show_quit_question(false)),
             ("file-saving", |s| s.show_file(mock::file_tab::Case::Saving, true)),
             ("file-saving-light", |s| s.show_file(mock::file_tab::Case::Saving, false)),
             ("file-conflict", |s| s.show_file(mock::file_tab::Case::Conflict, true)),
