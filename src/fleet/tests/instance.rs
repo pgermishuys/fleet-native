@@ -43,7 +43,8 @@ fn parses_a_valid_instance_file() {
             version: "1.2.3".into(),
             database_path: "/data/fleet.db".into(),
             desktop: true,
-            started_at: "2026-01-01T00:00:00Z".into()
+            started_at: "2026-01-01T00:00:00Z".into(),
+            requires_token: false,
         }
     );
 }
@@ -268,4 +269,19 @@ fn the_host_of_a_server_url() {
     assert_eq!(host_of("https://falcon.tail1234.ts.net").unwrap(), "falcon.tail1234.ts.net:443");
     assert_eq!(host_of("https://falcon.tail1234.ts.net/fleet").unwrap(), "falcon.tail1234.ts.net:443");
     assert!(host_of("ftp://127.0.0.1:6411").is_err());
+}
+
+#[test]
+fn knows_a_fleet_that_wants_its_key_but_only_when_it_says_so_exactly() {
+    // `requiresToken` is true only when the file holds exactly `true`; missing means false, as for an older Fleet.
+    let with = |value: serde_json::Value| {
+        let mut v = valid();
+        v["requiresToken"] = value;
+        parse_instance(&v.to_string()).unwrap().requires_token
+    };
+    assert!(with(json!(true)));
+    assert!(!with(json!(false)));
+    assert!(!with(json!("true")));
+    assert!(!with(json!(1)));
+    assert!(!parse_instance(&valid().to_string()).unwrap().requires_token);
 }

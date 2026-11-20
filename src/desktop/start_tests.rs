@@ -67,11 +67,12 @@ fn rig(name: &str, mode: &str, server_bin: Option<PathBuf>, places: Vec<Place>) 
     let config = Arc::new(config);
     let opened = Arc::new(Mutex::new(Vec::new()));
     let mut rt = App::new(crate::spec()).headless_runtime((1280.0, 760.0), Env::new(true, 1.0));
-    let (again, seen) = (config.clone(), opened.clone());
+    let (again, using, seen) = (config.clone(), config.clone(), opened.clone());
     rt.update(move |s, _| {
         s.start = start::StartState::new(true);
         s.start.actions = Some(Actions {
             retry: Arc::new(move || start::begin(again.clone())),
+            use_running: Arc::new(move |found| start::use_running(using.clone(), found)),
             open_logs: Arc::new(move |dir: &Path| seen.lock().unwrap().push(dir.to_path_buf())),
         });
     });
@@ -266,4 +267,189 @@ fn options(scratch: &Scratch, mode: &str) -> Options {
     options.preferred_ports = vec![];
     options.env.push(("FAKE_FLEET_MODE".into(), mode.into()));
     options
+}
+
+// Piece D: a Fleet that wants its key.
+
+mod wants_its_key {
+    use super::*;
+    use crate::fleet::tests::auth::HOME_TOKEN;
+    use crate::fleet::{auth, local_token};
+
+    const KEY: &str = "MVrTPB67r4BYDD-vhHCn56pZKngtOOO1BXngIJ3sbNA";
+
+    /// A Fleet on this computer that wants `KEY` on every call but `/readyz`; every head it was sent is recorded.
+    fn node() -> (String, Arc<Mutex<Vec<String>>>) {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let log = seen.clone();
+        std::thread::spawn(move || {
+            for mut stream in listener.incoming().flatten() {
+                let request = crate::test_http::read(&mut stream);
+                let raw = request.raw().to_lowercase();
+                log.lock().unwrap().push(raw.clone());
+                if request.route() == "/readyz" || raw.contains(&format!("authorization: bearer {}", KEY.to_lowercase())) {
+                    crate::test_http::respond_json(&mut stream, 200, "[]");
+                } else {
+                    crate::test_http::respond(&mut stream, "401 Unauthorized", "text/plain", "");
+                }
+            }
+        });
+        (base, seen)
+    }
+
+    /// A rig whose only place is the instance file of `base`, which says whether it wants its key, with `machine_key` in the machine file.
+    fn rig_for(name: &str, base: &str, requires: Option<bool>, machine_key: Option<&str>, asked: bool) -> Rig {
+        let mut r = rig(name, "crash", None, vec![]);
+        let data = r.scratch.data();
+        let mut file = serde_json::json!({
+            "pid": std::process::id(), "url": base, "version": "0.72.0", "databasePath": data.join("fleet.db"),
+            "desktop": false, "startedAt": "2026-11-18T09:30:00Z",
+        });
+        if let Some(requires) = requires {
+            file["requiresToken"] = serde_json::json!(requires);
+        }
+        let instance = data.join("fleet.instance.json");
+        std::fs::write(&instance, file.to_string()).unwrap();
+        if let Some(key) = machine_key {
+            std::fs::write(data.join("fleet.machine.json"), serde_json::json!({"id": "x", "accessToken": key}).to_string()).unwrap();
+        }
+        let app = r.scratch.0.join("app");
+        if asked {
+            crate::fleet::settings::write_file(&app, r#"{"useRunningFleet": true}"#).unwrap();
+        }
+        let place = Place::InstanceFile(instance);
+        let mut config = (*r.config).clone();
+        config.places = Arc::new(move || vec![place.clone()]);
+        r.config = Arc::new(config);
+        let (config, dir) = (r.config.clone(), app);
+        r.rt.update(move |s, _| {
+            s.adopt_settings(dir.clone(), crate::fleet::settings::load(&dir));
+            let (again, using) = (config.clone(), config.clone());
+            s.start.actions = Some(Actions {
+                retry: Arc::new(move || start::begin(again.clone())),
+                use_running: Arc::new(move |found| start::use_running(using.clone(), found)),
+                open_logs: Arc::new(|_: &Path| {}),
+            });
+        });
+        r
+    }
+
+    fn card(r: &Rig) -> Option<start::RunningCard> {
+        match &r.rt.state.start.phase {
+            Phase::RunningFleet(card) => Some(card.clone()),
+            _ => None,
+        }
+    }
+
+    #[test]
+    fn asks_once_then_uses_the_fleet_and_the_next_start_skips_the_page() {
+        let _held = HOME_TOKEN.lock().unwrap_or_else(|e| e.into_inner());
+        auth::set(None);
+        let (base, seen) = node();
+        let mut r = rig_for("asks-once", &base, Some(true), Some(KEY), false);
+        start::begin(r.config.clone());
+        r.wait("the card", |s| matches!(s.start.phase, Phase::RunningFleet(_)));
+        let shown = card(&r).unwrap();
+        assert_eq!((shown.version.as_str(), shown.since.as_str()), ("0.72.0", "2026-11-18T09:30:00Z"));
+        assert!(!shown.host.is_empty() && r.rt.state.start.covers(), "the card covers the window");
+        assert!(r.connected.lock().unwrap().is_empty(), "nothing is shown before the person says so");
+        assert!(seen.lock().unwrap().iter().all(|h| !h.contains("authorization")), "and no key has been sent anywhere");
+        // The button is there, and it is the one focused (`autofocus`).
+        for _ in 0..3 {
+            r.rt.frame(0.1);
+        }
+        assert!(r.rt.find("start-use-it").is_some());
+        assert_eq!(card(&r).map(|c| c.focused), Some(2), "the poll handed the keyboard over");
+        // It has the keyboard already: Enter presses it, with no click.
+        r.rt.key(rune::KeyEvent { key: rune::Key::Enter, mods: rune::Mods::default() });
+        r.rt.frame(0.1);
+        assert!(card(&r).is_some_and(|c| c.pressed), "disabled once pressed");
+        assert!(!r.rt.state.start.use_it(), "pressing again does nothing");
+        r.wait("the Fleet to be shown", |s| s.start.phase == Phase::Idle && s.link.is_some());
+        assert_eq!(r.connected.lock().unwrap().as_slice(), std::slice::from_ref(&base));
+        assert_eq!(auth::token_for(&base).unwrap().expose(), KEY, "signed in with the machine's key");
+        assert!(r.rt.state.sidebar.use_running_fleet());
+        let settings = r.scratch.0.join("app").join(crate::fleet::settings::FILE);
+        test_wait::until_true("the choice on disk", || std::fs::read_to_string(&settings).is_ok_and(|t| t.contains("useRunningFleet")));
+        // Next start: the file says yes, so there is no card.
+        auth::set(None);
+        let again = crate::fleet::settings::load(&r.scratch.0.join("app"));
+        assert!(again.use_running_fleet());
+        r.rt.update(|s, _| {
+            s.link = None;
+            s.start = start::StartState::new(true);
+        });
+        let config = r.config.clone();
+        r.rt.update(move |s, _| {
+            let (again, using) = (config.clone(), config.clone());
+            s.start.actions = Some(Actions {
+                retry: Arc::new(move || start::begin(again.clone())),
+                use_running: Arc::new(move |found| start::use_running(using.clone(), found)),
+                open_logs: Arc::new(|_: &Path| {}),
+            });
+        });
+        start::begin(r.config.clone());
+        r.wait("the Fleet again, with no card", |s| s.start.phase == Phase::Idle && s.link.is_some());
+        assert_eq!(r.connected.lock().unwrap().len(), 2);
+        auth::set(None);
+    }
+
+    #[test]
+    fn a_fleet_that_asks_for_nothing_is_shown_without_the_card() {
+        let _held = HOME_TOKEN.lock().unwrap_or_else(|e| e.into_inner());
+        auth::set(None);
+        for requires in [None, Some(false)] {
+            let (base, _) = node();
+            let mut r = rig_for("no-key", &base, requires, None, false);
+            start::begin(r.config.clone());
+            r.wait("the Fleet", |s| s.start.phase == Phase::Idle && s.link.is_some());
+            assert_eq!(r.connected.lock().unwrap().as_slice(), [base]);
+        }
+    }
+
+    #[test]
+    fn a_key_that_cant_be_read_is_the_error_page_with_fleets_words() {
+        let _held = HOME_TOKEN.lock().unwrap_or_else(|e| e.into_inner());
+        auth::set(None);
+        let (base, seen) = node();
+        // Already agreed to; the machine file holds half a key (31 characters).
+        let mut r = rig_for("cant-read", &base, Some(true), Some(&KEY[..31]), true);
+        start::begin(r.config.clone());
+        r.wait("the error page", |s| matches!(s.start.phase, Phase::Failed { .. }));
+        let Phase::Failed { message, log } = r.rt.state.start.phase.clone() else { unreachable!() };
+        assert_eq!(message, local_token::CANT_READ);
+        assert!(log.ends_with("fleet-server.log"), "{log}");
+        assert!(r.connected.lock().unwrap().is_empty());
+        assert!(seen.lock().unwrap().iter().all(|h| !h.contains("authorization")), "a half-written key is never sent");
+        // Fleet's words, both messages, name the file and never a key.
+        assert!(message.contains("fleet.machine.json") && !message.contains(KEY));
+    }
+
+    #[test]
+    fn a_key_fleet_turns_away_is_the_error_page_with_its_other_words() {
+        let _held = HOME_TOKEN.lock().unwrap_or_else(|e| e.into_inner());
+        auth::set(None);
+        let (base, _) = node();
+        let other = "another-fleets-key-0123456789-abcdefghij";
+        let mut r = rig_for("turned-away", &base, Some(true), Some(other), true);
+        start::begin(r.config.clone());
+        r.wait("the error page", |s| matches!(s.start.phase, Phase::Failed { .. }));
+        let Phase::Failed { message, .. } = r.rt.state.start.phase.clone() else { unreachable!() };
+        assert_eq!(message, local_token::TURNED_AWAY);
+        assert!(message.contains("WEAVE_FLEET_AUTH_TOKEN") && !message.contains(other));
+        assert!(auth::token_for(&base).is_none(), "the key Fleet refused is not kept");
+        assert!(r.connected.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn the_card_says_when_the_fleet_started_in_this_computers_zone() {
+        use crate::view::start_page::started_words;
+        assert_eq!(started_words("2026-11-18T09:30:00Z", 0), " (started 18 Nov)");
+        assert_eq!(started_words("2026-11-18T23:30:00Z", 2 * 3600), " (started 19 Nov)");
+        assert_eq!(started_words("2026-01-02T01:00:00Z", -5 * 3600), " (started 1 Jan)");
+        assert_eq!(started_words("", 0), "");
+        assert_eq!(started_words("yesterday", 0), "");
+    }
 }

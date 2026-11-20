@@ -482,7 +482,7 @@ mod agents;
 mod app_runs;
 mod asks;
 mod attach;
-mod auth;
+pub(crate) mod auth;
 mod autocomplete;
 mod canvases;
 mod cards;

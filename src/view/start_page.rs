@@ -2,7 +2,7 @@
 //! `error.html`; they are separate pages there, so there is no rail and no status bar). Sizes are the pages' own CSS pixels.
 //! Their colours are the page's `--bg`, `--card`, `--text`, `--muted`, `--accent` and `--border`: the theme's `main_bg`,
 //! `card_bg`, `text`, `muted`, `accent` and `border`, which carry the same values.
-use crate::desktop::start::Phase;
+use crate::desktop::start::{Phase, RunningCard};
 use crate::theme::{Theme, mono, sans};
 use crate::{State, Tx};
 use rune::{Align, Color, El, col, el, row, text};
@@ -17,6 +17,7 @@ pub fn page(s: &State, t: &Theme) -> Option<El> {
     match &s.start.phase {
         Phase::Starting(status) => Some(splash(s, t, status)),
         Phase::Failed { message, log } => Some(error(s, t, message, log)),
+        Phase::RunningFleet(card) => Some(running_fleet(s, t, card)),
         Phase::Idle | Phase::Owned => None,
     }
 }
@@ -124,8 +125,82 @@ fn error(s: &State, t: &Theme, message: &str, log: &str) -> El {
     col().key("start-error").w_full().h_full().fill(t.main_bg).center().px(16.0).child(body.align(Align::Start))
 }
 
-/// Keeps the splash's sweep drawing: a frame every 16 ms while it shows.
-pub fn keep(s: &State, tx: &mut Tx) -> bool {
+/// ` (started 20 Nov)` for the Fleet's start time in this computer's zone, or nothing when the time can't be read.
+pub fn started_words(since: &str, offset_secs: i64) -> String {
+    let Some(ms) = crate::fleet::work::parse_iso_ms(since) else { return String::new() };
+    let (_, month, day, ..) = crate::conv::time::civil(ms, offset_secs);
+    format!(" (started {day} {})", crate::conv::time::MONTHS[month])
+}
+
+/// `running-fleet.html`: a card, 470 wide, that asks once whether the app may use the Fleet already running here.
+fn running_fleet(s: &State, t: &Theme, card: &RunningCard) -> El {
+    let since = started_words(&card.since, crate::conv::time::local_offset_secs());
+    let message = format!(
+        "{} runs Fleet in the background{since}. The desktop app will use it: the same sessions, harnesses and machines, and it keeps running when you close the window.",
+        card.host
+    );
+    let detail = format!("{} · Fleet {}", card.host, card.version).trim().to_string();
+    let detail_box = row()
+        .key("start-running-detail")
+        .w_full()
+        .px(12.0)
+        .py(10.0)
+        .radius(10.0)
+        .border(1.0, t.border)
+        .border_layout()
+        .fill(t.main_bg)
+        .child(text(detail).font(sans(12.5, 400.0, 1.5)).color(t.muted).wrap().w_full());
+    let button = row()
+        .key("start-use-it")
+        .label("Use it")
+        .px(14.0)
+        .py(7.0)
+        .center()
+        .radius(8.0)
+        .fill(t.accent)
+        .border(1.0, t.accent)
+        .border_layout()
+        .focusable(true)
+        // Return presses it, as it does a focused HTML button; Rune sends Return to the default button.
+        .default_button()
+        .focus_ring(2.0, 2.0, t.accent)
+        .child(text("Use it").font(sans(13.0, 500.0, 1.5)).color(Color::WHITE));
+    let button = if card.pressed {
+        button.opacity(0.6).disabled(true)
+    } else {
+        button.cursor(rune::Cursor::Pointer).on_press(|s: &mut State| s.use_running_fleet())
+    };
+    let body = col()
+        .key("start-running")
+        .w(470.0)
+        .gap(12.0)
+        .px(24.0)
+        .py(22.0)
+        .radius(12.0)
+        .border(1.0, t.border)
+        .border_layout()
+        .fill(t.card_bg)
+        .child(icon(s, 40.0, "start-icon"))
+        .child(text("Fleet already runs on this computer").key("start-title").font(sans(18.0, 600.0, 1.5)).color(t.text))
+        .child(text(message).key("start-message").font(sans(14.0, 400.0, 1.5)).color(t.muted).wrap().w_full())
+        .child(detail_box)
+        .child(row().w_full().justify_end().mt(4.0).child(button));
+    col().key("start-running-page").w_full().h_full().fill(t.main_bg).center().px(16.0).child(body)
+}
+
+/// Keeps the splash's sweep drawing: a frame every 16 ms while it shows. The card's button gets the keyboard once
+/// (`autofocus`: Rune's own is for modals).
+pub fn keep(s: &mut State, tx: &mut Tx) -> bool {
+    if let Phase::RunningFleet(card) = &mut s.start.phase
+        && card.focused < 2
+    {
+        // The key has to be in the drawn tree when the focus is asked for: not in the poll right after the card was posted.
+        card.focused += 1;
+        if card.focused == 2 {
+            tx.focus("start-use-it", false);
+        }
+        return true;
+    }
     if matches!(s.start.phase, Phase::Starting(_)) {
         tx.wake_after(std::time::Duration::from_millis(16));
         return true;

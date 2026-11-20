@@ -7,6 +7,7 @@ use super::paths::{self, Inputs};
 use super::server::{self, Event, FleetServer, Stopper};
 use crate::fleet::discover::{self, Found, Place};
 use crate::fleet::link::Post;
+use crate::fleet::{auth, instance, local_token};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -22,12 +23,30 @@ pub enum Phase {
     Failed { message: String, log: String },
     /// The shell shows, and the Fleet it shows is this app's own.
     Owned,
+    /// A Fleet already runs here and wants its key: the card that asks first (once) whether the app may use it.
+    RunningFleet(RunningCard),
+}
+
+/// What the "Fleet already runs on this computer" card says (`running-fleet.html`'s query).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RunningCard {
+    pub host: String,
+    pub version: String,
+    /// When that Fleet started, as its instance file says (an ISO time, or empty).
+    pub since: String,
+    pub found: Found,
+    /// **Use it** was pressed: the button is disabled while the key is read and tried.
+    pub pressed: bool,
+    /// How far the button's `autofocus` has got: 0 not asked, 1 the card has been drawn once, 2 the keyboard was handed over.
+    pub focused: u8,
 }
 
 /// The two things the error page's buttons do; the app sets them, a test replaces them.
 #[derive(Clone)]
 pub struct Actions {
     pub retry: Arc<dyn Fn() + Send + Sync>,
+    /// **Use it**: the Fleet the card is about.
+    pub use_running: Arc<dyn Fn(Found) + Send + Sync>,
     pub open_logs: Arc<dyn Fn(&Path) + Send + Sync>,
 }
 
@@ -46,7 +65,7 @@ impl StartState {
 
     /// The splash or the error page covers the window.
     pub fn covers(&self) -> bool {
-        matches!(self.phase, Phase::Starting(_) | Phase::Failed { .. })
+        matches!(self.phase, Phase::Starting(_) | Phase::Failed { .. } | Phase::RunningFleet(_))
     }
 
     /// Try again: `connect()` from the top.
@@ -57,6 +76,19 @@ impl StartState {
             self.phase = Phase::Starting(STARTING.into());
             (actions.retry)();
         }
+    }
+
+    /// **Use it**, once: the choice is kept by the caller (it needs the whole `State`); this starts reading the key.
+    pub fn use_it(&mut self) -> bool {
+        let Phase::RunningFleet(card) = &mut self.phase else { return false };
+        if card.pressed {
+            return false;
+        }
+        card.pressed = true;
+        if let Some(actions) = &self.actions {
+            (actions.use_running)(card.found.clone());
+        }
+        true
     }
 
     /// Open logs: the folder the log is in, in the system's file manager.
@@ -171,8 +203,7 @@ fn idle(config: &Config) {
 fn connect(config: &Config) {
     if let Some(found) = discover::find_in(&(config.places)()) {
         eprintln!("fleet-native: found a Fleet at {} ({})", found.url, found.place.describe());
-        idle(config);
-        return (config.connect)(found);
+        return use_found(config, found);
     }
     let get = |k: &str| (config.get)(k);
     let found = paths::find_server(&Inputs::from_system(&get));
@@ -243,13 +274,86 @@ fn watch(config: &Config, server: FleetServer, log_file: &Path, shown: &str) {
     }
 }
 
+/// What Fleet's `useRunning` does with a Fleet that already runs here. One that asks for nothing is shown at once. One
+/// that wants its key (its instance file says `requiresToken`) is shown after the person said once that the app may use it:
+/// the card asks the first time, and every later start goes on to read the key.
+fn use_found(config: &Config, found: Found) {
+    let wants_key = match &found.place {
+        Place::InstanceFile(file) => instance::read_instance(file).filter(|i| i.requires_token),
+        Place::SavedPort(_) | Place::Port(_) => None,
+    };
+    // A key given on the command line or in FLEET_NATIVE_TOKEN stands: nothing to ask and nothing to read.
+    let Some(running) = wants_key.filter(|_| !auth::is_set()) else {
+        idle(config);
+        return (config.connect)(found);
+    };
+    if asked_before(config) {
+        return open_running(config, found);
+    }
+    let card = RunningCard { host: host_name(), version: running.version, since: running.started_at, found, pressed: false, focused: 0 };
+    config.post.update(move |s, _| s.start.phase = Phase::RunningFleet(card));
+}
+
+fn asked_before(config: &Config) -> bool {
+    let get = |k: &str| (config.get)(k);
+    crate::composer::drafts::app_dir(get).is_some_and(|dir| crate::fleet::settings::load(&dir).use_running_fleet())
+}
+
+/// **Use it**, on its own thread: reads the Fleet's key and signs in with it (`openRunning`).
+pub fn use_running(config: Arc<Config>, found: Found) {
+    let spawned = std::thread::Builder::new().name("fleet-use-running".into()).spawn({
+        let config = config.clone();
+        move || open_running(&config, found)
+    });
+    if let Err(e) = spawned {
+        fail(&config, format!("Couldn't start Fleet: {e}"), String::new());
+    }
+}
+
+/// Reads the key, has Fleet accept it, then shows the Fleet; either way of failing is the error page with Fleet's words.
+fn open_running(config: &Config, found: Found) {
+    let outcome = local_token::adopt_required(&found, &(config.places)());
+    match outcome.words() {
+        Some(words) => fail(config, words.to_string(), crate::desktop::log::log_file(&app_dir_or_empty(config)).display().to_string()),
+        None => {
+            idle(config);
+            (config.connect)(found)
+        }
+    }
+}
+
+fn app_dir_or_empty(config: &Config) -> PathBuf {
+    crate::composer::drafts::app_dir(|k| (config.get)(k)).unwrap_or_default()
+}
+
+/// The computer's name, for the card (`os.hostname()`).
+pub fn host_name() -> String {
+    #[cfg(unix)]
+    {
+        let mut buf = [0 as libc::c_char; 256];
+        // SAFETY: the buffer is 256 bytes and the call writes at most that many, ending with a zero when the name fits.
+        if unsafe { libc::gethostname(buf.as_mut_ptr(), buf.len()) } == 0 {
+            buf[255] = 0;
+            // SAFETY: the buffer holds a zero-ended string by now.
+            let name = unsafe { std::ffi::CStr::from_ptr(buf.as_ptr()) }.to_string_lossy().into_owned();
+            if !name.is_empty() {
+                return name;
+            }
+        }
+    }
+    #[cfg(windows)]
+    if let Some(name) = std::env::var("COMPUTERNAME").ok().filter(|n| !n.is_empty()) {
+        return name;
+    }
+    "This computer".to_string()
+}
+
 /// Exit 75: another Fleet holds the data. Use it once it answers; if it never does, say so.
 fn taken(config: &Config, shown: &str) {
     let until = Instant::now() + config.taken_for;
     loop {
         if let Some(found) = discover::find_in(&(config.places)()) {
-            idle(config);
-            return (config.connect)(found);
+            return use_found(config, found);
         }
         if Instant::now() >= until {
             return fail(config, TAKEN_WORDS.into(), shown.to_string());
