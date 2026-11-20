@@ -147,6 +147,7 @@ pub mod settings_nav;
 pub mod setup_terminal;
 pub mod side;
 pub mod side_http;
+pub mod side_view;
 pub mod sign_in;
 pub mod signalr;
 pub mod skills;

@@ -122,6 +122,7 @@ mod sessions;
 pub mod settings;
 mod sheet;
 mod shell;
+pub mod side;
 pub mod sign_in;
 pub mod skill_diff;
 pub mod smart_link_card;

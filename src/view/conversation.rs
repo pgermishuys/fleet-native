@@ -37,6 +37,21 @@ use rune::{Cursor, Cycle, El, GrowthSpec, ScrollSpec, col, el, icon, memo, row, 
 use rune_kit::markdown::MarkdownStyle;
 use std::borrow::Cow;
 
+/// Which conversation a stream draws: the open session's, or its side conversation's (`/btw`, in the panel above the composer).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Which {
+    Open,
+    Side,
+}
+
+/// The session and fold plan a stream's rows read, so the same rows draw either conversation.
+pub fn conv(s: &State, which: Which) -> (&Session, &FoldPlan) {
+    match which {
+        Which::Open => (s.session(), &s.fold_plan),
+        Which::Side => s.side_conv(),
+    }
+}
+
 /// The conversation's and the composer's column (`max-width: 760px`).
 pub const COLUMN: f32 = 760.0;
 
@@ -248,88 +263,93 @@ pub fn styles(t: &Theme) -> Styles {
 
 /// The scrolling column of messages and, while a turn runs, the "Working" line. Only the rows on
 /// screen are built (`virtual_rows`), and a row whose message hasn't changed is reused (`memo`).
-pub fn stream(t: &Theme, session: &Session, plan: &FoldPlan, partial: bool, older: Option<Older>, scroll: Scroll) -> El {
+pub fn stream(t: &Theme, which: Which, session: &Session, plan: &FoldPlan, partial: bool, older: Option<Older>, scroll: Scroll) -> El {
     let theme = *t;
+    let side = which == Which::Side;
     let md = styles(t);
     // After the messages: the card a restart left, then the line that says what the turn is doing. Fleet's line shows
     // while the turn isn't idle, so a question that holds it shows "Needs input" there.
-    let working = session.status != Status::Idle;
-    let interrupted = session.row.interrupted.is_some();
+    // The side conversation's working line and restart card are piece C's.
+    let working = session.status != Status::Idle && !side;
+    let interrupted = session.row.interrupted.is_some() && !side;
     let shown = plan.count(session.messages.len());
     let count = shown + usize::from(interrupted) + usize::from(working);
-    let rows = col().key("timeline").w_full().max_w(COLUMN).growth(GrowthSpec::default()).virtual_rows(
-        count,
-        ESTIMATED_ROW,
-        |s: &State, i| {
-            let session = s.session();
-            match s.fold_plan.index(i, session.messages.len()).and_then(|m| session.messages.get(m)) {
-                Some(m) => Cow::Borrowed(m.id.as_str()),
-                None if session.row.interrupted.is_some() && i == s.fold_plan.count(session.messages.len()) => Cow::Borrowed("interrupted"),
-                None => Cow::Borrowed("working"),
-            }
-        },
-        move |s: &State, i| {
-            let session = s.session();
-            let plan = &s.fold_plan;
-            let len = session.messages.len();
-            let Some(at) = plan.index(i, len) else {
-                return match session.row.interrupted.as_ref() {
-                    Some(card) if i == plan.count(len) => col().w_full().child(interrupted::card(&theme, s, card)),
-                    _ => working::line(&theme, s),
+    let rows =
+        col().key(if side { "side-timeline" } else { "timeline" }).w_full().max_w(COLUMN).growth(GrowthSpec::default()).virtual_rows(
+            count,
+            ESTIMATED_ROW,
+            move |s: &State, i| {
+                let (session, plan) = conv(s, which);
+                match plan.index(i, session.messages.len()).and_then(|m| session.messages.get(m)) {
+                    Some(m) if side => Cow::Owned(format!("side-{}", m.id)),
+                    Some(m) => Cow::Borrowed(m.id.as_str()),
+                    None if session.row.interrupted.is_some() && !side && i == plan.count(session.messages.len()) => {
+                        Cow::Borrowed("interrupted")
+                    }
+                    None => Cow::Borrowed(if side { "side-working" } else { "working" }),
+                }
+            },
+            move |s: &State, i| {
+                let (session, plan) = conv(s, which);
+                let len = session.messages.len();
+                let Some(at) = plan.index(i, len) else {
+                    return match session.row.interrupted.as_ref() {
+                        Some(card) if i == plan.count(len) && !side => col().w_full().child(interrupted::card(&theme, s, card)),
+                        _ => working::line(&theme, s),
+                    };
                 };
-            };
-            let msg = &session.messages[at];
-            let kept = plan.kept.get(&msg.id);
-            // The message above, as drawn: folding may have taken the ones between.
-            let above = i.checked_sub(1).and_then(|p| plan.index(p, len)).map(|p| &session.messages[p]);
-            let above_kept = above.and_then(|m| plan.kept.get(&m.id));
-            let after_tool =
-                above.map(|m| drawn_parts(m, above_kept).last().is_some_and(|p| matches!(p, Part::Tool { .. } | Part::Shell(_))));
-            let streaming = at + 1 == len && session.status == Status::Working && msg.role == Role::Assistant;
-            let opened = open_mask(msg, s);
-            let same_as_prev = at.checked_sub(1).is_some_and(|p| session.messages[p].role == msg.role);
-            // The pill's relative time moves every 30s; "Copied" lasts a moment.
-            let frame = (
-                same_as_prev,
-                session.messages.get(at + 1).is_some_and(|n| n.role == msg.role),
-                msg.meta.created_at.map(|_| message::now_ms(s) / 30_000),
-                s.copied.as_ref().is_some_and(|(m, until)| *m == msg.id && s.clock < *until),
-                s.prompt_open.contains(&msg.id),
-            );
-            // A failure card also follows the newest message, the retry's countdown and its buttons.
-            let failure = msg.meta.failure.as_ref().map(|_| s.failure_frame(msg, at + 1 == len));
-            memo(
-                msg.id.clone(),
-                (
-                    msg.version(),
-                    theme.dark,
-                    after_tool,
-                    streaming,
-                    msg.needs_retry,
-                    opened,
-                    s.thinking,
-                    frame,
-                    s.lists().models.len(),
-                    fold_key(kept),
+                let msg = &session.messages[at];
+                let kept = plan.kept.get(&msg.id);
+                // The message above, as drawn: folding may have taken the ones between.
+                let above = i.checked_sub(1).and_then(|p| plan.index(p, len)).map(|p| &session.messages[p]);
+                let above_kept = above.and_then(|m| plan.kept.get(&m.id));
+                let after_tool =
+                    above.map(|m| drawn_parts(m, above_kept).last().is_some_and(|p| matches!(p, Part::Tool { .. } | Part::Shell(_))));
+                let streaming = at + 1 == len && session.status == Status::Working && msg.role == Role::Assistant && !side;
+                let opened = open_mask(msg, s);
+                let same_as_prev = at.checked_sub(1).is_some_and(|p| session.messages[p].role == msg.role);
+                // The pill's relative time moves every 30s; "Copied" lasts a moment.
+                let frame = (
+                    same_as_prev,
+                    session.messages.get(at + 1).is_some_and(|n| n.role == msg.role),
+                    msg.meta.created_at.map(|_| message::now_ms(s) / 30_000),
+                    s.copied.as_ref().is_some_and(|(m, until)| *m == msg.id && s.clock < *until),
+                    s.prompt_open.contains(&msg.id),
+                );
+                // A failure card also follows the newest message, the retry's countdown and its buttons.
+                let failure = msg.meta.failure.as_ref().map(|_| s.failure_frame(msg, at + 1 == len));
+                memo(
+                    if side { format!("side-{}", msg.id) } else { msg.id.clone() },
                     (
-                        failure,
-                        agent_row::key(s, msg),
-                        image::key(s, &msg.parts),
-                        browser_steps::key(s, &msg.parts),
-                        question::key(s, msg),
-                        improvable(s, msg),
+                        msg.version(),
+                        theme.dark,
+                        after_tool,
+                        streaming,
+                        msg.needs_retry,
+                        opened,
+                        s.thinking,
+                        frame,
+                        s.lists().models.len(),
+                        fold_key(kept),
+                        (
+                            failure,
+                            agent_row::key(s, msg),
+                            image::key(s, &msg.parts),
+                            browser_steps::key(s, &msg.parts),
+                            question::key(s, msg),
+                            improvable(s, msg),
+                        ),
+                        (s.is_shown(&msg.id), s.find_row_key(&msg.id)),
                     ),
-                    (s.is_shown(&msg.id), s.find_row_key(&msg.id)),
-                ),
-                || message_row(&theme, &md, msg, (kept, after_tool), streaming, s, (frame.0, frame.1)),
-            )
-        },
-    );
+                    || message_row(&theme, &md, msg, (kept, after_tool), streaming, (s, which), (frame.0, frame.1)),
+                )
+            },
+        );
     // The box and, when it isn't following the end, the lane under it with Jump to latest. `on_scroll_offset` may not
     // change state, so it leaves where the box is for `poll` (`State::keep_scroll`).
     let probe = scroll.probe;
     let stream = col()
-        .key("stream")
+        .key(if side { "side-stream" } else { "stream" })
         .w_full()
         .grow(1.0)
         .shrink()
@@ -339,9 +359,10 @@ pub fn stream(t: &Theme, session: &Session, plan: &FoldPlan, partial: bool, olde
         .child(
             col()
                 .w_full()
-                .pt(24.0)
-                .px(32.0)
-                .pb(30.0)
+                // The side conversation's stream is set closer: the card is its frame (`padding: 12px 16px 8px`).
+                .pt(if side { 12.0 } else { 24.0 })
+                .px(if side { 16.0 } else { 32.0 })
+                .pb(if side { 8.0 } else { 30.0 })
                 .items_center()
                 .children(partial.then(|| partial_banner(&theme)))
                 .children(older.map(|o| older_row(&theme, o)))
@@ -350,7 +371,7 @@ pub fn stream(t: &Theme, session: &Session, plan: &FoldPlan, partial: bool, olde
                 .children((!scroll.asks.is_empty()).then(|| col().w_full().max_w(COLUMN).mb(16.0).children(scroll.asks))),
         );
     col()
-        .key("stream-shell")
+        .key(if side { "side-stream-shell" } else { "stream-shell" })
         .w_full()
         .grow(1.0)
         .shrink()
@@ -566,7 +587,7 @@ fn message_row(
     // What folding left of it, and how the message above ended.
     (kept, after_tool): (Option<&Kept>, Option<bool>),
     streaming: bool,
-    s: &State,
+    (s, which): (&State, Which),
     // Whether the message above and the one below are the same sender's.
     (grouped_with_prev, grouped_with_next): (bool, bool),
 ) -> El {
@@ -628,7 +649,7 @@ fn message_row(
             // The pages the calls showed come after them, outside their box (`MessageToolList`).
             for part in &parts[k..end] {
                 if let Part::Tool { id, body, .. } = part
-                    && let Some(page) = body.page.as_ref().filter(|_| !s.fold_plan.pages_hidden.contains(id))
+                    && let Some(page) = body.page.as_ref().filter(|_| !conv(s, which).1.pages_hidden.contains(id))
                 {
                     column = column.child(el().w_full().child(page_card::card(s, t, id, &body.page_title, page, false)));
                 }
@@ -687,9 +708,9 @@ fn message_row(
         column = column.children(message::meta_pill(t, s, msg));
     }
     if let Some(f) = &msg.meta.failure {
-        let latest = s.session().messages.last().is_some_and(|m| m.id == msg.id);
-        let around =
-            failure::Around { latest, has_prompt: failure::last_prompt(&s.session().messages).is_some(), can_send: !s.composer_disabled() };
+        let messages = &conv(s, which).0.messages;
+        let latest = messages.last().is_some_and(|m| m.id == msg.id);
+        let around = failure::Around { latest, has_prompt: failure::last_prompt(messages).is_some(), can_send: !s.composer_disabled() };
         column = column.child(failure::card(t, s, msg, f, &around));
     }
     if msg.needs_retry {

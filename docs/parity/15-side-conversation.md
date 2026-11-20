@@ -73,33 +73,33 @@ dark only, so the light native picture is the `composer-side-typed-light` scene)
 
 | # | Fleet | Source | Native |
 |---|---|---|---|
-| 1.1 | Mounted for the open session in chat view, after the activity stream, the workflow run card and finish bar, and the recap line, right above the composer. It comes before the choice between the composer and a read-only sub-agent's prompt line, so it shows for both. Not mounted in the Files changed view | RT 651–656 | None |
-| 1.2 | Shown when there is a side conversation or the first question is making one (`side !== null \|\| starting !== null`); nothing at all otherwise (no DOM) | SCP `shown` | None |
-| 1.3 | Section: `flex-shrink: 0`, padding `6px 24px 0`; minimized, padding-top 0. `aria-label="Side conversation"`, `data-minimized` | SCP `.side-conversation` | None |
-| 1.4 | The card: column, `max-width: 760px`, centred, height `min(42vh, 400px)` (42 % of the window's height, at most 400), overflow hidden, border 1px `color-mix(--accent 45%, --border)`, radius `--radius-panel + 2` (14), `--card-bg` | SCP `.side-conversation__card` | None |
-| 1.5 | Window 640 px wide or narrower: padding `6px 12px 0`, the hint and the action buttons' words hidden (icons only) | SCP `@media (max-width: 640px)` | None |
+| 1.1 | Mounted for the open session in chat view, after the activity stream, the workflow run card and finish bar, and the recap line, right above the composer. It comes before the choice between the composer and a read-only sub-agent's prompt line, so it shows for both. Not mounted in the Files changed view | RT 651–656 | Done (piece B): `view::sheet` draws `view::side::panel` between the recap line and the composer, so it shows for either. The native app has no separate Files changed view in the sheet (the changes are a panel tab), so there is nothing to leave it out of |
+| 1.2 | Shown when there is a side conversation or the first question is making one (`side !== null \|\| starting !== null`); nothing at all otherwise (no DOM) | SCP `shown` | Done (piece B): `State::side_shown`; nothing is drawn otherwise (test "shows nothing when the session has no side conversation") |
+| 1.3 | Section: `flex-shrink: 0`, padding `6px 24px 0`; minimized, padding-top 0. `aria-label="Side conversation"`, `data-minimized` | SCP `.side-conversation` | Done (piece B): section `side-conversation` (region, label "Side conversation"), padding 6/24, none above when folded. `data-minimized` has no native meaning |
+| 1.4 | The card: column, `max-width: 760px`, centred, height `min(42vh, 400px)` (42 % of the window's height, at most 400), overflow hidden, border 1px `color-mix(--accent 45%, --border)`, radius `--radius-panel + 2` (14), `--card-bg` | SCP `.side-conversation__card` | Done (piece B): `side-card`, 42 % of the window's height at most 400, column 760, border `accent_border(45)`, radius 14, `card_bg` (test "the card is 42 percent of the window and at most 400") |
+| 1.5 | Window 640 px wide or narrower: padding `6px 12px 0`, the hint and the action buttons' words hidden (icons only) | SCP `@media (max-width: 640px)` | Done (piece B): window 640 px or narrower: 12 px each side, no hint, icons only (test "a window 640 wide or narrower hides the hint and the words") |
 
 ### 2. The header
 
 | # | Fleet | Source | Native |
 |---|---|---|---|
-| 2.1 | Row, items centred, gap 8, padding `8px 8px 8px 14px`, bottom border 1px `--border`, 12px | SCP `.side-conversation__head` | None |
-| 2.2 | `MessageCircleQuestionMark` 14 px `--accent`; "btw" `--accent-text` 600 | SCP `__icon`, `__label` | None |
-| 2.3 | The title: the side session's title without its `btw: ` prefix (`/^btw:\s*/`), or the question being asked while it forks; `--text` 500, one line with ellipsis, shrinks; its full text as the tooltip | SCP `title`, `__title` | None |
-| 2.4 | The hint "A fork at the last finished turn · the session carries on", `--muted`, grows, ellipsis | SCP `__hint` | None |
-| 2.5 | Keep as session (only once the fork exists): toolbar-icon button `sm`, height 26, 12px, `SquareArrowOutUpRight` 14 + "Keep as session", title "Keep as a session of its own" | SCP | None |
-| 2.6 | Minimize (only once the fork exists): `Minus` 14 + "Minimize", title "Minimize (Ctrl /); the composer goes back to the session" (`⌘ /` on a Mac) | SCP `shortcut` | None |
-| 2.7 | ×: toolbar-icon button `toolbar` size, `X` 14, label "Discard the side conversation", title "Discard (you can undo it for a few seconds)"; disabled while forking | SCP | None |
+| 2.1 | Row, items centred, gap 8, padding `8px 8px 8px 14px`, bottom border 1px `--border`, 12px | SCP `.side-conversation__head` | Done (piece B): `side-head` |
+| 2.2 | `MessageCircleQuestionMark` 14 px `--accent`; "btw" `--accent-text` 600 | SCP `__icon`, `__label` | Done (piece B) |
+| 2.3 | The title: the side session's title without its `btw: ` prefix (`/^btw:\s*/`), or the question being asked while it forks; `--text` 500, one line with ellipsis, shrinks; its full text as the tooltip | SCP `title`, `__title` | Done (piece B): `plain_title`; the question while it forks; its full text as the tooltip |
+| 2.4 | The hint "A fork at the last finished turn · the session carries on", `--muted`, grows, ellipsis | SCP `__hint` | Done (piece B): `side-hint` |
+| 2.5 | Keep as session (only once the fork exists): toolbar-icon button `sm`, height 26, 12px, `SquareArrowOutUpRight` 14 + "Keep as session", title "Keep as a session of its own" | SCP | Done (piece B): `side-keep`, once the fork exists |
+| 2.6 | Minimize (only once the fork exists): `Minus` 14 + "Minimize", title "Minimize (Ctrl /); the composer goes back to the session" (`⌘ /` on a Mac) | SCP `shortcut` | Done (piece B): `side-minimize`, once the fork exists, the tip with `Ctrl /` (`⌘ /` on a Mac) |
+| 2.7 | ×: toolbar-icon button `toolbar` size, `X` 14, label "Discard the side conversation", title "Discard (you can undo it for a few seconds)"; disabled while forking | SCP | Done (piece B): `side-close`, dimmed and without a press while forking (test "the cross is disabled while forking…") |
 
 ### 3. The body: the side session's stream
 
 | # | Fleet | Source | Native |
 |---|---|---|---|
-| 3.1 | Column, grows, `min-height: 0`; while forking, "Forking the session at its last finished turn…" centred, `--muted` 13px, `role=status` | SCP `__body`, `__starting` | None |
-| 3.2 | Once forked: the whole conversation view (`ActivityStream`) of the side session, keyed by its id, padding `12px 16px 8px` instead of the main one's | SCP, AS | None. The native stream view draws only the open session |
+| 3.1 | Column, grows, `min-height: 0`; while forking, "Forking the session at its last finished turn…" centred, `--muted` 13px, `role=status` | SCP `__body`, `__starting` | Done (piece B): `side-forking`, `role=status` |
+| 3.2 | Once forked: the whole conversation view (`ActivityStream`) of the side session, keyed by its id, padding `12px 16px 8px` instead of the main one's | SCP, AS | Drawn from a second session in piece B: `conversation::stream` takes `Which::{Open,Side}`, its rows read their session and fold plan through `conv`, the panel's keys are `side-*`, padding 12/16/8 (test "the panel draws the side session's messages and not the session's"); from invented data (`mock::side`) only. Not done: the rest of what a row reads through `s.session()` (`improvable`, `agent_row::key`, the open mask's hidden pages); piece C routes it |
 | 3.3 | Only the messages after `boundaryMessageId` (`messagesAfter`): after the boundary when it is among them; else those whose id sorts after it (`compareMessageIds`), or all of them when none or every one does; all with no boundary | LSC `messagesAfter`, AS `sessionMessages` | Done (piece A): `side::messages_after`, the three `messagesAfter` tests; piece C applies it to the stream |
 | 3.4 | No "older messages" for a side conversation (its older ones are its session's): `hasMore` only while nothing was cut | AS `hasMore` | None |
-| 3.5 | Not in a side conversation: the find bar's key (Ctrl/Cmd+F stays the main conversation's), the page-pick card, the mod draft cards | AS 446, 890, 898 | None |
+| 3.5 | Not in a side conversation: the find bar's key (Ctrl/Cmd+F stays the main conversation's), the page-pick card, the mod draft cards | AS 446, 890, 898 | Done (piece B): the side stream is built with no find bar, no page-pick card and no mod cards; Ctrl/Cmd+F stays the main conversation's |
 | 3.6 | Still in it: permission asks of the side session (answerable there), questions, the failure card and Retry, the interrupted card, the working line, tool cards, everything a message draws | AS | None |
 | 3.7 | The question shows at once as a sent prompt in the side session (`showSentPrompt(sideId, {id, correlationId, body})`) | USC `ask` | None |
 | 3.8 | The stream reports its progress after its snapshot has loaded (not before: an empty stream that hasn't loaded isn't "no answer"): `working` (a turn is streaming), the newest assistant message with text (`latestAnswer`, trimmed body) and its id | AS 325–349 | None |
@@ -109,11 +109,11 @@ dark only, so the light native picture is the `composer-side-typed-light` scene)
 
 | # | Fleet | Source | Native |
 |---|---|---|---|
-| 4.1 | Minimize folds the card away where it stands: grid rows 1fr → 0fr over 280 ms ease-out; the tab takes its place | SCP `__fold` | None |
+| 4.1 | Minimize folds the card away where it stands: grid rows 1fr → 0fr over 280 ms ease-out; the tab takes its place | SCP `__fold` | Done (piece B): the card keeps its size and its box shrinks to nothing over 280 ms, ease-out, from the app's clock (`side_open_share`; test "the fold runs over 280 ms"); the tab that takes its place is piece D's |
 | 4.2 | Saved on the server at once (`PUT /api/sessions/{id}/side/minimized {minimized}`), shown before the answer; the answer replaces `side` (keeping the local `seenAnswerId`) when it's still the same side; a refusal sets the error "The side conversation couldn't be minimized/opened (HTTP n)." | USC `setMinimized` | Done (piece A): `State::set_side_minimized`, shown at once, the answer replaces the side keeping the local seen id, the refusal texts |
 | 4.3 | Opening it: the unread pulse stops; the newest answer (when not working) is marked seen (`PUT /side/seen {answerId}`, local first, the server's failure ignored) | USC `setMinimized`, `markSeen` | Done (piece A): opening stops the pulse and marks the newest finished answer seen (`PUT /side/seen`, the failure ignored) |
-| 4.4 | Ctrl+/ (⌘/ on a Mac; no Alt, no Shift) toggles minimized when there is a side conversation, anywhere in the window except inside a code editor (where it comments a line); it is then consumed. Without a side conversation it is left alone | SCP `handleKeydown` | None |
-| 4.5 | Folding keeps where the stream was scrolled (top, and whether within 80 px of the end); opening puts it back, at the end if it was there (a new answer is), and focuses the composer | SCP `watch(minimized)` | None |
+| 4.4 | Ctrl+/ (⌘/ on a Mac; no Alt, no Shift) toggles minimized when there is a side conversation, anywhere in the window except inside a code editor (where it comments a line); it is then consumed. Without a side conversation it is left alone | SCP `handleKeydown` | Done (piece B): `State::side_key`, consumed with a side conversation (folded or not), left alone without one, with Alt or Shift, or while the code editor has the keyboard (tests "Ctrl+/ folds it and opens it again", "leaves Ctrl+/ alone without a side conversation", "…inside a code editor is left alone") |
+| 4.5 | Folding keeps where the stream was scrolled (top, and whether within 80 px of the end); opening puts it back, at the end if it was there (a new answer is), and focuses the composer | SCP `watch(minimized)` | Focus half done (piece B): opening puts the caret in the composer (test "Ctrl+/ folds it…"). Scroll position half open: the stream stays mounted while folded, but a conversation long enough to scroll is piece C's to check |
 | 4.6 | Opening and minimizing swap the composer's draft (component 5's row 9.6) and its mode (side mode only while open) | CO 335–350 | Done by component 5, needs `side_id`/`side_open` set (piece A) |
 
 ### 5. The tab (minimized)
@@ -157,7 +157,7 @@ dark only, so the light native picture is the `composer-side-typed-light` scene)
 
 | # | Fleet | Source | Native |
 |---|---|---|---|
-| 8.1 | `POST /api/sessions/{id}/side/keep` → the side conversation (now a session of its own); the panel goes; the app opens it (`/sessions/<sideId>?instanceId=<its instance>`) | USC `keep`, SCP `handleKeep` | Done (piece A): `State::keep_side_as_session` posts, drops the side, opens the session and reads the list again (a list read that does not yet hold the session may move the route off it: to check live in piece B, where the button makes it reachable); the panel button is piece B |
+| 8.1 | `POST /api/sessions/{id}/side/keep` → the side conversation (now a session of its own); the panel goes; the app opens it (`/sessions/<sideId>?instanceId=<its instance>`) | USC `keep`, SCP `handleKeep` | Done (piece A): `State::keep_side_as_session` posts, drops the side, opens the session and reads the list again (a list read that does not yet hold the session may move the route off it: to check live in piece B, where the button makes it reachable); the panel button is piece B; the button (`side-keep`) is drawn in piece B and tested against the fake server ("keep as session asks the server and opens the kept session") |
 | 8.2 | A refusal keeps the panel and says "The side conversation couldn't be kept (HTTP n)." | USC `keep` | Done (piece A) |
 
 ### 9. The state and the routes
@@ -239,6 +239,8 @@ In build order. Each is one pull request; each starts from this file.
   themes (dark live; light from a scene, as live runs draw dark).
 
 ### B. The panel, open (view, from mock data)
+
+**Done (20 November 2026)**, pictures in `shots/parity/15b-panel/`. The panel is drawn from invented data (scenes) or from a live Fleet's state with an empty body: the live stream is piece C's.
 
 - **Rows:** 1.1–1.5, 2.1–2.7, 3.1, 3.2 (drawn from a `Session` other than the open one), 3.5, 4.1, 4.4, 4.5, 8.1 (it opens).
 - **Files:** new `src/view/side.rs` (the section, the card, the header, the forking line, the fold); `src/view/conversation.rs`
