@@ -16,6 +16,8 @@ pub mod window;
 #[cfg(test)]
 mod close_tests;
 #[cfg(test)]
+mod log_tests;
+#[cfg(test)]
 mod menu_tests;
 #[cfg(all(test, target_os = "linux"))]
 mod notify_dbus_tests;
