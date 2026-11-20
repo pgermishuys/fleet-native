@@ -3,8 +3,9 @@
 //! Rune and no I/O (the plugin poll in `plugins` hands its answer over with `Post::update`).
 //!
 //! Fleet's four Labs rails (Fleet, Board, Workflows, Jobs) leave the rail while their preference is off; their address
-//! still opens, and the page's notice then fills the whole context (`noPanel`). GitHub is a plugin's rail: it is there
-//! while the plugin isn't switched off in the `plugins.disabled` preference.
+//! still opens, and the page's notice then fills the whole context (`noPanel`). A plugin's rail (GitHub's) comes from `fleet::places`: it is there
+//! while the plugin is registered and isn't switched off in the `plugins.disabled` preference.
+use super::places::{Places, RailItem};
 use super::prefs::Prefs;
 use crate::Rail;
 use serde_json::Value;
@@ -68,14 +69,15 @@ impl Features {
 #[derive(Clone, Debug, Default)]
 pub struct Inputs {
     pub features: Features,
-    pub github_off: bool,
+    /// The rail buttons the plugins that are on add (`sidebarItems`): plugin id and item.
+    pub plugin_rails: Vec<(&'static str, RailItem)>,
     /// Rails to draw dimmed (`RailDefinition.off`). Fleet's own never are; kept so the marker has a test.
     pub marked_off: Vec<Rail>,
 }
 
 impl Inputs {
-    pub fn from_prefs(prefs: &Prefs) -> Inputs {
-        Inputs { features: Features::from_prefs(prefs), github_off: plugin_is_off(prefs, "github"), marked_off: Vec::new() }
+    pub fn from_prefs(prefs: &Prefs, places: &Places) -> Inputs {
+        Inputs { features: Features::from_prefs(prefs), plugin_rails: places.rail_items(prefs), marked_off: Vec::new() }
     }
 }
 
@@ -110,9 +112,9 @@ pub fn rails(inputs: &Inputs) -> Vec<RailDef> {
         def(Rail::Analytics, "Analytics", "/analytics", Placement::Secondary, 0, None, true),
         def(Rail::Settings, "Settings", "/settings", Placement::Bottom, 40, None, true),
     ];
-    if !inputs.github_off {
-        // The plugin's own panel; the placeholder one it shows until the plugin supplies a panel counts as a panel.
-        list.push(def(Rail::GitHub, "GitHub", "/github", Placement::Plugin, 100, None, true));
+    for (id, item) in &inputs.plugin_rails {
+        // A plugin's rail counts as having a panel: the placeholder one it shows until the plugin supplies its own.
+        list.push(def(Rail::Plugin(id), item.label, item.path, item.placement, item.order, None, true));
     }
     list.sort_by_key(|r| r.order);
     list
@@ -213,7 +215,7 @@ impl PluginStatuses {
 impl crate::State {
     /// What the rail list is made from now: the preferences as last read and the marker for rails that are off.
     pub fn rail_inputs(&self) -> Inputs {
-        Inputs { marked_off: self.rail_marked_off.clone(), ..Inputs::from_prefs(&self.pickers.prefs) }
+        Inputs { marked_off: self.rail_marked_off.clone(), ..Inputs::from_prefs(&self.pickers.prefs, &self.places) }
     }
 
     pub fn rail_list(&self) -> Vec<RailDef> {

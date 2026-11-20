@@ -1,8 +1,9 @@
 //! Component 16, piece AF: GitHub's connection page. Fleet has no tests for it, so these are native: the status, the device flow
 //! through each result, the countdown, cancelling, the token's messages, Disconnect. A fake Fleet answers `/api/integrations/github/
 //! auth/*` and a fake GitHub answers `/user`; no real GitHub, account or token is ever reached. Every name and token is invented.
+use super::{auth, auth_ref};
 use crate::fleet::link::{Job, Link, Post};
-use crate::fleet::settings::github_auth::{Device, Pat};
+use crate::plugins::github::auth::{Device, Pat};
 use crate::tests::{FRAME, app, click};
 use crate::{Rail, State, test_http, test_wait};
 use rune::Runtime;
@@ -137,7 +138,7 @@ fn rig(fake: Fake) -> Rig {
     rt.update(move |s, _| {
         s.link = Some(link);
         s.rail = Rail::Settings;
-        s.settings.github.api = api;
+        auth(&mut s.places).api = api;
         s.open_settings("plugin:github", None);
     });
     rt.frame(FRAME);
@@ -150,12 +151,12 @@ fn code(interval: u64, expires_in: u64) -> Value {
 
 impl Rig {
     fn wait(&mut self, what: &str, done: impl FnMut(&State) -> bool) {
-        test_wait::drive(&mut self.rt, &self.queue, what, done, |s| format!("{:?}", s.settings.github));
+        test_wait::drive(&mut self.rt, &self.queue, what, done, |s| format!("{:?}", auth_ref(&s.places)));
         self.rt.frame(FRAME);
     }
     /// The page has read the status.
     fn read(&mut self) {
-        self.wait("the status", |s| s.settings.github.asked && !s.settings.github.checking);
+        self.wait("the status", |s| auth_ref(&s.places).asked && !auth_ref(&s.places).checking);
     }
     fn has(&self, key: &str) -> bool {
         self.rt.elements().iter().any(|e| e.key.as_deref() == Some(key) && !e.exiting)
@@ -180,7 +181,7 @@ impl Rig {
     }
     fn start_device(&mut self) {
         click(&mut self.rt, "github-connect");
-        self.wait("the code", |s| matches!(s.settings.github.device, Device::Awaiting { .. }));
+        self.wait("the code", |s| matches!(auth_ref(&s.places).device, Device::Awaiting { .. }));
         self.t0 = self.rt.state.clock;
     }
 }
@@ -192,7 +193,7 @@ const STATUS: &str = "/api/integrations/github/auth/status";
 fn a_status_that_fails_means_not_connected() {
     let mut r = rig(Fake { status_fails: Some(500), ..Fake::default() });
     r.read();
-    assert!(!r.rt.state.settings.github.connected);
+    assert!(!auth_ref(&r.rt.state.places).connected);
     assert!(r.has("github-connect"), "the device card is offered");
     assert!(r.words().contains("Connect with device flow"));
 }
@@ -202,7 +203,7 @@ fn says_it_is_checking_until_the_status_answers_then_shows_the_connected_rows() 
     let mut r = rig(Fake { connected: true, ..Fake::default() });
     assert!(r.words().contains("Checking GitHub connection\u{2026}"));
     r.read();
-    assert!(r.rt.state.settings.github.connected);
+    assert!(auth_ref(&r.rt.state.places).connected);
     let words = r.words();
     for w in [
         "GitHub is connected",
@@ -222,7 +223,7 @@ fn the_device_flow_waits_for_the_code_counts_it_down_and_connects_on_complete() 
     let mut r = rig(Fake { device: Some(code(5, 900)), ..Fake::default() });
     r.read();
     r.start_device();
-    assert!(!r.rt.state.settings.github.connected);
+    assert!(!auth_ref(&r.rt.state.places).connected);
     assert_eq!(r.text("github-user-code"), "WXYZ-1234");
     assert!(r.words().contains("Polling GitHub every 5s. Code expires in 15:00."));
     r.at(1.0);
@@ -232,8 +233,8 @@ fn the_device_flow_waits_for_the_code_counts_it_down_and_connects_on_complete() 
     assert!(words.contains("Polling GitHub every 5s. Code expires in 14:0") || words.contains("13:5"), "{words}");
     r.fake.lock().unwrap().polls.push_back((200, json!({"status": "complete"})));
     r.at(66.0);
-    r.wait("GitHub to be connected", |s| s.settings.github.connected);
-    assert_eq!(r.rt.state.settings.github.device, Device::Complete);
+    r.wait("GitHub to be connected", |s| auth_ref(&s.places).connected);
+    assert_eq!(auth_ref(&r.rt.state.places).device, Device::Complete);
     assert!(r.requests("POST", POLL) >= 1);
     assert_eq!(r.requests("GET", STATUS), 2, "the status is read again to confirm");
     assert!(r.has("github-connected"));
@@ -246,7 +247,7 @@ fn pending_asks_again_after_the_interval_the_server_names() {
     r.start_device();
     r.fake.lock().unwrap().polls.push_back((200, json!({"status": "pending", "interval": 10})));
     r.at(6.0);
-    r.wait("its answer", |s| s.settings.github.poll_every == 10);
+    r.wait("its answer", |s| auth_ref(&s.places).poll_every == 10);
     assert_eq!(r.requests("POST", POLL), 1);
     r.at(14.0);
     assert_eq!(r.requests("POST", POLL), 1, "slowed to 10 s: not yet");
@@ -274,12 +275,12 @@ fn each_way_it_can_end_without_connecting_says_so_and_try_again_goes_back_to_the
         r.start_device();
         r.fake.lock().unwrap().polls.push_back((status, answer));
         r.at(6.0);
-        r.wait("the end", |s| !matches!(s.settings.github.device, Device::Awaiting { .. }));
+        r.wait("the end", |s| !matches!(auth_ref(&s.places).device, Device::Awaiting { .. }));
         assert!(r.words().contains(words), "{words}");
         assert!(!r.has("github-cancel"));
         click(&mut r.rt, "github-try-again");
         r.rt.frame(FRAME);
-        assert_eq!(r.rt.state.settings.github.device, Device::Idle);
+        assert_eq!(auth_ref(&r.rt.state.places).device, Device::Idle);
         assert!(r.has("github-connect"));
     }
 }
@@ -291,9 +292,9 @@ fn says_when_the_saved_connection_was_not_confirmed() {
     r.start_device();
     r.fake.lock().unwrap().polls.push_back((200, json!({"status": "complete"})));
     r.at(6.0);
-    r.wait("the end", |s| matches!(s.settings.github.device, Device::Error(_)));
+    r.wait("the end", |s| matches!(auth_ref(&s.places).device, Device::Error(_)));
     assert!(r.words().contains("GitHub authorization completed, but the saved connection was not confirmed."));
-    assert!(!r.rt.state.settings.github.connected);
+    assert!(!auth_ref(&r.rt.state.places).connected);
 }
 
 #[test]
@@ -301,7 +302,7 @@ fn a_device_code_that_cannot_be_had_says_why() {
     let mut r = rig(Fake::default());
     r.read();
     click(&mut r.rt, "github-connect");
-    r.wait("the refusal", |s| matches!(s.settings.github.device, Device::Error(_)));
+    r.wait("the refusal", |s| matches!(auth_ref(&s.places).device, Device::Error(_)));
     assert!(r.words().contains("GitHub is not set up on this Fleet."));
 }
 
@@ -312,7 +313,7 @@ fn cancel_stops_polling() {
     r.start_device();
     click(&mut r.rt, "github-cancel");
     r.rt.frame(FRAME);
-    assert_eq!(r.rt.state.settings.github.device, Device::Idle);
+    assert_eq!(auth_ref(&r.rt.state.places).device, Device::Idle);
     r.at(6.0);
     r.at(500.0);
     r.rt.frame(FRAME);
@@ -325,11 +326,11 @@ fn leaving_the_page_stops_polling_and_forgets_the_token_that_was_typed() {
     let mut r = rig(Fake { device: Some(code(5, 900)), ..Fake::default() });
     r.read();
     r.start_device();
-    r.set(|s| s.settings.github.pat.replace_text("ghp_invented_typed"));
+    r.set(|s| auth(&mut s.places).pat.replace_text("ghp_invented_typed"));
     r.set(|s| s.open_settings("plugins", None));
     r.at(10.0);
     assert_eq!(r.requests("POST", POLL), 0);
-    let g = &r.rt.state.settings.github;
+    let g = auth_ref(&r.rt.state.places);
     assert_eq!(g.device, Device::Idle);
     assert!(g.pat.text.is_empty());
 }
@@ -344,13 +345,13 @@ fn the_token_box_is_masked_and_its_buttons_wait_for_a_token() {
     assert!(r.words().contains("Use a PAT when device flow is unavailable. The token is validated before it is stored server-side."));
     let disabled = |r: &Rig, key: &str| r.rt.elements().iter().find(|e| e.key.as_deref() == Some(key)).is_some_and(|e| e.opacity < 1.0);
     assert!(disabled(&r, "github-pat-test") && disabled(&r, "github-pat-connect"));
-    r.set(|s| s.settings.github.pat.replace_text("   "));
+    r.set(|s| auth(&mut s.places).pat.replace_text("   "));
     assert!(disabled(&r, "github-pat-test"), "spaces are not a token");
-    r.set(|s| s.settings.github.pat.replace_text("ghp_invented_good"));
+    r.set(|s| auth(&mut s.places).pat.replace_text("ghp_invented_good"));
     r.rt.frame(1.0);
     assert!(!disabled(&r, "github-pat-test") && !disabled(&r, "github-pat-connect"));
     assert!(!r.words().contains("ghp_invented_good"), "the token is never drawn");
-    assert!(!format!("{:?}", r.rt.state.settings.github).contains("ghp_invented_good"), "nor logged");
+    assert!(!format!("{:?}", auth_ref(&r.rt.state.places)).contains("ghp_invented_good"), "nor logged");
 }
 
 #[test]
@@ -361,17 +362,17 @@ fn testing_a_token_names_its_owner_or_says_why_not_and_typing_clears_the_message
     r.set(|s| s.github_test_pat());
     assert!(r.words().contains("Enter a personal access token."));
 
-    r.set(|s| s.settings.github.pat.replace_text(" ghp_invented_bad "));
+    r.set(|s| auth(&mut s.places).pat.replace_text(" ghp_invented_bad "));
     click(&mut r.rt, "github-pat-test");
-    r.wait("the refusal", |s| matches!(s.settings.github.pat_state, Pat::Error(_)));
+    r.wait("the refusal", |s| matches!(auth_ref(&s.places).pat_state, Pat::Error(_)));
     assert!(r.words().contains("Bad credentials"));
-    r.set(|s| s.settings.github.pat.replace_text("ghp_invented_other"));
+    r.set(|s| auth(&mut s.places).pat.replace_text("ghp_invented_other"));
     r.at(7.0);
     assert!(!r.has("github-pat-message"), "typing again clears it");
 
-    r.set(|s| s.settings.github.pat.replace_text("ghp_invented_good"));
+    r.set(|s| auth(&mut s.places).pat.replace_text("ghp_invented_good"));
     click(&mut r.rt, "github-pat-test");
-    r.wait("the owner", |s| matches!(s.settings.github.pat_state, Pat::Success(_)));
+    r.wait("the owner", |s| matches!(auth_ref(&s.places).pat_state, Pat::Success(_)));
     assert!(r.words().contains("Connected as @octo-test"));
     let calls = r.gh.lock().unwrap().user_calls.clone();
     assert_eq!(calls.last().unwrap().0, "Bearer ghp_invented_good", "trimmed, and sent as a bearer token");
@@ -384,11 +385,11 @@ fn a_token_the_network_cannot_check_says_it_could_not() {
     r.read();
     click(&mut r.rt, "github-pat-toggle");
     r.set(|s| {
-        s.settings.github.api = "http://127.0.0.1:1".into();
-        s.settings.github.pat.replace_text("ghp_invented_good");
+        auth(&mut s.places).api = "http://127.0.0.1:1".into();
+        auth(&mut s.places).pat.replace_text("ghp_invented_good");
     });
     click(&mut r.rt, "github-pat-test");
-    r.wait("the failure", |s| matches!(s.settings.github.pat_state, Pat::Error(_)));
+    r.wait("the failure", |s| matches!(auth_ref(&s.places).pat_state, Pat::Error(_)));
     assert!(r.words().contains("Unable to validate GitHub token."));
 }
 
@@ -397,12 +398,12 @@ fn connecting_with_a_token_stores_it_wipes_the_box_and_shows_the_connected_rows(
     let mut r = rig(Fake::default());
     r.read();
     click(&mut r.rt, "github-pat-toggle");
-    r.set(|s| s.settings.github.pat.replace_text("ghp_invented_good"));
+    r.set(|s| auth(&mut s.places).pat.replace_text("ghp_invented_good"));
     click(&mut r.rt, "github-pat-connect");
-    r.wait("GitHub to be connected", |s| s.settings.github.connected);
+    r.wait("GitHub to be connected", |s| auth_ref(&s.places).connected);
     let sent = r.fake.lock().unwrap().log.iter().find(|(_, route, _)| route.ends_with("/auth/token")).cloned().expect("the request");
     assert_eq!(sent.2, json!({"token": "ghp_invented_good"}));
-    let g = &r.rt.state.settings.github;
+    let g = auth_ref(&r.rt.state.places);
     assert!(g.pat.text.is_empty());
     assert_eq!(g.device, Device::Complete);
     assert!(r.has("github-connected"));
@@ -413,12 +414,12 @@ fn a_token_fleet_refuses_keeps_the_box_and_says_what_fleet_said() {
     let mut r = rig(Fake { token: Some((400, json!({"error": "That token has no repo scope."}))), ..Fake::default() });
     r.read();
     click(&mut r.rt, "github-pat-toggle");
-    r.set(|s| s.settings.github.pat.replace_text("ghp_invented_good"));
+    r.set(|s| auth(&mut s.places).pat.replace_text("ghp_invented_good"));
     click(&mut r.rt, "github-pat-connect");
-    r.wait("the refusal", |s| matches!(s.settings.github.pat_state, Pat::Error(_)));
+    r.wait("the refusal", |s| matches!(auth_ref(&s.places).pat_state, Pat::Error(_)));
     assert!(r.words().contains("That token has no repo scope."));
-    assert_eq!(r.rt.state.settings.github.pat.text, "ghp_invented_good", "kept to try again");
-    assert!(!r.rt.state.settings.github.connected);
+    assert_eq!(auth_ref(&r.rt.state.places).pat.text, "ghp_invented_good", "kept to try again");
+    assert!(!auth_ref(&r.rt.state.places).connected);
 }
 
 #[test]
@@ -426,10 +427,10 @@ fn disconnect_forgets_the_token_and_goes_back_to_the_cards() {
     let mut r = rig(Fake { connected: true, ..Fake::default() });
     r.read();
     click(&mut r.rt, "github-disconnect");
-    r.wait("the connection to go", |s| !s.settings.github.connected && !s.settings.github.disconnecting);
+    r.wait("the connection to go", |s| !auth_ref(&s.places).connected && !auth_ref(&s.places).disconnecting);
     assert_eq!(r.requests("DELETE", "/api/integrations/github/auth"), 1);
     assert!(r.has("github-connect"));
-    assert_eq!(r.rt.state.settings.github.device, Device::Idle);
+    assert_eq!(auth_ref(&r.rt.state.places).device, Device::Idle);
 }
 
 #[test]
@@ -437,9 +438,9 @@ fn a_disconnect_that_fails_keeps_the_connection() {
     let mut r = rig(Fake { connected: true, delete_fails: true, ..Fake::default() });
     r.read();
     click(&mut r.rt, "github-disconnect");
-    r.wait("the failure", |s| matches!(s.settings.github.device, Device::Error(_)));
-    assert!(r.rt.state.settings.github.connected);
-    assert_eq!(r.rt.state.settings.github.device, Device::Error("The token store is locked.".into()));
+    r.wait("the failure", |s| matches!(auth_ref(&s.places).device, Device::Error(_)));
+    assert!(auth_ref(&r.rt.state.places).connected);
+    assert_eq!(auth_ref(&r.rt.state.places).device, Device::Error("The token store is locked.".into()));
     assert!(r.has("github-disconnect"), "still connected");
 }
 

@@ -1,7 +1,9 @@
 //! Settings → Plugins (`plugins/registry.ts`, `plugins/slots.ts`, `plugins/use-plugin-switch.ts`, the three built-in manifests):
 //! the add-ons a Fleet has built in, what each adds, whether it is on, and what a switch writes. Native has no plugin registry
-//! to fill at run time (decision of docs/parity/16-settings.md, Part 11): the three manifests are a fixed table in plain Rust,
-//! and core never names one in a view; the views read this table. Component 21 fills GitHub's places.
+//! to fill at run time (decision of docs/parity/16-settings.md, Part 11): Mods and Built-in skills are a fixed table here, and a
+//! plugin that is not core's (GitHub) registers its manifest in `fleet::places`; core never names one in a view, the views read
+//! `Places::manifests`.
+use super::super::places::Places;
 use super::super::prefs::Prefs;
 use super::super::rails::{DISABLED_PLUGINS_KEY, plugin_is_off};
 use crate::{State, Tx};
@@ -58,27 +60,9 @@ pub struct Plugin {
     pub adds: &'static [Added],
 }
 
-/// In the order Fleet registers them (`main.ts`).
-pub const PLUGINS: [Plugin; 3] = [
-    Plugin {
-        id: "github",
-        name: "GitHub",
-        description: "Pull requests, issues and checks beside your sessions.",
-        own_switch: false,
-        switchless: false,
-        page_title: "GitHub integration",
-        nav_label: "GitHub",
-        adds: &[
-            Added { area: Area::Rail, detail: "GitHub (opens /github)", point: "sidebarItems" },
-            Added { area: Area::Settings, detail: "GitHub integration", point: "configPage" },
-            Added { area: Area::FolderPicker, detail: "Suggests your repositories to clone (github)", point: "repositorySources" },
-            Added {
-                area: Area::Board,
-                detail: "Add GitHub issue sources from your bookmarks, optionally narrowing sync to matching labels.",
-                point: "boardSources",
-            },
-        ],
-    },
+/// The plugins that are core's own, after the registered ones in `main.ts`' order. A built-in plugin like GitHub is not here: it
+/// registers itself in `crate::plugins` and reaches the lists through `Places::manifests`.
+pub const CORE: [Plugin; 2] = [
     Plugin {
         id: "mods",
         name: "Mods",
@@ -101,8 +85,8 @@ pub const PLUGINS: [Plugin; 3] = [
     },
 ];
 
-pub fn find(id: &str) -> Option<&'static Plugin> {
-    PLUGINS.iter().find(|p| p.id == id)
+pub fn find(places: &Places, id: &str) -> Option<Plugin> {
+    places.manifest(id)
 }
 
 impl Plugin {
@@ -132,13 +116,13 @@ impl Plugin {
 }
 
 /// The count beside Plugins in the menu: the plugins that are on (none of the three is `alwaysOn`).
-pub fn count_on(prefs: &Prefs) -> usize {
-    PLUGINS.iter().filter(|p| p.enabled(prefs)).count()
+pub fn count_on(places: &Places, prefs: &Prefs) -> usize {
+    places.manifests().iter().filter(|p| p.enabled(prefs)).count()
 }
 
 /// The menu's children under Plugins: one per plugin that is on and has a settings page.
-pub fn children(prefs: &Prefs) -> Vec<&'static Plugin> {
-    PLUGINS.iter().filter(|p| p.enabled(prefs)).collect()
+pub fn children(places: &Places, prefs: &Prefs) -> Vec<Plugin> {
+    places.manifests().into_iter().filter(|p| p.enabled(prefs)).collect()
 }
 
 /// `parseDisabledPlugins`: the ids in the stored list; anything that isn't a list of text is none.
@@ -169,12 +153,12 @@ static WRITE_ORDER: Mutex<()> = Mutex::new(());
 impl State {
     /// Whether a plugin's own page and rail are on now, as the preferences stand.
     pub fn plugin_enabled(&self, id: &str) -> bool {
-        find(id).is_some_and(|p| p.enabled(&self.pickers.prefs))
+        find(&self.places, id).is_some_and(|p| p.enabled(&self.pickers.prefs))
     }
 
     /// A press on a plugin's switch: the opposite of what it shows. A switchless plugin has none.
     pub fn plugin_press(&mut self, id: &str) {
-        let Some(plugin) = find(id) else { return };
+        let Some(plugin) = find(&self.places, id) else { return };
         if plugin.switchless {
             return;
         }
@@ -186,7 +170,7 @@ impl State {
     /// The list is one preference, so saving this copy would undo what another device changed since it was read: the new list
     /// is made from what the server has now (Fleet #1052), changing only this plugin. The page changes at once.
     pub fn set_plugin_enabled(&mut self, id: &str, enabled: bool) {
-        let Some(plugin) = find(id) else { return };
+        let Some(plugin) = find(&self.places, id) else { return };
         if plugin.own_switch {
             // Turning Mods on asks about Bun first (`modsOwnSwitch.set`).
             self.mods_switch(enabled);

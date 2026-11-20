@@ -105,6 +105,7 @@ pub mod pages;
 pub mod pairing;
 pub mod panel;
 pub mod pins;
+pub mod places;
 pub mod plugin_poll;
 pub mod pr_popover;
 pub mod pr_state;

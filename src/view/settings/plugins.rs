@@ -10,9 +10,11 @@ use crate::ui::rem;
 use rune::{Cursor, El, Icon, col, icon, row, text};
 
 /// The plugin's config page icon, else `Puzzle` (`manifest.contributions.configPage.icon ?? Puzzle`).
-pub fn glyph(id: &str) -> &'static Icon {
+pub fn glyph(places: &crate::fleet::places::Places, id: &str) -> &'static Icon {
+    if let Some(rail) = places.rail_item(id) {
+        return rail.icon;
+    }
     match id {
-        "github" => &GITHUB,
         "mods" => &WAND_SPARKLES,
         "built-in-skills" => &SPARKLES,
         _ => &PUZZLE,
@@ -75,7 +77,7 @@ fn plugin_row(s: &State, t: &Theme, p: &Plugin, last: bool) -> El {
         .border(1.0, t.border)
         .border_layout()
         .fill(t.main_bg)
-        .child(icon(glyph(id), 18.0).color(t.text));
+        .child(icon(glyph(&s.places, id), 18.0).color(t.text));
     let name = text(p.name)
         .font(sans(rem(0.875), 600.0, 1.43))
         .color(t.text)
@@ -139,7 +141,7 @@ pub fn content(s: &State, t: &Theme) -> El {
         .child(text("All plugins").font(sans(rem(0.875), 600.0, 1.43)).color(t.text))
         .child(text("Each switch adds or removes everything below").font(sans(rem(0.75), 400.0, 1.33)).color(t.muted));
     // Scene and test only: Fleet's "No plugins are installed" can't happen with the three built in.
-    let list = if s.settings.plugins_none { &[] } else { plugins::PLUGINS.as_slice() };
+    let list = if s.settings.plugins_none { Vec::new() } else { s.places.manifests() };
     let mut card = col()
         .key("plugins-list")
         .w_full()

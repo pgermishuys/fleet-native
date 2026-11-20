@@ -2338,3 +2338,11 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 ## Component 20, piece A (sections, filters and the data)
 
 - **Nothing new about Rune:** the piece is plain Rust (data, queries, dates and comparisons), tested headless.
+
+
+## Component 21, piece A (the plugin seam)
+
+- **A plugin's views are plain `fn(&State, &Theme) -> El` pointers**, so a registry of them is a `Vec` of `Copy` fn pointers and
+  a plugin's own state is a `Box<dyn Any + Send>`: nothing in Rune is needed, and `State` stays `Send`. A handler reaches its
+  state with `places.state_mut::<T>(id)`; borrow `s.places` (a field), not `s`, so other fields stay usable beside it.
+- **`Icon` has no `Debug`**, so a struct holding `&'static Icon` that sits in a `#[derive(Debug)]` needs a hand-written `Debug`.

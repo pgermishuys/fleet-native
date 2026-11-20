@@ -16,7 +16,6 @@ pub mod dream_nightly;
 pub mod dream_nightly_actions;
 pub mod dreaming;
 pub mod dreaming_actions;
-pub mod github_auth;
 pub mod harness_install;
 pub mod harness_path;
 pub mod harness_profiles;

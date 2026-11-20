@@ -17,15 +17,15 @@ pub fn rail(s: &State, t: &Theme) -> El {
     let lit = s.active_rail();
     let mut r = col().w(48.0).h_full().py(8.0).items_center().child(logo);
     for def in rails::top(&list) {
-        r = r.child(item(t, &def, lit));
+        r = r.child(item(s, t, &def, lit));
     }
     r = r.child(divider(t));
     for def in rails::secondary(&list) {
-        r = r.child(item(t, &def, lit));
+        r = r.child(item(s, t, &def, lit));
     }
     r = r.child(spacer()).child(divider(t));
     for def in rails::bottom(&list) {
-        r = r.child(item(t, &def, lit));
+        r = r.child(item(s, t, &def, lit));
     }
     r.child(plain(t, None, &CIRCLE_QUESTION_MARK, "Help", false, false))
 }
@@ -34,7 +34,7 @@ fn divider(t: &Theme) -> El {
     el().size(24.0, 1.0).my(4.0).fill(t.border)
 }
 
-fn glyph_of(rail: Rail) -> &'static Icon {
+fn glyph_of(s: &State, rail: Rail) -> &'static Icon {
     match rail {
         Rail::Fleet => &RADAR,
         Rail::Sessions => &MESSAGE_SQUARE,
@@ -43,13 +43,13 @@ fn glyph_of(rail: Rail) -> &'static Icon {
         Rail::Jobs => &LIST_TODO,
         Rail::Automations => &ZAP,
         Rail::Analytics => &CHART_COLUMN,
-        Rail::GitHub => &GITHUB,
+        Rail::Plugin(id) => s.places.rail_item(id).map_or(&PUZZLE, |p| p.icon),
         Rail::Settings => &SETTINGS,
     }
 }
 
-fn item(t: &Theme, def: &RailDef, lit: Option<Rail>) -> El {
-    plain(t, Some(def.rail), glyph_of(def.rail), &rails::tooltip(def), lit == Some(def.rail), def.off)
+fn item(s: &State, t: &Theme, def: &RailDef, lit: Option<Rail>) -> El {
+    plain(t, Some(def.rail), glyph_of(s, def.rail), &rails::tooltip(def), lit == Some(def.rail), def.off)
 }
 
 /// One rail button. `which` is the rail it opens; Help (no rail) opens its menu. A rail that is off has

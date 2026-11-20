@@ -145,14 +145,14 @@ imports them (component 7's B10 note). Native is stricter, as component 7 decide
 
 | # | Fleet | Source | Native |
 |---|---|---|---|
-| 1.1 | Descriptor: id `github`, "GitHub", built-in, front end and back end, "Pull requests, issues and checks beside your sessions." | IDX | Done in core's table (16 AB); A moves it to the plugin |
-| 1.2 | Sidebar item `{viewId github, label GitHub, icon Github, defaultPath /github, order 100}`; sidebar panel `GitHubPanel` order 100 | IDX | Rail item done (core); A: the plugin's, through `places` |
-| 1.3 | Config page "GitHub integration", nav label "GitHub", icon Github, `GitHubSettings` | IDX, GS | Done (16 AF) in core; A moves it |
+| 1.1 | Descriptor: id `github`, "GitHub", built-in, front end and back end, "Pull requests, issues and checks beside your sessions." | IDX | Done (A): the plugin's own `entry()` in `src/plugins/github/mod.rs`; core lists it from `Places::manifests` |
+| 1.2 | Sidebar item `{viewId github, label GitHub, icon Github, defaultPath /github, order 100}`; sidebar panel `GitHubPanel` order 100 | IDX | Rail item: done (A), the plugin's through `places` (`Rail::Plugin("github")`); the panel: D draws it (until then the rail shows the notice) |
+| 1.3 | Config page "GitHub integration", nav label "GitHub", icon Github, `GitHubSettings` | IDX, GS | Done (A): the connection page is the plugin's `settings` place (`src/plugins/github/view/connect.rs`) |
 | 1.4 | Repository source `github` (Github icon): your repositories `{id, fullName, name}` for the Clone view, loading only when the view asks (`autoLoad: false`) | CON | None (C) |
 | 1.5 | Board source `github`: the description, the empty hint (16's 11.56), your bookmarks with `isLoading`, `error`, `refresh` | CON | None (N registers it once component 23 offers the place) |
-| 1.6 | Routes: `/github` (Your work), `/github/$owner/$repo` (a repository), `/github/$owner/$repo/pulls/$number`, `/github/$owner/$repo/issues/$number` | `routes/github*.tsx` | None (A: the plugin's own `Where`) |
-| 1.7 | Switched off (`plugins.disabled` holds `github`): rail, panel, settings page, Clone suggestions and board source are gone (`registry.ts isPluginEnabled`) | `plugins/registry.ts` | Rail done; A for the rest (the places skip an off plugin) |
-| 1.8 | Core never imports the plugin; `main.ts` registers it | `main.ts` | None (A: composition root and the guard test) |
+| 1.6 | Routes: `/github` (Your work), `/github/$owner/$repo` (a repository), `/github/$owner/$repo/pulls/$number`, `/github/$owner/$repo/issues/$number` | `routes/github*.tsx` | Done (A): `Where` (Home, Repo, Item) with `parse`/`path` in `src/plugins/github/where_.rs`; the pages that follow it are D-L |
+| 1.7 | Switched off (`plugins.disabled` holds `github`): rail, panel, settings page, Clone suggestions and board source are gone (`registry.ts isPluginEnabled`) | `plugins/registry.ts` | Done (A) for rail, page, settings page and `keep` (the places skip an off plugin; test "a plugin switched off adds nothing"); Clone suggestions (C) and the board source (N) skip it when they register |
+| 1.8 | Core never imports the plugin; `main.ts` registers it | `main.ts` | Done (A): `src/plugins/mod.rs` `register`, and `plugins::tests_seam` "core never imports the GitHub plugin" (with a planted-import twin) |
 
 ### 2. The rail panel (`[github-panel]`)
 

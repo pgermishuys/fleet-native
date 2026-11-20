@@ -3,8 +3,8 @@
 //! root. The repository cache row (11.38) belongs to component 21: it says what the cache says, and its Refresh waits for it.
 use crate::State;
 use crate::Tx;
-use crate::fleet::settings::github_auth::{Device, Github, Pat};
 use crate::icons::*;
+use crate::plugins::github::auth::{Device, Github, Pat};
 use crate::theme::{RADIUS_BTN, RADIUS_CARD, Theme, mono, sans};
 use crate::ui::confirm::{error_note, spinner};
 use crate::ui::rem;
@@ -304,7 +304,10 @@ fn pat_card(t: &Theme, g: &Github) -> El {
         .cursor(Cursor::Pointer)
         .focusable(true)
         .focus_ring(2.0, 2.0, t.accent)
-        .on_press(|s: &mut State| s.settings.github.pat_open = !s.settings.github.pat_open)
+        .on_press(|s: &mut State| {
+            let g = crate::plugins::github::auth(&mut s.places);
+            g.pat_open = !g.pat_open
+        })
         .child(text("Advanced: personal access token").font(sans(rem(0.875), 600.0, 1.43)).color(t.text))
         .child(icon(if g.pat_open { &CHEVRON_UP } else { &CHEVRON_DOWN }, 16.0).color(t.muted));
     let mut c = card(t, "github-pat").child(head);
@@ -350,7 +353,7 @@ fn pat_card(t: &Theme, g: &Github) -> El {
 
 /// The page's body: what `GitHubSettings.vue` renders.
 pub fn content(s: &State, t: &Theme) -> El {
-    let g = &s.settings.github;
+    let g = crate::plugins::github::auth_ref(&s.places);
     let body = if g.checking {
         checking(t)
     } else if g.connected {

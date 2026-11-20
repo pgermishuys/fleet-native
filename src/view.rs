@@ -204,7 +204,13 @@ pub fn root(s: &State, cx: &mut Cx<State>) -> El {
             }
             main.children(panes)
         }
-        other => main.child(notice(&t, other).ml(8.0)),
+        Rail::Plugin(id) => match s.places.rail_views(id, &s.pickers.prefs) {
+            // A plugin's panel (when it has one) and its page: the plugin owns the whole context.
+            Some((Some(panel), page)) if s.context_panel_shown() => main.child(panel(s, &t).ml(8.0)).child(page(s, &t).ml(8.0)),
+            Some((_, page)) => main.child(page(s, &t).ml(8.0)),
+            None => main.child(notice(s, &t, Rail::Plugin(id)).ml(8.0)),
+        },
+        other => main.child(notice(s, &t, other).ml(8.0)),
     };
     // The window's size, for the selector menu's width and height caps (`100vw - 16px`, `60vh`).
     let frame = col().w_full().h_full().fill(t.main_bg).child(main).child(status::bar(s, &t)).on_layout(|s: &mut State, [_, _, w, h]| {
@@ -246,7 +252,7 @@ fn gutter(t: &Theme) -> El {
 
 /// What a rail entry other than Sessions shows: it owns the whole context area, as Fleet's rule
 /// says, and says plainly that this prototype stops at the Sessions shell.
-fn notice(t: &Theme, which: Rail) -> El {
+fn notice(s: &State, t: &Theme, which: Rail) -> El {
     let (name, glyph): (&str, &'static Icon) = match which {
         Rail::Fleet => ("Fleet", &crate::icons::RADAR),
         Rail::Board => ("Board", &crate::icons::LAYOUT_GRID),
@@ -254,7 +260,7 @@ fn notice(t: &Theme, which: Rail) -> El {
         Rail::Workflows => ("Workflows", &crate::icons::WORKFLOW),
         Rail::Automations => ("Automations", &crate::icons::ZAP),
         Rail::Analytics => ("Analytics", &crate::icons::CHART_COLUMN),
-        Rail::GitHub => ("GitHub", &crate::icons::GITHUB),
+        Rail::Plugin(id) => s.places.rail_item(id).map_or(("Plugin", &crate::icons::PUZZLE), |p| (p.label, p.icon)),
         Rail::Settings | Rail::Sessions => ("Settings", &crate::icons::SETTINGS),
     };
     col()
