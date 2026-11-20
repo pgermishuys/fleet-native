@@ -9,9 +9,10 @@ use crate::icons::*;
 use crate::theme::{Theme, mono, sans};
 use crate::ui::button::{Size, Variant, button};
 use crate::ui::chip::{Option_, option, pop_separator};
+use crate::ui::text_menu::text_input;
 use crate::view::folder_menu::make_error;
 use crate::{State, Tx};
-use rune::{Cursor, El, Key, KeyEvent, TextEdit, col, el, icon, row, text, text_input};
+use rune::{Cursor, El, Key, KeyEvent, TextEdit, col, el, icon, row, text};
 
 fn back(t: &Theme) -> El {
     option(t, Option_ { icon: Some(&ARROW_LEFT), ..Option_::new("new-session-folder-back", "All folders") }, None, |s, tx| {

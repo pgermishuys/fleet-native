@@ -7,8 +7,9 @@ use crate::fleet::settings::memory::{List, MemoryPage};
 use crate::fleet::settings::memory_notes::{Group, ListView, Section};
 use crate::icons::{CHEVRON_DOWN, FOLDER_GIT_2, PLUS, SEARCH, SERVER};
 use crate::theme::{RADIUS_BTN, RADIUS_CARD, Theme, sans};
+use crate::ui::text_menu::text_input;
 use crate::ui::{Open, rem, select};
-use rune::{Cursor, El, Icon, col, icon, row, text, text_input};
+use rune::{Cursor, El, Icon, col, icon, row, text};
 use std::rc::Rc;
 
 // ─── Buttons ────────────────────────────────────────────────────────────────

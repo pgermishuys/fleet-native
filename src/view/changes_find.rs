@@ -7,7 +7,8 @@ use crate::conv::review::ReviewLine;
 use crate::fleet::changes_find::{FIELD, MARK};
 use crate::icons::*;
 use crate::theme::{Theme, sans};
-use rune::{Color, Cursor, El, Key, KeyEvent, TextHighlight, Tx, el, icon, row, text, text_input};
+use crate::ui::text_menu::text_input;
+use rune::{Color, Cursor, El, Key, KeyEvent, TextHighlight, Tx, el, icon, row, text};
 
 use super::review_lines::Tints;
 

@@ -15,7 +15,8 @@ use crate::ui::confirm::{error_note, spinner};
 use crate::ui::dialog::{close_x, lift, overlay};
 use crate::ui::overlay::centred;
 use crate::ui::rem;
-use rune::{Cursor, El, Key, KeyEvent, ScrollSpec, Spring, Transition, Tx, Vec2, col, el, icon, row, text, text_input};
+use crate::ui::text_menu::text_input;
+use rune::{Cursor, El, Key, KeyEvent, ScrollSpec, Spring, Transition, Tx, Vec2, col, el, icon, row, text};
 
 const KEY: &str = "improve-skill";
 /// `sm:max-w-2xl`, and the window less 16 px a side.

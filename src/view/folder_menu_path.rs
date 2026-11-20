@@ -9,9 +9,10 @@ use crate::icons::*;
 use crate::theme::{Theme, mono, sans};
 use crate::ui::button::{Size, Variant, button};
 use crate::ui::chip::{Option_, option, pop_note, pop_separator};
+use crate::ui::text_menu::text_input;
 use crate::view::folder_menu::{alert, make_error, spinner};
 use crate::{State, Tx};
-use rune::{Cursor, El, KeyEvent, ScrollSpec, col, el, icon, row, text, text_input};
+use rune::{Cursor, El, KeyEvent, ScrollSpec, col, el, icon, row, text};
 
 /// `.ns-folder-list--path`: `min(240px, 36vh)`.
 const LIST_MAX_H: f32 = 240.0;

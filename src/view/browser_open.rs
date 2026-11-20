@@ -5,9 +5,10 @@ use crate::theme::{RADIUS_BTN, Theme, mono, sans};
 use crate::ui::button::{Size, Variant, button, disabled};
 use crate::ui::dialog::{Dialog, dialog};
 use crate::ui::rem;
+use crate::ui::text_menu::text_input;
 use crate::web::browser_open::{BrowserOpen, FIELD, hint, submit_word};
 use crate::{State, Tx};
-use rune::{Cursor, El, Key, KeyEvent, col, row, text, text_input};
+use rune::{Cursor, El, Key, KeyEvent, col, row, text};
 
 /// The field (`Input` with `font-mono` at 12.5 px): the kit's input, in the mono face.
 fn field(t: &Theme, d: &BrowserOpen) -> El {

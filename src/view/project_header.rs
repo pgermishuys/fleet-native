@@ -4,8 +4,9 @@
 use crate::fleet::projects::RENAME_FIELD;
 use crate::icons::*;
 use crate::theme::{Theme, sans};
+use crate::ui::text_menu::text_input;
 use crate::{State, Tx};
-use rune::{Cursor, El, Key, KeyEvent, el, icon, row, text, text_input};
+use rune::{Cursor, El, Key, KeyEvent, el, icon, row, text};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Header {

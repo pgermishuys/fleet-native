@@ -10,7 +10,8 @@ use crate::conv::tools::PermissionKind;
 use crate::fleet::asks::Reply;
 use crate::icons::*;
 use crate::theme::{RADIUS_BTN, Theme, mono, sans};
-use rune::{Cursor, El, Key, KeyEvent, Tx, col, el, icon, row, text, text_input};
+use crate::ui::text_menu::text_input;
+use rune::{Cursor, El, Key, KeyEvent, Tx, col, el, icon, row, text};
 
 /// `.pcard__lines`: the diff scrolls at 240px.
 const LINES_MAX_H: f32 = 240.0;

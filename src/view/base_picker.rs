@@ -5,8 +5,9 @@ use crate::fleet::new_session::workspace::{BASE_CHIP, BASE_SEARCH_KEY, BRANCH_KE
 use crate::icons::*;
 use crate::theme::{RADIUS_BTN, Theme, mono, sans};
 use crate::ui::chip::{Chip, Option_, option, pop, pop_label, pop_note, pop_separator};
+use crate::ui::text_menu::text_input;
 use crate::{State, Tx};
-use rune::{Align, Color, Cursor, El, Key, KeyEvent, ScrollSpec, Side, col, el, icon, row, text, text_input};
+use rune::{Align, Color, Cursor, El, Key, KeyEvent, ScrollSpec, Side, col, el, icon, row, text};
 
 const WIDTH: f32 = 344.0;
 /// `min(240px, 36vh)`; the window is never shorter than 680, so 36vh is at least 245.

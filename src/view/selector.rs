@@ -6,8 +6,9 @@ use crate::composer::selector::{self as rules, Item, Shown};
 use crate::fleet::usage::{ModelProviderUsage, Tone, usage_tooltip};
 use crate::icons::*;
 use crate::theme::{RADIUS_BTN, RADIUS_CARD, Theme, sans};
+use crate::ui::text_menu::text_input;
 use crate::{State, Tx};
-use rune::{Color, Cursor, El, Key, KeyEvent, Shadow, col, el, icon, row, text, text_input};
+use rune::{Color, Cursor, El, Key, KeyEvent, Shadow, col, el, icon, row, text};
 
 /// The usage bar's size (`.selector-dropdown__usage-bar`).
 const BAR_W: f32 = 28.0;

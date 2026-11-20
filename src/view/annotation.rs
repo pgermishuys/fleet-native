@@ -4,8 +4,9 @@
 use crate::fleet::annotation::{FIELD, WIDTH, clamp, preview};
 use crate::theme::{Theme, sans};
 use crate::ui::button::{Size, Variant, button};
+use crate::ui::text_menu::text_input;
 use crate::{State, Tx};
-use rune::{El, Key, KeyEvent, Shadow, col, row, text, text_input};
+use rune::{El, Key, KeyEvent, Shadow, col, row, text};
 
 /// The card, or nothing while no annotation is open.
 pub fn overlay(s: &State, t: &Theme) -> Option<El> {

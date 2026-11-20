@@ -9,8 +9,9 @@ use crate::fleet::settings::dream_nightly::{self, Nightly};
 use crate::icons::{CHEVRON_DOWN, CIRCLE_ALERT};
 use crate::theme::{RADIUS_BTN, RADIUS_CARD, Theme, sans};
 use crate::ui::button::{self, Size, Variant};
+use crate::ui::text_menu::text_input;
 use crate::ui::{Open, rem, select};
-use rune::{Cursor, El, col, icon, row, text, text_input};
+use rune::{Cursor, El, col, icon, row, text};
 use std::rc::Rc;
 
 pub const HARNESS_SELECT: &str = "dream-nightly-harness";

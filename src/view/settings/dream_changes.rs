@@ -7,7 +7,8 @@ use crate::fleet::settings::dreaming::{Change, Dream, Kind, list_label, session_
 use crate::icons::{CHEVRON_DOWN, CHEVRON_RIGHT};
 use crate::theme::{RADIUS_BTN, RADIUS_CARD, Theme, mono, sans};
 use crate::ui::rem;
-use rune::{Cursor, El, col, icon, row, text, text_input};
+use crate::ui::text_menu::text_input;
+use rune::{Cursor, El, col, icon, row, text};
 
 /// `text-[11px] font-semibold uppercase tracking-wide text-muted`, the line over a card.
 fn head(t: &Theme, kind: Kind, list: &str, ink: rune::Color, tail: &str) -> El {

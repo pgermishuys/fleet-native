@@ -8,8 +8,9 @@ use crate::icons::{CHECK, CIRCLE, CIRCLE_ALERT, LOADER_CIRCLE, X};
 use crate::theme::{RADIUS_BTN, RADIUS_CARD, Theme, mono, sans};
 use crate::ui::button::{Size, Variant, button, button_lead};
 use crate::ui::rem;
+use crate::ui::text_menu::text_input;
 use crate::{State, Tx};
-use rune::{Cursor, Cycle, El, Key, KeyEvent, TextEdit, col, icon, row, text, text_input};
+use rune::{Cursor, Cycle, El, Key, KeyEvent, TextEdit, col, icon, row, text};
 
 /// `inputClass`: full width, 1px border, the page's colour, `text-sm`, an accent border while focused.
 fn input(t: &Theme, edit: &TextEdit, key: &str, label: &str, placeholder: &str, font: rune::TextStyle, locked: bool) -> El {

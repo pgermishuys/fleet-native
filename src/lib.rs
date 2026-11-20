@@ -320,6 +320,8 @@ mod tests_terminal_select;
 #[cfg(test)]
 mod tests_terminal_tabs;
 #[cfg(test)]
+mod tests_text_menu;
+#[cfg(test)]
 mod tests_turns;
 #[cfg(test)]
 mod tests_update_notices;
@@ -5114,6 +5116,10 @@ pub fn spec() -> AppSpec<State> {
             ("kit-palette-level-light", |s| ui::scenes::set(s, "kit-palette-level", false)),
             ("kit-palette-search", |s| ui::scenes::set(s, "kit-palette-search", true)),
             ("kit-palette-search-light", |s| ui::scenes::set(s, "kit-palette-search", false)),
+            ("text-menu-field", |s| ui::scenes::set(s, "text-menu-field", true)),
+            ("text-menu-field-light", |s| ui::scenes::set(s, "text-menu-field", false)),
+            ("text-menu-link", |s| ui::scenes::set(s, "text-menu-link", true)),
+            ("text-menu-link-light", |s| ui::scenes::set(s, "text-menu-link", false)),
             ("kit-agent-menu", |s| ui::scenes::set(s, "kit-agent-menu", true)),
             ("kit-agent-menu-light", |s| ui::scenes::set(s, "kit-agent-menu", false)),
             ("kit-more-menu", |s| ui::scenes::set(s, "kit-more-menu", true)),

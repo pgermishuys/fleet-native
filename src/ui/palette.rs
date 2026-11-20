@@ -5,8 +5,9 @@ use super::commands::{Category, Command, Run, all, score};
 use super::overlay::centred;
 use super::rem;
 use crate::theme::{Theme, mono, sans};
+use crate::ui::text_menu::text_input;
 use crate::{State, Tx};
-use rune::{Color, Cursor, El, Key, KeyEvent, ScrollSpec, TextEdit, col, el, icon, row, text, text_input};
+use rune::{Color, Cursor, El, Key, KeyEvent, ScrollSpec, TextEdit, col, el, icon, row, text};
 
 pub struct Palette {
     pub query: TextEdit,

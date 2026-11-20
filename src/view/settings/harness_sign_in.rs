@@ -8,7 +8,8 @@ use crate::icons::*;
 use crate::theme::{RADIUS_BTN, RADIUS_CARD, Theme, mono, sans};
 use crate::ui::confirm::spinner;
 use crate::ui::rem;
-use rune::{Color, Cursor, El, ScrollSpec, col, el, icon, row, text, text_input};
+use crate::ui::text_menu::text_input;
+use rune::{Color, Cursor, El, ScrollSpec, col, el, icon, row, text};
 
 /// 22rem, the list's `max-height`.
 const LIST_MAX_H: f32 = 308.0;

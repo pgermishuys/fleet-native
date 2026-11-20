@@ -9,8 +9,9 @@ use crate::fleet::machines::AgentWork;
 use crate::icons::{CHECK, CHEVRON_DOWN, CHEVRON_RIGHT, CIRCLE, CIRCLE_ALERT, X};
 use crate::theme::{RADIUS_BTN, Theme, mono, sans};
 use crate::ui::rem;
+use crate::ui::text_menu::text_input;
 use crate::{State, Tx};
-use rune::{Cursor, El, Key, KeyEvent, col, el, icon, row, text, text_input};
+use rune::{Cursor, El, Key, KeyEvent, col, el, icon, row, text};
 use std::rc::Rc;
 
 /// `buttonSecondaryClass`: bordered, on the page's colour, 12.25px medium; 30px high.

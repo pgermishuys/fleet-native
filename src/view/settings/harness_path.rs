@@ -5,8 +5,9 @@ use crate::State;
 use crate::fleet::new_session::harness_choice::HarnessEntry;
 use crate::fleet::settings::harness_path::{COPILOT_EMPTY_MEANING, COPILOT_PROGRAM, Shown, result};
 use crate::theme::{RADIUS_BTN, RADIUS_CARD, Theme, mono, sans};
+use crate::ui::text_menu::text_input;
 use crate::ui::{confirm::spinner, rem};
-use rune::{Cursor, El, col, icon, row, text, text_input};
+use rune::{Cursor, El, col, icon, row, text};
 
 pub const INPUT_KEY: &str = "harness-path-input";
 pub const CHECK_KEY: &str = "harness-path-check";

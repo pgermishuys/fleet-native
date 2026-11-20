@@ -8,9 +8,10 @@ use crate::fleet::new_session::request::Folder;
 use crate::icons::*;
 use crate::theme::{Theme, mono, sans};
 use crate::ui::chip::{Chip, Option_, option, pop, pop_label, pop_note, pop_separator};
+use crate::ui::text_menu::text_input;
 use crate::view::folder_menu_path;
 use crate::{State, Tx};
-use rune::{Align, Cursor, Cycle, El, Key, KeyEvent, ScrollSpec, Side, col, icon, row, text, text_input};
+use rune::{Align, Cursor, Cycle, El, Key, KeyEvent, ScrollSpec, Side, col, icon, row, text};
 
 /// `.ns-pop`'s width, and the list's height limit (`min(340px, 50vh)`; the window is never shorter than 680).
 const WIDTH: f32 = 344.0;

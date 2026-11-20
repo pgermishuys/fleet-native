@@ -12,7 +12,8 @@ use crate::ui::button::{Size, Variant, button, button_lead, disabled};
 use crate::ui::confirm::spinner;
 use crate::ui::controls::{BadgeVariant, badge};
 use crate::ui::rem;
-use rune::{El, col, icon, row, text, text_input};
+use crate::ui::text_menu::text_input;
+use rune::{El, col, icon, row, text};
 
 /// The Install button, or Installed (outline, disabled) where the picker points, or Installing… while it runs.
 fn action(s: &State, t: &Theme, entry: &CatalogEntry) -> El {

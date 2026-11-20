@@ -9,8 +9,9 @@ use crate::fleet::header_actions::{TAG_FIELD, TITLE_FIELD};
 use crate::icons::*;
 use crate::mock::{Project, Session};
 use crate::theme::{RADIUS_BTN, Theme, mono, sans};
+use crate::ui::text_menu::text_input;
 use crate::{State, Tx};
-use rune::{Cursor, Cycle, El, Key, KeyEvent, Span, col, el, icon, rich, row, text, text_input};
+use rune::{Cursor, Cycle, El, Key, KeyEvent, Span, col, el, icon, rich, row, text};
 
 /// `@container session-detail-header (min-width: 48rem)`: the header's sides widen from 1rem to 1.25rem.
 const WIDE_AT: f32 = 672.0;

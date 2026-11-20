@@ -9,8 +9,9 @@ use crate::fleet::file_browser::SearchIn;
 use crate::fleet::find_text::FindText;
 use crate::icons::*;
 use crate::theme::{RADIUS_BTN, Theme, sans};
+use crate::ui::text_menu::text_input;
 use crate::ui::{confirm, empty_state};
-use rune::{Cursor, Cycle, El, Key, KeyEvent, Tx, col, el, icon, row, text, text_input};
+use rune::{Cursor, Cycle, El, Key, KeyEvent, Tx, col, el, icon, row, text};
 
 pub const FIELD: &str = "files-search";
 

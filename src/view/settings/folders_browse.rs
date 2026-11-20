@@ -6,8 +6,9 @@ use crate::fleet::settings::locations_actions::BROWSE_KEY;
 use crate::icons::{CHECK, CHEVRON_RIGHT, FOLDER, FOLDER_GIT_2, GIT_BRANCH, REFRESH_CW};
 use crate::theme::{Theme, mono, sans};
 use crate::ui::overlay::{anchored, scrim};
+use crate::ui::text_menu::text_input;
 use crate::ui::{confirm, rem};
-use rune::{Align, Cursor, El, ScrollSpec, Side, col, icon, row, text, text_input};
+use rune::{Align, Cursor, El, ScrollSpec, Side, col, icon, row, text};
 
 fn crumb(t: &Theme, key: String, label: &str, to: Option<String>, last: bool) -> El {
     text(label.to_string())

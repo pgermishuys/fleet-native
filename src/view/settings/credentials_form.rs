@@ -6,7 +6,8 @@ use crate::fleet::settings::credentials::PRESETS;
 use crate::theme::{RADIUS_BTN, RADIUS_CARD, Theme, sans};
 use crate::ui::confirm::spinner;
 use crate::ui::rem;
-use rune::{Cursor, El, TextEdit, col, row, text, text_input};
+use crate::ui::text_menu::text_input;
+use rune::{Cursor, El, TextEdit, col, row, text};
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum Look {

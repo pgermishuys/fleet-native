@@ -27,6 +27,25 @@ pub fn set(s: &mut State, name: &str, dark: bool) {
             s.ui.point = (360.0, 230.0);
             s.ui.open = Some(Open::Context(0, 2));
         }
+        // The text menu over a field with a selection and over a link (`ui::text_menu`), at fixed points in the composer and the
+        // conversation.
+        "text-menu-field" => {
+            s.draft = TextEdit::new("Ship the paging fix");
+            let selected = "paging".to_owned();
+            let params = super::text_menu::Params {
+                editable: true,
+                can_cut: true,
+                can_copy: true,
+                can_paste: true,
+                selection: selected,
+                link: None,
+            };
+            s.open_text_menu(params, None, (470.0, 650.0));
+        }
+        "text-menu-link" => {
+            let params = super::text_menu::Params { link: Some("https://example.test/docs/rounding".into()), ..Default::default() };
+            s.open_text_menu(params, None, (620.0, 300.0));
+        }
         "kit-toast" => {
             s.ui.toast = Some(Toast {
                 kind: Default::default(),

@@ -8,7 +8,8 @@ use crate::icons::*;
 use crate::theme::{RADIUS_BTN, RADIUS_CARD, Theme, mono, sans};
 use crate::ui::confirm::{error_note, spinner};
 use crate::ui::rem;
-use rune::{Cursor, El, col, icon, row, text, text_input};
+use crate::ui::text_menu::text_input;
+use rune::{Cursor, El, col, icon, row, text};
 
 #[derive(Clone, Copy, PartialEq)]
 enum Look {

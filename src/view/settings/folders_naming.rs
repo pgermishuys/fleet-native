@@ -6,8 +6,9 @@ use crate::State;
 use crate::fleet::settings::naming_draft::{Field, NamingPage};
 use crate::icons::CHECK;
 use crate::theme::{RADIUS_BTN, RADIUS_CARD, Theme, mono, sans};
+use crate::ui::text_menu::text_input;
 use crate::ui::{confirm, rem};
-use rune::{Align, El, Span, col, icon, rich, row, text, text_input};
+use rune::{Align, El, Span, col, icon, rich, row, text};
 
 const TEXT_SM: f32 = 12.25;
 

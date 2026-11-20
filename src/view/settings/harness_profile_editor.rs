@@ -8,8 +8,9 @@ use crate::icons::*;
 use crate::theme::{RADIUS_BTN, RADIUS_CARD, Theme, mono, sans};
 use crate::ui::button::{self, Size, Variant, button_lead};
 use crate::ui::code_box::code_box;
+use crate::ui::text_menu::text_input;
 use crate::ui::{confirm::spinner, rem};
-use rune::{El, Span, col, icon, rich, row, text, text_input};
+use rune::{El, Span, col, icon, rich, row, text};
 
 /// `splitCode`: `text` split at backticks; the odd pieces are code.
 pub fn split_code(words: &str) -> Vec<(&str, bool)> {
