@@ -168,6 +168,8 @@ pub enum Scene {
     Failed,
     /// New automation pressed: the draft row, and the detail's title says so.
     Create,
+    /// New automation with a sentence typed (piece H): the draft row takes its title from the sentence.
+    CreateTyped,
     /// An automation open: its header and nothing else yet.
     Open,
     /// The same, with the info note Run now leaves.
@@ -213,6 +215,7 @@ impl crate::State {
             }
             Scene::List
             | Scene::Create
+            | Scene::CreateTyped
             | Scene::Open
             | Scene::Started
             | Scene::Off
@@ -233,6 +236,12 @@ impl crate::State {
         }
         match scene {
             Scene::Create => self.automations_nav.start_create(),
+            Scene::CreateTyped => {
+                self.automations_nav.start_create();
+                self.automations_nav
+                    .draft
+                    .set_text("Every Monday at 9, summarise the open pull requests and say what each one still needs.");
+            }
             Scene::Open
             | Scene::Started
             | Scene::Skipped

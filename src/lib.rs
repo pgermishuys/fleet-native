@@ -5234,6 +5234,8 @@ pub fn spec() -> AppSpec<State> {
             ("automations-error-light", |s| s.show_automations(false, mock::automations::Scene::Failed)),
             ("automation-new", |s| s.show_automations(true, mock::automations::Scene::Create)),
             ("automation-new-light", |s| s.show_automations(false, mock::automations::Scene::Create)),
+            ("automation-new-typed", |s| s.show_automations(true, mock::automations::Scene::CreateTyped)),
+            ("automation-new-typed-light", |s| s.show_automations(false, mock::automations::Scene::CreateTyped)),
             ("automation-open", |s| s.show_automations(true, mock::automations::Scene::Open)),
             ("automation-open-light", |s| s.show_automations(false, mock::automations::Scene::Open)),
             ("analytics-rail", |s| s.rail = Rail::Analytics),
