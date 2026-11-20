@@ -326,9 +326,12 @@ impl Rig {
     }
     /// The page read: the list, the repositories and the Mods answer are all in.
     pub(crate) fn read(&mut self) {
-        self.wait("the page to be read", |s| {
+        // The Mods answer arrives on its own thread and can come after the list and the repositories on a slow runner, so
+        // wait for what the fake says (a 404 is no answer, which is already the page's state).
+        let mods = self.fake.lock().unwrap().mods_on;
+        self.wait("the page to be read", move |s| {
             let p = &s.settings.skills;
-            p.loaded_for.is_some() && !p.loading && !p.repos_loading && p.mods_server.is_some() == (s.settings.skills.mods_server.is_some())
+            p.loaded_for.is_some() && !p.loading && !p.repos_loading && p.mods_server == mods
         });
         let fake = self.fake.clone();
         test_wait::until_true("the Mods and repositories questions to be answered", || fake.lock().unwrap().asked_repositories);
