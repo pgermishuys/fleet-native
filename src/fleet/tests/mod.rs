@@ -539,6 +539,7 @@ mod session_image;
 mod settings;
 mod side;
 mod side_panel;
+mod side_stream;
 mod smart_links;
 mod state;
 mod store;

@@ -18,6 +18,10 @@ pub struct SideView {
     /// live stream is piece C's.
     pub conv: Option<Session>,
     pub plan: FoldPlan,
+    /// Which side session `conv` was built from, when it came from a live stream (a scene's has none).
+    pub conv_of: Option<String>,
+    /// The live side session's stream and what the link listens to.
+    pub live: super::side_stream::SideStreams,
     /// Whether the panel was folded as of the last frame, and when that last changed: the fold runs towards it from then.
     folded: Option<bool>,
     changed_at: Option<f64>,
@@ -26,7 +30,8 @@ pub struct SideView {
 impl State {
     /// The conversation and fold plan the panel's stream draws; blank until there is one.
     pub fn side_conv(&self) -> (&Session, &FoldPlan) {
-        (self.side_ui.conv.as_ref().unwrap_or(&self.blank.sessions[0]), &self.side_ui.plan)
+        let own = self.side_ui.conv_of.as_ref().is_none_or(|of| self.side_session_id().as_ref() == Some(of));
+        (self.side_ui.conv.as_ref().filter(|_| own).unwrap_or(&self.blank.sessions[0]), &self.side_ui.plan)
     }
 
     /// The panel's state when it should be drawn at all: a side conversation, or the first question making one (`shown`).

@@ -57,6 +57,10 @@ pub enum Cmd {
     /// Listen to another session's topic as well (its events go to `State::subscribe`).
     Watch(String),
     Unwatch(String),
+    /// Listen to a side conversation's session (`/btw`): its snapshot and events go to `State::on_side_snapshot` and
+    /// `on_side_events`, and are asked for again after a reconnect.
+    WatchSide(String),
+    UnwatchSide(String),
     /// Ask for the page of older messages before `cursor`.
     LoadOlder {
         session: String,
@@ -183,6 +187,15 @@ impl Link {
 
     pub fn unwatch(&self, session: &str) {
         let _ = self.cmds.send(Cmd::Unwatch(session.to_string()));
+    }
+
+    /// Listens to a side conversation's session for the panel.
+    pub fn watch_side(&self, session: &str) {
+        let _ = self.cmds.send(Cmd::WatchSide(session.to_string()));
+    }
+
+    pub fn unwatch_side(&self, session: &str) {
+        let _ = self.cmds.send(Cmd::UnwatchSide(session.to_string()));
     }
 
     /// Sends a prompt already shown as pending under `correlation_id`; the receipt confirms it and a
@@ -320,6 +333,14 @@ fn run(key: String, base: String, rx: Receiver<Cmd>, post: Post) {
                 Ok(Cmd::Unwatch(id)) => {
                     topics.unwatch(&id);
                 }
+                Ok(Cmd::WatchSide(id)) => {
+                    topics.mark_side(&id, true);
+                    topics.watch(&id);
+                }
+                Ok(Cmd::UnwatchSide(id)) => {
+                    topics.mark_side(&id, false);
+                    topics.unwatch(&id);
+                }
                 Ok(Cmd::Refresh) => {}
                 Ok(Cmd::CloseOpen) => {
                     topics.set_open(None);
@@ -444,6 +465,9 @@ fn serve(
     // Snapshots to hand over: the ones that arrived, and a cached one reused for a topic already listened to.
     let mut ready: Vec<(String, Value)> = Vec::new();
     let mut batch_since: Option<Instant> = None;
+    // The side conversations' snapshots and events read in this pass, handed over in order after it.
+    let mut side_ready: Vec<(String, Value)> = Vec::new();
+    let mut side_events: Vec<(String, Event)> = Vec::new();
     let mut refresh = Refresh::new(Instant::now());
     let mut last_ping = Instant::now();
 
@@ -506,6 +530,21 @@ fn serve(
                     Ok::<(), String>(())
                 })(),
                 Cmd::Unwatch(id) => (|| {
+                    if topics.unwatch(&id) {
+                        call(&mut ws, "UnsubscribeFromSessionAsync", vec![json!(id)])?;
+                    }
+                    Ok::<(), String>(())
+                })(),
+                Cmd::WatchSide(id) => (|| {
+                    topics.mark_side(&id, true);
+                    if topics.watch(&id) {
+                        let n = call(&mut ws, "SubscribeToSessionAsync", vec![json!(id)])?;
+                        asked.insert(n.to_string(), id);
+                    }
+                    Ok::<(), String>(())
+                })(),
+                Cmd::UnwatchSide(id) => (|| {
+                    topics.mark_side(&id, false);
                     if topics.unwatch(&id) {
                         call(&mut ws, "UnsubscribeFromSessionAsync", vec![json!(id)])?;
                     }
@@ -599,6 +638,11 @@ fn serve(
                                 if let Some(cursor) = event_id {
                                     batch.push(Event::Cursor(cursor));
                                 }
+                            } else if topics.is_side(id) {
+                                side_events.push((id.to_string(), event));
+                                if let Some(cursor) = event_id {
+                                    side_events.push((id.to_string(), Event::Cursor(cursor)));
+                                }
                             } else if topics.has_watched(id) {
                                 let topic = Topic::Session(id.to_string());
                                 post.update(move |s, _| s.dispatch(&topic, std::slice::from_ref(&event)));
@@ -625,6 +669,8 @@ fn serve(
                                     topics.record_snapshot(&session, &result);
                                     if topics.open() == Some(session.as_str()) {
                                         ready.push((session, result));
+                                    } else if topics.is_side(&session) {
+                                        side_ready.push((session, result));
                                     }
                                 }
                             }
@@ -638,6 +684,22 @@ fn serve(
             Ok(_) => {}
             Err(WsError::Io(e)) if matches!(e.kind(), std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut) => {}
             Err(e) => return e.to_string(),
+        }
+        for (session, result) in std::mem::take(&mut side_ready) {
+            let state = create_state(&result);
+            post.update(move |s, tx| s.on_side_snapshot(&session, state, tx));
+        }
+        if !side_events.is_empty() {
+            let mut by_session: Vec<(String, Vec<Event>)> = Vec::new();
+            for (id, event) in std::mem::take(&mut side_events) {
+                match by_session.last_mut() {
+                    Some((last, events)) if *last == id => events.push(event),
+                    _ => by_session.push((id, vec![event])),
+                }
+            }
+            for (id, events) in by_session {
+                post.update(move |s, tx| s.on_side_events(&id, events, tx));
+            }
         }
         for (session, result) in std::mem::take(&mut ready) {
             if topics.open() != Some(session.as_str()) {

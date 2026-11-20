@@ -269,8 +269,8 @@ pub fn stream(t: &Theme, which: Which, session: &Session, plan: &FoldPlan, parti
     let md = styles(t);
     // After the messages: the card a restart left, then the line that says what the turn is doing. Fleet's line shows
     // while the turn isn't idle, so a question that holds it shows "Needs input" there.
-    // The side conversation's working line and restart card are piece C's.
-    let working = session.status != Status::Idle && !side;
+    // The side conversation has no restart card: that is its session's own, not the panel's.
+    let working = session.status != Status::Idle;
     let interrupted = session.row.interrupted.is_some() && !side;
     let shown = plan.count(session.messages.len());
     let count = shown + usize::from(interrupted) + usize::from(working);
@@ -295,6 +295,7 @@ pub fn stream(t: &Theme, which: Which, session: &Session, plan: &FoldPlan, parti
                 let Some(at) = plan.index(i, len) else {
                     return match session.row.interrupted.as_ref() {
                         Some(card) if i == plan.count(len) && !side => col().w_full().child(interrupted::card(&theme, s, card)),
+                        _ if side => working::side_line(&theme, s),
                         _ => working::line(&theme, s),
                     };
                 };
@@ -359,10 +360,11 @@ pub fn stream(t: &Theme, which: Which, session: &Session, plan: &FoldPlan, parti
         .child(
             col()
                 .w_full()
-                // The side conversation's stream is set closer: the card is its frame (`padding: 12px 16px 8px`).
+                // The side conversation's stream is set closer: the card is its frame (`padding: 12px 16px 8px`). The bottom
+                // is Fleet's 8 plus the 18 that the main stream's 30 holds over its 12 for the last message's own space.
                 .pt(if side { 12.0 } else { 24.0 })
                 .px(if side { 16.0 } else { 32.0 })
-                .pb(if side { 8.0 } else { 30.0 })
+                .pb(if side { 26.0 } else { 30.0 })
                 .items_center()
                 .children(partial.then(|| partial_banner(&theme)))
                 .children(older.map(|o| older_row(&theme, o)))

@@ -68,6 +68,15 @@ impl State {
         Some(self.machines.machine(key).map_or_else(|| "Its machine".to_string(), |m| m.name.clone()))
     }
 
+    /// What the side conversation's line says: how long its turn has run and the call it is running.
+    pub fn side_working_text(&self) -> Working {
+        let next_step = self.caps().steer_delivery == Some(SteerDelivery::NextStep);
+        let messages = self.side_stream_messages();
+        let work = working_on(messages, next_step);
+        let inputs = Inputs { since: turn_started_at(messages), waiting: false, retry: None, not_answering: None, work: work.as_ref() };
+        working_line(&inputs, now_ms(self))
+    }
+
     /// What the line says right now, and the second it changes (for `memo`-less redraws the poll already does each
     /// second; this is for the tests and the scenes).
     pub fn working_text(&self) -> Working {
@@ -87,7 +96,17 @@ impl State {
 
 /// `WorkingIndicator` (rows 1.77-1.82).
 pub fn line(t: &Theme, s: &State) -> El {
-    let (key, glyph, words) = match s.working_text() {
+    drawn(t, s.working_text(), s.session().row.activity == "retry", false)
+}
+
+/// The line of the side conversation's own turn (`ActivityStream.vue` in the panel): the side session's messages, no retry, no
+/// quiet machine, and a question of its own isn't told apart here.
+pub fn side_line(t: &Theme, s: &State) -> El {
+    drawn(t, s.side_working_text(), false, true)
+}
+
+fn drawn(t: &Theme, said: Working, retrying: bool, side: bool) -> El {
+    let (key, glyph, words) = match said {
         Working::Waiting => (
             "working-indicator",
             diamond(t.idle),
@@ -116,8 +135,10 @@ pub fn line(t: &Theme, s: &State) -> El {
             ("working-indicator", quad(t.text), words)
         }
     };
-    let tall = key == "working-indicator" && s.session().row.activity == "retry";
+    let tall = key == "working-indicator" && retrying;
     let inner = row().gap(10.0).center_y().shrink().min_w(0.0);
     let inner = if tall { inner.min_h(24.0) } else { inner.h(24.0) };
+    // The panel's line has keys of its own: the session's can be on screen at the same time.
+    let key = if side { "side-working-indicator" } else { key };
     frame().child(inner.key(key).child(glyph).child(words))
 }

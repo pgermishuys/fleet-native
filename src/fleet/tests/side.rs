@@ -81,6 +81,10 @@ fn serve(mut stream: TcpStream, fake: Arc<Mutex<Fake>>) {
         let negotiate = json!({ "negotiateVersion": 1, "connectionToken": "tok" });
         return reply(&mut stream, if path.contains("negotiate") { 200 } else { 404 }, &negotiate);
     }
+    // The side session's own permission asks (loaded when the panel opens): none waiting.
+    if path.ends_with("/permissions") {
+        return reply(&mut stream, 200, &json!([]));
+    }
     if path == "/api/sessions" {
         return reply(&mut stream, 200, &serde_json::from_str(&fixture("api-sessions.json")).unwrap());
     }

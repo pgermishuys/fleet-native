@@ -24,6 +24,8 @@ pub fn reconnect_delay(attempt: usize) -> std::time::Duration {
 pub struct Topics {
     open: Option<String>,
     watched: Vec<String>,
+    /// The watched ones that are side conversations (`/btw`): their snapshots and events go to the panel, not the subscribers.
+    sides: Vec<String>,
     /// The last snapshot of each topic, and how many events arrived since (`eventCount`).
     last: HashMap<String, (Value, u32)>,
 }
@@ -68,6 +70,18 @@ impl Topics {
     /// Every topic to subscribe to after a connect, the open one first.
     pub fn all(&self) -> Vec<String> {
         self.open.iter().chain(self.watched.iter().filter(|w| self.open.as_ref() != Some(*w))).cloned().collect()
+    }
+
+    /// Marks `id` as a side conversation's topic (or not) before it is watched.
+    pub fn mark_side(&mut self, id: &str, side: bool) {
+        self.sides.retain(|s| s != id);
+        if side {
+            self.sides.push(id.to_string());
+        }
+    }
+
+    pub fn is_side(&self, id: &str) -> bool {
+        self.sides.iter().any(|s| s == id)
     }
 
     pub fn has_watched(&self, id: &str) -> bool {
