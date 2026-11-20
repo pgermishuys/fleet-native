@@ -1,6 +1,6 @@
 //! A plugin's own page (`PluginPage.vue`): the breadcrumb, the header with its switch, the plugin's own settings while it is on
 //! (or a note while it is off), what it adds to Fleet, and where it comes from. It is read from the table in
-//! `fleet::settings::plugins`. Each plugin's own settings are its piece's: GitHub's connection page (`github_connect`), Mods (`mods_plugin`) and the
+//! `fleet::settings::plugins`. Each plugin's own settings are its piece's: GitHub's connection page (the plugin's `view::connect`), Mods (`mods_plugin`) and the
 //! Built-in skills tab (`built_in_skills`).
 use super::plugins::{built_in, glyph, own_panel, switch};
 use crate::State;
@@ -76,7 +76,7 @@ fn header(s: &State, t: &Theme, p: &Plugin) -> El {
         .border(1.0, t.border)
         .border_layout()
         .fill(t.card_bg)
-        .child(icon(glyph(p.id), 20.0).color(t.text));
+        .child(icon(glyph(&s.places, p.id), 20.0).color(t.text));
     let title = row()
         .items_center()
         .gap(7.0)
@@ -103,8 +103,8 @@ fn heading_row(t: &Theme, key: &str, left: &str, right: String) -> El {
 
 /// The plugin's own settings slot: GitHub's connection page, Mods' box and the Built-in skills body.
 fn own_settings(s: &State, t: &Theme, p: &Plugin) -> El {
-    if p.id == "github" {
-        return super::github_connect::content(s, t);
+    if let Some(body) = s.places.settings_body(p.id, &s.pickers.prefs) {
+        return body(s, t);
     }
     if p.id == "mods" {
         return super::mods_plugin::page(t);
@@ -208,7 +208,7 @@ fn source(t: &Theme) -> El {
 /// The page: the header over it (the plugin's name and description, or "Plugin" for an id nobody knows), then this.
 pub fn content(s: &State, t: &Theme, id: &str) -> El {
     let page = super::page_header(s, t, &crate::fleet::settings_nav::Page::Plugin(id.to_string()));
-    let Some(p) = plugins::find(id) else {
+    let Some(p) = plugins::find(&s.places, id) else {
         return col().key(format!("plugin-page-{id}")).w_full().gap(21.0).child(page).child(
             col().w_full().gap(17.5).child(breadcrumb(t, id)).child(empty(
                 t,
@@ -219,19 +219,19 @@ pub fn content(s: &State, t: &Theme, id: &str) -> El {
         );
     };
     let on = p.enabled(&s.pickers.prefs);
-    let mut body = col().w_full().gap(17.5).child(breadcrumb(t, p.name)).child(header(s, t, p));
-    if let Some(panel) = own_panel(s, t, p, "plugin-page-panel".into()) {
+    let mut body = col().w_full().gap(17.5).child(breadcrumb(t, p.name)).child(header(s, t, &p));
+    if let Some(panel) = own_panel(s, t, &p, "plugin-page-panel".into()) {
         body = body.child(panel);
     }
     if on {
         body = body
             .child(heading_row(t, "plugin-settings-heading", "Settings", format!("{}'s own page", p.name)))
-            .child(own_settings(s, t, p));
+            .child(own_settings(s, t, &p));
     } else {
-        body = body.child(off_note(t, p));
+        body = body.child(off_note(t, &p));
     }
     if !p.adds.is_empty() {
-        body = body.child(additions(t, p));
+        body = body.child(additions(t, &p));
     }
     col().key(format!("plugin-page-{id}")).w_full().gap(21.0).child(page).child(body.child(source(t)))
 }

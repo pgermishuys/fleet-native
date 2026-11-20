@@ -286,7 +286,7 @@ impl State {
             (_, Rail::Jobs) => "/jobs".into(),
             (_, Rail::Automations) => "/automations".into(),
             (_, Rail::Analytics) => "/analytics".into(),
-            (_, Rail::GitHub) => "/github".into(),
+            (_, Rail::Plugin(id)) => self.places.rail_item(id).map_or_else(|| "/".into(), |r| r.path.into()),
             (_, Rail::Settings) => "/settings".into(),
             (_, Rail::Sessions) => "/".into(),
         };

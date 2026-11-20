@@ -57,7 +57,7 @@ impl Page {
             Page::Updates => "Updates & about",
             Page::Credentials => "API keys",
             Page::Plugins => "Plugins",
-            Page::Plugin(id) => super::settings::plugins::find(id).map_or("Plugin", |p| p.name),
+            Page::Plugin(_) => "Plugin",
         }
     }
 
@@ -78,7 +78,23 @@ impl Page {
             Page::Plugins => {
                 "Add-ons that put things in Fleet: rail icons, settings pages and pickers. Turn one off and everything it adds goes with it."
             }
-            Page::Plugin(id) => super::settings::plugins::find(id).map_or("", |p| p.description),
+            Page::Plugin(_) => "",
+        }
+    }
+
+    /// `title`, with a plugin's page named by its manifest.
+    pub fn title_in(&self, places: &super::places::Places) -> String {
+        match self {
+            Page::Plugin(id) => places.manifest(id).map_or("Plugin", |p| p.name).to_string(),
+            other => other.title().to_string(),
+        }
+    }
+
+    /// `line`, with a plugin's page described by its manifest.
+    pub fn line_in(&self, places: &super::places::Places) -> String {
+        match self {
+            Page::Plugin(id) => places.manifest(id).map_or("", |p| p.description).to_string(),
+            other => other.line().to_string(),
         }
     }
 
@@ -165,8 +181,6 @@ pub struct SettingsNav {
     pub memory: crate::fleet::settings::memory::MemoryPage,
     /// What Skills & tools read from the machine shown: the skills, the picker's repositories and the Mods switch.
     pub skills: crate::fleet::settings::skills::SkillsPage,
-    /// GitHub's connection page: the status, the device flow, the token box.
-    pub github: crate::fleet::settings::github_auth::Github,
     /// What the Tools tab of that page read from the machine shown, while the tab is the one showing.
     pub tools: crate::fleet::settings::tools::ToolsPage,
     /// What Folders read from the machine shown: the locations, the add box and the folder browser.

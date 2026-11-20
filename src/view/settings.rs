@@ -17,8 +17,6 @@ pub mod folders_locations;
 pub mod folders_naming;
 pub mod folders_storage;
 pub mod general;
-pub mod github_connect;
-pub mod github_scene;
 pub mod harness_install;
 pub mod harness_path;
 pub mod harness_profile_editor;
@@ -139,10 +137,10 @@ fn entry(s: &State, t: &Theme, page: &Page) -> El {
         .on_press(|s: &mut State| s.toggle_plugins_fold());
     let mut block = col().w_full().gap(4.0).child(row().w_full().child(it).child(fold));
     if unfolded {
-        for p in crate::fleet::settings::plugins::children(&s.pickers.prefs) {
+        for p in crate::fleet::settings::plugins::children(&s.places, &s.pickers.prefs) {
             let id = format!("plugin:{}", p.id);
             let open = s.settings.page == Page::Plugin(p.id.to_string());
-            let child = item(t, format!("settings-nav-{id}"), p.nav_label, plugins::glyph(p.id), 15.0, 32.0, open, Vec::new())
+            let child = item(t, format!("settings-nav-{id}"), p.nav_label, plugins::glyph(&s.places, p.id), 15.0, 32.0, open, Vec::new())
                 .ml(14.0)
                 .w(s.sidebar_w - 24.0 - 14.0)
                 .on_press(move |s: &mut State| s.open_settings(&id, None));
@@ -177,7 +175,7 @@ fn item(t: &Theme, key: String, title: &'static str, glyph: &'static Icon, size:
 
 /// The count on Plugins (`ml-auto`, 11 px, `--muted`): how many plugins are on.
 fn plugins_marks(s: &State, t: &Theme) -> Vec<El> {
-    let n = crate::fleet::settings::plugins::count_on(&s.pickers.prefs);
+    let n = crate::fleet::settings::plugins::count_on(&s.places, &s.pickers.prefs);
     vec![rune::el().grow(1.0).w(0.0), text(n.to_string()).key("settings-nav-count").font(sans(rem(0.78571), 400.0, 1.4)).color(t.muted)]
 }
 
@@ -232,14 +230,14 @@ pub fn menu(s: &State, t: &Theme) -> El {
 
 /// `PageHeader`: the title (21, 600) and the line under it.
 pub fn page_header(s: &State, t: &Theme, page: &Page) -> El {
-    let title = text(page.title()).font(sans(rem(1.5), 600.0, 1.25).tracking(-0.525)).color(t.text);
+    let title = text(page.title_in(&s.places)).font(sans(rem(1.5), 600.0, 1.25).tracking(-0.525)).color(t.text);
     // The title row's meta slot: gap 10, the chip of the machine the page shows (`PageHeader`, `SettingsPage`).
     let title_row = row().wrap().center_y().gap(10.0).child(title).children(machine_header::title_chip(s, t, page));
     col()
         .key("settings-header")
         .w_full()
         .child(title_row)
-        .child(row().mt(4.0).child(text(page.line()).font(sans(rem(0.875), 400.0, 1.5)).color(t.muted)))
+        .child(row().mt(4.0).child(text(page.line_in(&s.places)).font(sans(rem(0.875), 400.0, 1.5)).color(t.muted)))
 }
 
 /// What a page that isn't ported yet shows (`rounded-btn border px-4 py-3 text-sm text-muted`).

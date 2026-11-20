@@ -11,6 +11,7 @@ pub mod fleet;
 mod icons;
 mod menu_bar;
 mod mock;
+pub mod plugins;
 mod script;
 pub mod term;
 #[cfg(test)]
@@ -238,8 +239,6 @@ mod tests_settings_dreaming;
 #[cfg(test)]
 mod tests_settings_general;
 #[cfg(test)]
-mod tests_settings_github;
-#[cfg(test)]
 mod tests_settings_harness_editor;
 #[cfg(test)]
 mod tests_settings_harness_flow;
@@ -381,7 +380,8 @@ pub enum Rail {
     Jobs,
     Automations,
     Analytics,
-    GitHub,
+    /// A plugin's rail (`RailDefinition` of a `sidebarItems` entry), by plugin id: its words, icon and views are in `places`.
+    Plugin(&'static str),
     Settings,
 }
 
@@ -389,6 +389,8 @@ pub struct State {
     /// `None` follows the system's appearance, as Fleet's default "System" theme does.
     pub dark: Option<bool>,
     pub rail: Rail,
+    /// What plugins add to core's places (`fleet::places`), filled once by `plugins::register`.
+    pub places: fleet::places::Places,
     /// What `GET /api/plugins` last said (`fleet::plugin_poll`).
     pub plugins: fleet::rails::PluginStatuses,
     /// Rails drawn dimmed with a muted dot (`RailDefinition.off`): none of Fleet's own; a plugin's would be.
@@ -947,6 +949,7 @@ impl Default for State {
             loading: false,
             kept: Default::default(),
             notice: None,
+            places: plugins::register(Default::default()),
             pickers: fleet::catalog::Pickers::new(true),
             composer_error: None,
             attach: Default::default(),
@@ -1737,7 +1740,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_permissions_page(tx)
         | s.keep_harness_strips(now, tx)
         | s.keep_sign_in_flow(now, tx)
-        | s.keep_github(now, tx)
+        | s.keep_places(now, tx)
         | s.keep_updates(now, tx)
         | s.keep_whats_new(now, tx)
         | s.keep_locations(tx)
@@ -2674,34 +2677,20 @@ pub fn spec() -> AppSpec<State> {
             ("settings-api-keys-failed-light", |s| {
                 view::settings::credentials_scene::scene(s, false, view::settings::credentials_scene::Which::Failed)
             }),
-            ("settings-github-checking", |s| view::settings::github_scene::scene(s, true, view::settings::github_scene::Which::Checking)),
-            ("settings-github-checking-light", |s| {
-                view::settings::github_scene::scene(s, false, view::settings::github_scene::Which::Checking)
-            }),
-            ("settings-github-connected", |s| view::settings::github_scene::scene(s, true, view::settings::github_scene::Which::Connected)),
-            ("settings-github-connected-light", |s| {
-                view::settings::github_scene::scene(s, false, view::settings::github_scene::Which::Connected)
-            }),
-            ("settings-github-idle", |s| view::settings::github_scene::scene(s, true, view::settings::github_scene::Which::Idle)),
-            ("settings-github-idle-light", |s| view::settings::github_scene::scene(s, false, view::settings::github_scene::Which::Idle)),
-            ("settings-github-waiting", |s| view::settings::github_scene::scene(s, true, view::settings::github_scene::Which::Waiting)),
-            ("settings-github-waiting-light", |s| {
-                view::settings::github_scene::scene(s, false, view::settings::github_scene::Which::Waiting)
-            }),
-            ("settings-github-denied", |s| view::settings::github_scene::scene(s, true, view::settings::github_scene::Which::Denied)),
-            ("settings-github-denied-light", |s| {
-                view::settings::github_scene::scene(s, false, view::settings::github_scene::Which::Denied)
-            }),
-            ("settings-github-token", |s| view::settings::github_scene::scene(s, true, view::settings::github_scene::Which::TokenTested)),
-            ("settings-github-token-light", |s| {
-                view::settings::github_scene::scene(s, false, view::settings::github_scene::Which::TokenTested)
-            }),
-            ("settings-github-token-refused", |s| {
-                view::settings::github_scene::scene(s, true, view::settings::github_scene::Which::TokenRefused)
-            }),
-            ("settings-github-token-refused-light", |s| {
-                view::settings::github_scene::scene(s, false, view::settings::github_scene::Which::TokenRefused)
-            }),
+            ("settings-github-checking", |s| plugins::scene(s, "github-checking", true)),
+            ("settings-github-checking-light", |s| plugins::scene(s, "github-checking", false)),
+            ("settings-github-connected", |s| plugins::scene(s, "github-connected", true)),
+            ("settings-github-connected-light", |s| plugins::scene(s, "github-connected", false)),
+            ("settings-github-idle", |s| plugins::scene(s, "github-idle", true)),
+            ("settings-github-idle-light", |s| plugins::scene(s, "github-idle", false)),
+            ("settings-github-waiting", |s| plugins::scene(s, "github-waiting", true)),
+            ("settings-github-waiting-light", |s| plugins::scene(s, "github-waiting", false)),
+            ("settings-github-denied", |s| plugins::scene(s, "github-denied", true)),
+            ("settings-github-denied-light", |s| plugins::scene(s, "github-denied", false)),
+            ("settings-github-token", |s| plugins::scene(s, "github-tokentested", true)),
+            ("settings-github-token-light", |s| plugins::scene(s, "github-tokentested", false)),
+            ("settings-github-token-refused", |s| plugins::scene(s, "github-tokenrefused", true)),
+            ("settings-github-token-refused-light", |s| plugins::scene(s, "github-tokenrefused", false)),
             ("settings-plugin-github", |s| {
                 use view::settings::plugins_scene::{Look, scene};
                 scene(
@@ -2729,6 +2718,15 @@ pub fn spec() -> AppSpec<State> {
                         none_installed: false,
                     },
                 )
+            }),
+            // Piece A of component 21: the GitHub rail, which shows the notice until the plugin's panel and page are built.
+            ("github-rail", |s| {
+                s.dark = Some(true);
+                s.rail = Rail::Plugin("github")
+            }),
+            ("github-rail-light", |s| {
+                s.dark = Some(false);
+                s.rail = Rail::Plugin("github")
             }),
             ("settings-plugin-github-off", |s| {
                 use view::settings::plugins_scene::{Look, scene};

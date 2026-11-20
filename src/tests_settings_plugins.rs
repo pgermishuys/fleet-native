@@ -29,7 +29,7 @@ fn lists_each_plugin_with_its_description_and_adds_to_chips_from_its_contributio
     let r = rig("plugins", &[]);
     for (id, areas) in [("github", "Rail,Settings,Folder picker,Board"), ("mods", "Settings"), ("built-in-skills", "Settings")] {
         assert!(r.info(&format!("plugin-row-{id}")).is_some(), "{id}");
-        let chips: Vec<String> = p::find(id).unwrap().areas().iter().map(|a| a.label().to_string()).collect();
+        let chips: Vec<String> = p::find(&r.rt.state.places, id).unwrap().areas().iter().map(|a| a.label().to_string()).collect();
         assert_eq!(chips.join(","), areas);
     }
     assert!(r.words().contains("Pull requests, issues and checks beside your sessions."));
@@ -102,8 +102,8 @@ fn removes_everything_a_plugin_adds_when_it_is_off_and_restores_it_when_it_is_on
     let mut r = rig("plugins", &[(DISABLED_PLUGINS_KEY, "[\"github\"]")]);
     let rails = |r: &Rig| r.rt.state.rail_list().iter().any(|d| d.label == "GitHub");
     assert!(!rails(&r));
-    assert_eq!(p::count_on(&r.rt.state.pickers.prefs), 1, "Built-in skills only");
-    assert!(p::children(&r.rt.state.pickers.prefs).iter().all(|c| c.id != "github"));
+    assert_eq!(p::count_on(&r.rt.state.places, &r.rt.state.pickers.prefs), 1, "Built-in skills only");
+    assert!(p::children(&r.rt.state.places, &r.rt.state.pickers.prefs).iter().all(|c| c.id != "github"));
     click(&mut r.rt, "plugin-switch-github");
     settled(&mut r, "[]");
     assert!(rails(&r));

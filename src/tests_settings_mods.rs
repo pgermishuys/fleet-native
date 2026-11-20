@@ -407,12 +407,12 @@ fn row_6_on_at_once_with_a_bun_already_there_switching_on_just_writes_the_prefer
 
 #[test]
 fn both_are_in_the_registry_with_a_settings_page_and_built_in_skills_has_no_switch_of_its_own() {
-    let ids: Vec<&str> = p::PLUGINS.iter().filter(|x| x.id != "github").map(|x| x.id).collect();
+    let ids: Vec<&str> = p::CORE.iter().map(|x| x.id).collect();
     assert_eq!(ids, ["mods", "built-in-skills"]);
-    assert_eq!(p::find("mods").unwrap().page_title, "Mods");
-    assert_eq!(p::find("built-in-skills").unwrap().page_title, "Built-in skills");
-    assert!(p::find("built-in-skills").unwrap().switchless);
-    assert!(p::find("built-in-skills").unwrap().enabled(&Default::default()));
+    assert_eq!(p::find(&crate::plugins::register(Default::default()), "mods").unwrap().page_title, "Mods");
+    assert_eq!(p::find(&crate::plugins::register(Default::default()), "built-in-skills").unwrap().page_title, "Built-in skills");
+    assert!(p::find(&crate::plugins::register(Default::default()), "built-in-skills").unwrap().switchless);
+    assert!(p::find(&crate::plugins::register(Default::default()), "built-in-skills").unwrap().enabled(&Default::default()));
 }
 
 #[test]

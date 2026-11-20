@@ -1,12 +1,12 @@
 //! GitHub's connection (`plugins/builtin/github/composables/use-github-auth.ts`): whether Fleet is connected, the device flow
 //! (a code to type on GitHub's page, then a poll every few seconds until it ends), a personal access token (tested straight against
 //! GitHub, then stored by Fleet), and Disconnect. Every request goes on a thread and its answer comes back to the UI thread; nothing
-//! here waits. GitHub is a plugin: core never imports this, the plugin's page (`view::settings::github_connect`) reads it.
+//! here waits. GitHub is a plugin: core never imports this, the plugin's page (`view::connect`) reads it.
 //!
 //! Connecting belongs to the Fleet server the app is on (`HOME_MACHINE_KEY`), not to the machine Settings shows: the plugin
 //! switches are per server too.
-use super::HOME_MACHINE_KEY;
 use crate::fleet::http;
+use crate::fleet::settings::HOME_MACHINE_KEY;
 use crate::fleet::settings_nav::Page;
 use crate::{Rail, State, Tx};
 use rune::TextEdit;
@@ -142,7 +142,7 @@ impl State {
     /// for goes back to the button, where Fleet leaves it on screen with nothing polling). True when something drawn changed.
     pub fn keep_github(&mut self, now: f64, tx: &mut Tx) -> bool {
         if !self.github_page_open() {
-            let g = &mut self.settings.github;
+            let g = super::auth(&mut self.places);
             let had = g.asked || !g.pat.text.is_empty() || g.pat_state != Pat::Idle || matches!(g.device, Device::Awaiting { .. });
             if had {
                 g.stop_polling();
@@ -157,13 +157,13 @@ impl State {
             }
             return had;
         }
-        let mut changed = self.settings.github.token_retyped();
-        if !self.settings.github.asked {
-            self.settings.github.asked = true;
+        let mut changed = super::auth(&mut self.places).token_retyped();
+        if !super::auth(&mut self.places).asked {
+            super::auth(&mut self.places).asked = true;
             self.load_github_status();
             changed = true;
         }
-        let g = &mut self.settings.github;
+        let g = super::auth(&mut self.places);
         let Device::Awaiting { expires_at, .. } = &g.device else { return changed };
         let left = (expires_at - now).max(0.0).ceil() as u64;
         if g.shown_left != Some(left) {
@@ -180,7 +180,7 @@ impl State {
 
     /// `loadStatus`: `GET .../auth/status`; a failure means not connected.
     pub fn load_github_status(&mut self) {
-        let g = &mut self.settings.github;
+        let g = super::auth(&mut self.places);
         g.status_seq += 1;
         g.checking = true;
         let seq = g.status_seq;
@@ -188,7 +188,7 @@ impl State {
             HOME_MACHINE_KEY,
             |base| http::text_with("GET", base, "/api/integrations/github/auth/status", None),
             move |s, _, answer| {
-                let g = &mut s.settings.github;
+                let g = super::auth(&mut s.places);
                 if g.status_seq != seq {
                     return;
                 }
@@ -202,14 +202,14 @@ impl State {
             },
         );
         if !sent {
-            self.settings.github.checking = false;
-            self.settings.github.connected = false;
+            super::auth(&mut self.places).checking = false;
+            super::auth(&mut self.places).connected = false;
         }
     }
 
     /// `connectWithDeviceFlow`: asks for a code, then polls after its interval.
     pub fn github_connect_device(&mut self) {
-        let g = &mut self.settings.github;
+        let g = super::auth(&mut self.places);
         g.stop_polling();
         g.device = Device::Initiating;
         let generation = g.generation;
@@ -218,7 +218,7 @@ impl State {
             |base| http::text_with("POST", base, "/api/integrations/github/auth/device-code", None),
             move |s, tx, answer| {
                 let clock = s.clock;
-                let g = &mut s.settings.github;
+                let g = super::auth(&mut s.places);
                 if g.generation != generation {
                     return;
                 }
@@ -240,20 +240,20 @@ impl State {
             },
         );
         if !sent {
-            self.settings.github.device = Device::Error("Failed to start GitHub authorization.".into());
+            super::auth(&mut self.places).device = Device::Error("Failed to start GitHub authorization.".into());
         }
     }
 
     /// `resetDeviceFlow`: Cancel and Try again.
     pub fn github_reset_device(&mut self) {
-        let g = &mut self.settings.github;
+        let g = super::auth(&mut self.places);
         g.stop_polling();
         g.device = Device::Idle;
     }
 
     /// `pollOnce`: one look at the authorization. Pending asks again after the interval the server named, else the last one.
     fn poll_github(&mut self) {
-        let g = &mut self.settings.github;
+        let g = super::auth(&mut self.places);
         let Device::Awaiting { device_code, .. } = g.device.clone() else { return };
         g.polling = true;
         g.poll_due = None;
@@ -264,7 +264,7 @@ impl State {
             move |base| http::text_with("POST", base, "/api/integrations/github/auth/poll", Some(&json!({ "deviceCode": device_code }))),
             move |s, tx, answer| {
                 let clock = s.clock;
-                let g = &mut s.settings.github;
+                let g = super::auth(&mut s.places);
                 if g.generation != generation {
                     return;
                 }
@@ -295,7 +295,7 @@ impl State {
             },
         );
         if !sent {
-            end_with(&mut self.settings.github, Device::Error("Failed while waiting for GitHub authorization.".into()));
+            end_with(super::auth(&mut self.places), Device::Error("Failed while waiting for GitHub authorization.".into()));
         }
     }
 
@@ -305,7 +305,7 @@ impl State {
             HOME_MACHINE_KEY,
             |base| http::text_with("GET", base, "/api/integrations/github/auth/status", None),
             move |s, _, answer| {
-                let g = &mut s.settings.github;
+                let g = super::auth(&mut s.places);
                 if g.generation != generation {
                     return;
                 }
@@ -329,20 +329,20 @@ impl State {
             },
         );
         if !sent {
-            end_with(&mut self.settings.github, Device::Error("Failed while waiting for GitHub authorization.".into()));
+            end_with(super::auth(&mut self.places), Device::Error("Failed while waiting for GitHub authorization.".into()));
         }
     }
 
     /// `copyUserCode`.
     pub fn github_copy_code(&mut self, tx: &mut Tx) {
-        if let Device::Awaiting { user_code, .. } = &self.settings.github.device {
+        if let Device::Awaiting { user_code, .. } = &super::auth_ref(&self.places).device {
             tx.copy(user_code.clone());
         }
     }
 
     /// `testPersonalAccessToken`: the token goes to GitHub itself, from here, and nowhere else.
     pub fn github_test_pat(&mut self) {
-        let g = &mut self.settings.github;
+        let g = super::auth(&mut self.places);
         let token = g.pat.text.trim().to_string();
         if token.is_empty() {
             g.pat_state = Pat::Error("Enter a personal access token.".into());
@@ -354,14 +354,14 @@ impl State {
         g.pat_state = Pat::Testing;
         let api = g.api.clone();
         let Some(link) = &self.link else {
-            self.settings.github.pat_state = Pat::Error("Unable to validate GitHub token.".into());
+            super::auth(&mut self.places).pat_state = Pat::Error("Unable to validate GitHub token.".into());
             return;
         };
         let post = link.post();
         std::thread::spawn(move || {
             let answer = http::github_user(&api, &token);
             post.update(move |s, _| {
-                let g = &mut s.settings.github;
+                let g = super::auth(&mut s.places);
                 if g.pat_state != Pat::Testing {
                     return;
                 }
@@ -381,7 +381,7 @@ impl State {
 
     /// `connectWithPersonalAccessToken`: Fleet validates and stores it; the box is wiped once it has.
     pub fn github_connect_pat(&mut self) {
-        let g = &mut self.settings.github;
+        let g = super::auth(&mut self.places);
         let token = g.pat.text.trim().to_string();
         if token.is_empty() {
             g.pat_state = Pat::Error("Enter a personal access token.".into());
@@ -395,7 +395,7 @@ impl State {
             HOME_MACHINE_KEY,
             move |base| http::text_with("POST", base, "/api/integrations/github/auth/token", Some(&json!({ "token": token }))),
             |s, _, answer| {
-                let g = &mut s.settings.github;
+                let g = super::auth(&mut s.places);
                 g.connecting_pat = false;
                 match answer {
                     Ok((status, _)) if ok(status) => {
@@ -410,7 +410,7 @@ impl State {
             },
         );
         if !sent {
-            let g = &mut self.settings.github;
+            let g = super::auth(&mut self.places);
             g.connecting_pat = false;
             g.pat_state = Pat::Error("Failed to connect GitHub.".into());
         }
@@ -418,7 +418,7 @@ impl State {
 
     /// `disconnectGitHub`: Fleet forgets the token.
     pub fn github_disconnect(&mut self) {
-        let g = &mut self.settings.github;
+        let g = super::auth(&mut self.places);
         if g.disconnecting {
             return;
         }
@@ -427,7 +427,7 @@ impl State {
             HOME_MACHINE_KEY,
             |base| http::text_with("DELETE", base, "/api/integrations/github/auth", None),
             |s, _, answer| {
-                let g = &mut s.settings.github;
+                let g = super::auth(&mut s.places);
                 g.disconnecting = false;
                 match answer {
                     Ok((status, _)) if ok(status) => {
@@ -443,13 +443,13 @@ impl State {
             },
         );
         if !sent {
-            self.settings.github.disconnecting = false;
+            super::auth(&mut self.places).disconnecting = false;
         }
     }
 
     /// The token box, for the field's edit handler.
     pub fn github_pat_edit(&mut self) -> &mut TextEdit {
-        &mut self.settings.github.pat
+        &mut super::auth(&mut self.places).pat
     }
 }
 

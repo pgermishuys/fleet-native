@@ -47,7 +47,7 @@ fn def(list: &[RailDef], rail: Rail) -> RailDef {
 fn list_with(keys: &[&str]) -> Vec<RailDef> {
     let mut p = crate::fleet::prefs::Prefs::default();
     p.adopt(&json!(keys.iter().map(|k| ((*k).to_string(), "true")).collect::<std::collections::HashMap<_, _>>()));
-    rails::rails(&Inputs::from_prefs(&p))
+    rails::rails(&Inputs::from_prefs(&p, &crate::plugins::register(Default::default())))
 }
 
 // ─── the icon rail ──────────────────────────────────────────────────────────────────────────────
@@ -141,8 +141,8 @@ fn makes_a_clicked_rail_active_and_navigates_when_it_has_a_path() {
     click(&mut rt, "rail-automations");
     assert_eq!(rt.state.rail, Rail::Automations);
     click(&mut rt, "rail-github");
-    assert_eq!(rt.state.rail, Rail::GitHub);
-    assert_eq!(def(&rt.state.rail_list(), Rail::GitHub).to, "/github");
+    assert_eq!(rt.state.rail, Rail::Plugin("github"));
+    assert_eq!(def(&rt.state.rail_list(), Rail::Plugin("github")).to, "/github");
 }
 
 #[test]
@@ -192,11 +192,14 @@ fn session_pages_are_the_sessions_rail() {
 #[test]
 fn follows_a_plugins_path_to_the_plugins_rail() {
     let list = list_with(&[]);
-    assert_eq!(rails::rail_for_path("/github/pulls", &list), Some(Rail::GitHub));
+    assert_eq!(rails::rail_for_path("/github/pulls", &list), Some(Rail::Plugin("github")));
     // With the plugin switched off nobody owns it.
     let mut p = crate::fleet::prefs::Prefs::default();
     p.adopt(&json!({ "plugins.disabled": "[\"github\"]" }));
-    assert_eq!(rails::rail_for_path("/github/pulls", &rails::rails(&Inputs::from_prefs(&p))), None);
+    assert_eq!(
+        rails::rail_for_path("/github/pulls", &rails::rails(&Inputs::from_prefs(&p, &crate::plugins::register(Default::default())))),
+        None
+    );
 }
 
 #[test]
@@ -215,7 +218,7 @@ fn places_each_rail_in_its_group_and_in_order() {
     assert_eq!(names(rails::secondary(&list)), ["Analytics"]);
     // Plugin rails sit above Fleet's own bottom rails.
     assert_eq!(names(rails::bottom(&list)), ["GitHub", "Settings"]);
-    assert_eq!(def(&list, Rail::GitHub).placement, Placement::Plugin);
+    assert_eq!(def(&list, Rail::Plugin("github")).placement, Placement::Plugin);
 }
 
 #[test]
@@ -254,7 +257,7 @@ fn shown(rail: Rail, keys: &[&str]) -> bool {
 
 #[test]
 fn shows_the_rails_own_panel() {
-    for rail in [Rail::Sessions, Rail::Analytics, Rail::Automations, Rail::Settings, Rail::GitHub] {
+    for rail in [Rail::Sessions, Rail::Analytics, Rail::Automations, Rail::Settings, Rail::Plugin("github")] {
         assert!(shown(rail, &[]), "{rail:?}");
     }
 }
@@ -281,14 +284,14 @@ fn never_borrows_another_views_panel_a_rail_nobody_knows_or_no_rail_shows_none()
     assert!(!rails::has_panel(None, &list));
     assert!(!rails::has_panel(Some(Rail::Fleet), &list), "Fleet is not contributed while off... and has no panel then");
     // A rail missing from the list (a plugin that went away) has none.
-    let without: Vec<_> = list.into_iter().filter(|d| d.rail != Rail::GitHub).collect();
-    assert!(!rails::has_panel(Some(Rail::GitHub), &without));
+    let without: Vec<_> = list.into_iter().filter(|d| d.rail != Rail::Plugin("github")).collect();
+    assert!(!rails::has_panel(Some(Rail::Plugin("github")), &without));
 }
 
 #[test]
 fn a_rail_nobody_contributes_redirects_to_sessions() {
     let mut rt = app();
-    rt.update(|s, _| s.rail = Rail::GitHub);
+    rt.update(|s, _| s.rail = Rail::Plugin("github"));
     rt.update(|s, _| s.pickers.prefs.adopt(&json!({ "plugins.disabled": "[\"github\"]" })));
     rt.update(|s, _| s.settle_rail());
     assert_eq!(rt.state.rail, Rail::Sessions);

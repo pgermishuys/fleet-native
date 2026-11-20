@@ -118,7 +118,10 @@ speed; only measure on real hardware.
 
 ## Code conventions
 
-- **One file per panel** under `src/view/`. A view is a plain function, `(&State, &Theme) -> El`.
+- **One file per panel** under `src/view/`. A view is a plain function, `(&State, &Theme) -> El`. A plugin's views (GitHub's) live in
+  the plugin's own `src/plugins/<name>/view/`, one file per panel there too: core never imports a plugin, so they are not under `src/view/`.
+- **Plugins are add-ons.** Nothing outside `src/plugins/` names one: a plugin fills the places core offers (`src/fleet/places.rs`)
+  and `src/plugins/mod.rs` `register` is the one composition root. `plugins::tests_seam` fails a core file that imports GitHub's.
   Keep a file under about 500 lines; split by panel, not by kind.
 - **One `State`.** Handlers change it; the view reads it. No hidden state in views.
 - **Nothing slow on the UI thread.** No network, file or process work in a view, a handler or
