@@ -4,10 +4,10 @@ use super::super::history::{Page, Pending, prepend_page};
 use super::super::link::{Job, Link, Post};
 use super::reconnect::{app, two_sessions};
 use super::*;
-use crate::State;
 use crate::fleet::model::Msg;
 use crate::view::conversation::Older;
-use rune::Runtime;
+use crate::{State, spec};
+use rune::{App, Env, Runtime, ScrollPos};
 use std::io::Write;
 use std::net::{TcpListener, TcpStream};
 use std::sync::mpsc::channel;
@@ -193,6 +193,53 @@ fn app_with_history() -> (Runtime<State>, String) {
         move |s, tx| s.on_snapshot(&id, create_state(&snap), tx)
     });
     (rt, id)
+}
+
+/// What the conversation's scroll box reports: at `offset` of `max`, in a 532 px viewport.
+fn reading(offset: f32, max: f32) -> ScrollPos {
+    let mut at = ScrollPos::default();
+    at.offset = [0.0, offset];
+    at.max = [0.0, max];
+    at.viewport = [836.0, 532.0];
+    at.drawn = at.viewport;
+    at
+}
+
+#[test]
+fn the_box_before_the_conversation_was_laid_out_asks_for_nothing_where_the_conversation_lands_decides() {
+    // The snapshot comes on another thread, so a frame may or may not be drawn while it is on its way. Either way the
+    // reading `poll` sees first after it is the empty box's, at the top; only where the conversation lands may ask.
+    for drawn_while_loading in [false, true] {
+        for (end, asks) in [(300.0, false), (60.0, true)] {
+            let mut rt = app();
+            let post = Post::new(|_| {});
+            rt.update(move |s, tx| {
+                s.link = Some(Link::start("http://127.0.0.1:9".into(), post));
+                s.on_list(two_sessions(), tx);
+            });
+            let id = rt.state.open_id().unwrap();
+            rt.state.scroll_probe.set(Some(reading(0.0, 0.0)));
+            if drawn_while_loading {
+                rt.update(|s, tx| {
+                    s.keep_scroll(tx);
+                });
+            }
+            let mut snap = snapshot("idle", vec![life("msg-3", "user", 3, Some("third"), None)]);
+            snap["hasMore"] = json!(true);
+            snap["cursor"] = json!("cursor-1");
+            rt.update(move |s, tx| s.on_snapshot(&id, create_state(&snap), tx));
+            rt.update(|s, tx| {
+                s.keep_scroll(tx);
+            });
+            assert_eq!(rt.state.older(), Some(Older::Ask), "drawn while loading {drawn_while_loading}: the empty box asked");
+            rt.state.scroll_probe.set(Some(reading(end, end)));
+            rt.update(|s, tx| {
+                s.keep_scroll(tx);
+            });
+            let want = if asks { Older::Loading } else { Older::Ask };
+            assert_eq!(rt.state.older(), Some(want), "drawn while loading {drawn_while_loading}, landed {end} px from the top");
+        }
+    }
 }
 
 fn stream(rt: &Runtime<State>) -> &StreamState {
@@ -415,16 +462,23 @@ fn an_older_page_is_asked_for_over_the_hub_a_refusal_is_retried_and_the_page_joi
     let post = Post::new(move |job| {
         let _ = jobs.lock().unwrap().send(job);
     });
-    let mut rt = app();
+    // A window the conversation fits in with room to spare, so nothing scrolls and nothing asks on its own: whether Fleet
+    // asks by itself depends on where the box lands (within 100 px of the top), and at 760 px this one overflowed by 99 px
+    // here, which another system's fonts can push past 100. The button asks, both times.
+    let mut rt = App::new(spec()).headless_runtime((1280.0, 1400.0), Env::new(true, 1.0));
+    rt.frame(0.0);
+    rt.frame(1.0 / 60.0);
     let link = Link::start(base, post);
     rt.update(move |s, _| s.link = Some(link));
 
     let step = |rt: &mut Runtime<State>, until: &dyn Fn(&State) -> bool, what: &str| {
-        crate::test_wait::drive(rt, &queue, what, until, |s| format!("{:?} {:?}", s.older(), s.notice));
+        crate::test_wait::drive(rt, &queue, what, until, |s| {
+            format!("{:?} {:?}, loading {}, {:?}", s.older(), s.notice, s.loading, s.connection)
+        });
     };
-    // A conversation that fits the window is at its top, so Fleet asks for the page by itself (`updatePinnedState`); the
-    // first ask is the one the server refuses.
     step(&mut rt, &|s| !s.loading && s.older().is_some(), "the snapshot with older history");
+    click(&mut rt, "load-older");
+    // The first ask is the one the server refuses.
     step(&mut rt, &|s| s.older() == Some(Older::Failed), "the refusal");
     rt.frame(1.0 / 60.0);
     click(&mut rt, "load-older");

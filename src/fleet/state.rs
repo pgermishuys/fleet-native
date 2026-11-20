@@ -471,6 +471,11 @@ impl State {
         let first = std::mem::replace(&mut self.loading, false);
         self.sync_open();
         if first {
+            // What the scroll box last reported is the box before this conversation was laid out (empty, or the session
+            // left): `poll` reads it once more before the new layout is measured, and asking for older history on it
+            // would depend on whether a frame was drawn while the snapshot was on its way. Fleet decides from where the
+            // box is once the conversation is in it, so the old reading counts as seen.
+            self.scroll_seen = self.scroll_probe.get();
             self.follow_end(tx);
         }
     }
