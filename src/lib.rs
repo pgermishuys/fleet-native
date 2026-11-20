@@ -34,6 +34,8 @@ mod tests_archived;
 #[cfg(test)]
 mod tests_asks;
 #[cfg(test)]
+mod tests_automations_store;
+#[cfg(test)]
 mod tests_browser;
 #[cfg(test)]
 mod tests_browser_agent;
@@ -547,6 +549,8 @@ pub struct State {
     pub skills: fleet::skills::Skills,
     /// Every machine's workflow runs (`fleet::workflows`).
     pub workflows: fleet::workflows::runs::Workflows,
+    /// Every machine's automations (`fleet::automations::store`).
+    pub automations: fleet::automations::store::Automations,
     /// The Workflows page: its Library, the open workflow, the machine it shows (`fleet::workflows::nav`).
     pub workflows_nav: fleet::workflows::nav::Nav,
     /// The links to the other machines, started when a session there needs one (`fleet::routing`).
@@ -871,6 +875,7 @@ impl Default for State {
             open_in: Default::default(),
             skills: Default::default(),
             workflows: Default::default(),
+            automations: Default::default(),
             workflows_nav: Default::default(),
             links: Default::default(),
             connection: Connection::Connecting,

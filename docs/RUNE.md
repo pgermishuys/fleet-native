@@ -2332,3 +2332,7 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 ## Component 19, piece B (the automations data and their words)
 
 - **Nothing new about Rune:** the piece is plain Rust. What it learned is about the server: a `POST /api/automations/{id}/run` answers the run at once with `"state":"starting"`, and a run that can't make its worktree ends `failed` with `error` "Couldn't start: Couldn't create the worktree: there's no branch origin/main to start from" (a scratch project has no `origin`), which is a ready-made failed run to draw. `targetType` is `new_session` (not `session`) for a session target.
+
+## Component 19, piece C (the store and the routes)
+
+- **Nothing new about Rune:** the piece is plain Rust over `Link::off_thread`. Two Rust points: a `static` empty store (what `automations_of` hands out before anything asked) needs `Sync`, which a `Vec<Box<dyn FnOnce + Send>>` isn't, so the waiters of a load in flight sit in a `Mutex` (read with `get_mut`, no locking); and the test build needed `-j1` again under `MemoryMax=4000M` (two rustc at about 2 GB each were OOM-killed, the scope reporting "Terminated").

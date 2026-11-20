@@ -299,11 +299,11 @@ live against the same server at the same size, `TZ=UTC`, the light one with the 
 | # | Fleet | Source | Native |
 |---|---|---|---|
 | 15.1 | `Automation` and `AutomationRun` read from JSON (every field above, optional ones defaulted), `CreateAutomationRequest` written | SA | **Done (B, 20 November 2026)** `src/fleet/automations/model.rs` (`Automation`, `AutomationRun`, `AutomationDraft`, `AutomationRequest`) |
-| 15.2 | One store per machine: the list, `isLoading` true until the first load ends (reloads keep the old list), `error`; every change reloads the list | SA | None (C) |
-| 15.3 | `refresh` shares a load in flight | SA | None (C) |
-| 15.4 | Routes: `GET /api/automations` → `{automations}`; `POST` (the created one); `PUT /{id}`; `DELETE /{id}`; `POST /{id}/enable`, `/disable`; `POST /{id}/run` (the run, still starting); `GET /{id}/runs` → `{runs}` newest first; `GET /draft-from-session/{sessionId}`; `GET /event-catalog` → `[types]` | SA, server | None (C): on threads, to the machine the store is for |
-| 15.5 | A refusal throws the server's `error` (else `HTTP <status>`) | SA `readError` | None (C) |
-| 15.6 | The list is loaded when a view that shows it opens (the list, the page, the built-in page) | UA | None (C, D) |
+| 15.2 | One store per machine: the list, `isLoading` true until the first load ends (reloads keep the old list), `error`; every change reloads the list | SA | **Done (C, 20 November 2026)** `src/fleet/automations/store.rs` (`Automations`, `MachineAutomations`; `State::automations_of`): `is_loading` starts true, a failed first load ends it and keeps `error`, a reload keeps the list it replaces; each change reloads the list before its answer is handed back, a refused one touches nothing |
+| 15.3 | `refresh` shares a load in flight | SA | **Done (C, 20 November 2026)** `State::automations_refresh(machine, tx, then)`: a call made while a load is in flight adds its `then` to that load; one request is sent (test "shares one request between views that load at the same time") |
+| 15.4 | Routes: `GET /api/automations` → `{automations}`; `POST` (the created one); `PUT /{id}`; `DELETE /{id}`; `POST /{id}/enable`, `/disable`; `POST /{id}/run` (the run, still starting); `GET /{id}/runs` → `{runs}` newest first; `GET /draft-from-session/{sessionId}`; `GET /event-catalog` → `[types]` | SA, server | **Done (C, 20 November 2026)** `automation_create`, `_update`, `_delete`, `_enable`, `_disable`, `_run`, `_runs`, `_draft_from_session`, `_event_catalog`, each on a thread through the machine's own link (`link_for_machine`), ids escaped; a machine with no link answers "Couldn't reach that machine." |
+| 15.5 | A refusal throws the server's `error` (else `HTTP <status>`) | SA `readError` | **Done (C, 20 November 2026)** `read_error`; a request that never reached the machine says what the connection said |
+| 15.6 | The list is loaded when a view that shows it opens (the list, the page, the built-in page) | UA | **Store half done (C, 20 November 2026)**: `automations_refresh` is the call a view makes when it opens. **Open (D)**: no view calls it yet, since this piece has none |
 | 15.7 | No live events: Fleet doesn't push automation changes; the page polls (5.1) | server, SA | n/a |
 
 ### 16. Out of reach, and why
@@ -432,6 +432,8 @@ and tests need no server.
 - **Depends on:** B.
 - **Tests:** `stores/__tests__/automations.test.ts` (6) under its names.
 - **Pictures:** no view changes (as A), and the test output listing the store against the fake server.
+
+**Done (20 November 2026).** `src/fleet/automations/store.rs`, tests in `src/tests_automations_store.rs` (the six of `stores/__tests__/automations.test.ts` under their names, plus four native: every verb and path with an id escaped and a reload after each change, a run coming back still starting, runs/draft/catalog leaving the list alone, a refusal with no words and a failed first load). Gaps, written down: the answer of a change is handed back *after* the list is read again, as Fleet's `await refresh()` does, so a caller waiting on `done` sees the new list; a read that fails after a good change leaves `error` set and the old list, and the change still reports success (Fleet's `refresh` never throws either); a failed read of a draft, runs or the catalog is the words of the failure, with no "Failed to load automations" fallback (nothing in Fleet's UI reads it); there is no timer here, the page's polling (5.1) is D's and F's.
 
 #### D. The page and the list
 
