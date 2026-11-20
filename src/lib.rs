@@ -342,6 +342,8 @@ mod tests_web_host;
 #[cfg(test)]
 mod tests_window;
 #[cfg(test)]
+mod tests_workflow_detail;
+#[cfg(test)]
 mod tests_workflow_runs;
 #[cfg(test)]
 mod tests_workflows_page;
@@ -2562,6 +2564,20 @@ pub fn spec() -> AppSpec<State> {
             ("workflows-machines-light", |s| s.show_workflows(false, mock::workflows::Scene::Machines)),
             ("workflows-machine-off", |s| s.show_workflows(true, mock::workflows::Scene::MachineOff)),
             ("workflows-machine-off-light", |s| s.show_workflows(false, mock::workflows::Scene::MachineOff)),
+            ("workflow-detail", |s| s.show_workflows(true, mock::workflows::Scene::Detail)),
+            ("workflow-detail-light", |s| s.show_workflows(false, mock::workflows::Scene::Detail)),
+            ("workflow-detail-errors", |s| s.show_workflows(true, mock::workflows::Scene::DetailErrors)),
+            ("workflow-detail-errors-light", |s| s.show_workflows(false, mock::workflows::Scene::DetailErrors)),
+            ("workflow-detail-repo", |s| s.show_workflows(true, mock::workflows::Scene::DetailRepo)),
+            ("workflow-detail-repo-light", |s| s.show_workflows(false, mock::workflows::Scene::DetailRepo)),
+            ("workflow-runs-loading", |s| s.show_workflows(true, mock::workflows::Scene::RunsLoading)),
+            ("workflow-runs-loading-light", |s| s.show_workflows(false, mock::workflows::Scene::RunsLoading)),
+            ("workflow-runs-empty", |s| s.show_workflows(true, mock::workflows::Scene::RunsEmpty)),
+            ("workflow-runs-empty-light", |s| s.show_workflows(false, mock::workflows::Scene::RunsEmpty)),
+            ("workflow-detail-states", |s| s.show_workflows(true, mock::workflows::Scene::DetailStates)),
+            ("workflow-detail-states-light", |s| s.show_workflows(false, mock::workflows::Scene::DetailStates)),
+            ("workflow-detail-no-repo", |s| s.show_workflows(true, mock::workflows::Scene::DetailNoRepo)),
+            ("workflow-detail-no-repo-light", |s| s.show_workflows(false, mock::workflows::Scene::DetailNoRepo)),
             ("settings-labs", |s| labs_scene(s, true, false, false)),
             ("settings-labs-light", |s| labs_scene(s, false, false, false)),
             ("settings-labs-machines", |s| labs_scene(s, true, true, false)),
