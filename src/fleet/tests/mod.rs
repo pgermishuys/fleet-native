@@ -550,6 +550,7 @@ pub(crate) mod usage_rules;
 mod web_page;
 mod wire;
 mod work;
+mod workflows;
 
 #[test]
 fn a_recap_comes_with_the_snapshot_and_is_replaced_or_cleared_by_session_recap() {

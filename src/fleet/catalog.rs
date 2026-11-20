@@ -477,6 +477,7 @@ impl State {
                 s.pickers.prefs.adopt(&body);
                 s.landing_check();
                 s.settle_rail();
+                s.workflows_settle();
                 s.settle_pickers(tx);
                 s.harness_setup_check();
             }
