@@ -226,6 +226,7 @@ This repository has no licence yet (`docs/PORT.md`, "Open decisions"). What it b
 - Inter (`assets/fonts/InterVariable.ttf`): SIL Open Font License, `assets/fonts/Inter-LICENSE.txt`.
 - JetBrains Mono (`assets/fonts/JetBrainsMono-Variable.ttf`): SIL Open Font License,
   `assets/fonts/JetBrainsMono-OFL.txt`.
+- The tray icon (`assets/tray.png`) is weave-fleet's `desktop/static/tray.png`, copied unchanged (same owner; weave-fleet has no licence file yet).
 - The app icon (`assets/icon/`) is made from `assets/weave_logo.png` by `tools/gen-app-icon.py`.
 - `winresource` (MIT or Apache-2.0, build time only on Windows, nothing of it ships in the exe) writes the exe's icon
   and version information. It is the small, maintained fork of `winres`, and needs no tool beyond the Windows SDK

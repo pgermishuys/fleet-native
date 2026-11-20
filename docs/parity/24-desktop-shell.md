@@ -204,30 +204,30 @@ for the theme (native: the app's theme). Icon `icon.png`.
 | # | Row | Source | Native | Owner |
 |---|---|---|---|---|
 | 24.60 | A second launch quits and brings the first one's window forward (restored, shown, focused) | MAIN `requestSingleInstanceLock`, `second-instance` → `showWindow` | None | 24 G |
-| 24.61 | A launch while the window is closed to the tray makes the window again and loads the Fleet (or connects) | MAIN `showWindow` | None | 24 E |
-| 24.62 | macOS: Dock click (`activate`) shows the window | MAIN `activate` | None | 24 E (`on_reopen`) |
+| 24.61 | A launch while the window is closed to the tray makes the window again and loads the Fleet (or connects) | MAIN `showWindow` | **Done** (E): the tray's Show Fleet and a click call `AppHandle::open`; the state lives on, so the Fleet is already loaded. A second *launch* showing it is G | 24 E |
+| 24.62 | macOS: Dock click (`activate`) shows the window | MAIN `activate` | **Done** (E): `keep_running` and Rune's default reopen show the hidden window; no `on_reopen` hook is needed (CI only: no Mac here) | 24 E (`on_reopen`) |
 
 ### 7. Closing and quitting (MAIN `onWindowClose`, `before-quit`)
 
 | # | Row | Source | Native | Owner |
 |---|---|---|---|---|
-| 24.70 | macOS: closing the window hides it; the app stays in the Dock | MAIN | None (closing quits) | 24 E |
+| 24.70 | macOS: closing the window hides it; the app stays in the Dock | MAIN | **Done** (E): `close::on_close(Mac, _)` is `Hide`; the app stays (rules tested for every case; CI only on macOS) | 24 E |
 | 24.71 | Windows/Linux, a Fleet the app didn't start: closing quits | MAIN | Done (closing quits) | — |
-| 24.72 | Windows/Linux, its own Fleet: ask `GET /api/desktop/status` (2 s timeout; 0 on any failure); sessions working → hide to the tray, else quit | MAIN `onWindowClose`, `workingSessions`; `DesktopEndpoints.cs` (busy or retry, the user's own) | None | 24 E |
-| 24.73 | Quitting with its own Fleet and sessions working asks: "A session is still working" / "<n> sessions are still working", detail "Quitting Fleet stops them.", buttons **Quit Fleet** / **Cancel** (Cancel the default) | MAIN `confirmQuit`, `confirmStoppingSessions` | None. Rune's `on_quit` can't cancel a system quit (macOS Cmd-Q, logout): the dialog covers quits the app starts (tray, menu, palette); write the smallest case in `docs/RUNE.md` | 24 E |
-| 24.74 | Confirmed: stop its Fleet (24.20), then quit | MAIN | None | 24 E |
-| 24.75 | The updater's restart stops its own Fleet first and waits (else the new process finds a Fleet that is stopping) | MAIN `installUpdate` | None (`update::install` restarts at once) | 24 E |
+| 24.72 | Windows/Linux, its own Fleet: ask `GET /api/desktop/status` (2 s timeout; 0 on any failure); sessions working → hide to the tray, else quit | MAIN `onWindowClose`, `workingSessions`; `DesktopEndpoints.cs` (busy or retry, the user's own) | **Done** (E): `fleet::http::desktop_working` (2 s, 0 on any failure) on a thread; `close::after_status`. Difference: Rune has closed the window before `on_close` runs, so for up to 2 s it is simply gone (`docs/RUNE.md`) | 24 E |
+| 24.73 | Quitting with its own Fleet and sessions working asks: "A session is still working" / "<n> sessions are still working", detail "Quitting Fleet stops them.", buttons **Quit Fleet** / **Cancel** (Cancel the default) | MAIN `confirmQuit`, `confirmStoppingSessions` | **Done** for quits the app starts (the tray's Quit Fleet; `State::quit_requested` is what the menu and the palette of H will call): `view::quit_dialog`, Cancel the default (Enter and Escape cancel). **Open by design:** a system quit (macOS Cmd-Q, logout) can't be held, so it stops the Fleet unasked; case in `docs/RUNE.md` | 24 E |
+| 24.74 | Confirmed: stop its Fleet (24.20), then quit | MAIN | **Done** (E): Quit Fleet quits; `App::on_quit` stops the owned Fleet on a thread (B) | 24 E |
+| 24.75 | The updater's restart stops its own Fleet first and waits (else the new process finds a Fleet that is stopping) | MAIN `installUpdate` | **Done** (E): `update::stop_owned_fleet` takes the owned Fleet and waits until it is gone, then the restart | 24 E |
 | 24.76 | Updating with sessions working asks: "Updating restarts Fleet, which stops them.", **Update Now** / **Cancel** | MAIN `installUpdate` | Native's updater dialog has no such warning | 9 V (the card), 24 E (the count) |
 
 ### 8. Tray (MAIN `hideToTray`)
 
 | # | Row | Source | Native | Owner |
 |---|---|---|---|---|
-| 24.80 | Icon `tray.png`; menu **Show Fleet**, separator, **Quit Fleet**; a click shows the window | MAIN | None | 24 E |
-| 24.81 | Tooltip "Fleet: a session is working" / "Fleet: <n> sessions are working" | MAIN | None | 24 E |
-| 24.82 | Showing the window removes the tray icon | MAIN `showWindow` | None | 24 E |
+| 24.80 | Icon `tray.png`; menu **Show Fleet**, separator, **Quit Fleet**; a click shows the window | MAIN | **Done** (E): `desktop::tray` (`assets/tray.png`, menu Show Fleet / line / Quit Fleet, click shows the window); Windows: CI only | 24 E |
+| 24.81 | Tooltip "Fleet: a session is working" / "Fleet: <n> sessions are working" | MAIN | **Done** (E): `close::tooltip`. The "Fleet is still running" note (`close::still_running`) has its words; its delivery is F | 24 E |
+| 24.82 | Showing the window removes the tray icon | MAIN `showWindow` | **Done** (E): `State::window_visible` (from `on_visibility`) takes the icon away however the window came back | 24 E |
 | 24.83 | macOS: no tray (the Dock) | MAIN (darwin returns early) | Rune has no macOS tray: not needed | — |
-| 24.84 | Linux: shown only where a tray host runs (KDE, most bars; GNOME needs an extension) | Rune `tray.rs` | — | 24 E (note it; with no host the window can't come back but by a second launch, 24.60) |
+| 24.84 | Linux: shown only where a tray host runs (KDE, most bars; GNOME needs an extension) | Rune `tray.rs` | **Done as a note** (E): with no host the icon never shows and the window can't come back but by a second launch (G); the app only falls back (keeps the window) when `Tray::new` fails, i.e. no session bus. Rune can't tell whether a host runs | 24 E (note it; with no host the window can't come back but by a second launch, 24.60) |
 
 ### 9. Notifications
 
@@ -442,7 +442,9 @@ the scratch folder, HOME there too), the released server binary, and their own p
 - **Pictures:** the card beside `electron-running-fleet-*`, both themes.
 - **About:** 400 lines.
 
-### Piece E: closing, quitting and the tray
+### Piece E: closing, quitting and the tray — **built, 20 November 2026**
+
+**Built:** `src/desktop/close.rs` (the rules, `CloseState`, the flow on `State`), `src/desktop/tray.rs` (`Real`: the window and the icon through Rune's handle and tray, made on a thread), `src/view/quit_dialog.rs`, `fleet::http::desktop_working`, `update::stop_owned_fleet`, scenes `quit-dialog` (+ `-light`, `-one`), `src/desktop/close_tests.rs`. **Open:** the tray menu and the "Fleet is still running" note can't be pictured here (no tray host, no notification daemon; the note is F); 24.76's count for the updater's warning (9 V's card); Windows and macOS by CI only. Fleet's own message box is the system's, so its picture is its words.
 
 - **Rows:** 24.61, 24.62, 24.70, 24.72–24.75, 24.80–24.82, 24.84.
 - **Files:** `lib.rs` (`keep_running`, `on_close`, `on_reopen`, `on_quit`), new `src/desktop/close.rs` (the rules as a

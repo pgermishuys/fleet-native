@@ -2183,3 +2183,25 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **A scripted live run's clock is not the wall clock**: with frames costing 25 ms of CPU each, 11 s of script took 45 s. To change a file
   underneath a script, send the change from outside well after the script's typing is due (wall about 3 times the script's second) and put the
   step that needs the change late in the script.
+
+## Component 24, piece E (closing, quitting and the tray)
+
+- **`on_close` runs after the window is gone, and can't hold it.** Electron's `close` handler prevents the close, asks the Fleet how many
+  sessions are working (up to 2 s) and then hides or quits. With `keep_running`, Rune has closed the window before `on_close`, so the app
+  asks and then shows the tray (or quits); for up to two seconds the window is simply not there. Smallest case: `App::new(..).keep_running()
+  .on_close(|s, tx| { /* start a thread */ })`: the window is already closed when the handler returns.
+- **A `Tx` can't show the window.** `Tx` has `close_window`, `quit` and `toggle_full_screen`, but opening or focusing a closed window is
+  `AppHandle::open` only, so the tray's "Show Fleet" (which arrives as a job on the UI thread) goes through a handle kept in a `Surface`
+  (`desktop::tray::Real`), not through the job's `Tx`.
+- **A system quit can't be held for a question** (written down in the plan, now with its case): `App::on_quit` runs for macOS Cmd-Q, the Dock's
+  Quit and a Windows shutdown with no way to refuse. The dialog "A session is still working" covers the quits the app starts (the tray's "Quit
+  Fleet", the menu's and the palette's); Cmd-Q stops the Fleet the app started without asking. Smallest case: `.on_quit(|_, tx| tx.focus("x", true))`
+  has nothing to return; there is no `-> bool`.
+- **`Tray::new` succeeds with no tray host on Linux** (the doc says so: the icon appears once a host starts), so the app can't tell that a
+  window closed "to the tray" has nothing to bring it back. It only falls back (keeps the window) when `Tray::new` itself fails, which is no
+  session bus. Making the tray also talks to D-Bus, so it runs on a thread of its own.
+- **The headless runtime keeps what a handler asked of the shell** in `rt.shell_request` (`rune::Shell`): a test reads `Some(Shell::Quit)` to
+  say "the app quit" without a window.
+- **The tray icon decodes with the `png` crate Rune already builds** (0.18; a direct dependency adds no crate to `Cargo.lock`). `TrayIcon::rgba`
+  wants straight RGBA rows, which `tray.png` (8-bit RGBA, 32 x 32) already is.
+
