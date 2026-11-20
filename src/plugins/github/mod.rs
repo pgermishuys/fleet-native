@@ -2,18 +2,25 @@
 //! add-on: everything it puts in the app goes through the places core offers (`fleet::places`), and core never names it.
 //!
 //! Piece A of component 21 gives it its home and its places: the descriptor, the rail button, the settings page (the connection
-//! page, `view::connect`), the connection's `keep`, and the addresses it owns (`Where`). Its panel, page and the rest come in the
-//! pieces after.
+//! page, `view::connect`), the connection's `keep`, and the addresses it owns (`Where`). Piece B adds what the pages read: items and the words made from them (`items`), the issue filter
+//! (`filter`) and an invented GitHub for scenes and tests (`mock`). Its panel, page and the rest come in the pieces after.
 pub mod auth;
+pub mod filter;
+pub mod items;
+pub mod mock;
 pub mod view;
 mod where_;
 
 #[cfg(test)]
 mod tests_auth;
 #[cfg(test)]
+mod tests_filter;
+#[cfg(test)]
+mod tests_items;
+#[cfg(test)]
 mod tests_where;
 
-pub use where_::Where;
+pub use where_::{Kind, Where};
 
 use crate::fleet::places::{Entry, RailItem};
 use crate::fleet::rails::Placement;
