@@ -14,7 +14,7 @@ fn row_key(kind: &str) -> String {
 
 /// B7.2: no mark, the display name, a chevron.
 pub fn chip(s: &State, t: &Theme) -> El {
-    let disabled = s.new_draft.draft().is_some_and(|d| d.is_starting);
+    let disabled = if s.run_box_active() { s.workflows_nav.run_box.starting } else { s.new_draft.draft().is_some_and(|d| d.is_starting) };
     Chip::new(HARNESS_CHIP, s.harness_chip_label()).open(s.harness_menu_open()).disabled(disabled).view(t, |s: &mut State, tx: &mut Tx| {
         s.open_harness_menu();
         let selected = s.resolved_harness();
@@ -24,7 +24,8 @@ pub fn chip(s: &State, t: &Theme) -> El {
 
 /// B7.3-B7.5: `Harness`, then one row per enabled harness with a check on the one in use.
 pub fn overlay(s: &State, t: &Theme) -> Vec<El> {
-    let current = s.new_draft.draft().map(|d| d.harness_type.clone()).unwrap_or_default();
+    let current =
+        if s.run_box_active() { s.run_box_harness_type() } else { s.new_draft.draft().map(|d| d.harness_type.clone()).unwrap_or_default() };
     let mut body = vec![pop_label(t, "Harness")];
     for (kind, name) in s.harness_names() {
         let spec = Option_ { checked: kind == current, no_mark: true, ..Option_::new(row_key(&kind), name) };

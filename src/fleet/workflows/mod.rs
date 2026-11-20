@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 pub mod detail;
 pub mod helpers;
 pub mod nav;
+pub mod run_box;
 pub mod runs;
 
 /// The user preference behind the switch in Settings → Labs.

@@ -46,7 +46,7 @@ pub fn read(s: &State, t: &Theme, w: &Workflow) -> El {
         c = c.child(steps(t, w));
     }
     c = c.child(facts(t, &models(w, &roles, &harness), &skills(w)));
-    c.child(recent_runs(s, t, w, &machine))
+    c.child(recent_runs(s, t, w, &machine)).child(super::run_box::view(s, t, w))
 }
 
 /// `PageHeader`: the leading icon box, the title and the pill on the left; the actions on the right.

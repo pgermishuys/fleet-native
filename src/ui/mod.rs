@@ -186,6 +186,7 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
         Some(Open::Popover("running")) => crate::view::running_counter::overlay(s, t),
         Some(Open::Popover("pr")) => crate::view::pr_popover::overlay(s, t),
         Some(Open::Popover("analytics")) => crate::view::analytics::overlay(s, t),
+        Some(Open::Popover("workflow-project")) => crate::view::workflows::project_picker::overlay(s, t),
         Some(Open::Popover("more")) => crate::view::more_options::overlay(s, t),
         Some(Open::Popover(name)) => gallery::popover_content(s, t, name),
         Some(Open::Directory) => directory_picker::view(s, t, "g-dir"),

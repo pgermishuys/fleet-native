@@ -75,12 +75,27 @@ impl State {
     pub fn open_workflow_run(&mut self, run_id: &str, tx: &mut rune::Tx) {
         let machine = self.workflows_machine();
         let Some(id) = self.workflow_runs(&machine).get(run_id).and_then(run_session).map(str::to_string) else { return };
-        // The session belongs to Sessions: the rail follows the route, as a fork's does.
-        self.rail = crate::Rail::Sessions;
-        if machine == crate::fleet::settings::HOME_MACHINE_KEY {
-            self.open_parent(&id, tx);
+        self.open_workflow_session(&machine, &id, tx);
+    }
+
+    /// Opens a session of a run on `machine`. The session belongs to Sessions: the rail follows the route, as a fork's does.
+    /// False, and nothing changes, when the machine's list doesn't hold it (yet).
+    pub fn open_workflow_session(&mut self, machine: &str, id: &str, tx: &mut rune::Tx) -> bool {
+        let home = machine == crate::fleet::settings::HOME_MACHINE_KEY;
+        let listed = if home {
+            self.projects.iter().any(|p| p.sessions.iter().any(|s| s.id == id))
         } else {
-            self.open_machine_session(&machine, &id, tx);
+            self.machines.others.get(machine).is_some_and(|m| m.sessions.iter().any(|s| s.id == id))
+        };
+        if !listed {
+            return false;
         }
+        self.rail = crate::Rail::Sessions;
+        if home {
+            self.open_parent(id, tx);
+        } else {
+            self.open_machine_session(machine, id, tx);
+        }
+        true
     }
 }

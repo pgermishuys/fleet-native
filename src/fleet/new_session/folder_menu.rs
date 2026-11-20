@@ -145,10 +145,16 @@ impl State {
         let repos = self.feeds.repos(&key).list;
         let defaults = self.sidebar.new_session_defaults(&key);
         let paths: Vec<String> = repos.iter().map(|r| r.path.clone()).collect();
-        let recent = defaults.recent_folders(&paths);
+        let mut recent = defaults.recent_folders(&paths);
+        let run_box = self.run_box_active();
+        let run_folder = self.workflows_nav.folder().cloned();
         let draft = self.new_draft.draft();
-        let current = draft.and_then(|d| d.folder.as_ref());
-        let issue = draft.is_some_and(|d| d.github_preset.is_some());
+        let current = if run_box { run_folder.as_ref() } else { draft.and_then(|d| d.folder.as_ref()) };
+        let issue = !run_box && draft.is_some_and(|d| d.github_preset.is_some());
+        if run_box {
+            // A run is in a repository: no plain folders, no "No folder", no create or clone.
+            recent.retain(|f| matches!(f, Folder::Repository(_)));
+        }
         let current_path = match current {
             Some(Folder::Repository(p) | Folder::Directory(p)) => Some(p.as_str()),
             _ => None,
@@ -162,13 +168,13 @@ impl State {
         let input = Inputs {
             repositories: &repos,
             recent: &recent,
-            plain: defaults.plain_folders(),
+            plain: if run_box { &[] } else { defaults.plain_folders() },
             current,
             query: &self.folder_menu.query.text,
             // Off in cloud mode (not in this app) and while a GitHub issue is attached (B2.86).
             allow_browse: !issue,
-            allow_create: !issue,
-            allow_none: !issue,
+            allow_create: !issue && !run_box,
+            allow_none: !issue && !run_box,
             root: root.as_deref(),
             first_branch: self.feeds.first_branch(),
         };

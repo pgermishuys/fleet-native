@@ -299,3 +299,59 @@ impl crate::State {
         }
     }
 }
+
+/// What a scene of the Run box shows.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum RunBoxScene {
+    /// Fix a bug in the invented repository, nothing typed yet: Run is off.
+    Empty,
+    /// A request typed, the optional step and Check with me on.
+    Filled,
+    /// None of the harnesses that run workflows is installed and on.
+    NoHarness,
+    /// A step's built-in skill is off.
+    SkillOff,
+    /// Run was pressed and the server hasn't answered.
+    Starting,
+    /// The server refused the run.
+    Refused,
+}
+
+impl crate::State {
+    /// The Run box for the pictures and tests: Fix a bug open, the invented repository picked and its branches known.
+    pub fn show_run_box(&mut self, dark: bool, which: RunBoxScene) {
+        use crate::fleet::new_session::request::Folder;
+        use crate::fleet::skills::BuiltInSkill;
+        self.show_workflows(dark, Scene::DetailNoRepo);
+        let path = super::feeds::ROCKET;
+        self.feeds = super::feeds::feeds();
+        let nav = &mut self.workflows_nav;
+        nav.set_folder(Folder::Repository(path.into()), true);
+        nav.library = Some(library(Some(path)));
+        nav.library_repository = Some(path.into());
+        nav.reload_wanted = false;
+        let run_box = &mut nav.run_box;
+        if matches!(which, RunBoxScene::Filled | RunBoxScene::Starting | RunBoxScene::Refused) {
+            run_box.request = rune::TextEdit::new("The pager skips the last page when the total is an exact multiple of the page size");
+        }
+        if which == RunBoxScene::Filled {
+            run_box.optional_on.insert("verify".into());
+            run_box.check_with_me = true;
+        }
+        run_box.starting = which == RunBoxScene::Starting;
+        if which == RunBoxScene::Refused {
+            run_box.error = Some("Couldn't start the run: the branch origin/main isn't there.".into());
+        }
+        if which == RunBoxScene::NoHarness {
+            let harnesses = self.feeds.harnesses.entry(crate::fleet::settings::HOME_MACHINE_KEY.into()).or_default();
+            for h in &mut harnesses.harnesses.all {
+                h.available = false;
+                h.state = "not-installed".into();
+            }
+        }
+        if which == RunBoxScene::SkillOff {
+            let skill = |name: &str, enabled: bool| BuiltInSkill { name: name.into(), enabled, ..BuiltInSkill::default() };
+            self.skills.list = Some(vec![skill("fleet-debug", false), skill("fleet-code-review", true), skill("fleet-run", true)]);
+        }
+    }
+}

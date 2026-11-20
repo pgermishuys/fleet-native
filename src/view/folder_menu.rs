@@ -20,7 +20,9 @@ const LIST_MAX_H: f32 = 340.0;
 /// The folder chip (`FolderPicker.vue`'s trigger, B2.1-B2.17): a mark for the kind of folder (a spinner while a clone for it runs),
 /// its name, a `new` tag for a folder made from this menu, a chevron; the accent-tinted border while nothing is chosen.
 pub fn trigger(s: &State, t: &Theme) -> El {
-    let chosen = s.new_draft.draft().and_then(|d| d.folder.as_ref());
+    let run_box = s.run_box_active();
+    let run_folder = s.workflows_nav.folder().cloned();
+    let chosen = if run_box { run_folder.as_ref() } else { s.new_draft.draft().and_then(|d| d.folder.as_ref()) };
     let cloning = s.folder_menu.make == Make::Cloning && s.folder_menu.clone_name.is_some() && !s.folder_menu.clone_superseded;
     let glyph = match chosen {
         Some(Folder::None) => &MESSAGE_SQUARE,
@@ -31,7 +33,7 @@ pub fn trigger(s: &State, t: &Theme) -> El {
         Some(Folder::Repository(p) | Folder::Directory(p)) => Some(p.clone()),
         _ => None,
     };
-    let disabled = s.new_draft.draft().is_some_and(|d| d.is_starting);
+    let disabled = if run_box { s.workflows_nav.run_box.starting } else { s.new_draft.draft().is_some_and(|d| d.is_starting) };
     Chip::new(CHIP, s.folder_chip_label(chosen))
         .glyph(glyph)
         .busy(cloning)

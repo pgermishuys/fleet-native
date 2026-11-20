@@ -21,7 +21,7 @@ fn row_key(i: usize) -> String {
 pub fn chip(s: &State, t: &Theme) -> El {
     let base = s.effective_base();
     let no_fetch = base.as_deref().is_some_and(|b| b.starts_with("origin/")) && !s.fetch_origin();
-    let disabled = s.new_draft.draft().is_some_and(|d| d.is_starting);
+    let disabled = if s.run_box_active() { s.workflows_nav.run_box.starting } else { s.new_draft.draft().is_some_and(|d| d.is_starting) };
     let mut chip = Chip::new(BASE_CHIP, base.clone().unwrap_or_else(|| "the default branch".into()))
         .glyph(&GIT_BRANCH)
         .head("from ")
@@ -195,8 +195,11 @@ fn branch_field(s: &State, t: &Theme) -> El {
 
 /// The menu: 6px above the chip, its left edge on the chip's (B3.5).
 pub fn overlay(s: &State, t: &Theme) -> Vec<El> {
-    let body =
-        vec![search(s, t), pop_label(t, "Start from"), list(s, t), pop_separator(t), fetch(s, t), pop_separator(t), branch_field(s, t)];
+    let mut body = vec![search(s, t), pop_label(t, "Start from"), list(s, t)];
+    // A run leaves out Fetch origin first and the branch's name: it fetches, and the server names each run's branch.
+    if !s.run_box_active() {
+        body.extend([pop_separator(t), fetch(s, t), pop_separator(t), branch_field(s, t)]);
+    }
     let panel =
         pop(t, "new-session-base-pop", WIDTH, body).focus_return(BASE_CHIP.to_string()).modal(true, |s: &mut State| s.close_picker_menu());
     vec![

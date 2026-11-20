@@ -28,6 +28,10 @@ pub struct Chip {
     tail: Option<String>,
     /// The last mark instead of the chevron (the "…" chip's ellipsis).
     trailing: Option<&'static Icon>,
+    /// No chevron: a chip that flips something rather than opening a menu.
+    flat: bool,
+    /// Nothing to press: a static chip (New worktree) has no hover wash and no pointer.
+    still: bool,
 }
 
 impl Chip {
@@ -49,7 +53,17 @@ impl Chip {
             head: None,
             tail: None,
             trailing: None,
+            flat: false,
+            still: false,
         }
+    }
+    pub fn flat(mut self) -> Self {
+        self.flat = true;
+        self
+    }
+    pub fn still(mut self) -> Self {
+        self.still = true;
+        self
     }
     pub fn glyph(mut self, g: &'static Icon) -> Self {
         self.glyph = Some(g);
@@ -130,6 +144,8 @@ impl Chip {
             .focus_ring(2.0, 1.0, t.accent);
         if self.disabled {
             chip = chip.disabled(true).opacity(0.6);
+        } else if self.still {
+            // Static: no wash, no pointer, nothing to press.
         } else {
             chip = chip.hover(t.wash(6.0)).cursor(Cursor::Pointer).on_press_tx(on_press);
         }
@@ -189,6 +205,7 @@ impl Chip {
         }
         match self.trailing {
             Some(g) => chip.child(mark(g, 14.0, 1.0)),
+            None if self.flat => chip,
             None => chip.child(mark(&crate::icons::CHEVRON_DOWN, 12.0, 0.5)),
         }
     }
