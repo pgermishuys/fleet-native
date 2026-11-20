@@ -280,7 +280,6 @@ Rune has what is needed; nothing to work around. Learned:
 - To see the hub frames the app sends, a small TCP relay in front of the scratch Fleet that unmasks the client's WebSocket text
   frames is enough; the app's `--server` is pointed at the relay.
 
-
 ## Component 2, piece H (the session list follows the hub)
 
 Nothing in Rune was needed. Learned:
@@ -301,7 +300,6 @@ Nothing in Rune was needed. Learned:
   discovery needs no `poll` and no channel of our own.
 - Under Xvfb a run for a picture needs a clean environment (`env -i`) to hold `HOME` and `FLEET_DESKTOP_DATA_DIR` to the scratch
   folder, and then `XAUTHORITY`, `DISPLAY`, `VK_ICD_FILENAMES` and the sysroot's `LD_LIBRARY_PATH` have to be passed back in by hand.
-
 
 ## Component 2, piece J (the sweep)
 
@@ -403,7 +401,6 @@ Nothing in Rune was needed: this piece is plain Rust. Two things for whoever bui
 - **Fleet's `watch` is a state machine here.** `EffortMemory::update` runs only when `[fetched, key, levels]` changed since
   its last run, as Vue's `watch` does; call it from `poll` after the catalog or preferences change, with the draft's effort.
 
-
 ## Component 3, piece E (message frame)
 
 - **A clipboard write from a handler exists at this pin**: `.on_press_tx(|s, tx| tx.copy(text))` (`Tx::copy`). The older notes saying
@@ -457,14 +454,12 @@ Nothing in Rune was needed: this piece is plain Rust. Two things for whoever bui
 - **An overlay is mid-entrance for about 120 ms**: a headless test that reads a rect or an opacity, or hovers a row, right after
   opening sees the 0.97 scale and the fade. Run 30 frames first.
 
-
 ## Component 3, piece H (failure card and retry bar)
 
 - **No hover border colour.** A pill whose border turns to the accent on hover is a 1px ring (`fill(border)`, `hover(accent)`) around the pill's own fill.
 - **`rich` text takes links**: `Span` for the look, `Link::new(range, id)` for the press, `on_link` with `tx.open_url` to open it. Give a text in a `scroll` box `w_full` or it won't wrap at the box.
 - **`ureq` treats a 404 or 500 as an error** unless the agent is built with `http_status_as_error(false)`; the retry calls need the status itself.
 - **A countdown redraws through the row's `memo` key**: put the tick's bucket (`now / tick`) in it and have `poll` compare the bucket and `wake_after` the next tick; no timer in the view.
-
 
 ## Component 3, piece I (working line and interrupted card)
 
@@ -485,7 +480,6 @@ Nothing in Rune was needed: this piece is plain Rust. Two things for whoever bui
 - **`Tx::scroll_center(key)` reveals a `virtual_rows` row that isn't built**, by the key the key closure returned. The `.key()` of the element inside the row (`msg-<id>`) is found only once the row is built. A glide across 1,700 rows takes about three seconds in a headless run.
 - **`El::outline(width, offset, color)` draws Fleet's `outline` + `outline-offset`**, but has no motion, so the jumped-to ring (`--shown`) ends hard where Fleet fades it over 400 ms. **`El::raise()` is a flag, not a hover state**: a hovered message can't come forward over the next one.
 - **Prepending to a `virtual_rows` list keeps the reader's rows where they were** (test `keeps_the_reading_position_when_they_arrive_above`: ten rows added above, the row at 300 pt is still at 300 pt), so the "remember the height, put the offset back" step of `use-stream-scroll.ts` isn't ported.
-
 
 ## Component 3, piece K (background strip)
 
@@ -514,8 +508,6 @@ Nothing in Rune was needed: this piece is plain Rust. Two things for whoever bui
 - **A request that comes back later is tied to the opening that asked** (`Reader::epoch`): close and open again, and the old answer finds a different epoch and is dropped. A timer is a `next_at` the strip's `poll` checks, with `tx.wake_after` to wake it; closing the panel removes the reader, which stops it.
 - **`gen` is a reserved word in this edition**; a field or argument called `gen` doesn't compile.
 - **No `shrink0` and no `max_w` that subtracts a margin**: a panel indented by `ml` takes the column's width without `w_full`.
-
-
 
 ## Component 5, piece H (the ring's popover)
 
@@ -549,7 +541,6 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 - **Positions are byte offsets on character boundaries**, as the text edit's caret is; Fleet's are UTF-16 indices. Slice with them only after the caret is known to be on a boundary.
 - **`Autocomplete::on_key` is a pure function of the text, caret and lists**; it returns an `Edit` and a `KeyOutcome` (`consumed`, `stop`, `swallowed`). The view applies the edit, sets the caret now and again on the next tick, and calls `poll` after the lists, text or caret change.
 
-
 ## Component 3, piece M (sub-agent rows and background notices)
 
 - **A memo key tuple stops at 12 elements** (`Hash` is only implemented that far): nest the newest keys in a sub-tuple.
@@ -580,7 +571,6 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 - **A view can't start work, so it leaves a want in a `RefCell`** that `poll` drains (`Images::want`); the row's memo key has to include the picture's state or the row never redraws when it arrives.
 - **A full-window overlay is a `col().absolute(0,0).w_full().h_full()` with `.modal(false, close)`** and its own `on_press(close)`; the picture inside takes an empty `on_press` so a press on it doesn't reach the scrim. `on_layout` on that frame is the only way to know the window's size (the lightbox's 90%).
 - **Focus can't be read headless**: after `autofocus` on a modal's button, Space and Enter pressed nothing in a `Runtime`, so "focus lands on the close button / returns to the thumbnail" is unverified by tests.
-
 
 ## Component 5, piece M (history, shell mode, `/btw`)
 
@@ -620,7 +610,6 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 - Tests that write files must not share a folder by name: tests run side by side in one process, so two tests writing `build-output.log` under the same folder delete each other's file. A counter in the folder name fixes it.
 - A body that isn't JSON needs `ureq`'s `send(Vec<u8>)` with the `content-type` set by hand, and `http_status_as_error(false)` to read the server's reason from a 4xx.
 
-
 ## Component 3, piece Q (find marks)
 
 - **`Markdown::highlights(markdown::find(src, query, Case::Insensitive))` marks the drawn text** across bold, code, lists, tables and code blocks with no layout change; the colours are `MarkdownStyle::highlight_*` and `highlight_current_*` (set the ring to `None` for Fleet's look), and `Highlight::current().key(k)` makes the current mark reachable by `tx.scroll_center(k)`.
@@ -654,7 +643,6 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 
 - Nothing new about Rune. A scripted run (`--script`) steps a virtual clock one frame at a time (about 0.4 s of wall time per frame on a software renderer), while the app's own threads and `Instant` timers run in wall time. To change the server in the middle of a run, work out the wall time of the mark first (here 24 s of script took about 240 s) and change the server about 60 % of the way.
 - A scene or test that gives the open session another id must also move the route: `State::set_session_id`.
-
 
 ## Session list, piece D (chips, progress, the ring)
 
@@ -706,7 +694,6 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 - A `Span` can be underlined, but only for a whole run, not on hover, so "Permission settings" changes no more than colour.
 - A fake model that writes a path takes it from its own `HOME`: start the scripted model with an invented `HOME`, or
   the picture of Fleet's card shows the machine's home folder.
-
 
 ## Session list, piece F (settings file, project header)
 
@@ -782,7 +769,6 @@ Nothing of Rune is used by this piece: it is plain Rust. What it settles for K a
 
 - **Nothing here needed Rune.** `State` already had a `draft` (the composer's text), so the page's draft is `State::new_draft`.
 - **One settings file, one writer**: remembered choices went into `settings::Sidebar` rather than a second file, so the existing ordered, whole-file write covers them.
-
 
 ## Component 4, piece E (the Allowed chip and list)
 
@@ -888,7 +874,6 @@ Nothing new about Rune. `Open` is `Copy`, so a menu on another machine's row can
 
 A context-menu row's label is one text run, so a machine's name in the mono face needs its own run: `ui::menu::Item::with_name` draws the label as two texts in a row, the second one truncating (`min_w(0.0)`), which gives Fleet's one-line, cut-short label. A key on the `context` panel's items is `<key>-item<n>` where `n` counts separators too.
 
-
 ## New session, piece H (the folder menu's clone view)
 
 - `text_input` has no read-only mode (only an `aria-readonly` flag on any element). Fleet's repository box is read-only
@@ -908,7 +893,6 @@ A context-menu row's label is one text run, so a machine's name in the mono face
   CSS's `min-width: 24px` would let it spill.
 - **`group_opacity(0, 1)` needs a `hover_group()` ancestor** (here the directory row); a button inside it that is itself a `hover_group()`
   is fine, as the message's copy button shows.
-
 
 ## A tooltip with its own delay and width (component 17, piece H)
 
@@ -973,7 +957,6 @@ A context-menu row's label is one text run, so a machine's name in the mono face
 - A `TextEdit` handed to a dialog's field needs `set_selection(0, len)` for the browser's "autofocused text is selected"; focus
   itself is `tx.focus(key, false)` on open.
 
-
 ## Component 7, piece L (the message box and sending)
 
 - **A text input is edited through a `&mut TextEdit` the element is given, so a copy of its text elsewhere (the draft's `message`) has to be reconciled by `poll`.**
@@ -1024,8 +1007,6 @@ A context-menu row's label is one text run, so a machine's name in the mono face
 - **A state-style test can read `ElementInfo.text_color` and `.fill` from `rt.elements()`** (no GPU needed), and `parent` to reach an icon's colour inside a button. Hover the pointer, focus, pick and open a row, and compare what lineage draws with its colour at rest: that is the muted rule's test (`tests_lineage.rs`).
 - **Two quick clicks on one row in a test are a double press**, which starts the rename. Click a different row between them.
 - **`children(Option<El>)`** adds an element only when there is one; there is no `child_if`.
-
-
 
 ## Component 7, piece O (the setup rows)
 
@@ -1169,7 +1150,6 @@ Put the machine and the project in the key (`drop-mproject-<machine>~<project>`,
 the same path (`machine-session-<machine>-<id>`). Check the dragged row's machine against the target's machine when the drag moves: nothing
 in Rune stops a drop in the wrong tree. Nothing in Rune got in the way otherwise.
 
-
 ## Component 9, piece E (row actions, the filter, another machine)
 
 - **A hover-only strip beside a row**: put the row and the strip in a shell with `hover_group()`, pin the strip over the row's right
@@ -1180,7 +1160,6 @@ in Rune stops a drop in the wrong tree. Nothing in Rune got in the way otherwise
   Run the button's own action from `rt.update` and check the key exists, or draw the scene taller.
 - **Hover in a script**: `scroll` with `"dy": 0` on a key, or `move` with a point, leaves the pointer over an element for a picture;
   `secondary-click` on a key opens a right-click menu.
-
 
 ## Component 9, piece H (the running-work counter)
 
@@ -1284,7 +1263,6 @@ in Rune stops a drop in the wrong tree. Nothing in Rune got in the way otherwise
 - **`Color` is linear light**, so a hex colour can't be got back from a `Color` by rounding its fields. Where Fleet's own rules need hex (the contrast lift), keep the hex strings and convert once with `rune::color::hex`; `Theme::code_grounds` holds the surfaces as the same literals `Theme::of` uses, and a test checks they agree.
 - **A view can't be handed a computed theme by `Theme::of` alone** when part of it depends on `State`: `view::root` builds the theme and `State::with_code_theme` adds the chosen colours, caching the lift in a `RefCell` on `State` because views get `&State`.
 
-
 ## Component 9, piece M (chips, settling, the lift, Remembered)
 
 - **A change made by `Runtime::update` or by `poll` skips the exit transition**; only an input handler's change plays it. Fleet's card
@@ -1380,7 +1358,6 @@ Plain Rust, no view, so nothing new about Rune. For the next piece that draws th
 - **Enter in a single-line field** is `.on_submit`, as for a text area; a test clicks the field, then sends `Key::Text`, then `Key::Enter`.
 - **`El` has no `.p(..)`**: all-round padding is `.padding(..)`.
 
-
 ## Component 16, piece R (Dreaming's panel)
 
 - **Strikethrough** is `El::strikes([(start, end, None)])` over byte ranges of a `text` (or `rich`); with `.opacity(0.7)` it draws Fleet's `line-through opacity-70` replaced note, wrapped lines included.
@@ -1394,13 +1371,11 @@ Plain Rust, no view, so nothing new about Rune. For the next piece that draws th
   buttons into lines itself (`action_lines`, by estimated width: 6 px a letter plus 20 px of padding and a 6 px gap) and draws one row a line.
   The estimate agreed with Fleet's own wrap for these three labels; a long label could break a line early or late.
 
-
 ## Component 16, piece AB (Folders: Worktrees)
 
 - **A test window that fits a long page**: `App::new(spec()).headless_runtime((1280.0, 1900.0), Env::new(true, 1.0))`, then `frame(0.0)` and `frame(FRAME)`. In the usual 760-high window a control below the fold is never hit by `click`.
 - **Rich text with a monospace run** is `rich(body, vec![Span::new(a, b).mono().size(..)])`.
 - **No hover border**: `.hover(c)` is a fill only, so Fleet's `hover:border-accent/45` on the token chips isn't drawn.
-
 
 ### Component 9, piece W (the sweep)
 
@@ -1414,14 +1389,12 @@ Plain Rust, no view, so nothing new about Rune. For the next piece that draws th
 - **One-sided borders** are `border_sides([top, right, bottom, left], colour).border_layout()` (the rules between the preview's rows).
 - **A snapshot doesn't scroll to an anchor** (`--snap` takes the first frames), so a scene of a card below the fold uses a tall `--size`.
 
-
 ## Component 16, piece I (the code box)
 
 - **No code editor, so the box is a mono multi-line `text_input` in a scroll with a column of numbers beside it** (`ui::code_box`). The text wraps (`text_input` always wraps; there is no unwrapped multi-line field), so the numbers go by lines of the text and the ones under a wrapped line sit a row too high. No colours while typing, no bracket matching or closing.
 - **`on_input_key` sees Ctrl/⌘ S and Tab before the field**: returning true keeps Tab from leaving the field, so Tab can insert two spaces with `TextEdit::insert`.
 - **The caret's line is `TextEdit::focus` (a byte offset) counted in `\n`s**; the box needs no layout for its active line number.
 - **A test must let the page settle before it presses a button in a row that just opened**: after the press that opens an editor, the layout moves for a few frames and `rt.find` gives a place the pointer doesn't hit yet (`element_at` named the page, not the button). Run ~30 frames, and give the headless window `set_viewport((1280, 2600), 1.0)` so the editor's buttons are in view.
-
 
 ## Component 16, piece S (Dreaming: the nightly row and notice)
 
@@ -1443,8 +1416,6 @@ Plain Rust, no view, so nothing new about Rune. For the next piece that draws th
 - **A started `Link` reads home's machines at once**, so a test that seeds `machines` and then sets `s.link` is overwritten by the fake's answer. Wait for the first read to land (`machines.list` empty), then seed again.
 - **A choice that is disabled while it saves is ignored when a test clicks it before the answer is handled**: wait for the saving flag to clear before the next click.
 
-
-
 ## Component 16, piece J (Harnesses: Install panel, Copilot path, update strip)
 
 - **A wrapping row's text needs `.shrink().min_w(0.0)`**: a long message in a `flex_wrap` row with buttons beside it otherwise keeps its full width and runs under them; a mono command box in a card needs the same on the box or it overflows the card.
@@ -1456,7 +1427,6 @@ Plain Rust, no view, so nothing new about Rune. For the next piece that draws th
 - **No margin-left:auto**: a right-pushed item in a wrapping row is a `el().grow(1.0)` sibling before it.
 - **A first-run dialog makes the page inert in a test**: with no harness on, `harness-setup-overlay` covers the window and a click does nothing; close it (`harness_setup.close()`) before pressing in the page.
 - **Text keys**: a test reads a text with `text_of(key)` only when the key is on the text element itself, not on its row.
-
 
 ## Component 16, piece O (What agents can do: the Browser group)
 
@@ -1542,13 +1512,11 @@ Nothing about Rune: plain Rust. One thing for the pieces that draw it: word mark
 - **No whole-text select on press** (`user-select: all` on the fix command): the command is `selectable(true)`, so a drag or double-click selects it, but one click does not select it all. Copy command is the way to take it whole.
 - **A margin on a full-width element overflows its parent**: Fleet's `m-3` on the error note is a wrapper with padding around a `w_full` note; `mx`/`my` on the note itself pushed it past the panel's right edge.
 
-
 ## Component 10, piece J (the Turns tab)
 
 - **A container query** is `on_layout` writing the width into `State` (`turns_tab.width`) and the view reading it, so the 300 px rule lands one frame late, as elsewhere.
 - **A row that wraps and pushes one child right** (`margin-left: auto` in a wrapping flex row) has no equivalent: a `grow(1.0)` spacer takes the free space on a line, but when the totals wrap to a second line they sit at the left, where Fleet's sit at the right of their line only while they fit beside the others.
 - **A diff opening under a click**: the list lays out a frame after a diff opens, so a test that clicks the next row needs two frames first.
-
 
 ## Component 14, piece A (a web view over a page tab)
 
@@ -1588,7 +1556,6 @@ What the app's own host stands on, at `f1f54ce` (the research spike's findings h
 - **A grid with a sub line across columns 2 and 3** (`8px 1fr auto`) is two rows here: the first line holds the mark, name and state word, the second is indented 18 px. The state word sits on the first line, as in Fleet.
 - **A glyph wider than its box** (the 12 px check in the 8 px mark column) is a 12 px box with margin -2 on each side; negative margins work in a row.
 - **A box that is `w_full` with a left margin** overflows its parent (as in 12D): put it in a `w_full` row with `pl` and let the box `grow(1.0)`.
-
 
 ## Component 14, piece B (the page bridge and the theme)
 
@@ -1658,7 +1625,6 @@ Nothing in Rune was needed.
 - **A keyed element reports no rect until laid out**: read as "might be over the page" (hide) rather than "not".
 - WebKitGTK: a view is black until it first paints; keep it out of the window until `PageLoadEvent::Finished` (6 s cap). `GDK_SCALE` is a whole number, so on X11 at 1.5× the view is placed at 2× positions.
 
-
 ## Component 14, piece G (app runs)
 
 - Nothing new about Rune: plain Rust over `Link::off_thread`. The one thing worth knowing is that a request must record the store's event clock when it is *asked* (on the UI thread), not when its thread starts, or a late answer can undo an event that came in between.
@@ -1677,7 +1643,8 @@ Nothing in Rune was needed.
   section's top out from heights you know. Return true from `poll` only when the set that matters changed: returning true on every
   frame of a scroll prints Rune's "committed the view on N of N frames" warning.
 - In headless tests `rt.wheel(x, y, dy)` with a **negative** `dy` scrolls further down; `ScrollPos` is `#[non_exhaustive]`, so a test
-  can't build one and has to scroll for real.
+  can't write it as a literal, but it derives `Default` and its fields are public: `let mut at = ScrollPos::default(); at.offset = ..`
+  builds one (`fleet::tests::history::reading`).
 
 ## Component 14, piece F (page cards and full size)
 
@@ -1769,7 +1736,6 @@ Read at the pin while planning; nothing built yet.
 - **A test drags with `pointer_down`/`pointer_move`/`pointer_up` on rects from `rt.elements()`** in the tall window; the drag must end inside a text (the right padding of a line's text element is part of its rect, so stay 18 points in from its right edge).
 - **A script's `drag` on a text's key** (`dx`, `dy`) selects from its centre, enough for a picture.
 
-
 ## Component 14, piece J (Open a browser tab, Agent's view)
 
 - **`ui::dialog::Dialog` had a fixed 32 rem width**; a `sm:max-w-md` window (28 rem) needs the new `width` field.
@@ -1781,7 +1747,6 @@ Read at the pin while planning; nothing built yet.
 
 - Nothing new about Rune: the piece is plain Rust with no view. One thing learned for the pieces after it: a file's text is kept as its lines (split on the file's own break), because Rune's text elements take lines and a buffer then needs no second copy; positions in `minimal_change` count chars, not CodeMirror's UTF-16 units.
 - A test that drives a `State` over a fake server prints Rune's debug-build "memo(..) replaced its root's key" warning once; `RUNE_PERF_WARN=0` silences it.
-
 
 ## Component 13, piece D (the drawer)
 
@@ -1795,7 +1760,6 @@ Read at the pin while planning; nothing built yet.
 - **`tx.scroll_into_view_in(scroll_key, card_key)`** needs the card drawn first, so a request that also opens and marks a file near does the scroll one poll later (`wake_after` 16 ms); it brings the card into view, it doesn't pin its top to the scroll box's.
 - **A script's `tap` is the only pointer event** (no `move`): to show a header's hover actions, tap one of them that changes nothing.
 
-
 ## Component 11, piece C (keeping open files in step)
 
 - **`App::on_focus` is the window-focus event**: it fires when the window gets or loses the keyboard, so Fleet's `window` `focus` listener is one line there (`if focused { s.file_window_focus() }`).
@@ -1808,7 +1772,6 @@ Read at the pin while planning; nothing built yet.
 - **A press then a double-press** reach `on_press_tx` and then `on_double_press_tx` in that order on the second click, so a single click's wait is a deadline kept in `State` and checked in `poll` (`keep_files_tab`, with `tx.wake_after`), and the double-press just drops it. No thread is needed, and an invented session (no link) works the same.
 - **No way to change a fill on focus-within**: `focus_within_ring` draws the ring but the field keeps its resting fill, where CSS `:focus-within` swaps it for transparent.
 - **A vertical scroll box is `.scroll(ScrollSpec { stick_bottom: false })`**; there is no `scroll_y`.
-
 
 ## Component 12, piece N (the annotation popover)
 
@@ -1826,7 +1789,6 @@ Read at the pin while planning; nothing built yet.
 - **`scroll_display` damages the whole screen**, so the row cache needs nothing extra.
 - A test that waits for the app to react to a focus change must wait with the runtime driving frames (`Live::wait`), not a bare `until_true`.
 
-
 ## Component 13, piece F (selection, copy, paste, the bubble)
 
 - **`rt.wheel` only drives scroll views; an `on_wheel` handler is reached with `rt.wheel_xy(x, y, dx, dy)`.** A notch arrives as `precise: false`.
@@ -1840,7 +1802,6 @@ Read at the pin while planning; nothing built yet.
 - A one-line bottom rule on a row is `.border_sides([0.0, 0.0, 1.0, 0.0], c).border_layout()` (top, right, bottom, left); without `border_layout` it takes no room.
 - A debounce that waits for the clock needs a `tx.wake_after` for the remaining time, or a quiet window never draws the answer.
 
-
 ## Component 12, piece O (find in files, the logic)
 
 - **Nothing new from Rune.** A debounce is the app's own clock plus `tx.wake_after`, as Find in Changes does; a test runs it by drawing frames until `State.clock` has passed the pause, and waits for the request with `test_wait::drive` before it counts requests.
@@ -1852,7 +1813,6 @@ Read at the pin while planning; nothing built yet.
 - **A tab scrolled out of a `scroll_x` strip is still found by key, but a click on it lands on what is drawn there** (in a live script it hit the title's "..." menu). Widen the window or the panel before tapping a far tab; in a test, activate the tab through state, let the strip scroll to it, then click its pin.
 - **A new tab slides in for 240 ms**: run about 30 frames before clicking it in a test.
 - A child's `on_press_tx` (the pin, the close button) doesn't reach the tab's own press, so no `stopPropagation` is needed.
-
 
 ## Component 12, piece Q (the sweep)
 
@@ -1883,7 +1843,6 @@ Read at the pin while planning; nothing built yet.
 - **`SyntaxTheme::spans` sets no italic or underline**, only colour and weight; the viewer builds its own `Span`s from the
   highlights to italicise comments and underline links as Fleet's theme does.
 
-
 ## Component 13, piece G (cells, the cursor, links)
 
 - **`GridRow::shape` draws in the row's own points from its top-left corner**, one point a pixel at 1×: a 1 px line centred at `x + 3.5` in a 7 px cell is crisp, a 3 px heavy line centred there is too. Edges of block fills are rounded to whole points so neighbours meet.
@@ -1892,13 +1851,11 @@ Read at the pin while planning; nothing built yet.
 - **Rune's `Runtime::take_url_requests()` returns what `tx.open_url` asked for in a test.**
 - A blink is the app's clock plus `tx.wake_after` for the time left in the half period; alacritty's default cursor style must be set to blinking in its `Config` (`default_cursor_style`) or a cursor the program never set is steady.
 
-
 ## Component 11, piece H (Wrap)
 
 - **No negative text indent**: a hanging indent is a fixed-width empty column beside a `wrap_anywhere()` text in a row (`grow`, `shrink`, `min_w(0.0)`); the indent is then not part of a copy.
 - **`virtual_rows` takes rows of different heights**: unvisited rows use the estimate and a measured row keeps its height by key. A row whose height depends on a setting (wrap) needs a different key when the setting changes (`code-line-3w`), or unmounted rows keep the old height.
 - **An element's fill fades**: `ElementInfo.fill` reads a pressed toggle's colour only after about thirty frames in a test.
-
 
 ## Component 11, piece I (images and Rendered)
 
@@ -1913,8 +1870,6 @@ Read at the pin while planning; nothing built yet.
 - **`El::ime_cursor` on an element over the drawn cursor** turns the input method on for it; `App::on_ime` hears `Ime::Commit` (plain typing still arrives as keys). `Runtime::ime(Ime::Commit(..))` drives it in a test. The preedit has to be drawn by the app.
 - **alacritty_terminal has no mode 9 (X10)**: its parser keeps 1000, 1002, 1003 (and 1005, 1006, 1004, 1007) only.
 - A script's key step takes `"ctrl": true` with `"name": "c"`, not `"Ctrl+C"`.
-
-
 
 ## Component 11, piece L (Go to file)
 
@@ -1987,7 +1942,6 @@ Same recipe as Changes' Rendered view: a `selection_group(true)` column with `on
 - **Rune's `select::content` has no group labels and no rows you can't choose**, so Fleet's "Repository" label over the repositories and "Loading repositories…" in the "Install to" list can't be drawn without changing `ui/select.rs`; the list shows Global and the repositories only.
 - **A button that appears (Cancel beside Confirm remove) slides in**, and `tests::click` presses where it is drawn that frame: run a few frames before clicking it, or the press lands off to the side.
 - **A flex child that holds wrapping text needs `.w(0.0).grow(1.0).min_w(0.0)`** beside a fixed-width group of buttons; `.shrink()` alone let the buttons run past the card in a narrow window.
-
 
 ## Component 16, piece Y (the Weave group)
 
@@ -2078,14 +2032,11 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **`border_sides` is `[top, left, bottom, right]`** (a divider above a row is `[1.0, 0.0, 0.0, 0.0]`).
 - **`TextEdit::secure()` fits a token box**: bullets, `[redacted]` in `Debug`; keep it out of a state's own `Debug` anyway.
 
-
-
 ## Component 16, piece AI (Tools: Installed and Catalog)
 
 - **A cargo test build can pass 4000 M**: with the default job count the test build of this crate was OOM-killed twice in a 4000 M scope (exit 143, "Terminated", no error text; `journalctl --user` says `oom-kill`). `cargo test -j1` fits.
 - **A page that mirrors another keeps its own state struct**: Tools has `ToolsPage` beside `SkillsPage`, because Fleet unmounts the Tools section (and its install target) when you leave the tab; the shared picker takes the page by `Kind`.
 - **A test that presses two buttons in a row needs a frame between reading**: after `click` on a second card's Remove, `settle()` before reading the first card's label, or it still reads the old one.
-
 
 ## Component 16, piece AK (Built-in skills page)
 
@@ -2096,7 +2047,6 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **A form's submit button far down the page is missed by a 760-high test window**: `click` hits nothing below the viewport. Open the rig with `app_tall()` (`rig_in`).
 - **`El` text read by key still includes children that are fading out** after a switch (the old form's examples); ask `exists` of the key of what should be gone instead.
 - **The test build was OOM-killed at 4000M even with `-j1` once the lib grew**; 5200M with `-j1` passed.
-
 
 ## Component 16, piece AM (Mods tab)
 
@@ -2149,7 +2099,6 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **A selection past a line's end** is not a `TextHighlight`'s to paint (it covers the text's own bytes): the line gets one trailing space in
   the drawn text and the highlight runs over it.
 - **No hover border** again: Save's border turning to `--accent` is a 1 px `--border` ring with the hover fill `--accent` round the button.
-
 
 ## Component 24, piece B (the start pages)
 
@@ -2213,7 +2162,6 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **The window's size** for a `max-width` media query or a `vh` is `s.ui.sel.window`, set by the frame's `on_layout`; a test makes a runtime of that size with `headless_runtime((w, h), …)`.
 - **`State` size again (Windows web walk, 20 November 2026):** `SideView` (a `Session` and a fold plan) added to `State` overflowed the 1 MB main stack at start, as the API keys page did. It is `Box`ed in `State`; Linux and macOS never showed it. Box any field holding a `Session`.
 
-
 ## Component 24, piece G (the window's place, one instance)
 
 - **No event for a move or resize.** An app that wants to remember its window reads `WindowHandle::placement()` itself. An idle Rune app isn't polled, so a window the person moves wakes nothing: the poll must ask `tx.wake_after` for its next look, or a move is only seen when something else draws. Here that is a wake every 250 ms while a window exists (headless runs have no handle and ask for nothing).
@@ -2254,7 +2202,6 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **The link listens to a topic on behalf of a component, with its own hand-over:** `Cmd::WatchSide` marks the topic (`Topics::mark_side`) so the read loop sends its snapshot and events to `State::on_side_snapshot` / `on_side_events` instead of dropping them (a watched topic's snapshot was only recorded) or dispatching them to subscribers. A reconnect subscribes every topic again, so the side's new snapshot replaces its stream.
 - **The test build now needs more than 4000 M** to link and compile the library's tests (the kernel OOM killer took cargo at 3.9 G peak, 20 November 2026, with no message but exit 143): 5500 M passed on this machine.
 - **A fake server that matches `/side` in the path** also catches `/api/sessions/side-1/permissions`; the fake answers `/permissions` first.
-
 
 ## Component 24, piece H (menus)
 
@@ -2311,7 +2258,6 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **Debug test builds of this crate no longer fit in 4000M** (the kernel killed the compile at 3.9 GB on 20 November 2026): the test build needs `MemoryMax=5500M`.
 - **Windows' main thread has 1 MB of stack and a debug build of the app comes close to it**: the web-view walk's start overflowed it ("thread 'main' has overflowed its stack", exit 127) on one pull request that only grew `State`, and on `main` once. `build.rs` links the binary with `/STACK:8388608` on MSVC targets (8 MB, as macOS and Linux have). Not checked on a Windows machine by hand; the CI run is the check.
 
-
 ## Component 24, piece J (the sweep)
 
 - **A window can be closed without a window manager** by sending it what one sends: a `ClientMessage` `WM_PROTOCOLS` with `WM_DELETE_WINDOW` (a few lines of Python `ctypes` over `libX11`; `xdotool windowclose` destroys the window instead, and `windowquit` needs a manager). Rune treats it as the close button: `on_close` runs and `keep_running` works. That is how the hide-to-tray path is driven on the virtual display.
@@ -2337,7 +2283,6 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 
 - **Nothing new about Rune:** the piece is plain Rust over `Link::off_thread`. Two Rust points: a `static` empty store (what `automations_of` hands out before anything asked) needs `Sync`, which a `Vec<Box<dyn FnOnce + Send>>` isn't, so the waiters of a load in flight sit in a `Mutex` (read with `get_mut`, no locking); and the test build needed `-j1` again under `MemoryMax=4000M` (two rustc at about 2 GB each were OOM-killed, the scope reporting "Terminated").
 
-
 ## Component 11, piece V (the sweep)
 
 - **A live walk of editing needs a wait after every step that loads text** (11V). Keys sent to a code view before its file has been read go
@@ -2352,3 +2297,18 @@ whole-file work that piece R can make incremental (colour from the edited line, 
   leaving; `rune::text::measure` sizes the axis labels in the running app (not in a headless test: no fonts there).
 - **A scripted tap leaves the rail's tooltip up** in a `--snap`: add `{"type": "move", "x": …, "y": …}` after it to
   move the pointer off before the picture.
+
+## Windows test failure: the first ask for older history (history.rs)
+
+- **The scroll reading `poll` sees after an update from another thread is of the old layout.** `AppHandle::update` (and a test's
+  `rt.update`) runs outside any frame; the next frame runs `poll` first and lays out after, so that `poll` still reads what
+  `on_scroll_offset` said about the box before the change. Whether that old reading was the empty box or the session left depended on
+  whether a frame was drawn while the snapshot was on its way, and the first ask for older history went by it. The reading now carries
+  the `State::scroll_layout` the view was built with, and `keep_scroll` skips readings from before the open conversation's first
+  snapshot. That works because `on_scroll_offset` is called in every frame whose commit gives the box a new handler, so the first frame
+  that draws the new view reports the box even when nothing moved. Smallest case: a scroll box with `on_scroll_offset` writing a
+  `Cell`, an `rt.update` that replaces its content, then `rt.frame`: in that frame's `poll` the `Cell` still holds the old content's
+  reading.
+- **Text heights can differ between systems**, because Rune reads the system's fonts for code and for fallbacks. A test that needs to
+  land within some number of pixels of a threshold should leave room: the hub test's conversation overflowed a 760 px window by 99 px
+  here, against a 100 px threshold.
