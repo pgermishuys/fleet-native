@@ -149,6 +149,7 @@ pub mod setup_terminal;
 pub mod side;
 pub mod side_http;
 pub mod side_stream;
+pub mod side_tab;
 pub mod side_view;
 pub mod sign_in;
 pub mod signalr;

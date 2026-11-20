@@ -109,35 +109,35 @@ dark only, so the light native picture is the `composer-side-typed-light` scene)
 
 | # | Fleet | Source | Native |
 |---|---|---|---|
-| 4.1 | Minimize folds the card away where it stands: grid rows 1fr → 0fr over 280 ms ease-out; the tab takes its place | SCP `__fold` | Done (piece B): the card keeps its size and its box shrinks to nothing over 280 ms, ease-out, from the app's clock (`side_open_share`; test "the fold runs over 280 ms"); the tab that takes its place is piece D's |
+| 4.1 | Minimize folds the card away where it stands: grid rows 1fr → 0fr over 280 ms ease-out; the tab takes its place | SCP `__fold` | Done (pieces B, D): the card keeps its size and its box shrinks to nothing over 280 ms, ease-out, from the app's clock (`side_open_share`; test "the fold runs over 280 ms"); the tab takes its place (piece D). One found folded when it loads has no card to fold (Fleet draws nothing until the load is done), and the fold runs a little past its end so the frame that draws it settled is not skipped (test "the fold settles to nothing on a drawn frame") |
 | 4.2 | Saved on the server at once (`PUT /api/sessions/{id}/side/minimized {minimized}`), shown before the answer; the answer replaces `side` (keeping the local `seenAnswerId`) when it's still the same side; a refusal sets the error "The side conversation couldn't be minimized/opened (HTTP n)." | USC `setMinimized` | Done (piece A): `State::set_side_minimized`, shown at once, the answer replaces the side keeping the local seen id, the refusal texts |
 | 4.3 | Opening it: the unread pulse stops; the newest answer (when not working) is marked seen (`PUT /side/seen {answerId}`, local first, the server's failure ignored) | USC `setMinimized`, `markSeen` | Done (piece A): opening stops the pulse and marks the newest finished answer seen (`PUT /side/seen`, the failure ignored) |
 | 4.4 | Ctrl+/ (⌘/ on a Mac; no Alt, no Shift) toggles minimized when there is a side conversation, anywhere in the window except inside a code editor (where it comments a line); it is then consumed. Without a side conversation it is left alone | SCP `handleKeydown` | Done (piece B): `State::side_key`, consumed with a side conversation (folded or not), left alone without one, with Alt or Shift, or while the code editor has the keyboard (tests "Ctrl+/ folds it and opens it again", "leaves Ctrl+/ alone without a side conversation", "…inside a code editor is left alone") |
-| 4.5 | Folding keeps where the stream was scrolled (top, and whether within 80 px of the end); opening puts it back, at the end if it was there (a new answer is), and focuses the composer | SCP `watch(minimized)` | Focus half done (piece B): opening puts the caret in the composer (test "Ctrl+/ folds it…"). Scroll position half open: the stream stays mounted while folded, but a conversation long enough to scroll is piece C's to check |
+| 4.5 | Folding keeps where the stream was scrolled (top, and whether within 80 px of the end); opening puts it back, at the end if it was there (a new answer is), and focuses the composer | SCP `watch(minimized)` | Focus half done (piece B): opening puts the caret in the composer (test "Ctrl+/ folds it…"). Scroll half: the stream stays built at its size inside the fold box, so its scroll position is never touched (by construction, no test of its own; the pictures' answers are shorter than the card) |
 | 4.6 | Opening and minimizing swap the composer's draft (component 5's row 9.6) and its mode (side mode only while open) | CO 335–350 | Done by component 5, needs `side_id`/`side_open` set (piece A) |
 
 ### 5. The tab (minimized)
 
 | # | Fleet | Source | Native |
 |---|---|---|---|
-| 5.1 | Wrap: relative, z 2, `max-width: 760px`, centred, margin-bottom −5 (it sits over the composer's top border) | SCP `.side-tab-wrap` | None |
-| 5.2 | Tab: inline row, gap 4, `max-width: min(100%, 520px)`, margin-left 14, padding `3px 4px 5px 10px`, border 1px accent-45 % mix, no bottom border, radius `10 10 0 0`, `--card-bg`, 12px; enters over 260 ms (from opacity 0, 8 px down, scaleY .6, from its bottom left) | SCP `.side-tab` | None |
-| 5.3 | The open button: gap 7, the icon and "btw" as in the header, the question (500, ellipsis), the state; label "Open the side conversation: <title>"; click opens | SCP `.side-tab__open` | None |
-| 5.4 | The state, `--muted`, preceded by "·" when not empty: **Thinking** with three 4 px dots blinking (1.2 s, .2 s apart, opacity .25↔1) while working; else **New answer** with a 7 px `--accent` dot when unread; else **Answered** when there is an answer; else nothing | SCP `.side-tab__state`, USC `unread` | None |
-| 5.5 | Unread: minimized, the stream has reported, not working, there is an answer, and its id isn't the side's `seenAnswerId` | USC `unread` | Done (piece A): `SideState::unread` |
-| 5.6 | The dot pulses (a ring growing to 7 px, 1.6 s, twice) only for an answer that landed on this page while folded (it was working, or the answer id changed, after the first report); not for one found after a restart | USC `pulse`, `reportProgress` | Done (piece A): `SideState::pulse`, `report_progress` |
+| 5.1 | Wrap: relative, z 2, `max-width: 760px`, centred, margin-bottom −5 (it sits over the composer's top border) | SCP `.side-tab-wrap` | Done (piece D): `side-tab-wrap`, the column's width at most 760, 5 px over the composer (`mb(-5)`), painted above it (`paint_order(2)`, the composer comes after it in the column); a zero-high `side-peek-anchor` is always its first child so the tab keeps its place in the tree when the peek comes and goes (see `docs/RUNE.md`) |
+| 5.2 | Tab: inline row, gap 4, `max-width: min(100%, 520px)`, margin-left 14, padding `3px 4px 5px 10px`, border 1px accent-45 % mix, no bottom border, radius `10 10 0 0`, `--card-bg`, 12px; enters over 260 ms (from opacity 0, 8 px down, scaleY .6, from its bottom left) | SCP `.side-tab` | Done (piece D): `side-tab` at 31 high, `max-width` 520, 14 in, padding `3 4 5 10`, border `accent_border(45)`, `card_bg`, top corners 10 and no bottom edge (Rune has no per-corner paint radius: it is drawn with all four and the bottom cut off). Enters over 260 ms from opacity 0, 8 px down, from its bottom left; the scale is uniform 60 % to 100 % (Rune's `scale` is not per axis, Fleet's is `scaleY`), tests "the tab enters over 260 ms" |
+| 5.3 | The open button: gap 7, the icon and "btw" as in the header, the question (500, ellipsis), the state; label "Open the side conversation: <title>"; click opens | SCP `.side-tab__open` | Done (piece D): `side-open`, label "Open the side conversation: <title>", click opens (test "minimizes into a tab and opens from it"; live: clicks open it and the server keeps it) |
+| 5.4 | The state, `--muted`, preceded by "·" when not empty: **Thinking** with three 4 px dots blinking (1.2 s, .2 s apart, opacity .25↔1) while working; else **New answer** with a 7 px `--accent` dot when unread; else **Answered** when there is an answer; else nothing | SCP `.side-tab__state`, USC `unread` | Done (piece D): "·", then Thinking with three 4 px dots blinking from the clock (`dot_opacity`), or New answer with its 7 px accent dot, or Answered, or nothing (tests "the tab says Thinking then New answer…", "the dots blink a fifth of a second apart", "says nothing for a tab with no answer") |
+| 5.5 | Unread: minimized, the stream has reported, not working, there is an answer, and its id isn't the side's `seenAnswerId` | USC `unread` | Done (pieces A, D): `SideState::unread`; the tab draws it as New answer |
+| 5.6 | The dot pulses (a ring growing to 7 px, 1.6 s, twice) only for an answer that landed on this page while folded (it was working, or the answer id changed, after the first report); not for one found after a restart | USC `pulse`, `reportProgress` | Done (pieces A, D): `SideState::pulse`, `report_progress`; the dot's ring grows to 7 px twice over 1.6 s from the clock (`side_pulse_phase`, test "the tab says Thinking then New answer with its dot…"; "a new answer found after a restart does not pulse") |
 | 5.7 | An answer that finishes while it is open is marked seen at once | USC `reportProgress` | Done (piece A): `report_side_progress` marks it seen and tells the server |
-| 5.8 | × on the tab: 22 × 22, same label and title as the header's ×, discards | SCP `.side-tab__close` | None |
+| 5.8 | × on the tab: 22 × 22, same label and title as the header's ×, discards | SCP `.side-tab__close` | Done (piece D): `side-tab-close`, 22 square, label and tip as the header's ×, discards (test "the toast offers Undo and Undo brings it back") |
 
 ### 6. The peek
 
 | # | Fleet | Source | Native |
 |---|---|---|---|
-| 6.1 | Hover or keyboard focus within the tab shows the peek above it: absolute, `bottom: 100% + 8`, left 14, z 5, `width: min(380px, 100% − 28)`, padding `10px 12px`, border `--border`, radius `--radius-card`, `--card-bg`, shadow `0 16px 36px -18px rgba(0,0,0,.5)`, 13px; fades and rises 4 px over 160 ms; never takes the pointer | SCP `.side-peek` | None |
-| 6.2 | "btw · latest answer": `--muted` 11px 600, `.06em` spacing, upper case | SCP `__eyebrow` | None |
-| 6.3 | The text: "Thinking about your question…" while working, else the latest answer as plain text (Markdown not drawn, line breaks kept), else "No answer yet."; `--text`, line-height 1.5, at most 6 lines with an ellipsis | SCP `__text` | None |
-| 6.4 | Foot "Click the tab to open · `Ctrl /`" (`--muted` 11.5px; the key in a 1px-bordered, 4-radius mono 11px box) | SCP `__foot` | None |
-| 6.5 | Losing focus hides it | SCP `@blur` | None |
+| 6.1 | Hover or keyboard focus within the tab shows the peek above it: absolute, `bottom: 100% + 8`, left 14, z 5, `width: min(380px, 100% − 28)`, padding `10px 12px`, border `--border`, radius `--radius-card`, `--card-bg`, shadow `0 16px 36px -18px rgba(0,0,0,.5)`, 13px; fades and rises 4 px over 160 ms; never takes the pointer | SCP `.side-peek` | Done (piece D): the peek is over the tab from hover on the tab's wrap or keyboard focus on the open button (`:focus-within` on the tab's own × is not carried: focus on the × does not show it), 8 px above, 14 in, `min(380, wrap - 28)` wide, padding `10 12`, border, radius 10, `card_bg`, the shadow, 13px; it fades and rises 4 px over 160 ms and `inert` takes no pointer (tests "the peek shows over the tab on hover and fades in 160 ms") |
+| 6.2 | "btw · latest answer": `--muted` 11px 600, `.06em` spacing, upper case | SCP `__eyebrow` | Done (piece D): `BTW · LATEST ANSWER`, muted 11px 600, tracking .06em |
+| 6.3 | The text: "Thinking about your question…" while working, else the latest answer as plain text (Markdown not drawn, line breaks kept), else "No answer yet."; `--text`, line-height 1.5, at most 6 lines with an ellipsis | SCP `__text` | Done (piece D): "Thinking about your question…", else the latest answer as plain text with its line breaks, else "No answer yet.", at most 6 lines with an ellipsis (`max_lines(6)`; tests "the peek says Thinking while it works", "says nothing for a tab with no answer"; compared live with Fleet's, same cut) |
+| 6.4 | Foot "Click the tab to open · `Ctrl /`" (`--muted` 11.5px; the key in a 1px-bordered, 4-radius mono 11px box) | SCP `__foot` | Done (piece D): "Click the tab to open ·" and the key in a bordered mono 11px box (`Ctrl /`, `⌘ /` on a Mac) |
+| 6.5 | Losing focus hides it | SCP `@blur` | Done (piece D): focus leaving the open button hides it (`keep_side_tab` reads the focus each frame); the pointer leaving does too |
 
 ### 7. Discard and Undo
 
@@ -148,10 +148,10 @@ dark only, so the light native picture is the `composer-side-typed-light` scene)
 | 7.3 | Undo: `POST /side/restore`; the side comes back as it was (minimized or open, `{...discarded, ...answer}`); a refusal drops the offer and says "The side conversation couldn't be brought back (HTTP n)." | USC `undoDiscard` | Done (piece A): `State::undo_side_discard` |
 | 7.4 | After a restart (no side conversation, no discard known): `GET /side/discarded` → `{sideConversation, undoRemainingMs}`; when time is left, Undo again for that long | USC `load` | Done (piece A): the load asks `GET /side/discarded` when there is no side |
 | 7.5 | A new side question while Undo is offered: when the server made a different side, the old Undo, its timer and its draft go | USC `ask` | Done (piece A): `on_side_asked` |
-| 7.6 | The toast's dock: on the composer's column, right above it, `max-width: 808px`, padding `6px 24px` | SCP `.side-toast-dock` | None |
-| 7.7 | The toast, inverted: `width: min(360px, 100% − 28)`, margin-left 14, radius `--radius-card`, background `--text`, text `--main-bg`, 13px, shadow `0 12px 32px -12px rgba(0,0,0,.45)`; enters and leaves over 180 ms (opacity, 6 px); `role=status` | SCP `.side-toast` | None |
-| 7.8 | Row (gap 12, padding `9px 8px 9px 14px`): "Side question discarded"; "<n> s" (opacity .7, tabular figures, right) counting down every 250 ms from the window's own length (`ceil`); Undo button (`Undo2` 14 + "Undo", 600, padding `4px 10px`, radius `--radius-btn`, background `--main-bg` 18 %) | SCP | None |
-| 7.9 | The bar under it: 2 px, `--main-bg` 45 %, shrinking from the left to nothing, linearly, over the window | SCP `.side-toast__drain` | None |
+| 7.6 | The toast's dock: on the composer's column, right above it, `max-width: 808px`, padding `6px 24px` | SCP `.side-toast-dock` | Done (piece D): `side-undo-dock`, on the composer's column right above it, at most 808 wide, padding `6 24` |
+| 7.7 | The toast, inverted: `width: min(360px, 100% − 28)`, margin-left 14, radius `--radius-card`, background `--text`, text `--main-bg`, 13px, shadow `0 12px 32px -12px rgba(0,0,0,.45)`; enters and leaves over 180 ms (opacity, 6 px); `role=status` | SCP `.side-toast` | Done in part (piece D): `side-undo-toast`, `min(360, width - 28)`, 14 in, radius 10, `--text` on `--main-bg`, 13px, the shadow, `role=status`, enters over 180 ms (opacity, 6 px). Open: the 180 ms leave: it goes at once when Undo is used or its window ends (Rune draws nothing for a removed element, so a leave needs the toast kept alive; not worth it for 180 ms), owner: none, left as it is |
+| 7.8 | Row (gap 12, padding `9px 8px 9px 14px`): "Side question discarded"; "<n> s" (opacity .7, tabular figures, right) counting down every 250 ms from the window's own length (`ceil`); Undo button (`Undo2` 14 + "Undo", 600, padding `4px 10px`, radius `--radius-btn`, background `--main-bg` 18 %) | SCP | Done (piece D): "Side question discarded", "<n> s" (muted .7, tabular figures) counted from the app's clock with `ceil`, Undo (`Undo2` + "Undo", 600, `4 10`, radius 8, `--main-bg` 18 %) (tests "the toast counts down and its bar drains over the window", "the toast shows the time the server says is left" ("5 s")) |
+| 7.9 | The bar under it: 2 px, `--main-bg` 45 %, shrinking from the left to nothing, linearly, over the window | SCP `.side-toast__drain` | Done (piece D): `side-undo-drain`, 2 px, `--main-bg` 45 %, its width the share of Undo's own window that is left, shrinking linearly (from the clock, so a window the server says is 5 s long drains over 5 s) |
 
 ### 8. Keep as session
 
@@ -274,6 +274,8 @@ In build order. Each is one pull request; each starts from this file.
 
 ### D. The tab, the peek and Undo
 
+**Done (20 November 2026), component 15 closed**, pictures in `shots/parity/15d-tab-peek-undo/` (live against a scratch Fleet with the scripted model, native beside Fleet's own client, both themes: Thinking with its peek, Thinking, New answer with its peek, New answer, Answered, the Undo toast; Fleet's own 17-minute-old tab and the native one read the same server). The code is `src/view/side_tab.rs` (the tab, the peek, the toast), `src/fleet/side_tab.rs` (their motion from the clock: the entrance, the dots, the pulse, the peek's fade, the toast's entrance and drain) and the scenes `side-tab`, `side-tab-thinking`, `side-tab-new`, `side-peek`, `side-undo` with their `-light` twins.
+
 - **Rows:** 5.1–5.4, 5.8, 6.1–6.5, 7.6–7.9, and the view halves of 5.5, 5.6.
 - **Files:** `src/view/side.rs` (or `src/view/side_tab.rs` if it passes 500 lines): the tab with its state words, dots and
   pulse, the peek on hover and focus, the Undo dock with its countdown and draining bar, the entrance and fade timings; scenes
@@ -284,3 +286,24 @@ In build order. Each is one pull request; each starts from this file.
   the time the server says is left" ("5 s").
 - **Pictures:** the tab, the peek and the Undo toast beside Fleet's (`fleet-tab-*`, `fleet-peek-*`, `fleet-undo-*` in this
   folder), both themes; a live run that minimizes, gets a new answer, discards and undoes.
+
+## Component 15 closed (20 November 2026)
+
+- **Rows:** every row of sections 1 to 10 is Done, and each says where (rows 7.7's leave, 6.1's focus on the tab's own ×, 5.2's
+  scale axis and 4.5's scroll half are the small gaps, each written in its row). Section 11 stays out of reach, each with its owner
+  (touch and reduced motion: component 26; the phone's sheet: out of scope; the analytics action: none). Open elsewhere: nothing
+  of this component's.
+- **Fleet's tests:** `side-conversation.test.ts` `parseSideQuestion` (3, component 5) and `messagesAfter` (3, piece A);
+  `SideConversationPanel.test.ts` "SideConversationPanel" (9) and "SideConversationPanel after a reload" (5), all 14 ported under
+  their names in `src/fleet/tests/side.rs` (state), `side_panel.rs` (the panel), `side_stream.rs` ("shows the side conversation's
+  own messages…") and `side_tab.rs` (the tab, the peek, the toast); `session-calls-machine.test.ts` "reads the side
+  conversation" (piece A); `Composer.test.ts` "Composer side questions (/btw)" and "Composer with a minimized side conversation"
+  (component 5, passing against the real state). Nothing of Fleet's tests for this component is left unported.
+- **Live walk (20 November 2026, a scratch Fleet and its scripted model):** `/btw long-reply` made the fork, the panel streamed in
+  it; Minimize folded it into the tab (Thinking, the dots); hover showed the peek ("Thinking about your question…"); after the
+  model finished, the tab said New answer and the peek held the answer cut at six lines, as Fleet's does (the pictures); opening
+  it by a click marked the answer seen on the server; Minimize again said Answered; × discarded and showed the toast with "7 s"
+  left and its bar draining; `POST /side/restore` brought it back folded. The live walk found two bugs a test did not: the tab did
+  not open on a click that came as the pointer arrived (the peek inserted a sibling before it and Rune dropped the press), and the
+  card's top border stayed on the last frame of a fold. Both are fixed and tested.
+- **Checked on:** Linux only (headless, lavapipe). Not checked on Windows or macOS: the pictures for them come from `main`'s run.

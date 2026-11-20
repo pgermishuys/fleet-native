@@ -2273,3 +2273,13 @@ whole-file work that piece R can make incremental (colour from the edited line, 
   talks to the fake, so the fake records every route and the test filters by `/api/workflows`.
 - **`cargo test` of this crate is killed at 4000M with `CARGO_BUILD_JOBS=3`** (the build is "Terminated" with no error): use
   `CARGO_BUILD_JOBS=1`, and stop your own earlier cargo by its PID first, or the new one waits on the build lock.
+
+## Component 15, piece D (the tab, the peek and Undo)
+
+- **A press is lost when a sibling is inserted before the pressed element's unkeyed ancestor between the pointer's arrival and the press.** The peek came in as the pointer arrived and sat before the tab in the same column, so the tab's wrapper moved one place in the tree, was taken for a new element, and the press that began on it did nothing (live only: a test that moves and presses in one frame passed). The peek now lives in an always-present zero-high anchor, and the tab's wrapper has a key. Keep the position of anything that can be pressed steady when something beside it comes and goes; the unit test that finds it is `a_press_on_the_tab_after_the_peek_came_in_opens_it` (move, run frames, then press).
+- **No per-corner paint radius.** `radius` is one value for all four corners. The tab (`10 10 0 0`) is drawn as a taller box with all four rounded and clipped to its top part (`clip_rounded(0.0)` on a box of the visible height).
+- **`scale` is uniform.** Fleet's tab enters with `scaleY(.6)`; here it scales both axes from 60 %, from the bottom left (`origin`).
+- **`paint_order` lets a tab overlap the element after it.** The tab sits 5 px over the composer's top border; the composer comes later in the column, so the section carries `paint_order(2)`. Negative margin (`mb(-5)`) works as in CSS.
+- **`max_lines(n)` is `-webkit-line-clamp`:** the peek's six lines end in an ellipsis at the same word as Fleet's.
+- **An animation whose last step is drawn after the poll stops asking for frames stays on its last frame.** The fold's end was one frame short, so a headless picture showed the card's top border at 1 px. Run the clock a little past the end (here 50 ms) so the settled frame is drawn.
+- **`Tx::focused()` is enough for `:focus-within` on one element:** the tab's peek shows while the open button has the focus, read each frame (the × inside the tab is not counted).

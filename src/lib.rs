@@ -1796,7 +1796,7 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         return true;
     }
     let aged = s.keep_row_ages(now, tx);
-    let side = s.keep_side(now, tx) | s.keep_side_fold(tx) | s.keep_side_stream();
+    let side = s.keep_side(now, tx) | s.keep_side_fold(tx) | s.keep_side_stream() | s.keep_side_tab(tx);
     s.keep_drafts(now, tx);
     let archiving = s.keep_archive(now, tx) | s.keep_lineage(now, tx);
     let picked = s.sync_selection(tx);
@@ -4906,6 +4906,17 @@ pub fn spec() -> AppSpec<State> {
                 s.sidebar_open = false;
                 s.content_open = false;
             }),
+            // Piece D: folded into its tab (answered, thinking, a new answer), the peek over it, and the Undo toast.
+            ("side-tab", |s| s.show_side(fleet::side_view::Case::Tab, true)),
+            ("side-tab-light", |s| s.show_side(fleet::side_view::Case::Tab, false)),
+            ("side-tab-thinking", |s| s.show_side(fleet::side_view::Case::TabThinking, true)),
+            ("side-tab-thinking-light", |s| s.show_side(fleet::side_view::Case::TabThinking, false)),
+            ("side-tab-new", |s| s.show_side(fleet::side_view::Case::TabNew, true)),
+            ("side-tab-new-light", |s| s.show_side(fleet::side_view::Case::TabNew, false)),
+            ("side-peek", |s| s.show_side(fleet::side_view::Case::Peek, true)),
+            ("side-peek-light", |s| s.show_side(fleet::side_view::Case::Peek, false)),
+            ("side-undo", |s| s.show_side(fleet::side_view::Case::Undo, true)),
+            ("side-undo-light", |s| s.show_side(fleet::side_view::Case::Undo, false)),
             ("composer-side", |s| s.show_composer("side")),
             ("composer-history", |s| s.show_composer("history")),
             ("composer-history-light", |s| {

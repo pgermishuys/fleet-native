@@ -22,6 +22,8 @@ pub struct SideView {
     pub conv_of: Option<String>,
     /// The live side session's stream and what the link listens to.
     pub live: super::side_stream::SideStreams,
+    /// The tab's motion, its peek and the Undo toast (`side_tab`).
+    pub tab: super::side_tab::TabView,
     /// Whether the panel was folded as of the last frame, and when that last changed: the fold runs towards it from then.
     folded: Option<bool>,
     changed_at: Option<f64>,
@@ -51,6 +53,13 @@ impl State {
     /// Keeps the fold running (each frame): notes when it was folded or opened, and asks for frames until it has settled.
     pub fn keep_side_fold(&mut self, tx: &mut Tx) -> bool {
         let folded = self.side().is_some_and(|st| st.minimized());
+        // A side conversation found folded when it loads is folded at once: Fleet draws nothing until the load is done, so there is no
+        // card to fold away.
+        if !self.side().is_some_and(|st| st.side.is_some()) {
+            self.side_ui.folded = None;
+            self.side_ui.changed_at = None;
+            return false;
+        }
         match self.side_ui.folded {
             None => self.side_ui.folded = Some(folded),
             Some(was) if was != folded => {
@@ -59,7 +68,8 @@ impl State {
             }
             _ => {}
         }
-        let running = self.side_ui.changed_at.is_some_and(|at| self.clock - at < FOLD_SECS);
+        // A little past the end, so the frame that draws it settled (share 0 or 1) is not skipped.
+        let running = self.side_ui.changed_at.is_some_and(|at| self.clock - at < FOLD_SECS + 0.05);
         if running {
             tx.wake_after(Duration::from_millis(16));
         }
@@ -115,6 +125,16 @@ pub enum Case {
     Open,
     /// The first question is making the fork: "Forking the session at its last finished turn…".
     Starting,
+    /// Folded into its tab, answered and seen ("Answered").
+    Tab,
+    /// Folded, while it works ("Thinking", the dots).
+    TabThinking,
+    /// Folded, with an answer that was not seen ("New answer").
+    TabNew,
+    /// Folded, the pointer over the tab: the peek shows the latest answer.
+    Peek,
+    /// Discarded a moment ago: the Undo toast, 5 s left.
+    Undo,
 }
 
 impl State {
@@ -125,18 +145,35 @@ impl State {
         self.set_open((0, 2));
         let Some(owner) = self.draft_owner() else { return };
         let mut st = SideState { loaded: true, ..Default::default() };
+        let side = |minimized: bool, seen: Option<&str>| Side {
+            session_id: "mock.side.0".into(),
+            instance_id: "mock-instance".into(),
+            title: format!("btw: {}", crate::mock::side::QUESTION),
+            boundary_message_id: None,
+            created_at: String::new(),
+            minimized,
+            seen_answer_id: seen.map(str::to_string),
+        };
+        let answer = Some(crate::mock::side::ANSWER.to_string());
         match case {
             Case::Open => {
-                st.side = Some(Side {
-                    session_id: "mock.side.0".into(),
-                    instance_id: "mock-instance".into(),
-                    title: format!("btw: {}", crate::mock::side::QUESTION),
-                    boundary_message_id: None,
-                    created_at: String::new(),
-                    minimized: false,
-                    seen_answer_id: None,
-                });
+                st.side = Some(side(false, None));
                 self.side_ui.conv = Some(crate::mock::side::conversation());
+            }
+            Case::Tab | Case::TabNew | Case::TabThinking | Case::Peek | Case::Undo => {
+                let seen = (case == Case::Tab || case == Case::Peek).then_some("r1");
+                st.side = Some(side(case != Case::Undo, seen));
+                st.reported = true;
+                st.working = case == Case::TabThinking;
+                st.latest_answer = answer;
+                st.latest_answer_id = Some("r1".into());
+                self.side_ui.conv = Some(crate::mock::side::conversation());
+                self.side_ui.tab.hover = case == Case::Peek;
+                if case == Case::Undo {
+                    st.discarded = st.side.take();
+                    st.undo_ms = 5000;
+                    st.undo_until = Some(self.clock + 5.0);
+                }
             }
             Case::Starting => {
                 st.asking = true;
