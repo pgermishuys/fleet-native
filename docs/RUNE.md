@@ -2335,3 +2335,6 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **A test build that is killed with "Terminated" (exit 143) and no message was OOM-killed:** `journalctl` shows
   `Memory cgroup out of memory: Killed process (rustc)`. `MemoryMax=4000M` and 5000M were both too little for the test build on
   20 November 2026 with two other sessions running; 6000M with `CARGO_BUILD_JOBS=2` built it.
+## Component 20, piece A (sections, filters and the data)
+
+- **Nothing new about Rune:** the piece is plain Rust (data, queries, dates and comparisons), tested headless.

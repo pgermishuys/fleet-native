@@ -6,6 +6,7 @@ pub mod actions;
 pub mod agent_tab;
 pub mod agents;
 pub mod agents_tab;
+pub mod analytics;
 pub mod annotation;
 pub mod app_runs;
 pub mod archive_queue;

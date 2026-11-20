@@ -105,6 +105,8 @@ pub struct Sidebar {
     notices_shown: Vec<String>,
     /// The Appearance page's choices (`weave:theme`, `weave:code-theme`, `weave:font-size`, `weave:thinking`).
     appearance: appearance::Appearance,
+    /// Analytics' range and project per machine key (`weave:analytics:filters[:key]`; the live machine is `home`).
+    analytics_filters: BTreeMap<String, super::analytics::filters::Filters>,
     /// The harness picked for "Dream now", one for the install, not per machine (`weave:dreaming-harness`).
     dreaming_harness: Option<String>,
     /// Widen, for every session (`weave:canvas-widened`).
@@ -169,6 +171,10 @@ impl Sidebar {
         if let Some(Value::Object(by_machine)) = root.get("savedRepositories") {
             s.saved_repositories = by_machine.iter().map(|(k, v)| (k.clone(), super::new_session::feeds::Scan::from_json(v))).collect();
         }
+        if let Some(Value::Object(by_machine)) = root.get("analyticsFilters") {
+            s.analytics_filters =
+                by_machine.iter().filter_map(|(k, v)| Some((k.clone(), super::analytics::filters::Filters::from_json(v)?))).collect();
+        }
         if let Some(Value::Array(ids)) = root.get("noticesShown") {
             s.notices_shown = ids.iter().filter_map(|v| v.as_str().map(String::from)).collect();
         }
@@ -213,6 +219,9 @@ impl Sidebar {
         }
         if !self.saved_repositories.is_empty() {
             root["savedRepositories"] = self.saved_repositories.iter().map(|(m, scan)| (m.clone(), scan.to_json())).collect();
+        }
+        if !self.analytics_filters.is_empty() {
+            root["analyticsFilters"] = self.analytics_filters.iter().map(|(m, f)| (m.clone(), f.to_json())).collect();
         }
         if !self.notices_shown.is_empty() {
             root["noticesShown"] = json!(self.notices_shown);
@@ -417,6 +426,19 @@ impl Sidebar {
             None => self.default_harness.remove(machine).is_some(),
         };
         self.dirty |= changed;
+    }
+
+    /// The range and project Analytics was left on for a machine, if it was ever left on one.
+    pub fn analytics_filters(&self, machine: &str) -> Option<&super::analytics::filters::Filters> {
+        self.analytics_filters.get(machine)
+    }
+
+    /// Keeps a machine's Analytics filters (`usePersistedState`'s write).
+    pub fn save_analytics_filters(&mut self, machine: &str, filters: &super::analytics::filters::Filters) {
+        if self.analytics_filters.get(machine) != Some(filters) {
+            self.analytics_filters.insert(machine.to_string(), filters.clone());
+            self.dirty = true;
+        }
     }
 
     /// The port the app's own Fleet used last time.

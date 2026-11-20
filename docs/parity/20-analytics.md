@@ -96,8 +96,8 @@ Each row: what Fleet does, its source, and the native state (with the piece that
 | # | Row | Source | Native |
 |---|---|---|---|
 | 1.1 | The rail entry Analytics opens `/analytics`; its panel is the analytics-menu (`AnalyticsMachinePanel`) | CR | Rail done; the panel None (C) |
-| 1.2 | Sections: `overview`, `daily` (group Spend), `projects`, `models`, `sessions` (group Breakdown), with those labels; groups "Spend", "Breakdown" | LS | None (A) |
-| 1.3 | Each section has its own route: Overview is the bare `/analytics`, the others `/analytics/<id>`; the address is read back with a trailing slash; anything else (`/analytics/harness`, `/analytics/`) is Overview; a `$section` that isn't one redirects to `/analytics` | LS, `routes/analytics.*.tsx` | None (A: the mapping; C: the route on `State`) |
+| 1.2 | Sections: `overview`, `daily` (group Spend), `projects`, `models`, `sessions` (group Breakdown), with those labels; groups "Spend", "Breakdown" | LS | **Done (A, 20 November 2026)** `src/fleet/analytics/sections.rs` |
+| 1.3 | Each section has its own route: Overview is the bare `/analytics`, the others `/analytics/<id>`; the address is read back with a trailing slash; anything else (`/analytics/harness`, `/analytics/`) is Overview; a `$section` that isn't one redirects to `/analytics` | LS, `routes/analytics.*.tsx` | **Done (A, 20 November 2026)** the mapping: `sections.rs` `section_path`, `section_from_path` (C: the route on `State`) |
 | 1.4 | The menu and the page read the section from the address (neither passes it to the other); a reload keeps it | UAS, AC | None (C) |
 | 1.5 | The context: `[analytics-menu][gutter][analytics-detail]`; the menu at the context panel's width (306 at 1280), the left gutter drags it; Ctrl+B hides the menu (the page alone) | AppShell, CR | None (C) |
 | 1.6 | The page sits in the centre sheet with Fleet's page padding (24 px, `.center__body`), scrolling as one; the parts stacked with gap 20 (`.analytics-page`) | `CenterContent.vue`, AC | None (C) |
@@ -123,16 +123,16 @@ Each row: what Fleet does, its source, and the native state (with the piece that
 
 | # | Row | Source | Native |
 |---|---|---|---|
-| 3.1 | State `{from, to, projectId}`, persisted (`weave:analytics:filters` for the live machine, `weave:analytics:filters:<key>` for another one) | UAF | None (A; the settings file) |
-| 3.2 | Defaults: the last 30 days ending today, every project (`from` = today − 30, `to` = today); "today" is the **UTC** day (the server reads a bare date as a UTC day) | UAF | None (A) |
-| 3.3 | Opening moves a range saved on an earlier day to end today, keeping its length and project; a range with no end is left alone; the default stays the default on a later day; while open, a range is left alone | UAF | None (A) |
-| 3.4 | `isDefault`: from, to and project are the defaults (nothing to reset) | UAF | None (A) |
+| 3.1 | State `{from, to, projectId}`, persisted (`weave:analytics:filters` for the live machine, `weave:analytics:filters:<key>` for another one) | UAF | **Done (A, 20 November 2026)** `filters.rs` `Filters`; `settings.rs` `analytics_filters` (settings key `analyticsFilters`, one entry per machine key, the live machine under `home`) |
+| 3.2 | Defaults: the last 30 days ending today, every project (`from` = today − 30, `to` = today); "today" is the **UTC** day (the server reads a bare date as a UTC day) | UAF | **Done (A, 20 November 2026)** `filters.rs` `defaults` |
+| 3.3 | Opening moves a range saved on an earlier day to end today, keeping its length and project; a range with no end is left alone; the default stays the default on a later day; while open, a range is left alone | UAF | **Done (A, 20 November 2026)** `filters.rs` `ending_today`, `opened` |
+| 3.4 | `isDefault`: from, to and project are the defaults (nothing to reset) | UAF | **Done (A, 20 November 2026)** `filters.rs` `is_default` |
 | 3.5 | The range box: one 32 px row, padding 0 4, 1 px border, radius `--radius-btn`, `--card-bg`; two date fields (12.5 px tabular, padding 0 6, `--text`, a calendar glyph at 55%) with "–" between (12 px muted); in the stacked menu the two spread apart; labels "From", "To" for a screen reader | AF | None (D: typed fields; E: the calendar) |
 | 3.6 | From's max is To and To's min is From, which limit the browser's picker only: a typed date outside them is still sent. A change is sent on `change` (a whole date); emptied clears that end | AF | None (D) |
 | 3.7 | The project select (32 tall, 12.5 px, `--card-bg`, full width in the menu): "All projects" (placeholder and first item), then the range's top projects by name; picking one sets `projectId` to the project's **name** (Fleet's bug: the server filters on the project's id, a GUID, so every section but Models empties; picture `fleet-project-picked`; port as Fleet does, reported) | AF, UAF, AR | None (D) |
 | 3.8 | Reset: RotateCcw 13 + "Reset", 32 tall, 12.5 px muted, no border; hover 6% text tint; disabled (opacity 0.45) while default; tooltip "Back to the last 30 days, every project" | AF | None (D) |
 | 3.9 | A change refetches every section at once (`refreshAnalytics`) and the menu's counts (`watch` on from, to, project); the range alone refetches the project list | AC, UAM, UAF | None (B) |
-| 3.10 | The page's own project list (`scopedTopProjects`) is the scoped summary's top projects plus the picked project when it isn't among them (0 tokens, $0.00) | AC `withSelectedProject` | None (A, the function; F/H, the use) |
+| 3.10 | The page's own project list (`scopedTopProjects`) is the scoped summary's top projects plus the picked project when it isn't among them (0 tokens, $0.00) | AC `withSelectedProject` | **Done (A, 20 November 2026)** `mod.rs` `with_selected_project` (F/H use it) |
 
 ### 4. Export CSV
 
@@ -148,7 +148,7 @@ Each row: what Fleet does, its source, and the native state (with the piece that
 | # | Row | Source | Native |
 |---|---|---|---|
 | 5.1 | Five reads: `summary` (from, to, project), `daily` (from, to, project), `models` (from, to; the client sends project, the server ignores it), `sessions` (from, to, project, sortBy, sortDir; the server ignores sort and returns at most 50, newest first) and the menu's range-only `summary` (from, to: the project list and Projects' count) | USum, UD, UMo, USe, UAF, AE | None (B) |
-| 5.2 | Shapes: `AnalyticsSummary` {totalTokens, totalCost, totalEstimatedCost, sessionCount, messageCount, topModels[], topProjects[] of {name, tokens, cost}}; `DailyAnalytics` {date, tokens, cost, estimatedCost, sessions, messages}; `ModelAnalytics` {modelId, providerId, tokens, cost, estimatedCost, messageCount, avgCostPerMessage}; `SessionAnalytics` {sessionId, title?, projectId?, projectName?, tokens, cost, estimatedCost, models[], durationSeconds?, createdAt} | `api/client.ts` | None (A) |
+| 5.2 | Shapes: `AnalyticsSummary` {totalTokens, totalCost, totalEstimatedCost, sessionCount, messageCount, topModels[], topProjects[] of {name, tokens, cost}}; `DailyAnalytics` {date, tokens, cost, estimatedCost, sessions, messages}; `ModelAnalytics` {modelId, providerId, tokens, cost, estimatedCost, messageCount, avgCostPerMessage}; `SessionAnalytics` {sessionId, title?, projectId?, projectName?, tokens, cost, estimatedCost, models[], durationSeconds?, createdAt} | `api/client.ts` | **Done (A, 20 November 2026)** `mod.rs` `parse_summary`, `parse_days`, `parse_models`, `parse_sessions`; `summary::parse_daily` reads through `parse_days` |
 | 5.3 | Each read polls every 30 s while Analytics is shown, and at once when the window shows again; nothing while hidden | the four reads | None (B: while the rail is Analytics; window visibility as the summary bar does) |
 | 5.4 | Numbered requests: an answer a newer one overtook is dropped; a success clears the error; a failure keeps the data and sets the error | the four reads | None (B) |
 | 5.5 | Error words are the client's own, not the server's: "Failed to fetch analytics summary", "Failed to fetch daily analytics", "Failed to fetch model analytics", "Failed to fetch session analytics" (a 503 "Analytics is disabled." reads the same) | the four reads, AE | None (B) |
@@ -206,7 +206,7 @@ Each row: what Fleet does, its source, and the native state (with the piece that
 |---|---|---|---|
 | 9.1 | A table in a box (1 px border, `--radius-btn`, `--card-bg`, scrolls sideways): Day, Tokens, Cost, Sessions, Messages; numbers right-aligned | DT | None (H) |
 | 9.2 | Rows newest first; Day is the raw date ("2026-11-20"); tokens, sessions, messages `formatCount`; cost `formatMoney`; cells 12.5 px tabular, padding 8/12, a 1 px rule under each but the last; the head 11 px 500 muted | DT | None (H) |
-| 9.3 | Empty words: "No daily analytics matched the selected date range." or, with a project, "No daily analytics matched the selected date range and project." | AC | None (A, the words; H) |
+| 9.3 | Empty words: "No daily analytics matched the selected date range." or, with a project, "No daily analytics matched the selected date range and project." | AC | The words done (A): `mod.rs` `daily_empty`. The rest: None (A, the words; H) |
 | 9.4 | States: rows → table; else loading → Spinner + "Loading daily analytics…"; else ErrorNote "Unable to load analytics."; else EmptyState bordered | DT | None (H) |
 
 ### 10. Projects
@@ -216,7 +216,7 @@ Each row: what Fleet does, its source, and the native state (with the piece that
 | 10.1 | A grid of cards `repeat(auto-fit, minmax(240px, 1fr))`, gap 12 (three across at 1280), sorted by cost then name | PT | None (H) |
 | 10.2 | A card (the kit's Card, no shadow, padding 16, gap 16, full height): the name (14 px 600, wraps anywhere) and the cost (14 px 600 tabular) on top; two stats "Tokens" / "Cost" (labels 11 px muted, values 18 px 600 tabular, `formatCount`, `formatMoney`); at the bottom "Relative spend" and "<n>%" (11 px 500 muted) over a 6 px accent bar (cost ÷ the largest; eases 0.2 s) | PT | None (H) |
 | 10.3 | Its source is the page's project list (3.10): the scoped summary's top 5 | AC | None (H) |
-| 10.4 | Empty words: "No project analytics matched the selected date range." or "No projects matched the selected date range and project."; states as 9.4 with "Loading project analytics…" and EmptyState bordered min-height 157.5 | AC, PT | None (H) |
+| 10.4 | Empty words: "No project analytics matched the selected date range." or "No projects matched the selected date range and project."; states as 9.4 with "Loading project analytics…" and EmptyState bordered min-height 157.5 | AC, PT | The words done (A): `mod.rs` `projects_empty`. The rest: None (H) |
 
 ### 11. Models
 
@@ -225,7 +225,7 @@ Each row: what Fleet does, its source, and the native state (with the piece that
 | 11.1 | Sorted by cost, then estimated cost, then tokens (all descending), then model id | MT | None (I) |
 | 11.2 | "Cost by model": a panel (as 7.1) with the cost bars; detail "<provider> · <formatCount> messages · Est. <estimated>" | MT | None (I) |
 | 11.3 | "Model details": a panel with no side padding, its title padded 16; a table (at least 720 wide, scrolls sideways): Model, Provider, Tokens, Cost, Estimated cost, Messages, Avg cost/msg; the head 12 px 500 muted, padding 8/16, a rule under it; cells 13 px, line-height 1.5, padding 10/16; model and provider 500 `--text`, wrapping anywhere; numbers right, tabular; rows ruled between; hover 3% text tint | MT | None (I) |
-| 11.4 | States: loading **first** ("Loading model analytics…" in a dashed box, min-height 280, 13 px `--text`), so a filter change blanks the section while it refetches; then no models and an error → ErrorNote "Unable to load model analytics."; then no models → EmptyState bordered, min-height 245, "No model analytics matched the selected date range." (or "… date range and project.") | MT, AC | None (I) |
+| 11.4 | States: loading **first** ("Loading model analytics…" in a dashed box, min-height 280, 13 px `--text`), so a filter change blanks the section while it refetches; then no models and an error → ErrorNote "Unable to load model analytics."; then no models → EmptyState bordered, min-height 245, "No model analytics matched the selected date range." (or "… date range and project.") | MT, AC | The words done (A): `mod.rs` `models_empty`. The rest: None (I) |
 | 11.5 | A project filter doesn't change Models (the server ignores it, 5.1) | AE | Server's |
 
 ### 12. Sessions
@@ -236,10 +236,10 @@ Each row: what Fleet does, its source, and the native state (with the piece that
 | 12.2 | Columns, each a sort button: Title (asc first), Project (asc), Tokens (desc, right), Cost (desc, right), Estimated cost (desc, right), Duration (desc, right), Models (asc), Created (desc); the head 12 px 500 muted, padding 8/16, gap 8, the icon 12 px: ArrowUpDown when not sorted, ArrowUp/ArrowDown on the sorted one, whose label is `--text`; hover `--text`; `aria-sort` | ST | None (J) |
 | 12.3 | Pressing the sorted column flips its direction; another column takes its default direction; the sort is held by the page (default Created, desc) and survives the poll | ST, AC | None (J; the sort on the store from B) |
 | 12.4 | A sort change refetches the sessions (`isRefreshingSessions`) and, since loading is checked first, shows "Loading session analytics…" until it answers (Fleet's flash) | AC, ST | None (J; as Fleet) |
-| 12.5 | Sort rules: titles and projects compared case-insensitively (`localeCompare`, base sensitivity); numbers; duration with missing ones last whichever the direction; models by their joined list; created by time | ST | None (A: `compare_sessions`; J) |
+| 12.5 | Sort rules: titles and projects compared case-insensitively (`localeCompare`, base sensitivity); numbers; duration with missing ones last whichever the direction; models by their joined list; created by time | ST | The comparisons done (A): `sessions_sort.rs` `compare_sessions`, `sorted`. The rest: None (A: `compare_sessions`; J) |
 | 12.6 | A row: title (13 px 500; "Untitled session" for none or blank) with the session id under it (11 px mono muted, breaks anywhere, margin-top 2); project (500; the name, else the id, else "Unassigned"); tokens `formatCount`; cost and estimated `formatMoney`; duration `formatDuration(minutes)` or "—"; models as chips (min 22 tall, padding 2/8, radius 6, `--accent-dim`, 11 px `--text`, wrap, gap 6) or one muted chip "Unknown model" (6% text tint, muted); created as `RelativeTime compact` (500) with the exact time as its tooltip | ST | None (J) |
 | 12.7 | Cells padding 10/16, 13 px, line-height 1.5, top-aligned; rows ruled between; hover 3% text tint | ST | None (J) |
-| 12.8 | States: loading first ("Loading session analytics…", min-height 280, 13 px `--text`); then no rows and an error → ErrorNote "Unable to load session analytics."; then no rows → EmptyState (not bordered) min-height 245, "No sessions matched the current analytics filters" | ST | None (J) |
+| 12.8 | States: loading first ("Loading session analytics…", min-height 280, 13 px `--text`); then no rows and an error → ErrorNote "Unable to load session analytics."; then no rows → EmptyState (not bordered) min-height 245, "No sessions matched the current analytics filters" | ST | The words done (A): `mod.rs` `SESSIONS_EMPTY`. The rest: None (J) |
 
 ### 13. Another machine
 
@@ -323,6 +323,14 @@ en-US, both themes. `scripts/scratch-fleet.sh` switches analytics off; a piece r
   unknown fields ignored, nulls defaulted; the sessions comparisons (blank title as "Untitled session", missing duration
   last both ways); the filters saved and read back per machine key.
 - **Pictures:** no view changes: the Analytics rail drawn as before (a scene), and the test output.
+
+**Done (20 November 2026).** Left open, with reasons:
+- Text comparison (`locale_compare`) is a stand-in for ICU's `localeCompare` with base sensitivity: case and Latin accents don't
+  matter and punctuation sorts before digits before letters, but other scripts compare by code point. Right for the titles and names
+  a session has; a real collation table would be a new crate (`icu_collator`).
+- A `created_at` that doesn't parse ties with every row (Fleet's `NaN` comparison does the same); the server always writes ISO text.
+- The query builder sends the project trimmed on every read, as the menu does (the page itself trims it too, `normalizedProjectId`).
+- `Filters::opened` takes the clock in milliseconds; B reads the real one (`now_ms` pinned in tests).
 
 #### B. The store and the reads (no view)
 
