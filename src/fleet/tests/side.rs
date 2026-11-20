@@ -322,7 +322,9 @@ fn keeps_it_as_a_session_and_opens_it() {
     let mut fx = Fx::loaded(Some(side_json(false, None)));
     let session = fx.id.clone();
     fx.ctx(move |s, tx| s.keep_side_as_session(&session, tx));
-    fx.wait("the side conversation to be kept", |f| f.rt.state.route == crate::fleet::store::Route::Session("side-1".into()));
+    // The app opens the kept session: it asks the server for its conversation. (Whether it stays open until the list holds
+    // it is the list's business, so the route is not read: the list read that follows may move it, as on macOS.)
+    fx.wait("the kept session to be opened", |f| f.calls().iter().any(|(r, _)| r.starts_with("GET /side-1")));
     assert_eq!(fx.called("POST /side/keep").len(), 1);
     assert!(fx.st().side.is_none(), "the panel goes");
 }

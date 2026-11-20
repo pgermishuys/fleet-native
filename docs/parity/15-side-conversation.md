@@ -157,7 +157,7 @@ dark only, so the light native picture is the `composer-side-typed-light` scene)
 
 | # | Fleet | Source | Native |
 |---|---|---|---|
-| 8.1 | `POST /api/sessions/{id}/side/keep` → the side conversation (now a session of its own); the panel goes; the app opens it (`/sessions/<sideId>?instanceId=<its instance>`) | USC `keep`, SCP `handleKeep` | Done (piece A): `State::keep_side_as_session` posts, drops the side, opens the session and reads the list again; the panel button is piece B |
+| 8.1 | `POST /api/sessions/{id}/side/keep` → the side conversation (now a session of its own); the panel goes; the app opens it (`/sessions/<sideId>?instanceId=<its instance>`) | USC `keep`, SCP `handleKeep` | Done (piece A): `State::keep_side_as_session` posts, drops the side, opens the session and reads the list again (a list read that does not yet hold the session may move the route off it: to check live in piece B, where the button makes it reachable); the panel button is piece B |
 | 8.2 | A refusal keeps the panel and says "The side conversation couldn't be kept (HTTP n)." | USC `keep` | Done (piece A) |
 
 ### 9. The state and the routes
