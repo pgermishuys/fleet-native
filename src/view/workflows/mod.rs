@@ -14,7 +14,7 @@ pub const DESCRIPTION: &str =
     "A workflow is a recipe of steps for an agent, like fixing a bug or reviewing a change, that you can run again and again.";
 
 /// The sheet every pane of the context area sits in (`AppShell`'s main card).
-fn sheet(t: &Theme, key: &str) -> rune::El {
+pub(crate) fn sheet(t: &Theme, key: &str) -> rune::El {
     col()
         .key(key.to_string())
         .grow(1.0)

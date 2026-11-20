@@ -101,3 +101,47 @@ pub fn runs(automation: &str) -> Vec<AutomationRun> {
         skipped,
     ]
 }
+
+/// What a picture or a test of the Automations page shows.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Scene {
+    /// The list with each state a row can say, nothing open.
+    List,
+    Empty,
+    Loading,
+    Failed,
+    /// New automation pressed: the draft row, and the detail's title says so.
+    Create,
+    /// An automation open (its header alone until piece E).
+    Open,
+}
+
+impl crate::State {
+    /// The Automations page for the pictures and tests: no server, so the list is the invented one.
+    pub fn show_automations(&mut self, dark: bool, scene: Scene) {
+        use crate::fleet::settings::HOME_MACHINE_KEY;
+        self.dark = Some(dark);
+        self.now_ms = Some(NOW_MS);
+        self.enter_automations();
+        // The scene is the state; nothing is read again.
+        self.automations_nav.mark_asked(HOME_MACHINE_KEY);
+        let store = self.automations.of_mut(HOME_MACHINE_KEY);
+        match scene {
+            Scene::Loading => {}
+            Scene::Empty => store.is_loading = false,
+            Scene::Failed => {
+                store.is_loading = false;
+                store.error = Some("Fleet is restarting".into());
+            }
+            Scene::List | Scene::Create | Scene::Open => {
+                store.is_loading = false;
+                store.list = automations();
+            }
+        }
+        match scene {
+            Scene::Create => self.automations_nav.start_create(),
+            Scene::Open => self.automations_nav.set_active("a-weekly"),
+            _ => {}
+        }
+    }
+}

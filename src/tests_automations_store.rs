@@ -18,15 +18,17 @@ use std::sync::{Arc, Mutex};
 type Heard = Arc<Mutex<Vec<(String, String, Value)>>>;
 
 /// A stand-in for `/api/automations` that keeps its list between calls, like Fleet's `fakeServer`.
-struct Fake {
-    base: String,
+pub(crate) struct Fake {
+    pub(crate) base: String,
     heard: Heard,
     refuse_next_create: Arc<Mutex<Option<String>>>,
+    /// The next read of the list is refused with these words (the page's Try again).
+    pub(crate) refuse_next_list: Arc<Mutex<Option<String>>>,
     /// While set, the list is held back: the request is heard but not answered.
-    hold_list: Arc<AtomicBool>,
+    pub(crate) hold_list: Arc<AtomicBool>,
 }
 
-fn automation(id: &str, extra: Value) -> Value {
+pub(crate) fn automation(id: &str, extra: Value) -> Value {
     let mut a = json!({
         "id": id, "name": format!("Automation {id}"), "prompt": "Summarise the open PRs", "triggerType": "schedule",
         "triggerConfig": "0 9 * * 1", "maxConcurrentRuns": 1, "maxRunsPerHour": 10, "timeoutMinutes": 30, "isEnabled": true,
@@ -39,15 +41,18 @@ fn automation(id: &str, extra: Value) -> Value {
     a
 }
 
-fn fake(initial: Vec<Value>) -> Fake {
+pub(crate) fn fake(initial: Vec<Value>) -> Fake {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("a port");
     let base = format!("http://{}", listener.local_addr().expect("an address"));
     let (heard, list) = (Heard::default(), Arc::new(Mutex::new(initial)));
     let (refuse, hold) = (Arc::new(Mutex::new(None::<String>)), Arc::new(AtomicBool::new(false)));
     let (log, items, refuse_next, gate) = (heard.clone(), list.clone(), refuse.clone(), hold.clone());
+    let list_refusal = Arc::new(Mutex::new(None::<String>));
+    let refuse_list = list_refusal.clone();
     std::thread::spawn(move || {
         for mut stream in listener.incoming().flatten() {
             let (log, items, refuse_next, gate) = (log.clone(), items.clone(), refuse_next.clone(), gate.clone());
+            let refuse_list = refuse_list.clone();
             std::thread::spawn(move || {
                 let req = crate::test_http::read(&mut stream);
                 if !req.route().starts_with(BASE) {
@@ -62,6 +67,9 @@ fn fake(initial: Vec<Value>) -> Fake {
                     .map(|(id, verb)| (id.replace("%20", " "), verb));
                 match (req.method.as_str(), route.as_str(), toggle) {
                     ("GET", BASE, _) => {
+                        if let Some(error) = refuse_list.lock().unwrap().take() {
+                            return crate::test_http::respond_json(&mut stream, "503 X", &json!({"error": error}).to_string());
+                        }
                         while gate.load(Ordering::SeqCst) {
                             std::thread::sleep(std::time::Duration::from_millis(5));
                         }
@@ -124,15 +132,15 @@ fn fake(initial: Vec<Value>) -> Fake {
             });
         }
     });
-    Fake { base, heard, refuse_next_create: refuse, hold_list: hold }
+    Fake { base, heard, refuse_next_create: refuse, refuse_next_list: list_refusal, hold_list: hold }
 }
 
 impl Fake {
-    fn list_calls(&self) -> usize {
+    pub(crate) fn list_calls(&self) -> usize {
         self.calls("GET", BASE)
     }
 
-    fn calls(&self, method: &str, path: &str) -> usize {
+    pub(crate) fn calls(&self, method: &str, path: &str) -> usize {
         self.heard.lock().unwrap().iter().filter(|(m, p, _)| m == method && p == path).count()
     }
 
@@ -145,7 +153,7 @@ impl Fake {
         self.heard.lock().unwrap().iter().map(|(m, p, _)| format!("{m} {p}")).collect()
     }
 
-    fn handle(&self) -> impl Fn(&str, &str) -> usize + use<> {
+    pub(crate) fn handle(&self) -> impl Fn(&str, &str) -> usize + use<> {
         let heard = self.heard.clone();
         move |method, path| heard.lock().unwrap().iter().filter(|(m, p, _)| m == method && p == path).count()
     }
