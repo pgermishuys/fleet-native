@@ -1,0 +1,593 @@
+# Component 19: Automations
+
+The parity checklist for component 19 of `docs/PORT.md`, Automations: the list and an automation's detail with its
+runs, the built-in Dreaming automation, and the composer that makes and changes one (what it does, when, where, on which
+agent and model, on which machine, as a session or a workflow). It ends with the pieces it is built in.
+
+- **weave-fleet commit read:** `c1a48bd` (`main`, 20 November 2026).
+- **Server the live checks run against:** the scratch Fleet's package, which reports **v0.74.0** (`fdc072e`; the folder is
+  still named v0.72.0). `git diff fdc072e c1a48bd` is empty for every file this component reads (`components/automations`,
+  `lib/automations.ts`, `lib/automation-schedule.ts`, `stores/automations.ts`, `composables/use-automations*`,
+  `pages/AutomationsPage.vue`, `components/sessions/new-session`, `ComposerFrame.vue` and the server's
+  `AutomationEndpoints.cs`), so the client that server serves is `main`'s for this component. Every route below answered
+  the way `main`'s client expects (checked live: list, create, disable, run, runs, draft from a session, event catalog,
+  the refusals' `{"error": …}` bodies, the nightly dreaming route that makes the built-in automation).
+- **Native app read:** `main` at `2c756a7`.
+- **Paths** are weave-fleet's under `client/src/` unless they start with `src/`, `docs/` or `server:`. Short names, all
+  under `components/automations/` unless given: ANP `AutomationsNavPanel.vue`, ADP `AutomationDetailPanel.vue`, AC
+  `AutomationComposer.vue`, AWP `AutomationWhenPicker.vue`, ARL `AutomationRunsList.vue`, BAD
+  `BuiltinAutomationDetail.vue`, AMO `AutomationMoreOptions.vue`, ARIP `AutomationRunsInPicker.vue`, ATP
+  `AutomationTargetPicker.vue`, AWFP `AutomationWorkflowPicker.vue`, AMS `AutomationMachineScope.vue`, AP
+  `components/pages/AutomationsPage.vue`, CR `components/layout/core-rails.ts`, LA `lib/automations.ts`, LAS
+  `lib/automation-schedule.ts`, SA `stores/automations.ts`, UA `composables/use-automations.ts`, UAM
+  `composables/use-automations-machine.ts`, UAN `composables/use-automations-nav.ts`, SI `components/sessions/SessionItem.vue`,
+  WDP `components/workflows/WorkflowDetailPanel.vue`, WSB `components/workflows/WorkflowStartedBy.vue`, DN
+  `components/settings/memory/DreamNightly.vue`, NSD `components/sessions/new-session/`, server
+  `src/WeaveFleet.Api/Endpoints/AutomationEndpoints.cs`.
+- **Row numbers:** 1.x the rail, the page and its state; 2.x the list; 3.x the detail with nothing open; 4.x an
+  automation's header and actions; 5.x its runs; 6.x the built-in Dreaming automation; 7.x the composer (box, plan line,
+  create and save); 8.x the When chip; 9.x where it runs (folder, workspace, base, runs in, the … chip); 10.x agent, model
+  and harness; 11.x another machine; 12.x a workflow target; 13.x ways in from elsewhere; 14.x the schedule logic; 15.x
+  the data, the store and the routes; 16.x out of reach.
+
+![Fleet's own client: Automations, Summarise open pull requests open with one run and its composer (dark)](../../shots/parity/19-automations/fleet-detail-dark.png)
+![The native app today, the same Fleet: the Automations rail says only the Sessions shell is rebuilt (dark, live)](../../shots/parity/19-automations/native-automations-dark.png)
+![Fleet's own client: a new automation, the schedule read out of the sentence and highlighted, the plan line under the chips (light)](../../shots/parity/19-automations/fleet-new-light.png)
+![Fleet's own client: the When menu (dark)](../../shots/parity/19-automations/fleet-when-dark.png)
+![Fleet's own client: the built-in Dreaming automation (light)](../../shots/parity/19-automations/fleet-builtin-light.png)
+![Fleet's own client: the list with nothing open (dark)](../../shots/parity/19-automations/fleet-list-dark.png)
+
+The gap, visible in the pictures (each one's other theme is in the same folder): Fleet's rail opens
+`[automations-list][automations-detail]`: the list (Dreaming first with its Built in pill, then each automation with when
+it runs next, On event, Off dimmed, Running or Failed), and an automation's page: its name, an on/off switch and when it
+runs next, Run now and Delete, its runs (when, what started it, Done/Failed/Needs you, Open session →), and under them
+the same composer that made it, where the schedule is read out of the sentence ("Every Monday at 9" highlighted), the
+chips say when, where and how each run starts, and a line in words says what Enter will make. The native app has the rail
+entry and a notice: "Only the Sessions shell is rebuilt in this prototype." Fleet's pictures were taken with Playwright at
+1280×760 in the UTC zone against a scratch Fleet with the scripted model and five invented automations made through the
+API (one switched off, one run started with Run now, nightly dreaming switched on for the built-in); the native ones
+live against the same server at the same size, `TZ=UTC`, the light one with the theme toggled by the script
+(Cmd+Shift+L) in a scratch data folder.
+
+## What "done" means
+
+1. The Automations rail opens `[automations-list][automations-detail]` as in Fleet, for the machine its switch shows; the
+   list loads, says when it's loading or failed, and shows each automation's state in a word.
+2. An automation's page switches it on and off, runs it now, deletes it (with the confirm), and lists its runs, which
+   follow a running run (every 3 s while one runs, 20 s otherwise) and open the session (or the workflow run's waiting
+   session) a run started, on the machine it went to.
+3. The built-in Dreaming automation has its compact page: Run now, Change time, Pause/Resume, Settings → Memory.
+4. The composer makes and changes an automation the way Fleet does: the schedule read from the sentence (no model), the
+   When menu, the folder, worktree and base, new or same session, the name and skipping, agent and model on their harness,
+   another machine, a workflow with its optional steps; the plan line says what Enter will make; Save shows only once
+   something changed; the server's refusals are shown.
+5. Repeat on a schedule… (session row menu, Workflows Library), Started by (a workflow run) and Settings → Memory's
+   "Runs as the built-in automation Dreaming" open the right automation or draft.
+6. Fleet's tests for it pass here under the same names (list below).
+
+## What the native app already has
+
+| Part | State | Where |
+|---|---|---|
+| The rail entry (Zap, "Automations", top, order 30), the route `/automations` picking it, the tooltip, the problem report's "Automations" screen | Done (component 9, piece A) | `src/fleet/rails.rs`, `src/view/rail.rs`, `src/fleet/report_form.rs` |
+| The rail opens a notice ("Only the Sessions shell is rebuilt in this prototype.") | To replace (D) | `src/view.rs` `notice` |
+| A rail view with its own list and detail, the session list's width and gutter (`Rail::Workflows` does it) | Done for Workflows (18 B); the pattern to follow | `src/view.rs` `root`, `src/view/workflows/mod.rs` |
+| The machine choice a view with its own switch holds (`MachineChoice`: `enabled`, `key`, `is_other`, `pick`, `reset`), and the switch chip and menu | Done (component 17, piece N); Automations has no `MachineChoice` yet | `src/fleet/machine_choice.rs`, `src/view/machine_switch.rs` |
+| Per-machine requests (`machine_routes`, the token per machine) | Done (component 17) | `src/fleet/machine_routes.rs`, `src/fleet/http.rs` |
+| The session row menu's **Repeat on a schedule…** (Repeat, hint, id `session-repeat-on-schedule`, left out for another machine's row) | Stub: a "waiting" toast | `src/fleet/row_menu.rs` |
+| Settings → Memory's "Runs as the built-in automation Dreaming" (`dream-automation`, only on the live machine) and "Paused in Automations" | Done (component 16, piece S); the link only switches the rail, it selects nothing | `src/fleet/settings/dream_nightly_actions.rs` `open_dream_automation`, `src/view/settings/dream_nightly.rs` |
+| The machine's IANA zone (`local_time_zone`: `TZ` or the `/etc/localtime` link; none on Windows) | Done (16 S) for the nightly time; reuse | `src/fleet/settings/dream_nightly.rs` |
+| The local offset (`local_offset_secs`, now only; 0 on Windows) and civil dates (`civil`) | Done; the schedule needs the offset **at a given instant** (DST) | `src/conv/time.rs` |
+| `regex` (no look-around: Fleet's `(?![\w'])` becomes a check of the next character) | In `Cargo.toml` | |
+| A session started by an automation: the header's origin chip, the Context tab's "Started from" row, the panel opening Context for it | Done (components 8, 10) | `src/fleet/context_chips.rs`, `src/fleet/context_tab.rs` |
+| Workflows: the runs store (a run's `waiting.sessionId`, its sessions, `startedBy`), the Library per folder and machine, the off preference | Done (18 A, B); Started by and Repeat on a schedule… in the Library are 18's C, D and I, the click into Automations is this component's | `src/fleet/workflows/` |
+| The New session strip's chips and menus: folder (`FolderPicker`), workspace, base, machine, harness; `ui::chip::Chip` and `pop` | Done (component 7), but each reads `s.new_draft` directly; 18 D (the Run box) reuses folder, base and harness on its own state. Whichever of 18 D and this component comes first makes them take a host | `src/view/folder_menu.rs`, `src/view/workspace_picker.rs`, `src/view/base_picker.rs`, `src/view/machine_picker.rs`, `src/view/harness_picker.rs`, `src/ui/chip.rs` |
+| The composer frame (`ComposerFrame.vue`), the agent and model chips and their `SelectorDropdown`, the harness catalog per folder, `describeDefaults`, the model key ↔ `provider/model` path | Done (components 5, 7) | `src/view/new_session_box.rs`, `src/view/selector.rs`, `src/fleet/catalog.rs`, `src/fleet/new_session/` |
+| A text field's highlighted byte range (`text_highlights`) for the schedule words (Fleet's mirror `<mark>`) | Rune has it (`docs/RUNE.md`); no ring, fixed radius | |
+| `PageHeader` with `bar`; switch; confirm dialog (`confirmAction`); `ErrorNote` with Try again; compact `EmptyState`; spinner; status glyphs; toasts; menus | Done; `PageHeader` is private to Settings and Workflows today, and only the compact `EmptyState` exists (D adds the full one with icon, description and action) | `src/view/settings.rs` `page_header`, `src/view/workflows/mod.rs`, `src/ui/controls.rs` `switch`, `src/ui/confirm.rs`, `src/ui/empty_state.rs`, `src/view/parts.rs` `status_glyph` |
+| Icons `ZAP`, `PLUS`, `PENCIL`, `PLAY`, `ELLIPSIS`, `TRASH_2`, `CIRCLE_ALERT`, `REPEAT`, `MESSAGE_SQUARE`, `MESSAGE_SQUARE_TEXT`, `CHECK`, `CHEVRON_DOWN`, `ARROW_UP`, `GIT_BRANCH`, `WORKFLOW`, `TRIANGLE_ALERT` | Generated | `src/icons.rs` |
+| `Clock`, `CalendarClock` | **Missing**: J adds them with `tools/gen-icons.py` | |
+
+## The checklist
+
+### 1. The rail, the page and its state
+
+| # | Fleet | Source | Native |
+|---|---|---|---|
+| 1.1 | Rail entry "Automations" (Zap), top, order 30, panel `AutomationsContextPanel`; route `/automations` | CR 79, `routes/automations.tsx` | Done (9 A) |
+| 1.2 | Context `[automations-list][automations-detail]`: the list at the session list's width with its gutter; the list is rebuilt (keyed) when the view's machine changes | CR `AutomationsContextPanel`, AP | None (D) |
+| 1.3 | The page opens on the machine you're on (`resetAutomationsMachine` on every visit); the list's machine switch picks whose list, runs and changes these are (`MachineScope` keyed by it) | AP, UAM, `composables/use-machine-choice.ts` | None (D): a `MachineChoice` on `State`, reset when the rail is entered from another |
+| 1.4 | Nav state, kept across leaving the page: `activeAutomationId`, `viewMode` (`list` / `create` / `edit`), the new automation's `draft` (survives leaving; the draft row shows it), `seedSessionId` | UAN | None (D for the fields; H for the draft's shape) |
+| 1.5 | `setActiveAutomation(id)` → edit; `startCreate()` → create with no active id; `clearSelection()` → list; `resetDraft()` | UAN | None (D) |
+| 1.6 | `startCreateFromSession(id)`: a fresh draft, the seed set, create mode | UAN | None (O) |
+| 1.7 | `startCreateFromWorkflow(seed)`: a fresh draft with the Run box's request as the text, the folder as a chosen repository, a new worktree, the base, target `workflow`, the workflow and its optional steps, the harness; create mode | UAN | None (N) |
+| 1.8 | Opening another automation or changing mode clears the form error, the notice, the runs and the unsaved changes (the edit state is the automation as saved), and loads its runs | ADP `watch([activeAutomationId, viewMode])` | None (E, F) |
+| 1.9 | The list can arrive after the page opened: the edit state is set from it when the open automation first appears | ADP | None (E) |
+| 1.10 | A narrow window (< 716 px): the header's meta line hides; < 560 px: the body's side padding is 10 | ADP, BAD media queries | None (D, E): only if the window can be that narrow; otherwise n/a |
+
+### 2. The list (`[automations-list]`)
+
+| # | Fleet | Source | Native |
+|---|---|---|---|
+| 2.1 | Header "AUTOMATIONS": 10 px (0.71429rem) 600 uppercase, letter-spacing .05em, muted, padding 14/16/10; the row padding-top 4 | ANP `.panel-header` | None (D) |
+| 2.2 | The machine switch under it (`MachineSwitch`, label "Automations", testid `automations`), padding 0 12 6, only when another machine is listed | ANP | None (D): `machine_switch::chip` |
+| 2.3 | **New automation** (Plus 16): full width, min-height 36, padding 0 12, gap 8, 1 px border, radius btn, `--bg` fill, 12 px (0.857rem) 500; hover accent border and an 8 % accent wash; in a 0 12 12 box; starts create | ANP `.new-automation-btn` | None (D). Rune has no hover border (`docs/RUNE.md`): the wash only |
+| 2.4 | The list shows while creating, or once loaded with at least one automation: column, gap 1, padding 0 8 12, scrolls | ANP `.automations-nav` | None (D) |
+| 2.5 | The draft row while creating (first, active, `aria-current=page`): Pencil 11 muted, the title, "Draft". Title: the name typed, else `autoName(promptFrom(text, hit))` (the hit ignored once the When menu chose), else "New automation" | ANP `draftTitle` | None (D) |
+| 2.6 | A row: min-height 32, gap 9, padding 0 10, radius btn; text 86 % mix; hover 5 % text wash and full text; active (open and in edit mode) 9 % wash, full text, 500; focus ring 2 px accent inset | ANP `.automation-row` | None (D) |
+| 2.7 | Off rows (not active) fade to 45 % text | ANP `.automation-row--off` | None (D) |
+| 2.8 | The glyph slot (8×8): the working glyph ("Running") or the error glyph ("Its last run failed") from the row status, else empty | ANP | None (D): `parts::status_glyph` |
+| 2.9 | Title 13 px (0.929rem) line-height 1.3, ellipsis | ANP | None (D) |
+| 2.10 | **Built in** pill (built-ins only): 1 px border, full radius, padding 0 7, 11 px 500 muted (testid `automation-row-builtin`) | ANP | None (D) |
+| 2.11 | The machine its runs go to (another machine only): max 7em, coral text, mono 11.5 px, ellipsis (testid `automation-row-machine`); its name now in the machine list, else the last run's `machineName`, else "another machine"; when the view shows another machine, the last run's name or "another machine" | ANP `machineOf` | None (M) |
+| 2.12 | The status word (12 px, tabular figures, `--muted` 80 %; working `--running-text`, error `--error-text`) from `automationRowStatus` (14.12): "Running", "Needs you", "Off", "Failed", the next run short (`nextShort`), "On event", or nothing | ANP, LA | None (D for the view; B for the words) |
+| 2.13 | Order: built-ins first, the rest as the server sent them (stable sort) | ANP `rows` | None (D) |
+| 2.14 | The times follow the clock (`useRelativeTime`, a 30 s tick) | ANP | None (D): the app's clock tick |
+| 2.15 | A click opens the automation (`setActiveAutomation`) | ANP | None (D) |
+| 2.16 | Loading (first load, nothing to show): a large centred spinner, "Loading automations…" for readers | ANP | None (D) |
+| 2.17 | A failed load (or retrying): `ErrorNote` "Couldn't load automations." with the server's reason and Try again (spinner while retrying), margin 12, testid `automations-load-error` | ANP | None (D) |
+| 2.18 | Empty: compact `EmptyState` "No automations yet", filling the panel | ANP | None (D) |
+
+### 3. The detail with nothing open (list mode)
+
+| # | Fleet | Source | Native |
+|---|---|---|---|
+| 3.1 | `PageHeader` "Automations" (`bar`) | ADP | None (D) |
+| 3.2 | The body: padding 18/24/8, column, scrolls | ADP `.automation-page__body` | None (D) |
+| 3.3 | First load with nothing loaded: a large spinner, centred (testid `automation-loading`) | ADP `firstLoad` | None (D) |
+| 3.4 | Nothing loaded and the load failed (or retrying): `ErrorNote` "Couldn't load automations." with the reason (or "Trying again…"), Try again, max-width 28rem, centred (testid `automation-load-error`) | ADP `loadFailed` | None (D) |
+| 3.5 | Else `EmptyState` (Zap), centred: none yet "No automations yet" / "An automation runs a prompt or a workflow on a schedule, or when something happens in Fleet." with a **New automation** button (sm, Plus; testid `automation-empty-create`); with some "Automations" / "Pick one from the list, or make a new one." and no button | ADP | None (D): the full `EmptyState` (icon, title, description, action) added to `ui::empty_state` |
+
+### 4. An automation's header and actions
+
+| # | Fleet | Source | Native |
+|---|---|---|---|
+| 4.1 | `PageHeader` (`bar`) with the automation's name | ADP | None (E) |
+| 4.2 | The switch in the meta (`automation-enabled`, aria-label On/Off), disabled while switching; its off track 22 % text so "off" shows | ADP `.automation-page__switch` | None (E): `ui::controls::switch` with that off colour |
+| 4.3 | The meta line (12 px muted, ellipsis; testid `automation-header-meta`): off "Off. It won't run until you switch it on." or, for a one-off that ran, "Off. Its one run was <date>."; an event "Runs when <event, lower case>"; else "Next run <Mon 23 Nov, 09:00>" or nothing | ADP `headerMeta` | None (E) |
+| 4.4 | **Run now** (outline sm, Play 14; testid `automation-run-now`) | ADP | None (E) |
+| 4.5 | Run now: the run goes to the top of the runs at once; skipped → an error notice with its reason (or "The run was skipped."); else the info notice "Started a run. It shows below and in Sessions."; then the runs reload; a refusal → the error notice (fallback "Couldn't start a run.") | ADP `handleRunNow` | None (E for the call and notices; F for the run in the list) |
+| 4.6 | The ⋯ button (outline icon-sm, Ellipsis; `automation-more-menu`, aria-label "More") opens a menu aligned to its end, 6 px off, with **Delete** (Trash2, error colour; `automation-delete`) | ADP | None (E) |
+| 4.7 | Delete asks first: "Delete this automation?", the name as subject, "It stops running. The sessions its runs started stay in Sessions.", **Delete automation** (destructive); confirmed → deleted, back to list mode; a refusal → the error notice (fallback "Couldn't delete the automation.") | ADP `confirmDelete` | None (E): `ui::confirm` |
+| 4.8 | The switch: on → `enable`, off → `disable`, then the list reloads (the row dims too); a refusal → "Couldn't switch it on." / "Couldn't switch it off." (or the server's words) | ADP `handleToggleEnabled` | None (E) |
+| 4.9 | The notice (testid `automation-action-message`): max-width 760, centred, gap 8, margin-bottom 12, 1 px border, radius card, padding 9/12, 12.5 px line-height 1.5; info muted, gone after 4 s; error in the error colours with CircleAlert, stays | ADP `showNotice`, `.automation-page__notice` | None (E) |
+| 4.10 | A workflow automation while Workflows are off: a warning notice (waiting colours, CircleAlert): "This automation runs a workflow, and Workflows are turned off in Settings. Its runs are skipped until they're back on." and the underlined link **Open Settings → Labs** (Settings on Labs) (testid `automation-workflows-off`) | ADP `workflowsOffWarning` | None (N) |
+| 4.11 | The form error over the composer (testid `automation-form-error`): error colours, CircleAlert, width 100 % − 48, margin-bottom 8: the server's reason for a refused create or save ("Couldn't create the automation." / "Couldn't save the automation.") or "Couldn't read that session." | ADP | None (I) |
+
+### 5. Its runs
+
+| # | Fleet | Source | Native |
+|---|---|---|---|
+| 5.1 | Loaded on opening (not for a built-in, which loads its own), then polled: every 3 s while a run is starting or running, else every 20 s, each poll also reloading the list; a failed load keeps what was there; a load for an automation no longer open is dropped; the timer stops when the page closes | ADP `loadRuns` | None (F): on a thread, the poll from the app's tick, a generation per automation |
+| 5.2 | No runs once loaded: `EmptyState` (bordered) "No runs yet" with `firstRunHint`: off "Switch it on, or press Run now."; a next run "The first run is <date>, or press Run now."; an event "It runs when its event happens, or press Run now."; else the next run from the trigger, or "Press Run now to try it." (testid `automation-no-runs`) | ADP `firstRunHint` | None (F) |
+| 5.3 | The list (max-width 760, centred): label "RUNS" (11 px 600 .05em uppercase muted, padding 0 10 6) with "<done> of <all> finished" (12 px, normal case) at the right | ARL | None (F) |
+| 5.4 | A run: grid 10 px · 1fr · auto, gap 9, min-height 34, padding 5/10, radius btn; a button (pointer, 5 % hover wash, focus ring) when it has a session, else plain | ARL `.automation-run` | None (F) |
+| 5.5 | Its glyph: working while starting or running, waiting ("Needs you") while waiting, error when failed, else none | ARL | None (F) |
+| 5.6 | Its time (13 px tabular): `describeDate(scheduledFor ?? startedAt)`; then, 12 px muted, the trigger in words (14.13; nothing for the schedule) and "on <machine>" in coral mono 11.5 (testid `automation-run-machine`) | ARL | None (F; the machine M) |
+| 5.7 | At its end: "Open run →" (a workflow run) or "Open session →" (12 px muted), shown on hover or focus only; the state word (12 px, 85 % muted; working running colour, error error colour, warn `--status-waiting-text`) from `describeRunState` (14.14) | ARL | None (F): revealed on hover as the session rows' buttons are |
+| 5.8 | Its notes under it (12 px muted; testid `automation-run-note`): the summary, then the error unless the summary says it (a failure always adds its error) | ARL `runNotes` | None (F) |
+| 5.9 | A click opens the session: a workflow run's waiting session, else its newest step session, else the run's session; on another machine the session is remembered as that machine's so it opens in place; `instanceId` is passed for a plain run | ADP `openRun`, `sessionOf` | None (F; the machine M; the workflow run N) |
+
+### 6. The built-in Dreaming automation
+
+| # | Fleet | Source | Native |
+|---|---|---|---|
+| 6.1 | A built-in (`builtin` set) opens a compact page instead: no composer, no delete, no editing | ADP, BAD | None (G) |
+| 6.2 | Header: the name, pills **Built in** (testid `automation-builtin-pill`) and **Experimental** (1 px border, full radius, padding 1/8, 11.5 px 500 muted), the meta: paused "Paused. It won't run until you resume it.", else "Next run <date>" | BAD | None (G) |
+| 6.3 | The description (13.5 px muted, line-height 1.5; testid `builtin-description`): "Every day at HH:MM." (a cron `m h * * *`) or "On the schedule <cron>.", then "Starts one dreaming session for each repository with sessions since the last run. Skips the rest at no cost." | BAD | None (G) |
+| 6.4 | Actions (wrap, gap 6): **Run now**, **Change time** → a time field (28 px, aria-label "Time each night", `builtin-time`) with **Save** (`builtin-time-save`, disabled while busy or empty) and **Cancel**; **Pause**/**Resume** (`builtin-pause`); **Settings → Memory** (ghost; `builtin-settings`) | BAD | None (G): the time a text box taking `HH:MM`, as Settings' nightly time is (Rune has no time field) |
+| 6.5 | Change time saves `PUT /api/memory/dreaming/nightly {time, timeZone}` (the browser's zone, else UTC) on the view's machine, then reloads the list; Pause/Resume disable/enable; one action at a time; a refusal shows as the error note (fallbacks "Couldn't start a run.", "Couldn't change it.", "Couldn't change the time.") | BAD `act`, `saveTime` | None (G) |
+| 6.6 | Settings → Memory opens Settings on Memory | BAD | None (G) |
+| 6.7 | Runs: loaded and polled as 5.1; none yet "No runs yet. The first is <date or tonight>, or press Run now."; else the runs list (rows don't open) | BAD | None (G; the list from F) |
+| 6.8 | A night's summary and a skipped night's reason show under its run (5.8) | ARL | None (G with F) |
+
+### 7. The composer (box, plan line, create and save)
+
+| # | Fleet | Source | Native |
+|---|---|---|---|
+| 7.1 | Create mode: `PageHeader` "New automation" with a **Not saved** pill; the body's centred text "What should run on its own?" (17 px 600, −.01em) over "Say what it should do and when. The chips under the box say where it runs." (13.5 px muted, max 460) | ADP | None (I) |
+| 7.2 | The composer: padding 4/24/18, its parts max 760 centred; the `ComposerFrame` with the message box and the toolbar | AC | None (I): the frame of `new_session_box` |
+| 7.3 | The box: 2 rows, min-height 70, grows to 190 then scrolls; placeholder "What should it do, and when? e.g. “Every Monday at 9, summarise the open PRs”"; read-only while saving; aria-label "What the automation does, and when"; focused on opening a new one | AC | None (I) |
+| 7.4 | The schedule words in the box are highlighted (16 % accent fill, 1 px 45 % accent ring, radius 4; testid `automation-schedule-highlight`), only while the words decide (not once the When menu chose) | AC mirror | None (I): `text_highlights`; gap: no ring, Rune's radius |
+| 7.5 | Enter creates or saves; Shift+Enter is a new line; nothing while composing (IME) | AC `handleKeydown` | None (I) |
+| 7.6 | Send: create mode the round arrow (ArrowUp, "Create automation (Enter)"); edit mode a **Save** text button (padding 0 14, 12.5 px 500, "Save changes (Enter)"), shown only once something changed; a spinner while saving; disabled unless `canSubmit` (not busy, a request, dirty) (testid `automation-submit`) | AC `showSend`, `canSubmit` | None (I) |
+| 7.7 | Submit with no folder chosen opens the folder menu instead of creating | AC `submit` | None (K) |
+| 7.8 | The plan line (`automation-plan`, 12 px muted, line-height 1.55, padding 4 11 0, min-height 22): `describeAutomationPlan` (14.15): bold parts in text colour 500, warnings in `--status-waiting-text`, code parts in mono 11.5 text colour; another machine is named first ("On <name>:", coral mono 11.5) | AC | None (I; the machine M) |
+| 7.9 | The ask in the plan: "Every Friday, or just once?" (warn) with **Just once**; after it, **Every Friday instead**; underlined link buttons (testid `automation-plan-ask`) that set or clear `forceOnce` | AC, LA | None (I) |
+| 7.10 | A new schedule phrase clears the "Just once" answer | AC watch | None (H) |
+| 7.11 | Create: `POST`, the draft reset, the new automation opened, then the info notice "Created and on. First run <date>." (or "Created and on."); a refusal keeps the text and shows the form error | ADP `handleCreate` | None (I) |
+| 7.12 | Save: `PUT`, the edit state reset from the saved automation, "Saved."; a refusal shows the form error | ADP `handleSave` | None (I) |
+| 7.13 | Editing opens the composer with the automation as saved (`stateFor`): the prompt as the text, its trigger as the When menu's choice (a cron it has no words for as Custom), its folder (a repository when it runs in a worktree or the repository list knows it), worktree or as it is, base, target, workflow and steps, name, skip (`maxConcurrentRuns > 0`), agent, model (as a model key), harness, machine | ADP `stateFor` | None (H) |
+| 7.14 | A folder read before the repository list arrived becomes a repository once the list has it (both the draft and the edit state) | ADP watch | None (H) |
+| 7.15 | The request (a session target): name typed, else the saved name, else `autoName`; the prompt (`promptFrom`); the trigger (`toTrigger`); `maxConcurrentRuns` skip ? max(1, saved) : 0; per-hour and timeout kept (10 and 30 for a new one); the folder (none for "no folder"); model as `provider/model`, agent, harness only with an agent or model; target type; tags kept; the zone; isolation `worktree`/`existing` (null for an older folderless one with still no folder); base only for a worktree; the machine | AC `request` | None (H) |
+| 7.16 | No request (so no Send) without a schedule or a prompt | AC | None (H) |
+| 7.17 | Dirty: any of name, prompt, trigger, folder, isolation (an older one with a folder counts as `existing`), base, target, agent, model, harness, workflow, steps (as a set), the concurrency limit, the machine differs | AC `isDirty` | None (H) |
+| 7.18 | The zone: the browser's IANA zone, else UTC; an existing schedule saved in another zone says "Saving moves it from <old> time to <new>." (warn) | LA `browserTimeZone`, `describeAutomationPlan` | None (H): `local_time_zone`; with none known (Windows today) everything is computed and saved in UTC, which is correct, only less friendly (16.4) |
+
+### 8. The When chip and menu
+
+| # | Fleet | Source | Native |
+|---|---|---|---|
+| 8.1 | The chip (`automation-when-chip`): Clock (Zap for an event), `whenChip` ("Mondays 09:00", "Once · Mon 21 Sep", "When?"), chevron; the attention look with no schedule; the label in `--accent-text` while it came from the message | AWP | None (J); the chip label alone in I |
+| 8.2 | The menu above the chip, start-aligned, 6 px off, 300 wide, max height min(560, 70 % of the window), scrolls | AWP | None (J). **Fleet bug:** the scoped `max-height` doesn't reach the popover (computed `none`, checked live at 1280×760), so the menu is 683 px tall and starts 75 px above the window (`fleet-when-*.png`, "REPEAT" cut off). Port the intended cap; reported, not fixed from here |
+| 8.3 | From the message: the note "Picked up from your message. Choosing here takes over."; or, when a choice here overrides schedule words in the message, **Use the words in the message** (MessageSquareText; `automation-when-use-message`) | AWP | None (J) |
+| 8.4 | "Repeat": **Every day** "at HH:MM", **Weekdays** "Mon–Fri at HH:MM", **<Day>s** "every week at HH:MM" (the schedule's own day, else today), **Every hour** "on the hour"; Repeat icons; a check on the chosen one; the time kept from the schedule (09:00 by default) | AWP `chooseRepeat` | None (J) |
+| 8.5 | **Once** "on a date you pick, then it switches off" (CalendarClock; `automation-when-once`): the date it had, else tomorrow, at the time; stays open | AWP `chooseOnce` | None (J) |
+| 8.6 | Fields: "Date" (a once) and "Time (<zone>)" (all but events, hours, minutes and cron) (`automation-when-time`); a change keeps the kind (a weekly stops asking "every week or once?"); a time with no schedule yet makes a weekly one on today | AWP `setTime`, `setDate`, LAS `withTime` | None (J): text boxes taking `YYYY-MM-DD` and `HH:MM` (Rune has no date or time field) |
+| 8.7 | "Custom (cron, in <zone> time)" (mono, placeholder `0 9 * * 1`; `automation-when-cron`), filled with the schedule's cron on opening: Enter or leaving it changed applies it; not five parts → "A cron has five parts: minute hour day month weekday." (error 11.5 px) | AWP `applyCron` | None (J) |
+| 8.8 | "When something happens": one row per event type (Zap; `automation-when-event-<type>`) in words (14.11), from the server's catalog (`GET /api/automations/event-catalog`), the built-in list until it answers or when it fails | AWP | None (J) |
+| 8.9 | Choosing sets the schedule (which takes over from the words) and clears "Just once"; closing returns focus to the box | AC `setWhen`, `returnFocusToMessage` | None (J) |
+
+### 9. Where it runs (folder, workspace, base, runs in, the … chip)
+
+| # | Fleet | Source | Native |
+|---|---|---|---|
+| 9.1 | The strip under the box: wrap, gap 2, padding 6/4/0; separators 1×14 border colour, margin 0 3; the … chip pushed to the end | AC `.automation-composer__strip` | None (I draws the strip with the When chip; K the rest) |
+| 9.2 | Folder chip and menu (`FolderPicker`): repositories, recent folders, browse (not in cloud mode), **No folder** (not for a workflow); the chosen one marks `hasChosenFolder`; "folder added" reloads the repositories | AC, NSD `FolderPicker.vue` | None (K): the New session folder menu on the composer's state |
+| 9.3 | A new automation starts in the folder New session would (`initialFolder` from the recent folders), not a plain folder in cloud mode, once the repositories have loaded and none was chosen; editing never changes the folder by itself | AC `applyInitialFolder` | None (H for the rule; K for the view) |
+| 9.4 | Another folder clears the base; a new automation in a repository gets a new worktree each run unless changed | AC `setFolder` | None (H) |
+| 9.5 | In a repository: the workspace chip (`WorkspacePicker`: current checkout or a new worktree; no existing worktrees offered) and, for a new worktree, the base chip (`BasePicker` without the branch name and without "Fetch origin first") with the repository's branches, default base and current branch | AC | None (K) |
+| 9.6 | **Runs in** chip (`automation-runs-in-chip`): "New session each run" (MessageSquare; detail "each run starts fresh") or "Same session each run" (Repeat; "later runs continue the first run's session"); an older target ("The most recent session", "The newest session with its tags", detail "how this automation was set up") stays, checked, until changed | ARIP | None (K) |
+| 9.7 | The … chip (Ellipsis; `automation-more-chip`, "Name, skipping"): a popover, end-aligned, with **Name** (placeholder the auto name or "From the first words"; `automation-name`; Enter closes and, when editing, saves) and **Skip a run while the last one is still going** / "So a slow run never piles up behind itself." (`automation-skip`); for a workflow instead the fact "A firing is skipped while the last run is unfinished" / "So a workflow run waiting on you never has another piled up behind it." (`automation-always-skips`) | AMO | None (K) |
+
+### 10. Agent, model and harness
+
+| # | Fleet | Source | Native |
+|---|---|---|---|
+| 10.1 | With a folder (not for a workflow) and a harness that offers them: the agent and model chips in the toolbar (`automation-agent`, `automation-model`), "Default" labels and descriptions from `describeDefaults`, no recent models | AC | None (L): the composer's `SelectorDropdown` chips |
+| 10.2 | The harness: the automation's own, else the default harness; the catalog is that harness's for the run's folder | AC `harnessType`, `useHarnessCatalog` | None (L) |
+| 10.3 | Sent: `model` as `provider/model`, `agent` or null, `harnessType` only when either is set | AC `request` | None (L, with H's request) |
+
+### 11. Another machine
+
+| # | Fleet | Source | Native |
+|---|---|---|---|
+| 11.1 | The **Runs on** machine chip (`MachinePicker`, heading "Runs on") first in the strip, then a separator: only with other machines listed, on the live machine at home, and not when the view shows another machine; the menu says which machines answer (polls while shown); "Add a machine" opens Settings on it | AC `showMachineChip` | None (M): `machine_picker` on the composer's state |
+| 11.2 | Picking a machine: `machineId` (null for this one), and the folder, workspace, base, agent, model, harness, workflow and steps are cleared; an older target becomes "new session" on another machine | AC `pickMachine` | None (H for the rule; M for the chip) |
+| 11.3 | The composer asks the picked machine for folders, repositories, harnesses, agents, models and workflows (`AutomationMachineScope`); when the view shows another machine, that one, whatever the state says | AMS | None (M) |
+| 11.4 | The view shows another machine and the automation runs on one: "Runs on **<name>**" (11 px muted, the name coral 500; testid `automation-runs-on`) in place of the chip | AC, ADP `runsOnName` | None (M) |
+| 11.5 | The row's machine (2.11), the run's machine (5.6), opening a run on its machine (5.9), "<machine> didn't answer" (14.14) | ANP, ARL, ADP, LA | None (M) |
+| 11.6 | Another machine's saved folder is read against that machine's repositories | AC watch | None (M) |
+
+### 12. A workflow target
+
+| # | Fleet | Source | Native |
+|---|---|---|---|
+| 12.1 | **Runs** chip (`automation-target-chip`, with Workflows on or for a workflow automation): "Runs a session" (MessageSquare; "the agent gets your message") or "Runs a workflow" (Workflow; "a workflow from the Library, with your message as its request"; offered only while Workflows are on, or already chosen) | ATP | None (N) |
+| 12.2 | Switching kind clears agent, model and harness; to a workflow: a new worktree, a plain folder dropped | AC `setTargetKind` | None (H for the rule; N for the chip) |
+| 12.3 | A workflow: the static **New worktree** chip (GitBranch; title "Each run gets its own worktree and branch; every step works in it."), the base chip in a repository, the workflow chip, one switch chip per optional step ("<title>: on/off", `automation-workflow-step-<id>`, title its hint), the harness chip when more than one harness runs workflows; the Runs in chip is not shown | AC | None (N) |
+| 12.4 | The workflow chip (`automation-workflow-chip`): the workflow's name, else its id without `builtin:`/`repo:`, else "Pick a workflow"; the menu: a note ("Workflows are turned off in Settings.", "Pick the repository it runs in first.", or the load's error) or "Loading the workflows…", then "Built into Fleet" and "This repo · .weave/workflows" groups; a file with errors is disabled with "The file has errors; fix it in the Library first" (AlertTriangle); a check on the chosen one | AWFP | None (N) |
+| 12.5 | The Library is loaded for the folder on the machine the runs go to (a newer load wins); the first workflow without errors is chosen when none is; another workflow clears the steps | AC `loadLibrary` | None (N): 18 A's `load_library` with a machine |
+| 12.6 | Harnesses: only those that support workflow steps; shown default: the automation's, else the default if it can, else the first | AC `workflowHarness` | None (N) |
+| 12.7 | The request: target `workflow`, model and agent null, the harness (pinned only when the default can't run workflows), isolation `worktree`, `maxConcurrentRuns` at least 1, steps the workflow still offers (kept as they are until the Library loads) | AC `request` | None (H) |
+| 12.8 | The plan for a workflow (14.15) | LA | None (B; drawn in I) |
+| 12.9 | The warning while Workflows are off (4.10); the workflow runs are kept loaded while Workflows are on, so a run row opens where it is now | ADP | None (N) |
+
+### 13. Ways in from elsewhere
+
+| # | Fleet | Source | Native |
+|---|---|---|---|
+| 13.1 | The session row menu's **Repeat on a schedule…** (not for another machine's row): a new automation from that session, Automations opened | SI `handleRepeatOnSchedule` | Stub (O) |
+| 13.2 | The seed: `GET /api/automations/draft-from-session/{id}` → `{prompt, folder, isolation}`: the text, the folder (a repository for a worktree), chosen, a new worktree unless it ran in the folder as it was; focus to the box; a failure is the form error "Couldn't read that session." | ADP watch `seedSessionId` | None (O) |
+| 13.3 | The Workflows Library's **Repeat on a schedule…** (18's 3.3, 5.16): `startCreateFromWorkflow` with the Run box's choices | WDP `repeatOnSchedule` | None (N; 18 D keeps the values) |
+| 13.4 | **Started by <automation>** on a workflow run (18's 10.3, 4.x): opens that automation in edit mode | WSB | None (N; 18 C and I draw the link) |
+| 13.5 | Settings → Memory's "Runs as the built-in automation Dreaming" selects the Dreaming automation | DN `openAutomation` | Partly (16 S switches the rail; G selects it) |
+| 13.6 | A session an automation started shows its origin chip and Context row | `SessionContextChips.vue`, `SessionContextCanvas.vue` | Done (components 8, 10) |
+
+### 14. The schedule logic (`lib/automation-schedule.ts`, `lib/automations.ts`)
+
+| # | Fleet | Source | Native |
+|---|---|---|---|
+| 14.1 | `When`: once (time; a weekday, today/tomorrow, or a fixed date), weekly (days, time, `ambiguous`), hours, minutes, monthly (day 1–28, time), cron, event | LAS | None (A) |
+| 14.2 | `parseSchedule`: the eleven patterns in order, first match wins, case-insensitive, with where the words are (start, end) | LAS `PATTERNS` | None (A): `regex`, the `(?![\w'])` look-ahead checked by hand |
+| 14.3 | Times: noon, midnight, `H:MM`, `H am/pm`, "at H"; morning 09:00, afternoon 14:00, evening 18:00, night 21:00; else 09:00; out of range is no time | LAS `parseTime`, `timeFrom` | None (A) |
+| 14.4 | `promptFrom`: the text without the schedule words and without "create an automation that…", tidied (spaces, punctuation, a leading "to/and/then"), first letter upper case; nothing taken out → the text as written (trimmed) | LAS | None (A) |
+| 14.5 | `autoName`: the first sentence's first six words, at most 42 characters (40 + "…") | LAS | None (A) |
+| 14.6 | `withTime` | LAS | None (A) |
+| 14.7 | `nextRun` on the local clock: once (date, rel, weekday), weekly, hours (on the hour, a multiple of n), minutes, monthly; none for cron and events | LAS | None (A): local time at the instant (DST), the offset passed in so tests fix it |
+| 14.8 | `cronOf`, `toTrigger` (a once fixed to its date as `YYYY-MM-DDTHH:MM`; an event as `{"eventType": …}`), `fromTrigger` (the composer's cron shapes back to their schedules, any other as cron) | LAS | None (A) |
+| 14.9 | Words: `whenChip`, `whenSentence`, `dayName`, `describeDate` ("Mon 21 Sep, 09:00"), `nextShort` ("09:00" today, "Mon 09:00" within a week, "21 Sep" later), `hm`, `dayDate`, `localDate` | LAS | None (A) |
+| 14.10 | `browserTimeZone`, `scheduleTimeZone` (none → UTC) | LA | None (B) |
+| 14.11 | `describeEventType` (five event types in words; an unknown one "<type> (never fires)"), `EVENT_TYPES`, `eventTypeOf` | LA | None (B) |
+| 14.12 | `automationRowStatus`: Running (working) while the last run starts or runs; Needs you while it waits, even off; Off; Failed (error); the next run short; "On event"; nothing | LA | None (B) |
+| 14.13 | `describeRunTrigger`: schedule nothing, catch_up "Caught up", once "Once", manual "Run now", else the event in words | LA | None (B) |
+| 14.14 | `describeRunState`: Starting, Running (working), Needs you (warn), Ended (quiet), Failed (error), Skipped (warn), "<machine or Its machine> didn't answer" (warn), else Done | LA | None (B) |
+| 14.15 | `describeAutomationPlan`: the schedule part (no schedule: the two asks; an event; "Runs **<sentence>** (<zone> time), next **<date>**." or ", then it switches off."; the zone move warning; the "on Friday" ask), and the rest (a workflow: pick it, pick the repository, "Each run: <workflow> in a new worktree of `<path>` from `<base>`, with your message as the request. Check with me is off; the run stops only where the workflow asks you."; a session: "Choose where it runs.", no folder (or the first workspace root for an older one), a new worktree of `<path>` from `<base>`, `<path>` as it is, "Later runs continue the first run's session.", and "The agent gets “…”" (110 characters, 108 + "…") or "Say what it should do." (warn) once there is a schedule hit or the word "automation") | LA | None (B) |
+
+### 15. The data, the store and the routes
+
+| # | Fleet | Source | Native |
+|---|---|---|---|
+| 15.1 | `Automation` and `AutomationRun` read from JSON (every field above, optional ones defaulted), `CreateAutomationRequest` written | SA | None (B) |
+| 15.2 | One store per machine: the list, `isLoading` true until the first load ends (reloads keep the old list), `error`; every change reloads the list | SA | None (C) |
+| 15.3 | `refresh` shares a load in flight | SA | None (C) |
+| 15.4 | Routes: `GET /api/automations` → `{automations}`; `POST` (the created one); `PUT /{id}`; `DELETE /{id}`; `POST /{id}/enable`, `/disable`; `POST /{id}/run` (the run, still starting); `GET /{id}/runs` → `{runs}` newest first; `GET /draft-from-session/{sessionId}`; `GET /event-catalog` → `[types]` | SA, server | None (C): on threads, to the machine the store is for |
+| 15.5 | A refusal throws the server's `error` (else `HTTP <status>`) | SA `readError` | None (C) |
+| 15.6 | The list is loaded when a view that shows it opens (the list, the page, the built-in page) | UA | None (C, D) |
+| 15.7 | No live events: Fleet doesn't push automation changes; the page polls (5.1) | server, SA | n/a |
+
+### 16. Out of reach, and why
+
+| # | What | Why |
+|---|---|---|
+| 16.1 | The hover border on New automation (2.3) | Rune has no hover border (`docs/RUNE.md`); the wash only |
+| 16.2 | The highlight's 1 px accent ring and 4 px radius (7.4) | `text_highlights` has no border and a fixed radius (`docs/RUNE.md`) |
+| 16.3 | Native date and time fields (6.4, 8.6) | Rune has none; text boxes taking `YYYY-MM-DD` and `HH:MM`, 24-hour, as Settings' nightly time |
+| 16.4 | The machine's zone on Windows (7.18) | No IANA name there yet (`local_time_zone`, `local_offset_secs` give none and 0): schedules are shown and saved in UTC, which runs at the right time. Windows 10 1903+ ships ICU (`icu.dll`, `ucal_getTimeZoneIDForWindowsID`); a later piece can read the zone from it without a crate |
+| 16.5 | The phone drawer closing on a pick (`use-close-drawer-on-pick`), the phone's Enter rule | Out of scope (`docs/PORT.md`): desktop only |
+| 16.6 | Screen-reader names and live regions (`aria-live` on the plan line, roles on notices) | Component 26 |
+| 16.7 | The status bar on the Automations page with mods (`StatusBar.mods.test.ts`) | Component 22 |
+
+## Fleet's tests, and where they go
+
+- `lib/__tests__/automation-schedule.test.ts` (A): "parseSchedule" "reads %j" (15 cases), "finds nothing in a sentence
+  without a schedule", "says where the schedule words are, so they can be highlighted"; "promptFrom" (4): "leaves out the
+  schedule words", "leaves out \"create an automation that…\", which is meant for Fleet", "leaves a prompt with nothing to
+  take out as it was written", "keeps line breaks in a longer prompt"; "autoName" "takes the first words of the first
+  sentence"; "nextRun" (2): "finds the next matching day and time", "puts a one-off on the next such day, or the date it
+  was fixed to"; "triggers" "stores %j as the trigger the server reads, and reads it back" (11 cases), "keeps a cron it has
+  no words for as Custom"; "words" (2): "labels the When chip and the line under the box", "shortens a sidebar row's next
+  run by how far away it is". Fleet's NOW is Tuesday 15 September 2026, 10:00 local; the port fixes the offset to 0.
+- `lib/__tests__/automations.test.ts` (B): "describeAutomationPlan" (6): "says when it runs, where each run happens, and
+  what the agent gets", "says a one-off switches itself off", "asks about “on Friday”", "describes the folder as it is, no
+  folder, and continuing one session", "asks for the schedule, or for what to do", "warns when saving moves a schedule to
+  another time zone"; "automationRowStatus" (2): "shows the next run, Running, Failed or Off", "says Needs you while the
+  workflow run its latest run started waits on the user, even when it's off"; "describeRunState" (2): "follows a workflow
+  run: Needs you while it waits, Ended once it's ended", "says a run's machine didn't answer, rather than Done";
+  "describeAutomationPlan for a workflow" (2): "names the workflow, where it runs, and that Check with me is off", "asks
+  for the workflow, and for a repository"; "describeRunTrigger" "names what started a run, and nothing for the schedule".
+- `stores/__tests__/automations.test.ts` (C): "lists a new automation as soon as it's created", "shows a switch-off
+  everywhere the list is shown", "shares one request between views that load at the same time", "throws the server's
+  reason when a create is refused", "stops showing the spinner after the first load and keeps it off for reloads"; "an
+  automations store of another machine" "asks that machine for everything, and keeps its own list".
+- `components/automations/__tests__/AutomationsPage.test.ts`, "Automations screen" (20): D: "shows loading, not “No
+  automations yet”, until the first load finishes", "says a failed load failed, not that there are no automations, and
+  loads on Try again", "shows each automation's next run, Running, Failed or Off in the sidebar, like session rows". E:
+  "shows a switch-off in the sidebar too", "says why a switch-off failed". F: "lists an automation's runs, and Run now
+  adds one straight away", "opens the session a run started". I: "reads when it runs out of the sentence, and creates it
+  on, in a new worktree each run", "stores “once on a monday” as that Monday's date, and leaves the words to Fleet", "asks
+  when it should run, and won't create one without it", "asks whether “on Friday” means every Friday, and can make it just
+  once", "says why the server refused a create, and keeps the text", "offers Save only once something changed, and keeps
+  the schedule it had", "warns that saving moves an older UTC schedule to your time zone". K: "asks where it runs when no
+  folder was used before, and opens the folder menu instead of creating", "renames an automation from the … chip, saving on
+  Enter". L: "runs a new automation on the agent and model picked for it, on that harness", "leaves the agent, model and
+  harness empty when both are Default", "shows an automation's agent and model, and offers Save once one changes". O:
+  "starts “Repeat on a schedule…” from the session's first message and folder".
+- `components/automations/__tests__/BuiltinAutomation.test.ts`: "The built-in Dreaming automation" (6, G): "is first in
+  the list with a Built in pill, and only it has one", "opens a compact view with its time and no delete or editing",
+  "changes the time through the nightly endpoint in the browser's zone", "pauses by disabling the automation", "opens
+  Settings → Memory", "shows a night's summary and a skipped night's reason". "Deleting your own automation" (2, E): "asks
+  first, naming it, and deletes once confirmed", "deletes nothing when the confirm is cancelled".
+- `components/automations/__tests__/AutomationMachine.test.ts`, "An automation that runs on another machine" (6, M): "has
+  no Machine chip while this is the only machine", "runs on the machine picked: its folders, harnesses and models, and the
+  machine is sent", "goes back to this machine with its own folder", "shows the machine in the list and on its runs, and
+  opens a run's session on that machine, in place", "says when a run's machine didn't answer, rather than Done", "shown for
+  another machine than the live one: no Runs on chip, the machine an automation runs on is named".
+- `components/automations/__tests__/AutomationWorkflowTarget.test.ts`, "An automation that runs a workflow" (8, N):
+  "switches the composer to a workflow, lists the folder's Library, and sends the message as the request", "lists the
+  repo's own workflows after the built-ins, and a file with errors can't be picked", "doesn't offer a workflow when
+  Workflows are off", "warns on an automation that runs a workflow while Workflows are off", "opens a saved workflow
+  automation with its choices, and offers Save only once one changes", "says why Run now was skipped, rather than that it
+  started", "shows a run that waits on you as Needs you, and opens it", "starts from the Library's Repeat on a schedule…,
+  with the Run box's choices".
+- `components/workflows/__tests__/WorkflowStartedBy.test.ts`: 18 owns the file (its C and I draw the link); the
+  assertions that the click opens the automation in edit mode, and that Repeat on a schedule… makes the draft, are N's
+  ("shows on the run's group in Sessions, and opens the automation", "opens a new automation that runs the workflow, with
+  the Run box's request, steps, base and harness").
+- `components/settings/__tests__/DreamingMemory.test.ts` "says when the automation is paused, and links to it": ported by
+  16 S (`src/tests_settings_nightly.rs`); G adds that the link selects the automation.
+- Out: `composables/__tests__/use-close-drawer-on-pick.test.ts` "closes the drawer when an automation is picked or a new
+  one started" (phone, 16.5); `StatusBar.mods.test.ts`'s Automations case (component 22); `rails.test.ts` and
+  `problem-report.test.ts` (done by component 9).
+
+## Pieces
+
+In build order. Each is one pull request; each starts from this file. Every piece adds the icons it draws with
+`tools/gen-icons.py`, its scenes (and their `-light` twins) to `spec()`, and its rows' state to this file,
+`docs/PORT.md` and `docs/RUNE.md`. "Live" means against a scratch Fleet (`scripts/scratch-fleet.sh` with its own `PORT`,
+`LLM` and `WORK`) with invented automations made through the API, as this file's pictures were: a schedule in a worktree,
+a nightly one, a switched-off one, an event one, a one-off, Run now on one (the scripted model answers its prompt, so the
+run ends Done), and nightly dreaming switched on (`PUT /api/memory {"enabled":true}`, then `PUT
+/api/memory/dreaming/nightly {"enabled":true,"time":"03:00","timeZone":"UTC"}`) for the built-in. A refused create is
+easy (`"triggerConfig":"bad cron"`). Take Fleet's pictures in the same zone as the native app (`timezoneId: 'UTC'` in
+Playwright, `TZ=UTC` for the app). Mock data: `src/mock/automations.rs` (B) holds invented automations and runs, so scenes
+and tests need no server.
+
+#### A. The schedule logic (no view)
+
+- **Rows:** 14.1-14.9.
+- **Files:** new `src/fleet/automations/schedule.rs` (`When`, `ScheduleHit`, `parse_schedule`, `prompt_from`, `auto_name`,
+  `with_time`, `next_run`, `cron_of`, `to_trigger`, `from_trigger`, `when_chip`, `when_sentence`, `day_name`,
+  `describe_date`, `next_short`, `local_date`; plain Rust, no Rune), new `src/fleet/automations/mod.rs`; a local offset at a
+  given instant beside `local_offset_secs` in `src/conv/time.rs` (`localtime_r` of that instant on Unix; 0 elsewhere);
+  tests in `src/fleet/tests/automation_schedule.rs` (with its `#[cfg(test)] mod` line).
+- **Depends on:** nothing.
+- **Tests:** all of `automation-schedule.test.ts` under its names (the `it.each` cases as one test each, or one test
+  looping the table with the case named in the failure); native: an offset that changes between now and the next run
+  (DST) gives the right local hour.
+- **Pictures:** no view changes: the Automations rail drawn as before (a scene), and the test output.
+
+#### B. The automations data and their words (no view)
+
+- **Rows:** 14.10, 14.11-14.15, 15.1.
+- **Files:** new `src/fleet/automations/model.rs` (`Automation`, `AutomationRun`, `RunState`, the request written as JSON,
+  read with `serde_json::Value` as the rest of `src/fleet/` does), new `src/fleet/automations/words.rs`
+  (`describe_event_type`, `EVENT_TYPES`, `event_type_of`, `schedule_time_zone`, `describe_run_trigger`,
+  `describe_run_state`, `automation_row_status`, `describe_automation_plan` returning parts with strong/warn/code marks, the
+  zone from `dream_nightly::local_time_zone`); new `src/mock/automations.rs`; tests in `src/fleet/tests/automations.rs`.
+- **Depends on:** A.
+- **Tests:** all of `automations.test.ts` (13) under its names; native: an automation and a run read from a captured
+  server answer (this file's scratch Fleet), unknown fields ignored, missing ones defaulted.
+- **Pictures:** no view changes (as A).
+
+#### C. The store and the routes (no view)
+
+- **Rows:** 15.2-15.6.
+- **Files:** new `src/fleet/automations/store.rs` (`Automations` per machine on `State`: list, `is_loading`, `error`, a
+  load in flight shared; create, update, delete, enable, disable, run, runs, draft from a session, event catalog on
+  threads through the machine's routes, each handing its answer back to the UI thread; the server's `error` words or
+  `HTTP <status>`); tests in `src/tests_automations_store.rs` with a `test_http` fake server.
+- **Depends on:** B.
+- **Tests:** `stores/__tests__/automations.test.ts` (6) under its names.
+- **Pictures:** no view changes (as A), and the test output listing the store against the fake server.
+
+#### D. The page and the list
+
+- **Rows:** 1.2-1.5, 1.10 (list), 2.1-2.10, 2.12-2.18, 3.1-3.5, 15.6.
+- **Files:** new `src/fleet/automations/nav.rs` (the nav state of 1.4 on `State`, the `MachineChoice`, `enter_automations`
+  resetting it, the list loaded on entering and on another machine), new `src/view/automations/mod.rs` (the page: list,
+  gutter, detail; the detail's list mode), new `src/view/automations/list.rs`; `src/view.rs` (`Rail::Automations` gets its
+  panes; the notice goes for it); `PageHeader` with `bar` made shared (from `src/view/workflows/mod.rs`), the full
+  `EmptyState` in `src/ui/empty_state.rs`; scenes `automations`, `automations-empty`, `automations-loading`,
+  `automations-error`. The detail of an open automation is its `PageHeader` alone until E; the draft row shows
+  "New automation" until H gives the draft its text.
+- **Depends on:** C.
+- **Tests:** the three D cases of `AutomationsPage.test.ts`; native: a row click opens it (edit mode), New automation
+  starts create, the machine switch reloads the list for that machine.
+- **Pictures:** the list beside Fleet's (`fleet-list-*.png`), the empty and the failed list, live, both themes.
+
+#### E. An automation's header and actions
+
+- **Rows:** 1.8 (notes and edit state), 1.9, 4.1-4.9.
+- **Files:** new `src/view/automations/detail.rs` (header, switch, meta, Run now, ⋯ menu, notices, the body);
+  `src/fleet/automations/nav.rs` (the actions: switch, Run now, delete with `ui::confirm`, the 4 s info notice); scenes
+  `automation-detail`, `automation-detail-off`, `automation-notice-error`.
+- **Depends on:** D.
+- **Tests:** "shows a switch-off in the sidebar too", "says why a switch-off failed", "asks first, naming it, and deletes
+  once confirmed", "deletes nothing when the confirm is cancelled"; native: Run now's notices (started, skipped, refused).
+- **Pictures:** the header beside Fleet's (`fleet-detail-*.png`'s top), switched off, the Delete confirm, live, both themes.
+
+#### F. The runs list
+
+- **Rows:** 4.5 (the run in the list), 5.1-5.9 (5.6's machine and 5.9's machine and workflow run are M's and N's).
+- **Files:** new `src/view/automations/runs.rs` (shared with G); the runs and their poll (3 s / 20 s, the list reloaded
+  with each, a generation per automation) in `src/fleet/automations/nav.rs`; opening a run's session (the Sessions rail,
+  that session); scenes `automation-runs`, `automation-runs-empty`, `automation-runs-states` (every state and a note).
+- **Depends on:** E.
+- **Tests:** "lists an automation's runs, and Run now adds one straight away", "opens the session a run started"; native:
+  the poll is quick while a run runs and slow after, an answer for an automation no longer open is dropped.
+- **Pictures:** the runs beside Fleet's, a run started live with Run now going from Starting to Done, opening its session;
+  both themes.
+
+#### G. The built-in Dreaming automation
+
+- **Rows:** 6.1-6.8, 13.5.
+- **Files:** new `src/view/automations/builtin.rs`; its actions in `src/fleet/automations/builtin.rs` (Run now, Pause,
+  Change time through the nightly route on the view's machine, one at a time, the notes); `open_dream_automation` in
+  `src/fleet/settings/dream_nightly_actions.rs` selects it; scenes `automation-builtin`, `automation-builtin-time`.
+- **Depends on:** F.
+- **Tests:** the six "The built-in Dreaming automation" cases; native: Settings → Memory's link opens Dreaming.
+- **Pictures:** beside Fleet's (`fleet-builtin-*.png`), Change time open, paused; live, both themes.
+
+#### H. The composer's state and request (no view)
+
+- **Rows:** 7.10, 7.13-7.18, 9.3 and 9.4 (the rules), 11.2 (the rule), 12.2 (the rule), 12.7.
+- **Files:** new `src/fleet/automations/composer.rs` (`ComposerState` as `AutomationComposerState`, `fresh`,
+  `state_for(&Automation)`, `when()`, `active_hit()`, `prompt()`, the highlight range, `plan_input()`, `request()` for both
+  targets, `is_dirty()`, `set_when`, `set_folder`, `set_target_kind`, `pick_machine`, `initial_folder`, the repository
+  upgrade of 7.14; plain Rust, the context passed in: repositories, defaults, harnesses, the library); the draft and the
+  edit state on `State` (the draft row of 2.5 then shows its title); tests in `src/fleet/tests/automation_composer.rs`.
+- **Depends on:** B (D for where the state lives).
+- **Tests:** native cases from `AutomationsPage.test.ts`'s request bodies, ahead of I: a sentence's request (trigger,
+  prompt, name, isolation), "once on a monday" fixed to its date, no request without a schedule or a prompt, dirty only
+  after a change, the saved schedule kept, an older folderless automation's isolation; a workflow's request.
+- **Pictures:** the draft row taking its title from a typed sentence (a scene), beside Fleet's draft row
+  (`fleet-new-*.png`).
+
+#### I. The composer: box, plan line, create and save
+
+- **Rows:** 4.11, 7.1-7.6, 7.8 (not the machine), 7.9, 7.11, 7.12, 8.1 (the label only), 9.1 (the strip with the When
+  chip), 12.8 (drawn).
+- **Files:** new `src/view/automations/composer.rs` (the frame from `new_session_box`, the box with `text_highlights`, the
+  toolbar's Send or Save, the strip, the plan line as `rich` text with the ask's link buttons); create and save wired to
+  the store in `src/fleet/automations/nav.rs`; the create page in `src/view/automations/detail.rs`; scenes
+  `automation-new`, `automation-new-ask`, `automation-new-error`, `automation-edit-dirty`.
+- **Depends on:** H, F.
+- **Tests:** the seven I cases of `AutomationsPage.test.ts`; native: Enter creates, Shift+Enter is a new line.
+- **Pictures:** a new automation beside Fleet's (`fleet-new-*.png`), the "on Friday" ask, a refused create, an edit with
+  Save showing; one created live and opened with its notice; both themes.
+
+#### J. The When chip and menu
+
+- **Rows:** 8.1-8.9.
+- **Files:** new `src/view/automations/when.rs` (chip and menu, the date, time and cron boxes), its state (open, cron
+  draft and error, the event catalog loaded once) in `src/fleet/automations/when.rs`; icons `CLOCK`, `CALENDAR_CLOCK`;
+  scenes `automation-when`, `automation-when-once`, `automation-when-cron-error`.
+- **Depends on:** I.
+- **Tests:** native: each Repeat row's schedule, Once with a date, a time change keeps the kind, the cron's five-part
+  error, an event chosen, Use the words in the message, the server's catalog replacing the built-in list.
+- **Pictures:** the menu beside Fleet's (`fleet-when-*.png`), Once with its date, live, both themes.
+
+#### K. Where it runs: folder, workspace, base, runs in, the … chip
+
+- **Rows:** 7.7, 9.1-9.7.
+- **Files:** the New session pickers made to take a host (if 18 D didn't already): folder, workspace and base read and
+  write through it, New session's state the first host, the composer's the second; new `src/view/automations/strip.rs`
+  (the chips in order, Runs in, the … popover); scenes `automation-strip-repo`, `automation-more`.
+- **Depends on:** J.
+- **Tests:** "asks where it runs when no folder was used before, and opens the folder menu instead of creating", "renames
+  an automation from the … chip, saving on Enter"; native: a folder change clears the base, the older target stays until
+  changed, skipping off sends 0. New session's own tests still pass unchanged.
+- **Pictures:** the strip beside Fleet's with a repository, a new worktree from a base and Same session, the … popover;
+  live, both themes; New session's strip unchanged.
+
+#### L. Agent, model and harness
+
+- **Rows:** 10.1-10.3.
+- **Files:** the agent and model chips in `src/view/automations/composer.rs`'s toolbar (the composer's `SelectorDropdown`
+  through a host as in K), the catalog for the run's folder and harness; scene `automation-agent-model`.
+- **Depends on:** K.
+- **Tests:** the three L cases of `AutomationsPage.test.ts`.
+- **Pictures:** the toolbar with an agent and a model picked beside Fleet's, the model menu open; live, both themes.
+
+#### M. Another machine
+
+- **Rows:** 2.11, 5.6 (machine), 5.9 (machine), 7.8 (machine), 11.1-11.6.
+- **Files:** the Runs on chip (`machine_picker` through a host) and "Runs on **name**"; the composer's requests (folders,
+  repositories, catalog, library) sent to the picked machine; the row's and run's machine; opening a run on its machine
+  (`remember_sessions`); scenes `automation-machine`, `automation-machine-fixed`.
+- **Depends on:** L.
+- **Tests:** the six `AutomationMachine.test.ts` cases.
+- **Pictures:** two scratch Fleets (17's setup): the chip and its menu, the row's and the run's machine, the view switched
+  to the other machine with "Runs on"; beside Fleet's; both themes.
+
+#### N. A workflow target, and the ways in from Workflows
+
+- **Rows:** 1.7, 4.10, 5.9 (workflow run), 12.1-12.9, 13.3, 13.4.
+- **Files:** new `src/view/automations/workflow.rs` (Runs chip, workflow chip and menu, New worktree, step switches, the
+  harness chip); the Library per folder and machine from 18 A; `start_create_from_workflow` behind 18's Repeat on a
+  schedule… and `set_active_automation` behind its Started by; scenes `automation-workflow`, `automation-workflows-off`.
+- **Depends on:** M; component 18's A, C, D, I.
+- **Tests:** the eight `AutomationWorkflowTarget.test.ts` cases; the two Automations assertions of
+  `WorkflowStartedBy.test.ts`.
+- **Pictures:** a workflow automation beside Fleet's (Fix a bug in the demo repository, an optional step on), the off
+  warning; a run started live with Run now that waits on you, opened from its row; both themes.
+
+#### O. Repeat on a schedule… from a session
+
+- **Rows:** 1.6, 13.1, 13.2.
+- **Files:** `src/fleet/row_menu.rs` (the stub goes); `start_create_from_session` and the seed read on a thread in
+  `src/fleet/automations/nav.rs`.
+- **Depends on:** K.
+- **Tests:** "starts “Repeat on a schedule…” from the session's first message and folder"; native: a failed read is the
+  form error, another machine's row has no item (already tested by 6).
+- **Pictures:** the row menu, then the draft it makes, beside Fleet's; live, both themes.
+
+#### P. Sweep
+
+- **Rows:** every row closed or open with its reason; all of Fleet's tests above accounted for.
+- **Files:** whatever the walk finds; this file.
+- **Depends on:** A to O.
+- **Pictures:** a live walk beside Fleet's own client: make one from a sentence, change its When, folder and model, Run
+  now, open the run, switch it off, delete it; the built-in; another machine; a workflow automation.
+
+## Seams with other components
+
+- **Component 18 (Workflows):** its Library's Repeat on a schedule… (3.3, 5.16) and Started by (4.x, 10.3) open
+  Automations (N); Automations' workflow target reads 18 A's runs store and Library. 18 D and K here both put the New
+  session pickers on another state: whichever comes first makes them take a host, the other uses it.
+- **Component 16 (Settings):** the Dreaming link (9.37) selects the automation once G is in; the When menu's and the
+  built-in's time boxes follow 16 S's text box; Labs (4.10) and Add a machine (11.1) open Settings pages that exist.
+- **Component 6:** the row menu's Repeat on a schedule… (3.97) is O.
+- **Component 17:** the view's machine switch and per-machine requests (1.3, 11.x) use its `MachineChoice` and routes.
+- **Component 22 (Mods):** the status bar on this page.
