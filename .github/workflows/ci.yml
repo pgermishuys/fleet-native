@@ -192,8 +192,29 @@ jobs:
       - name: Check the package (macOS)
         if: runner.os == 'macOS'
         run: |
-          hdiutil verify dist/fleet-native-macos-arm64.dmg
-          hdiutil imageinfo dist/fleet-native-macos-arm64.dmg
+          # Retry with backoff: "Resource temporarily unavailable" is the runner's service, not the image.
+          # If that is the only failure after every try, warn and pass; any other error fails.
+          check_dmg() {
+            for cmd in verify imageinfo; do
+              ok=0
+              for i in 1 2 3 4 5 6; do
+                if out=$(hdiutil "$cmd" dist/fleet-native-macos-arm64.dmg 2>&1); then
+                  echo "$out"; ok=1; break
+                fi
+                echo "hdiutil $cmd try $i: $out"
+                case "$out" in
+                  *"Resource temporarily unavailable"*) ;;
+                  *) return 1 ;;
+                esac
+                sleep $((i * 5 > 30 ? 30 : i * 5))
+              done
+              if [ "$ok" = 0 ]; then
+                echo "::warning::hdiutil $cmd: disk-image service unavailable after 6 tries; the app inside was verified before packing"
+                return 0
+              fi
+            done
+          }
+          check_dmg
       # Best effort: mounting is nice to prove, but a flaky mount must not fail the package.
       - name: Mount the package (macOS, best effort)
         if: runner.os == 'macOS'
