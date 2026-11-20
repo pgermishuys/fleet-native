@@ -278,15 +278,15 @@ live against the same server at the same size, `TZ=UTC`, the light one with the 
 
 | # | Fleet | Source | Native |
 |---|---|---|---|
-| 14.1 | `When`: once (time; a weekday, today/tomorrow, or a fixed date), weekly (days, time, `ambiguous`), hours, minutes, monthly (day 1–28, time), cron, event | LAS | None (A) |
-| 14.2 | `parseSchedule`: the eleven patterns in order, first match wins, case-insensitive, with where the words are (start, end) | LAS `PATTERNS` | None (A): `regex`, the `(?![\w'])` look-ahead checked by hand |
-| 14.3 | Times: noon, midnight, `H:MM`, `H am/pm`, "at H"; morning 09:00, afternoon 14:00, evening 18:00, night 21:00; else 09:00; out of range is no time | LAS `parseTime`, `timeFrom` | None (A) |
-| 14.4 | `promptFrom`: the text without the schedule words and without "create an automation that…", tidied (spaces, punctuation, a leading "to/and/then"), first letter upper case; nothing taken out → the text as written (trimmed) | LAS | None (A) |
-| 14.5 | `autoName`: the first sentence's first six words, at most 42 characters (40 + "…") | LAS | None (A) |
-| 14.6 | `withTime` | LAS | None (A) |
-| 14.7 | `nextRun` on the local clock: once (date, rel, weekday), weekly, hours (on the hour, a multiple of n), minutes, monthly; none for cron and events | LAS | None (A): local time at the instant (DST), the offset passed in so tests fix it |
-| 14.8 | `cronOf`, `toTrigger` (a once fixed to its date as `YYYY-MM-DDTHH:MM`; an event as `{"eventType": …}`), `fromTrigger` (the composer's cron shapes back to their schedules, any other as cron) | LAS | None (A) |
-| 14.9 | Words: `whenChip`, `whenSentence`, `dayName`, `describeDate` ("Mon 21 Sep, 09:00"), `nextShort` ("09:00" today, "Mon 09:00" within a week, "21 Sep" later), `hm`, `dayDate`, `localDate` | LAS | None (A) |
+| 14.1 | `When`: once (time; a weekday, today/tomorrow, or a fixed date), weekly (days, time, `ambiguous`), hours, minutes, monthly (day 1–28, time), cron, event | LAS | **Done (A, 20 November 2026)** `src/fleet/automations/schedule.rs` |
+| 14.2 | `parseSchedule`: the eleven patterns in order, first match wins, case-insensitive, with where the words are (start, end) | LAS `PATTERNS` | **Done (A, 20 November 2026)** `src/fleet/automations/schedule.rs` |
+| 14.3 | Times: noon, midnight, `H:MM`, `H am/pm`, "at H"; morning 09:00, afternoon 14:00, evening 18:00, night 21:00; else 09:00; out of range is no time | LAS `parseTime`, `timeFrom` | **Done (A, 20 November 2026)** `src/fleet/automations/schedule.rs` |
+| 14.4 | `promptFrom`: the text without the schedule words and without "create an automation that…", tidied (spaces, punctuation, a leading "to/and/then"), first letter upper case; nothing taken out → the text as written (trimmed) | LAS | **Done (A, 20 November 2026)** `src/fleet/automations/schedule.rs` |
+| 14.5 | `autoName`: the first sentence's first six words, at most 42 characters (40 + "…") | LAS | **Done (A, 20 November 2026)** `src/fleet/automations/schedule.rs` |
+| 14.6 | `withTime` | LAS | **Done (A, 20 November 2026)** `src/fleet/automations/schedule.rs` |
+| 14.7 | `nextRun` on the local clock: once (date, rel, weekday), weekly, hours (on the hour, a multiple of n), minutes, monthly; none for cron and events | LAS | **Done (A, 20 November 2026)** `src/fleet/automations/schedule.rs` |
+| 14.8 | `cronOf`, `toTrigger` (a once fixed to its date as `YYYY-MM-DDTHH:MM`; an event as `{"eventType": …}`), `fromTrigger` (the composer's cron shapes back to their schedules, any other as cron) | LAS | **Done (A, 20 November 2026)** `src/fleet/automations/schedule.rs` |
+| 14.9 | Words: `whenChip`, `whenSentence`, `dayName`, `describeDate` ("Mon 21 Sep, 09:00"), `nextShort` ("09:00" today, "Mon 09:00" within a week, "21 Sep" later), `hm`, `dayDate`, `localDate` | LAS | **Done (A, 20 November 2026)** `src/fleet/automations/schedule.rs` |
 | 14.10 | `browserTimeZone`, `scheduleTimeZone` (none → UTC) | LA | None (B) |
 | 14.11 | `describeEventType` (five event types in words; an unknown one "<type> (never fires)"), `EVENT_TYPES`, `eventTypeOf` | LA | None (B) |
 | 14.12 | `automationRowStatus`: Running (working) while the last run starts or runs; Needs you while it waits, even off; Off; Failed (error); the next run short; "On event"; nothing | LA | None (B) |
@@ -394,6 +394,8 @@ Playwright, `TZ=UTC` for the app). Mock data: `src/mock/automations.rs` (B) hold
 and tests need no server.
 
 #### A. The schedule logic (no view)
+
+**Done (20 November 2026).** `src/fleet/automations/schedule.rs` (every row 14.1-14.9; the offset-at-an-instant read is `conv::time::local_offset_at`), tests in `src/fleet/tests/automation_schedule.rs`: all of `automation-schedule.test.ts` under its names (each `it.each` table is one test that names the failing case) plus native cases for a daylight-saving change before the run (New York spring and autumn), the skipped and the repeated hour, hours and minutes in a half-hour zone, and a one-off's local date. Gaps, written down: `ScheduleHit.start/end` are byte offsets, not UTF-16 units (the highlight in I uses bytes); the look-ahead `(?![\w'])` is `\b` plus a check that no `'` follows, and a match refused for that is not retried with a shorter day list ("every Mon, Tue's" finds nothing where Fleet finds "every Mon"); "every 0 hours" / "every 0 minutes" have no next run (Fleet's loop never ends). Fleet's `Date` functions take the instant and a `Tz` (seconds east of UTC at an instant), so a test fixes the zone.
 
 - **Rows:** 14.1-14.9.
 - **Files:** new `src/fleet/automations/schedule.rs` (`When`, `ScheduleHit`, `parse_schedule`, `prompt_from`, `auto_name`,
