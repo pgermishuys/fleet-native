@@ -2343,3 +2343,12 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **A live walk of editing needs a wait after every step that loads text** (11V). Keys sent to a code view before its file has been read go
   to an empty view or are lost (one run drew the typed line on the wrong row with a stray selection). Leave 2 s after the Go to file
   Enter before the first tap, and take one picture per run: a run that saves changes the scratch repository, so reset it between runs.
+
+## Component 20, planning (Analytics)
+
+- **A chart needs nothing Rune lacks at the pin:** `canvas(Shape)` takes a `Path` with `cubic_to` (Chart.js's tension
+  curves), `fill_path` (the area under a line) and `stroke_path` (a dash is its own short stroke with `LineCap::Butt`);
+  `on_pointer_move_local` gives the pointer inside an element for a hover that picks the nearest day, `on_hover_change` its
+  leaving; `rune::text::measure` sizes the axis labels in the running app (not in a headless test: no fonts there).
+- **A scripted tap leaves the rail's tooltip up** in a `--snap`: add `{"type": "move", "x": …, "y": …}` after it to
+  move the pointer off before the picture.
