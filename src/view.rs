@@ -140,6 +140,7 @@ pub mod toolcard;
 pub mod toolrow;
 pub mod turn_detail;
 pub mod turns;
+pub mod unsaved_dialog;
 pub mod update;
 pub mod usage_chip;
 pub mod usage_popover;

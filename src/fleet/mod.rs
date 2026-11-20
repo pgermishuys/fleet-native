@@ -171,6 +171,7 @@ pub mod toolbar;
 pub mod topics;
 pub mod turns;
 pub mod turns_tab;
+pub mod unsaved;
 pub mod update_notices;
 pub mod updates;
 pub mod uploads;

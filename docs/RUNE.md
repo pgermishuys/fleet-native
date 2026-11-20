@@ -2232,3 +2232,18 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **A click carries only strings.** `rune-notify` hands back the notification's id and its `info` pairs; the app puts the tag in `info("tag", ...)` and routes the
   click into the app as a job, like the tray's.
 - **No way to ask whether a Linux notification daemon listens** without calling it, so `can_post` is true there and a refused call is logged once.
+
+## Component 11, piece T (closing and quitting with unsaved files)
+
+- **A close can't be cancelled** (read at the pin, `app.rs`): `App::on_close` runs "whenever the window closes … before it goes",
+  and `Tx::quit` is the only thing it can do about the app; it has no way to say "stay". Smallest case:
+  `.on_close(|_, tx| tx.focus("x", true))` still closes. With `keep_running()` the close hides the window and the app lives on,
+  so a guard has to ask *after* the close: `State::quit_app` (where 24 E's quit paths end) calls `ask_before_quitting`, and if it says yes the window is
+  shown again (component 24's `Surface::show_window`) with the question over it. A quit that comes from the system (macOS Cmd-Q,
+  logout) runs `on_quit` and can't be held at all (the same gap as 24.73), so those go unasked.
+- **`ElementInfo` has no `disabled` field**: a test that a disabled button is off presses it and checks that nothing happened.
+  (used)
+- **A dialog with a state of its own** (`Dialog { dismiss: Some(fn) }`) takes Escape as that function; an alert has no close
+  button and ignores a press on the scrim. (used)
+- **The test build needs more than 4000M** (5200M here, 20 November 2026): `cargo test` of this crate was OOM-killed at 3.9 G while
+  another session's clippy ran.
