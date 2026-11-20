@@ -283,7 +283,9 @@ fn says_thinking_while_it_works_then_new_answer_when_one_lands_while_its_folded_
     assert_eq!(fx.st().latest_answer.as_deref(), Some("The second answer."));
     minimize(&mut fx, false);
     assert!(!fx.st().pulse());
-    fx.wait("the PUTs", |f| !f.called("PUT /side/minimized").is_empty() && !f.called("PUT /side/seen").is_empty());
+    fx.wait("the PUTs", |f| {
+        f.called("PUT /side/minimized").contains(&json!({ "minimized": false })) && !f.called("PUT /side/seen").is_empty()
+    });
     assert!(fx.called("PUT /side/minimized").contains(&json!({ "minimized": false })));
     assert!(fx.called("PUT /side/seen").contains(&json!({ "answerId": "a2" })), "opening it is seeing it: the server keeps that");
     minimize(&mut fx, true);
