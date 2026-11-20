@@ -41,6 +41,11 @@ codesign --force --deep -s - "$app"
 codesign --verify --deep --strict "$app"
 
 ln -s /Applications "$work/stage/Applications"
+# Prove the staged folder here, before it is packed: checking it needs no disk-image mount, which the CI runners
+# sometimes refuse ("Resource temporarily unavailable").
+test -L "$work/stage/Applications"
+codesign --verify --deep --strict --verbose=2 "$app"
+plutil -p "$app/Contents/Info.plist"
 rm -f "$out"
 # Transient "Resource busy" errors happen on CI runners: retry, and let the last try show its error.
 for i in 1 2 3 4; do
