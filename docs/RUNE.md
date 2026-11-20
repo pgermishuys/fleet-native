@@ -2318,3 +2318,9 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **`single_instance` brings a hidden window back.** With the window closed to the tray (the app still running), a second launch exited 0 at once and the first window was on screen again at the place it had been (a window mapped again, not raised from behind).
 - **Tray without a host:** `Tray::new` doesn't fail on a session bus with no `StatusNotifierWatcher`: it calls `RegisterStatusNotifierItem` and nothing answers, so there is no icon and the app can't know (24.84). The only way back is a second launch.
 - **The Linux splash needs a slow server to be seen:** the released server answers `/readyz` in about 0.6 s, so the splash lasts about one frame. For a picture, wrap the server in a script that sleeps first (`FLEET_NATIVE_SERVER_BIN`).
+
+## Component 18, piece C (a workflow's detail)
+
+- **`flex-wrap` on a row is `.flex_wrap()`, not `.wrap()`:** `.wrap()` is the text's. It still compiles on a row and does nothing, so a strip of
+  chips ran off the edge of its column (piece 18C) until each wrapping row said `.flex_wrap()`. A child that grows inside a wrapping row
+  (`.min_w(180.0).grow(1.0)`) fills its line, which is Fleet's `grid-template-columns: repeat(auto-fit, minmax(180px, 1fr))`.

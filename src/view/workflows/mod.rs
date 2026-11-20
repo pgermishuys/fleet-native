@@ -1,12 +1,13 @@
 //! The Workflows page (component 18): `[workflows-list][workflows-detail]`. Ports `components/pages/WorkflowsPage.vue` and
 //! `WorkflowsPane.vue`: the list and the pane, and the off notice that takes the whole context while Workflows is off.
-//! The detail is the bare `PageHeader` until piece C.
+//! The detail is a workflow's read view (`detail`); with nothing open it is the bare `PageHeader`.
 use crate::State;
 use crate::theme::{RADIUS_CARD, RADIUS_PANEL, Theme, sans};
 use crate::ui::rem;
 use crate::view::feature_off;
 use rune::{ScrollSpec, col, row, text};
 
+pub mod detail;
 pub mod list;
 
 pub const DESCRIPTION: &str =
@@ -63,6 +64,9 @@ fn detail(s: &State, t: &Theme) -> rune::El {
                 .child(rune::icon(&crate::icons::CIRCLE_ALERT, 16.0).color(t.error_text).mt(1.0))
                 .child(text(error.clone()).font(sans(rem(0.875), 400.0, 1.43)).color(t.error_text).wrap().shrink().min_w(0.0)),
         )
+    } else if let Some(w) = nav.active_workflow() {
+        // `center__body` has 24 px of padding all round; the column inside it is the one at most 760 wide.
+        col().w_full().padding(24.0).child(detail::read(s, t, w))
     } else {
         col().w_full().gap(21.0).child(page_header(t, "Workflows")).padding(24.0)
     };
