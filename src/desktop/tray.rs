@@ -89,12 +89,13 @@ impl Surface for Real {
         }
     }
 
+    #[allow(clippy::drop_non_drop)]
     fn hide_tray(&self) {
         let mut cell = self.cell.lock().unwrap_or_else(|e| e.into_inner());
         cell.wanted = false;
         let gone = cell.tray.take();
         drop(cell);
-        // Dropping closes the bus connection; not on the UI thread.
+        // Dropping closes the bus connection; not on the UI thread. (macOS has no tray, so there `Tray` has nothing to drop.)
         if gone.is_some() {
             let _ = std::thread::Builder::new().name("fleet-tray-drop".into()).spawn(move || drop(gone));
         }
