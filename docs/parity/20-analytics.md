@@ -131,7 +131,7 @@ Each row: what Fleet does, its source, and the native state (with the piece that
 | 3.6 | From's max is To and To's min is From, which limit the browser's picker only: a typed date outside them is still sent. A change is sent on `change` (a whole date); emptied clears that end | AF | None (D) |
 | 3.7 | The project select (32 tall, 12.5 px, `--card-bg`, full width in the menu): "All projects" (placeholder and first item), then the range's top projects by name; picking one sets `projectId` to the project's **name** (Fleet's bug: the server filters on the project's id, a GUID, so every section but Models empties; picture `fleet-project-picked`; port as Fleet does, reported) | AF, UAF, AR | None (D) |
 | 3.8 | Reset: RotateCcw 13 + "Reset", 32 tall, 12.5 px muted, no border; hover 6% text tint; disabled (opacity 0.45) while default; tooltip "Back to the last 30 days, every project" | AF | None (D) |
-| 3.9 | A change refetches every section at once (`refreshAnalytics`) and the menu's counts (`watch` on from, to, project); the range alone refetches the project list | AC, UAM, UAF | None (B) |
+| 3.9 | A change refetches every section at once (`refreshAnalytics`) and the menu's counts (`watch` on from, to, project); the range alone refetches the project list | AC, UAM, UAF | **Done (B, 20 November 2026)** `store.rs` `analytics_set_filters`: the four page reads at once, the range alone also the project list (`Kind::Range`); the menu's models and sessions are the page's (5.8) |
 | 3.10 | The page's own project list (`scopedTopProjects`) is the scoped summary's top projects plus the picked project when it isn't among them (0 tokens, $0.00) | AC `withSelectedProject` | **Done (A, 20 November 2026)** `mod.rs` `with_selected_project` (F/H use it) |
 
 ### 4. Export CSV
@@ -147,14 +147,14 @@ Each row: what Fleet does, its source, and the native state (with the piece that
 
 | # | Row | Source | Native |
 |---|---|---|---|
-| 5.1 | Five reads: `summary` (from, to, project), `daily` (from, to, project), `models` (from, to; the client sends project, the server ignores it), `sessions` (from, to, project, sortBy, sortDir; the server ignores sort and returns at most 50, newest first) and the menu's range-only `summary` (from, to: the project list and Projects' count) | USum, UD, UMo, USe, UAF, AE | None (B) |
+| 5.1 | Five reads: `summary` (from, to, project), `daily` (from, to, project), `models` (from, to; the client sends project, the server ignores it), `sessions` (from, to, project, sortBy, sortDir; the server ignores sort and returns at most 50, newest first) and the menu's range-only `summary` (from, to: the project list and Projects' count) | USum, UD, UMo, USe, UAF, AE | **Done (B, 20 November 2026)** `store.rs` `Kind`, `analytics_ask`: the five reads, each through the machine's target on its own thread; paths from `mod.rs` |
 | 5.2 | Shapes: `AnalyticsSummary` {totalTokens, totalCost, totalEstimatedCost, sessionCount, messageCount, topModels[], topProjects[] of {name, tokens, cost}}; `DailyAnalytics` {date, tokens, cost, estimatedCost, sessions, messages}; `ModelAnalytics` {modelId, providerId, tokens, cost, estimatedCost, messageCount, avgCostPerMessage}; `SessionAnalytics` {sessionId, title?, projectId?, projectName?, tokens, cost, estimatedCost, models[], durationSeconds?, createdAt} | `api/client.ts` | **Done (A, 20 November 2026)** `mod.rs` `parse_summary`, `parse_days`, `parse_models`, `parse_sessions`; `summary::parse_daily` reads through `parse_days` |
-| 5.3 | Each read polls every 30 s while Analytics is shown, and at once when the window shows again; nothing while hidden | the four reads | None (B: while the rail is Analytics; window visibility as the summary bar does) |
-| 5.4 | Numbered requests: an answer a newer one overtook is dropped; a success clears the error; a failure keeps the data and sets the error | the four reads | None (B) |
-| 5.5 | Error words are the client's own, not the server's: "Failed to fetch analytics summary", "Failed to fetch daily analytics", "Failed to fetch model analytics", "Failed to fetch session analytics" (a 503 "Analytics is disabled." reads the same) | the four reads, AE | None (B) |
-| 5.6 | `isLoading` is true until the first answer (success or failure); `isRefreshingAnalytics` is true while a filter change's refetch of all four runs (a later one wins); `isRefreshingSessions` while a sort change's refetch runs | the reads, AC | None (B) |
-| 5.7 | Per section, loading = its read's `isLoading` or a refresh in flight: Overview's chart (daily), its model bars (models or summary), its project bars (summary); Daily (daily); Projects (summary); Models (models); Sessions (sessions, or a sort refresh) | AC | None (B, the flags; F-J, the use) |
-| 5.8 | The menu and the page each run their own reads in Fleet (duplicate requests); here one store feeds both, same answers | UAM, AC | None (B; a simplification, same requests minus duplicates) |
+| 5.3 | Each read polls every 30 s while Analytics is shown, and at once when the window shows again; nothing while hidden | the four reads | **Done (B, 20 November 2026)** `store.rs` `keep_analytics`: every 30 s while the rail is Analytics, at once when the window shows again (`quiet.visible`), nothing while hidden or behind another rail |
+| 5.4 | Numbered requests: an answer a newer one overtook is dropped; a success clears the error; a failure keeps the data and sets the error | the four reads | **Done (B, 20 November 2026)** `store.rs` `Read::take`: request numbers per read; a dropped answer still settles its batch |
+| 5.5 | Error words are the client's own, not the server's: "Failed to fetch analytics summary", "Failed to fetch daily analytics", "Failed to fetch model analytics", "Failed to fetch session analytics" (a 503 "Analytics is disabled." reads the same) | the four reads, AE | **Done (B, 20 November 2026)** `store.rs` `Kind::failure` |
+| 5.6 | `isLoading` is true until the first answer (success or failure); `isRefreshingAnalytics` is true while a filter change's refetch of all four runs (a later one wins); `isRefreshingSessions` while a sort change's refetch runs | the reads, AC | **Done (B, 20 November 2026)** `store.rs` `Read::is_loading`, `refreshing_all()` (a later batch wins), `refreshing_sessions()` |
+| 5.7 | Per section, loading = its read's `isLoading` or a refresh in flight: Overview's chart (daily), its model bars (models or summary), its project bars (summary); Daily (daily); Projects (summary); Models (models); Sessions (sessions, or a sort refresh) | AC | **Done (B, 20 November 2026)** `store.rs` `daily_loading`, `models_bars_loading`, `projects_loading`, `models_loading`, `sessions_loading` (F-J use them) |
+| 5.8 | The menu and the page each run their own reads in Fleet (duplicate requests); here one store feeds both, same answers | UAM, AC | **Done (B, 20 November 2026)** `store.rs`: one `Analytics` on `State` feeds the page and the menu |
 | 5.9 | `topProjects` and `topModels` are the top 5 by cost (server `LIMIT 5`): Projects never lists more than five | AR | Server's |
 | 5.10 | `/sessions` defaults to 50 rows, so Sessions' count and table stop at 50 | AE | Server's |
 | 5.11 | Daily rows exist only for days with events: the chart's x axis and Daily's table skip empty days | AR | Server's (G, H draw what comes) |
@@ -245,8 +245,8 @@ Each row: what Fleet does, its source, and the native state (with the piece that
 
 | # | Row | Source | Native |
 |---|---|---|---|
-| 13.1 | Analytics shows the machine its switch picked; every read and the export go to that machine with its key; the live machine's reads are untouched | UAMa, AP, AMP, test | None (B) |
-| 13.2 | Switching machine rebuilds the page and the menu (`MachineScope :key`): that machine's own filters (3.1), fresh reads, loading states | AP, AMP | None (B, C) |
+| 13.1 | Analytics shows the machine its switch picked; every read and the export go to that machine with its key; the live machine's reads are untouched | UAMa, AP, AMP, test | **Done (B, 20 November 2026)** `store.rs` `analytics.choice` (`MachineChoice`) picks the machine; every read goes to it; its filters are saved under its key |
+| 13.2 | Switching machine rebuilds the page and the menu (`MachineScope :key`): that machine's own filters (3.1), fresh reads, loading states | AP, AMP | **Done (B, 20 November 2026)** `store.rs` `mount`: a new machine starts over with its own filters and loading reads (C rebuilds the page) |
 | 13.3 | Moving between sections keeps the pick; leaving Analytics forgets it, so the next visit opens on the machine you're on | AP | None (C: `MachineChoice::reset` on entering) |
 
 ### 14. Ways in
@@ -348,6 +348,13 @@ en-US, both themes. `scripts/scratch-fleet.sh` switches analytics off; a piece r
   the data and sets the client's words; the 30 s poll; a filter change refetches all five and sets `refreshing_all` until
   the last answers; a sort change refetches only sessions; leaving the rail stops the polls.
 - **Pictures:** no view changes (as A), and the test output against the fake server.
+
+**Done (20 November 2026).** Left open, with reasons:
+- The reads go through `Target::get`, which turns any non-2xx answer into an error; the client's words replace whatever the server said, as in Fleet.
+- Fleet's `fetch*` skips a request while the document is hidden and nothing makes it ask again but the next tick or `visibilitychange`; here a change made while hidden waits and goes out when the window shows.
+- Scenes and tests with no server get the same invented answers whatever the filters (`src/mock/analytics.rs`); a filter change still sets the flags.
+- The menu's models and sessions reads are the page's (5.8), so a poll asks five reads, not Fleet's eight.
+- `MachineChoice::reset` on entering Analytics (13.3) is C's.
 
 #### C. The page and the menu
 

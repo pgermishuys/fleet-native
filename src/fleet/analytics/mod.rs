@@ -12,6 +12,7 @@ use serde_json::Value;
 pub mod filters;
 pub mod sections;
 pub mod sessions_sort;
+pub mod store;
 
 use filters::Filters;
 use sessions_sort::{SortBy, SortDir};
