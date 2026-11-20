@@ -676,6 +676,7 @@ impl State {
         self.session_images.forget(&machine, session, path);
         self.file_live.forget(&machine, session, path);
         self.file_folds.forget(session, path);
+        self.file_compare.forget(session, path);
     }
 
     /// Saves an open file: the text in its own breaks, with the hash it read (or, for "Keep mine", the conflict's). The answer goes

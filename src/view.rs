@@ -36,6 +36,7 @@ pub mod drop_zones;
 pub mod export;
 pub mod failure;
 pub mod family;
+pub mod file_compare;
 pub mod file_diff;
 pub mod file_find;
 pub mod file_media;
