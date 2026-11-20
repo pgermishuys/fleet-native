@@ -87,6 +87,9 @@ const TAKEN_WORDS: &str = "Another Fleet is using your data, but it isn't answer
 /// Reads an environment variable (a test gives its own).
 pub type Getter = Arc<dyn Fn(&str) -> Option<String> + Send + Sync>;
 
+/// Takes the app's environment and returns it with the login shell's merged in.
+pub type EnvMerge = Arc<dyn Fn(Vec<(String, String)>) -> Vec<(String, String)> + Send + Sync>;
+
 /// Everything the flow needs from outside, so a test can give it a fake server, a scratch folder and no real Fleet.
 #[derive(Clone)]
 pub struct Config {
@@ -102,7 +105,7 @@ pub struct Config {
     pub env: Vec<(String, String)>,
     /// Adds the login shell's environment to what the server gets (`shell_env::merged`); a test gives its own so no real
     /// shell is asked. Runs on the start thread, so a slow shell only delays the splash, never the window.
-    pub login_env: Arc<dyn Fn(Vec<(String, String)>) -> Vec<(String, String)> + Send + Sync>,
+    pub login_env: EnvMerge,
     /// Ports to try, in order; `None` is the remembered one, then Fleet's 6262.
     pub ports: Option<Vec<u16>>,
     pub ready_timeout: Duration,
