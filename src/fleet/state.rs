@@ -471,6 +471,12 @@ impl State {
         let first = std::mem::replace(&mut self.loading, false);
         self.sync_open();
         if first {
+            // Asking for older history is decided from where the box is once this conversation is laid out in it, never
+            // from a reading of the box before (empty, or the session left): which of those `poll` saw last depended on
+            // whether a frame was drawn while the snapshot was on its way. The first reading of the new layout counts,
+            // even if it is the same as the last.
+            self.scroll_layout += 1;
+            self.scroll_seen = None;
             self.follow_end(tx);
         }
     }

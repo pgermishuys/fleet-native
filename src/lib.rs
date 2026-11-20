@@ -714,8 +714,12 @@ pub struct State {
     /// The conversation's scroll: whether it follows the end, where Rune last said the box was (`on_scroll_offset` may not
     /// change state, so it leaves it in the probe and `poll` reads it), and the message just jumped to.
     pub pin: conv::pin::Pin,
-    pub scroll_probe: std::rc::Rc<std::cell::Cell<Option<rune::ScrollPos>>>,
+    /// Each reading carries the `scroll_layout` of the view that drew the box, so one taken before a snapshot was laid out
+    /// is known for what it is.
+    pub scroll_probe: std::rc::Rc<std::cell::Cell<Option<(rune::ScrollPos, u64)>>>,
     pub(crate) scroll_seen: Option<rune::ScrollPos>,
+    /// Counts the first snapshots of the sessions opened: which conversation the box is to hold.
+    pub(crate) scroll_layout: u64,
     pub shown: Option<conv::pin::Shown>,
     /// The background strip: collapsed or not, when each item was seen to end, what is being stopped (`conv::work_clock`).
     pub work: conv::work_clock::WorkStrip,
@@ -967,6 +971,7 @@ impl Default for State {
             pin: Default::default(),
             scroll_probe: Default::default(),
             scroll_seen: None,
+            scroll_layout: 0,
             shown: None,
             work: Default::default(),
             images: Default::default(),

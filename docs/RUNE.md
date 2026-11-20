@@ -1677,7 +1677,8 @@ Nothing in Rune was needed.
   section's top out from heights you know. Return true from `poll` only when the set that matters changed: returning true on every
   frame of a scroll prints Rune's "committed the view on N of N frames" warning.
 - In headless tests `rt.wheel(x, y, dy)` with a **negative** `dy` scrolls further down; `ScrollPos` is `#[non_exhaustive]`, so a test
-  can't build one and has to scroll for real.
+  can't write it as a literal, but it derives `Default` and its fields are public: `let mut at = ScrollPos::default(); at.offset = ..`
+  builds one (`fleet::tests::history::reading`).
 
 ## Component 14, piece F (page cards and full size)
 
@@ -2352,3 +2353,18 @@ whole-file work that piece R can make incremental (colour from the edited line, 
   leaving; `rune::text::measure` sizes the axis labels in the running app (not in a headless test: no fonts there).
 - **A scripted tap leaves the rail's tooltip up** in a `--snap`: add `{"type": "move", "x": …, "y": …}` after it to
   move the pointer off before the picture.
+
+## Windows test failure: the first ask for older history (history.rs)
+
+- **The scroll reading `poll` sees after an update from another thread is of the old layout.** `AppHandle::update` (and a test's
+  `rt.update`) runs outside any frame; the next frame runs `poll` first and lays out after, so that `poll` still reads what
+  `on_scroll_offset` said about the box before the change. Whether that old reading was the empty box or the session left depended on
+  whether a frame was drawn while the snapshot was on its way, and the first ask for older history went by it. The reading now carries
+  the `State::scroll_layout` the view was built with, and `keep_scroll` skips readings from before the open conversation's first
+  snapshot. That works because `on_scroll_offset` is called in every frame whose commit gives the box a new handler, so the first frame
+  that draws the new view reports the box even when nothing moved. Smallest case: a scroll box with `on_scroll_offset` writing a
+  `Cell`, an `rt.update` that replaces its content, then `rt.frame`: in that frame's `poll` the `Cell` still holds the old content's
+  reading.
+- **Text heights can differ between systems**, because Rune reads the system's fonts for code and for fallbacks. A test that needs to
+  land within some number of pixels of a threshold should leave room: the hub test's conversation overflowed a 760 px window by 99 px
+  here, against a 100 px threshold.

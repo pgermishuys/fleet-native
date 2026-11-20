@@ -39,6 +39,7 @@ pub fn sheet(s: &State, t: &Theme) -> El {
             Scroll {
                 jump: s.pin.show_jump(),
                 probe: s.scroll_probe.clone(),
+                layout: s.scroll_layout,
                 find: super::find::bar(s, t),
                 asks: s
                     .open_asks()
