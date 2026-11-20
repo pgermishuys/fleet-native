@@ -1,14 +1,15 @@
 //! The search panel of a file tab and its marks (CodeMirror's `search({ top: true })` panel, as `theme.ts` dresses it: rows 12.1 and
 //! 12.2 of docs/parity/11-files.md). It is a strip at the top of the code with a rule under it: the field, **next**, **previous**,
-//! **all**, the three boxes, and a close button at the right, wrapping as the browser's inline layout does. There is no replace row:
-//! Fleet shows it only for a file that can be edited (slice 2, row 12.3). The state is `fleet::file_find`.
+//! **all**, the three boxes, and a close button at the right, wrapping as the browser's inline layout does. A file that can be edited
+//! has a second row under them (`<br>` in CodeMirror's panel): the replace field, **replace** and **replace all** (row 12.3). The state
+//! is `fleet::file_find`.
 use crate::State;
 use crate::conv::file_find::Options;
 use crate::fleet::file_find::{FIELD, MARK};
 use crate::icons::CHECK;
 use crate::theme::{Theme, sans};
 use crate::ui::text_menu::text_input;
-use rune::{Cursor, El, Key, KeyEvent, TextHighlight, Tx, el, icon, row, text};
+use rune::{Cursor, El, Key, KeyEvent, TextHighlight, Tx, col, el, icon, row, text};
 use std::ops::Range;
 
 /// A button of the panel (`.cm-button`): 70 % of the panel's 12 px type, `--text` at 6 % for a fill, a 1 px rule, radius 5.
@@ -91,7 +92,8 @@ pub fn panel(s: &State, t: &Theme) -> Option<El> {
             _ => false,
         });
     let o = find.options;
-    let items = row()
+    let can_replace = s.file_find_can_replace();
+    let first = row()
         .grow(1.0)
         .shrink()
         .min_w(0.0)
@@ -112,6 +114,50 @@ pub fn panel(s: &State, t: &Theme) -> Option<El> {
         .child(checkbox(t, "file-find-case", "match case", o.case, |o| &mut o.case))
         .child(checkbox(t, "file-find-regexp", "regexp", o.regexp, |o| &mut o.regexp))
         .child(checkbox(t, "file-find-word", "by word", o.word, |o| &mut o.word));
+    let items = if can_replace {
+        let replace_field = text_input(&find.replace, sans(12.0, 400.0, 1.3))
+            .key("file-find-replace-field")
+            .label("Replace")
+            .placeholder("Replace", t.muted)
+            .color(t.text)
+            .caret(t.text, t.accent.alpha(0.35))
+            .single_line()
+            .w(187.0)
+            .h(24.8)
+            .px(6.0)
+            .py(2.4)
+            .radius(5.0)
+            .border(1.0, t.border)
+            .border_layout()
+            .focus_within_ring(1.0, -1.0, t.accent)
+            .on_edit(|s: &mut State| &mut s.file_find.replace)
+            .on_input_key(|s: &mut State, ev: &KeyEvent, tx: &mut Tx| match ev.key {
+                Key::Escape => {
+                    s.file_find_close_ui(tx);
+                    true
+                }
+                Key::Enter if ev.mods.alt && (ev.mods.ctrl || ev.mods.cmd) => {
+                    s.file_find_replace_all();
+                    true
+                }
+                Key::Enter => {
+                    s.file_find_replace(tx);
+                    true
+                }
+                _ => false,
+            });
+        let second = row().items_center().gaps(2.4, 7.2).child(replace_field).child(
+            row().gap(5.04).items_center().children([
+                button(t, "file-find-replace", "replace", "Replace the current match (Enter)", false)
+                    .on_press_tx(|s: &mut State, tx: &mut Tx| s.file_find_replace(tx)),
+                button(t, "file-find-replace-all", "replace all", "Replace every match (Ctrl+Alt+Enter)", none)
+                    .on_press(|s: &mut State| s.file_find_replace_all()),
+            ]),
+        );
+        col().grow(1.0).shrink().min_w(0.0).gap(7.2).child(first).child(second)
+    } else {
+        first
+    };
     let close = row()
         .key("file-find-close")
         .role("button")

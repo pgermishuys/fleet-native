@@ -206,6 +206,14 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
         layer.push(panel.anchored_fit(anchor, rune::Side::Top, rune::Align::Start, 6.0));
         floats.push("autocomplete-popup");
     }
+    // The completion popup under the code's caret; it never takes focus from the code. Its own function: this one's frame is large
+    // in a debug build, and Windows' main thread has 1 MB of stack.
+    if s.ui.open.is_none()
+        && let Some(pop) = crate::view::completion::anchored(s, t)
+    {
+        layer.push(pop);
+        floats.push("completion");
+    }
     // The rail's tooltip, while nothing else is open over the window.
     if s.ui.open.is_none()
         && let Some(tip) = crate::view::rail::tip(s, t)

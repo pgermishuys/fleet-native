@@ -24,6 +24,7 @@ pub mod code_edit;
 pub mod code_input_spike;
 pub mod code_view;
 mod compaction;
+pub mod completion;
 pub mod composer;
 pub mod context_tab;
 pub mod conversation;

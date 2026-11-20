@@ -56,6 +56,8 @@ pub enum Case {
     Conflict,
     ConflictGone,
     Compare,
+    /// An import path being typed in a TypeScript file, with the popup open (piece U).
+    Complete,
 }
 
 /// The invented project's logo (`assets/logo.svg`), 96 by 96 as its own size.
@@ -91,6 +93,7 @@ impl State {
             Case::Image | Case::ImageMissing => IMAGE_PATH,
             Case::Html => HTML_PATH,
             Case::Wrap | Case::WrapOff => WRAP_PATH,
+            Case::Complete => super::completion::TS_PATH,
             _ => PATH,
         };
         // The scenes of 11G were taken with Wrap off, as Fleet's pictures were; every file wraps unless it says otherwise.
@@ -107,7 +110,14 @@ impl State {
                 | Case::Deleted
         ) || matches!(
             case,
-            Case::Lines | Case::LinesCopied | Case::LinesAdded | Case::Unsaved | Case::Saving | Case::Conflict | Case::ConflictGone
+            Case::Lines
+                | Case::LinesCopied
+                | Case::LinesAdded
+                | Case::Unsaved
+                | Case::Saving
+                | Case::Conflict
+                | Case::ConflictGone
+                | Case::Complete
         ) {
             self.sidebar.save_file_wrap(path, false);
         }
@@ -149,6 +159,16 @@ impl State {
                 }
             }
             Case::LinesAdded => self.append_draft_reference(&id, "@src/paginate.py:17-21"),
+            Case::Complete => {
+                self.file_buffers.edit(&machine, &id, path, |e, _| {
+                    e.set_caret(crate::fleet::code_edit::Pos::new(1, 27), false);
+                    ((), false)
+                });
+                self.code_edit.for_file(&(machine.clone(), id.clone(), path.to_string()));
+                self.code_edit.focused = true;
+                self.code_edit.take_focus = Some(crate::view::code_view::CODE);
+                self.complete_refresh(true);
+            }
             Case::Unsaved | Case::Saving | Case::Conflict | Case::ConflictGone | Case::Compare => {
                 self.file_buffers.edit(&machine, &id, path, |e, l| {
                     e.set_caret(crate::fleet::code_edit::Pos::new(2, 0), false);
@@ -197,6 +217,7 @@ impl State {
             Case::Diff | Case::Stripe => Ok(answer(EDITED)),
             Case::Deleted => Err("Failed to read file: 404 Not Found".to_string()),
             Case::Wrap | Case::WrapOff => Ok(answer(WRAP_SOURCE)),
+            Case::Complete => Ok(answer(super::completion::TS_SOURCE)),
             Case::Markdown => Ok(answer(MARKDOWN)),
             Case::Html => Ok(answer(HTML)),
             Case::Image | Case::ImageMissing => return,

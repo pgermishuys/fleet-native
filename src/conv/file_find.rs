@@ -80,6 +80,77 @@ pub fn step(count: usize, current: Option<usize>, direction: i32) -> Option<usiz
     })
 }
 
+/// `\n`, `\r`, `\t` and `\\` in the replace field mean what they say (CodeMirror's `SearchQuery.unquote`, which Fleet leaves on).
+fn unquote(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut chars = text.chars();
+    while let Some(c) = chars.next() {
+        if c != '\\' {
+            out.push(c);
+            continue;
+        }
+        match chars.clone().next() {
+            Some('n') => out.push('\n'),
+            Some('r') => out.push('\r'),
+            Some('t') => out.push('\t'),
+            Some('\\') => out.push('\\'),
+            _ => {
+                out.push('\\');
+                continue;
+            }
+        }
+        chars.next();
+    }
+    out
+}
+
+/// What replacing the match `m` of `lines` puts there (`SearchQuery.getReplacement`): the replace field with its escapes, and with
+/// regexp on `$&` for the match and `$1` for a group (`$$` is a dollar).
+pub fn replacement(lines: &[String], m: &Match, query: &str, o: Options, replace: &str) -> String {
+    let text = unquote(replace);
+    if !o.regexp {
+        return text;
+    }
+    let (Some(re), Some(line)) = (compile(query, o), lines.get(m.line)) else { return text };
+    let caps = re.captures_at(line, m.range.start).filter(|c| c.get(0).is_some_and(|w| w.range() == m.range));
+    let mut out = String::with_capacity(text.len());
+    let mut chars = text.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c != '$' {
+            out.push(c);
+            continue;
+        }
+        match chars.peek().copied() {
+            Some('$') => {
+                chars.next();
+                out.push('$');
+            }
+            Some('&') => {
+                chars.next();
+                out.push_str(&line[m.range.clone()]);
+            }
+            Some(d) if d.is_ascii_digit() => {
+                let mut n = String::new();
+                while let Some(&d) = chars.peek().filter(|d| d.is_ascii_digit()) {
+                    n.push(d);
+                    chars.next();
+                }
+                let group = n.parse::<usize>().ok().and_then(|i| caps.as_ref()?.get(i));
+                match group {
+                    Some(g) => out.push_str(g.as_str()),
+                    // A group the pattern doesn't have stays as it was typed.
+                    None => {
+                        out.push('$');
+                        out.push_str(&n);
+                    }
+                }
+            }
+            _ => out.push('$'),
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -136,5 +207,16 @@ mod tests {
     fn a_match_after_multibyte_text_has_byte_offsets() {
         let l = lines("é page");
         assert_eq!(at(&find_matches(&l, "page", Options::default())), [(0, 3)]);
+    }
+
+    #[test]
+    fn a_replacement_takes_its_escapes_and_with_regexp_its_groups() {
+        let l = lines("page_size = 10");
+        let m = &find_matches(&l, "page_(\\w+)", Options { regexp: true, ..Options::default() })[0];
+        let re = Options { regexp: true, ..Options::default() };
+        assert_eq!(replacement(&l, m, "page_(\\w+)", re, "rows_$1 \\t$&$$"), "rows_size \tpage_size$");
+        assert_eq!(replacement(&l, m, "page_(\\w+)", re, "$3"), "$3", "a group the pattern lacks stays as typed");
+        let plain = &find_matches(&l, "page_size", Options::default())[0];
+        assert_eq!(replacement(&l, plain, "page_size", Options::default(), "a\\nb$1"), "a\nb$1", "no regexp: `$1` is text");
     }
 }

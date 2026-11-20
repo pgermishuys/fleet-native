@@ -2303,3 +2303,10 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **A held route in a fake server is how a test sees a request in flight:** the fake in `tests_workflow_runs.rs` answers a route made with
   `hold` only once the test gives it an answer, so "still loading" can be asserted while the request is out.
 - **Memory for the test build:** `cargo test` was OOM-killed at `MemoryMax=4000M` again (3.9G peak); 5500M built it in 1m42s.
+
+## Component 11, piece U (completion, brackets, replace)
+
+- **A popup under a drawn caret is `anchored_fit("code-caret", Side::Bottom, Align::Start, 4.0)`** on the element the editor already draws for the input method. It keeps the code's keyboard because nothing in it is focusable; the app takes the arrows, Enter, Tab and Esc itself in the code view's `on_key` before they reach anything. The caret element exists only while the code has focus, so a popup left open when focus goes is shut by the poll that sees the blur.
+- **`tx.focus` is queued: `tx.focused()` still says the old element in the poll that asked.** A scene that sets `take_focus` and opens a popup must not let the blur check of that same poll shut it.
+- **Debug test builds of this crate no longer fit in 4000M** (the kernel killed the compile at 3.9 GB on 20 November 2026): the test build needs `MemoryMax=5500M`.
+- **Windows' main thread has 1 MB of stack and a debug build of the app comes close to it**: the web-view walk's start overflowed it ("thread 'main' has overflowed its stack", exit 127) on one pull request that only grew `State`, and on `main` once. `build.rs` links the binary with `/STACK:8388608` on MSVC targets (8 MB, as macOS and Linux have). Not checked on a Windows machine by hand; the CI run is the check.

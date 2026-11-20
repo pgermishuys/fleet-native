@@ -25,7 +25,7 @@ pub const INDENT: &str = "  ";
 
 /// What kind of edit a step was, for grouping: typed characters join the step before, as deletions by Backspace do.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Kind {
+pub(super) enum Kind {
     Type,
     Delete,
     Other,
@@ -275,6 +275,13 @@ impl Editor {
         self.preedit = None;
     }
 
+    /// Makes the last undo step end with `sel` (a step is taken before the caret is put inside a pair a key closed).
+    pub(super) fn set_last_after(&mut self, sel: (Pos, Pos)) {
+        if let Some(last) = self.undo.last_mut() {
+            last.after = sel;
+        }
+    }
+
     /// Makes `change` as one step of its own, never merged with the typing before it or after it (`isolateHistory`): "Use the agent's".
     pub fn isolated(&mut self, lines: &mut Vec<String>, change: &MinimalChange, now: f64) {
         let (a, b) = (pos_of(lines, change.from), pos_of(lines, change.to));
@@ -346,14 +353,14 @@ impl Editor {
     }
 
     /// Replaces the selection with `text` as one step of the history (joined to the one before when it is typing that follows on).
-    fn change(&mut self, lines: &mut Vec<String>, a: Pos, b: Pos, text: &str, kind: Kind, now: f64) {
+    pub(super) fn change(&mut self, lines: &mut Vec<String>, a: Pos, b: Pos, text: &str, kind: Kind, now: f64) {
         let before = (self.anchor, self.caret);
         self.change_from(lines, a, b, text, kind, now, before);
     }
 
     /// [`Self::change`] with the selection as it was before the key (a deletion moves the caret to find its range first).
     #[allow(clippy::too_many_arguments)]
-    fn change_from(&mut self, lines: &mut Vec<String>, a: Pos, b: Pos, text: &str, kind: Kind, now: f64, before: (Pos, Pos)) {
+    pub(super) fn change_from(&mut self, lines: &mut Vec<String>, a: Pos, b: Pos, text: &str, kind: Kind, now: f64, before: (Pos, Pos)) {
         let removed = text_between(lines, a, b);
         let end = replace(lines, a, b, text);
         self.anchor = end;

@@ -94,6 +94,11 @@ const ALL_FILES: [&str; 11] = [
     "src/ledger/",
 ];
 
+/// Every path of the invented project's file list.
+pub fn all_files() -> Vec<&'static str> {
+    ALL_FILES.to_vec()
+}
+
 /// Whether `path` is a file of the invented project (what the resolve endpoint answers for it).
 pub fn is_file(path: &str) -> bool {
     (ALL_FILES.contains(&path) && !path.ends_with('/')) || path == super::file_tab::PATH

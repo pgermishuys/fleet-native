@@ -60,6 +60,10 @@ mod tests_chips;
 #[cfg(test)]
 mod tests_code_edit;
 #[cfg(test)]
+mod tests_code_typing;
+#[cfg(test)]
+mod tests_completion;
+#[cfg(test)]
 mod tests_context_tab;
 #[cfg(test)]
 mod tests_dashboard;
@@ -81,6 +85,8 @@ mod tests_file_lines;
 mod tests_file_links;
 #[cfg(test)]
 mod tests_file_media;
+#[cfg(test)]
+mod tests_file_replace;
 #[cfg(test)]
 mod tests_file_save;
 #[cfg(test)]
@@ -490,6 +496,7 @@ pub struct State {
     pub file_find: fleet::file_find::FileFind,
     /// The editor spike over the open file's code (`fleet::code_editing`, component 11 piece P); off unless asked for.
     pub code_edit: fleet::code_editing::CodeEditing,
+    pub completion: Box<fleet::completion::Completion>,
     /// Find in files: the machine's search of the session's folder, and the request for the Files tab to start one (`fleet::find_text`).
     pub find_text: fleet::find_text::FindText,
     pub find_in_files: fleet::find_text::FindInFiles,
@@ -835,6 +842,7 @@ impl Default for State {
             changes_find: Default::default(),
             file_find: Default::default(),
             code_edit: fleet::code_editing::CodeEditing { on: true, ..Default::default() },
+            completion: Default::default(),
             find_text: Default::default(),
             find_in_files: Default::default(),
             go_to_file: Default::default(),
@@ -5264,6 +5272,18 @@ pub fn spec() -> AppSpec<State> {
             ("file-find-case", |s| {
                 s.show_file(mock::file_tab::Case::Code, true);
                 s.show_file_find("Page", conv::file_find::Options { case: true, word: true, ..Default::default() }, 0)
+            }),
+            ("file-complete", |s| s.show_file(mock::file_tab::Case::Complete, true)),
+            ("file-complete-light", |s| s.show_file(mock::file_tab::Case::Complete, false)),
+            ("file-replace", |s| {
+                s.show_file(mock::file_tab::Case::Code, true);
+                s.show_file_find("page_", conv::file_find::Options { case: true, ..Default::default() }, 1);
+                s.file_find.replace = rune::TextEdit::new("rows_");
+            }),
+            ("file-replace-light", |s| {
+                s.show_file(mock::file_tab::Case::Code, false);
+                s.show_file_find("page_", conv::file_find::Options { case: true, ..Default::default() }, 1);
+                s.file_find.replace = rune::TextEdit::new("rows_");
             }),
             ("file-opening", |s| s.show_file(mock::file_tab::Case::Opening, true)),
             ("file-opening-light", |s| s.show_file(mock::file_tab::Case::Opening, false)),
