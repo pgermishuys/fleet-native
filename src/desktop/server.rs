@@ -321,17 +321,9 @@ fn launch(options: &Options, shared: &Arc<Shared>, tx: &Sender<Event>, port: u16
     let pumps: Vec<_> = [child.stdout.take().map(|s| Box::new(s) as Box<dyn Read + Send>), child.stderr.take().map(|s| Box::new(s) as _)]
         .into_iter()
         .flatten()
-        .map(|mut pipe| {
+        .map(|pipe| {
             let log = log.clone();
-            std::thread::spawn(move || {
-                let mut buf = [0u8; 8192];
-                while let Ok(n) = pipe.read(&mut buf) {
-                    if n == 0 {
-                        break;
-                    }
-                    log.write_bytes(&buf[..n]);
-                }
-            })
+            std::thread::spawn(move || log.copy(pipe))
         })
         .collect();
     *shared.stdin.lock().unwrap() = child.stdin.take();
