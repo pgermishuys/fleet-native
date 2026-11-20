@@ -133,6 +133,18 @@ impl State {
         true
     }
 
+    /// Where every quit the app starts ends up (`window_closed`, the tray's Quit, the sessions dialog's Quit Fleet): the app quits, unless a
+    /// file has unsaved changes, in which case the window comes back (it may have been closed) with the question over it.
+    pub fn quit_app(&mut self, tx: &mut Tx) {
+        if !self.ask_before_quitting() {
+            tx.quit();
+            return;
+        }
+        if let Some(surface) = &self.close.surface {
+            surface.show_window();
+        }
+    }
+
     /// Cancel on the quit question.
     pub fn quit_unsaved_cancel(&mut self) {
         self.unsaved.quitting = None;

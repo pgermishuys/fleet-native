@@ -2238,7 +2238,7 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **A close can't be cancelled** (read at the pin, `app.rs`): `App::on_close` runs "whenever the window closes … before it goes",
   and `Tx::quit` is the only thing it can do about the app; it has no way to say "stay". Smallest case:
   `.on_close(|_, tx| tx.focus("x", true))` still closes. With `keep_running()` the close hides the window and the app lives on,
-  so a guard has to ask *after* the close: `on_close` calls `State::ask_before_quitting`, and if it says yes the window is
+  so a guard has to ask *after* the close: `State::quit_app` (where 24 E's quit paths end) calls `ask_before_quitting`, and if it says yes the window is
   shown again (component 24's `Surface::show_window`) with the question over it. A quit that comes from the system (macOS Cmd-Q,
   logout) runs `on_quit` and can't be held at all (the same gap as 24.73), so those go unasked.
 - **`ElementInfo` has no `disabled` field**: a test that a disabled button is off presses it and checks that nothing happened.

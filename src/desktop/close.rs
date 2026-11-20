@@ -158,7 +158,7 @@ impl State {
             return;
         }
         match on_close(System::current(), self.start.owned.is_some()) {
-            Close::Quit => tx.quit(),
+            Close::Quit => self.quit_app(tx),
             Close::Hide => {}
             Close::Ask => self.ask_working(Why::Close, tx),
         }
@@ -170,7 +170,7 @@ impl State {
         if self.start.owned.is_some() {
             self.ask_working(Why::Quit, tx);
         } else {
-            tx.quit();
+            self.quit_app(tx);
         }
     }
 
@@ -204,9 +204,9 @@ impl State {
         match why {
             Why::Close => match after_status(working) {
                 Outcome::Tray(n) => self.hide_to_tray(n),
-                _ => tx.quit(),
+                _ => self.quit_app(tx),
             },
-            Why::Quit if working == 0 => tx.quit(),
+            Why::Quit if working == 0 => self.quit_app(tx),
             Why::Quit => {
                 // The question needs the window, which may be closed to the tray.
                 self.close.quit_dialog = Some(working);
@@ -262,7 +262,7 @@ impl State {
     /// The dialog's Quit Fleet: the app quits, and stops its Fleet as it goes (`App::on_quit`).
     pub fn quit_confirm(&mut self, tx: &mut Tx) {
         if self.close.quit_dialog.take().is_some() {
-            tx.quit();
+            self.quit_app(tx);
         }
     }
 

@@ -299,3 +299,40 @@ fn a_file_saved_or_closed_no_longer_holds_the_quit() {
     rt.update(|s, _| asked = s.ask_before_quitting());
     assert!(!asked, "its buffer went with the tab");
 }
+
+/// A window the test can ask whether it was shown.
+#[derive(Default)]
+struct Window {
+    shown: std::sync::atomic::AtomicUsize,
+}
+
+impl crate::desktop::close::Surface for Window {
+    fn show_window(&self) {
+        self.shown.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    }
+    fn show_tray(&self, _: usize) {}
+    fn hide_tray(&self) {}
+}
+
+// Component 24's quit paths end in `quit_app`: with unsaved files the window comes back and asks, with none the app quits.
+#[test]
+fn a_quit_the_app_starts_asks_in_the_window_while_a_file_is_unsaved_and_quits_otherwise() {
+    let window = Arc::new(Window::default());
+    let mut rt = open(Case::Code);
+    let surface = window.clone();
+    rt.update(move |s, _| s.close.surface = Some(surface));
+    rt.update(|s, tx| s.quit_requested(tx));
+    assert!(rt.shell_request.take() == Some(Shell::Quit), "nothing unsaved: it quits");
+    assert_eq!(window.shown.load(std::sync::atomic::Ordering::SeqCst), 0);
+
+    let mut rt = open(Case::Unsaved);
+    let surface = window.clone();
+    rt.update(move |s, _| s.close.surface = Some(surface));
+    rt.update(|s, tx| s.quit_requested(tx));
+    rt.frame(FRAME);
+    assert!(rt.shell_request.take() != Some(Shell::Quit), "it asks first");
+    assert_eq!(window.shown.load(std::sync::atomic::Ordering::SeqCst), 1, "the window is brought back for the question");
+    assert!(rt.find("unsaved-quit-dialog").is_some());
+    click(&mut rt, "unsaved-quit-confirm");
+    assert!(rt.shell_request.take() == Some(Shell::Quit));
+}
