@@ -220,6 +220,9 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
     if s.rail == crate::Rail::Settings {
         layer.extend(crate::view::settings::machine_header::overlay(s, t));
     }
+    if s.rail == crate::Rail::Workflows {
+        layer.extend(crate::view::workflows::list::overlay(s, t));
+    }
     if let Some(wizard) = crate::view::harness_setup::dialog(s, t) {
         layer.extend(wizard);
     }

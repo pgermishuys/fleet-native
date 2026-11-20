@@ -142,6 +142,18 @@ fn starters_offers_fix_a_bug_only_with_workflows_on_and_opens_its_run_box_in_thi
         rt.state.starters.workflow_request,
         Some(WorkflowRequest { workflow: FIX_A_BUG_WORKFLOW_ID.into(), folder: Some(ROCKET.into()) })
     );
+    // The Workflows page takes the request: its Run box's folder is this one, the rail is Workflows.
+    rt.update(|s, tx| {
+        s.keep_workflows(tx);
+    });
+    assert_eq!(rt.state.workflows_nav.folder(), Some(&Folder::Repository(ROCKET.into())));
+    assert_eq!(rt.state.workflows_nav.active_id(), FIX_A_BUG_WORKFLOW_ID);
+    assert_eq!(rt.state.rail, crate::Rail::Workflows);
+    assert!(rt.state.starters.workflow_request.is_none(), "taken, so a reload doesn't undo what was picked since");
+    rt.update(|s, _| {
+        s.starters.workflow_request = Some(WorkflowRequest { workflow: FIX_A_BUG_WORKFLOW_ID.into(), folder: Some(ROCKET.into()) });
+        s.rail = crate::Rail::Sessions;
+    });
     assert!(rt.state.new_draft.draft().expect("a draft").message.is_empty(), "it fills nothing");
     assert!(!rt.state.new_draft.draft().expect("a draft").is_starting, "and starts nothing");
     // A plain folder sends no folder.

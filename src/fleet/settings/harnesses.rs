@@ -257,24 +257,37 @@ impl State {
     /// and `then` hears how it went.
     pub fn save_harness_pref(&mut self, key: &str, value: &str, then: impl FnOnce(&mut State, Result<(), String>) + Send + 'static) {
         let machine = self.harness_machine();
-        let before = self.prefs_for(&machine).get(key).map(str::to_string);
-        self.set_pref_on(&machine, key, value);
+        self.save_pref_on_machine(&machine, key, value, then);
+    }
+
+    /// `prefsStore.set` on `machine`: the same, for a view with a machine switch of its own (Workflows). With no Fleet to
+    /// ask (scenes, tests) the value is kept here and `then` hears Ok at once.
+    pub fn save_pref_on_machine(
+        &mut self,
+        machine: &str,
+        key: &str,
+        value: &str,
+        then: impl FnOnce(&mut State, Result<(), String>) + Send + 'static,
+    ) {
+        let before = self.prefs_for(machine).get(key).map(str::to_string);
+        self.set_pref_on(machine, key, value);
+        if self.feed_base(machine).is_none() {
+            return then(self, Ok(()));
+        }
         let (k, v) = (key.to_string(), value.to_string());
+        let machine = machine.to_string();
         self.feed_call(
             &machine.clone(),
             {
                 let (k, v) = (k.clone(), v.clone());
                 move |base| http::put_preference(base, &k, &v)
             },
-            {
-                let machine = machine.clone();
-                move |s, _, result| {
-                    if result.is_err() {
-                        s.roll_back_pref_on(&machine, &k, &v, before);
-                        s.read_preferences(&machine);
-                    }
-                    then(s, result);
+            move |s, _, result| {
+                if result.is_err() {
+                    s.roll_back_pref_on(&machine, &k, &v, before);
+                    s.read_preferences(&machine);
                 }
+                then(s, result);
             },
         );
     }

@@ -6,6 +6,7 @@ use serde_json::Value;
 use std::collections::BTreeMap;
 
 pub mod helpers;
+pub mod nav;
 pub mod runs;
 
 /// The user preference behind the switch in Settings → Labs.

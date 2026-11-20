@@ -23,13 +23,13 @@ type Routes = Arc<Mutex<HashMap<String, (u16, String)>>>;
 
 /// A Fleet that answers the routes a test gives it ("METHOD /path?query" → status, body) and 404 for the rest, and records
 /// every request.
-struct Fake {
-    base: String,
+pub(crate) struct Fake {
+    pub(crate) base: String,
     heard: Heard,
     routes: Routes,
 }
 
-fn fake() -> Fake {
+pub(crate) fn fake() -> Fake {
     let listener = TcpListener::bind("127.0.0.1:0").expect("a port");
     let base = format!("http://{}", listener.local_addr().expect("an address"));
     let (heard, routes): (Heard, Routes) = Default::default();
@@ -43,8 +43,14 @@ fn fake() -> Fake {
                     return;
                 }
                 log.lock().unwrap().push((req.method.clone(), req.path.clone(), serde_json::from_slice(&req.body).unwrap_or(Value::Null)));
-                let (status, body) =
-                    table.lock().unwrap().get(&format!("{} {}", req.method, req.path)).cloned().unwrap_or((404, "{}".into()));
+                // A route held with `hold` (status 0) waits here until the test gives it an answer.
+                let (status, body) = loop {
+                    let found = table.lock().unwrap().get(&format!("{} {}", req.method, req.path)).cloned().unwrap_or((404, "{}".into()));
+                    if found.0 != 0 {
+                        break found;
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(5));
+                };
                 crate::test_http::respond_json(&mut stream, format!("{status} X"), &body);
             });
         }
@@ -53,12 +59,28 @@ fn fake() -> Fake {
 }
 
 impl Fake {
-    fn route(&self, method: &str, path: &str, status: u16, body: Value) {
+    pub(crate) fn route(&self, method: &str, path: &str, status: u16, body: Value) {
         self.routes.lock().unwrap().insert(format!("{method} {path}"), (status, body.to_string()));
     }
 
+    /// The route is heard but not answered until `route` gives it an answer.
+    pub(crate) fn hold(&self, method: &str, path: &str) {
+        self.routes.lock().unwrap().insert(format!("{method} {path}"), (0, String::new()));
+    }
+
+    /// A way to read the requests heard so far from a wait that must be `'static`.
+    pub(crate) fn calls_handle(&self) -> impl Fn() -> Vec<(String, String)> + use<> {
+        let heard = self.heard.clone();
+        move || heard.lock().unwrap().iter().map(|(m, p, _)| (m.clone(), p.clone())).collect()
+    }
+
+    /// Every request heard, as (method, path).
+    pub(crate) fn calls(&self) -> Vec<(String, String)> {
+        self.heard.lock().unwrap().iter().map(|(m, p, _)| (m.clone(), p.clone())).collect()
+    }
+
     /// Only the requests about workflows: the hub and the pollers of a link talk to the fake too.
-    fn workflow_calls(&self) -> Vec<(String, String, Value)> {
+    pub(crate) fn workflow_calls(&self) -> Vec<(String, String, Value)> {
         self.heard.lock().unwrap().iter().filter(|(_, p, _)| p.starts_with("/api/workflows")).cloned().collect()
     }
 }
