@@ -629,7 +629,7 @@ pub struct State {
     pub sides: fleet::side_http::Sides,
     pub side_tried: Option<String>,
     /// What the side conversation's panel draws and how far its fold has run (`fleet::side_view`).
-    pub side_ui: fleet::side_view::SideView,
+    pub side_ui: Box<fleet::side_view::SideView>,
     /// The context ring's arc and, for scenes, a context to draw (`view::ring`).
     pub ring: view::ring::Ring,
     /// The arcs of the progress rings in the session list, which ease to their new count.

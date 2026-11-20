@@ -2211,4 +2211,4 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **One stream view, two conversations:** the rows read their session and fold plan through `conv(s, Which)` instead of `s.session()`; the element keys (`timeline`, `stream`, `stream-shell`) and the `memo` keys of the side one are prefixed (a `memo` key is also its root's element key, so a test finds a row by `side-<message id>`), or two rows with one key share a cache entry.
 - **`tx.focus` runs from a handler, not from a view,** so "opening puts the caret back in the composer" is in the handler (`side_set_minimized`), and a test reads `tx.focused()` through `rt.update`.
 - **The window's size** for a `max-width` media query or a `vh` is `s.ui.sel.window`, set by the frame's `on_layout`; a test makes a runtime of that size with `headless_runtime((w, h), …)`.
-
+- **`State` size again (Windows web walk, 20 November 2026):** `SideView` (a `Session` and a fold plan) added to `State` overflowed the 1 MB main stack at start, as the API keys page did. It is `Box`ed in `State`; Linux and macOS never showed it. Box any field holding a `Session`.
