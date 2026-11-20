@@ -23,6 +23,7 @@ pub fn dropdown(s: &State, t: &Theme, name: &'static str) -> Vec<El> {
         "agent" => selector(s, t, "agent"),
         "model" => selector(s, t, "model"),
         "canvas" => crate::view::canvas_host::picker(s, t),
+        "automation-more" => crate::view::automations::detail::more_menu(t),
         "help" => super::menu::dropdown_w(t, "help-pop", "rail-help", help(), Side::Right, Align::End, super::rem(14.0)),
         "more" => super::menu::dropdown_w(t, "more-pop", "more", more(s), Side::Bottom, Align::End, super::rem(14.0)),
         "retention" => super::menu::dropdown_w(t, "retention-pop", "home-filter", retention(s), Side::Bottom, Align::End, super::rem(12.0)),

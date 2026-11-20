@@ -2364,3 +2364,16 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **Escape needs nothing special:** a dialog's panel and a menu's panel are both `.modal(...)`, and Escape goes to the one on top, so the
   three `WorkflowModelRolesEscape` cases pass as written.
 - **A test build can be OOM-killed (exit 143, no message) at 4000M:** 5200M built `cargo test --lib --no-run` here on 20 November 2026.
+
+## Component 19, piece E (an automation's header and actions)
+
+- **A pane that swaps content eases, and `elements()` shows both.** After a row press changes which automation is open, the
+  old header's note was still in `rt.elements()` for the next frames (the state had already dropped it). A test that asserts
+  something is *gone* after a swap draws about 40 frames first; a test that asserts something *is* there needs only the two
+  that `Rig::frames` draws. Asserting on the state (`automations_nav.notice`) and on the picture are different checks.
+- **A switch with its own off track.** `ui::controls::switch` takes the off colour from the theme's `input`; Automations needs the
+  text colour at 22 % (`.automation-page__switch[data-state="unchecked"]`), so `switch_with(t, on, off)` takes it as an argument.
+- **A key on a row is not a key on its words.** `rt.elements()` gives a text only for the element that holds it, so a test that
+  reads a note's words keys the text (`automation-action-message-text`), not the bordered row around it.
+- A `Confirm` whose action needs no dialog-held request (Fleet's `confirmAction` with no `run`) closes on the button and lets the
+  page do the rest; `Call::DeleteAutomation` follows `Revert` and `ForgetMachine` in `take_confirm` for that.

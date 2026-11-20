@@ -1,6 +1,6 @@
 //! The Automations page (component 19): `[automations-list][automations-detail]`. Ports `components/pages/AutomationsPage.vue`
-//! and, for the detail with nothing open, `AutomationDetailPanel.vue`. The list is `list`; the detail of an open automation is
-//! its `PageHeader` alone until piece E draws the rest.
+//! and `AutomationDetailPanel.vue`. The list is `list`; an open automation's header, actions and note are `detail`; a new
+//! automation's detail is its bar alone until piece H.
 use crate::State;
 use crate::fleet::automations::nav::{RETRYING, ViewMode};
 use crate::icons::{CIRCLE_ALERT, PLUS, ZAP};
@@ -10,6 +10,7 @@ use crate::ui::{empty_state, page_header, rem};
 use crate::view::{files_tab, workflows::sheet};
 use rune::{ScrollSpec, col, icon, row, text};
 
+pub mod detail;
 pub mod list;
 
 /// The whole context: the list, its gutter and the detail; with the panel collapsed, the detail alone.
@@ -57,7 +58,10 @@ fn detail(s: &State, t: &Theme) -> rune::El {
         (ViewMode::Edit, Some(a)) => a.name.clone(),
         _ => "Automations".to_string(),
     };
-    let header = page_header::bar(t, "automation-header", &title, None);
+    let header = match (nav.mode, open) {
+        (ViewMode::Edit, Some(a)) => detail::header(s, t, a),
+        _ => page_header::bar(t, "automation-header", &title, None),
+    };
     // `center__body`: the page sits in 24 px of padding all round, and its own body scrolls under the bar.
     let page = col().w_full().grow(1.0).min_h(0.0).padding(24.0).child(header).child(
         col()
@@ -76,11 +80,15 @@ fn detail(s: &State, t: &Theme) -> rune::El {
 
 /// What the list mode's body says: loading, a failed load, or the empty state (rows 3.3 to 3.5).
 fn body(s: &State, t: &Theme) -> rune::El {
-    // An open or a new automation's page is pieces E and H; until then its header stands alone.
-    if s.automations_nav.mode != ViewMode::List {
+    let store = s.shown_automations();
+    // The open automation's page; one the list doesn't hold (yet) is the list mode's body. A new automation's is piece H's.
+    let open = s.automations_nav.open_id().is_some_and(|id| store.get(id).is_some());
+    if open && s.automations_nav.mode == ViewMode::Edit {
+        return detail::body(t, s);
+    }
+    if s.automations_nav.mode == ViewMode::Create {
         return col().w_full();
     }
-    let store = s.shown_automations();
     let first_load = store.is_loading && store.list.is_empty();
     let failed = store.list.is_empty() && (store.error.is_some() || s.automations_nav.retrying);
     let centred = col().w_full().grow(1.0).center();

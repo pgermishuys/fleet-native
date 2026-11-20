@@ -39,6 +39,12 @@ pub enum Call {
         path: String,
         range: Option<(usize, usize)>,
     },
+    /// Automations: delete the open automation of `machine` (`fleet::automations::actions`). The dialog closes at once, as
+    /// Fleet's `confirmAction` with no `run` does, and the page says if the server refused.
+    DeleteAutomation {
+        machine: String,
+        id: String,
+    },
 }
 
 pub fn session_path(id: &str) -> String {
@@ -74,7 +80,9 @@ pub fn run(base: &str, call: &Call) -> Result<(), String> {
         Call::Rename { id, title } => ("PATCH", session_path(id), Some(rename_body(title))),
         Call::ClearAttachments { id } => ("DELETE", attachments_path(id), None),
         Call::Delete { id } => ("DELETE", session_path(id), None),
-        Call::ForgetMachine { .. } | Call::ReplaceToken | Call::Revert { .. } => unreachable!("machine calls are made by machine_actions"),
+        Call::ForgetMachine { .. } | Call::ReplaceToken | Call::Revert { .. } | Call::DeleteAutomation { .. } => {
+            unreachable!("machine calls are made by machine_actions")
+        }
     };
     let (status, text) = http::text_with(method, base, &path, body.as_ref())?;
     if (200..300).contains(&status) { Ok(()) } else { Err(failure_text(call, status, &text)) }
@@ -251,7 +259,7 @@ impl State {
     pub(crate) fn send_session_call(&mut self, call: Call, was: Option<String>, tx: &mut Tx) {
         let session = match &call {
             Call::Rename { id, .. } | Call::ClearAttachments { id } | Call::Delete { id } => id.clone(),
-            Call::ForgetMachine { .. } | Call::ReplaceToken | Call::Revert { .. } => return,
+            Call::ForgetMachine { .. } | Call::ReplaceToken | Call::Revert { .. } | Call::DeleteAutomation { .. } => return,
         };
         let Some(link) = self.link_for(&session) else {
             self.session_call_done(&call, was, Ok(()), tx);
@@ -279,7 +287,7 @@ impl State {
                 }
             }
             Call::ClearAttachments { .. } | Call::Delete { .. } => self.confirm_done(result, tx),
-            Call::ForgetMachine { .. } | Call::ReplaceToken | Call::Revert { .. } => {}
+            Call::ForgetMachine { .. } | Call::ReplaceToken | Call::Revert { .. } | Call::DeleteAutomation { .. } => {}
         }
     }
 

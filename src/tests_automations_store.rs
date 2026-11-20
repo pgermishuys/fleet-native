@@ -26,6 +26,16 @@ pub(crate) struct Fake {
     pub(crate) refuse_next_list: Arc<Mutex<Option<String>>>,
     /// While set, the list is held back: the request is heard but not answered.
     pub(crate) hold_list: Arc<AtomicBool>,
+    /// The next call of this verb (`enable`, `disable`, `run`, `delete`) is refused with these words.
+    pub(crate) refuse_verb: Arc<Mutex<Option<(String, String)>>>,
+    /// What the next Run now answers with, merged into the run it makes (a skipped one).
+    pub(crate) run_answer: Arc<Mutex<Option<Value>>>,
+}
+
+/// Takes the refusal waiting for `verb`, if that is the one.
+fn refusal(slot: &Mutex<Option<(String, String)>>, verb: &str) -> Option<String> {
+    let mut held = slot.lock().unwrap();
+    if held.as_ref().is_some_and(|(v, _)| v == verb) { held.take().map(|(_, e)| e) } else { None }
 }
 
 pub(crate) fn automation(id: &str, extra: Value) -> Value {
@@ -49,10 +59,13 @@ pub(crate) fn fake(initial: Vec<Value>) -> Fake {
     let (log, items, refuse_next, gate) = (heard.clone(), list.clone(), refuse.clone(), hold.clone());
     let list_refusal = Arc::new(Mutex::new(None::<String>));
     let refuse_list = list_refusal.clone();
+    let (refuse_verb, run_answer) = (Arc::new(Mutex::new(None)), Arc::new(Mutex::new(None::<Value>)));
+    let (verb_gate, run_gate) = (refuse_verb.clone(), run_answer.clone());
     std::thread::spawn(move || {
         for mut stream in listener.incoming().flatten() {
             let (log, items, refuse_next, gate) = (log.clone(), items.clone(), refuse_next.clone(), gate.clone());
             let refuse_list = refuse_list.clone();
+            let (verb_gate, run_gate) = (verb_gate.clone(), run_gate.clone());
             std::thread::spawn(move || {
                 let req = crate::test_http::read(&mut stream);
                 if !req.route().starts_with(BASE) {
@@ -65,6 +78,10 @@ pub(crate) fn fake(initial: Vec<Value>) -> Fake {
                     .strip_prefix("/api/automations/")
                     .and_then(|r| r.split_once('/'))
                     .map(|(id, verb)| (id.replace("%20", " "), verb));
+                let verb = if req.method == "DELETE" { Some("delete") } else { toggle.as_ref().map(|t| t.1) };
+                if let Some(error) = verb.and_then(|v| refusal(&verb_gate, v)) {
+                    return crate::test_http::respond_json(&mut stream, "400 X", &json!({"error": error}).to_string());
+                }
                 match (req.method.as_str(), route.as_str(), toggle) {
                     ("GET", BASE, _) => {
                         if let Some(error) = refuse_list.lock().unwrap().take() {
@@ -102,7 +119,10 @@ pub(crate) fn fake(initial: Vec<Value>) -> Fake {
                         crate::test_http::respond_json(&mut stream, "204 X", "");
                     }
                     ("POST", _, Some((id, "run"))) => {
-                        let run = json!({"id": "r1", "automationId": id, "trigger": "manual", "startedAt": "2026-09-15T10:00:00Z", "state": "starting"});
+                        let mut run = json!({"id": "r1", "automationId": id, "trigger": "manual", "startedAt": "2026-09-15T10:00:00Z", "state": "starting"});
+                        for (k, v) in run_gate.lock().unwrap().take().as_ref().and_then(Value::as_object).into_iter().flatten() {
+                            run[k] = v.clone();
+                        }
                         crate::test_http::respond_json(&mut stream, "201 X", &run.to_string());
                     }
                     ("GET", _, Some((id, "runs"))) => {
@@ -132,7 +152,7 @@ pub(crate) fn fake(initial: Vec<Value>) -> Fake {
             });
         }
     });
-    Fake { base, heard, refuse_next_create: refuse, refuse_next_list: list_refusal, hold_list: hold }
+    Fake { base, heard, refuse_next_create: refuse, refuse_next_list: list_refusal, hold_list: hold, refuse_verb, run_answer }
 }
 
 impl Fake {

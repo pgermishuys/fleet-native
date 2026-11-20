@@ -112,8 +112,18 @@ pub enum Scene {
     Failed,
     /// New automation pressed: the draft row, and the detail's title says so.
     Create,
-    /// An automation open (its header alone until piece E).
+    /// An automation open: its header and nothing else yet.
     Open,
+    /// The same, with the info note Run now leaves.
+    Started,
+    /// One that is switched off.
+    Off,
+    /// A run that was skipped: the error note.
+    Skipped,
+    /// The ⋯ menu open.
+    Menu,
+    /// Delete asked for: the confirm.
+    Delete,
 }
 
 impl crate::State {
@@ -133,14 +143,25 @@ impl crate::State {
                 store.is_loading = false;
                 store.error = Some("Fleet is restarting".into());
             }
-            Scene::List | Scene::Create | Scene::Open => {
+            Scene::List | Scene::Create | Scene::Open | Scene::Started | Scene::Off | Scene::Skipped | Scene::Menu | Scene::Delete => {
                 store.is_loading = false;
                 store.list = automations();
             }
         }
         match scene {
             Scene::Create => self.automations_nav.start_create(),
-            Scene::Open => self.automations_nav.set_active("a-weekly"),
+            Scene::Open | Scene::Started | Scene::Skipped | Scene::Menu | Scene::Delete => self.automations_nav.set_active("a-weekly"),
+            Scene::Off => self.automations_nav.set_active("a-paused"),
+            _ => {}
+        }
+        match scene {
+            Scene::Started => self.automation_say(false, crate::fleet::automations::actions::STARTED),
+            Scene::Skipped => self.automation_say(true, "Another run was still going"),
+            Scene::Menu => self.ui.open = Some(crate::ui::Open::Menu("automation-more")),
+            Scene::Delete => {
+                let call = crate::fleet::actions::Call::DeleteAutomation { machine: HOME_MACHINE_KEY.into(), id: "a-weekly".into() };
+                self.ui.confirm = Some(crate::ui::confirm::Confirm::delete_automation("Monday digest".into(), call));
+            }
             _ => {}
         }
     }
