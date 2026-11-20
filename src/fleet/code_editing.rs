@@ -1,6 +1,7 @@
 //! The editor in the app (component 11, pieces P and R): the code view of the open file tab takes the keyboard, the pointer, pastes and
 //! the input method, and edits the file's lines through the buffer's `code_edit::Editor`. Ctrl/Cmd+S saves (`fleet::file_save`).
 use super::code_edit::{Editor, Move, Pos};
+use super::code_indent::indent_for;
 use super::file_buffers::Status;
 use crate::State;
 use crate::view::code_view::{CODE, LINE_H};
@@ -116,7 +117,7 @@ impl State {
     }
 
     /// Brings the caret's line into view, and the caret itself sideways (`EditorView.scrollIntoView` on each selection change).
-    fn reveal_caret(&mut self, tx: &mut Tx) {
+    pub(super) fn reveal_caret(&mut self, tx: &mut Tx) {
         if self.edit_surface() == DIFF {
             return self.reveal_in_diff(tx);
         }
@@ -140,6 +141,16 @@ impl State {
         let page = ((self.code_edit.view_h / LINE_H) as usize).saturating_sub(1).max(1);
         let now = self.clock;
         let shift = m.shift;
+        let indent = self.code_edit.file.as_ref().map_or_else(Default::default, |(_, _, p)| indent_for(p));
+        // The completion popup takes the arrows, Enter, Tab and Esc while it shows; Ctrl/Cmd+Space opens it by hand.
+        if self.complete_key(ev, tx) {
+            return true;
+        }
+        if ((m.cmd || m.ctrl) && !m.alt && matches!(&ev.key, Key::Command(' '))) || matches!(&ev.key, Key::Text(t) if t == " " && m.cmd) {
+            self.complete_refresh(true);
+            return true;
+        }
+        let edits_text = matches!(&ev.key, Key::Text(_) | Key::Backspace | Key::Delete);
         let motion = |s: &mut State, mv: Move| s.with_editor(|e, l| (e.motion(l, mv, shift), false));
         let handled = match &ev.key {
             // Alt+letter is the window's off a Mac (Alt+Z wraps); Ctrl+Alt is AltGr there and types.
@@ -147,11 +158,11 @@ impl State {
             Key::Text(t) if m.alt && (t.eq_ignore_ascii_case("z") || t == "\u{3a9}" || t == "\u{b8}") => false,
             Key::Text(t) if !(m.cmd && !m.alt) && !t.is_empty() => {
                 let t = t.clone();
-                self.with_editor(|e, l| (e.insert(l, &t, now), true));
+                self.with_editor(|e, l| (e.type_text(l, &t, indent, now), true));
                 true
             }
             Key::Enter if !m.cmd && !m.ctrl => {
-                self.with_editor(|e, l| (e.newline(l, now), true));
+                self.with_editor(|e, l| (e.newline_in(l, indent, now), true));
                 true
             }
             Key::Tab if !m.cmd && !m.ctrl && !m.alt => {
@@ -162,7 +173,13 @@ impl State {
                 true
             }
             Key::Backspace => {
-                self.with_editor(|e, l| (e.delete(l, false, word || (mac && m.cmd), now), true));
+                let by_word = word || (mac && m.cmd);
+                self.with_editor(|e, l| {
+                    if !by_word && e.backspace_pair(l, now) {
+                        return ((), true);
+                    }
+                    (e.delete(l, false, by_word, now), true)
+                });
                 true
             }
             Key::Delete => {
@@ -258,6 +275,12 @@ impl State {
         };
         if handled {
             self.reveal_caret(tx);
+            // Typing offers words as it goes; any other key that moved the caret or changed the text puts the popup away.
+            if edits_text {
+                self.complete_refresh(false);
+            } else {
+                self.completion.close();
+            }
         }
         handled
     }
@@ -295,6 +318,7 @@ impl State {
                     }
                     ((), true)
                 });
+                self.complete_refresh(false);
             }
             _ => return false,
         }
@@ -304,7 +328,9 @@ impl State {
 
     /// Keeps `focused` with where the keyboard is: a blur is no event in Rune (docs/RUNE.md), so the poll looks.
     pub fn keep_code_edit_focus(&mut self, tx: &mut Tx) -> bool {
+        let mut took = false;
         if let Some(key) = self.code_edit.take_focus.take() {
+            took = true;
             tx.focus(key, false);
             if key == CODE || key == DIFF {
                 self.reveal_caret(tx);
@@ -317,6 +343,11 @@ impl State {
         self.code_edit.blink_off = off;
         if focused {
             tx.wake_after(std::time::Duration::from_millis(250));
+        }
+        if !focused && self.completion.open && !took && self.code_edit.focused {
+            self.completion.close();
+            self.code_edit.focused = false;
+            return true;
         }
         if focused == self.code_edit.focused {
             return blinked;
@@ -332,6 +363,7 @@ impl State {
     /// A press (and a drag) on line `line` of the code at byte `byte`: the caret goes there, Shift or a drag extends the selection.
     pub fn code_edit_press(&mut self, at: Pos, extend: bool, tx: &mut Tx) {
         tx.focus(self.edit_surface(), false);
+        self.completion.close();
         self.with_editor(|e, _| (e.set_caret(at, extend), false));
     }
 }

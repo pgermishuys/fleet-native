@@ -11,6 +11,7 @@ pub mod browser_tab;
 pub mod canvas_host;
 pub mod changes;
 pub mod code_edit;
+pub mod completion;
 pub mod context;
 pub mod context_tab;
 pub mod credentials;

@@ -10,6 +10,7 @@ pub mod card;
 pub mod changed_lines;
 pub mod changes_find;
 pub mod compaction;
+pub mod completion;
 pub mod diff;
 pub mod export;
 pub mod export_dialog;

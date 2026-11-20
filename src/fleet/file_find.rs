@@ -9,7 +9,8 @@ use super::canvases::FileView;
 use super::file_buffers::Status;
 use crate::State;
 use crate::conv::changes_find::step_shortcut;
-use crate::conv::file_find::{Match, Options, find_matches, step};
+use crate::conv::file_find::{Match, Options, find_matches, replacement, step};
+use crate::fleet::code_edit::Pos;
 use crate::view::code_view::CODE;
 use rune::{Key, KeyEvent, Tx};
 use std::time::Duration;
@@ -24,6 +25,8 @@ pub struct FileFind {
     /// What the field holds, with its caret and selection.
     pub field: rune::TextEdit,
     pub options: Options,
+    /// The replace row's field (shown for a file that can be edited).
+    pub replace: rune::TextEdit,
     session: String,
     path: String,
     /// The revision of the buffer the matches were worked out from.
@@ -153,6 +156,61 @@ impl State {
         let wrapped = self.sidebar.file_wrap(&self.file_find.path);
         tx.scroll_center_in_instant(CODE, format!("code-line-{line}{}", if wrapped { "w" } else { "" }));
         tx.wake_after(Duration::from_millis(16));
+    }
+
+    /// Whether the panel offers replacing: the file in view is one the editor is over.
+    pub fn file_find_can_replace(&self) -> bool {
+        self.code_edit_target().is_some()
+    }
+
+    /// The replace field's Enter and the **replace** button: the current match becomes the replace text and the next one is current
+    /// (CodeMirror's `replaceNext`); with no current match, the first Enter only picks the next one.
+    pub fn file_find_replace(&mut self, tx: &mut Tx) {
+        let Some(i) = self.file_find.current else { return self.file_find_step(1, tx) };
+        let Some(m) = self.file_find.matches.get(i).cloned() else { return };
+        let Some((machine, session, path)) = self.code_edit_target() else { return };
+        let Some(lines) = self.file_buffers.buffer(&machine, &session, &path).map(|b| b.lines().to_vec()) else { return };
+        let with = replacement(&lines, &m, &self.file_find.field.text, self.file_find.options, &self.file_find.replace.text);
+        let (a, b, now) = (Pos::new(m.line, m.range.start), Pos::new(m.line, m.range.end), self.clock);
+        let end = self.with_editor(|e, l| {
+            e.set_caret(a, false);
+            e.set_caret(b, true);
+            e.paste(l, &with, now);
+            (e.caret, true)
+        });
+        let Some(end) = end else { return };
+        self.file_find_lines();
+        // The next match after what was just put there.
+        let next = self.file_find.matches.iter().position(|n| (n.line, n.range.start) >= (end.line, end.byte));
+        self.file_find.current = next;
+        self.file_find.scroll_due = next.map(|_| 0.0);
+        if let Some(n) = next.and_then(|i| self.file_find.matches.get(i)) {
+            let wrapped = self.sidebar.file_wrap(&self.file_find.path);
+            tx.scroll_center_in_instant(CODE, format!("code-line-{}{}", n.line + 1, if wrapped { "w" } else { "" }));
+            tx.wake_after(Duration::from_millis(16));
+        }
+    }
+
+    /// **replace all** (and Ctrl+Alt+Enter in the field): every match, one undo step.
+    pub fn file_find_replace_all(&mut self) {
+        let Some((machine, session, path)) = self.code_edit_target() else { return };
+        let Some(lines) = self.file_buffers.buffer(&machine, &session, &path).map(|b| b.lines().to_vec()) else { return };
+        let f = &self.file_find;
+        let edits: Vec<(Pos, Pos, String)> = f
+            .matches
+            .iter()
+            .map(|m| {
+                let with = replacement(&lines, m, &f.field.text, f.options, &f.replace.text);
+                (Pos::new(m.line, m.range.start), Pos::new(m.line, m.range.end), with)
+            })
+            .collect();
+        if edits.is_empty() {
+            return;
+        }
+        let now = self.clock;
+        self.with_editor(|e, l| (e.replace_all(l, &edits, now), true));
+        self.file_find_lines();
+        self.file_find.current = None;
     }
 
     /// Whether focus is in the file's code or its panel (an unfocused window is in neither).
