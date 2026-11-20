@@ -2335,6 +2335,7 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **A test build that is killed with "Terminated" (exit 143) and no message was OOM-killed:** `journalctl` shows
   `Memory cgroup out of memory: Killed process (rustc)`. `MemoryMax=4000M` and 5000M were both too little for the test build on
   20 November 2026 with two other sessions running; 6000M with `CARGO_BUILD_JOBS=2` built it.
+
 ## Component 20, piece A (sections, filters and the data)
 
 - **Nothing new about Rune:** the piece is plain Rust (data, queries, dates and comparisons), tested headless.
@@ -2346,3 +2347,20 @@ whole-file work that piece R can make incremental (colour from the edited line, 
   a plugin's own state is a `Box<dyn Any + Send>`: nothing in Rune is needed, and `State` stays `Send`. A handler reaches its
   state with `places.state_mut::<T>(id)`; borrow `s.places` (a field), not `s`, so other fields stay usable beside it.
 - **`Icon` has no `Debug`**, so a struct holding `&'static Icon` that sits in a `#[derive(Debug)]` needs a hand-written `Debug`.
+
+## Component 18, piece E (Model roles)
+
+- **One selector menu can serve any trigger by name.** The composer's selector is `Open::Menu(name)` with the rows, the selected id and the
+  pick all looked up by `name`; the Model roles dialog and the Run box's Models popover add `wf-model` and `wf-effort`, which list a
+  role's models or efforts from `State::role_menu_data`, and the three places that read "the session's" harness and lists
+  (`harness_key`, `selector_lists`, `selector_data`) answer for the role while `workflows_nav.roles.menu` is set. Nothing of the rows,
+  the filter, the stars or the "N more" cue was written twice.
+- **A menu over a dialog must be drawn after the dialog.** `overlays()` draws what `Ui::open` names first and the flag-driven dialogs after
+  it, so a menu from `Open::Menu` would sit under the dialog it was opened from. The dialog's own overlay function returns the dialog and then
+  its menu, and `Open::Menu("wf-…")` draws nothing by itself while the dialog is the place it opened from.
+- **`.offset(x, 0.0)` on an anchored panel moves it after the anchor placed it:** Fleet's `shiftLeft` (the menu slides left to stay 8 px
+  inside the dialog) is `offset(-shift_left(trigger_x, clip_right), 0.0)`, with the trigger's x written by its `on_layout` and the
+  dialog's right edge known from its width, because it is centred.
+- **Escape needs nothing special:** a dialog's panel and a menu's panel are both `.modal(...)`, and Escape goes to the one on top, so the
+  three `WorkflowModelRolesEscape` cases pass as written.
+- **A test build can be OOM-killed (exit 143, no message) at 4000M:** 5200M built `cargo test --lib --no-run` here on 20 November 2026.

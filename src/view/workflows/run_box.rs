@@ -86,7 +86,7 @@ fn run_button(s: &State, t: &Theme, w: &Workflow) -> El {
 }
 
 /// The roles this workflow's enabled steps ask for, in Strong, Standard, Fast order (`rolesUsed`).
-fn roles_used(s: &State, w: &Workflow) -> Vec<Role> {
+pub(super) fn roles_used(s: &State, w: &Workflow) -> Vec<Role> {
     let on = &s.workflows_nav.run_box.optional_on;
     crate::fleet::workflows::ROLES
         .into_iter()
@@ -148,10 +148,9 @@ fn strip(s: &State, t: &Theme, w: &Workflow) -> El {
     r.child(
         Chip::new("workflow-models", models)
             .glyph(&BOT)
+            .open(s.models_popover_open())
             .disabled(starting || roles_used(s, w).is_empty())
-            .view(t, |s: &mut State, tx: &mut Tx| {
-                s.menu_waiting("Models for this run", "Model roles are piece E of the Workflows port", tx)
-            }),
+            .view(t, super::roles::open_popover),
     )
 }
 

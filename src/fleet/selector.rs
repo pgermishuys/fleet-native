@@ -32,6 +32,10 @@ impl State {
     /// `harnessType`: stars and sections need the session's harness. The invented sessions have none and show an
     /// OpenCode-like one so scenes and tests draw the whole menu.
     pub fn harness_key(&self) -> Option<String> {
+        // A Workflows role's menu is about the harness the role is kept for.
+        if self.workflows_nav.roles.menu.is_some() {
+            return self.role_menu_harness();
+        }
         // On the New session page the menus are about the harness the draft would start on.
         if self.on_new_session_page() {
             return Some(self.resolved_harness()).filter(|h| !h.is_empty());
@@ -43,12 +47,21 @@ impl State {
         }
     }
 
-    fn model_picker(&self) -> ModelPicker {
+    pub(crate) fn model_picker(&self) -> ModelPicker {
         ModelPicker::parse(self.pickers.prefs.get(PREFERENCE_KEY).unwrap_or(""))
     }
 
     /// What the menus list: the open session's agents and models, or on the New session page the folder's catalog.
     fn selector_lists(&self) -> (Vec<AgentOption>, Vec<ModelOption>, DefaultLabels) {
+        if self.workflows_nav.roles.menu.is_some() {
+            let labels = DefaultLabels {
+                agent_label: String::new(),
+                agent_description: String::new(),
+                model_label: String::new(),
+                model_description: String::new(),
+            };
+            return (Vec::new(), self.role_models(), labels);
+        }
         if self.on_new_session_page() {
             return (self.page_agents(), self.page_models(), self.page_default_labels());
         }
@@ -58,6 +71,9 @@ impl State {
 
     /// The rows the menu `name` lists, flat, and in sections when the model picker has a harness.
     pub fn selector_data(&self, name: &str) -> (Vec<Item>, Option<Vec<Section>>) {
+        if let Some(data) = self.role_menu_data(name == crate::fleet::workflows::roles::EFFORT_MENU) {
+            return data;
+        }
         let (agents, models, labels) = self.selector_lists();
         if name == "agent" {
             return (rules::agent_items(rules::default_item(&labels.agent_label, &labels.agent_description, false), &agents), None);
@@ -79,6 +95,9 @@ impl State {
 
     /// The id of the row picked now (`v-model`): "" is Default.
     pub fn selector_selected(&self, name: &str) -> String {
+        if self.workflows_nav.roles.menu.is_some() {
+            return self.role_menu_selected(name == crate::fleet::workflows::roles::EFFORT_MENU);
+        }
         if self.on_new_session_page() {
             let d = self.new_draft.draft();
             return d.map(|d| if name == "agent" { d.agent.clone() } else { d.model.clone() }).unwrap_or_default();
@@ -101,11 +120,12 @@ impl State {
     pub fn close_selector(&mut self) {
         self.ui.open = None;
         self.ui.sel.filter = TextEdit::new("");
+        self.role_menu_closed();
     }
 
     /// Typing puts the highlight on the first match, not on Default, which every filter keeps. True when it moved.
     pub fn keep_selector(&mut self) -> bool {
-        let Some(crate::ui::Open::Menu(name @ ("agent" | "model"))) = self.ui.open else { return false };
+        let Some(crate::ui::Open::Menu(name @ ("agent" | "model" | "wf-model" | "wf-effort"))) = self.ui.open else { return false };
         if self.ui.sel.filter.text == self.ui.sel.placed_for {
             return false;
         }
@@ -138,7 +158,12 @@ impl State {
 
     /// A click on a row: sets the draft's pick, closes the menu and clears the filter.
     pub fn pick_selector(&mut self, name: &str, id: &str, tx: &mut Tx) {
+        let role_menu = self.workflows_nav.roles.menu;
         self.close_selector();
+        if let Some(menu) = role_menu {
+            self.pick_role(menu, id);
+            return;
+        }
         if self.on_new_session_page() {
             if name == "agent" {
                 self.pick_page_agent(id);

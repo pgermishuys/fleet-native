@@ -355,3 +355,85 @@ impl crate::State {
         }
     }
 }
+
+/// What a scene of the Model roles dialog or the Run box's Models popover shows.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum RolesScene {
+    /// The dialog, two roles mapped.
+    Dialog,
+    /// The dialog with none of the harnesses that run workflows turned on.
+    NoHarness,
+    /// The dialog with Strong's model menu open.
+    Menu,
+    /// The Run box's popover, nothing changed.
+    Popover,
+    /// The Run box's popover with Fast changed for this run.
+    PopoverChanged,
+}
+
+/// The models the scenes' harness lists: invented, three with efforts.
+pub fn role_models() -> Vec<crate::composer::choice::ModelOption> {
+    use crate::composer::choice::ModelOption;
+    let model = |provider: &str, name: &str, id: &str, display: &str, variants: &[&str], window: u64| {
+        let mut m = ModelOption::new(provider, name, id, display);
+        m.variants = variants.iter().map(|v| v.to_string()).collect();
+        m.context_window = Some(window);
+        m
+    };
+    vec![
+        model("anthropic", "Anthropic", "opus", "Opus", &["low", "medium", "high"], 200_000),
+        model("anthropic", "Anthropic", "sonnet", "Sonnet", &["low", "high"], 200_000),
+        model("anthropic", "Anthropic", "haiku", "Haiku", &[], 200_000),
+        model("orbit", "Orbit", "orbit-4", "Orbit 4", &["fast", "deep"], 128_000),
+    ]
+}
+
+impl crate::State {
+    /// The dialog and the popover for the pictures and tests: the invented repository's library, its harness's models and two
+    /// roles mapped. The scene is the state: nothing is read from a server.
+    pub fn show_roles(&mut self, dark: bool, which: RolesScene) {
+        use crate::fleet::workflows::roles::{Place, roles_json};
+        use crate::fleet::workflows::{ModelChoice, ModelRoles, Role};
+        self.show_run_box(dark, RunBoxScene::Filled);
+        self.workflows_nav.run_box.request = rune::TextEdit::new("");
+        self.workflows_nav.run_box.optional_on.clear();
+        self.workflows_nav.run_box.check_with_me = false;
+        let key = crate::fleet::new_session::feed_state::CatalogKey {
+            harness: "opencode2".into(),
+            directory: Some(super::feeds::ROCKET.into()),
+            profile: None,
+        };
+        let mut catalog = super::feeds::catalog();
+        catalog.models = role_models();
+        catalog.default_model = Some(crate::composer::choice::ModelReference::new("anthropic", "sonnet"));
+        let mut feed = crate::fleet::new_session::feed_state::CatalogFeed::default();
+        feed.select(Some(key), 0);
+        feed.finish(1, 0, Ok(catalog));
+        self.feeds.catalogs.insert(crate::fleet::settings::HOME_MACHINE_KEY.into(), feed);
+        let mut roles = ModelRoles::new();
+        let mapped = roles.entry("opencode2".into()).or_default();
+        mapped.insert(Role::Strong, ModelChoice { model: Some("anthropic/opus".into()), effort: Some("high".into()) });
+        mapped.insert(Role::Standard, ModelChoice { model: Some("anthropic/sonnet".into()), effort: None });
+        self.pickers.prefs.values.insert(crate::fleet::workflows::MODEL_ROLES_PREFERENCE_KEY.into(), roles_json(&roles));
+        if which == RolesScene::NoHarness {
+            let harnesses = self.feeds.harnesses.entry(crate::fleet::settings::HOME_MACHINE_KEY.into()).or_default();
+            for h in &mut harnesses.harnesses.all {
+                h.user_enabled = false;
+            }
+        }
+        match which {
+            RolesScene::Dialog | RolesScene::NoHarness => self.workflows_nav.roles_open = true,
+            RolesScene::Menu => {
+                self.workflows_nav.roles_open = true;
+                self.open_role_menu(Place::Dialog, Role::Strong, false);
+            }
+            RolesScene::Popover | RolesScene::PopoverChanged => {
+                if which == RolesScene::PopoverChanged {
+                    self.workflows_nav.run_box.overrides =
+                        vec![(Role::Fast, ModelChoice { model: Some("orbit/orbit-4".into()), effort: None })];
+                }
+                self.open_models_popover();
+            }
+        }
+    }
+}

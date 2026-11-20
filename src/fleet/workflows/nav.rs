@@ -74,6 +74,8 @@ pub struct Nav {
     pub run_box: super::run_box::RunBox,
     /// The Model roles dialog is open (piece E draws it).
     pub roles_open: bool,
+    /// The dialog's own state: its harness, the role being saved, the menu open.
+    pub roles: super::roles::Roles,
     /// Turn on is saving.
     pub turning_on: bool,
     /// Something asked for the library to be read again: the folder changed, or Turn on saved.
@@ -286,6 +288,10 @@ impl State {
             return true;
         }
         if self.rail != crate::Rail::Workflows {
+            // The flag outlives the page and links set it before navigating here, so it is cleared on the way out.
+            if self.workflows_nav.roles_open {
+                self.close_roles();
+            }
             // The Run box's repository is followed from any page (a session row can be the first to ask).
             if self.workflows_nav.reload_wanted && self.workflows_feature() == Some(true) && !self.workflows_nav.turning_on {
                 self.workflows_reload(tx);
@@ -316,6 +322,6 @@ impl State {
             self.workflows_reload(tx);
             changed = true;
         }
-        changed | self.keep_run_box()
+        changed | self.keep_run_box() | self.keep_roles(tx)
     }
 }

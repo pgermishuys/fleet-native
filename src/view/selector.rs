@@ -57,7 +57,7 @@ pub fn panel(s: &State, t: &Theme, name: &'static str) -> El {
     let mut p = col()
         .key(format!("{name}-pop-menu"))
         .role("listbox")
-        .label(if name == "agent" { "Agent selector" } else { "Model selector" })
+        .label(noun(name, " selector"))
         .w(width)
         .padding(4.0)
         .radius(RADIUS_CARD)
@@ -75,12 +75,22 @@ pub fn panel(s: &State, t: &Theme, name: &'static str) -> El {
     p
 }
 
+/// What the menu is for: "Agent", "Effort" or "Model", then `after`.
+fn noun(name: &str, after: &str) -> String {
+    let word = match name {
+        "agent" => "Agent",
+        "wf-effort" => "Effort",
+        _ => "Model",
+    };
+    format!("{word}{after}")
+}
+
 /// `.selector-dropdown__filter`: focused on open; the arrows move the highlight, Enter picks it, and the field keeps focus.
 fn filter(s: &State, t: &Theme, name: &'static str) -> El {
     text_input(&s.ui.sel.filter, sans(12.0, 400.0, 1.2))
         .key(format!("{name}-filter"))
-        .label(if name == "agent" { "Filter agent" } else { "Filter model" })
-        .placeholder(if name == "agent" { "Filter agent…" } else { "Filter model…" }, t.muted)
+        .label(format!("Filter {}", noun(name, "").to_lowercase()))
+        .placeholder(format!("Filter {}…", noun(name, "").to_lowercase()), t.muted)
         .color(t.text)
         .caret(t.text, t.accent.alpha(0.35))
         .single_line()

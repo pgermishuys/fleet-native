@@ -482,7 +482,7 @@ impl State {
 }
 
 /// The folder's catalog as the choice rules read it (`describeDefaults`, `keepOffered`).
-fn page_catalog_for_choice(c: &Catalog) -> crate::composer::choice::Catalog {
+pub(crate) fn page_catalog_for_choice(c: &Catalog) -> crate::composer::choice::Catalog {
     let mut catalog = crate::fleet::catalog::catalog_of(&c.agents, &c.models);
     catalog.default_agent = c.default_agent.clone();
     catalog.default_model = c.default_model.clone();
