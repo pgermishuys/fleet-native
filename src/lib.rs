@@ -496,7 +496,7 @@ pub struct State {
     pub file_find: fleet::file_find::FileFind,
     /// The editor spike over the open file's code (`fleet::code_editing`, component 11 piece P); off unless asked for.
     pub code_edit: fleet::code_editing::CodeEditing,
-    pub completion: fleet::completion::Completion,
+    pub completion: Box<fleet::completion::Completion>,
     /// Find in files: the machine's search of the session's folder, and the request for the Files tab to start one (`fleet::find_text`).
     pub find_text: fleet::find_text::FindText,
     pub find_in_files: fleet::find_text::FindInFiles,

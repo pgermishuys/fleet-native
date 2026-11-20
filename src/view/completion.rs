@@ -80,7 +80,9 @@ pub fn popup(s: &State, t: &Theme) -> Option<El> {
     )
 }
 
-/// Where the popup hangs: under the caret, its left edge at the text it replaces.
-pub fn anchor(popup: El) -> El {
-    popup.anchored_fit("code-caret", Side::Bottom, Align::Start, 4.0)
+/// The popup hung under the caret (`code-caret`, the element the editor draws), or `None` while it is shut. Never inlined, so the
+/// overlay builder's frame doesn't grow by what the popup builds.
+#[inline(never)]
+pub fn anchored(s: &State, t: &Theme) -> Option<El> {
+    popup(s, t).map(|p| p.anchored_fit("code-caret", Side::Bottom, Align::Start, 4.0))
 }
