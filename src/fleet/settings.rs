@@ -122,6 +122,8 @@ pub struct Sidebar {
     machine_versions: super::updates::LastSeen,
     /// The Fleet version this device last ran, by source (`weave:last-version:<source>`), so an update says what's new once.
     last_versions: super::updates::LastSeen,
+    /// The port this app's own Fleet used last time, so the client's local storage (keyed by address) survives a restart.
+    desktop_port: Option<u16>,
     dir: Option<PathBuf>,
     dirty: bool,
 }
@@ -185,6 +187,7 @@ impl Sidebar {
             Some("unified") => Some(super::review::Layout::Unified),
             _ => None,
         };
+        s.desktop_port = root.get("desktopPort").and_then(Value::as_u64).and_then(|p| u16::try_from(p).ok()).filter(|p| *p > 0);
         s.dreaming_harness = root.get("dreamingHarness").and_then(Value::as_str).filter(|h| !h.is_empty()).map(str::to_string);
         s
     }
@@ -226,6 +229,9 @@ impl Sidebar {
         }
         if let Some(l) = self.changes_layout {
             root["changesLayout"] = json!(if l == super::review::Layout::Split { "split" } else { "unified" });
+        }
+        if let Some(p) = self.desktop_port {
+            root["desktopPort"] = json!(p);
         }
         if let Some(h) = &self.dreaming_harness {
             root["dreamingHarness"] = json!(h);
@@ -399,6 +405,18 @@ impl Sidebar {
             None => self.default_harness.remove(machine).is_some(),
         };
         self.dirty |= changed;
+    }
+
+    /// The port the app's own Fleet used last time.
+    pub fn desktop_port(&self) -> Option<u16> {
+        self.desktop_port
+    }
+
+    pub fn save_desktop_port(&mut self, port: u16) {
+        if self.desktop_port != Some(port) {
+            self.desktop_port = Some(port);
+            self.dirty = true;
+        }
     }
 
     /// Whether the right panel was left widened (`weave:canvas-widened`).

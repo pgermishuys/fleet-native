@@ -54,6 +54,12 @@ fn every_scene_draws_a_frame() {
             assert!(rt.find("sign-in-page").is_some(), "scene {name} lost the page");
             continue;
         }
+        // So are the splash and the error page (`start-*`).
+        if let Some(page) = name.strip_prefix("start-") {
+            let key = if page.starts_with("splash") { "start-splash" } else { "start-error" };
+            assert!(rt.find(key).is_some(), "scene {name} lost the page");
+            continue;
+        }
         assert!(rt.find("rail-sessions").is_some(), "scene {name} lost the rail");
         assert!(rt.find("status-bar").is_some(), "scene {name} lost the status bar");
     }

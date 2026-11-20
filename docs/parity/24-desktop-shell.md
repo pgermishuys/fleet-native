@@ -146,16 +146,16 @@ No event tells the app the window moved or was resized; a piece polls `placement
 | 24.12 | Arguments `--urls http://127.0.0.1:<port> --contentRoot <root>`, working folder the data folder, stdio all piped, no console window on Windows (`windowsHide`: `CREATE_NO_WINDOW`) | SRV `launch` | Done (`desktop::server`: `--urls`, `--contentRoot`, cwd the data folder, piped stdio, `CREATE_NO_WINDOW`) | — |
 | 24.13 | Port: the one used last time if free (keeps the client's local storage; for native, its settings) else 6262 else any free one. "Free" = nothing accepts a loopback connect within 1 s **and** a 127.0.0.1 bind succeeds (Windows binds beside a 0.0.0.0 holder) | SRV `pickPort`, `canListen`; MAIN `DEFAULT_PORT`; DT "ports" ×3 | Done (`pick_port`, `can_listen`; preferred ports are a list, the caller passes the remembered one then 6262) | — |
 | 24.14 | Ready: `/readyz` every 250 ms (1 s timeout each) for up to 60 s; stops waiting if the process exits | SRV `waitUntilReady`, INS `isReady` | Done (the supervisor looks every 250 ms, 1 s each, 60 s; stops at the exit) | — |
-| 24.15 | Ready → remember the port, connect the app to it, marked *owned* | MAIN `onServerEvent` "ready" | None | 24 B |
+| 24.15 | Ready → remember the port, connect the app to it, marked *owned* | MAIN `onServerEvent` "ready" | Done (`desktop::start::watch`: remembers the port in `settings.json` as `desktopPort`, connects, marks `owned`) | — |
 | 24.16 | Exit code 75 (another Fleet took the data first) → look for that Fleet every 500 ms for 30 s and use it; else "Another Fleet is using your data, but it isn't answering." | SRV exit; MAIN "taken" | Event done (`Event::Taken`, no restart after it); wiring and words in B | 24 B (wiring, words) |
 | 24.17 | Crash → restart: at once the first time in a minute, then 1 s, 2 s, 4 s; the fifth crash in a minute gives up: "Fleet keeps stopping unexpectedly." | SRV `restartDelay`; DT "restarts" ×3 | Done (`restart_delay`; `Event::Restarting`, then `Failed`) | — |
 | 24.18 | Never answered within 60 s while running → "Fleet started but never answered." | SRV | Done (`Event::Failed`) | — |
 | 24.19 | Spawn failure → "Couldn't start Fleet: <error>" and a log line `── could not start Fleet: …` | SRV | Done (`Event::Failed`, log line) | — |
 | 24.20 | Stop: close stdin (the server's `StandardInputWatcher` shuts down cleanly with its agents), wait 20 s, then SIGTERM, 5 s, SIGKILL (Windows: terminate) | SRV `stop` | Done (`FleetServer::stop`: stdin, grace, SIGTERM, 5 s, kill; Windows: stdin, then terminate) | — |
-| 24.21 | The app dying any way at all closes the pipe, so the server stops by itself and frees the lock (`scripts/smoke.mjs` kills the app and checks) | server `StandardInputWatcher`; smoke | None | 24 B (checked live) |
-| 24.22 | Stopped only if the app started it; a Fleet it found keeps running after quit | MAIN `before-quit`, `fleet.owned` | n/a today (never starts one) | 24 B |
+| 24.21 | The app dying any way at all closes the pipe, so the server stops by itself and frees the lock (`scripts/smoke.mjs` kills the app and checks) | server `StandardInputWatcher`; smoke | Done in the server (its stdin closes with the app); the live check against the released server is still open (see piece B) | 24 B (live check open) |
+| 24.22 | Stopped only if the app started it; a Fleet it found keeps running after quit | MAIN `before-quit`, `fleet.owned` | Done (`StartState::owned` is only set for a server this app started; quit stops that one, never a found one) | — |
 | 24.23 | Log file (decision 6): header line per start, stdout and stderr appended, exit line, rotate to `.1` past 10 MB | SRV `openLog` | Done (`desktop::log`) | — |
-| 24.24 | A restart after a crash fires "ready" again with the same URL; the app doesn't reload a window already on it | MAIN "ready" | None | 24 B |
+| 24.24 | A restart after a crash fires "ready" again with the same URL; the app doesn't reload a window already on it | MAIN "ready" | Done (`watch` skips a second `Ready` for the address it is on) | — |
 | 24.25 | Restarting: log `Fleet stopped (exit code N); restarting in M ms.` | MAIN "restarting" | Done as the event (`Event::Restarting`); the log line is the app's to write in B | — |
 | 24.26 | Off the UI thread: spawning, waiting, reading output, stopping | AGENTS.md | Done (one supervisor thread; the app reads a channel) | — |
 
@@ -166,12 +166,12 @@ for the theme (native: the app's theme). Icon `icon.png`.
 
 | # | Row | Source | Native | Owner |
 |---|---|---|---|---|
-| 24.30 | Splash: 72 px icon, 18 px gap, a 160×3 bar (track `--border`-like, radius 3) with a 40 % accent slider moving 1.2 s ease-in-out (full bar at 50 % with reduced motion), status line `--muted` "Starting Fleet…" | splash.html | None: the invented data shows while searching | 24 B |
-| 24.31 | Error: max 460 wide, gap 14; 40 px icon; h1 18/600 "Fleet didn't start"; the message (`--muted`); "Its log is here:"; the log path in a mono 12 px box (card, border, radius 6, padding 8×10, wraps anywhere); buttons **Try again** (accent) and **Open logs** (13/500, radius 8, padding 7×14) | error.html | None | 24 B |
-| 24.32 | Try again: `connect()` again from the top (look, then start) | PRE `retry`, MAIN | None | 24 B |
-| 24.33 | Open logs: opens the logs folder in the system's file manager | PRE `openLogs` | None (Rune has no `file:` open: the system's opener on a thread) | 24 B |
+| 24.30 | Splash: 72 px icon, 18 px gap, a 160×3 bar (track `--border`-like, radius 3) with a 40 % accent slider moving 1.2 s ease-in-out (full bar at 50 % with reduced motion), status line `--muted` "Starting Fleet…" | splash.html | Done (`view::start_page::splash`; the sweep is drawn from `State::clock`, eased as CSS `ease-in-out`; reduced motion isn't read: Rune has no such query) | — |
+| 24.31 | Error: max 460 wide, gap 14; 40 px icon; h1 18/600 "Fleet didn't start"; the message (`--muted`); "Its log is here:"; the log path in a mono 12 px box (card, border, radius 6, padding 8×10, wraps anywhere); buttons **Try again** (accent) and **Open logs** (13/500, radius 8, padding 7×14) | error.html | Done (`start_page::error`; the icon is Fleet's mark from `weave_logo.png` at 83 % of the square, not `icon.png`) | — |
+| 24.32 | Try again: `connect()` again from the top (look, then start) | PRE `retry`, MAIN | Done (`StartState::retry`: splash at once, the whole flow again) | — |
+| 24.33 | Open logs: opens the logs folder in the system's file manager | PRE `openLogs` | Done (`start::open_folder`: `xdg-open`, `open` or `explorer` on a thread, the log's folder) | — |
 | 24.34 | "Fleet already runs on this computer" card: 470 wide, padding 22×24, radius 12, border; 40 px icon; h1; "<host> runs Fleet in the background (started <d MMM>). The desktop app will use it: the same sessions, harnesses and machines, and it keeps running when you close the window."; detail box "<host> · Fleet <version>" (12.5 px, radius 10, `--main-bg`); **Use it** (accent, autofocus, disabled once pressed) | running-fleet.html | None | 24 D |
-| 24.35 | Splash and error replace the shell; the rail and status bar aren't there in Fleet's (it's a different page) | MAIN | — | 24 B (a decision for B: draw over the whole window, as Fleet) |
+| 24.35 | Splash and error replace the shell; the rail and status bar aren't there in Fleet's (it's a different page) | MAIN | Done (the pages replace the whole window, as in Fleet) | — |
 
 ### 4. A Fleet that wants its key (a `fleet node`) (MAIN `useRunning`, `openRunning`, INS)
 
@@ -386,7 +386,9 @@ the scratch folder, HOME there too), the released server binary, and their own p
   themes) and the log of a live run against the released server on a scratch folder (paths replaced).
 - **About:** 600 lines with tests.
 
-### Piece B: start its own Fleet: in the app, the splash and the error page
+### Piece B: start its own Fleet: in the app, the splash and the error page — **built, 20 November 2026**
+
+**Built:** `src/desktop/start.rs` (`Config`, `begin`, `StartState`, `Phase`), `src/view/start_page.rs`, `Sidebar::desktop_port`, `FleetServer::stopper` (a shareable handle: the server itself holds a `Receiver`, which isn't `Sync`), scenes `start-splash`/`start-error` (+ `-light`), `src/desktop/start_tests.rs` (11 tests). **Differences:** the owned server is a `Stopper` in `StartState`, not the whole `FleetServer`; quitting closes its input and waits on a thread, with `rune::exit_deadline(25 s)`; with no server binary found the old 3 s search stays (decision 4) and the notice names the places, so row 24.6's page isn't shown. **Open:** the live check (Xvfb, the released server, SIGKILL of the app) and Windows/macOS runs; row 24.21's live part and 24.152 stay open. Fleet's own pictures are the reduced-motion ones in this folder.
 
 - **Rows:** 24.6 (page), 24.15, 24.16 (wiring), 24.21, 24.22, 24.24, 24.30–24.33, 24.35, 24.141 (`openLogs`, `retry`),
   24.152 (as a live check).

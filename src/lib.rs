@@ -704,6 +704,8 @@ pub struct State {
     pub no_fleet: bool,
     /// A normal run (`go_live`): nothing invented is shown anywhere, status bar included.
     pub live: bool,
+    /// Starting Fleet from the app: the splash, the error page and the server it owns (`desktop::start`).
+    pub start: desktop::start::StartState,
     /// The rule that lands the first `/` of a start on Mission control (component 9, piece C).
     pub landing: fleet::dashboard::Landing,
     /// What the home page keeps while it is shown: another machine's sessions, "Show N more" (piece E).
@@ -716,6 +718,8 @@ pub struct State {
 static SERVER: std::sync::OnceLock<String> = std::sync::OnceLock::new();
 /// A normal start (not headless, not `--demo`): the window never shows invented data, found Fleet or not.
 static LIVE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+/// This run starts a Fleet of its own when none runs (`desktop::start::wanted`): the window opens on the splash, not the shell.
+static STARTING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// Whether this run is about a real Fleet, so nothing invented may show.
 fn live() -> bool {
@@ -930,6 +934,7 @@ impl Default for State {
             },
             searching: false,
             no_fleet: false,
+            start: desktop::start::StartState::new(STARTING.load(std::sync::atomic::Ordering::Relaxed)),
             live: false,
             landing: fleet::dashboard::Landing::at_start(true),
             dash: Default::default(),
@@ -956,6 +961,20 @@ impl State {
     /// Showing the invented data: a scene, a headless run or `--demo`. A normal run never does, with a Fleet or without.
     pub fn is_mock(&self) -> bool {
         self.link.is_none() && !self.live
+    }
+
+    /// The `start-*` scenes: the splash, or the error page for a server that keeps stopping.
+    fn show_start(&mut self, dark: bool, failed: bool) {
+        self.dark = Some(dark);
+        self.clock = 0.35;
+        self.start.phase = if failed {
+            desktop::start::Phase::Failed {
+                message: "Fleet keeps stopping unexpectedly.".into(),
+                log: "/home/demo/.config/fleet-native/logs/fleet-server.log".into(),
+            }
+        } else {
+            desktop::start::Phase::Starting(desktop::start::STARTING.into())
+        };
     }
 
     /// Discovery found no Fleet: say so, and leave the window empty.
@@ -1700,6 +1719,9 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     // Whole seconds only, so the "Working · 18s" label redraws once a second.
     let ticked = now.floor() != s.clock.floor();
     s.clock = now;
+    if view::start_page::keep(s, tx) {
+        return true;
+    }
     let strip = s.keep_strip(tx) | s.keep_tab_motion(tx);
     s.keep_file_front();
     s.keep_file_base();
@@ -2959,6 +2981,11 @@ pub fn spec() -> AppSpec<State> {
             ("sidebar-closed", |s| s.sidebar_open = false),
             // Discovery found no Fleet: the status bar says where it looked and how to name one.
             ("no-fleet-found", |s| s.notice = Some(fleet::discover::sample_not_found())),
+            // Component 24, piece B: the splash (the sweep part-way) and the error page, as Fleet's desktop app shows them.
+            ("start-splash", |s| s.show_start(true, false)),
+            ("start-splash-light", |s| s.show_start(false, false)),
+            ("start-error", |s| s.show_start(true, true)),
+            ("start-error-light", |s| s.show_start(false, true)),
             ("content-open", |s| s.content_open = true),
             ("content-open-light", |s| {
                 s.dark = Some(false);
@@ -5346,6 +5373,9 @@ pub fn start_desktop() {
     } else if !headless && !demo {
         LIVE.store(true, std::sync::atomic::Ordering::Relaxed);
     }
+    let get_env = |k: &str| std::env::var(k).ok();
+    let starts_own = desktop::start::wanted(headless, demo, server.is_some(), &get_env);
+    STARTING.store(starts_own, std::sync::atomic::Ordering::Relaxed);
     // The server hears whether the window has the keyboard and is on screen (`fleet::presence`).
     let app = terminal_hooks(App::new(spec()))
         .args(rest)
@@ -5362,6 +5392,13 @@ pub fn start_desktop() {
             s.each_link(|link| link.window_visible(visible));
             s.quiet.visible = visible;
             s.keep_notices(s.clock, tx);
+        })
+        // A Fleet this app started goes with it: its input closes (the server stops by itself), and a thread waits for it.
+        .on_quit(|s, _| {
+            if s.start.owned.is_some() {
+                s.start.stop_owned();
+                rune::exit_deadline(std::time::Duration::from_secs(25));
+            }
         });
     // The window's native handle, for the web views laid over page tabs (`web::platform`). Headless runs never get one.
     #[cfg(all(feature = "web", not(target_arch = "wasm32")))]
@@ -5397,42 +5434,74 @@ pub fn start_desktop() {
         update::start_checker(&handle);
     }
     if let Some(url) = server {
-        connect_to(&handle, url);
+        connect_to(&Post::from_handle(handle.clone()), url);
     } else if !headless && !demo {
         // No `--server`: look for the Fleet running on this machine, as Fleet's desktop app does
-        // (`fleet::instance`), off the UI thread because it reads a file and asks the server.
-        let handle = handle.clone();
+        // (`fleet::instance`), and start one when none runs (`desktop::start`). All of it off the UI thread, because it reads
+        // files, asks the server and runs a process.
+        let post = Post::from_handle(handle.clone());
+        let places = || fleet::discover::all_places(fleet::discover::Os::current(), &|k| std::env::var(k).ok());
+        let connect: std::sync::Arc<dyn Fn(fleet::discover::Found) + Send + Sync> = {
+            let post = post.clone();
+            std::sync::Arc::new(move |found| {
+                // A Fleet that asks for a token even on this machine: use this machine's own, from Fleet's file.
+                if fleet::local_token::adopt(&found, &places()) == fleet::local_token::Outcome::Adopted {
+                    eprintln!("fleet-native: using this machine's access token from Fleet's data folder");
+                }
+                connect_to(&post, found.url)
+            })
+        };
         // It keeps looking: Fleet's desktop app may still be starting its server, or be started after this window.
-        std::thread::spawn(move || {
-            let mut told = false;
-            let found = fleet::discover::search(
-                || fleet::discover::all_places(fleet::discover::Os::current(), &|k| std::env::var(k).ok()),
-                fleet::discover::LOOK_AGAIN,
-                |looked| {
+        let keep_looking = {
+            let connect = connect.clone();
+            let post = post.clone();
+            move |servers: Vec<std::path::PathBuf>| {
+                let mut told = false;
+                let found = fleet::discover::search(places, fleet::discover::LOOK_AGAIN, |looked| {
                     if !std::mem::replace(&mut told, true) {
-                        let notice = fleet::discover::not_found(looked);
+                        let mut notice = fleet::discover::not_found(looked);
+                        if starts_own && !servers.is_empty() {
+                            notice = format!("{notice} {}", desktop::paths::not_found_message(&servers));
+                        }
                         eprintln!("fleet-native: {notice}");
-                        handle.update(move |s, _| s.on_no_fleet(notice));
+                        post.update(move |s, _| s.on_no_fleet(notice));
                     }
-                },
-            );
-            eprintln!("fleet-native: found a Fleet at {} ({})", found.url, found.place.describe());
-            // A Fleet that asks for a token even on this machine: use this machine's own, from Fleet's file.
-            let looked = fleet::discover::all_places(fleet::discover::Os::current(), &|k| std::env::var(k).ok());
-            if fleet::local_token::adopt(&found, &looked) == fleet::local_token::Outcome::Adopted {
-                eprintln!("fleet-native: using this machine's access token from Fleet's data folder");
+                });
+                eprintln!("fleet-native: found a Fleet at {} ({})", found.url, found.place.describe());
+                connect(found)
             }
-            connect_to(&handle, found.url)
-        });
+        };
+        if starts_own {
+            let config = std::sync::Arc::new(desktop::start::Config::new(
+                post.clone(),
+                std::sync::Arc::new(|k| std::env::var(k).ok()),
+                std::sync::Arc::new(places),
+                connect,
+                std::sync::Arc::new(move |servers| {
+                    let keep_looking = keep_looking.clone();
+                    std::thread::spawn(move || keep_looking(servers));
+                }),
+            ));
+            let again = config.clone();
+            post.update(move |s, _| {
+                s.start.actions = Some(desktop::start::Actions {
+                    retry: std::sync::Arc::new(move || desktop::start::begin(again.clone())),
+                    open_logs: std::sync::Arc::new(desktop::start::open_folder),
+                });
+            });
+            desktop::start::begin(config);
+        } else {
+            std::thread::spawn(move || keep_looking(Vec::new()));
+        }
     }
     app.run();
 }
 
 /// Starts the connection to the Fleet at `url`. Until discovery finds one, the invented data stays so there is a window to look at.
-fn connect_to(handle: &rune::AppHandle<State>, url: String) {
+fn connect_to(post: &Post, url: String) {
     fleet::auth::bind_home(&url);
-    let link = Link::start(url, Post::from_handle(handle.clone()));
-    handle.update(move |s, _| {
+    let link = Link::start(url, post.clone());
+    post.update(move |s, _| {
         // Nothing invented shows against a real server: the list and the conversation stay empty until it answers.
         s.projects.clear();
         s.feeds = Default::default();

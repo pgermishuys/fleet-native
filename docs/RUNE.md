@@ -2149,3 +2149,11 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **A selection past a line's end** is not a `TextHighlight`'s to paint (it covers the text's own bytes): the line gets one trailing space in
   the drawn text and the highlight runs over it.
 - **No hover border** again: Save's border turning to `--accent` is a 1 px `--border` ring with the hover fill `--accent` round the button.
+
+
+## Component 24, piece B (the start pages)
+
+- `Receiver` isn't `Sync`, so a struct holding one can't go into a posted job inside an `Arc`; hand the UI a small `Clone` handle (`Stopper`) instead.
+- A sliding bar inside a fixed box: `row().clip_rounded(r)` with a child `.offset(x, 0.0)` clips as CSS `overflow: hidden` does; drive `x` from `State::clock` and keep the poll asking for frames (`tx.wake_after`) only while it shows.
+- Rune can't ask for the system's reduced-motion setting, so the splash always moves.
+- The lib's test build peaked near 3.9 GB again and was OOM-killed at 4000M; 6000M worked.

@@ -164,7 +164,7 @@ impl FleetServer {
 
     /// The pid of the running server, if one runs now.
     pub fn pid(&self) -> Option<u32> {
-        self.shared.child.lock().ok()?.as_ref().map(Child::id)
+        self.stopper().pid()
     }
 
     /// The channel of events.
@@ -172,18 +172,38 @@ impl FleetServer {
         &self.events
     }
 
+    /// A handle that can stop the server from another thread (the server itself holds the event channel, which can't be shared).
+    pub fn stopper(&self) -> Stopper {
+        Stopper(self.shared.clone())
+    }
+
+    /// See [`Stopper::stop`].
+    pub fn stop(&self, grace: Duration) {
+        self.stopper().stop(grace);
+    }
+}
+
+/// What may be shared with other threads: the pid, and stopping.
+#[derive(Clone)]
+pub struct Stopper(Arc<Shared>);
+
+impl Stopper {
+    pub fn pid(&self) -> Option<u32> {
+        self.0.child.lock().ok()?.as_ref().map(Child::id)
+    }
+
     /// Closes the server's standard input, which stops it cleanly with its agents; asks, then kills, if it takes longer
     /// than `grace` (20 s in the app). Returns once it is gone. Blocking: not for the UI thread.
     pub fn stop(&self, grace: Duration) {
-        self.shared.stopping.store(true, Ordering::SeqCst);
-        drop(self.shared.stdin.lock().ok().and_then(|mut s| s.take()));
+        self.0.stopping.store(true, Ordering::SeqCst);
+        drop(self.0.stdin.lock().ok().and_then(|mut s| s.take()));
         if self.wait_gone(grace) {
             return;
         }
         if self.terminate() && self.wait_gone(Duration::from_secs(5)) {
             return;
         }
-        if let Some(child) = self.shared.child.lock().ok().as_mut().and_then(|c| c.as_mut()) {
+        if let Some(child) = self.0.child.lock().ok().as_mut().and_then(|c| c.as_mut()) {
             let _ = child.kill();
         }
         self.wait_gone(Duration::from_secs(10));
@@ -191,7 +211,7 @@ impl FleetServer {
 
     fn wait_gone(&self, within: Duration) -> bool {
         let deadline = Instant::now() + within;
-        while !self.shared.done.load(Ordering::SeqCst) {
+        while !self.0.done.load(Ordering::SeqCst) {
             if Instant::now() >= deadline {
                 return false;
             }
