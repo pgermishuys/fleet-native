@@ -52,7 +52,7 @@ pub struct Prompts {
 }
 
 /// `crypto.randomUUID()` without a hyphen, from what std has: random enough to tell prompts apart.
-fn uuid() -> String {
+pub(crate) fn uuid() -> String {
     let hash = |salt: u8| {
         let mut h = std::collections::hash_map::RandomState::new().build_hasher();
         h.write_u8(salt);
@@ -85,6 +85,25 @@ impl Prompts {
             sent_at: now,
         });
         Some(correlation_id)
+    }
+
+    /// `showSentPrompt`: a prompt the server has already taken, under the id it stored it with, until the conversation holds
+    /// it. A side question goes to a session the app only learns of from the answer.
+    pub fn show_sent(&mut self, session: &str, id: &str, correlation_id: &str, body: &str, created_at: i64, now: f64) {
+        let body = body.trim();
+        if body.is_empty() {
+            return;
+        }
+        self.by_session.entry(session.to_string()).or_default().push(SentPrompt {
+            id: id.to_string(),
+            correlation_id: correlation_id.to_string(),
+            event_id: None,
+            server_message_id: Some(id.to_string()),
+            status: PromptStatus::Confirmed,
+            body: body.to_string(),
+            created_at,
+            sent_at: now,
+        });
     }
 
     pub fn of(&self, session: &str) -> &[SentPrompt] {

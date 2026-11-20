@@ -1,33 +1,14 @@
 //! The composer's other modes (docs/parity/05-composer.md, piece M): the message history list on ArrowUp (`use-input-history.ts`,
 //! `Composer.vue` `handleKeydown`), shell mode (`!ls`, `use-run-shell-command.ts`) and the `/btw` side question, whose panel is
 //! component 15's.
-use super::http::{self, Pick};
+use super::http;
 use super::queue::error_message;
 use crate::State;
 use crate::composer::status::{Mode, mode_of};
 use rune::{Key, KeyEvent, Tx};
 use serde_json::Value;
 
-/// What takes a side question. Component 15 builds the panel; until then it is missing, and the composer says so and keeps
-/// the draft. The other two stand in for the panel in tests.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub enum SidePanel {
-    #[default]
-    Missing,
-    Accepts,
-    Refuses,
-}
-
-/// A question given to the side conversation: its text and the choice picked in the composer (none picked means the session's own).
-#[derive(Debug, Clone, PartialEq)]
-pub struct SideAsk {
-    pub session: String,
-    pub question: String,
-    pub pick: Pick,
-}
-
 pub const NO_QUESTION: &str = "Type a question after /btw.";
-pub const SIDE_MISSING: &str = "The side conversation isn't in the native app yet (component 15 of the port).";
 
 impl State {
     /// The list is open for the open session: its entries newest first and the highlighted one.
@@ -181,8 +162,8 @@ impl State {
     }
 
     /// A `/btw` question, or anything typed while the side conversation is open (`handleSideSend`). It never waits for the
-    /// session's turn. A bare `/btw` is an error and sends nothing. The draft clears at once and comes back if the panel
-    /// refuses it; with no panel yet, a toast says so and the draft stays.
+    /// session's turn. A bare `/btw` is an error and sends nothing. The draft clears at once and comes back if the server
+    /// refuses it, unless something new was typed; the reason shows in the composer's error box (`side_error`).
     pub fn ask_side_question(&mut self, tx: &mut Tx, question: String) {
         let Some(owner) = self.draft_owner() else { return };
         let typed = self.draft.text.clone();
@@ -195,23 +176,19 @@ impl State {
         }
         // The pick is the composer's agent, model and effort.
         let pick = self.prompt_pick(None);
-        match self.side_panel {
-            SidePanel::Missing => self.toast(SIDE_MISSING.into(), None, 4.0, tx),
-            panel => {
-                self.draft.clear();
-                // Terminal lines go in front of the question, as blocks, and leave the draft.
-                let question = crate::composer::attached::format_terminal_context(self.terminal_lines(), &question);
-                self.held.clear_terminals(&owner);
-                self.side_asked.push(SideAsk { session: owner, question, pick });
-                if panel == SidePanel::Refuses {
-                    if self.draft.text.is_empty() {
-                        self.draft = rune::TextEdit::new(typed);
-                    }
-                    self.composer_error = Some("The side question couldn't be asked.".into());
-                }
-                tx.focus("composer", false);
+        // Terminal lines go in front of the question, as blocks, and leave the draft.
+        let with_terminals = crate::composer::attached::format_terminal_context(self.terminal_lines(), &question);
+        let session = owner.clone();
+        let asked = self.ask_side(&owner, &with_terminals, pick, tx, move |s, ok| {
+            if !ok && s.draft_owner().as_deref() == Some(session.as_str()) && s.draft.text.is_empty() {
+                s.draft = rune::TextEdit::new(typed);
             }
+        });
+        if asked {
+            self.draft.clear();
+            self.held.clear_terminals(&owner);
         }
+        tx.focus("composer", false);
     }
 
     /// Each side keeps its own draft (row 9.6): when the side conversation opens or minimizes, the text area's text is put away

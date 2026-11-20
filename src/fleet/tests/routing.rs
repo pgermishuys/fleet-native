@@ -288,3 +288,36 @@ fn sends_another_machines_row_actions_to_that_machine_and_lists_that_machine_aga
     }
     assert!(heard_with(&at_home, "mini-1").is_empty() && heard_with(&at_home, "p-garden").is_empty(), "nothing reaches home");
 }
+
+// session-calls-machine.test.ts: "reads the side conversation" (component 15): every side route goes to the session's own
+// machine with that machine's token, and nothing about it reaches home.
+#[test]
+fn reads_the_side_conversation_on_the_sessions_machine() {
+    let (home, at_home) = fake_fleet();
+    let (mini, at_mini) = fake_fleet();
+    let mut rt = app_with(&home, vec![machine(MINI, "mini", &mini, "token-of-mini")]);
+    rt.update(|s, tx| {
+        s.machines.remember_sessions(MINI, &["mini-1".to_string()]);
+        // The load, a question, folding it, seeing an answer, discarding it and Undo.
+        s.load_side("mini-1");
+        s.ask_side("mini-1", "what changed?", Default::default(), tx, |_, _| {});
+        s.side_state("mini-1").side = crate::fleet::side::Side::from_json(&json!({"sessionId": "side-1", "minimized": false}));
+        s.set_side_minimized("mini-1", true, tx);
+        s.mark_side_seen("mini-1", "a1");
+        s.discard_side("mini-1");
+        s.undo_side_discard("mini-1");
+    });
+    for route in [
+        "GET /api/sessions/mini-1/side ",
+        "POST /api/sessions/mini-1/side ",
+        "PUT /api/sessions/mini-1/side/minimized",
+        "PUT /api/sessions/mini-1/side/seen",
+        "DELETE /api/sessions/mini-1/side",
+    ] {
+        assert!(wait_for(&at_mini, route), "{route}: {:?}", at_mini.lock().unwrap());
+    }
+    for (line, token) in at_mini.lock().unwrap().iter().filter(|(l, _)| l.contains("/side")) {
+        assert_eq!(token.as_deref(), Some("token-of-mini"), "{line}");
+    }
+    assert!(heard_with(&at_home, "/side").is_empty(), "nothing about the machine's side conversation reaches home");
+}

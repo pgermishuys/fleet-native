@@ -537,6 +537,7 @@ mod selector;
 mod server_canvases;
 mod session_image;
 mod settings;
+mod side;
 mod smart_links;
 mod state;
 mod store;

@@ -97,7 +97,7 @@ dark only, so the light native picture is the `composer-side-typed-light` scene)
 |---|---|---|---|
 | 3.1 | Column, grows, `min-height: 0`; while forking, "Forking the session at its last finished turn…" centred, `--muted` 13px, `role=status` | SCP `__body`, `__starting` | None |
 | 3.2 | Once forked: the whole conversation view (`ActivityStream`) of the side session, keyed by its id, padding `12px 16px 8px` instead of the main one's | SCP, AS | None. The native stream view draws only the open session |
-| 3.3 | Only the messages after `boundaryMessageId` (`messagesAfter`): after the boundary when it is among them; else those whose id sorts after it (`compareMessageIds`), or all of them when none or every one does; all with no boundary | LSC `messagesAfter`, AS `sessionMessages` | None |
+| 3.3 | Only the messages after `boundaryMessageId` (`messagesAfter`): after the boundary when it is among them; else those whose id sorts after it (`compareMessageIds`), or all of them when none or every one does; all with no boundary | LSC `messagesAfter`, AS `sessionMessages` | Done (piece A): `side::messages_after`, the three `messagesAfter` tests; piece C applies it to the stream |
 | 3.4 | No "older messages" for a side conversation (its older ones are its session's): `hasMore` only while nothing was cut | AS `hasMore` | None |
 | 3.5 | Not in a side conversation: the find bar's key (Ctrl/Cmd+F stays the main conversation's), the page-pick card, the mod draft cards | AS 446, 890, 898 | None |
 | 3.6 | Still in it: permission asks of the side session (answerable there), questions, the failure card and Retry, the interrupted card, the working line, tool cards, everything a message draws | AS | None |
@@ -110,8 +110,8 @@ dark only, so the light native picture is the `composer-side-typed-light` scene)
 | # | Fleet | Source | Native |
 |---|---|---|---|
 | 4.1 | Minimize folds the card away where it stands: grid rows 1fr → 0fr over 280 ms ease-out; the tab takes its place | SCP `__fold` | None |
-| 4.2 | Saved on the server at once (`PUT /api/sessions/{id}/side/minimized {minimized}`), shown before the answer; the answer replaces `side` (keeping the local `seenAnswerId`) when it's still the same side; a refusal sets the error "The side conversation couldn't be minimized/opened (HTTP n)." | USC `setMinimized` | None |
-| 4.3 | Opening it: the unread pulse stops; the newest answer (when not working) is marked seen (`PUT /side/seen {answerId}`, local first, the server's failure ignored) | USC `setMinimized`, `markSeen` | None |
+| 4.2 | Saved on the server at once (`PUT /api/sessions/{id}/side/minimized {minimized}`), shown before the answer; the answer replaces `side` (keeping the local `seenAnswerId`) when it's still the same side; a refusal sets the error "The side conversation couldn't be minimized/opened (HTTP n)." | USC `setMinimized` | Done (piece A): `State::set_side_minimized`, shown at once, the answer replaces the side keeping the local seen id, the refusal texts |
+| 4.3 | Opening it: the unread pulse stops; the newest answer (when not working) is marked seen (`PUT /side/seen {answerId}`, local first, the server's failure ignored) | USC `setMinimized`, `markSeen` | Done (piece A): opening stops the pulse and marks the newest finished answer seen (`PUT /side/seen`, the failure ignored) |
 | 4.4 | Ctrl+/ (⌘/ on a Mac; no Alt, no Shift) toggles minimized when there is a side conversation, anywhere in the window except inside a code editor (where it comments a line); it is then consumed. Without a side conversation it is left alone | SCP `handleKeydown` | None |
 | 4.5 | Folding keeps where the stream was scrolled (top, and whether within 80 px of the end); opening puts it back, at the end if it was there (a new answer is), and focuses the composer | SCP `watch(minimized)` | None |
 | 4.6 | Opening and minimizing swap the composer's draft (component 5's row 9.6) and its mode (side mode only while open) | CO 335–350 | Done by component 5, needs `side_id`/`side_open` set (piece A) |
@@ -124,9 +124,9 @@ dark only, so the light native picture is the `composer-side-typed-light` scene)
 | 5.2 | Tab: inline row, gap 4, `max-width: min(100%, 520px)`, margin-left 14, padding `3px 4px 5px 10px`, border 1px accent-45 % mix, no bottom border, radius `10 10 0 0`, `--card-bg`, 12px; enters over 260 ms (from opacity 0, 8 px down, scaleY .6, from its bottom left) | SCP `.side-tab` | None |
 | 5.3 | The open button: gap 7, the icon and "btw" as in the header, the question (500, ellipsis), the state; label "Open the side conversation: <title>"; click opens | SCP `.side-tab__open` | None |
 | 5.4 | The state, `--muted`, preceded by "·" when not empty: **Thinking** with three 4 px dots blinking (1.2 s, .2 s apart, opacity .25↔1) while working; else **New answer** with a 7 px `--accent` dot when unread; else **Answered** when there is an answer; else nothing | SCP `.side-tab__state`, USC `unread` | None |
-| 5.5 | Unread: minimized, the stream has reported, not working, there is an answer, and its id isn't the side's `seenAnswerId` | USC `unread` | None |
-| 5.6 | The dot pulses (a ring growing to 7 px, 1.6 s, twice) only for an answer that landed on this page while folded (it was working, or the answer id changed, after the first report); not for one found after a restart | USC `pulse`, `reportProgress` | None |
-| 5.7 | An answer that finishes while it is open is marked seen at once | USC `reportProgress` | None |
+| 5.5 | Unread: minimized, the stream has reported, not working, there is an answer, and its id isn't the side's `seenAnswerId` | USC `unread` | Done (piece A): `SideState::unread` |
+| 5.6 | The dot pulses (a ring growing to 7 px, 1.6 s, twice) only for an answer that landed on this page while folded (it was working, or the answer id changed, after the first report); not for one found after a restart | USC `pulse`, `reportProgress` | Done (piece A): `SideState::pulse`, `report_progress` |
+| 5.7 | An answer that finishes while it is open is marked seen at once | USC `reportProgress` | Done (piece A): `report_side_progress` marks it seen and tells the server |
 | 5.8 | × on the tab: 22 × 22, same label and title as the header's ×, discards | SCP `.side-tab__close` | None |
 
 ### 6. The peek
@@ -143,11 +143,11 @@ dark only, so the light native picture is the `composer-side-typed-light` scene)
 
 | # | Fleet | Source | Native |
 |---|---|---|---|
-| 7.1 | × discards at once: the panel goes, the Undo toast shows, then `DELETE /api/sessions/{id}/side`; a refusal (or a network error) puts it back and says "The side conversation couldn't be discarded (HTTP n)." | USC `close` | None |
-| 7.2 | Undo is offered for `SIDE_DISCARD_UNDO_MS` = 8 000 ms; when the window ends the side's draft is forgotten (`side.<id>.<side>` cleared) | USC `offerUndo` | None |
-| 7.3 | Undo: `POST /side/restore`; the side comes back as it was (minimized or open, `{...discarded, ...answer}`); a refusal drops the offer and says "The side conversation couldn't be brought back (HTTP n)." | USC `undoDiscard` | None |
-| 7.4 | After a restart (no side conversation, no discard known): `GET /side/discarded` → `{sideConversation, undoRemainingMs}`; when time is left, Undo again for that long | USC `load` | None |
-| 7.5 | A new side question while Undo is offered: when the server made a different side, the old Undo, its timer and its draft go | USC `ask` | None |
+| 7.1 | × discards at once: the panel goes, the Undo toast shows, then `DELETE /api/sessions/{id}/side`; a refusal (or a network error) puts it back and says "The side conversation couldn't be discarded (HTTP n)." | USC `close` | Done (piece A): `State::discard_side`; the Undo toast is piece D |
+| 7.2 | Undo is offered for `SIDE_DISCARD_UNDO_MS` = 8 000 ms; when the window ends the side's draft is forgotten (`side.<id>.<side>` cleared) | USC `offerUndo` | Done (piece A): `offer_undo` on the app's clock (8 s); `keep_side` ends it and forgets the draft |
+| 7.3 | Undo: `POST /side/restore`; the side comes back as it was (minimized or open, `{...discarded, ...answer}`); a refusal drops the offer and says "The side conversation couldn't be brought back (HTTP n)." | USC `undoDiscard` | Done (piece A): `State::undo_side_discard` |
+| 7.4 | After a restart (no side conversation, no discard known): `GET /side/discarded` → `{sideConversation, undoRemainingMs}`; when time is left, Undo again for that long | USC `load` | Done (piece A): the load asks `GET /side/discarded` when there is no side |
+| 7.5 | A new side question while Undo is offered: when the server made a different side, the old Undo, its timer and its draft go | USC `ask` | Done (piece A): `on_side_asked` |
 | 7.6 | The toast's dock: on the composer's column, right above it, `max-width: 808px`, padding `6px 24px` | SCP `.side-toast-dock` | None |
 | 7.7 | The toast, inverted: `width: min(360px, 100% − 28)`, margin-left 14, radius `--radius-card`, background `--text`, text `--main-bg`, 13px, shadow `0 12px 32px -12px rgba(0,0,0,.45)`; enters and leaves over 180 ms (opacity, 6 px); `role=status` | SCP `.side-toast` | None |
 | 7.8 | Row (gap 12, padding `9px 8px 9px 14px`): "Side question discarded"; "<n> s" (opacity .7, tabular figures, right) counting down every 250 ms from the window's own length (`ceil`); Undo button (`Undo2` 14 + "Undo", 600, padding `4px 10px`, radius `--radius-btn`, background `--main-bg` 18 %) | SCP | None |
@@ -157,28 +157,28 @@ dark only, so the light native picture is the `composer-side-typed-light` scene)
 
 | # | Fleet | Source | Native |
 |---|---|---|---|
-| 8.1 | `POST /api/sessions/{id}/side/keep` → the side conversation (now a session of its own); the panel goes; the app opens it (`/sessions/<sideId>?instanceId=<its instance>`) | USC `keep`, SCP `handleKeep` | None |
-| 8.2 | A refusal keeps the panel and says "The side conversation couldn't be kept (HTTP n)." | USC `keep` | None |
+| 8.1 | `POST /api/sessions/{id}/side/keep` → the side conversation (now a session of its own); the panel goes; the app opens it (`/sessions/<sideId>?instanceId=<its instance>`) | USC `keep`, SCP `handleKeep` | Done (piece A): `State::keep_side_as_session` posts, drops the side, opens the session and reads the list again; the panel button is piece B |
+| 8.2 | A refusal keeps the panel and says "The side conversation couldn't be kept (HTTP n)." | USC `keep` | Done (piece A) |
 
 ### 9. The state and the routes
 
 | # | Fleet | Source | Native |
 |---|---|---|---|
-| 9.1 | One state per parent session, kept while other sessions are open: `side`, `loaded`, `asking`, `starting`, `error`, `reported`, `working`, `latestAnswer`, `latestAnswerId`, `pulseAnswerId`, the put-away drafts, `discarded`, `undoMs`, the Undo timer | USC `states` | None |
-| 9.2 | Loaded the first time a session shows: `GET /api/sessions/{id}/side` (200 → the side, 204 → none); a question asked meanwhile wins; then 7.4; a failure leaves it closed and asks again next time | USC `load` | None |
-| 9.3 | After loading, the drafts: put-away drafts of side conversations that are gone are forgotten; with a side, its draft and the session's put-away one come back; with none, a put-away session draft goes back in the composer | USC `restoreDrafts` | None (component 5 saves the keys; nothing restores them on load) |
-| 9.4 | Ask: trimmed, nothing while one is on its way; `starting` = the question when there is no side yet; `POST /api/sessions/{id}/side {text, agent, model, effort, correlationId: "side-<32 hex>"}` → `{sideConversation, correlationId, messageId}`; asking a minimized one opens it (the server says so too); refusal: the reason from `{error}`, `detail` or `title`, else "The side question couldn't be asked (HTTP n)." | USC `ask`, `errorMessage` | None (`ask_side_question` hands over a `SideAsk`) |
-| 9.5 | The error shows in the composer's error box, first of all its errors | CO `sendError` | None |
-| 9.6 | Every route goes to the session's own machine | `composables/__tests__/session-calls-machine.test.ts` "reads the side conversation" | None |
+| 9.1 | One state per parent session, kept while other sessions are open: `side`, `loaded`, `asking`, `starting`, `error`, `reported`, `working`, `latestAnswer`, `latestAnswerId`, `pulseAnswerId`, the put-away drafts, `discarded`, `undoMs`, the Undo timer | USC `states` | Done (piece A): `SideState` per session in `State::sides`, kept while others are open (the put-away drafts are the drafts file's, as component 5 keeps them) |
+| 9.2 | Loaded the first time a session shows: `GET /api/sessions/{id}/side` (200 → the side, 204 → none); a question asked meanwhile wins; then 7.4; a failure leaves it closed and asks again next time | USC `load` | Done (piece A): `keep_side` starts the load the first time a session shows; a failure is tried again on the next visit |
+| 9.3 | After loading, the drafts: put-away drafts of side conversations that are gone are forgotten; with a side, its draft and the session's put-away one come back; with none, a put-away session draft goes back in the composer | USC `restoreDrafts` | Done (piece A): `restore_side_drafts` |
+| 9.4 | Ask: trimmed, nothing while one is on its way; `starting` = the question when there is no side yet; `POST /api/sessions/{id}/side {text, agent, model, effort, correlationId: "side-<32 hex>"}` → `{sideConversation, correlationId, messageId}`; asking a minimized one opens it (the server says so too); refusal: the reason from `{error}`, `detail` or `title`, else "The side question couldn't be asked (HTTP n)." | USC `ask`, `errorMessage` | Done (piece A): `State::ask_side`, `on_side_asked`; with no server the side is made here (scenes, tests) |
+| 9.5 | The error shows in the composer's error box, first of all its errors | CO `sendError` | Done (piece A): `State::side_error`, first in `view::composer` |
+| 9.6 | Every route goes to the session's own machine | `composables/__tests__/session-calls-machine.test.ts` "reads the side conversation" | Done (piece A): `link_for(session)` for every call; `reads_the_side_conversation_on_the_sessions_machine` |
 | 9.7 | No live events: the server pushes nothing about a side conversation; another window's minimize or discard shows on the next load | server, USC | Same in native (nothing to port) |
 
 ### 10. The composer's side (component 5)
 
 | # | Fleet | Source | Native |
 |---|---|---|---|
-| 10.1 | `/btw <question>` and side-mode text go to `ask` with the composer's agent, model and effort; the draft clears at once and comes back on a refusal unless something new was typed | CO `handleSideSend` | Done to the hand-off (component 5, piece M); piece A connects it |
-| 10.2 | Side mode (pill, border, placeholder, no Send now, Allowed hidden) while `isOpen`: a side that isn't minimized, or the first question forking | USC `isOpen`, CO | Done, needs `side_open` (piece A) |
-| 10.3 | The draft swap on open and minimize, discard and Undo of the same side | CO 335–350 | Done, needs `side_id` (piece A) |
+| 10.1 | `/btw <question>` and side-mode text go to `ask` with the composer's agent, model and effort; the draft clears at once and comes back on a refusal unless something new was typed | CO `handleSideSend` | Done (piece A): `ask_side_question` asks for real; `SidePanel` and `SideAsk` are gone |
+| 10.2 | Side mode (pill, border, placeholder, no Send now, Allowed hidden) while `isOpen`: a side that isn't minimized, or the first question forking | USC `isOpen`, CO | Done (piece A): `keep_side` sets `side_open` from the state each frame |
+| 10.3 | The draft swap on open and minimize, discard and Undo of the same side | CO 335–350 | Done (piece A): `side_id` is the side, or the one just discarded, so discard and Undo swap too |
 
 ### 11. Out of reach, and why
 

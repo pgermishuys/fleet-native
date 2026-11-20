@@ -621,9 +621,10 @@ pub struct State {
     /// open): when it opens or minimizes the text area and the put-away draft swap (row 9.6). Component 15 sets these.
     pub side_id: Option<String>,
     pub side_seen: Option<(String, bool)>,
-    /// What takes a side question until component 15's panel does (row 9.5), and the questions it was given.
-    pub side_panel: fleet::modes::SidePanel,
-    pub side_asked: Vec<fleet::modes::SideAsk>,
+    /// Every session's side conversation (`fleet::side_http`), and the session whose load was last started (a failed load
+    /// is tried again on the next visit, not every frame).
+    pub sides: fleet::side_http::Sides,
+    pub side_tried: Option<String>,
     /// The context ring's arc and, for scenes, a context to draw (`view::ring`).
     pub ring: view::ring::Ring,
     /// The arcs of the progress rings in the session list, which ease to their new count.
@@ -897,8 +898,8 @@ impl Default for State {
             side_open: false,
             side_id: None,
             side_seen: None,
-            side_panel: Default::default(),
-            side_asked: Vec::new(),
+            sides: Default::default(),
+            side_tried: None,
             ring: Default::default(),
             row_rings: Default::default(),
             compact: Default::default(),
@@ -1737,6 +1738,7 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         return true;
     }
     let aged = s.keep_row_ages(now, tx);
+    let side = s.keep_side(now, tx);
     s.keep_drafts(now, tx);
     let archiving = s.keep_archive(now, tx) | s.keep_lineage(now, tx);
     let picked = s.sync_selection(tx);
@@ -1771,7 +1773,12 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
             true
         }
         _ => {
-            s.tick_script() || (ticked && s.session().status == Status::Working) || s.keep_retry_clock(tx) || s.keep_work_clock(tx) || aged
+            s.tick_script()
+                || (ticked && s.session().status == Status::Working)
+                || s.keep_retry_clock(tx)
+                || s.keep_work_clock(tx)
+                || aged
+                || side
         }
     }
 }

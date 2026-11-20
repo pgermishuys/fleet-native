@@ -5,7 +5,6 @@ use super::queue::{Live, click, mock_app, press, typed};
 const FRAME: f64 = 1.0 / 60.0;
 use crate::State;
 use crate::composer::drafts::{side_draft_key, side_main_draft_key};
-use crate::fleet::modes::SidePanel;
 use crate::mock::Status;
 use rune::{Key, Mods, Runtime};
 use serde_json::json;
@@ -272,82 +271,49 @@ fn an_empty_shell_command_does_nothing() {
 
 // ─── Composer side questions (/btw) ─────────────────────────────────────────
 
-// "asks /btw <question> in the side conversation, not the session, even while the session works"
+// "asks /btw <question> in the side conversation, not the session, even while the session works" (the request itself is
+// checked against a fake server in `side.rs`)
 #[test]
 fn asks_btw_in_the_side_conversation_not_the_session_even_while_the_session_works() {
     let mut rt = mock_app(true, "opencode", true, false);
-    rt.update(|s, _| s.side_panel = SidePanel::Accepts);
     let before = rt.state.session().messages.len();
     typed(&mut rt, "/btw what changed?");
     press(&mut rt, Key::Enter, plain());
-    assert_eq!(rt.state.side_asked.iter().map(|a| a.question.as_str()).collect::<Vec<_>>(), ["what changed?"]);
+    let side = rt.state.sides[&owner(&rt)].side.clone().expect("the side conversation was made");
+    assert_eq!(side.title, "what changed?");
     assert_eq!(rt.state.session().messages.len(), before);
     assert!(rt.state.queued().is_empty());
     assert_eq!(rt.state.draft.text, "");
+    assert!(rt.state.side_open, "the panel is open");
 }
 
 // "sends what's typed to the open side conversation"
 #[test]
 fn sends_whats_typed_to_the_open_side_conversation() {
     let mut rt = mock_app(false, "opencode", false, false);
-    rt.update(|s, _| {
-        s.side_panel = SidePanel::Accepts;
-        s.side_open = true;
-    });
+    typed(&mut rt, "/btw first");
+    press(&mut rt, Key::Enter, plain());
     rt.frame(FRAME);
     assert!(rt.find("composer-side-mode").is_some());
     typed(&mut rt, "and the tests?");
     press(&mut rt, Key::Enter, plain());
-    assert_eq!(rt.state.side_asked.iter().map(|a| a.question.as_str()).collect::<Vec<_>>(), ["and the tests?"]);
+    assert_eq!(rt.state.draft.text, "", "it went to the side conversation, not the session");
+    assert!(rt.state.queued().is_empty());
 }
 
 // "asks for a question after a bare /btw"
 #[test]
 fn asks_for_a_question_after_a_bare_btw() {
     let mut rt = mock_app(false, "opencode", false, false);
-    rt.update(|s, _| s.side_panel = SidePanel::Accepts);
     typed(&mut rt, "/btw");
     click(&mut rt, "prompt-send-button");
-    assert!(rt.state.side_asked.is_empty());
+    assert!(rt.state.sides.values().all(|s| s.side.is_none()));
     assert_eq!(rt.state.composer_error.as_deref(), Some("Type a question after /btw."));
     assert_eq!(rt.state.draft.text, "/btw");
 }
 
-// "puts a refused question back and says why" (the panel is component 15's: a stand-in refuses)
-#[test]
-fn puts_a_refused_question_back_and_says_why() {
-    let mut rt = mock_app(false, "opencode", false, false);
-    rt.update(|s, _| s.side_panel = SidePanel::Refuses);
-    typed(&mut rt, "/btw what changed?");
-    press(&mut rt, Key::Enter, plain());
-    assert_eq!(rt.state.draft.text, "/btw what changed?");
-    assert!(rt.state.composer_error.is_some());
-}
-
-// new: "says the panel isn't built yet and keeps the draft" (until component 15)
-#[test]
-fn says_the_side_conversation_isnt_built_yet_and_keeps_the_draft() {
-    let mut rt = mock_app(false, "opencode", false, false);
-    typed(&mut rt, "/btw what changed?");
-    press(&mut rt, Key::Enter, plain());
-    assert_eq!(rt.state.draft.text, "/btw what changed?");
-    assert!(rt.state.ui.toast.is_some());
-}
-
-// "the question carries the agent, model and effort picked" (row 9.5)
-#[test]
-fn the_question_carries_the_choice_picked() {
-    let mut rt = mock_app(false, "opencode", false, false);
-    rt.update(|s, _| {
-        s.side_panel = SidePanel::Accepts;
-        let owner = s.draft_owner().unwrap();
-        s.drafts.set_choice(&owner, crate::composer::drafts::Choice { effort: "high".into(), ..Default::default() });
-    });
-    typed(&mut rt, "/btw why?");
-    press(&mut rt, Key::Enter, plain());
-    assert_eq!(rt.state.side_asked.len(), 1);
-    assert_eq!(rt.state.side_asked[0].pick.effort.as_deref(), Some("high"));
-}
+// "puts a refused question back and says why": needs a server that refuses (`side.rs`,
+// `puts_a_refused_question_back_and_says_why`); "the question carries the agent, model and effort picked" is there too.
 
 // ─── Composer with a minimized side conversation ────────────────────────────
 
