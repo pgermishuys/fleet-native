@@ -17,7 +17,7 @@ use std::sync::{Arc, Mutex};
 
 const FRAME: f64 = 1.0 / 60.0;
 
-fn side_json(minimized: bool, seen: Option<&str>) -> Value {
+pub(super) fn side_json(minimized: bool, seen: Option<&str>) -> Value {
     json!({
         "sessionId": "side-1", "instanceId": "inst-1", "title": "what changed?", "boundaryMessageId": "msg_0002",
         "createdAt": "2026-11-19T10:00:00Z", "minimized": minimized, "seenAnswerId": seen,
@@ -139,16 +139,16 @@ fn serve(mut stream: TcpStream, fake: Arc<Mutex<Fake>>) {
     }
 }
 
-struct Fx {
-    rt: Runtime<State>,
+pub(super) struct Fx {
+    pub(super) rt: Runtime<State>,
     jobs: Receiver<Job>,
     fake: Arc<Mutex<Fake>>,
-    id: String,
+    pub(super) id: String,
 }
 
 impl Fx {
     /// The fixture's first session open on a fake Fleet that already holds `side` and, maybe, a discard.
-    fn start(side: Option<Value>, discarded: Option<(Value, u64)>) -> Fx {
+    pub(super) fn start(side: Option<Value>, discarded: Option<(Value, u64)>) -> Fx {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
         let fake = Arc::new(Mutex::new(Fake { side, discarded, ..Default::default() }));
@@ -175,7 +175,7 @@ impl Fx {
         Fx { rt, jobs, fake, id }
     }
 
-    fn wait(&mut self, what: &str, until: impl Fn(&Fx) -> bool) {
+    pub(super) fn wait(&mut self, what: &str, until: impl Fn(&Fx) -> bool) {
         crate::test_wait::until(
             self,
             what,
@@ -193,26 +193,26 @@ impl Fx {
         );
     }
 
-    fn calls(&self) -> Vec<(String, Value)> {
+    pub(super) fn calls(&self) -> Vec<(String, Value)> {
         self.fake.lock().unwrap().calls.iter().map(|(m, p, b)| (format!("{m} {p}"), b.clone())).collect()
     }
 
-    fn called(&self, route: &str) -> Vec<Value> {
+    pub(super) fn called(&self, route: &str) -> Vec<Value> {
         self.calls().into_iter().filter(|(r, _)| r == route).map(|(_, b)| b).collect()
     }
 
-    fn st(&self) -> &SideState {
+    pub(super) fn st(&self) -> &SideState {
         &self.rt.state.sides[&self.id]
     }
 
     /// Opened and loaded: the first look found `side`.
-    fn loaded(side: Option<Value>) -> Fx {
+    pub(super) fn loaded(side: Option<Value>) -> Fx {
         let mut fx = Fx::start(side, None);
         fx.wait("the side conversation to load", |f| f.rt.state.sides.get(&f.id).is_some_and(|s| s.loaded));
         fx
     }
 
-    fn ctx(&mut self, run: impl FnOnce(&mut State, &mut rune::Tx) + Send + 'static) {
+    pub(super) fn ctx(&mut self, run: impl FnOnce(&mut State, &mut rune::Tx) + Send + 'static) {
         self.rt.update(run);
     }
 }

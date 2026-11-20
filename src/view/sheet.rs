@@ -1,6 +1,6 @@
 //! The workspace sheet: the session header, the conversation, the composer, and the content
 //! panel on the right (collapsed to a 48px rail by default).
-use super::conversation::{Scroll, stream};
+use super::conversation::{Scroll, Which, stream};
 use crate::State;
 use crate::mock::Session;
 use crate::theme::Theme;
@@ -31,6 +31,7 @@ pub fn sheet(s: &State, t: &Theme) -> El {
         .children(super::header_banners::banners(s, t, &s.header_model()))
         .child(stream(
             t,
+            Which::Open,
             session,
             &s.fold_plan,
             s.is_partial(),
@@ -49,6 +50,7 @@ pub fn sheet(s: &State, t: &Theme) -> El {
             },
         ))
         .children(super::recap::recap_line(t, s.recap()))
+        .children(super::side::panel(s, t))
         .child(super::composer::composer(s, t, session))
         .children(drawer);
     let mut sheet = row()

@@ -628,6 +628,8 @@ pub struct State {
     /// is tried again on the next visit, not every frame).
     pub sides: fleet::side_http::Sides,
     pub side_tried: Option<String>,
+    /// What the side conversation's panel draws and how far its fold has run (`fleet::side_view`).
+    pub side_ui: Box<fleet::side_view::SideView>,
     /// The context ring's arc and, for scenes, a context to draw (`view::ring`).
     pub ring: view::ring::Ring,
     /// The arcs of the progress rings in the session list, which ease to their new count.
@@ -906,6 +908,7 @@ impl Default for State {
             side_seen: None,
             sides: Default::default(),
             side_tried: None,
+            side_ui: Default::default(),
             ring: Default::default(),
             row_rings: Default::default(),
             compact: Default::default(),
@@ -1767,7 +1770,7 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         return true;
     }
     let aged = s.keep_row_ages(now, tx);
-    let side = s.keep_side(now, tx);
+    let side = s.keep_side(now, tx) | s.keep_side_fold(tx);
     s.keep_drafts(now, tx);
     let archiving = s.keep_archive(now, tx) | s.keep_lineage(now, tx);
     let picked = s.sync_selection(tx);
@@ -1825,6 +1828,7 @@ fn on_key(s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool {
         || view::permission::on_key(s, ev, tx)
         || view::question::on_key(s, ev, tx)
         || view::notice_card::on_key(s, ev, tx)
+        || s.side_key(ev, tx)
     {
         return true;
     }
@@ -4859,6 +4863,22 @@ pub fn spec() -> AppSpec<State> {
             ("composer-long-light", |s| {
                 s.dark = Some(false);
                 s.show_composer("long")
+            }),
+            // Component 15, piece B: the side conversation's panel, open. `side-narrow` is `side-open` drawn in a 640 px window.
+            ("side-open", |s| s.show_side(fleet::side_view::Case::Open, true)),
+            ("side-open-light", |s| s.show_side(fleet::side_view::Case::Open, false)),
+            ("side-starting", |s| s.show_side(fleet::side_view::Case::Starting, true)),
+            ("side-starting-light", |s| s.show_side(fleet::side_view::Case::Starting, false)),
+            // The list and the content panel are closed so the conversation is what 640 px leaves (Fleet's narrow window has its own layout, not ported here).
+            ("side-narrow", |s| {
+                s.show_side(fleet::side_view::Case::Open, true);
+                s.sidebar_open = false;
+                s.content_open = false;
+            }),
+            ("side-narrow-light", |s| {
+                s.show_side(fleet::side_view::Case::Open, false);
+                s.sidebar_open = false;
+                s.content_open = false;
             }),
             ("composer-side", |s| s.show_composer("side")),
             ("composer-history", |s| s.show_composer("history")),
