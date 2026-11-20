@@ -2255,3 +2255,10 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **The test build now needs more than 4000 M** to link and compile the library's tests (the kernel OOM killer took cargo at 3.9 G peak, 20 November 2026, with no message but exit 143): 5500 M passed on this machine.
 - **A fake server that matches `/side` in the path** also catches `/api/sessions/side-1/permissions`; the fake answers `/permissions` first.
 
+
+## Component 24, piece H (menus)
+
+- **`MenuItem` can't be read back** (its fields are private), so a test can't ask "what does the menu hold". The app keeps its list as plain data and builds the `MenuItem`s from it; the test reads the data. `MenuItem`'s action is a `fn` pointer, so each item calls one shared `State` method instead of capturing.
+- **Menus exist on macOS only.** `App::menu_item` on Windows or Linux isn't an error at the call, it leaves an `Unsupported` in `take_menu_errors()`; the app skips adding them there and puts the items in its palette.
+- **`registerAccelerator: false`** (show the key, leave it to the page) is `MenuItem::keys_first()`: the focused element and `on_key` see the chord first; the item runs only if nothing took it.
+- **Memory for the test build, again (20 November 2026):** `cargo test` was OOM-killed at `MemoryMax=4000M` (peak 3.9G, exit 143) with the default jobs; it finished under 6000M in about 3 minutes.
