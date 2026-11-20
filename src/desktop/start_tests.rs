@@ -126,7 +126,7 @@ fn a_server_that_never_answers_shows_the_error_page_with_fleets_words() {
     let Phase::Failed { message, log } = r.rt.state.start.phase.clone() else { unreachable!() };
     assert_eq!(message, "Fleet started but never answered.");
     assert!(log.ends_with("fleet-server.log"), "the page says where the log is: {log}");
-    assert!(Path::new(&log).exists(), "and it is there");
+    test_wait::until_true("the log file", || Path::new(&log).exists());
     r.rt.state.start.open_logs();
     assert_eq!(r.opened.lock().unwrap().as_slice(), [Path::new(&log).parent().unwrap().to_path_buf()], "Open logs opens its folder");
 }
