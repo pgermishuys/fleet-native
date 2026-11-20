@@ -23,6 +23,8 @@ pub struct HarnessEntry {
     pub supports_images: bool,
     /// `capabilities.supportsFleetTools`: the agent can read a session it is linked to (A8.3).
     pub supports_fleet_tools: bool,
+    /// `capabilities.supportsWorkflowSteps`: the harness can give a workflow step's session the step tool.
+    pub supports_workflow_steps: bool,
     /// `ready | not-installed | sign-in-required | not-working | update-needed`: what the setup wizard counts (`harnessState`).
     pub state: String,
     pub version: Option<String>,
@@ -147,6 +149,7 @@ pub fn parse_harness_entries(body: &Value) -> Vec<HarnessEntry> {
                 supports_profiles: h.pointer("/capabilities/supportsProfiles").and_then(Value::as_bool) == Some(true),
                 supports_images: h.pointer("/capabilities/supportsImageAttachments").and_then(Value::as_bool) == Some(true),
                 supports_fleet_tools: h.pointer("/capabilities/supportsFleetTools").and_then(Value::as_bool) == Some(true),
+                supports_workflow_steps: h.pointer("/capabilities/supportsWorkflowSteps").and_then(Value::as_bool) == Some(true),
                 state: text("state").unwrap_or_default(),
                 version: text("version"),
                 executable_path: text("executablePath"),

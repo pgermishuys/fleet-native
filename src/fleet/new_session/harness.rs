@@ -185,11 +185,21 @@ impl State {
 
     /// B7.2: the display name, the type id when the list lacks it.
     pub fn harness_chip_label(&self) -> String {
-        let draft = self.new_draft.draft().map(|d| d.harness_type.clone()).unwrap_or_default();
+        let draft = if self.run_box_active() {
+            self.run_box_harness_type()
+        } else {
+            self.new_draft.draft().map(|d| d.harness_type.clone()).unwrap_or_default()
+        };
         self.harnesses_here().all.iter().find(|h| h.kind == draft).map_or(draft, |h| h.display_name.clone())
     }
 
     pub fn harness_names(&self) -> Vec<(String, String)> {
+        if self.run_box_active() {
+            return super::super::workflows::run_box::workflow_harnesses(&self.harnesses_here())
+                .into_iter()
+                .map(|h| (h.kind.clone(), h.display_name.clone()))
+                .collect();
+        }
         self.harnesses_here().enabled().into_iter().map(|h| (h.kind.clone(), h.display_name.clone())).collect()
     }
 
@@ -217,6 +227,9 @@ impl State {
 
     /// `update:modelValue` of the harness picker: the draft's harness; the menu closes.
     pub fn choose_harness(&mut self, kind: &str) {
+        if self.run_box_active() {
+            return self.run_box_choose_harness(kind);
+        }
         if let Some(d) = self.new_draft.draft_mut() {
             d.harness_type = kind.to_string();
         }

@@ -9,6 +9,8 @@ use rune::{ScrollSpec, col, row, text};
 
 pub mod detail;
 pub mod list;
+pub mod project_picker;
+pub mod run_box;
 
 pub const DESCRIPTION: &str =
     "A workflow is a recipe of steps for an agent, like fixing a bug or reviewing a change, that you can run again and again.";

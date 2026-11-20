@@ -86,8 +86,10 @@ pub fn harnesses() -> Vec<HarnessEntry> {
     opencode.display_name = "OpenCode 2".into();
     opencode.is_default = true;
     opencode.supports_profiles = true;
+    opencode.supports_workflow_steps = true;
     let mut claude = HarnessEntry::ready("claude-code");
     claude.display_name = "Claude Code".into();
+    claude.supports_workflow_steps = true;
     vec![opencode, claude]
 }
 

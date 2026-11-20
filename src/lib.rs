@@ -348,6 +348,8 @@ mod tests_window;
 #[cfg(test)]
 mod tests_workflow_detail;
 #[cfg(test)]
+mod tests_workflow_run_box;
+#[cfg(test)]
 mod tests_workflow_runs;
 #[cfg(test)]
 mod tests_workflows_page;
@@ -2579,6 +2581,18 @@ pub fn spec() -> AppSpec<State> {
             ("workflows-machines-light", |s| s.show_workflows(false, mock::workflows::Scene::Machines)),
             ("workflows-machine-off", |s| s.show_workflows(true, mock::workflows::Scene::MachineOff)),
             ("workflows-machine-off-light", |s| s.show_workflows(false, mock::workflows::Scene::MachineOff)),
+            ("workflow-run-box-empty", |s| s.show_run_box(true, mock::workflows::RunBoxScene::Empty)),
+            ("workflow-run-box-empty-light", |s| s.show_run_box(false, mock::workflows::RunBoxScene::Empty)),
+            ("workflow-run-box", |s| s.show_run_box(true, mock::workflows::RunBoxScene::Filled)),
+            ("workflow-run-box-light", |s| s.show_run_box(false, mock::workflows::RunBoxScene::Filled)),
+            ("workflow-run-box-no-harness", |s| s.show_run_box(true, mock::workflows::RunBoxScene::NoHarness)),
+            ("workflow-run-box-no-harness-light", |s| s.show_run_box(false, mock::workflows::RunBoxScene::NoHarness)),
+            ("workflow-run-box-skill-off", |s| s.show_run_box(true, mock::workflows::RunBoxScene::SkillOff)),
+            ("workflow-run-box-skill-off-light", |s| s.show_run_box(false, mock::workflows::RunBoxScene::SkillOff)),
+            ("workflow-run-box-starting", |s| s.show_run_box(true, mock::workflows::RunBoxScene::Starting)),
+            ("workflow-run-box-starting-light", |s| s.show_run_box(false, mock::workflows::RunBoxScene::Starting)),
+            ("workflow-run-box-refused", |s| s.show_run_box(true, mock::workflows::RunBoxScene::Refused)),
+            ("workflow-run-box-refused-light", |s| s.show_run_box(false, mock::workflows::RunBoxScene::Refused)),
             ("workflow-detail", |s| s.show_workflows(true, mock::workflows::Scene::Detail)),
             ("workflow-detail-light", |s| s.show_workflows(false, mock::workflows::Scene::Detail)),
             ("workflow-detail-errors", |s| s.show_workflows(true, mock::workflows::Scene::DetailErrors)),

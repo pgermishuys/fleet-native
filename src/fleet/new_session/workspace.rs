@@ -81,10 +81,23 @@ fn today() -> String {
 impl State {
     /// The repository the draft is in, when the folder is one.
     pub fn repository_path(&self) -> Option<String> {
+        if self.run_box_active() {
+            return self.workflows_nav.repository_path().map(str::to_string);
+        }
         match self.new_draft.draft()?.folder.as_ref()? {
             Folder::Repository(p) => Some(p.clone()),
             _ => None,
         }
+    }
+
+    /// The base picked: the Run box's while that is on screen, else the draft's.
+    fn chosen_base(&self) -> Option<String> {
+        let chosen = if self.run_box_active() {
+            self.workflows_nav.run_box.base_branch.clone()
+        } else {
+            self.new_draft.draft().and_then(|d| d.base_branch.clone())
+        };
+        chosen.filter(|b| !b.is_empty())
     }
 
     /// The chosen repository's branches and remotes, once they are in for it.
@@ -109,7 +122,7 @@ impl State {
 
     /// The ref a new worktree starts from as the base chip says it, or `None` while that isn't known (`effectiveBase`).
     pub fn effective_base(&self) -> Option<String> {
-        if let Some(chosen) = self.new_draft.draft().and_then(|d| d.base_branch.clone()).filter(|b| !b.is_empty()) {
+        if let Some(chosen) = self.chosen_base() {
             return Some(chosen);
         }
         if self.base_is_loading() {
@@ -121,7 +134,7 @@ impl State {
     /// Where a new worktree starts for the plan line: the chosen base, else the default once the detail is in
     /// (`newWorktreeBase`).
     pub fn new_worktree_base(&self) -> Option<String> {
-        if let Some(chosen) = self.new_draft.draft().and_then(|d| d.base_branch.clone()).filter(|b| !b.is_empty()) {
+        if let Some(chosen) = self.chosen_base() {
             return Some(chosen);
         }
         self.repository_detail()?;
@@ -134,6 +147,10 @@ impl State {
     }
 
     pub fn fetch_origin(&self) -> bool {
+        // A run always fetches (the Run box leaves the switch out).
+        if self.run_box_active() {
+            return true;
+        }
         self.new_draft.draft().is_none_or(|d| d.fetch_origin)
     }
 
@@ -227,6 +244,11 @@ impl State {
 
     /// `choose`: the default is "no choice", so the server's default rules apply to it (B3.14).
     pub fn choose_base(&mut self, name: &str) {
+        if self.run_box_active() {
+            self.run_box_choose_base(name);
+            self.close_picker_menu();
+            return;
+        }
         let default = self.default_base();
         if let Some(d) = self.new_draft.draft_mut() {
             d.base_branch = if default.as_deref() == Some(name) { None } else { Some(name.to_string()) };

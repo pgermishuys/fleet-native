@@ -35,6 +35,10 @@ impl State {
 
     /// The machine key the draft starts on: the machine the app works in unless the draft picked another (`target.key`).
     pub fn target_key(&self) -> String {
+        // The Run box on the Workflows page is on the machine that page shows.
+        if self.run_box_active() {
+            return self.workflows_machine();
+        }
         self.new_draft.machine().unwrap_or_else(|| self.machines.current_key()).to_string()
     }
 
@@ -69,6 +73,9 @@ impl State {
     /// `setFolder(folder, chosen)`: a different folder forgets the base, fetch and branch name; a repository gets its
     /// remembered workspace, anything else a new one.
     pub fn set_folder(&mut self, folder: Folder, chosen: bool) {
+        if self.run_box_active() {
+            return self.run_box_set_folder(folder, chosen);
+        }
         let workspace = match &folder {
             // An attached item always starts in a new worktree (A7.11).
             Folder::Repository(path) if !self.new_draft.draft().is_some_and(|d| d.github_preset.is_some()) => {

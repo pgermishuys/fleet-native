@@ -2318,3 +2318,20 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **A one-side border is `.border_sides([0.0, 0.0, 1.0, 0.0], c)` with `.border_layout()`:** that is Fleet's `border-bottom: 1px` under a `PageHeader` bar, taking its row in layout.
 - **A centred empty state inside a scroll box needs its own `col().grow(1.0).center()`:** the scroll's child is only as tall as its content, so a bare `EmptyState` sat at the top of the list where Fleet's `flex-1` centres it.
 - **Nothing else new about Rune.** A debug test build of the whole crate still needs more than `MemoryMax=4000M` once the test modules grow (the kernel killed it at 3.9 GB, exit 143, no compiler message); 5200M let `cargo test` through.
+
+## Component 18, piece D (the Run box)
+
+- **A picker can serve two pages by asking which page is open**, not by being copied: the New session page's folder, base and harness
+  menus read "the draft" in a dozen places. `State::run_box_active()` (the Workflows rail is showing) makes `target_key`, `set_folder`,
+  `repository_path`, the chosen base and the harness choice answer for the Run box instead, and no menu was written twice. The
+  draft's own code (what `settle_choices` rewrites) keeps reading the draft, so a late answer for the New session page can't write
+  a workflow's harness into it.
+- **A field has no read-only:** Fleet's Run box makes its textarea `readonly` while the run starts; the Rune field is `.disabled(true)`,
+  which also stops the caret and dims nothing (the frame is the same).
+- **`auto_grow(field, 2, 7)` is two lines of the field's line height, without its padding:** a CSS `rows="2"` box with 14/6 px padding is
+  62 px tall, Chrome draws it 66 tall, so the wrapper wants `.min_h(66.0)` to match.
+- **A chip that flips something has no chevron, a static one has no hover:** `ui::chip::Chip` got `.flat()` and `.still()` for the
+  optional-step and Check with me chips and for "New worktree".
+- **A test build that is killed with "Terminated" (exit 143) and no message was OOM-killed:** `journalctl` shows
+  `Memory cgroup out of memory: Killed process (rustc)`. `MemoryMax=4000M` and 5000M were both too little for the test build on
+  20 November 2026 with two other sessions running; 6000M with `CARGO_BUILD_JOBS=2` built it.

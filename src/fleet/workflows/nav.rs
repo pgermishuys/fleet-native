@@ -70,6 +70,8 @@ pub struct Nav {
     pub unsaved: Option<String>,
     /// Asked before another workflow opens, so unsaved edits aren't dropped without a word (piece M fills it).
     pub leave_guard: Option<fn(&State) -> bool>,
+    /// The Run box under the open workflow (piece D).
+    pub run_box: super::run_box::RunBox,
     /// The Model roles dialog is open (piece E draws it).
     pub roles_open: bool,
     /// Turn on is saving.
@@ -134,6 +136,7 @@ impl Nav {
         }
         self.active = Some(id.to_string());
         self.showing_runs = false;
+        self.run_box.workflow_changed();
     }
 
     /// The start of a read: its number, and the directory it is for. A read that finishes after a newer one began is dropped.
@@ -177,6 +180,7 @@ impl Nav {
         self.active = None;
         self.showing_runs = false;
         self.unsaved = None;
+        self.run_box = super::run_box::RunBox::default();
         had
     }
 
@@ -184,6 +188,8 @@ impl Nav {
     pub fn reset_visit(&mut self) {
         self.choice.reset();
         self.prefs_asked = false;
+        self.run_box.asked = false;
+        self.run_box.initial_done = false;
     }
 }
 
@@ -276,6 +282,9 @@ impl State {
         if let Some(request) = self.starters.workflow_request.take() {
             self.open_workflows_link(&request.workflow, request.folder.as_deref());
         }
+        if self.keep_run_session(tx) {
+            return true;
+        }
         if self.rail != crate::Rail::Workflows {
             // The Run box's repository is followed from any page (a session row can be the first to ask).
             if self.workflows_nav.reload_wanted && self.workflows_feature() == Some(true) && !self.workflows_nav.turning_on {
@@ -307,6 +316,6 @@ impl State {
             self.workflows_reload(tx);
             changed = true;
         }
-        changed
+        changed | self.keep_run_box()
     }
 }
