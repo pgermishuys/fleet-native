@@ -274,11 +274,11 @@ for the theme (native: the app's theme). Icon `icon.png`.
 
 | # | Row | Source | Native | Owner |
 |---|---|---|---|---|
-| 24.130 | Before starting Fleet (not on Windows): run `$SHELL` (else `/bin/zsh` on macOS, `/bin/bash` on Linux) `-ilc` with a command that prints each of `PATH`, `SSH_AUTH_SOCK`, `LANG`, `LC_ALL`, `LC_CTYPE`, `HOMEBREW_PREFIX`, `HOMEBREW_CELLAR`, `HOMEBREW_REPOSITORY` between markers; `TERM=dumb`; 5 s timeout; 1 MB cap | ENV; DT "asks the shell with printenv for each name" | None | 24 C |
-| 24.131 | Read each between its markers, ignoring shell noise; empty values dropped | ENV `parseCaptured`; DT "reads each variable between its markers…" | None | 24 C |
-| 24.132 | PATH: the shell's first, then entries only the app had, no repeats | ENV `mergePath`; DT "puts the shell's PATH first…" | None | 24 C |
-| 24.133 | The others only when the app has none | ENV | None | 24 C |
-| 24.134 | Off the UI thread, before the server starts (it can take seconds) | MAIN `start` | — | 24 C |
+| 24.130 | Before starting Fleet (not on Windows): run `$SHELL` (else `/bin/zsh` on macOS, `/bin/bash` on Linux) `-ilc` with a command that prints each of `PATH`, `SSH_AUTH_SOCK`, `LANG`, `LC_ALL`, `LC_CTYPE`, `HOMEBREW_PREFIX`, `HOMEBREW_CELLAR`, `HOMEBREW_REPOSITORY` between markers; `TERM=dumb`; 5 s timeout; 1 MB cap | ENV; DT "asks the shell with printenv for each name" | Done (`desktop::shell_env::read_login_shell_env`; `$SHELL`, else zsh on macOS and bash elsewhere; Windows asks nothing) | — |
+| 24.131 | Read each between its markers, ignoring shell noise; empty values dropped | ENV `parseCaptured`; DT "reads each variable between its markers…" | Done (`parse_captured`) | — |
+| 24.132 | PATH: the shell's first, then entries only the app had, no repeats | ENV `mergePath`; DT "puts the shell's PATH first…" | Done (`merge_path`) | — |
+| 24.133 | The others only when the app has none | ENV | Done (`apply`) | — |
+| 24.134 | Off the UI thread, before the server starts (it can take seconds) | MAIN `start` | Done (`shell_env::spawn` runs it on its own thread and hands the environment back once; B calls it before `FleetServer::start`) | — |
 
 ### 13. The bridge (PRE, `client/src/lib/desktop.ts`), as native calls
 
@@ -421,6 +421,8 @@ the scratch folder, HOME there too), the released server binary, and their own p
 - **Pictures:** non-visual: the app still draws the same; the started server's PATH from a live run (`/proc/<pid>/environ`,
   invented folders) shown as text in the description.
 - **About:** 200 lines.
+
+**Built (20 November 2026):** `src/desktop/shell_env.rs` (`capture_command`, `parse_captured`, `merge_path`, `shell_from`, `read_login_shell_env`, `apply`, `merged`, `merged_with`, `spawn`) and `tests_shell_env.rs`: DT's three "login shell environment" tests under their names, the rest of the rows as tests, and the shell tests against a fake shell script (Unix; Windows runs the parsing tests and asks no shell). **Differences:** a shell that runs past 5 s or prints past 1 MB is stopped and what it had printed so far is parsed (Node does the same); `merged` is called with the app's environment as a list, and `FleetServer`'s `Options::env` takes its result, so `server.rs` is unchanged. **Checked live:** `live_server_gets_the_login_shells_path` (ignored; run by hand) merged a fake shell's invented PATH and LANG, started the released v0.72.0 server with them and read its `/proc/<pid>/environ`: the shell's folder came first and LANG was set. **Open:** B must call `shell_env::spawn` before it starts the server (the row says so); macOS (zsh) and Windows by CI only.
 
 ### Piece D: a Fleet that wants its key
 
