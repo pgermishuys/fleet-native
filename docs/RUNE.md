@@ -2139,6 +2139,5 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - Nothing of Rune's is used here; what was learned is about the test setup. A test binary can't be its own fake server: libtest
   refuses an argument it doesn't know (`--urls`), so the process tests compile `examples/fake_fleet.rs` with `rustc` on their
   first start. `cargo test` builds no example for a library crate's unit tests, so there is no binary to find beside the test.
-- The lib's test build peaks near 3.9 GB: under `MemoryMax=4000M` the kernel kills it (it shows as "Terminated", exit 143, with
-  no message). Use `-j2` and a larger cap for it.
+- The lib's test build gets killed ("Terminated", exit 143, no message) under `MemoryMax=4000M`; see the API keys section above for its peak.
 
