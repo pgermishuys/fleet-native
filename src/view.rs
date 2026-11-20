@@ -124,6 +124,7 @@ pub mod sign_in;
 pub mod skill_diff;
 pub mod smart_link_card;
 pub mod smart_link_row;
+pub mod start_page;
 pub mod starters;
 mod status;
 pub mod subagent_row;
@@ -160,6 +161,10 @@ pub fn root(s: &State, cx: &mut Cx<State>) -> El {
     // Font size (Appearance): Fleet sets the root size, 13 to 16 px against 14; the window scales as a page zoom does.
     cx.zoom(s.sidebar.appearance().font_size.px() / 14.0);
     cx.help_look(crate::ui::help_look(&t));
+    // The splash and the error page are pages of their own too, while the app starts its Fleet.
+    if let Some(page) = start_page::page(s, &t) {
+        return rune_kit::root(page, crate::ui::overlays(s, &t));
+    }
     // Fleet's login page is a page of its own: no rail, no status bar.
     if s.sign_in.open {
         return rune_kit::root(sign_in::page(s, &t), crate::ui::overlays(s, &t));

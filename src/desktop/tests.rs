@@ -277,7 +277,7 @@ mod ports {
 
 /// The stand-in server, compiled once per test run with the `rustc` on the path (cargo builds no example for `cargo test`,
 /// and a test binary can't be its own fake: libtest refuses `--urls`). Plain std, so it takes under a second.
-fn fake_binary() -> PathBuf {
+pub(super) fn fake_binary() -> PathBuf {
     static BUILT: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
     BUILT
         .get_or_init(|| {
@@ -294,24 +294,24 @@ fn fake_binary() -> PathBuf {
 }
 
 /// A scratch folder that goes when the test does.
-struct Scratch(PathBuf);
+pub(super) struct Scratch(pub(super) PathBuf);
 
 impl Scratch {
-    fn new(name: &str) -> Scratch {
+    pub(super) fn new(name: &str) -> Scratch {
         let dir = std::env::temp_dir().join(format!("fleet-native-desktop-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         Scratch(dir)
     }
-    fn data(&self) -> PathBuf {
+    pub(super) fn data(&self) -> PathBuf {
         let d = self.0.join("data");
         std::fs::create_dir_all(&d).unwrap();
         d
     }
-    fn log(&self) -> PathBuf {
+    pub(super) fn log(&self) -> PathBuf {
         self.0.join("logs").join("fleet-server.log")
     }
-    fn log_text(&self) -> String {
+    pub(super) fn log_text(&self) -> String {
         std::fs::read_to_string(self.log()).unwrap_or_default()
     }
 }
