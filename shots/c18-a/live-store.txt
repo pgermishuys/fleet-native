@@ -1,0 +1,14 @@
+
+running 1 test
+read:  loading=false loaded=true runs=0
+library: ["Build a feature (8 steps, 0 errors)", "Fix a bug (7 steps, 0 errors)"]
+start: answered 01M7W6JW Running; kept: loading=false loaded=true runs=1
+    01M7W6JW Running 2026-11-20T10:03:46.1737105Z [design=Skipped plan=Running ok-plan=Pending implement=Pending review=Pending verify=Pending ok-pr=Pending open-pr=Pending]
+event: loading=false loaded=true runs=1
+    01M7W6JW Running 2026-11-20T10:03:46.1737105Z [design=Skipped plan=Running ok-plan=Pending implement=Pending review=Pending verify=Pending ok-pr=Pending open-pr=Pending]
+event: loading=false loaded=true runs=1
+    01M7W6JW Waiting 2026-11-20T10:03:51.7720528Z [design=Skipped plan=Waiting ok-plan=Pending implement=Pending review=Pending verify=Pending ok-pr=Pending open-pr=Pending]
+waiting: NoOutcome on Plan — Plan stopped without finishing the step. Reply to the agent to carry on, or pick an outcome.
+waiting sessions: {"7931f706-eb2e-46eb-a9f7-bb283d75951a"}
+test tests_workflow_runs::live_store_follows_a_scratch_fleet_s_run ... ok
+

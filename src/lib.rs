@@ -334,6 +334,8 @@ mod tests_web_host;
 #[cfg(test)]
 mod tests_window;
 #[cfg(test)]
+mod tests_workflow_runs;
+#[cfg(test)]
 mod tests_workspace;
 mod theme;
 pub mod ui;
@@ -530,6 +532,8 @@ pub struct State {
     pub open_in: fleet::open_in::OpenIn,
     /// Fleet's built-in skills and Improve a skill's state (`fleet::skills`).
     pub skills: fleet::skills::Skills,
+    /// Every machine's workflow runs (`fleet::workflows`).
+    pub workflows: fleet::workflows::runs::Workflows,
     /// The links to the other machines, started when a session there needs one (`fleet::routing`).
     pub links: fleet::routing::Links,
     pub connection: Connection,
@@ -850,6 +854,7 @@ impl Default for State {
             link: None,
             open_in: Default::default(),
             skills: Default::default(),
+            workflows: Default::default(),
             links: Default::default(),
             connection: Connection::Connecting,
             open_reads: Default::default(),

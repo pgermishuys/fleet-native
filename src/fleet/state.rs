@@ -68,6 +68,7 @@ impl State {
             self.on_terminal_event(topic, event);
             self.on_app_event(event);
             self.on_progress_event(topic, event);
+            self.on_workflow_event(event);
             self.on_diffs_event(topic, event);
             self.on_file_live_event(topic, event);
             self.on_file_browser_event(topic, event);

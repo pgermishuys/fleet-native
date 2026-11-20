@@ -184,6 +184,7 @@ pub mod visuals;
 pub mod web_page;
 pub mod work;
 pub mod work_actions;
+pub mod workflows;
 pub mod wrap_pref;
 
 #[cfg(test)]

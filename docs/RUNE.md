@@ -2262,3 +2262,14 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **Menus exist on macOS only.** `App::menu_item` on Windows or Linux isn't an error at the call, it leaves an `Unsupported` in `take_menu_errors()`; the app skips adding them there and puts the items in its palette.
 - **`registerAccelerator: false`** (show the key, leave it to the page) is `MenuItem::keys_first()`: the focused element and `on_key` see the chord first; the item runs only if nothing took it.
 - **Memory for the test build, again (20 November 2026):** `cargo test` was OOM-killed at `MemoryMax=4000M` (peak 3.9G, exit 143) with the default jobs; it finished under 6000M in about 3 minutes.
+
+## Component 18, piece A (the workflows data and the runs store)
+
+- **Nothing about Rune was missing:** the piece draws nothing. What it needed from the app's own plumbing: `State::subscribe` listeners are
+  `FnMut(&Topic, &Event) + Send` with no `State`, so a store that must change state follows events through `State::dispatch`, as Memory and
+  Mods do. A store per machine is a map by machine key, and every call goes through `link_for_machine(key)`; a machine's hub forwards `sessions`
+  events for the live machine only (`link.rs`), so another machine's runs fill from the load and from each change's answer.
+- **A test that counts requests counts only its own:** a `Link` made with `start_machine` has no machine or plugin poll, but its hub still
+  talks to the fake, so the fake records every route and the test filters by `/api/workflows`.
+- **`cargo test` of this crate is killed at 4000M with `CARGO_BUILD_JOBS=3`** (the build is "Terminated" with no error): use
+  `CARGO_BUILD_JOBS=1`, and stop your own earlier cargo by its PID first, or the new one waits on the build lock.

@@ -79,6 +79,7 @@ impl State {
         let before = self.pickers.prefs.get(key).map(str::to_string);
         self.pickers.prefs.set(key, value);
         self.settle_rail();
+        self.workflows_settle();
         let Some(link) = &self.link else { return };
         self.settings.saving.insert(key.to_string());
         let (k, v) = (key.to_string(), value.to_string());
