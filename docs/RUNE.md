@@ -2310,3 +2310,11 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **`tx.focus` is queued: `tx.focused()` still says the old element in the poll that asked.** A scene that sets `take_focus` and opens a popup must not let the blur check of that same poll shut it.
 - **Debug test builds of this crate no longer fit in 4000M** (the kernel killed the compile at 3.9 GB on 20 November 2026): the test build needs `MemoryMax=5500M`.
 - **Windows' main thread has 1 MB of stack and a debug build of the app comes close to it**: the web-view walk's start overflowed it ("thread 'main' has overflowed its stack", exit 127) on one pull request that only grew `State`, and on `main` once. `build.rs` links the binary with `/STACK:8388608` on MSVC targets (8 MB, as macOS and Linux have). Not checked on a Windows machine by hand; the CI run is the check.
+
+
+## Component 24, piece J (the sweep)
+
+- **A window can be closed without a window manager** by sending it what one sends: a `ClientMessage` `WM_PROTOCOLS` with `WM_DELETE_WINDOW` (a few lines of Python `ctypes` over `libX11`; `xdotool windowclose` destroys the window instead, and `windowquit` needs a manager). Rune treats it as the close button: `on_close` runs and `keep_running` works. That is how the hide-to-tray path is driven on the virtual display.
+- **`single_instance` brings a hidden window back.** With the window closed to the tray (the app still running), a second launch exited 0 at once and the first window was on screen again at the place it had been (a window mapped again, not raised from behind).
+- **Tray without a host:** `Tray::new` doesn't fail on a session bus with no `StatusNotifierWatcher`: it calls `RegisterStatusNotifierItem` and nothing answers, so there is no icon and the app can't know (24.84). The only way back is a second launch.
+- **The Linux splash needs a slow server to be seen:** the released server answers `/readyz` in about 0.6 s, so the splash lasts about one frame. For a picture, wrap the server in a script that sleeps first (`FLEET_NATIVE_SERVER_BIN`).
