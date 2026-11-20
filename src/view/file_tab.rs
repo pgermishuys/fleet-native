@@ -150,10 +150,12 @@ fn bar(s: &State, t: &Theme, path: &str) -> El {
 }
 
 /// `.file-canvas__state` while the file has unsaved text or is being saved: a 7 px `--idle` dot, "Unsaved" and Save with its key (the
-/// key goes in a narrow panel); "Saving\u{2026}" while the request is out. A file in conflict is piece S's state.
+/// key goes in a narrow panel); "Saving\u{2026}" while the request is out. A file in conflict says "Changed on disk" with an `--error` dot (piece S).
 fn save_state(s: &State, t: &Theme, session: &str, path: &str, info: &crate::fleet::file_buffers::Info) -> Option<El> {
     if info.conflict.is_some() {
-        return None;
+        // `.file-canvas__state-dot--conflict`: the dot is `--error`.
+        let words = text("Changed on disk").font(sans(12.0, 400.0, 1.4)).color(t.muted).single_line();
+        return Some(row().key("file-state").gap(8.0).items_center().child(el().w(7.0).h(7.0).radius(3.5).fill(t.error)).child(words));
     }
     let words = |w: &str| text(w.to_string()).font(sans(12.0, 400.0, 1.4)).color(t.muted).single_line();
     if info.saving {
@@ -225,13 +227,14 @@ pub fn file_tab(s: &State, t: &Theme) -> El {
     let ready = status == Some(Status::Ready);
     let has_changes = (s.diffs.by_file(&path).is_some() && !crate::fleet::canvases::is_image_path(&path)) || info.is_some_and(|i| i.dirty);
     let view = shown_view(file.view, has_changes);
+    let comparing = s.is_comparing(&session, &path);
 
     let mut bar = bar(s, t, &path);
     let wrap = s.sidebar.file_wrap(&path);
     if let Some(state) = info.and_then(|i| save_state(s, t, &session, &path, i)) {
         bar = bar.child(state);
     }
-    if ready && view != FileView::Rendered {
+    if ready && (view != FileView::Rendered || comparing) {
         bar = bar.child(wrap_button(s, t, &path, wrap));
     }
     if ready {
@@ -240,6 +243,9 @@ pub fn file_tab(s: &State, t: &Theme) -> El {
 
     let deleted = is_deleted(s, &session, &path, status);
     let mut body = col().key("file-canvas").w_full().grow(1.0).shrink().min_h(0.0).child(bar);
+    if let Some(conflict) = info.and_then(|i| i.conflict.as_ref()) {
+        body = body.child(super::file_compare::notice_for(s, t, &session, &path, conflict, comparing));
+    }
     body = match status {
         _ if deleted => {
             let before = s.file_base(&session, &path).unwrap_or_default();
@@ -251,6 +257,10 @@ pub fn file_tab(s: &State, t: &Theme) -> El {
             let message = info.and_then(|i| i.message.clone()).unwrap_or_default();
             body.child(note(t, "file-unavailable", message))
         }
+        Some(Status::Ready) if comparing => match s.file_buffers.buffer(&machine, &session, &path) {
+            Some(buffer) => body.child(super::file_diff::compare_view(s, t, &machine, &session, &path, buffer, wrap)),
+            None => body,
+        },
         Some(Status::Ready) if view == FileView::Rendered && has_rendered_view(&path) => {
             let content = s.file_buffers.buffer(&machine, &session, &path).map(|b| b.lines().join("\n")).unwrap_or_default();
             body.child(if is_html(&path) { rendered_html(s, t, &content) } else { rendered_markdown(t, &path, &content) })

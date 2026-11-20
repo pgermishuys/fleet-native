@@ -99,15 +99,16 @@ struct Editing {
     blink_off: bool,
     text_w: f32,
     chunks: Rc<Vec<Chunk>>,
+    /// Compare (a conflict): each change has the two buttons "Take the agent's" and "Keep mine" where Diff has Revert.
+    compare: bool,
 }
 
-/// `.cm-chunkButtons`: Revert, floating over the end of the change's last line on a backing of the panel's colour.
-fn revert_button(t: &Theme, k: usize, path: &str) -> El {
-    let path = path.to_string();
-    let button = row()
-        .key(format!("diff-revert-{k}"))
+/// `.cm-chunkButtons button`: 11 px, 1 px `--border`, radius 5, `--card-bg`, padding `1px 8px`, hover `--text` 8 %.
+fn chunk_button(t: &Theme, key: String, words: &str, press: impl Fn(&mut State) + 'static) -> El {
+    row()
+        .key(key)
         .role("button")
-        .label("Revert")
+        .label(words)
         .px(8.0)
         .py(1.0)
         .radius(5.0)
@@ -116,15 +117,28 @@ fn revert_button(t: &Theme, k: usize, path: &str) -> El {
         .border_layout()
         .cursor(Cursor::Pointer)
         .hover(t.wash(8.0))
-        .on_press(move |s: &mut State| s.revert_diff_chunk(&path, k))
-        .child(text("Revert").font(crate::theme::sans(11.0, 400.0, 1.4)).color(t.text).single_line());
-    row()
-        .pin(None, Some(1.0), Some(6.0), None)
-        .padding(2.0)
-        .radius(7.0)
-        .fill(t.panel_bg)
-        .box_shadow(Shadow { x: 0.0, y: 1.0, blur: 6.0, spread: 0.0, color: Color::BLACK.alpha(0.25), inset: false })
-        .child(button)
+        .on_press(press)
+        .child(text(words).font(crate::theme::sans(11.0, 400.0, 1.4)).color(t.text).single_line())
+}
+
+/// `.cm-chunkButtons`: Revert (Diff) or Keep mine and Take the agent's (Compare), floating over the end of the change's last line on a
+/// backing of the panel's colour.
+fn chunk_buttons(t: &Theme, k: usize, path: &str, compare: bool) -> El {
+    let (take, keep) = (path.to_string(), path.to_string());
+    let pocket = row().pin(None, Some(1.0), Some(6.0), None).padding(2.0).gap(4.0).radius(7.0).fill(t.panel_bg).box_shadow(Shadow {
+        x: 0.0,
+        y: 1.0,
+        blur: 6.0,
+        spread: 0.0,
+        color: Color::BLACK.alpha(0.25),
+        inset: false,
+    });
+    if compare {
+        return pocket
+            .child(chunk_button(t, format!("diff-keep-{k}"), "Keep mine", move |s: &mut State| s.keep_mine_chunk(&keep, k)))
+            .child(chunk_button(t, format!("diff-take-{k}"), "Take the agent's", move |s: &mut State| s.take_agents_chunk(&take, k)));
+    }
+    pocket.child(chunk_button(t, format!("diff-revert-{k}"), "Revert", move |s: &mut State| s.revert_diff_chunk(&take, k)))
 }
 
 /// One row of the diff, as the code view draws a line.
@@ -145,7 +159,7 @@ fn diff_row(
             let marks = buffer.filter(|_| e.focused).map(|b| super::code_edit::line_edit(&b.editor, b.lines(), line, e.pair, e.blink_off));
             d.edit = Some(DiffEdit { path: e.path.clone(), line, row: i, raw: r.text.clone(), marks, text_w: e.text_w });
         }
-        revert = e.chunks.iter().position(|c| c.last_row == i).map(|k| revert_button(t, k, &e.path));
+        revert = e.chunks.iter().position(|c| c.last_row == i).map(|k| chunk_buttons(t, k, &e.path, e.compare));
     }
     let line = code_line(t, keys, gutter, shown.0, shown.1, wrap, &d);
     match revert {
@@ -293,14 +307,40 @@ impl State {
 
 /// The Diff of a file: its text against the git base, or (a file git sees as unchanged) against the text as last read (row 6.5).
 pub fn diff_view(s: &State, t: &Theme, machine: &str, session: &str, path: &str, buffer: &Buffer, wrap: bool) -> El {
-    let base_hash = s.file_base(session, path).map_or(0, hash_of);
     let reference = reference_of(s, session, path, buffer);
+    let base_hash = s.file_base(session, path).map_or(0, hash_of);
+    merge_view(s, t, (machine, session, path), buffer, wrap, &reference, base_hash, false)
+}
+
+/// Compare (rows 13.6 and 13.7): the text against the agent's version, whole, with each change's two buttons.
+pub fn compare_view(s: &State, t: &Theme, machine: &str, session: &str, path: &str, buffer: &Buffer, wrap: bool) -> El {
+    let reference = s.file_compare.original(session, path).cloned().unwrap_or_default();
+    let hash = hash_of(&reference.join("\n")) ^ 0x636f_6d70;
+    merge_view(s, t, (machine, session, path), buffer, wrap, &reference, hash, true)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn merge_view(
+    s: &State,
+    t: &Theme,
+    (machine, session, path): (&str, &str, &str),
+    buffer: &Buffer,
+    wrap: bool,
+    reference: &[String],
+    base_hash: u64,
+    compare: bool,
+) -> El {
     let key: Key = (machine.into(), session.into(), path.into(), buffer.rev(), base_hash);
-    let made = cached(key, || rows(&reference, buffer.lines()));
-    let items = items(&made, MARGIN, MIN_FOLD, &|first| s.file_folds.is_open(session, path, first));
+    let made = cached(key, || rows(reference, buffer.lines()));
+    // Compare shows the whole file: its merge view has no `collapseUnchanged`.
+    let items = if compare {
+        (0..made.len()).map(Item::Row).collect()
+    } else {
+        items(&made, MARGIN, MIN_FOLD, &|first| s.file_folds.is_open(session, path, first))
+    };
     let doc = coloured((machine.into(), session.into(), path.into(), buffer.rev()), path, buffer.lines());
     let base_key = (machine.to_string(), session.to_string(), format!("base:{path}"), base_hash ^ buffer.rev().rotate_left(32));
-    let base_c = coloured(base_key, path, &reference);
+    let base_c = coloured(base_key, path, reference);
     let edit = s.code_edit.on && s.code_edit_target().is_some_and(|(m, se, p)| m == machine && se == session && p == path);
     let editing = edit.then(|| {
         let focused = s.code_edit.focused && s.code_edit.is_over(machine, session, path);
@@ -316,6 +356,7 @@ pub fn diff_view(s: &State, t: &Theme, machine: &str, session: &str, path: &str,
             blink_off: s.code_edit.blink_off,
             text_w: s.code_edit.text_w,
             chunks: Rc::new(chunks(&made)),
+            compare,
         }
     });
     let drawn = Drawn { editing, rows: made, items, doc: Some(doc), base: base_c, gutter: gutter_width(buffer.lines().len()) };

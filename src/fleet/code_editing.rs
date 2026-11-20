@@ -68,7 +68,8 @@ impl State {
         let info = self.file_buffers.info(&machine, &session, &file.path)?;
         let has_changes = self.diffs.by_file(&file.path).is_some() || info.dirty;
         let shown = crate::view::file_tab::shown_view(file.view, has_changes);
-        (info.status == Status::Ready && matches!(shown, super::canvases::FileView::Edit | super::canvases::FileView::Diff))
+        let comparing = self.is_comparing(&session, &file.path);
+        (info.status == Status::Ready && (comparing || matches!(shown, super::canvases::FileView::Edit | super::canvases::FileView::Diff)))
             .then_some((machine, session, file.path))
     }
 
@@ -78,6 +79,9 @@ impl State {
         let diff = tabs.active().and_then(|c| c.file.as_ref()).is_some_and(|f| {
             let session = self.canvas_session();
             let machine = self.machine_key_of(&session).to_string();
+            if self.is_comparing(&session, &f.path) {
+                return true;
+            }
             let changed =
                 self.diffs.by_file(&f.path).is_some() || self.file_buffers.info(&machine, &session, &f.path).is_some_and(|i| i.dirty);
             crate::view::file_tab::shown_view(f.view, changed) == super::canvases::FileView::Diff
@@ -302,7 +306,7 @@ impl State {
     pub fn keep_code_edit_focus(&mut self, tx: &mut Tx) -> bool {
         if let Some(key) = self.code_edit.take_focus.take() {
             tx.focus(key, false);
-            if key == CODE {
+            if key == CODE || key == DIFF {
                 self.reveal_caret(tx);
             }
         }

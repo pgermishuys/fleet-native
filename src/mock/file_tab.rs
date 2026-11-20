@@ -12,6 +12,9 @@ const WRAP_SOURCE: &str = include_str!("file_wrap.txt");
 const SOURCE: &str = include_str!("changes/paginate.before.txt");
 /// The file as the session left it: `SOURCE` is its git base.
 const EDITED: &str = include_str!("changes/paginate.after.txt");
+/// What the agent wrote while the file was being edited (the conflict's version): the first line, which is also within sight of the
+/// line the person added, so Compare shows both versions in its first screen.
+const AGENTS_FIRST_LINE: &str = "\"\"\"Splits a list of rows into pages of a fixed size.\"\"\"";
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Case {
@@ -48,6 +51,11 @@ pub enum Case {
     /// `Code` after typing into it: the bar says Unsaved with Save (`Unsaved`), and while the save is on its way (`Saving`) (piece R).
     Unsaved,
     Saving,
+    /// `Unsaved`, then the agent changed the file on disk: the conflict's bar and notice (`Conflict`), the same with what is on disk no
+    /// longer text (`ConflictGone`), and Compare (`Compare`) (piece S).
+    Conflict,
+    ConflictGone,
+    Compare,
 }
 
 /// The invented project's logo (`assets/logo.svg`), 96 by 96 as its own size.
@@ -97,8 +105,10 @@ impl State {
                 | Case::Diff
                 | Case::Stripe
                 | Case::Deleted
-        ) || matches!(case, Case::Lines | Case::LinesCopied | Case::LinesAdded | Case::Unsaved | Case::Saving)
-        {
+        ) || matches!(
+            case,
+            Case::Lines | Case::LinesCopied | Case::LinesAdded | Case::Unsaved | Case::Saving | Case::Conflict | Case::ConflictGone
+        ) {
             self.sidebar.save_file_wrap(path, false);
         }
         self.diffs.reset(&id);
@@ -139,7 +149,7 @@ impl State {
                 }
             }
             Case::LinesAdded => self.append_draft_reference(&id, "@src/paginate.py:17-21"),
-            Case::Unsaved | Case::Saving => {
+            Case::Unsaved | Case::Saving | Case::Conflict | Case::ConflictGone | Case::Compare => {
                 self.file_buffers.edit(&machine, &id, path, |e, l| {
                     e.set_caret(crate::fleet::code_edit::Pos::new(2, 0), false);
                     e.insert(l, "# the page size is a count of rows\n", 0.0);
@@ -148,6 +158,15 @@ impl State {
                 self.code_edit.for_file(&(machine.clone(), id.clone(), path.to_string()));
                 if case == Case::Saving {
                     self.file_buffers.set_saving(&machine, &id, path, true);
+                }
+                if matches!(case, Case::Conflict | Case::ConflictGone | Case::Compare) {
+                    let disk_text = (case != Case::ConflictGone).then(agents_version);
+                    let conflict = crate::fleet::file_buffers::Conflict { disk_text, hash: "h2".into() };
+                    let patch = crate::fleet::file_buffers::Patch { conflict: Some(Some(conflict)), ..Default::default() };
+                    self.file_buffers.patch(&machine, &id, path, patch);
+                }
+                if case == Case::Compare {
+                    self.compare_file(&id, path);
                 }
             }
             _ => {}
@@ -166,7 +185,15 @@ impl State {
     fn read_for_scene(&mut self, request: Request, case: Case) {
         let body = match case {
             Case::Opening => return,
-            Case::Code | Case::Lines | Case::LinesCopied | Case::LinesAdded | Case::Unsaved | Case::Saving => Ok(answer(SOURCE)),
+            Case::Code
+            | Case::Lines
+            | Case::LinesCopied
+            | Case::LinesAdded
+            | Case::Unsaved
+            | Case::Saving
+            | Case::Conflict
+            | Case::ConflictGone
+            | Case::Compare => Ok(answer(SOURCE)),
             Case::Diff | Case::Stripe => Ok(answer(EDITED)),
             Case::Deleted => Err("Failed to read file: 404 Not Found".to_string()),
             Case::Wrap | Case::WrapOff => Ok(answer(WRAP_SOURCE)),
@@ -179,4 +206,9 @@ impl State {
         };
         self.file_buffers.finish(&request, body);
     }
+}
+
+/// The file as the agent left it in the conflict scenes.
+fn agents_version() -> String {
+    SOURCE.replacen(SOURCE.lines().next().unwrap_or_default(), AGENTS_FIRST_LINE, 1)
 }

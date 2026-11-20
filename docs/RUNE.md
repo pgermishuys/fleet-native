@@ -2169,3 +2169,17 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **`max-width: 100%` on a fixed width**: `max_w` takes pixels only, so the card is 470 px at any window width. The app's window can't go narrower than that card plus its padding.
 - A test that touches the process's one home token (`fleet::auth`) must hold `fleet::tests::auth::HOME_TOKEN`, now `pub(crate)`, even from `desktop`'s tests.
 - **Return on a focused button** goes to the window's *default button* (`.default_button()`), not to the focused one; only Space presses the focused button. A page whose one button should answer Return (as an HTML button does) marks it the default.
+
+## Component 11, piece S (conflicts and Compare)
+
+- **`flex-wrap` rows work, but a wrapping text in one needs a width.** A `rich(..).wrap()` child of a `.flex_wrap()` row takes its max-content
+  width and is cut at the row's edge instead of wrapping; giving it `.max_w(panel width - padding)` makes it take a line of its own and wrap, and
+  the buttons after a `grow(1)` spacer then drop to the next line at the right, as CSS `margin-left: auto` does (`view::file_compare::notice`).
+- **No enter animation for an element that is new.** Fleet's notice rises over 240 ms; here a notice is drawn at once (the lines bar's 160 ms
+  rise is the same gap). `notice_card` does it with a state machine and springs, too much for a bar.
+- **A floating button pocket in a line that scrolls sideways** sits at the end of the line, not of the view, when Wrap is off (Revert had the same
+  gap); with Wrap on, the rows are as wide as the view and the pocket is at its right edge as in Fleet.
+- **A test build peaks near 3.9 GB and is killed under `MemoryMax=4000M`** (exit 143, no message, journal says `oom-kill`): run it with 5500M, `-j 2`.
+- **A scripted live run's clock is not the wall clock**: with frames costing 25 ms of CPU each, 11 s of script took 45 s. To change a file
+  underneath a script, send the change from outside well after the script's typing is due (wall about 3 times the script's second) and put the
+  step that needs the change late in the script.

@@ -69,6 +69,8 @@ mod tests_document;
 #[cfg(test)]
 mod tests_draft_row;
 #[cfg(test)]
+mod tests_file_conflict;
+#[cfg(test)]
 mod tests_file_diff;
 #[cfg(test)]
 mod tests_file_find;
@@ -459,6 +461,7 @@ pub struct State {
     pub file_bases: fleet::file_base::Bases,
     /// The folded runs of a file's Diff that were opened (`fleet::file_diff`).
     pub file_folds: fleet::file_diff::DiffFolds,
+    pub file_compare: fleet::file_compare::FileCompare,
     /// The Files tab's tree, its open folders and its search box (`fleet::file_browser`).
     pub file_browser: fleet::file_browser::FileBrowser,
     /// The review's own state: which sections are shut and the layout picked (`fleet::review`).
@@ -795,6 +798,7 @@ impl Default for State {
             file_browser: Default::default(),
             file_bases: Default::default(),
             file_folds: Default::default(),
+            file_compare: Default::default(),
             review: Default::default(),
             annotation: Default::default(),
             changes_find: Default::default(),
@@ -5195,6 +5199,12 @@ pub fn spec() -> AppSpec<State> {
             ("file-unsaved-light", |s| s.show_file(mock::file_tab::Case::Unsaved, false)),
             ("file-saving", |s| s.show_file(mock::file_tab::Case::Saving, true)),
             ("file-saving-light", |s| s.show_file(mock::file_tab::Case::Saving, false)),
+            ("file-conflict", |s| s.show_file(mock::file_tab::Case::Conflict, true)),
+            ("file-conflict-light", |s| s.show_file(mock::file_tab::Case::Conflict, false)),
+            ("file-conflict-gone", |s| s.show_file(mock::file_tab::Case::ConflictGone, true)),
+            ("file-conflict-gone-light", |s| s.show_file(mock::file_tab::Case::ConflictGone, false)),
+            ("file-compare", |s| s.show_file(mock::file_tab::Case::Compare, true)),
+            ("file-compare-light", |s| s.show_file(mock::file_tab::Case::Compare, false)),
             ("file-diff", |s| s.show_file(mock::file_tab::Case::Diff, true)),
             ("file-diff-light", |s| s.show_file(mock::file_tab::Case::Diff, false)),
             ("file-stripe", |s| s.show_file(mock::file_tab::Case::Stripe, true)),
