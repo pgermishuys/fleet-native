@@ -348,7 +348,7 @@ pub fn stream(t: &Theme, which: Which, session: &Session, plan: &FoldPlan, parti
         );
     // The box and, when it isn't following the end, the lane under it with Jump to latest. `on_scroll_offset` may not
     // change state, so it leaves where the box is for `poll` (`State::keep_scroll`).
-    let probe = scroll.probe;
+    let (probe, layout) = (scroll.probe, scroll.layout);
     let stream = col()
         .key(if side { "side-stream" } else { "stream" })
         .w_full()
@@ -356,7 +356,7 @@ pub fn stream(t: &Theme, which: Which, session: &Session, plan: &FoldPlan, parti
         .shrink()
         .min_h(0.0)
         .scroll(ScrollSpec { stick_bottom: true })
-        .on_scroll_offset(move |at| probe.set(Some(at)))
+        .on_scroll_offset(move |at| probe.set(Some((at, layout))))
         .child(
             col()
                 .w_full()
@@ -390,7 +390,10 @@ pub struct Scroll {
     pub find: Option<El>,
     /// The cards of what the agent waits on, after the messages (component 4).
     pub asks: Vec<El>,
-    pub probe: std::rc::Rc<std::cell::Cell<Option<rune::ScrollPos>>>,
+    /// Where the box was laid out, with `layout` beside it.
+    pub probe: std::rc::Rc<std::cell::Cell<Option<(rune::ScrollPos, u64)>>>,
+    /// `State::scroll_layout` when this view was built.
+    pub layout: u64,
 }
 
 /// The Markdown looks a message draws with: its text, its reasoning, and a compaction's summary.

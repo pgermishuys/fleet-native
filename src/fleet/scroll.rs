@@ -48,7 +48,12 @@ impl State {
                 changed = true;
             }
         }
-        let Some(at) = self.scroll_probe.get() else { return changed };
+        let Some((at, layout)) = self.scroll_probe.get() else { return changed };
+        // `poll` runs before the frame's layout, so the first reading after a snapshot is of the box before it held the
+        // conversation (empty, or the session left). The frame that draws the new view reports the box again.
+        if layout != self.scroll_layout {
+            return changed;
+        }
         let before = self.scroll_seen.replace(at);
         if before == Some(at) {
             return changed;
