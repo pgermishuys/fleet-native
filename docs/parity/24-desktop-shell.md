@@ -189,21 +189,21 @@ for the theme (native: the app's theme). Icon `icon.png`.
 
 | # | Row | Source | Native | Owner |
 |---|---|---|---|---|
-| 24.50 | 1360×880 by default, minimum 720×480, title "Fleet", the app icon | MAIN | Size and minimum done; title is "Weave Fleet"; icon comes with 25's packages | 24 G (title) |
-| 24.51 | Save bounds and maximized 400 ms after a move or resize, not while minimized or full screen; normal bounds when maximized | MAIN `saveBounds` | None (no move event in Rune: poll `placement()`, decision in G) | 24 G |
-| 24.52 | Restore saved bounds only if at least 100×100 of them is on a screen now and they're at least 400×300; else default size, centred | SET `restorableBounds`; DT "window bounds" ×3 | None | 24 G |
-| 24.53 | Open maximized when it was | MAIN | None | 24 G |
+| 24.50 | 1360×880 by default, minimum 720×480, title "Fleet", the app icon | MAIN | Done (size, minimum, title "Fleet" in `spec()`); the icon comes with 25's packages | 25 (icon) |
+| 24.51 | Save bounds and maximized 400 ms after a move or resize, not while minimized or full screen; normal bounds when maximized | MAIN `saveBounds` | Done (`desktop::window::Keeper`: read from `placement()` by the poll, which asks Rune for a wake every 250 ms while a window exists; written 400 ms after the last change, and on close and quit; skipped while minimised or full screen; the normal frame is kept with the maximised flag, from `placement().restore` on Windows, else the last normal frame seen) | — |
+| 24.52 | Restore saved bounds only if at least 100×100 of them is on a screen now and they're at least 400×300; else default size, centred | SET `restorableBounds`; DT "window bounds" ×3 | Done (`desktop::window::restorable`, DT "window bounds" ×3 plus the 100 px edge, a second screen on the left, and 400 x 300 read in points) | — |
+| 24.53 | Open maximized when it was | MAIN | Done (`App::maximized`; the saved frame stays what restoring returns to). Checked by tests only: the virtual display's window manager here has no maximise | — |
 | 24.54 | Background before the first paint (`#0d0d10` / `#F3F2EF`) | MAIN | n/a: Rune paints the first frame itself | — |
 | 24.55 | `autoHideMenuBar` on Windows and Linux | MAIN | n/a (no menu bar there) | — |
 | 24.56 | Spell check in fields | MAIN `spellcheck: true` | Out of reach: Rune's text fields have no spell checker | — |
 | 24.57 | Toggle full screen (View menu; the palette entry waits on 24) | MENU `togglefullscreen`; `ui/commands.rs` | Palette entry drawn, `Run::Waiting(24)` | 24 H |
-| 24.58 | Wayland hides window positions: restore the size only | Rune | — | 24 G |
+| 24.58 | Wayland hides window positions: restore the size only | Rune | **Open**: `placement()` is `None` on Wayland and nothing else in Rune reports the window's size, so nothing is saved there and the window opens at its default (written in `docs/RUNE.md`) | Rune |
 
 ### 6. One instance (MAIN)
 
 | # | Row | Source | Native | Owner |
 |---|---|---|---|---|
-| 24.60 | A second launch quits and brings the first one's window forward (restored, shown, focused) | MAIN `requestSingleInstanceLock`, `second-instance` → `showWindow` | None | 24 G |
+| 24.60 | A second launch quits and brings the first one's window forward (restored, shown, focused) | MAIN `requestSingleInstanceLock`, `second-instance` → `showWindow` | Done (`rune::single_instance("com.pgermishuys.fleet-native")` first thing in a normal start; the second process exits 0 within about 0.1 s and opens no window). The first one's coming forward is Rune's `reopen`; not seen on the virtual display (see below) | — |
 | 24.61 | A launch while the window is closed to the tray makes the window again and loads the Fleet (or connects) | MAIN `showWindow` | **Done** (E): the tray's Show Fleet and a click call `AppHandle::open`; the state lives on, so the Fleet is already loaded. A second *launch* showing it is G | 24 E |
 | 24.62 | macOS: Dock click (`activate`) shows the window | MAIN `activate` | **Done** (E): `keep_running` and Rune's default reopen show the hidden window; no `on_reopen` hook is needed (CI only: no Mac here) | 24 E (`on_reopen`) |
 
@@ -493,6 +493,8 @@ the scratch folder, HOME there too), the released server binary, and their own p
 - **Pictures:** two launches under Xvfb: the second exits and the first comes forward (a short video or two pictures);
   the window reopened where it was left.
 - **About:** 350 lines.
+
+**Built (20 November 2026):** `src/desktop/window.rs` (`Frame`, `restorable`, `opening`, `Keeper`, `single_instance_wanted`, `INSTANCE_ID`; no Rune in it), `src/window_place.rs` (the thread-local window handle, `State::keep_window`, `flush_window`), `Sidebar::window`/`save_window` (`window` in `settings.json`), `tests_window.rs`. Not a headless or `--demo` or `--server` run, and not one with `FLEET_NATIVE_DATA_DIR` set (decision 10). The saved frame is read once at start (a few hundred bytes, before the event loop) and the factory of `rune::run_windows_with_args` checks it against the displays; headless runs keep `App::run`. **Differences:** Electron saves on move and resize events; here the poll reads the window (a wake every 250 ms while it exists, a look at most every 200 ms) and saves 400 ms after the last change. Sizes are physical pixels (Rune's own space), "at least 400 x 300" is read in points with the saved scale. Screens are Rune's `Display` (the whole display, Electron uses the work area). **Checked by hand (Linux, Xvfb + openbox, scratch HOME and runtime folder):** the window moved to 300,180 at 1000x640 was saved in `settings.json` and a new start opened there (`shots/parity/24-desktop-shell/g-*.png`); a second launch exited 0 in 60 to 430 ms, printed nothing and no second window appeared. **Not seen:** the first window coming forward from behind or minimised: the display's window manager here did not act on iconify or key requests, and an unmapped window is not remapped by Rune's reopen. **Open:** Wayland (above); maximised, Windows' named pipe and macOS by CI and tests only.
 
 ### Piece H: menus
 

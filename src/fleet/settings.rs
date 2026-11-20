@@ -126,6 +126,8 @@ pub struct Sidebar {
     desktop_port: Option<u16>,
     /// The person said the app may use the Fleet already running here that wants its key (`useRunningFleet`).
     use_running_fleet: bool,
+    /// Where the window was left (`window` in Electron's `desktop-settings.json`), for the next start (component 24 G).
+    window: Option<crate::desktop::window::Frame>,
     dir: Option<PathBuf>,
     dirty: bool,
 }
@@ -191,6 +193,7 @@ impl Sidebar {
         };
         s.desktop_port = root.get("desktopPort").and_then(Value::as_u64).and_then(|p| u16::try_from(p).ok()).filter(|p| *p > 0);
         s.use_running_fleet = root.get("useRunningFleet") == Some(&Value::Bool(true));
+        s.window = root.get("window").and_then(crate::desktop::window::Frame::from_json);
         s.dreaming_harness = root.get("dreamingHarness").and_then(Value::as_str).filter(|h| !h.is_empty()).map(str::to_string);
         s
     }
@@ -238,6 +241,9 @@ impl Sidebar {
         }
         if self.use_running_fleet {
             root["useRunningFleet"] = json!(true);
+        }
+        if let Some(f) = self.window {
+            root["window"] = f.to_json();
         }
         if let Some(h) = &self.dreaming_harness {
             root["dreamingHarness"] = json!(h);
@@ -433,6 +439,18 @@ impl Sidebar {
     pub fn save_use_running_fleet(&mut self) {
         if !self.use_running_fleet {
             self.use_running_fleet = true;
+            self.dirty = true;
+        }
+    }
+
+    /// Where the window was left.
+    pub fn window(&self) -> Option<crate::desktop::window::Frame> {
+        self.window
+    }
+
+    pub fn save_window(&mut self, frame: crate::desktop::window::Frame) {
+        if self.window != Some(frame) {
+            self.window = Some(frame);
             self.dirty = true;
         }
     }
