@@ -181,6 +181,9 @@ pub struct SettingsNav {
     /// The Bun Mods run on and the install, read from the machine shown while Plugins is open.
     pub mods_runtime: crate::fleet::settings::mods_runtime::ModsRuntime,
     pub memory_ui: crate::fleet::settings::memory_notes::MemoryUi,
+    /// What API keys read from the machine shown, and the forms' secrets, while the page is open. Boxed: its five text boxes
+    /// would make `State` bigger, and `State` is built and moved on the main thread, whose stack on Windows is 1 MB.
+    pub credentials: Box<crate::fleet::settings::credentials::CredentialsPage>,
     /// What the Built-in skills page read from the machine shown, while it is open.
     pub built_in: crate::fleet::settings::built_in_skills::BuiltInPage,
     /// The skill Editor and History dialogs; each opens from Settings' Edit and History, the Editor also from Improve.

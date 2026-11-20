@@ -2126,3 +2126,10 @@ whole-file work that piece R can make incremental (colour from the edited line, 
   only quits the app starts itself can ask first.
 - **`Tx::open_url` takes `http`, `https` and `mailto` only**, which is exactly Fleet's desktop link rule; opening a folder (Open logs)
   needs the system's opener on a thread.
+
+## Settings → API keys (component 16, piece AO)
+
+- **A border that changes on hover** can't be drawn with `.border()` plus `.hover()` (hover changes the fill only). Draw the border as an outer box filled with the border colour and 1px of padding, with `.hover(..)` on it, around an inner box with the real fill (`credentials_form::ringed`).
+- **A secure `TextEdit` in a list of forms**: keep one per secret in the page's state, replace it with a fresh `TextEdit::new(..).secure()` to wipe it, and derive `PartialEq` for the page (`TextEdit` has it) so `SettingsNav`'s derive still holds.
+- **A test build of the crate now peaks near 4.9 GB** (rustc, lib test), above the 4000M cap; run it under `-p MemoryMax=5500M` and give the unit `-p LimitNOFILE=65536`, or fake-server tests fail with "Too many open files".
+- **`State` size matters on Windows**: adding the API keys page's five text boxes to `State` made the app overflow the main thread's 1 MB stack at start (CI's web walk, "has overflowed its stack", exit 127) though every test passed. The page is boxed in `SettingsNav`; box the next big page state too.

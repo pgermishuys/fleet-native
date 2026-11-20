@@ -120,7 +120,7 @@ fn puts_a_chip_beside_the_title_naming_the_machine_or_this_app() {
     rt.update(|s, _| s.machines.set_current("m-falcon"));
     pick(&mut rt, "m-harbor");
     assert_eq!(words(&rt, "settings-machine-chip"), "harbor");
-    assert!(rt.find("settings-not-yet").is_some(), "a machine page not built yet still says so, with the chip");
+    assert!(rt.find("credentials-section").is_some(), "a machine page draws its own page, with the chip");
     assert!(rt.find("settings-machine-later").is_none());
     for page in ["appearance", "machines"] {
         rt.update(move |s, _| s.open_settings(page, None));

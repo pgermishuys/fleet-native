@@ -13,6 +13,7 @@ pub mod changes;
 pub mod code_edit;
 pub mod context;
 pub mod context_tab;
+pub mod credentials;
 #[cfg(test)]
 pub mod diffs;
 pub mod dreaming;

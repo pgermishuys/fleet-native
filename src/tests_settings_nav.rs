@@ -153,11 +153,14 @@ fn a_menu_entry_opens_its_page_with_its_title_and_line_and_the_note() {
         assert_eq!(rt.state.settings.page, page);
         let words: String = rt.elements().iter().filter_map(|e| e.text.clone()).collect();
         assert!(words.contains(page.title()) && words.contains(page.line()), "{}", page.title());
-        // Memory (piece P), Folders (piece AA), What agents can do (piece M) and Skills & tools (piece AG) and Plugins (piece AD) are built; the others still say so.
+        // Memory (piece P), Folders (piece AA), What agents can do (piece M) and Skills & tools (piece AG), Plugins (piece AD) and API keys (piece AO) are built; the others still say so.
         let says_not_yet = words.contains(&format!("{} isn't in the native app yet.", page.title()));
         assert_eq!(
             says_not_yet,
-            !matches!(page, Page::Memory | Page::Folders | Page::Permissions | Page::Updates | Page::Skills | Page::Plugins),
+            !matches!(
+                page,
+                Page::Memory | Page::Folders | Page::Permissions | Page::Updates | Page::Skills | Page::Plugins | Page::Credentials
+            ),
             "{}",
             page.title()
         );

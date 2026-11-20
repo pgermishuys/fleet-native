@@ -10,6 +10,8 @@ pub mod appearance;
 pub mod browser;
 pub mod built_in_skills;
 pub mod code_themes;
+pub mod credentials;
+pub mod credentials_actions;
 pub mod dream_nightly;
 pub mod dream_nightly_actions;
 pub mod dreaming;

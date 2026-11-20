@@ -212,6 +212,8 @@ mod tests_settings_browser;
 #[cfg(test)]
 mod tests_settings_built_in;
 #[cfg(test)]
+mod tests_settings_credentials;
+#[cfg(test)]
 mod tests_settings_dreaming;
 #[cfg(test)]
 mod tests_settings_general;
@@ -1612,6 +1614,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_summary(now, tx)
         | s.keep_settings_anchor(tx)
         | s.keep_memory(tx)
+        | s.keep_credentials(tx)
         | s.keep_mods_runtime(tx)
         | s.keep_skills(tx)
         | s.keep_built_in(tx)
@@ -2465,6 +2468,42 @@ pub fn spec() -> AppSpec<State> {
             ("settings-plugins-none-light", |s| {
                 use view::settings::plugins_scene::{Look, scene};
                 scene(s, Look { dark: false, page: "plugins", off: &[], mods_on: false, status: None, none_installed: true })
+            }),
+            ("settings-api-keys-empty", |s| {
+                view::settings::credentials_scene::scene(s, true, view::settings::credentials_scene::Which::Empty)
+            }),
+            ("settings-api-keys-empty-light", |s| {
+                view::settings::credentials_scene::scene(s, false, view::settings::credentials_scene::Which::Empty)
+            }),
+            ("settings-api-keys-list", |s| {
+                view::settings::credentials_scene::scene(s, true, view::settings::credentials_scene::Which::List)
+            }),
+            ("settings-api-keys-list-light", |s| {
+                view::settings::credentials_scene::scene(s, false, view::settings::credentials_scene::Which::List)
+            }),
+            ("settings-api-keys-form", |s| {
+                view::settings::credentials_scene::scene(s, true, view::settings::credentials_scene::Which::Form)
+            }),
+            ("settings-api-keys-form-light", |s| {
+                view::settings::credentials_scene::scene(s, false, view::settings::credentials_scene::Which::Form)
+            }),
+            ("settings-api-keys-edit", |s| {
+                view::settings::credentials_scene::scene(s, true, view::settings::credentials_scene::Which::Edit)
+            }),
+            ("settings-api-keys-edit-light", |s| {
+                view::settings::credentials_scene::scene(s, false, view::settings::credentials_scene::Which::Edit)
+            }),
+            ("settings-api-keys-loading", |s| {
+                view::settings::credentials_scene::scene(s, true, view::settings::credentials_scene::Which::Loading)
+            }),
+            ("settings-api-keys-loading-light", |s| {
+                view::settings::credentials_scene::scene(s, false, view::settings::credentials_scene::Which::Loading)
+            }),
+            ("settings-api-keys-failed", |s| {
+                view::settings::credentials_scene::scene(s, true, view::settings::credentials_scene::Which::Failed)
+            }),
+            ("settings-api-keys-failed-light", |s| {
+                view::settings::credentials_scene::scene(s, false, view::settings::credentials_scene::Which::Failed)
             }),
             ("settings-github-checking", |s| view::settings::github_scene::scene(s, true, view::settings::github_scene::Which::Checking)),
             ("settings-github-checking-light", |s| {
