@@ -125,6 +125,10 @@ impl State {
         let st = self.side_state(session);
         st.loading = false;
         let Ok(found) = result else { return };
+        // A question asked (or answered) meanwhile already knows better: its answer sets `loaded`.
+        if st.loaded {
+            return;
+        }
         if !st.asking {
             st.side = found.side;
         }
