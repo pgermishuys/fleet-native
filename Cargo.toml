@@ -43,6 +43,10 @@ alacritty_terminal = "0.26"
 # through wry, built for all three systems; no new crate.
 url = "2"
 
+# The tray's icon (`src/desktop/tray.rs`): `assets/tray.png` decoded to the pixels Rune's tray takes. Rune builds this same
+# version already, so Cargo.lock gains no crate.
+png = "0.18"
+
 # The system web view (WebView2, WKWebView, WebKitGTK) as a child of the window, for page canvases (component 14, `src/web/`).
 # `--no-default-features` builds without it: every page then shows the "can't be shown inside the app" panel.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

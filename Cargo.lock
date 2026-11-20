@@ -1214,6 +1214,7 @@ dependencies = [
  "flate2",
  "gtk",
  "libc",
+ "png 0.18.1",
  "regex",
  "rune",
  "rune-kit",

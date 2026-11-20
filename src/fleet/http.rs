@@ -87,6 +87,14 @@ pub fn delete(base: &str, path: &str) -> Result<Value, String> {
     read(agent().delete(url(base, path)).call())
 }
 
+/// `GET /api/desktop/status` (`DesktopEndpoints.cs`) within two seconds: how many sessions are working in the Fleet this app
+/// started. 0 on any failure and when the field is missing or not a number, as `workingSessions()` in `main.ts` reads it:
+/// a Fleet that can't be asked is a Fleet to close without a question.
+pub fn desktop_working(base: &str) -> usize {
+    let Ok(body) = read(agent_for(2).get(url(base, "/api/desktop/status")).call()) else { return 0 };
+    body.get("workingSessions").and_then(Value::as_u64).map_or(0, |n| n as usize)
+}
+
 /// `GET /readyz` within `timeout`: whether the Fleet at `base` is up (any 2xx).
 pub fn ready(base: &str, timeout: Duration) -> bool {
     let agent: ureq::Agent = builder().timeout_global(Some(timeout)).build().into();

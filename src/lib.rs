@@ -710,6 +710,8 @@ pub struct State {
     pub live: bool,
     /// Starting Fleet from the app: the splash, the error page and the server it owns (`desktop::start`).
     pub start: desktop::start::StartState,
+    /// Closing, quitting and the tray (component 24, piece E).
+    pub close: desktop::close::CloseState,
     /// The rule that lands the first `/` of a start on Mission control (component 9, piece C).
     pub landing: fleet::dashboard::Landing,
     /// What the home page keeps while it is shown: another machine's sessions, "Show N more" (piece E).
@@ -940,6 +942,7 @@ impl Default for State {
             searching: false,
             no_fleet: false,
             start: desktop::start::StartState::new(STARTING.load(std::sync::atomic::Ordering::Relaxed)),
+            close: Default::default(),
             live: false,
             landing: fleet::dashboard::Landing::at_start(true),
             dash: Default::default(),
@@ -5349,6 +5352,11 @@ pub fn spec() -> AppSpec<State> {
             ("message-file-links-light", |s| s.show_message_file_links(false, false)),
             ("message-file-links-open", |s| s.show_message_file_links(true, true)),
             ("message-file-links-open-light", |s| s.show_message_file_links(false, true)),
+            // Component 24, piece E: the question before the app quits with sessions working.
+            ("quit-dialog", |s| s.show_quit_dialog(true, 2)),
+            ("quit-dialog-light", |s| s.show_quit_dialog(false, 2)),
+            ("quit-dialog-one", |s| s.show_quit_dialog(true, 1)),
+            ("quit-dialog-one-light", |s| s.show_quit_dialog(false, 1)),
         ],
         fonts: &[include_bytes!("../assets/fonts/InterVariable.ttf"), include_bytes!("../assets/fonts/JetBrainsMono-Variable.ttf")],
         families: ("Inter", "JetBrains Mono"),
@@ -5432,6 +5440,10 @@ pub fn start_desktop() {
         .on_visibility(|s, visible, tx| {
             s.each_link(|link| link.window_visible(visible));
             s.quiet.visible = visible;
+            if visible {
+                // However the window came back, the tray icon has done its work (`showWindow`).
+                s.window_visible();
+            }
             s.keep_notices(s.clock, tx);
         })
         // A Fleet this app started goes with it: its input closes (the server stops by itself), and a thread waits for it.
@@ -5441,10 +5453,22 @@ pub fn start_desktop() {
                 rune::exit_deadline(std::time::Duration::from_secs(25));
             }
         });
+    // Closing the window doesn't end the app: `window_closed` decides (macOS: the Dock; elsewhere: quit, or the tray while the
+    // Fleet it started has sessions working). A picture or a scripted run has no window to close.
+    let app = if headless { app } else { app.keep_running().on_close(|s, tx| s.window_closed(tx)) };
     // The window's native handle, for the web views laid over page tabs (`web::platform`). Headless runs never get one.
     #[cfg(all(feature = "web", not(target_arch = "wasm32")))]
     let app = app.on_window(web::platform::on_window);
     let handle = app.handle();
+    if !headless {
+        let post = Post::from_handle(handle.clone());
+        let surface: std::sync::Arc<dyn desktop::close::Surface> =
+            std::sync::Arc::new(desktop::tray::Real::new(handle.clone(), post.clone()));
+        handle.update(move |s, _| {
+            s.close.surface = Some(surface);
+            s.close.post = Some(post);
+        });
+    }
     #[cfg(all(feature = "web", not(target_arch = "wasm32")))]
     {
         web::platform::set_app(handle.clone());

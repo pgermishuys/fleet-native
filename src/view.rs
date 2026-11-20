@@ -100,6 +100,7 @@ pub mod project_menu;
 mod prose;
 pub mod question;
 pub mod queued;
+pub mod quit_dialog;
 pub mod rail;
 mod reasoning;
 mod recap;

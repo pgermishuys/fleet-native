@@ -322,7 +322,7 @@ impl Drop for Scratch {
     }
 }
 
-fn options(scratch: &Scratch, mode: &str) -> Options {
+pub(super) fn options(scratch: &Scratch, mode: &str) -> Options {
     let mut options = Options::new(fake_binary(), scratch.0.join("content"), scratch.data(), scratch.log());
     options.preferred_ports = vec![];
     options.env.push(("FAKE_FLEET_MODE".into(), mode.into()));

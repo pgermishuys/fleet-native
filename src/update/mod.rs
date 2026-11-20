@@ -165,6 +165,21 @@ fn work_dir() -> PathBuf {
     crate::composer::drafts::app_dir(|k| std::env::var(k).ok()).unwrap_or_else(std::env::temp_dir).join("update")
 }
 
+/// How long the Fleet this app started has to stop before it is asked, then killed (`Stopper::stop`).
+const STOP_GRACE: Duration = Duration::from_secs(20);
+
+/// Takes the Fleet this app started out of the state and stops it, waiting until it is gone. On the calling thread, which
+/// is never the UI thread: the state hands the server over, the thread waits. Nothing happens when the app started none.
+pub(crate) fn stop_owned_fleet(post: &Post, grace: Duration) {
+    let (send, hear) = std::sync::mpsc::channel();
+    post.update(move |s, _| {
+        let _ = send.send(s.start.owned.take());
+    });
+    if let Ok(Some(owned)) = hear.recv() {
+        owned.stop(grace);
+    }
+}
+
 fn run_update(post: Post, asset: Asset) {
     let fail = |post: &Post, e: String| post.update(move |s, _| s.update.phase = Phase::Failed(e));
     let exe = match std::env::current_exe() {
@@ -188,7 +203,11 @@ fn run_update(post: Post, asset: Asset) {
         });
     };
     match install::apply(&base, &asset, &exe, &work_dir(), &mut progress) {
-        Ok(Done::Relaunch(how)) => post.update(move |s, tx| s.update_restart(tx, how)),
+        Ok(Done::Relaunch(how)) => {
+            // The new process must not find a Fleet that is still stopping (`installUpdate`: `await server?.stop()`).
+            stop_owned_fleet(&post, STOP_GRACE);
+            post.update(move |s, tx| s.update_restart(tx, how))
+        }
         Ok(Done::Manual { why, .. }) => post.update(move |s, _| s.update.phase = Phase::Manual { why }),
         Err(e) => {
             let _ = std::fs::remove_dir_all(work_dir());
