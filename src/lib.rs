@@ -6,6 +6,7 @@ pub mod asks;
 mod bench;
 pub mod composer;
 pub mod conv;
+pub mod desktop;
 pub mod fleet;
 mod icons;
 mod mock;

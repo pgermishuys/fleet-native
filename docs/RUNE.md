@@ -2133,3 +2133,12 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **A secure `TextEdit` in a list of forms**: keep one per secret in the page's state, replace it with a fresh `TextEdit::new(..).secure()` to wipe it, and derive `PartialEq` for the page (`TextEdit` has it) so `SettingsNav`'s derive still holds.
 - **A test build of the crate now peaks near 4.9 GB** (rustc, lib test), above the 4000M cap; run it under `-p MemoryMax=5500M` and give the unit `-p LimitNOFILE=65536`, or fake-server tests fail with "Too many open files".
 - **`State` size matters on Windows**: adding the API keys page's five text boxes to `State` made the app overflow the main thread's 1 MB stack at start (CI's web walk, "has overflowed its stack", exit 127) though every test passed. The page is boxed in `SettingsNav`; box the next big page state too.
+
+## Component 24, piece A (the server process)
+
+- Nothing of Rune's is used here; what was learned is about the test setup. A test binary can't be its own fake server: libtest
+  refuses an argument it doesn't know (`--urls`), so the process tests compile `examples/fake_fleet.rs` with `rustc` on their
+  first start. `cargo test` builds no example for a library crate's unit tests, so there is no binary to find beside the test.
+- The lib's test build peaks near 3.9 GB: under `MemoryMax=4000M` the kernel kills it (it shows as "Terminated", exit 143, with
+  no message). Use `-j2` and a larger cap for it.
+

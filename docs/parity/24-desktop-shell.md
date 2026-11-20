@@ -131,33 +131,33 @@ No event tells the app the window moved or was resized; a piece polls `placement
 | # | Row | Source | Native | Owner |
 |---|---|---|---|---|
 | 24.1 | Data folder: `FLEET_DESKTOP_DATA_DIR` or `~/.weave`; database `fleet.db`, instance file `fleet.instance.json` beside it | PA `resolvePaths`; DT "shares ~/.weave with CLI installs", "takes overrides for scratch runs" | Done (`instance::data_dir`) | — |
-| 24.2 | Server binary: an override (`FLEET_DESKTOP_SERVER_BIN`, content root `FLEET_DESKTOP_SERVER_CONTENT_ROOT` or the binary's folder) | PA; DT "takes overrides for scratch runs" | None | 24 A |
-| 24.3 | Packaged: `<resources>/fleet/WeaveFleet.Api`, content root that folder; `.exe` on Windows | PA; DT "uses the bundled server when packaged", "names the Windows binary with .exe" | None (no bundle until 25) | 24 A (the path), 25 (the bundle) |
+| 24.2 | Server binary: an override (`FLEET_DESKTOP_SERVER_BIN`, content root `FLEET_DESKTOP_SERVER_CONTENT_ROOT` or the binary's folder) | PA; DT "takes overrides for scratch runs" | Done (`desktop::paths`: `FLEET_NATIVE_SERVER_BIN`, then Fleet's `FLEET_DESKTOP_SERVER_BIN`; an override stands alone) | — |
+| 24.3 | Packaged: `<resources>/fleet/WeaveFleet.Api`, content root that folder; `.exe` on Windows | PA; DT "uses the bundled server when packaged", "names the Windows binary with .exe" | Path done (`<exe dir>/fleet/`, mac `Contents/Resources/fleet`); no bundle until 25 | 25 (the bundle) |
 | 24.4 | Development: the repository's Release build `src/WeaveFleet.Api/bin/Release/net10.0/<rid>/` | PA; DT "uses the repo's Release build in development" | n/a: the native app isn't built inside weave-fleet; the override covers it | — |
-| 24.5 | The other installs (decision 1): CLI install, Fleet's desktop app's copy, `fleet` on PATH | native only | None | 24 A |
-| 24.6 | No binary anywhere: "Fleet isn't where the app expects it: <path>" (native: the places it looked) | SRV `launch` | None | 24 A (words), 24 B (page) |
+| 24.5 | The other installs (decision 1): CLI install, Fleet's desktop app's copy, `fleet` on PATH | native only | Done (`desktop::paths::candidates`: beside the app, CLI install, Fleet's own app, `fleet` on PATH) | — |
+| 24.6 | No binary anywhere: "Fleet isn't where the app expects it: <path>" (native: the places it looked) | SRV `launch` | Words done (`paths::not_found_message`, one place: Fleet's sentence; several: the list); page in B | 24 B (page) |
 
 ### 2. Starting, watching and stopping it (SRV, MAIN `connect`)
 
 | # | Row | Source | Native | Owner |
 |---|---|---|---|---|
 | 24.10 | Look first: a Fleet already running on this data is used, never a second (`findRunningFleet`) | MAIN `connect` | Done (discovery, more places than Fleet) | — |
-| 24.11 | Environment: the app's own minus `ELECTRON_*`, `URLS`, `ASPNETCORE_URLS`, `DOTNET_URLS`, `ASPNETCORE_ENVIRONMENT` (case-insensitive), plus `ASPNETCORE_ENVIRONMENT=Production`, `Fleet__Host=127.0.0.1` (load-bearing: loopback sign-in), `Fleet__Port`, `Fleet__DatabasePath`, `Fleet__AnalyticsDatabasePath` (`fleet-analytics.db`), `Fleet__DataProtection__KeyPath` (`fleet-keys`, created first), `Fleet__Desktop__Enabled=true`. Native also drops `FLEET_NATIVE_TOKEN` | SRV `buildServerEnv`; DT "runs Fleet in desktop mode…", "drops Electron's variables…" | None | 24 A |
-| 24.12 | Arguments `--urls http://127.0.0.1:<port> --contentRoot <root>`, working folder the data folder, stdio all piped, no console window on Windows (`windowsHide`: `CREATE_NO_WINDOW`) | SRV `launch` | None | 24 A |
-| 24.13 | Port: the one used last time if free (keeps the client's local storage; for native, its settings) else 6262 else any free one. "Free" = nothing accepts a loopback connect within 1 s **and** a 127.0.0.1 bind succeeds (Windows binds beside a 0.0.0.0 holder) | SRV `pickPort`, `canListen`; MAIN `DEFAULT_PORT`; DT "ports" ×3 | None | 24 A |
-| 24.14 | Ready: `/readyz` every 250 ms (1 s timeout each) for up to 60 s; stops waiting if the process exits | SRV `waitUntilReady`, INS `isReady` | `http::ready` exists | 24 A |
+| 24.11 | Environment: the app's own minus `ELECTRON_*`, `URLS`, `ASPNETCORE_URLS`, `DOTNET_URLS`, `ASPNETCORE_ENVIRONMENT` (case-insensitive), plus `ASPNETCORE_ENVIRONMENT=Production`, `Fleet__Host=127.0.0.1` (load-bearing: loopback sign-in), `Fleet__Port`, `Fleet__DatabasePath`, `Fleet__AnalyticsDatabasePath` (`fleet-analytics.db`), `Fleet__DataProtection__KeyPath` (`fleet-keys`, created first), `Fleet__Desktop__Enabled=true`. Native also drops `FLEET_NATIVE_TOKEN` | SRV `buildServerEnv`; DT "runs Fleet in desktop mode…", "drops Electron's variables…" | Done (`desktop::server::server_env`) | — |
+| 24.12 | Arguments `--urls http://127.0.0.1:<port> --contentRoot <root>`, working folder the data folder, stdio all piped, no console window on Windows (`windowsHide`: `CREATE_NO_WINDOW`) | SRV `launch` | Done (`desktop::server`: `--urls`, `--contentRoot`, cwd the data folder, piped stdio, `CREATE_NO_WINDOW`) | — |
+| 24.13 | Port: the one used last time if free (keeps the client's local storage; for native, its settings) else 6262 else any free one. "Free" = nothing accepts a loopback connect within 1 s **and** a 127.0.0.1 bind succeeds (Windows binds beside a 0.0.0.0 holder) | SRV `pickPort`, `canListen`; MAIN `DEFAULT_PORT`; DT "ports" ×3 | Done (`pick_port`, `can_listen`; preferred ports are a list, the caller passes the remembered one then 6262) | — |
+| 24.14 | Ready: `/readyz` every 250 ms (1 s timeout each) for up to 60 s; stops waiting if the process exits | SRV `waitUntilReady`, INS `isReady` | Done (the supervisor looks every 250 ms, 1 s each, 60 s; stops at the exit) | — |
 | 24.15 | Ready → remember the port, connect the app to it, marked *owned* | MAIN `onServerEvent` "ready" | None | 24 B |
-| 24.16 | Exit code 75 (another Fleet took the data first) → look for that Fleet every 500 ms for 30 s and use it; else "Another Fleet is using your data, but it isn't answering." | SRV exit; MAIN "taken" | None | 24 A (event), 24 B (wiring, words) |
-| 24.17 | Crash → restart: at once the first time in a minute, then 1 s, 2 s, 4 s; the fifth crash in a minute gives up: "Fleet keeps stopping unexpectedly." | SRV `restartDelay`; DT "restarts" ×3 | None | 24 A |
-| 24.18 | Never answered within 60 s while running → "Fleet started but never answered." | SRV | None | 24 A |
-| 24.19 | Spawn failure → "Couldn't start Fleet: <error>" and a log line `── could not start Fleet: …` | SRV | None | 24 A |
-| 24.20 | Stop: close stdin (the server's `StandardInputWatcher` shuts down cleanly with its agents), wait 20 s, then SIGTERM, 5 s, SIGKILL (Windows: terminate) | SRV `stop` | None | 24 A |
+| 24.16 | Exit code 75 (another Fleet took the data first) → look for that Fleet every 500 ms for 30 s and use it; else "Another Fleet is using your data, but it isn't answering." | SRV exit; MAIN "taken" | Event done (`Event::Taken`, no restart after it); wiring and words in B | 24 B (wiring, words) |
+| 24.17 | Crash → restart: at once the first time in a minute, then 1 s, 2 s, 4 s; the fifth crash in a minute gives up: "Fleet keeps stopping unexpectedly." | SRV `restartDelay`; DT "restarts" ×3 | Done (`restart_delay`; `Event::Restarting`, then `Failed`) | — |
+| 24.18 | Never answered within 60 s while running → "Fleet started but never answered." | SRV | Done (`Event::Failed`) | — |
+| 24.19 | Spawn failure → "Couldn't start Fleet: <error>" and a log line `── could not start Fleet: …` | SRV | Done (`Event::Failed`, log line) | — |
+| 24.20 | Stop: close stdin (the server's `StandardInputWatcher` shuts down cleanly with its agents), wait 20 s, then SIGTERM, 5 s, SIGKILL (Windows: terminate) | SRV `stop` | Done (`FleetServer::stop`: stdin, grace, SIGTERM, 5 s, kill; Windows: stdin, then terminate) | — |
 | 24.21 | The app dying any way at all closes the pipe, so the server stops by itself and frees the lock (`scripts/smoke.mjs` kills the app and checks) | server `StandardInputWatcher`; smoke | None | 24 B (checked live) |
 | 24.22 | Stopped only if the app started it; a Fleet it found keeps running after quit | MAIN `before-quit`, `fleet.owned` | n/a today (never starts one) | 24 B |
-| 24.23 | Log file (decision 6): header line per start, stdout and stderr appended, exit line, rotate to `.1` past 10 MB | SRV `openLog` | None | 24 A |
+| 24.23 | Log file (decision 6): header line per start, stdout and stderr appended, exit line, rotate to `.1` past 10 MB | SRV `openLog` | Done (`desktop::log`) | — |
 | 24.24 | A restart after a crash fires "ready" again with the same URL; the app doesn't reload a window already on it | MAIN "ready" | None | 24 B |
-| 24.25 | Restarting: log `Fleet stopped (exit code N); restarting in M ms.` | MAIN "restarting" | None | 24 A |
-| 24.26 | Off the UI thread: spawning, waiting, reading output, stopping | AGENTS.md | — | 24 A |
+| 24.25 | Restarting: log `Fleet stopped (exit code N); restarting in M ms.` | MAIN "restarting" | Done as the event (`Event::Restarting`); the log line is the app's to write in B | — |
+| 24.26 | Off the UI thread: spawning, waiting, reading output, stopping | AGENTS.md | Done (one supervisor thread; the app reads a channel) | — |
 
 ### 3. The start pages (`static/`, MAIN `showPage`, `showError`)
 
@@ -366,7 +366,9 @@ real window under Xvfb. Live checks use a scratch data folder (`FLEET_DESKTOP_DA
 the scratch folder, HOME there too), the released server binary, and their own ports; never the owner's Fleet, never
 6262, and stop only processes the check started.
 
-### Piece A: start its own Fleet: the server process (first: the owner's daily use)
+### Piece A: start its own Fleet: the server process (first: the owner's daily use) — **done, 20 November 2026**
+
+**Built:** `src/desktop/{mod,paths,server,log,tests}.rs` and `examples/fake_fleet.rs`; `lib.rs` has `pub mod desktop` only (public so nothing is dead code until B wires it); `test_http.rs`'s fake-server guard lists `desktop/server.rs` (it binds only to find a free port). **Differences from the plan:** the fake server is a separate std-only program compiled by the tests with `rustc` on their first start, not the test binary itself: libtest refuses the `--urls` argument, and `cargo test` builds no example (see `docs/RUNE.md`). The live check is an `#[ignore]`d test (`live_server_starts_answers_and_stops_with_the_input`): against the released v0.72.0 server on a scratch HOME and data folder it reached `/readyz`, wrote an instance file with `desktop: true`, answered `/api/desktop/status`, and stopped in 0.03 s when its input closed, with the instance file removed. **Not here:** the remembered port (B keeps it in `settings.json` and passes it in `Options::preferred_ports`), the login shell's PATH (C), the Windows and macOS runs (CI only; `CREATE_NO_WINDOW`, terminate and the `.app` places are written but not run by hand).
 
 - **Rows:** 24.2, 24.3 (the path), 24.5, 24.6 (words), 24.11–24.14, 24.16–24.20, 24.23, 24.25, 24.26.
 - **Files:** new `src/desktop/mod.rs`, `src/desktop/paths.rs` (finding the binary, decision 1; pure, takes `get` and an
