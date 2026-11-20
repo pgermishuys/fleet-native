@@ -167,12 +167,15 @@ fn asks_another_machines_status_and_notes_when_settings_shows_it_never_home() {
     let other_base = serve(other.clone());
     let mut r = rig("0.59.0", Some((&other, &other_base)), true);
     assert_eq!(r.rt.state.settings.choice.key(&r.rt.state.machines), "m-harbor");
-    // The rollout read is home's and goes out on its own request, so wait for it too: asserting it was heard
-    // right after harbor's answers raced it on a slow runner.
-    r.wait("harbor's status and notes, and home's rollout", |s| {
+    // Home's rollout and home's status (read for the version this device runs) each go out on their own request, so
+    // wait for both too: asserting they were heard right after harbor's answers raced them on a slow runner. The version
+    // noted is also what would ask home's notes, so the check that they were not asked waits for it.
+    r.wait("harbor's status and notes, home's rollout, and home's status noted", |s| {
         s.updates.status.get("m-harbor").is_some_and(|x| x.status.is_some())
             && s.updates.releases.get("m-harbor").is_some_and(|x| x.loaded)
             && s.updates.rollout.is_some()
+            && s.updates.status.get("home").is_some_and(|x| x.status.is_some())
+            && s.after_update_noted()
     });
     assert_eq!(r.rt.state.updates.status["m-harbor"].status.as_ref().map(|s| s.current_version.as_str()), Some("0.58.0"));
     assert!(r.did(&other, "GET", "/api/update/status") && r.did(&other, "GET", "/api/update/releases"));
