@@ -74,3 +74,21 @@ pub fn local_offset_secs() -> i64 {
     }
     0
 }
+
+/// Seconds east of UTC in the machine's zone at the instant `ms` (unix ms). It differs from `local_offset_secs` when a
+/// daylight-saving change lies between now and `ms`, which a "next run" can cross. 0 where the C library isn't read.
+pub fn local_offset_at(ms: i64) -> i64 {
+    #[cfg(unix)]
+    {
+        let secs = ms.div_euclid(1000) as libc::time_t;
+        // SAFETY: `localtime_r` writes only into the `tm` it is given.
+        unsafe {
+            let mut tm: libc::tm = std::mem::zeroed();
+            if !libc::localtime_r(&secs, &mut tm).is_null() {
+                return tm.tm_gmtoff as i64;
+            }
+        }
+    }
+    let _ = ms;
+    0
+}

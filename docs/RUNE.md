@@ -2324,3 +2324,7 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **`flex-wrap` on a row is `.flex_wrap()`, not `.wrap()`:** `.wrap()` is the text's. It still compiles on a row and does nothing, so a strip of
   chips ran off the edge of its column (piece 18C) until each wrapping row said `.flex_wrap()`. A child that grows inside a wrapping row
   (`.min_w(180.0).grow(1.0)`) fills its line, which is Fleet's `grid-template-columns: repeat(auto-fit, minmax(180px, 1fr))`.
+## Component 19, piece A (the schedule logic)
+
+- **`regex` has no look-ahead, and `(?-u:\b)` is the ASCII word boundary a JavaScript pattern means.** Fleet's `(?![\w'])` is written `(?-u:\b)(?P<e>)`: the empty named group gives the position to check for a `'` by hand. The group is numbered too, so a port that reads groups by number must leave it out.
+- **A debug test build wants `-j1` under `MemoryMax=4000M`:** with the default jobs the kernel killed it at 3.9 GB (the scope reports "Terminated", exit 143, and no compiler error); `cargo test -j1` built in 2m41s inside the cap.
