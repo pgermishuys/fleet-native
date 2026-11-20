@@ -143,7 +143,10 @@ fn body(s: &State, t: &Theme, forked: bool) -> El {
     let (conv, plan) = s.side_conv();
     // Only what follows the boundary shows; with an invented conversation there is nothing before it. Not here (a side conversation's
     // own): the find bar, the page-pick card, "older messages" (rows 3.4, 3.5).
-    let scroll = Scroll { jump: false, probe: Rc::default(), find: None, asks: Vec::new() };
+    // The side session's own permission asks wait in the panel and are answered there; its questions are cards in its messages.
+    let asks = s.side_session_id().map(|id| s.asks.of(&id).to_vec()).unwrap_or_default();
+    let asks = asks.iter().enumerate().map(|(n, ask)| super::permission::card(t, s, ask, n == 0 && s.open_asks().is_empty())).collect();
+    let scroll = Scroll { jump: false, probe: Rc::default(), find: None, asks };
     let stream = stream(t, Which::Side, conv, plan, false, None, scroll);
     col().key("side-body").w_full().grow(1.0).min_h(0.0).child(stream)
 }

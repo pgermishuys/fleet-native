@@ -156,8 +156,19 @@ impl State {
         let Some(stream) = &self.stream else { return };
         // An invented session has no id a server knows; its cards are made all the same, for scenes.
         let session = self.open_id().unwrap_or_default();
+        let made = self.new_question_cards(&session, &stream.messages);
+        self.add_question_cards(made);
+    }
+
+    /// The same for a side conversation's messages (its questions are answered in the panel).
+    pub fn sync_side_questions(&mut self, session: &str, messages: &[crate::fleet::model::Msg]) {
+        let made = self.new_question_cards(session, messages);
+        self.add_question_cards(made);
+    }
+
+    fn new_question_cards(&self, session: &str, messages: &[crate::fleet::model::Msg]) -> Vec<QuestionCard> {
         let mut made = Vec::new();
-        for part in stream.messages.iter().flat_map(|m| &m.parts) {
+        for part in messages.iter().flat_map(|m| &m.parts) {
             let PartData::Tool { id, tool, call_id, state } = part else { continue };
             if get_tool(tool).category != Category::Question {
                 continue;
@@ -167,10 +178,14 @@ impl State {
             let call = if call_id.is_empty() { id } else { call_id };
             if status.is_active() && self.questions.card(call).is_none() {
                 let mut card = QuestionCard::new(call.clone(), input);
-                card.session = session.clone();
+                card.session = session.to_string();
                 made.push(card);
             }
         }
+        made
+    }
+
+    fn add_question_cards(&mut self, made: Vec<QuestionCard>) {
         for card in made {
             self.questions.fresh.push(card.id.clone());
             self.questions.cards.push(card);

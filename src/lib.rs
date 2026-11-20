@@ -1787,7 +1787,7 @@ fn poll_rest(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         return true;
     }
     let aged = s.keep_row_ages(now, tx);
-    let side = s.keep_side(now, tx) | s.keep_side_fold(tx);
+    let side = s.keep_side(now, tx) | s.keep_side_fold(tx) | s.keep_side_stream();
     s.keep_drafts(now, tx);
     let archiving = s.keep_archive(now, tx) | s.keep_lineage(now, tx);
     let picked = s.sync_selection(tx);

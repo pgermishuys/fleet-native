@@ -2247,3 +2247,11 @@ whole-file work that piece R can make incremental (colour from the edited line, 
   button and ignores a press on the scrim. (used)
 - **The test build needs more than 4000M** (5200M here, 20 November 2026): `cargo test` of this crate was OOM-killed at 3.9 G while
   another session's clippy ran.
+
+## Component 15, piece C (the side stream, live)
+
+- **Nothing missing in Rune.** A second conversation is a second `StreamState` in `State` (`SideStreams`), built into a `Session` and a `FoldPlan` the same way `sync_open` builds the open one; the stream view only needed the keys prefixed (piece B).
+- **The link listens to a topic on behalf of a component, with its own hand-over:** `Cmd::WatchSide` marks the topic (`Topics::mark_side`) so the read loop sends its snapshot and events to `State::on_side_snapshot` / `on_side_events` instead of dropping them (a watched topic's snapshot was only recorded) or dispatching them to subscribers. A reconnect subscribes every topic again, so the side's new snapshot replaces its stream.
+- **The test build now needs more than 4000 M** to link and compile the library's tests (the kernel OOM killer took cargo at 3.9 G peak, 20 November 2026, with no message but exit 143): 5500 M passed on this machine.
+- **A fake server that matches `/side` in the path** also catches `/api/sessions/side-1/permissions`; the fake answers `/permissions` first.
+
