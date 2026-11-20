@@ -151,7 +151,7 @@ mod shell {
         let dir = Dir::new("reads");
         let shell = dir.shell(
             "echo 'Last login: today'; echo 'nvm: loaded'",
-            "PATH=/shell/bin:/usr/bin; LANG=en_GB.UTF-8; export PATH LANG; unset LC_ALL",
+            "PATH=/shell/bin:/usr/bin; LANG=en_GB.UTF-8; export PATH LANG; unset LC_ALL HOMEBREW_PREFIX HOMEBREW_CELLAR HOMEBREW_REPOSITORY",
         );
         let got = read(&shell);
         assert_eq!(got.get("PATH").map(String::as_str), Some("/shell/bin:/usr/bin"));
