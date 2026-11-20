@@ -20,7 +20,7 @@ pub fn composer(s: &State, t: &Theme, _session: &Session) -> El {
     let mode = mode_of(&s.draft.text, &s.caps(), s.side_open);
     let mut outer = col().key("composer-section").label("Message composer").w_full().pt(4.0).px(24.0).pb(18.0).items_center();
     // The first of the send errors, then the pasted-file one (`sendError || pasteError`).
-    if let Some(error) = s.composer_error.as_deref().or(s.attach_error()) {
+    if let Some(error) = s.side_error().or(s.composer_error.as_deref()).or(s.attach_error()) {
         outer = outer.child(error_box(t, "send-prompt-error", error));
     }
     if let Some(strip) = super::work::strip(s, t) {

@@ -757,7 +757,9 @@ fn the_composer_reads_only_state_and_the_side_conversation_changes_the_frame_and
         s.draft = TextEdit::new("what is this?");
         submit(s, tx, false);
     });
-    assert_eq!(rt.state.draft.text, "what is this?", "the draft stays until the side conversation exists");
+    // With no server the side conversation is made at once (piece A of component 15), so the draft goes to it.
+    assert_eq!(rt.state.draft.text, "");
+    assert!(rt.state.sides.values().any(|s| s.side.is_some()));
 }
 
 /// Piece 3E: `MessageBubble.*.test.ts` (command, attached files, meta pill) as clicks and finds on the drawn frame.

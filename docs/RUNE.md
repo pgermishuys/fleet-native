@@ -2157,3 +2157,8 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - A sliding bar inside a fixed box: `row().clip_rounded(r)` with a child `.offset(x, 0.0)` clips as CSS `overflow: hidden` does; drive `x` from `State::clock` and keep the poll asking for frames (`tx.wake_after`) only while it shows.
 - Rune can't ask for the system's reduced-motion setting, so the splash always moves.
 - The lib's test build peaked near 3.9 GB again and was OOM-killed at 4000M; 6000M worked.
+## Component 15, piece A (the side conversation's state and routes)
+
+- **Nothing new from Rune.** The state is plain Rust (`fleet/side.rs`) with the clock passed in, so an Undo window is tested by running the headless clock (`rt.frame(9.0)`), not by waiting.
+- **Test fakes that keep state** (a side conversation that a `DELETE` moves to "discarded" and a `POST /restore` brings back) are small enough to write per file over `test_http`; the fake records `(method, route, body)` and a test waits for the call it means before asserting.
+- **`cargo test` needs `-j1` at the 4000M cap** (the default two rustc were OOM-killed, exit 143, no message) and takes about 5 minutes for the lib's test build.
