@@ -148,6 +148,13 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
         None => Vec::new(),
         Some(Open::Palette) => palette::view(s, t),
         Some(Open::TextMenu) => text_menu::overlay(s, t),
+        // A role's menu from the Run box draws the popover it opened from; from the dialog it is drawn with the dialog.
+        Some(Open::Menu("wf-model" | "wf-effort")) => match s.workflows_nav.roles.menu {
+            Some(menu) if menu.place == crate::fleet::workflows::roles::Place::RunBox => {
+                crate::view::workflows::roles::run_box_menu(s, t, menu)
+            }
+            _ => Vec::new(),
+        },
         Some(Open::Menu(name)) => menus::dropdown(s, t, name),
         Some(Open::Context(p, i)) => menus::session_context(s, t, p, i),
         Some(Open::ProjectMenu(p)) => menus::project_context(s, t, p),
@@ -186,6 +193,7 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
         Some(Open::Popover("running")) => crate::view::running_counter::overlay(s, t),
         Some(Open::Popover("pr")) => crate::view::pr_popover::overlay(s, t),
         Some(Open::Popover("analytics")) => crate::view::analytics::overlay(s, t),
+        Some(Open::Popover("workflow-models")) => crate::view::workflows::roles::popover(s, t),
         Some(Open::Popover("workflow-project")) => crate::view::workflows::project_picker::overlay(s, t),
         Some(Open::Popover("more")) => crate::view::more_options::overlay(s, t),
         Some(Open::Popover(name)) => gallery::popover_content(s, t, name),
@@ -235,6 +243,7 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
     }
     if s.rail == crate::Rail::Workflows {
         layer.extend(crate::view::workflows::list::overlay(s, t));
+        layer.extend(crate::view::workflows::roles::overlay(s, t));
     }
     if let Some(wizard) = crate::view::harness_setup::dialog(s, t) {
         layer.extend(wizard);

@@ -347,6 +347,8 @@ mod tests_window;
 #[cfg(test)]
 mod tests_workflow_detail;
 #[cfg(test)]
+mod tests_workflow_roles;
+#[cfg(test)]
 mod tests_workflow_run_box;
 #[cfg(test)]
 mod tests_workflow_runs;
@@ -2596,6 +2598,16 @@ pub fn spec() -> AppSpec<State> {
             ("workflow-run-box-starting-light", |s| s.show_run_box(false, mock::workflows::RunBoxScene::Starting)),
             ("workflow-run-box-refused", |s| s.show_run_box(true, mock::workflows::RunBoxScene::Refused)),
             ("workflow-run-box-refused-light", |s| s.show_run_box(false, mock::workflows::RunBoxScene::Refused)),
+            ("workflow-roles", |s| s.show_roles(true, mock::workflows::RolesScene::Dialog)),
+            ("workflow-roles-light", |s| s.show_roles(false, mock::workflows::RolesScene::Dialog)),
+            ("workflow-roles-no-harness", |s| s.show_roles(true, mock::workflows::RolesScene::NoHarness)),
+            ("workflow-roles-no-harness-light", |s| s.show_roles(false, mock::workflows::RolesScene::NoHarness)),
+            ("workflow-roles-menu", |s| s.show_roles(true, mock::workflows::RolesScene::Menu)),
+            ("workflow-roles-menu-light", |s| s.show_roles(false, mock::workflows::RolesScene::Menu)),
+            ("workflow-run-models", |s| s.show_roles(true, mock::workflows::RolesScene::Popover)),
+            ("workflow-run-models-light", |s| s.show_roles(false, mock::workflows::RolesScene::Popover)),
+            ("workflow-run-models-changed", |s| s.show_roles(true, mock::workflows::RolesScene::PopoverChanged)),
+            ("workflow-run-models-changed-light", |s| s.show_roles(false, mock::workflows::RolesScene::PopoverChanged)),
             ("workflow-detail", |s| s.show_workflows(true, mock::workflows::Scene::Detail)),
             ("workflow-detail-light", |s| s.show_workflows(false, mock::workflows::Scene::Detail)),
             ("workflow-detail-errors", |s| s.show_workflows(true, mock::workflows::Scene::DetailErrors)),

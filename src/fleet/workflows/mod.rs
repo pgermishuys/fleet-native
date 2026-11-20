@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 pub mod detail;
 pub mod helpers;
 pub mod nav;
+pub mod roles;
 pub mod run_box;
 pub mod runs;
 

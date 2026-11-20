@@ -79,6 +79,11 @@ impl Fake {
         self.heard.lock().unwrap().iter().map(|(m, p, _)| (m.clone(), p.clone())).collect()
     }
 
+    /// The bodies of the requests heard with this method and path, in order.
+    pub(crate) fn bodies(&self, method: &str, path: &str) -> Vec<Value> {
+        self.heard.lock().unwrap().iter().filter(|(m, p, _)| m == method && p == path).map(|(.., b)| b.clone()).collect()
+    }
+
     /// Only the requests about workflows: the hub and the pollers of a link talk to the fake too.
     pub(crate) fn workflow_calls(&self) -> Vec<(String, String, Value)> {
         self.heard.lock().unwrap().iter().filter(|(_, p, _)| p.starts_with("/api/workflows")).cloned().collect()
