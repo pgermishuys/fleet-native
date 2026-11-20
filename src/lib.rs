@@ -1593,6 +1593,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_attachments(tx)
         | s.keep_new_message(tx)
         | s.keep_new_mentions(now, tx);
+    s.keep_focus_report();
     let scrolled = s.keep_scroll(tx)
         | s.keep_review_near()
         | s.keep_review_focus(tx)

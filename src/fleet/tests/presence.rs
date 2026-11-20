@@ -127,6 +127,19 @@ fn focus_is_not_repeated_when_unchanged() {
 }
 
 #[test]
+fn reports_no_focus_while_recaps_and_notifications_are_both_off() {
+    let t0 = Instant::now();
+    let mut p = watching("s1", t0);
+    assert_eq!(p.set_enabled(false), [], "turning it off says nothing");
+    p.focus_changed(false, t0);
+    assert_eq!(p.tick(t0 + FOCUS_SETTLE), [], "a change while off is not reported");
+    assert_eq!(p.snapshot("s2"), [], "nor is a new session's");
+    assert_eq!(p.set_enabled(false), [], "a repeat isn't a change");
+    assert_eq!(p.set_enabled(true), [focus("s2", false)], "turned on, the window says where it is");
+    assert_eq!(p.set_enabled(true), []);
+}
+
+#[test]
 fn says_false_on_leaving_a_session_that_was_looked_at() {
     let t0 = Instant::now();
     let mut p = watching("s1", t0);
@@ -272,6 +285,21 @@ fn the_hub_hears_presence_then_focus_as_the_window_gains_and_loses_focus() {
     link.open("s2");
     // Leaving a session that is already not looked at says nothing; the new one's snapshot reports.
     assert_eq!(hub.next().2, json!(["s2", false]));
+}
+
+#[test]
+fn the_hub_hears_no_focus_while_the_report_is_switched_off() {
+    let hub = hub(false);
+    let link = link(&hub);
+    assert_eq!(hub.next().1, "SetPresenceAsync");
+    assert_eq!(hub.next().1, "SetSessionFocusAsync");
+    link.report_focus(false);
+    link.window_focus(false);
+    link.window_visible(false);
+    // The window leaving the screen is presence, which is always said; the focus call in between is not.
+    assert_eq!(hub.next(), (0, "SetPresenceAsync".into(), json!([false, "desktop"])));
+    link.report_focus(true);
+    assert_eq!(hub.next(), (0, "SetSessionFocusAsync".into(), json!(["s1", false])));
 }
 
 #[test]

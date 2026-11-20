@@ -99,6 +99,26 @@ impl State {
         );
     }
 
+    /// Whether the window should tell home which session it looks at (`enabled` in `use-session-recap.ts`): Session recap
+    /// is on, or Desktop notifications are. Both are this app's own preferences, read from home. Until they are read the
+    /// window reports, as every link starts out doing.
+    pub fn report_focus_wanted(&self) -> bool {
+        !self.pickers.prefs.fetched || SESSION_RECAP.enabled(&self.pickers.prefs) || DESKTOP_NOTIFICATIONS.enabled(&self.pickers.prefs)
+    }
+
+    /// Tells each hub whether to report focus; only a change is sent. Another machine's Session recap switch isn't read
+    /// (the app's preference store is home's), so its hub always reports: that costs nothing but a call and never holds
+    /// a recap back that the person is not looking at.
+    pub fn keep_focus_report(&self) {
+        let wanted = self.report_focus_wanted();
+        if let Some(home) = &self.link {
+            home.report_focus(wanted);
+        }
+        for link in self.links.all() {
+            link.report_focus(true);
+        }
+    }
+
     /// A switch's press (`usePreferenceSwitch.toggle`): ignored while the page waits or the key is saving.
     pub fn toggle_setting(&mut self, switch: Switch) {
         if self.preferences_loading() || self.setting_saving(switch.key) {

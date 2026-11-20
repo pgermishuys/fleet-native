@@ -382,3 +382,20 @@ fn the_groups_are_anchors_a_link_can_scroll_to() {
         assert_eq!(settle(&Page::General, Some(anchor)), Settle::Scroll { key: key.into(), release: true });
     }
 }
+
+/// Component 16 sweep: the window tells the server which session it looks at only while Session recap or Desktop
+/// notifications is on (`use-session-recap.ts`), once the preferences are known.
+#[test]
+fn the_focus_report_follows_session_recap_and_desktop_notifications() {
+    let mut r = unread(&[]);
+    r.rt.update(|s, _| assert!(s.report_focus_wanted(), "reports until the preferences are read"));
+    r.rt.update(|s, _| {
+        s.pickers.prefs.adopt(&json!({}));
+        assert!(!s.report_focus_wanted(), "both off by default");
+        s.pickers.prefs.set(sw::SESSION_RECAP.key, "true");
+        assert!(s.report_focus_wanted());
+        s.pickers.prefs.set(sw::SESSION_RECAP.key, "false");
+        s.pickers.prefs.set(sw::DESKTOP_NOTIFICATIONS.key, "true");
+        assert!(s.report_focus_wanted());
+    });
+}
