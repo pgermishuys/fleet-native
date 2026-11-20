@@ -16,6 +16,7 @@ pub mod gallery;
 pub mod menu;
 pub mod menus;
 pub(crate) mod overlay;
+pub mod page_header;
 pub mod palette;
 pub mod scenes;
 pub mod select;
@@ -227,6 +228,9 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
     }
     if s.rail == crate::Rail::Settings {
         layer.extend(crate::view::settings::machine_header::overlay(s, t));
+    }
+    if s.rail == crate::Rail::Automations {
+        layer.extend(crate::view::automations::list::overlay(s, t));
     }
     if s.rail == crate::Rail::Workflows {
         layer.extend(crate::view::workflows::list::overlay(s, t));

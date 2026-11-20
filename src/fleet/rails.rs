@@ -248,6 +248,9 @@ impl crate::State {
         if rail == Rail::Workflows {
             self.enter_workflows();
         }
+        if rail == Rail::Automations {
+            self.enter_automations();
+        }
         self.rail = rail;
         // Sessions' address is `/`: home, with nothing selected (piece C).
         if self.on_bare_page() || rail == Rail::Sessions {

@@ -11,6 +11,7 @@ pub mod annotation;
 pub mod ask_card;
 pub mod attachments;
 pub mod autocomplete;
+pub mod automations;
 pub mod base_picker;
 pub mod browser_agent_bar;
 pub mod browser_app;
@@ -191,6 +192,13 @@ pub fn root(s: &State, cx: &mut Cx<State>) -> El {
         Rail::Settings => main.child(settings::detail(s, &t).ml(8.0)),
         Rail::Workflows => {
             let mut panes = workflows::page(s, &t).into_iter();
+            if let Some(first) = panes.next() {
+                main = main.child(first.ml(8.0));
+            }
+            main.children(panes)
+        }
+        Rail::Automations => {
+            let mut panes = automations::page(s, &t).into_iter();
             if let Some(first) = panes.next() {
                 main = main.child(first.ml(8.0));
             }

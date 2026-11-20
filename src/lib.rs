@@ -34,6 +34,8 @@ mod tests_archived;
 #[cfg(test)]
 mod tests_asks;
 #[cfg(test)]
+mod tests_automations_page;
+#[cfg(test)]
 mod tests_automations_store;
 #[cfg(test)]
 mod tests_browser;
@@ -552,6 +554,7 @@ pub struct State {
     /// Every machine's automations (`fleet::automations::store`).
     pub automations: fleet::automations::store::Automations,
     /// The Workflows page: its Library, the open workflow, the machine it shows (`fleet::workflows::nav`).
+    pub automations_nav: fleet::automations::nav::Nav,
     pub workflows_nav: fleet::workflows::nav::Nav,
     /// The links to the other machines, started when a session there needs one (`fleet::routing`).
     pub links: fleet::routing::Links,
@@ -880,6 +883,7 @@ impl Default for State {
             skills: Default::default(),
             workflows: Default::default(),
             automations: Default::default(),
+            automations_nav: Default::default(),
             workflows_nav: Default::default(),
             links: Default::default(),
             connection: Connection::Connecting,
@@ -1741,7 +1745,8 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_storage(tx)
         | s.keep_terminal(tx)
         | s.keep_browser(tx)
-        | s.keep_workflows(tx);
+        | s.keep_workflows(tx)
+        | s.keep_automations(tx);
     // "Copied" on a message's button ends by itself.
     let copied = match &s.copied {
         Some((_, until)) if now >= *until => {
@@ -5106,7 +5111,18 @@ pub fn spec() -> AppSpec<State> {
                 s.dark = Some(false);
                 s.show_composer("model-starred")
             }),
-            ("automations", |s| s.rail = Rail::Automations),
+            ("automations", |s| s.show_automations(true, mock::automations::Scene::List)),
+            ("automations-light", |s| s.show_automations(false, mock::automations::Scene::List)),
+            ("automations-empty", |s| s.show_automations(true, mock::automations::Scene::Empty)),
+            ("automations-empty-light", |s| s.show_automations(false, mock::automations::Scene::Empty)),
+            ("automations-loading", |s| s.show_automations(true, mock::automations::Scene::Loading)),
+            ("automations-loading-light", |s| s.show_automations(false, mock::automations::Scene::Loading)),
+            ("automations-error", |s| s.show_automations(true, mock::automations::Scene::Failed)),
+            ("automations-error-light", |s| s.show_automations(false, mock::automations::Scene::Failed)),
+            ("automation-new", |s| s.show_automations(true, mock::automations::Scene::Create)),
+            ("automation-new-light", |s| s.show_automations(false, mock::automations::Scene::Create)),
+            ("automation-open", |s| s.show_automations(true, mock::automations::Scene::Open)),
+            ("automation-open-light", |s| s.show_automations(false, mock::automations::Scene::Open)),
             ("rail-labs-on", |s| rail_labs_on(s, false)),
             ("rail-labs-on-light", |s| rail_labs_on(s, true)),
             ("rail-tip", |s| s.rail_tip = Some(Rail::Automations)),

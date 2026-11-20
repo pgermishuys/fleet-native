@@ -95,48 +95,48 @@ live against the same server at the same size, `TZ=UTC`, the light one with the 
 | # | Fleet | Source | Native |
 |---|---|---|---|
 | 1.1 | Rail entry "Automations" (Zap), top, order 30, panel `AutomationsContextPanel`; route `/automations` | CR 79, `routes/automations.tsx` | Done (9 A) |
-| 1.2 | Context `[automations-list][automations-detail]`: the list at the session list's width with its gutter; the list is rebuilt (keyed) when the view's machine changes | CR `AutomationsContextPanel`, AP | None (D) |
-| 1.3 | The page opens on the machine you're on (`resetAutomationsMachine` on every visit); the list's machine switch picks whose list, runs and changes these are (`MachineScope` keyed by it) | AP, UAM, `composables/use-machine-choice.ts` | None (D): a `MachineChoice` on `State`, reset when the rail is entered from another |
-| 1.4 | Nav state, kept across leaving the page: `activeAutomationId`, `viewMode` (`list` / `create` / `edit`), the new automation's `draft` (survives leaving; the draft row shows it), `seedSessionId` | UAN | None (D for the fields; H for the draft's shape) |
-| 1.5 | `setActiveAutomation(id)` → edit; `startCreate()` → create with no active id; `clearSelection()` → list; `resetDraft()` | UAN | None (D) |
+| 1.2 | Context `[automations-list][automations-detail]`: the list at the session list's width with its gutter; the list is rebuilt (keyed) when the view's machine changes | CR `AutomationsContextPanel`, AP | Done (D, 20 November 2026) |
+| 1.3 | The page opens on the machine you're on (`resetAutomationsMachine` on every visit); the list's machine switch picks whose list, runs and changes these are (`MachineScope` keyed by it) | AP, UAM, `composables/use-machine-choice.ts` | Done (D, 20 November 2026): `automations_nav.choice` (a `MachineChoice`), reset by `enter_automations` whenever the rail is entered from another; the list and its switch follow it |
+| 1.4 | Nav state, kept across leaving the page: `activeAutomationId`, `viewMode` (`list` / `create` / `edit`), the new automation's `draft` (survives leaving; the draft row shows it), `seedSessionId` | UAN | **Partly done (D, 20 November 2026)**: `activeAutomationId`, `viewMode` and the draft (name, text) are on `State` and survive leaving the page (`fleet::automations::nav::Nav`). Open: `seedSessionId` (O), the draft's full shape (H) |
+| 1.5 | `setActiveAutomation(id)` → edit; `startCreate()` → create with no active id; `clearSelection()` → list; `resetDraft()` | UAN | Done (D, 20 November 2026) |
 | 1.6 | `startCreateFromSession(id)`: a fresh draft, the seed set, create mode | UAN | None (O) |
 | 1.7 | `startCreateFromWorkflow(seed)`: a fresh draft with the Run box's request as the text, the folder as a chosen repository, a new worktree, the base, target `workflow`, the workflow and its optional steps, the harness; create mode | UAN | None (N) |
 | 1.8 | Opening another automation or changing mode clears the form error, the notice, the runs and the unsaved changes (the edit state is the automation as saved), and loads its runs | ADP `watch([activeAutomationId, viewMode])` | None (E, F) |
 | 1.9 | The list can arrive after the page opened: the edit state is set from it when the open automation first appears | ADP | None (E) |
-| 1.10 | A narrow window (< 716 px): the header's meta line hides; < 560 px: the body's side padding is 10 | ADP, BAD media queries | None (D, E): only if the window can be that narrow; otherwise n/a |
+| 1.10 | A narrow window (< 716 px): the header's meta line hides; < 560 px: the body's side padding is 10 | ADP, BAD media queries | **Open**: the header's meta line is E's; the body's 10 px side padding under 560 px isn't done (not checked whether the window can be that narrow) |
 
 ### 2. The list (`[automations-list]`)
 
 | # | Fleet | Source | Native |
 |---|---|---|---|
-| 2.1 | Header "AUTOMATIONS": 10 px (0.71429rem) 600 uppercase, letter-spacing .05em, muted, padding 14/16/10; the row padding-top 4 | ANP `.panel-header` | None (D) |
-| 2.2 | The machine switch under it (`MachineSwitch`, label "Automations", testid `automations`), padding 0 12 6, only when another machine is listed | ANP | None (D): `machine_switch::chip` |
-| 2.3 | **New automation** (Plus 16): full width, min-height 36, padding 0 12, gap 8, 1 px border, radius btn, `--bg` fill, 12 px (0.857rem) 500; hover accent border and an 8 % accent wash; in a 0 12 12 box; starts create | ANP `.new-automation-btn` | None (D). Rune has no hover border (`docs/RUNE.md`): the wash only |
-| 2.4 | The list shows while creating, or once loaded with at least one automation: column, gap 1, padding 0 8 12, scrolls | ANP `.automations-nav` | None (D) |
-| 2.5 | The draft row while creating (first, active, `aria-current=page`): Pencil 11 muted, the title, "Draft". Title: the name typed, else `autoName(promptFrom(text, hit))` (the hit ignored once the When menu chose), else "New automation" | ANP `draftTitle` | None (D) |
-| 2.6 | A row: min-height 32, gap 9, padding 0 10, radius btn; text 86 % mix; hover 5 % text wash and full text; active (open and in edit mode) 9 % wash, full text, 500; focus ring 2 px accent inset | ANP `.automation-row` | None (D) |
-| 2.7 | Off rows (not active) fade to 45 % text | ANP `.automation-row--off` | None (D) |
-| 2.8 | The glyph slot (8×8): the working glyph ("Running") or the error glyph ("Its last run failed") from the row status, else empty | ANP | None (D): `parts::status_glyph` |
-| 2.9 | Title 13 px (0.929rem) line-height 1.3, ellipsis | ANP | None (D) |
-| 2.10 | **Built in** pill (built-ins only): 1 px border, full radius, padding 0 7, 11 px 500 muted (testid `automation-row-builtin`) | ANP | None (D) |
+| 2.1 | Header "AUTOMATIONS": 10 px (0.71429rem) 600 uppercase, letter-spacing .05em, muted, padding 14/16/10; the row padding-top 4 | ANP `.panel-header` | Done (D, 20 November 2026) |
+| 2.2 | The machine switch under it (`MachineSwitch`, label "Automations", testid `automations`), padding 0 12 6, only when another machine is listed | ANP | Done (D, 20 November 2026): `machine_switch::chip` |
+| 2.3 | **New automation** (Plus 16): full width, min-height 36, padding 0 12, gap 8, 1 px border, radius btn, `--bg` fill, 12 px (0.857rem) 500; hover accent border and an 8 % accent wash; in a 0 12 12 box; starts create | ANP `.new-automation-btn` | Done (D, 20 November 2026): the accent wash on hover; gap: no hover border (`docs/RUNE.md`) |
+| 2.4 | The list shows while creating, or once loaded with at least one automation: column, gap 1, padding 0 8 12, scrolls | ANP `.automations-nav` | Done (D, 20 November 2026) |
+| 2.5 | The draft row while creating (first, active, `aria-current=page`): Pencil 11 muted, the title, "Draft". Title: the name typed, else `autoName(promptFrom(text, hit))` (the hit ignored once the When menu chose), else "New automation" | ANP `draftTitle` | **Partly done (D)**: the draft row (pencil, title, "Draft", always the open one); its title is the name typed, else "New automation". Open (H): the title read from the sentence (`autoName(promptFrom(...))`), once the draft has its text |
+| 2.6 | A row: min-height 32, gap 9, padding 0 10, radius btn; text 86 % mix; hover 5 % text wash and full text; active (open and in edit mode) 9 % wash, full text, 500; focus ring 2 px accent inset | ANP `.automation-row` | Done (D): height, gap, padding, the 5 % hover wash and the 9 % open wash, the focus ring. Gap: the title stays at 86 % on hover (Rune has no group colour on a plain text here) |
+| 2.7 | Off rows (not active) fade to 45 % text | ANP `.automation-row--off` | Done (D, 20 November 2026) |
+| 2.8 | The glyph slot (8×8): the working glyph ("Running") or the error glyph ("Its last run failed") from the row status, else empty | ANP | Done (D, 20 November 2026): `parts::status_glyph` |
+| 2.9 | Title 13 px (0.929rem) line-height 1.3, ellipsis | ANP | Done (D, 20 November 2026) |
+| 2.10 | **Built in** pill (built-ins only): 1 px border, full radius, padding 0 7, 11 px 500 muted (testid `automation-row-builtin`) | ANP | Done (D, 20 November 2026) |
 | 2.11 | The machine its runs go to (another machine only): max 7em, coral text, mono 11.5 px, ellipsis (testid `automation-row-machine`); its name now in the machine list, else the last run's `machineName`, else "another machine"; when the view shows another machine, the last run's name or "another machine" | ANP `machineOf` | None (M) |
-| 2.12 | The status word (12 px, tabular figures, `--muted` 80 %; working `--running-text`, error `--error-text`) from `automationRowStatus` (14.12): "Running", "Needs you", "Off", "Failed", the next run short (`nextShort`), "On event", or nothing | ANP, LA | None (D for the view; B for the words) |
-| 2.13 | Order: built-ins first, the rest as the server sent them (stable sort) | ANP `rows` | None (D) |
-| 2.14 | The times follow the clock (`useRelativeTime`, a 30 s tick) | ANP | None (D): the app's clock tick |
-| 2.15 | A click opens the automation (`setActiveAutomation`) | ANP | None (D) |
-| 2.16 | Loading (first load, nothing to show): a large centred spinner, "Loading automations…" for readers | ANP | None (D) |
-| 2.17 | A failed load (or retrying): `ErrorNote` "Couldn't load automations." with the server's reason and Try again (spinner while retrying), margin 12, testid `automations-load-error` | ANP | None (D) |
-| 2.18 | Empty: compact `EmptyState` "No automations yet", filling the panel | ANP | None (D) |
+| 2.12 | The status word (12 px, tabular figures, `--muted` 80 %; working `--running-text`, error `--error-text`) from `automationRowStatus` (14.12): "Running", "Needs you", "Off", "Failed", the next run short (`nextShort`), "On event", or nothing | ANP, LA | Done (D, 20 November 2026): the words come from B's `automation_row_status`; "Needs you" is drawn muted (Fleet gives it no colour class) |
+| 2.13 | Order: built-ins first, the rest as the server sent them (stable sort) | ANP `rows` | Done (D, 20 November 2026) |
+| 2.14 | The times follow the clock (`useRelativeTime`, a 30 s tick) | ANP | Done (D, 20 November 2026): the app's clock tick |
+| 2.15 | A click opens the automation (`setActiveAutomation`) | ANP | Done (D, 20 November 2026) |
+| 2.16 | Loading (first load, nothing to show): a large centred spinner, "Loading automations…" for readers | ANP | Done (D, 20 November 2026) |
+| 2.17 | A failed load (or retrying): `ErrorNote` "Couldn't load automations." with the server's reason and Try again (spinner while retrying), margin 12, testid `automations-load-error` | ANP | Done (D, 20 November 2026) |
+| 2.18 | Empty: compact `EmptyState` "No automations yet", filling the panel | ANP | Done (D, 20 November 2026) |
 
 ### 3. The detail with nothing open (list mode)
 
 | # | Fleet | Source | Native |
 |---|---|---|---|
-| 3.1 | `PageHeader` "Automations" (`bar`) | ADP | None (D) |
-| 3.2 | The body: padding 18/24/8, column, scrolls | ADP `.automation-page__body` | None (D) |
-| 3.3 | First load with nothing loaded: a large spinner, centred (testid `automation-loading`) | ADP `firstLoad` | None (D) |
-| 3.4 | Nothing loaded and the load failed (or retrying): `ErrorNote` "Couldn't load automations." with the reason (or "Trying again…"), Try again, max-width 28rem, centred (testid `automation-load-error`) | ADP `loadFailed` | None (D) |
-| 3.5 | Else `EmptyState` (Zap), centred: none yet "No automations yet" / "An automation runs a prompt or a workflow on a schedule, or when something happens in Fleet." with a **New automation** button (sm, Plus; testid `automation-empty-create`); with some "Automations" / "Pick one from the list, or make a new one." and no button | ADP | None (D): the full `EmptyState` (icon, title, description, action) added to `ui::empty_state` |
+| 3.1 | `PageHeader` "Automations" (`bar`) | ADP | Done (D, 20 November 2026) |
+| 3.2 | The body: padding 18/24/8, column, scrolls | ADP `.automation-page__body` | Done (D, 20 November 2026) |
+| 3.3 | First load with nothing loaded: a large spinner, centred (testid `automation-loading`) | ADP `firstLoad` | Done (D, 20 November 2026) |
+| 3.4 | Nothing loaded and the load failed (or retrying): `ErrorNote` "Couldn't load automations." with the reason (or "Trying again…"), Try again, max-width 28rem, centred (testid `automation-load-error`) | ADP `loadFailed` | Done (D, 20 November 2026) |
+| 3.5 | Else `EmptyState` (Zap), centred: none yet "No automations yet" / "An automation runs a prompt or a workflow on a schedule, or when something happens in Fleet." with a **New automation** button (sm, Plus; testid `automation-empty-create`); with some "Automations" / "Pick one from the list, or make a new one." and no button | ADP | Done (D, 20 November 2026): the full `EmptyState` (icon, title, description, action) added to `ui::empty_state` |
 
 ### 4. An automation's header and actions
 
@@ -303,7 +303,7 @@ live against the same server at the same size, `TZ=UTC`, the light one with the 
 | 15.3 | `refresh` shares a load in flight | SA | **Done (C, 20 November 2026)** `State::automations_refresh(machine, tx, then)`: a call made while a load is in flight adds its `then` to that load; one request is sent (test "shares one request between views that load at the same time") |
 | 15.4 | Routes: `GET /api/automations` → `{automations}`; `POST` (the created one); `PUT /{id}`; `DELETE /{id}`; `POST /{id}/enable`, `/disable`; `POST /{id}/run` (the run, still starting); `GET /{id}/runs` → `{runs}` newest first; `GET /draft-from-session/{sessionId}`; `GET /event-catalog` → `[types]` | SA, server | **Done (C, 20 November 2026)** `automation_create`, `_update`, `_delete`, `_enable`, `_disable`, `_run`, `_runs`, `_draft_from_session`, `_event_catalog`, each on a thread through the machine's own link (`link_for_machine`), ids escaped; a machine with no link answers "Couldn't reach that machine." |
 | 15.5 | A refusal throws the server's `error` (else `HTTP <status>`) | SA `readError` | **Done (C, 20 November 2026)** `read_error`; a request that never reached the machine says what the connection said |
-| 15.6 | The list is loaded when a view that shows it opens (the list, the page, the built-in page) | UA | **Store half done (C, 20 November 2026)**: `automations_refresh` is the call a view makes when it opens. **Open (D)**: no view calls it yet, since this piece has none |
+| 15.6 | The list is loaded when a view that shows it opens (the list, the page, the built-in page) | UA | **Done (D, 20 November 2026)**: `keep_automations` reads the list when the page opens and when its machine changes (`enter_automations` makes each visit read again); with no Fleet to ask it fills the invented list. Polling the runs is F's |
 | 15.7 | No live events: Fleet doesn't push automation changes; the page polls (5.1) | server, SA | n/a |
 
 ### 16. Out of reach, and why
@@ -436,6 +436,8 @@ and tests need no server.
 **Done (20 November 2026).** `src/fleet/automations/store.rs`, tests in `src/tests_automations_store.rs` (the six of `stores/__tests__/automations.test.ts` under their names, plus four native: every verb and path with an id escaped and a reload after each change, a run coming back still starting, runs/draft/catalog leaving the list alone, a refusal with no words and a failed first load). Gaps, written down: the answer of a change is handed back *after* the list is read again, as Fleet's `await refresh()` does, so a caller waiting on `done` sees the new list; a read that fails after a good change leaves `error` set and the old list, and the change still reports success (Fleet's `refresh` never throws either); a failed read of a draft, runs or the catalog is the words of the failure, with no "Failed to load automations" fallback (nothing in Fleet's UI reads it); there is no timer here, the page's polling (5.1) is D's and F's.
 
 #### D. The page and the list
+
+**Done (20 November 2026).** `src/fleet/automations/nav.rs` (the nav state, the machine choice, `enter_automations`, `keep_automations`, `automations_retry`, `machine_of`), `src/view/automations/{mod,list}.rs`, the shared `src/ui/page_header.rs` (`bar`) and `ui::empty_state::full`, scenes `automations*`, `automation-new*`, `automation-open*`, tests in `src/tests_automations_page.rs` (the three D cases of `AutomationsPage.test.ts` under their names, plus a row opening, New automation, built-ins first, the machine switch). Gaps, written down: the draft row's title doesn't read the sentence yet (H); an open or new automation's detail is the bar alone until E and H; the `Workflows` page's own `page_header` was left where it is (it has no bar), so `PageHeader` is shared only by the new `bar`; `ErrorNote` is a function in `view::automations` (the other copies in the repository were not touched); Fleet's "Failed" and "Running" rows were made live (a worktree run that can't start), the failed and loading *list* only by answering the request in Playwright (`page.route`), since the scratch Fleet answers every read.
 
 - **Rows:** 1.2-1.5, 1.10 (list), 2.1-2.10, 2.12-2.18, 3.1-3.5, 15.6.
 - **Files:** new `src/fleet/automations/nav.rs` (the nav state of 1.4 on `State`, the `MachineChoice`, `enter_automations`
