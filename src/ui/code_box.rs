@@ -8,7 +8,8 @@
 //! the ones below a wrapped line sit a row too high.
 use crate::State;
 use crate::theme::{RADIUS_BTN, Theme, mono};
-use rune::{El, Key, KeyEvent, ScrollSpec, TextEdit, col, el, row, text, text_input};
+use crate::ui::text_menu::text_input;
+use rune::{El, Key, KeyEvent, ScrollSpec, TextEdit, col, el, row, text};
 
 /// `font-size: 12px` is the box's; the theme's 12.5px mono at line-height 1.6.
 const SIZE: f32 = 12.5;

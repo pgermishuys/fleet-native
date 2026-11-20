@@ -7,7 +7,8 @@ use crate::icons::SEARCH;
 use crate::theme::{Theme, sans};
 use crate::ui::overlay::centred;
 use crate::ui::rem;
-use rune::{Color, Cursor, El, Key, KeyEvent, ScrollSpec, Tx, col, el, icon, row, text, text_input};
+use crate::ui::text_menu::text_input;
+use rune::{Color, Cursor, El, Key, KeyEvent, ScrollSpec, Tx, col, el, icon, row, text};
 
 pub const INPUT: &str = "go-to-file-input";
 const LIST: &str = "go-to-file-list";

@@ -6,7 +6,8 @@ use super::code_view::{FONT, span_of};
 use crate::State;
 use crate::conv::file_language::language_for;
 use crate::theme::{Theme, mono};
-use rune::{El, ScrollSpec, col, row, text, text_input};
+use crate::ui::text_menu::text_input;
+use rune::{El, ScrollSpec, col, row, text};
 use rune_kit::syntax::highlight;
 
 /// The field, for tests and scripts to focus.

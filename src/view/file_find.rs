@@ -7,7 +7,8 @@ use crate::conv::file_find::Options;
 use crate::fleet::file_find::{FIELD, MARK};
 use crate::icons::CHECK;
 use crate::theme::{Theme, sans};
-use rune::{Cursor, El, Key, KeyEvent, TextHighlight, Tx, el, icon, row, text, text_input};
+use crate::ui::text_menu::text_input;
+use rune::{Cursor, El, Key, KeyEvent, TextHighlight, Tx, el, icon, row, text};
 use std::ops::Range;
 
 /// A button of the panel (`.cm-button`): 70 % of the panel's 12 px type, `--text` at 6 % for a fill, a 1 px rule, radius 5.

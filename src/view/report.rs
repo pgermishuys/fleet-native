@@ -9,7 +9,8 @@ use crate::icons::{IMAGE, SHIELD_CHECK, X};
 use crate::theme::{RADIUS_BTN, RADIUS_PANEL, Theme, sans};
 use crate::ui::dialog::{lift, overlay};
 use crate::ui::overlay::centred;
-use rune::{Cursor, El, ScrollSpec, Spring, SurfaceFit, Transition, Vec2, col, el, icon, row, text, text_input};
+use crate::ui::text_menu::text_input;
+use rune::{Cursor, El, ScrollSpec, Spring, SurfaceFit, Transition, Vec2, col, el, icon, row, text};
 
 const KEY: &str = "report";
 /// `sm:max-w-[820px]`, and the window less 16 px a side.

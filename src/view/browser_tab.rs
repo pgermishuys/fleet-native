@@ -9,10 +9,11 @@ use crate::fleet::browser_tab::BrowserPage;
 use crate::icons::*;
 use crate::theme::{RADIUS_BTN, Theme, mono, sans};
 use crate::ui::button::{Size, Variant, button};
+use crate::ui::text_menu::text_input;
 use crate::web::browser::ADDRESS_KEY;
 use crate::web::browser_app::Panel;
 use crate::web::preview_bridge::NavAction;
-use rune::{El, Key, KeyEvent, Tx, col, row, text, text_input};
+use rune::{El, Key, KeyEvent, Tx, col, row, text};
 
 use super::page_tab::{fallback, icon_button};
 use super::{browser_agent_bar, browser_app};

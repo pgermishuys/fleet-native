@@ -10,7 +10,8 @@ use crate::fleet::smart_links::{Enrichment, format_checked_ago};
 use crate::icons::{CIRCLE_ALERT, GIT_BRANCH, LOADER_CIRCLE, PAPERCLIP, PLUS, REFRESH_CW, ZAP};
 use crate::theme::{RADIUS_BTN, RADIUS_CARD, Theme, mono, sans};
 use crate::ui::button::{Size, Variant, button};
-use rune::{Cursor, Cycle, El, Key, KeyEvent, ScrollSpec, Tx, col, el, icon, row, text, text_input};
+use crate::ui::text_menu::text_input;
+use rune::{Cursor, Cycle, El, Key, KeyEvent, ScrollSpec, Tx, col, el, icon, row, text};
 
 /// `.context-link-btn`: accent text, 12px/500, a faint wash on hover.
 fn link_btn(t: &Theme, key: &str, glyph: Option<El>, label: &str) -> El {

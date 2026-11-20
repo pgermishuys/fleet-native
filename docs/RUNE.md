@@ -2283,3 +2283,12 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **`max_lines(n)` is `-webkit-line-clamp`:** the peek's six lines end in an ellipsis at the same word as Fleet's.
 - **An animation whose last step is drawn after the poll stops asking for frames stays on its last frame.** The fold's end was one frame short, so a headless picture showed the card's top border at 1 px. Run the clock a little past the end (here 50 ms) so the settled frame is drawn.
 - **`Tx::focused()` is enough for `:focus-within` on one element:** the tab's peek shows while the open button has the focus, read each frame (the × inside the tab is not counted).
+
+## Component 24, piece I (the right-click menu on text)
+
+- **Rune already draws a field's menu (Cut, Copy, Paste, Select All) and a selection's Copy, but only through `popup_menu`, which exists on macOS and Windows.** On Linux the request is answered `None` at once and nothing shows; no hook hands the app the request to draw itself (`popup_menu_supported()` is the only sign). So the app draws the menu where that is false.
+- **A field with its own `on_secondary_press` loses Rune's menu, and an ancestor's handler never sees a press on a field** (the field claims it: `secondary_target`). The app's handler is therefore set on each field, by one wrapper (`ui::text_menu::text_input`) standing where `rune::text_input` was; the same for selectable text, whose nearest handler up the tree wins over Rune's Copy.
+- **A handler's `Tx` is enough to build the menu's actions:** `tx.text_selection()` reads the selected text, `tx.element_at(x, y, ..)` finds the key of the field under the pointer (the handler can't know it), `tx.focus(key)` and `tx.return_focus(key)` aim the keys, and `tx.send_key(KeyEvent)` sends Cut, Copy, Paste and Select All to the focused field as typed. A secondary press does not focus a field.
+- **A headless run answers a paste request with nothing** (no one reads the clipboard), so a test can check Cut and Copy (the memory clipboard) but only that a Paste pick closes the menu and leaves the field focused.
+- **Links:** `Markdown::on_link_secondary` and `El::on_link_secondary` take the press from the elements around, and `Tx::open_url` refuses anything but `http`, `https` and `mailto` with an `Err`, so the link rule needs no code of ours; `Runtime::take_url_requests` is what a test reads.
+

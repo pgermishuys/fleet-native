@@ -10,8 +10,9 @@ use crate::fleet::row_status::{self, Dim, Glyph, RowItem, RowStatus, Tone};
 use crate::icons::{CHECK, CHEVRON_RIGHT, GIT_MERGE, GIT_PULL_REQUEST, GIT_PULL_REQUEST_CLOSED, GIT_PULL_REQUEST_DRAFT, LOADER_CIRCLE};
 use crate::mock::Session;
 use crate::theme::{RADIUS_BTN, Theme, mono, sans};
+use crate::ui::text_menu::text_input;
 use crate::{State, Tx};
-use rune::{Color, Cursor, Drag, El, Key, KeyEvent, Phase, el, icon, row, text, text_input};
+use rune::{Color, Cursor, Drag, El, Key, KeyEvent, Phase, el, icon, row, text};
 
 /// The clock a list is drawn by: read once for all rows, so they agree and the time zone is asked once.
 pub struct RowClock {

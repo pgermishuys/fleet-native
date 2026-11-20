@@ -118,6 +118,7 @@ fn empty(t: &Theme, loading: bool, error: Option<&str>) -> El {
                 .hover(LinkPaint::new().color(t.text))
                 .focused(LinkPaint::new().ring(t.accent, 2.0)),
         )
+        .on_link_secondary(crate::ui::text_menu::on_link)
         .on_link(|_: &mut State, url: &str, tx: &mut Tx| {
             let _ = tx.open_url(url);
         })
@@ -195,6 +196,7 @@ fn notes(t: &Theme, release: &ReleaseNote, parsed: &ParsedReleaseNotes) -> El {
         body = body.child(
             Markdown::new(&intro)
                 .selectable(true)
+                .on_link_secondary(crate::ui::text_menu::on_link)
                 .on_link_tx(|_: &mut State, url: &str, tx: &mut Tx| {
                     if url.starts_with("https://") || url.starts_with("http://") {
                         let _ = tx.open_url(url);
@@ -233,6 +235,7 @@ fn notes(t: &Theme, release: &ReleaseNote, parsed: &ParsedReleaseNotes) -> El {
                         .hover(LinkPaint::new().color(t.text))
                         .focused(LinkPaint::new().ring(t.accent, 2.0)),
                 )
+                .on_link_secondary(crate::ui::text_menu::on_link)
                 .on_link(|_: &mut State, url: &str, tx: &mut Tx| {
                     let _ = tx.open_url(url);
                 }),
@@ -292,7 +295,7 @@ fn item(t: &Theme, v: &str, label: &str, at: usize, c: &ReleaseChange) -> El {
     if let Some(link) = link {
         p = p.link(link);
     }
-    let p = p.on_link(|_: &mut State, url: &str, tx: &mut Tx| {
+    let p = p.on_link_secondary(crate::ui::text_menu::on_link).on_link(|_: &mut State, url: &str, tx: &mut Tx| {
         if url.starts_with("https://") {
             let _ = tx.open_url(url);
         }

@@ -6,9 +6,10 @@ use crate::fleet::settings::harness_sign_in::flow::{Attempt, Field, Flow, Method
 use crate::icons::*;
 use crate::theme::{RADIUS_BTN, Theme, mono, sans};
 use crate::ui::confirm::spinner;
+use crate::ui::text_menu::text_input;
 use crate::ui::{Open, select};
 use crate::{State, Tx};
-use rune::{Cursor, El, col, el, icon, row, text, text_input};
+use rune::{Cursor, El, col, el, icon, row, text};
 use serde_json::Value;
 use std::rc::Rc;
 

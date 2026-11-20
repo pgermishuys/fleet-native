@@ -7,6 +7,7 @@ use crate::conv::find::Marks;
 use crate::fleet::file_links::{self, Found};
 use crate::fleet::find::MARK;
 use crate::theme::{Theme, mono, sans};
+use crate::ui::text_menu;
 use rune::{Color, El};
 use rune_kit::markdown::{self, Case, Highlight, Markdown, MarkdownStyle};
 use rune_kit::syntax::Syntax;
@@ -73,7 +74,9 @@ pub fn notes_style(t: &Theme) -> MarkdownStyle {
 /// One text part. `streaming` is true for the part still being written, which keeps its earlier
 /// blocks mounted and its last table row from resizing the columns.
 pub fn prose(style: &MarkdownStyle, id: &str, text: &str, streaming: bool) -> El {
-    Markdown::new(text).selectable(true).streaming(streaming).render(style).key(id)
+    text_menu::selectable(
+        Markdown::new(text).selectable(true).streaming(streaming).on_link_secondary(text_menu::on_link).render(style).key(id),
+    )
 }
 
 /// The files a message names that the server said are files in the session's folder, to draw as links
@@ -106,7 +109,7 @@ impl Files {
 /// The same with find's marks over every match in what the text draws (`Markdown` maps them across bold, code, lists and
 /// tables), the current one keyed so a scroll can find it; and the files it names as links.
 pub fn prose_marked(style: &MarkdownStyle, id: &str, text: &str, streaming: bool, marks: Option<&Marks>, files: Option<&Files>) -> El {
-    let mut md = Markdown::new(text).selectable(true).streaming(streaming);
+    let mut md = Markdown::new(text).selectable(true).streaming(streaming).on_link_secondary(text_menu::on_link);
     if let Some(files) = files {
         md = files.wire(md);
     }
@@ -118,5 +121,5 @@ pub fn prose_marked(style: &MarkdownStyle, id: &str, text: &str, streaming: bool
         });
         md = md.highlights(highlights);
     }
-    md.render(style).key(id)
+    text_menu::selectable(md.render(style).key(id))
 }

@@ -21,6 +21,7 @@ pub mod scenes;
 pub mod select;
 #[cfg(test)]
 mod tests;
+pub mod text_menu;
 pub mod toast;
 
 use crate::State;
@@ -56,10 +57,14 @@ pub enum Open {
     Dialog,
     Alert,
     Sheet(dialog::SheetSide),
+    /// The right-click menu on text (`ui::text_menu`): a field, selected text or a link.
+    TextMenu,
 }
 
 pub struct Ui {
     pub open: Option<Open>,
+    /// What the text menu is over, while `Open::TextMenu` is open.
+    pub text_menu: Option<text_menu::TextMenu>,
     /// Where the right-click that opened a context menu landed.
     pub point: (f32, f32),
     pub palette: palette::Palette,
@@ -101,6 +106,7 @@ impl Default for Ui {
     fn default() -> Self {
         Ui {
             open: None,
+            text_menu: None,
             point: (0.0, 0.0),
             palette: palette::Palette::default(),
             dir: directory_picker::Picker::default(),
@@ -140,6 +146,7 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
     let mut layer = match s.ui.open {
         None => Vec::new(),
         Some(Open::Palette) => palette::view(s, t),
+        Some(Open::TextMenu) => text_menu::overlay(s, t),
         Some(Open::Menu(name)) => menus::dropdown(s, t, name),
         Some(Open::Context(p, i)) => menus::session_context(s, t, p, i),
         Some(Open::ProjectMenu(p)) => menus::project_context(s, t, p),

@@ -6,7 +6,8 @@ use super::rem;
 use crate::State;
 use crate::icons::*;
 use crate::theme::{Theme, mono, sans};
-use rune::{Align, Cursor, El, Side, TextEdit, col, icon, row, text, text_input};
+use crate::ui::text_menu::text_input;
+use rune::{Align, Cursor, El, Side, TextEdit, col, icon, row, text};
 
 pub struct Picker {
     /// Path segments below the root; empty is the roots list.

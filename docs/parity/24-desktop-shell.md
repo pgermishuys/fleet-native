@@ -256,10 +256,10 @@ for the theme (native: the app's theme). Icon `icon.png`.
 | 24.107 | Help: **Report a Problem…** (shows the window, opens the report), **Check for Updates…** (not macOS), **Open Logs Folder**, **Open Fleet Data Folder** | MENU, PRE `onReportProblem` | macOS Help: Report a Problem…, Open Logs Folder, Open Fleet Data Folder; elsewhere palette: Report a problem (9), Check for updates, Open logs folder, Open Fleet data folder | 24 H |
 | 24.108 | Check for Updates… says in a dialog: "This build of Fleet doesn't update itself." / "You're on the latest version (<v>)." / "Fleet is already checking for updates." / "Fleet <v> is downloading. Fleet lets you know when it's ready to install." / "Couldn't check for updates: <error>"; a found one opens the update card | UPD `updateCheckMessage`; UT "Check for Updates… from the menu" ×3 | Entry done (wakes the checker; opens the card when a build is found; notes "Checking for updates…", "Fleet is already checking for updates.", "This build of Fleet doesn't update itself."); the "latest version" and "Couldn't check" words stay with 25 / 9 V | 25 / 9 V (words); 24 H (the menu entry wakes the checker) |
 | 24.109 | Right-click: up to 5 spelling suggestions and "Add to Dictionary" | MENU `showContextMenu` | Out of reach (no spell checker) | — |
-| 24.110 | Right-click on a link (http, https, mailto): **Open Link in Browser**, **Copy Link** | MENU | None | 24 I |
-| 24.111 | Right-click in a field: Cut, Copy, Paste (each enabled by what it can do), separator, Select All | MENU | None | 24 I |
-| 24.112 | Right-click on selected text: Copy | MENU | None | 24 I |
-| 24.113 | No trailing separator; nothing to show → no menu | MENU | — | 24 I |
+| 24.110 | Right-click on a link (http, https, mailto): **Open Link in Browser**, **Copy Link** | MENU | **Done** (I): `ui::text_menu::on_link` on Markdown and rich links (messages, notes, question, failure); drawn on every system, Rune has none for links. Not on terminal links (13) or file links | 24 I |
+| 24.111 | Right-click in a field: Cut, Copy, Paste (each enabled by what it can do), separator, Select All | MENU | **Done** (I): macOS and Windows keep Rune's native menu; Linux draws `ui::text_menu` from every field (`text_input` wrapper). Cut and Copy are on with a selection (off for a secret field); Paste is always on (the clipboard can't be read in a handler); the caret does not move to the click | 24 I |
+| 24.112 | Right-click on selected text: Copy | MENU | **Done** (I): native on macOS and Windows; Linux draws it for messages (`prose`), the question and failure text. Not yet on tool output, shell commands, the start page's log or the code view (open) | 24 I |
+| 24.113 | No trailing separator; nothing to show → no menu | MENU | **Done** (I): `rows` pops trailing separators; no rows, no menu | 24 I |
 
 ### 11. Links (LNK)
 
@@ -267,7 +267,7 @@ for the theme (native: the app's theme). Icon `icon.png`.
 |---|---|---|---|---|
 | 24.120 | Fleet's own pages stay in the window | LNK; DT "keeps Fleet's own pages in the window" | n/a (native draws them) | — |
 | 24.121 | http, https, mailto open in the system browser | LNK; DT "opens web and mail links in the browser" | Done (Rune `open_url`) | — |
-| 24.122 | Everything else is blocked (`javascript:`, `file:`, `vscode:`, not a URL) | LNK; DT "blocks everything else" | Done (Rune refuses other schemes); a test here names it | 24 I (the test) |
+| 24.122 | Everything else is blocked (`javascript:`, `file:`, `vscode:`, not a URL) | LNK; DT "blocks everything else" | **Done** (I): Rune refuses other schemes; `tests_text_menu` ports the three cases ("opens web and mail links in the browser", "blocks everything else"; "keeps Fleet's own pages in the window" is n/a) | 24 I |
 | 24.123 | Web views' own navigation | MAIN `will-navigate` | 14 owns the web views | 14 |
 
 ### 12. The login shell's environment (ENV)
@@ -523,6 +523,8 @@ the scratch folder, HOME there too), the released server binary, and their own p
 - **Pictures:** the menu over a field and over a link beside Fleet's in Electron (if taron can take one, else its words),
   both themes.
 - **About:** 350 lines.
+
+**Built (21 November 2026):** `src/ui/text_menu.rs` (`rows` is Fleet's `showContextMenu` as data; `text_input` wraps Rune's and adds the handler on Linux; `selectable`, `on_link`), `Open::TextMenu`, `Ui::text_menu`, four scenes (`text-menu-field`, `text-menu-link`, each with its light twin), `tests_text_menu.rs` (13 cases: each menu's rows, the drawn menu, Cut/Copy through the composer, and LNK's cases against `take_url_requests`). **Differences:** a native menu is not Electron's (Rune's own on macOS and Windows); the Linux one is Fleet's menu look. Paste is always enabled. The caret doesn't move to the click, and the menu has no spelling rows (24.109). **Checked by hand (Linux, lavapipe):** the live menu over the composer with a selection (`shots/parity/24i-text-menu/live-field.png`) and the four scenes, both themes. **Not seen:** Electron's own menus (an OS menu, Playwright can't draw it; Fleet's words are in the pull request as its source), macOS and Windows (CI only; they keep Rune's native menus). **Open:** Copy on tool output, shell commands, the start page and the code view; terminal links.
 
 ### Piece J: sweep
 

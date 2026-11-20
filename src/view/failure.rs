@@ -68,9 +68,9 @@ fn summary(t: &Theme, id: &str, message: &str) -> El {
     for r in &ranges {
         p = p.link(Link::new(r.clone(), message[r.clone()].to_string()));
     }
-    p.on_link(|_: &mut State, url: &str, tx: &mut Tx| {
+    crate::ui::text_menu::selectable(p.on_link_secondary(crate::ui::text_menu::on_link).on_link(|_: &mut State, url: &str, tx: &mut Tx| {
         let _ = tx.open_url(url);
-    })
+    }))
 }
 
 /// `<details>`: "Details" in 12px muted, opening to the stack in 11px mono, 180px tall at most.

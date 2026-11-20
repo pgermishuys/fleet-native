@@ -8,8 +8,9 @@ use crate::theme::{RADIUS_BTN, RADIUS_CARD, Theme, mono, sans};
 use crate::ui::button::{self, Size, Variant, button_lead};
 use crate::ui::code_box::code_box_flat;
 use crate::ui::dialog::{Dialog, dialog};
+use crate::ui::text_menu::text_input;
 use crate::ui::{confirm::spinner, rem};
-use rune::{Color, Cursor, El, Span, col, el, icon, rich, row, text, text_input};
+use rune::{Color, Cursor, El, Span, col, el, icon, rich, row, text};
 
 fn small() -> rune::TextStyle {
     sans(rem(0.75), 400.0, 1.33)

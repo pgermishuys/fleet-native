@@ -4,8 +4,9 @@ use crate::fleet::new_session::more::{MORE_CHIP, PROJECT_KEY, TAGS_KEY, TITLE_KE
 use crate::icons::*;
 use crate::theme::{RADIUS_BTN, Theme, sans};
 use crate::ui::chip::{Chip, pop};
+use crate::ui::text_menu::text_input;
 use crate::{State, Tx};
-use rune::{Align, Cursor, El, Key, KeyEvent, Side, col, icon, row, text, text_input};
+use rune::{Align, Cursor, El, Key, KeyEvent, Side, col, icon, row, text};
 use std::rc::Rc;
 
 const WIDTH: f32 = 300.0;

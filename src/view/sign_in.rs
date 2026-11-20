@@ -7,8 +7,9 @@ use crate::icons::CIRCLE_ALERT;
 use crate::theme::{RADIUS_BTN, RADIUS_CARD, Theme, mono, sans};
 use crate::ui::button::{Size, Variant, button, disabled};
 use crate::ui::rem;
+use crate::ui::text_menu::text_input;
 use crate::{State, Tx};
-use rune::{Align, Color, El, Key, KeyEvent, Shadow, col, icon, row, text, text_input};
+use rune::{Align, Color, El, Key, KeyEvent, Shadow, col, icon, row, text};
 
 const HINT: &str = "It's in the sign-in link Fleet prints when it starts, and in Settings → Machines on a device that's already signed in.";
 

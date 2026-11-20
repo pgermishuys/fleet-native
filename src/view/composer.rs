@@ -9,8 +9,9 @@ use crate::composer::status::{ComposerStatus, Mode, has_content, mode_of, send_w
 use crate::icons::*;
 use crate::mock::Session;
 use crate::theme::{Theme, mono, sans};
+use crate::ui::text_menu::text_input;
 use crate::{State, interrupt, submit};
-use rune::{Color, Cursor, El, Key, Shadow, TextHighlight, auto_grow, col, el, icon, row, spacer, text, text_input};
+use rune::{Color, Cursor, El, Key, Shadow, TextHighlight, auto_grow, col, el, icon, row, spacer, text};
 
 /// Fleet puts the composer's pieces in this order above the frame: the error box, the background strip
 /// (component 3, piece K, `view::work`), the mod band (component 22), the queue (piece I) and the paste offer (piece O).

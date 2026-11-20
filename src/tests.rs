@@ -596,7 +596,7 @@ fn the_recap_sits_under_the_conversation_only_when_fleet_wrote_one() {
 }
 
 // Component 5, piece B: the frame and the toolbar (`Composer.test.ts`'s core).
-fn press_key(rt: &mut Runtime<State>, key: Key, mods: Mods) {
+pub(crate) fn press_key(rt: &mut Runtime<State>, key: Key, mods: Mods) {
     rt.key(KeyEvent { key, mods });
     rt.frame(FRAME);
     rt.frame(FRAME);

@@ -6,8 +6,9 @@ use super::conversation::{Message, Part};
 use crate::composer::draftrefs::RefKind;
 use crate::icons::{ARROW_UP, PAPERCLIP};
 use crate::theme::{Theme, sans};
+use crate::ui::text_menu::text_input;
 use crate::{State, Tx};
-use rune::{Color, Cursor, El, Shadow, TextEdit, TextHighlight, auto_grow, col, el, icon, row, spacer, text_input};
+use rune::{Color, Cursor, El, Shadow, TextEdit, TextHighlight, auto_grow, col, el, icon, row, spacer};
 
 /// `.composer-frame` with the field above and the toolbar below.
 pub fn frame(s: &State, t: &Theme) -> El {

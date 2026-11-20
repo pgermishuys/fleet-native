@@ -5,7 +5,8 @@ use crate::State;
 use crate::conv::find::{FIELD, Paging, Scope};
 use crate::icons::*;
 use crate::theme::{RADIUS_CARD, Theme, sans};
-use rune::{Color, Cursor, Cycle, El, Key, KeyEvent, Shadow, Span, Tx, col, el, icon, rich, row, text, text_input};
+use crate::ui::text_menu::text_input;
+use rune::{Color, Cursor, Cycle, El, Key, KeyEvent, Shadow, Span, Tx, col, el, icon, rich, row, text};
 
 /// `.find-bar`: 420px at most, 18px from the right edge and 10px from the top.
 const WIDTH: f32 = 420.0;

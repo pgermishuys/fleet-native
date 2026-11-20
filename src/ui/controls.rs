@@ -2,7 +2,8 @@
 //! `progress/`, `card/`, `avatar/`. Each is a function returning an element the caller keys.
 use super::rem;
 use crate::theme::{RADIUS_CARD, Theme, sans};
-use rune::{Color, Cursor, El, Icon, TextEdit, auto_grow, col, el, icon, row, text, text_input};
+use crate::ui::text_menu::text_input;
+use rune::{Color, Cursor, El, Icon, TextEdit, auto_grow, col, el, icon, row, text};
 
 // ---- badge -----------------------------------------------------------------------------------
 

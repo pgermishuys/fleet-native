@@ -9,7 +9,8 @@ use crate::asks::question::{Digit, QuestionInfo, QuestionPart, answer_text, digi
 use crate::fleet::questions::QuestionCard;
 use crate::icons::*;
 use crate::theme::{RADIUS_BTN, RADIUS_CARD, Theme, sans};
-use rune::{Cursor, El, Key, KeyEvent, Link, Span, Tx, col, el, icon, rich, row, text, text_input};
+use crate::ui::text_menu::text_input;
+use rune::{Cursor, El, Key, KeyEvent, Link, Span, Tx, col, el, icon, rich, row, text};
 
 /// What a message draws for its `question` call: the answered row, the skipped row or the waiting card
 /// (`QuestionCard.vue`'s `v-if` chain). Nothing for a call that finished without recorded answers, or one whose
@@ -169,9 +170,9 @@ fn question_text(t: &Theme, qi: usize, words: &str) -> El {
     for r in &ranges {
         p = p.link(Link::new(r.clone(), words[r.clone()].to_string()));
     }
-    p.on_link(|_: &mut State, url: &str, tx: &mut Tx| {
+    crate::ui::text_menu::selectable(p.on_link_secondary(crate::ui::text_menu::on_link).on_link(|_: &mut State, url: &str, tx: &mut Tx| {
         let _ = tx.open_url(url);
-    })
+    }))
 }
 
 /// `.qcard__choice` in its resting, picked and typed looks: a bordered row, tinted when it holds the answer.

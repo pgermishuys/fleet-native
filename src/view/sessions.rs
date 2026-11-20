@@ -10,7 +10,8 @@ use crate::fleet::row_drag::{Over, project_key};
 use crate::icons::*;
 use crate::mock::Session;
 use crate::theme::{Theme, sans};
-use rune::{Color, Cursor, El, ScrollSpec, col, el, icon, row, text, text_input};
+use crate::ui::text_menu::text_input;
+use rune::{Color, Cursor, El, ScrollSpec, col, el, icon, row, text};
 
 pub fn panel(s: &State, t: &Theme) -> El {
     let new_session = row()

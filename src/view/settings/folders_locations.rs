@@ -4,8 +4,9 @@ use crate::State;
 use crate::fleet::settings::locations::{LocationsPage, Root};
 use crate::icons::{FOLDER, FOLDER_GIT_2, PLUS, REFRESH_CW, TRASH_2};
 use crate::theme::{RADIUS_BTN, RADIUS_CARD, Theme, sans};
+use crate::ui::text_menu::text_input;
 use crate::ui::{confirm, rem};
-use rune::{Align, Cursor, El, col, icon, row, text, text_input};
+use rune::{Align, Cursor, El, col, icon, row, text};
 
 const TEXT_SM: f32 = 12.25;
 
