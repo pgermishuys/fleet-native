@@ -52,14 +52,7 @@ pub struct Point {
 }
 
 pub fn parse_daily(body: &Value) -> Option<Vec<Point>> {
-    let list = body.as_array()?;
-    Some(
-        list.iter()
-            .filter_map(|p| {
-                Some(Point { date: p.get("date")?.as_str()?.to_string(), cost: p.get("cost").and_then(Value::as_f64).unwrap_or(0.0) })
-            })
-            .collect(),
-    )
+    Some(super::analytics::parse_days(body)?.into_iter().map(|d| Point { date: d.date, cost: d.cost }).collect())
 }
 
 /// "2026-11-16" for a day counted from 1970-01-01 (`isoDay`, which Fleet takes in UTC).
