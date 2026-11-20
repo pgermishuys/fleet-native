@@ -2018,7 +2018,7 @@ Same recipe as Changes' Rendered view: a `selection_group(true)` column with `on
 Two ways of editing a file in the code view were built and timed on a 20,000-line file (about 400 KB): **A**, the whole file in one
 multi-line `text_input` with `.spans(..)` for the colours and a column of numbers beside it (`view::code_input_spike`, scenes and
 `--bench-editor` only); **B**, an editor the app draws over the viewer's `virtual_rows` (`fleet::code_edit`, `fleet::code_editing`,
-`view::code_edit`), behind `FLEET_NATIVE_EDITOR_SPIKE=1`. B is the way for pieces R to U. What each costs is under "Timings" below.
+`view::code_edit`), (always on since 11R). B is the way for pieces R to U. What each costs is under "Timings" below.
 
 - **Rune carries an editor the app draws.** `El::on_key` on the focusable scrolling column owns the keyboard while it has focus
   (it sees keys before focus navigation, the default button and the window's `on_key`, and "a click anywhere inside it focuses
@@ -2141,3 +2141,11 @@ whole-file work that piece R can make incremental (colour from the edited line, 
   first start. `cargo test` builds no example for a library crate's unit tests, so there is no binary to find beside the test.
 - The lib's test build gets killed ("Terminated", exit 143, no message) under `MemoryMax=4000M`; see the API keys section above for its peak.
 
+## Component 11, piece R (editing in the tab)
+
+- **A caret's blink is the app's.** There is no blink on an `ime_cursor` element: the app draws the caret with a transparent fill in the dark half
+  (the element stays, so the input method still follows it), flips it from `poll` (`keep_code_edit_focus`, a `wake_after` of 250 ms while the code has
+  the keyboard) and puts the phase in the rows' `virtual_rows_version`, so only the rows near the window are built again.
+- **A selection past a line's end** is not a `TextHighlight`'s to paint (it covers the text's own bytes): the line gets one trailing space in
+  the drawn text and the highlight runs over it.
+- **No hover border** again: Save's border turning to `--accent` is a 1 px `--border` ring with the hover fill `--accent` round the button.

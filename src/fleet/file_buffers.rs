@@ -10,6 +10,7 @@ use super::http;
 use crate::State;
 use crate::conv::minimal_change::minimal_change;
 use crate::conv::text_format::{TextFormat, join_lines, read_text_format, same_text_format, split_lines, to_disk_text};
+use rune::Tx;
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 
@@ -277,6 +278,18 @@ impl Buffer {
         self.sync_dirty();
     }
 
+    /// Puts `after` in place of the text as one step of its own that undo takes back, the selection moved along (Diff's Revert, which
+    /// `@codemirror/merge` makes as a transaction of its own); the buffer is unsaved after it, unless the text is the saved text.
+    pub fn replace_as_edit(&mut self, after: &[String], now: f64) {
+        let Some(change) = minimal_change(&self.lines, after) else { return };
+        let before = self.lines.clone();
+        self.editor.clamp(&self.lines);
+        self.editor.isolated(&mut self.lines, &change, now);
+        self.pick = self.pick.map(|p| map_pick(p, &before, &change, &self.lines));
+        self.rev += 1;
+        self.sync_dirty();
+    }
+
     /// After Compare: the buffer, merged against the agent's version, is based on it. A save checks against the agent's hash, and the
     /// buffer stays unsaved until then (`rebaseOnDisk`).
     pub fn rebase_on_disk(&mut self, conflict: &Conflict) {
@@ -394,6 +407,20 @@ impl FileBuffers {
             base_hash,
             sent: buffer.lines.clone(),
         })
+    }
+
+    /// Marks a save as on its way without sending anything (the scene of a save in flight).
+    pub fn set_saving(&mut self, machine: &str, session: &str, path: &str, saving: bool) {
+        if let Some(b) = self.buffers.get_mut(&key(machine, session, path)) {
+            b.info.saving = saving;
+        }
+    }
+
+    /// Diff's Revert: `Buffer::replace_as_edit` on an open file.
+    pub fn replace_as_edit(&mut self, machine: &str, session: &str, path: &str, after: &[String], now: f64) {
+        if let Some(b) = self.buffers.get_mut(&key(machine, session, path)).filter(|b| b.read) {
+            b.replace_as_edit(after, now);
+        }
     }
 
     /// A save that was never sent.
@@ -654,6 +681,18 @@ impl State {
     /// Saves an open file: the text in its own breaks, with the hash it read (or, for "Keep mine", the conflict's). The answer goes
     /// to the buffer on the UI thread; nothing is sent with no server, or when there is nothing to base a save on.
     pub fn save_file_buffer(&mut self, session: &str, path: &str, overwrite: bool) {
+        self.save_file_then(session, path, overwrite, |_, _, _| {});
+    }
+
+    /// [`save_file_buffer`](Self::save_file_buffer), then `done` runs on the UI thread with what the save came to (`None` when nothing
+    /// was sent).
+    pub fn save_file_then(
+        &mut self,
+        session: &str,
+        path: &str,
+        overwrite: bool,
+        done: impl FnOnce(&mut State, &mut Tx, Option<SaveOutcome>) + Send + 'static,
+    ) {
         let machine = self.machine_key_of(session).to_string();
         let Some(request) = self.file_buffers.begin_save(&machine, session, path, overwrite) else { return };
         let Some(link) = self.link_for(session) else {
@@ -663,8 +702,9 @@ impl State {
         let sent = request.clone();
         link.off_thread(
             move |base| http::write_file(base, &sent.session, &sent.path, &sent.content, &sent.base_hash),
-            move |s, _, answer| {
-                s.file_buffers.finish_save(&request, answer);
+            move |s, tx, answer| {
+                let outcome = s.file_buffers.finish_save(&request, answer);
+                done(s, tx, outcome);
             },
         );
     }

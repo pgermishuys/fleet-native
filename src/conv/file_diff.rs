@@ -139,3 +139,50 @@ pub fn items(rows: &[Row], margin: usize, min: usize, opened: &dyn Fn(usize) -> 
 pub fn fold_words(hidden: usize) -> String {
     format!("{hidden} unchanged {}", if hidden == 1 { "line" } else { "lines" })
 }
+
+/// One change of a diff: a run of removed and added rows between unchanged ones (`Chunk` in `@codemirror/merge`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Chunk {
+    /// The last row of the change: Revert floats at its end.
+    pub last_row: usize,
+    /// The lines of the text it covers (0-based, empty for a pure deletion), and the lines of the base it replaced.
+    pub doc: std::ops::Range<usize>,
+    pub base: std::ops::Range<usize>,
+}
+
+/// The changes among `rows`, in order.
+pub fn chunks(rows: &[Row]) -> Vec<Chunk> {
+    let (mut a, mut b) = (0usize, 0usize);
+    let mut out: Vec<Chunk> = Vec::new();
+    let mut open: Option<(usize, usize)> = None;
+    for (i, r) in rows.iter().enumerate() {
+        if r.kind == Kind::Same {
+            if let Some((a0, b0)) = open.take() {
+                out.push(Chunk { last_row: i - 1, doc: b0..b, base: a0..a });
+            }
+            a += 1;
+            b += 1;
+            continue;
+        }
+        open.get_or_insert((a, b));
+        match r.kind {
+            Kind::Removed => a += 1,
+            _ => b += 1,
+        }
+    }
+    if let Some((a0, b0)) = open {
+        out.push(Chunk { last_row: rows.len() - 1, doc: b0..b, base: a0..a });
+    }
+    out
+}
+
+/// `lines` with a change put back as the base had it (the file is never empty of lines).
+pub fn reverted(lines: &[String], base: &[String], chunk: &Chunk) -> Vec<String> {
+    let base = lines_of_base(base);
+    let mut out = lines.to_vec();
+    out.splice(chunk.doc.clone(), base[chunk.base.clone()].iter().cloned());
+    if out.is_empty() {
+        out.push(String::new());
+    }
+    out
+}

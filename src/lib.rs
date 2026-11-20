@@ -79,6 +79,8 @@ mod tests_file_links;
 #[cfg(test)]
 mod tests_file_media;
 #[cfg(test)]
+mod tests_file_save;
+#[cfg(test)]
 mod tests_file_tab;
 #[cfg(test)]
 mod tests_files_tab;
@@ -792,7 +794,7 @@ impl Default for State {
             annotation: Default::default(),
             changes_find: Default::default(),
             file_find: Default::default(),
-            code_edit: fleet::code_editing::CodeEditing { on: fleet::code_editing::asked(), ..Default::default() },
+            code_edit: fleet::code_editing::CodeEditing { on: true, ..Default::default() },
             find_text: Default::default(),
             find_in_files: Default::default(),
             go_to_file: Default::default(),
@@ -5131,6 +5133,10 @@ pub fn spec() -> AppSpec<State> {
             ("file-lines-copied-light", |s| s.show_file(mock::file_tab::Case::LinesCopied, false)),
             ("file-lines-added", |s| s.show_file(mock::file_tab::Case::LinesAdded, true)),
             ("file-lines-added-light", |s| s.show_file(mock::file_tab::Case::LinesAdded, false)),
+            ("file-unsaved", |s| s.show_file(mock::file_tab::Case::Unsaved, true)),
+            ("file-unsaved-light", |s| s.show_file(mock::file_tab::Case::Unsaved, false)),
+            ("file-saving", |s| s.show_file(mock::file_tab::Case::Saving, true)),
+            ("file-saving-light", |s| s.show_file(mock::file_tab::Case::Saving, false)),
             ("file-diff", |s| s.show_file(mock::file_tab::Case::Diff, true)),
             ("file-diff-light", |s| s.show_file(mock::file_tab::Case::Diff, false)),
             ("file-stripe", |s| s.show_file(mock::file_tab::Case::Stripe, true)),

@@ -24,15 +24,25 @@ pub struct LineEdit {
     pub selected: Option<Range<usize>>,
     /// An input method's composition at the caret, and its cursor.
     pub preedit: Option<(String, Option<(usize, usize)>)>,
+    /// The selection goes on past this line's end, so the line break is selected too and is drawn as a space's width.
+    pub past_end: bool,
+    /// The caret is in the dark half of its blink.
+    pub blink_off: bool,
+    /// The bytes of the line that are a matched bracket (`.cm-matchingBracket`).
+    pub brackets: Vec<usize>,
 }
 
-/// What `editor` marks on line `i`.
-pub fn line_edit(editor: &Editor, lines: &[String], i: usize) -> LineEdit {
+/// What `editor` marks on line `i`; `pair` is the matched brackets and `blink_off` the caret's blink.
+pub fn line_edit(editor: &Editor, lines: &[String], i: usize, pair: Option<(Pos, Pos)>, blink_off: bool) -> LineEdit {
     let on = editor.caret.line == i;
+    let selection = editor.selected_on(lines, i);
     LineEdit {
         caret: on.then_some(editor.caret.byte),
-        selected: editor.selected_on(lines, i).map(|(r, _)| r),
+        past_end: selection.as_ref().is_some_and(|(_, past)| *past),
+        selected: selection.map(|(r, _)| r),
         preedit: if on { editor.preedit.clone() } else { None },
+        blink_off,
+        brackets: pair.map(|(a, b)| [a, b].into_iter().filter(|p| p.line == i).map(|p| p.byte).collect()).unwrap_or_default(),
     }
 }
 
@@ -152,16 +162,31 @@ pub fn with_preedit(
     (format!("{}{text}{}", &shown[..at], &shown[at..]), out, caret)
 }
 
-/// The selection over the drawn text, as the read-only view's selection is coloured.
-pub fn selection_highlight(t: &Theme, line: &str, selected: &Range<usize>, from: usize) -> Option<TextHighlight> {
+/// The selection over the drawn text, as the read-only view's selection is coloured. `past_end` runs it over the one space the view
+/// adds after the line, so a selected line break shows (CodeMirror draws the selection out past the line's end).
+pub fn selection_highlight(t: &Theme, line: &str, selected: &Range<usize>, from: usize, past_end: bool) -> Option<TextHighlight> {
     let r = shown_range(line, selected.clone());
-    let (a, b) = (r.start.max(from), r.end);
+    let (a, b) = (r.start.max(from), r.end + usize::from(past_end));
     (a < b).then(|| TextHighlight::new(a - from..b - from, t.accent.alpha(0.3)).pad(0.0))
 }
 
 /// The caret, at `x` from the left of its box and on row `row`; it carries the input method.
-pub fn caret(t: &Theme, x: f32, row: usize) -> El {
-    el().key("code-caret").absolute(x, row as f32 * LINE_H + (LINE_H - CARET_H) / 2.0).w(2.0).h(CARET_H).fill(t.accent).ime_cursor()
+pub fn caret(t: &Theme, x: f32, row: usize, off: bool) -> El {
+    // The dark half of the blink keeps the element, so the input method still follows it.
+    let ink = if off { t.accent.alpha(0.0) } else { t.accent };
+    el().key("code-caret").absolute(x, row as f32 * LINE_H + (LINE_H - CARET_H) / 2.0).w(2.0).h(CARET_H).fill(ink).ime_cursor()
+}
+
+/// The matched brackets over the drawn text (`.cm-matchingBracket`: `--accent` at 25 %).
+pub fn bracket_highlights(t: &Theme, line: &str, brackets: &[usize], from: usize) -> Vec<TextHighlight> {
+    brackets
+        .iter()
+        .filter_map(|&b| {
+            let end = b + line[b..].chars().next().map_or(0, char::len_utf8);
+            let r = shown_range(line, b..end);
+            (r.end > from && r.start >= from).then(|| TextHighlight::new(r.start - from..r.end - from, t.accent.alpha(0.25)).pad(0.0))
+        })
+        .collect()
 }
 
 /// The press and drag on line `i`'s code: the caret goes where the pointer is, Shift extends, a drag selects. `x` and `y` are in the
@@ -178,9 +203,29 @@ pub fn on_press(el: El, path: String, i: usize, wrap: bool) -> El {
     })
 }
 
+/// The press and drag on a line of Diff: the same, but the lines under a drag are found among the diff's rows (`row` is the pressed
+/// one, `i` its line of the text).
+pub fn on_press_diff(el: El, path: String, row: usize, i: usize, wrap: bool) -> El {
+    el.on_drag(move |s: &mut State, d: &mut Drag, tx| {
+        let (extend, y) = match d.phase {
+            Phase::Down => (tx.mods().shift, d.y),
+            Phase::Move => (true, d.y),
+            Phase::Up => return,
+        };
+        let (line, y) = if wrap { (i, y) } else { (super::file_diff::line_under(s, &path, row, i, y), y.rem_euclid(LINE_H)) };
+        let Some(at) = s.code_point_in(&path, line, d.x - TEXT_X, y, wrap) else { return };
+        s.code_edit_press(at, extend, tx);
+    })
+}
+
 impl State {
     /// The place in the file under a point of line `i`'s code box (`x` from the text's left edge).
     fn code_point(&self, path: &str, i: usize, x: f32, y: f32, wrap: bool) -> Option<Pos> {
+        self.code_point_in(path, i, x, y, wrap)
+    }
+
+    /// The place in the file under a point of line `i`'s box; unwrapped, `y` below the box counts lines further down.
+    pub fn code_point_in(&self, path: &str, i: usize, x: f32, y: f32, wrap: bool) -> Option<Pos> {
         let (m, s, p) = self.code_edit.file.clone().or_else(|| self.code_edit_target())?;
         if p != path {
             return None;

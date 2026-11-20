@@ -52,8 +52,69 @@ fn diff_shows_the_git_base_against_the_buffer() {
     assert!(lines.iter().any(|l| l == "    last = total // size"), "the base's line is there, removed: {lines:?}");
     assert!(lines.iter().any(|l| l == "    last = (total + size - 1) // size - 1"), "and the line that replaced it");
     assert!(!has(&rt, "file-code"), "the plain code view gives way to the diff");
-    // Read-only: Revert is editing's (slice 2).
-    assert!(!rt.elements().iter().any(|e| e.text.as_deref() == Some("Revert")));
+}
+
+fn lines(rt: &Runtime<State>) -> Vec<String> {
+    let s = &rt.state;
+    let id = s.canvas_session();
+    s.file_buffers.buffer(s.machine_key_of(&id), &id, PATH).map(|b| b.lines().to_vec()).unwrap_or_default()
+}
+
+fn press(rt: &mut Runtime<State>, key: rune::Key) {
+    rt.key(rune::KeyEvent { key, mods: rune::Mods::default() });
+    rt.frame(FRAME);
+}
+
+// FileCanvas.test.ts
+#[test]
+fn diff_shows_the_git_base_against_the_buffer_editable() {
+    let mut rt = open(Case::Diff);
+    let reverts = keys(&rt, "diff-revert-");
+    assert!(!reverts.is_empty(), "a change has a Revert: {reverts:?}");
+    assert!(rt.elements().iter().any(|e| e.text.as_deref() == Some("Revert")), "the button says Revert");
+    let before = lines(&rt);
+    // Typing in the lines of the text edits the buffer, and the file is then unsaved.
+    let target = "    \"\"\"The index of the last page.\"\"\"";
+    let key = rt
+        .elements()
+        .into_iter()
+        .find(|e| e.text.as_deref() == Some(target) && e.key.as_deref().is_some_and(|k| k.starts_with("diff-text-")))
+        .and_then(|e| e.key)
+        .expect("the docstring's row is drawn");
+    click(&mut rt, &key);
+    press(&mut rt, rune::Key::Text("#".into()));
+    let typed = lines(&rt);
+    let changed: Vec<usize> = (0..typed.len()).filter(|&i| typed[i] != before[i]).collect();
+    assert_eq!(changed.len(), 1, "one line changed: {changed:?}");
+    assert!(typed[changed[0]].contains('#') && typed[changed[0]].contains("The index"), "typed in that line");
+    assert!(has(&rt, "file-save"), "Unsaved");
+    assert!(has(&rt, "code-caret"), "the caret is in the diff");
+}
+
+#[test]
+fn revert_puts_the_bases_lines_back_in_the_buffer_as_one_step_and_undo_takes_it_back() {
+    let mut rt = open(Case::Diff);
+    let before = lines(&rt);
+    let first = rt.state.canvas_session();
+    click(&mut rt, "diff-revert-0");
+    let after = lines(&rt);
+    assert_ne!(after, before, "the first change went back to the base");
+    assert!(after.iter().any(|l| l == "    last = total // size"), "the base's line is in the buffer");
+    assert!(has(&rt, "file-save"), "it is the buffer, not the disk: the file is unsaved");
+    assert!(!first.is_empty());
+    // Ctrl+Z (as the editor reads it) takes the revert back in one step.
+    rt.update(|_, tx| tx.focus("file-diff", false));
+    rt.frame(FRAME);
+    rt.key(rune::KeyEvent {
+        key: rune::Key::Command('z'),
+        mods: if cfg!(target_os = "macos") {
+            rune::Mods { cmd: true, ..Default::default() }
+        } else {
+            rune::Mods { cmd: true, ctrl: true, ..Default::default() }
+        },
+    });
+    rt.frame(FRAME);
+    assert_eq!(lines(&rt), before);
 }
 
 #[test]
