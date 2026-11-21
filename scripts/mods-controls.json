@@ -1,0 +1,12 @@
+{"events": [
+  {"t": 0.6, "type": "tap", "key": "mod-tree.0.4.field"},
+  {"t": 0.9, "type": "type", "text": "release/1.9", "every": 0.05},
+  {"t": 1.8, "type": "mark", "name": "typed"},
+  {"t": 1.9, "type": "key", "name": "Enter"},
+  {"t": 2.3, "type": "tap", "key": "mod-tree.0.2.1"},
+  {"t": 2.7, "type": "tap", "key": "mod-tree.0.7.trigger"},
+  {"t": 3.1, "type": "mark", "name": "select-open"},
+  {"t": 3.3, "type": "tap", "key": "mod-select-list-opt2"},
+  {"t": 3.7, "type": "wheel", "x": 900, "y": 400, "dy": -3000, "precise": true},
+  {"t": 4.6, "type": "mark", "name": "done"}
+]}

@@ -181,6 +181,8 @@ mod tests_memory_notice;
 #[cfg(test)]
 mod tests_mission_live;
 #[cfg(test)]
+mod tests_mods_controls;
+#[cfg(test)]
 mod tests_mods_tree;
 #[cfg(test)]
 mod tests_new_project;
@@ -586,6 +588,8 @@ pub struct State {
     pub clock: f64,
     /// The tree a scene draws in a Mod tab until panes come from the server (component 22, piece F): invented, never fetched.
     pub mod_scene: Option<mock::mod_trees::ModScene>,
+    /// What a mod's controls remember (component 22, piece C): the text of each Input, the open Select, the actions sent.
+    pub mods_ui: fleet::mods::controls::ModControls,
     /// When the open session's turn started, on `clock`.
     pub working_since: f64,
     /// A canned reply on its way: (project, session, due).
@@ -939,6 +943,7 @@ impl Default for State {
             draft_of: None,
             clock: 0.0,
             mod_scene: None,
+            mods_ui: Default::default(),
             working_since: -18.0,
             reply: None,
             script: None,
@@ -1803,6 +1808,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_memory(tx)
         | s.keep_credentials(tx)
         | s.keep_mods_runtime(tx)
+        | s.mods_ui.keep(now, tx)
         | s.keep_skills(tx)
         | s.keep_built_in(tx)
         | s.keep_harnesses_page(tx)
@@ -5767,6 +5773,8 @@ pub fn spec() -> AppSpec<State> {
             // Component 22, piece B: a mod's tree drawn in the pane, every Box, Text, Pill and Icon variant.
             ("mods-elements", |s| s.show_mod_elements(true)),
             ("mods-elements-light", |s| s.show_mod_elements(false)),
+            ("mods-controls", |s| s.show_mod_controls(true)),
+            ("mods-controls-light", |s| s.show_mod_controls(false)),
             ("panel-tabs", |s| s.show_tabs(mock::canvas_host::Case::Tabs, true)),
             ("panel-tabs-light", |s| s.show_tabs(mock::canvas_host::Case::Tabs, false)),
             ("panel-tabs-attention", |s| s.show_tabs(mock::canvas_host::Case::Attention, true)),

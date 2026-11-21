@@ -7,7 +7,7 @@ use crate::fleet::canvas_host::{Badge, STRIP, close_key, pin_key, tab_key};
 use crate::fleet::canvases::{CanvasInstance, CanvasKind, VisualType};
 use crate::fleet::tab_motion::{PULSE_ICON_SHARE, bezier, ease_out};
 use crate::icons::*;
-use crate::theme::{RADIUS_BTN, RADIUS_PANEL, Theme, sans};
+use crate::theme::{RADIUS_BTN, RADIUS_PANEL, Theme, mono, sans};
 use rune::{Cursor, El, Key, KeyEvent, Phase, col, el, icon, row, spacer, text};
 use std::cell::Cell;
 
@@ -289,15 +289,13 @@ fn body(s: &State, t: &Theme) -> El {
                 .center_y()
                 .child(text("Fleet draws").font(sans(12.0, 400.0, 1.3)).color(t.muted));
             let drawn = super::mods::tree::tree(s, t, &scene.tree, scene.site, scene.slot.then_some(own));
-            col()
-                .key("mod-pane")
-                .w_full()
-                .grow(1.0)
-                .min_h(0.0)
-                .px(12.0)
-                .py(12.0)
-                .child(drawn)
-                .scroll(rune::ScrollSpec { stick_bottom: false })
+            // What the controls have sent so far, for a scene and a scripted run to show; the site's own `on_action` sends them on.
+            let sent = s.mods_ui.sent.iter().map(super::mods::controls::sent_line).collect::<Vec<_>>().join("\n");
+            let mut pane = col().key("mod-pane").w_full().grow(1.0).min_h(0.0).px(12.0).py(12.0).gap(12.0).child(drawn);
+            if !sent.is_empty() {
+                pane = pane.child(text(sent).key("mod-scene-log").font(mono(11.5, 400.0, 1.5)).color(t.muted).wrap().wrap_anywhere());
+            }
+            pane.scroll(rune::ScrollSpec { stick_bottom: false })
         }
         Some(kind) => stand_in(t, kind),
         None => el(),

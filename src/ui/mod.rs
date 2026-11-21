@@ -163,6 +163,7 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
         Some(Open::MachineContext) => menus::machine_session_context(s, t),
         Some(Open::MachineProjectMenu) => menus::machine_project_context(s, t),
         Some(Open::MachineHeadingMenu) => menus::machine_heading_context(s, t),
+        Some(Open::Select(crate::view::mods::controls::OPEN)) => crate::view::mods::controls::select_list(s, t),
         Some(Open::Select("large-pastes")) => crate::view::settings::general::large_pastes_list(s, t),
         Some(Open::Select("dream-nightly-harness")) => crate::view::settings::dream_nightly::harness_list(s, t),
         Some(Open::Select("dream-nightly-model")) => crate::view::settings::dream_nightly::model_list(s, t),
