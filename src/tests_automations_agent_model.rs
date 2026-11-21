@@ -9,6 +9,7 @@ use crate::tests::click;
 use crate::tests_automations_composer::{KETTLE, open, page, start_new, submit_shown, weekly_digest};
 use crate::tests_automations_page::Rig;
 use serde_json::{Value, json};
+use std::sync::atomic::Ordering;
 
 /// Waits for the chips: the harnesses read, and the catalog of the composer's folder answered.
 fn chips_shown(r: &mut Rig) {
@@ -111,6 +112,23 @@ fn the_catalog_is_asked_for_the_run_s_folder_once_and_not_again_for_the_same_fol
     for _ in 0..5 {
         r.frames();
     }
+    assert_eq!(r.home.catalogs.lock().unwrap().clone(), vec![("opencode".to_string(), Some(KETTLE.to_string()))]);
+}
+
+#[test]
+fn no_catalog_is_asked_before_the_machine_s_harnesses_have_answered() {
+    let mut r = page(vec![weekly_digest(json!({}))], true);
+    r.home.hold_harnesses.store(true, Ordering::SeqCst);
+    start_new(&mut r, "Every Monday at 9am, summarise the open PRs");
+    let requests = r.home.requests.clone();
+    r.wait("the harnesses to be asked for", move |_| requests.lock().unwrap().iter().any(|(_, route, _)| route == "/api/harnesses"));
+    r.wait("the run's folder", |s| s.automations_nav.draft.folder.is_some());
+    r.frames();
+
+    // With no harness there is nothing to ask a catalog of (`automation_catalog_key`).
+    assert_eq!(r.rt.state.automation_default_harness(), "", "no harness is known until the machine says");
+    r.home.hold_harnesses.store(false, Ordering::SeqCst);
+    chips_shown(&mut r);
     assert_eq!(r.home.catalogs.lock().unwrap().clone(), vec![("opencode".to_string(), Some(KETTLE.to_string()))]);
 }
 

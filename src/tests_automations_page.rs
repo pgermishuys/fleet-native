@@ -35,6 +35,10 @@ pub(crate) fn rig(home: Vec<Value>, harbor: Vec<Value>) -> Rig {
     let mut rt = app();
     let base = harbor.base.clone();
     rt.update(move |s, _| {
+        // As `connect_to`: nothing invented is read against a server. The invented harness list (OpenCode 2 the default)
+        // left in place had the composer ask for its catalog before the fake's own list answered (#392 on Windows CI).
+        s.feeds = Default::default();
+        s.seed_feeds_from_settings();
         s.link = Some(link);
         s.now_ms = Some(NOW_MS);
         s.show_machines_only(Case::Several);
