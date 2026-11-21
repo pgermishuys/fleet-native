@@ -2532,6 +2532,17 @@ whole-file work that piece R can make incremental (colour from the edited line, 
   select needs its own arm there, not only a list of its own.
 - **`border_sides` takes no layout space** unless `border_layout()` follows it, so a rule above a block with padding needs both.
 
+## Component 19, piece J (the When menu)
+
+- **A popover that scrolls is `pop(..).scroll(ScrollSpec { stick_bottom: false }).max_h(h)` on the panel itself**, padding and all; with
+  `anchored_fit` it is also never taller than the room above the chip. The window's height for a `70vh` cap is `s.ui.sel.window.1`
+  (fall back to the fixed cap while it is 0).
+- **A field's blur, again** (see piece D of component 20): the cron box applies on leaving it, so the page's poll keeps "has had the
+  keys since the menu opened" and acts when `TextEdit::focused` goes false while the menu is still open. A press on a row runs
+  before the poll, so a row chosen while the cron box had the keys wins and the cron is dropped, as the menu has closed.
+- **A test that closes a menu and opens it again at once finds the old panel's children by key** while it fades out (the note
+  at component 16, piece AJ): an error from before is still "there". Let the close finish (about 30 frames) first.
+
 ## Component 19, piece I (the automation composer)
 
 - **A `Link` in `rich` text is its own element in `elements()`**: role `link`, keyed by the link's id, its text the linked words, a

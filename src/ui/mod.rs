@@ -199,6 +199,7 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
         Some(Open::Popover("workflow-models")) => crate::view::workflows::roles::popover(s, t),
         Some(Open::Popover("workflow-project")) => crate::view::workflows::project_picker::overlay(s, t),
         Some(Open::Popover("more")) => crate::view::more_options::overlay(s, t),
+        Some(Open::Popover(crate::fleet::automations::when::WHEN_POPOVER)) => crate::view::automations::when::overlay(s, t),
         Some(Open::Popover(name)) => gallery::popover_content(s, t, name),
         Some(Open::Directory) => directory_picker::view(s, t, "g-dir"),
         Some(Open::GoToFile) => crate::view::go_to_file::overlay(s, t),

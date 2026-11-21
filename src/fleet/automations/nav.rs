@@ -58,6 +58,8 @@ pub struct Nav {
     pub submitting: bool,
     /// Why the server refused the last create or save, over the composer (`formError`).
     pub form_error: Option<String>,
+    /// The When menu's boxes and the cron's error.
+    pub when: super::when::WhenMenu,
     /// The automation `edit` was made from; another one (or none) makes it again from the list (`resetEditState`).
     pub(super) edit_for: Option<String>,
     /// The composer's upkeep: the machine whose repositories were asked for, the paths last seen, and whether the draft
@@ -225,7 +227,8 @@ impl State {
             changed = true;
         }
         changed |= self.keep_automation_runs(tx);
-        changed |= self.keep_automation_composer();
+        changed |= self.keep_automation_composer(tx);
+        changed |= self.keep_when_menu();
         if now - self.automations_nav.last_tick >= TICK_MS {
             self.automations_nav.last_tick = now;
             changed = true;

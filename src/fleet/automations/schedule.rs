@@ -414,6 +414,18 @@ pub fn local_date(ms: i64, tz: Tz) -> String {
     format!("{y:04}-{:02}-{d:02}", m0 + 1)
 }
 
+/// The local weekday of an instant (0 = Sunday), as `getDay()`.
+pub fn weekday(ms: i64, tz: Tz) -> u8 {
+    Local::of(ms, tz).dow()
+}
+
+/// The local date after the one `ms` falls on, as YYYY-MM-DD (`setDate(getDate() + 1)`): by the calendar, not 24 hours on,
+/// so a day a clock change makes 23 or 25 hours long is still one day.
+pub fn tomorrow(ms: i64, tz: Tz) -> String {
+    let (y, m0, d) = civil_from_days(Local::of(ms, tz).day + 1);
+    format!("{y:04}-{:02}-{d:02}", m0 + 1)
+}
+
 fn day_date(ms: i64, tz: Tz) -> String {
     let l = Local::of(ms, tz);
     let (_, m0, d) = l.ymd();

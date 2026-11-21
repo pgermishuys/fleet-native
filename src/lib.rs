@@ -55,6 +55,8 @@ mod tests_automations_runs;
 #[cfg(test)]
 mod tests_automations_store;
 #[cfg(test)]
+mod tests_automations_when;
+#[cfg(test)]
 mod tests_browser;
 #[cfg(test)]
 mod tests_browser_agent;
@@ -5246,6 +5248,12 @@ pub fn spec() -> AppSpec<State> {
             ("automation-new-ask-light", |s| s.show_automations(false, mock::automations::Scene::CreateAsk)),
             ("automation-new-error", |s| s.show_automations(true, mock::automations::Scene::CreateError)),
             ("automation-new-error-light", |s| s.show_automations(false, mock::automations::Scene::CreateError)),
+            ("automation-when", |s| s.show_automations(true, mock::automations::Scene::When)),
+            ("automation-when-light", |s| s.show_automations(false, mock::automations::Scene::When)),
+            ("automation-when-once", |s| s.show_automations(true, mock::automations::Scene::WhenOnce)),
+            ("automation-when-once-light", |s| s.show_automations(false, mock::automations::Scene::WhenOnce)),
+            ("automation-when-cron-error", |s| s.show_automations(true, mock::automations::Scene::WhenCronError)),
+            ("automation-when-cron-error-light", |s| s.show_automations(false, mock::automations::Scene::WhenCronError)),
             ("automation-edit-dirty", |s| s.show_automations(true, mock::automations::Scene::EditDirty)),
             ("automation-edit-dirty-light", |s| s.show_automations(false, mock::automations::Scene::EditDirty)),
             ("automation-open", |s| s.show_automations(true, mock::automations::Scene::Open)),
