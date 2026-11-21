@@ -105,7 +105,11 @@ impl RepositorySource for Cache {
         self.get().wanted = true;
     }
     fn repositories(&self) -> Vec<RemoteRepository> {
-        self.get().repos.iter().map(|r| RemoteRepository { id: r.id.clone(), full_name: r.full_name.clone(), name: r.name.clone() }).collect()
+        self.get()
+            .repos
+            .iter()
+            .map(|r| RemoteRepository { id: r.id.clone(), full_name: r.full_name.clone(), name: r.name.clone() })
+            .collect()
     }
 }
 

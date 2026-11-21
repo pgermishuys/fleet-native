@@ -46,7 +46,15 @@ pub fn set(s: &mut State, which: &str, dark: bool) {
 pub fn scene(s: &mut State, dark: bool, which: Which) {
     s.dark = Some(dark);
     s.open_settings("plugin:github", None);
-    s.plugins.statuses = vec![("github".into(), if matches!(which, Which::Connected | Which::Cached | Which::CacheLoading | Which::CacheFailed | Which::CacheStale) { "connected" } else { "disconnected" }.into())];
+    s.plugins.statuses = vec![(
+        "github".into(),
+        if matches!(which, Which::Connected | Which::Cached | Which::CacheLoading | Which::CacheFailed | Which::CacheStale) {
+            "connected"
+        } else {
+            "disconnected"
+        }
+        .into(),
+    )];
     let clock = s.clock;
     let g = crate::plugins::github::auth(&mut s.places);
     // Nothing asks a server in a scene: the page has read already.

@@ -2,9 +2,9 @@
 //! panel's counts and Your work, kept 60 seconds, one request in flight, `refresh` forcing a new one. The request goes on a
 //! thread and its answer comes back to the UI thread; nothing here waits.
 use super::items::{Work, error_words};
+use crate::State;
 use crate::fleet::http;
 use crate::fleet::settings::HOME_MACHINE_KEY;
-use crate::State;
 
 /// `STALE_AFTER_MS`, in the app's clock seconds.
 pub const STALE_AFTER: f64 = 60.0;

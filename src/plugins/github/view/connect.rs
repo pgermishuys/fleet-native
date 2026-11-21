@@ -152,15 +152,7 @@ fn connected(s: &State, t: &Theme, g: &Github) -> El {
     )
     .on_press(|s: &mut State| s.github_repos_refresh(true));
     let why = beside.map(|m| text(m).key("github-cache-error").font(sans(12.0, 400.0, 1.5)).color(t.error_text).wrap().mt(4.0));
-    let second = settings_row(
-        t,
-        "github-row-cache",
-        false,
-        false,
-        None,
-        copy(t, "Repository cache", &summary, why),
-        Some(refresh),
-    );
+    let second = settings_row(t, "github-row-cache", false, false, None, copy(t, "Repository cache", &summary, why), Some(refresh));
     let lead = if g.disconnecting { spinner(t.error_text) } else { icon(&UNPLUG, 14.0).color(t.error_text) };
     let disconnect = button(
         t,
