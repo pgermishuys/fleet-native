@@ -14,6 +14,14 @@ pub enum Which {
     TokenTested,
     /// The token card open, with a refusal.
     TokenRefused,
+    /// Connected, the repository cache loaded four minutes ago.
+    Cached,
+    /// Connected, the cache being read for the first time.
+    CacheLoading,
+    /// Connected, the cache refused with nothing cached.
+    CacheFailed,
+    /// Connected, repositories cached and the last refresh refused.
+    CacheStale,
 }
 
 /// The scene named `which`: `checking`, `connected`, `idle`, `waiting`, `denied`, `tokentested` or `tokenrefused`.
@@ -26,6 +34,10 @@ pub fn set(s: &mut State, which: &str, dark: bool) {
         "denied" => Which::Denied,
         "tokentested" => Which::TokenTested,
         "tokenrefused" => Which::TokenRefused,
+        "cached" => Which::Cached,
+        "cacheloading" => Which::CacheLoading,
+        "cachefailed" => Which::CacheFailed,
+        "cachestale" => Which::CacheStale,
         other => panic!("no GitHub scene called {other}"),
     };
     scene(s, dark, which)
@@ -34,13 +46,13 @@ pub fn set(s: &mut State, which: &str, dark: bool) {
 pub fn scene(s: &mut State, dark: bool, which: Which) {
     s.dark = Some(dark);
     s.open_settings("plugin:github", None);
-    s.plugins.statuses = vec![("github".into(), if matches!(which, Which::Connected) { "connected" } else { "disconnected" }.into())];
+    s.plugins.statuses = vec![("github".into(), if matches!(which, Which::Connected | Which::Cached | Which::CacheLoading | Which::CacheFailed | Which::CacheStale) { "connected" } else { "disconnected" }.into())];
     let clock = s.clock;
     let g = crate::plugins::github::auth(&mut s.places);
     // Nothing asks a server in a scene: the page has read already.
     g.asked = true;
     g.checking = matches!(which, Which::Checking);
-    g.connected = matches!(which, Which::Connected);
+    g.connected = matches!(which, Which::Connected | Which::Cached | Which::CacheLoading | Which::CacheFailed | Which::CacheStale);
     match which {
         Which::Waiting => {
             g.device = Device::Awaiting {
@@ -62,6 +74,40 @@ pub fn scene(s: &mut State, dark: bool, which: Which) {
                 Pat::Error("Bad credentials".into())
             };
         }
+        _ => {}
+    }
+    fill_cache(s, which);
+}
+
+/// The repository cache of a connected page: invented repositories, read at a fixed time so "updated 4m ago" never moves.
+fn fill_cache(s: &mut State, which: Which) {
+    use crate::plugins::github::repos::Repo;
+    let now = 20_000 * 86_400_000 + 12 * 3_600_000;
+    s.now_ms = Some(now);
+    let mut c = crate::plugins::github::state(&mut s.places).repos.get();
+    let repo = |i: u64, full: &str| Repo {
+        id: i.to_string(),
+        full_name: full.into(),
+        name: full.rsplit('/').next().unwrap_or_default().into(),
+        owner_login: full.split('/').next().unwrap_or_default().into(),
+        private: false,
+        language: Some("Rust".into()),
+        stars: i,
+    };
+    match which {
+        Which::Cached | Which::CacheStale => {
+            c.repos = ["acme/rocket", "acme/anvil", "acme/billing", "lumen-labs/atlas", "lumen-labs/beacon", "lumen-labs/compass"]
+                .iter()
+                .enumerate()
+                .map(|(i, n)| repo(i as u64, n))
+                .collect();
+            c.updated_ms = Some(now - 4 * 60_000);
+            if matches!(which, Which::CacheStale) {
+                c.error = Some("GitHub didn't answer (HTTP 502).".into());
+            }
+        }
+        Which::CacheLoading => c.loading = true,
+        Which::CacheFailed => c.error = Some("GitHub rate limit exceeded. Try again in a few minutes.".into()),
         _ => {}
     }
 }

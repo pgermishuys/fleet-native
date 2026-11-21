@@ -2719,6 +2719,14 @@ pub fn spec() -> AppSpec<State> {
             ("settings-github-token-light", |s| plugins::scene(s, "github-tokentested", false)),
             ("settings-github-token-refused", |s| plugins::scene(s, "github-tokenrefused", true)),
             ("settings-github-token-refused-light", |s| plugins::scene(s, "github-tokenrefused", false)),
+            ("settings-github-cache", |s| plugins::scene(s, "github-cached", true)),
+            ("settings-github-cache-light", |s| plugins::scene(s, "github-cached", false)),
+            ("settings-github-cache-loading", |s| plugins::scene(s, "github-cacheloading", true)),
+            ("settings-github-cache-loading-light", |s| plugins::scene(s, "github-cacheloading", false)),
+            ("settings-github-cache-failed", |s| plugins::scene(s, "github-cachefailed", true)),
+            ("settings-github-cache-failed-light", |s| plugins::scene(s, "github-cachefailed", false)),
+            ("settings-github-cache-stale", |s| plugins::scene(s, "github-cachestale", true)),
+            ("settings-github-cache-stale-light", |s| plugins::scene(s, "github-cachestale", false)),
             ("settings-plugin-github", |s| {
                 use view::settings::plugins_scene::{Look, scene};
                 scene(
