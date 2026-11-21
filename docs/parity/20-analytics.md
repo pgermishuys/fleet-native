@@ -541,6 +541,35 @@ en-US, both themes. `scripts/scratch-fleet.sh` switches analytics off; a piece r
 - **Pictures:** a live walk against a scratch Fleet with seeded data: every section, a filter change, a sort, the
   calendar, an export, a second machine if one can be paired, beside Fleet's own client in the same states, both themes.
 
+**Done (21 November 2026).** The sweep, with the numbers it found. Pictures: `shots/parity/20-analytics/K-sweep/`:
+`side-by-side-*.png` (Fleet's own client left, the native app right, 1280×760, UTC, en-US: Overview both themes, Daily
+dark, Projects light, Models dark, Sessions sorted by cost both themes, the project select open both themes),
+`native-calendar-{light,dark}.png` (the calendar open; no Fleet twin, Chrome's picker is outside the page),
+`native-export-saved-dark.png` (Export CSV with the save dialog answered: the "Saved analytics.csv" toast) and
+`csv-first-lines.png` (the first lines of the saved file). The saved file is byte for byte the server's own
+(`cmp` against `GET /api/analytics/export?format=csv` for the same range: identical, 19263 bytes). The scratch Fleet
+(v0.74.0's package) ran with analytics on and 152 invented events, 18 sessions, 6 projects, 5 models over 30 days
+seeded into its analytics database (the seed is the session's own).
+
+- **Rows:** every row is Done, Server's, Out of scope (1.9, 15.1: the phone strip) or a named gap with its reason:
+  7.11/15.3 (Chart.js's entry animation and tooltip fade: drawn at once, by decision) and 8.6 (the cost fill doesn't
+  ease). 15.2 is Done by E's calendar. 5.9-5.11, 11.5 are the server's.
+- **Fleet's tests:** all 30 cases are ported under their own names (the table above): `analytics-sections` 4 and
+  `use-analytics-filters` 6 in `src/fleet/tests/analytics.rs`, `use-analytics-machine` in `tests_analytics_store.rs`,
+  `AnalyticsNavPanel` in `tests_analytics_page.rs` (the Export and filters case in `tests_analytics_export.rs`), the
+  loading and load-error cases in `tests_analytics_{overview,tables,sessions}.rs`, `rails.test.ts` by 9 A.
+- **Found by the live walk, left open** (nothing here fixes them; each is small and in a finished piece's files):
+  1. **Overview chart, x axis labels (G, 7.x):** with 21 days of data in a 654 px chart Fleet draws every day's label
+     (`Oct 26`, `Oct 27`, `Nov 4`, `Nov 5` …), the native chart draws every other one (`Oct 26`, `Nov 4`, `Nov 6` …).
+     `chart.rs`'s `auto_skip` limit (`widest + SKIP_PAD`) is stricter than what Chart.js did here. Owner: a follow-up to G.
+  2. **Projects grid (H, 10.x):** Fleet keeps all five cards the width of the first row's (three to a row, the last row
+     left-aligned); the native second row's two cards stretch to fill the row. Owner: a follow-up to H.
+  3. **Daily's table rows** are about a pixel shorter than Fleet's (27 against 28 at 1280 px); too small to matter,
+     noted for H's next visit.
+  4. **The project filter** still empties Overview, Daily, Projects and Sessions, as Fleet's does (Fleet bug 1 above);
+     the select's menu and a picked project were walked live.
+- **Not checked:** a second machine (no second Fleet paired here), Windows and macOS (CI draws the scenes on Linux).
+
 ## Seams with other components
 
 - **8 (session header):** its analytics popover is `src/view/analytics.rs`; this component doesn't touch it.
