@@ -94,6 +94,7 @@ pub mod machine_tree;
 pub mod machine_view;
 pub mod machines;
 pub mod memory_notice;
+pub mod mission;
 pub mod model;
 pub mod modes;
 pub mod mods;
