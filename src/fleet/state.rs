@@ -58,6 +58,7 @@ impl State {
             self.on_memory_event(topic, event);
             self.on_dream_event(topic, event);
             self.on_mods_event(topic, event);
+            self.on_mod_renders_event(topic, event);
             self.on_update_event(topic, event);
             self.on_list_work_event(event);
             self.on_queue_event(event);
@@ -716,6 +717,7 @@ impl State {
         self.refold();
         self.sync_questions();
         self.load_older_work();
+        self.sync_mod_rows();
     }
 
     /// Asks the server for all of the session's work, once, when a notice says work failed and the stream holds no item

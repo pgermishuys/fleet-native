@@ -2750,3 +2750,11 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 
 - Nothing in Rune was needed. Two things about this machine's builds: `cargo test` of the whole crate is OOM-killed (silent exit 143) at `MemoryMax=4000M`; it finished at 7000M. A non-test `cargo build` of the app and an example fits in 4000M.
 - A real window on a virtual display starts the bundled server in under 3 s when warm, so a screen grab of the start page needs to be taken at about 1 s, before Rune has drawn anything but black: not worth chasing.
+
+## Component 22, piece D (tool rows asking the server)
+
+- **No view, so nothing new about Rune.** What this piece needed from the app's side: a request in flight has to be counted by the app, not by the test. A
+  store that starts work on threads keeps its own `idle()` (renders running or queued, reads of the sites or the switch on their way) so a test drives frames until
+  it holds, then a frame or two more and checks again: the first answer's job can start the next request.
+- A store with a bounded number of requests at once is tested with a fake server that holds each one on a `Condvar` permit and counts `active`/`peak`; the
+  test hands out permits one at a time and waits for the next request to arrive before the next permit.
