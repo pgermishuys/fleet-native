@@ -256,7 +256,8 @@ impl crate::State {
         if rail == Rail::Analytics {
             self.enter_analytics();
         }
-        self.rail = rail;
+        // Fleet and Jobs open their bare address; the Board has only the one.
+        self.enter_labs(rail);
         // Sessions' address is `/`: home, with nothing selected (piece C).
         if self.on_bare_page() || rail == Rail::Sessions {
             self.go(super::store::Route::Home);

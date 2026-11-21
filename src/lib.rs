@@ -153,6 +153,8 @@ mod tests_images;
 #[cfg(test)]
 mod tests_improve_skill;
 #[cfg(test)]
+mod tests_labs_frame;
+#[cfg(test)]
 mod tests_lineage;
 #[cfg(test)]
 mod tests_machine_addresses;
@@ -593,6 +595,8 @@ pub struct State {
     pub analytics: fleet::analytics::store::Analytics,
     /// The section Analytics shows (`fleet::analytics::nav`).
     pub analytics_nav: fleet::analytics::nav::Nav,
+    /// Where Fleet, Jobs and the Board are, and Turn on for each (component 23, piece A).
+    pub labs: fleet::labs::Labs,
     /// The Workflows page: its Library, the open workflow, the machine it shows (`fleet::workflows::nav`).
     pub automations_nav: fleet::automations::nav::Nav,
     pub workflows_nav: fleet::workflows::nav::Nav,
@@ -828,6 +832,12 @@ fn rail_labs_on(s: &mut State, light: bool) {
     s.pickers.prefs.adopt(&serde_json::json!({ "features.mission-control.enabled": "true", "features.board.enabled": "true" }));
 }
 
+/// A Labs view opened with its switch off (`fleet-off`, `jobs-off`, `board-off`).
+fn labs_off_scene(s: &mut State, dark: bool, rail: Rail) {
+    s.dark = Some(dark);
+    s.press_rail(rail);
+}
+
 impl Default for State {
     fn default() -> Self {
         let mut state = State {
@@ -925,6 +935,7 @@ impl Default for State {
             automations: Default::default(),
             analytics: Default::default(),
             analytics_nav: Default::default(),
+            labs: Default::default(),
             automations_nav: Default::default(),
             workflows_nav: Default::default(),
             links: Default::default(),
@@ -2608,6 +2619,13 @@ pub fn spec() -> AppSpec<State> {
                 s.open_settings("general", None);
                 flip_general(s);
             }),
+            // Component 23, piece A: each Labs view with its switch off, the notice that fills the context.
+            ("fleet-off", |s| labs_off_scene(s, true, Rail::Fleet)),
+            ("fleet-off-light", |s| labs_off_scene(s, false, Rail::Fleet)),
+            ("jobs-off", |s| labs_off_scene(s, true, Rail::Jobs)),
+            ("jobs-off-light", |s| labs_off_scene(s, false, Rail::Jobs)),
+            ("board-off", |s| labs_off_scene(s, true, Rail::Board)),
+            ("board-off-light", |s| labs_off_scene(s, false, Rail::Board)),
             // Piece T: Labs with everything off, with another machine listed, and with everything on.
             ("workflows", |s| s.show_workflows(true, mock::workflows::Scene::Library)),
             ("workflows-light", |s| s.show_workflows(false, mock::workflows::Scene::Library)),

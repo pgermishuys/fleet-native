@@ -105,8 +105,8 @@ pub fn all(s: &State) -> Vec<Command> {
             &LAYOUT_GRID,
             Navigation,
             None,
-            &["board", "mission control"],
-            Run::Waiting(23),
+            &["kanban", "overview", "board"],
+            now(|s, _| s.enter_labs(Rail::Board)),
         ),
         c(
             "nav-analytics",

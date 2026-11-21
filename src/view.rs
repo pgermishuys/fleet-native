@@ -14,6 +14,7 @@ pub mod attachments;
 pub mod autocomplete;
 pub mod automations;
 pub mod base_picker;
+pub mod board;
 pub mod browser_agent_bar;
 pub mod browser_app;
 pub mod browser_open;
@@ -66,6 +67,8 @@ pub mod history;
 pub mod image;
 pub mod improve_skill;
 pub mod interrupted;
+pub mod jobs;
+mod labs_frame;
 pub mod lines_bar;
 pub mod machine_addresses;
 pub mod machine_card;
@@ -76,6 +79,7 @@ pub mod machine_switch;
 pub mod machines_page;
 mod marks;
 pub mod message;
+pub mod mission;
 pub mod more_options;
 pub mod new_project;
 pub mod new_session;
@@ -198,6 +202,27 @@ pub fn root(s: &State, cx: &mut Cx<State>) -> El {
             }
             main.children(panes)
         }
+        Rail::Fleet => {
+            let mut panes = mission::page(s, &t).into_iter();
+            if let Some(first) = panes.next() {
+                main = main.child(first.ml(8.0));
+            }
+            main.children(panes)
+        }
+        Rail::Jobs => {
+            let mut panes = jobs::page(s, &t).into_iter();
+            if let Some(first) = panes.next() {
+                main = main.child(first.ml(8.0));
+            }
+            main.children(panes)
+        }
+        Rail::Board => {
+            let mut panes = board::page(s, &t).into_iter();
+            if let Some(first) = panes.next() {
+                main = main.child(first.ml(8.0));
+            }
+            main.children(panes)
+        }
         Rail::Analytics => {
             let mut panes = analytics_page::page(s, &t).into_iter();
             if let Some(first) = panes.next() {
@@ -218,7 +243,6 @@ pub fn root(s: &State, cx: &mut Cx<State>) -> El {
             Some((_, page)) => main.child(page(s, &t).ml(8.0)),
             None => main.child(notice(s, &t, Rail::Plugin(id)).ml(8.0)),
         },
-        other => main.child(notice(s, &t, other).ml(8.0)),
     };
     // The window's size, for the selector menu's width and height caps (`100vw - 16px`, `60vh`).
     let frame = col().w_full().h_full().fill(t.main_bg).child(main).child(status::bar(s, &t)).on_layout(|s: &mut State, [_, _, w, h]| {
@@ -262,14 +286,8 @@ fn gutter(t: &Theme) -> El {
 /// says, and says plainly that this prototype stops at the Sessions shell.
 fn notice(s: &State, t: &Theme, which: Rail) -> El {
     let (name, glyph): (&str, &'static Icon) = match which {
-        Rail::Fleet => ("Fleet", &crate::icons::RADAR),
-        Rail::Board => ("Board", &crate::icons::LAYOUT_GRID),
-        Rail::Jobs => ("Jobs", &crate::icons::LIST_TODO),
-        Rail::Workflows => ("Workflows", &crate::icons::WORKFLOW),
-        Rail::Automations => ("Automations", &crate::icons::ZAP),
-        Rail::Analytics => ("Analytics", &crate::icons::CHART_COLUMN),
         Rail::Plugin(id) => s.places.rail_item(id).map_or(("Plugin", &crate::icons::PUZZLE), |p| (p.label, p.icon)),
-        Rail::Settings | Rail::Sessions => ("Settings", &crate::icons::SETTINGS),
+        _ => ("Settings", &crate::icons::SETTINGS),
     };
     col()
         .grow(1.0)

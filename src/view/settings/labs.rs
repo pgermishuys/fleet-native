@@ -81,7 +81,7 @@ fn labs_row(s: &State, t: &Theme, spec: &Spec, summary: &str, adds_on: bool, loc
 
 /// Rail entries are routes in Fleet (`router.navigate`): opening one changes the rail and leaves the switch alone.
 fn go(rail: Rail) -> impl Fn(&mut State) {
-    move |s: &mut State| s.rail = rail
+    move |s: &mut State| s.enter_labs(rail)
 }
 
 /// Keep every machine live is drawn and saved only: this app has no live feeds yet (owner's decision 6), so the row says so.

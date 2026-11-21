@@ -9,12 +9,12 @@ impl State {
         self.route == Route::Home
     }
 
-    /// Asks the landing rule, on arriving at Home and when the preferences come. Mission control is component 23: until it
-    /// exists the rule only records that it would have landed (`landing.landed`).
+    /// Asks the landing rule, on arriving at Home and when the preferences come: with Mission control on, the first `/` of a
+    /// start opens Fleet's Needs you (a replace: Home is not left behind to go back to).
     pub(crate) fn landing_check(&mut self) {
         let on = self.pickers.prefs.get(MISSION_CONTROL_KEY) == Some("true");
-        if self.on_home() {
-            self.landing.lands(self.pickers.prefs.fetched, on);
+        if self.on_home() && self.landing.lands(self.pickers.prefs.fetched, on) {
+            self.open_fleet_address("/fleet");
         }
     }
 }
