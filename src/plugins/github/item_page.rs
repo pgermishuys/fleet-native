@@ -25,6 +25,10 @@ pub struct Page {
     pub refreshing: bool,
     /// The menu behind the split button's chevron is open.
     pub menu: bool,
+    /// The page's measured width (`@container` queries), one frame late; 0 until measured.
+    pub width: f32,
+    /// A scene's width, used in place of the measured one.
+    pub pinned_width: Option<f32>,
     /// Each request takes the next number; an answer for an older one is dropped (`AbortController`).
     generation: u64,
 }

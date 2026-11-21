@@ -8,6 +8,7 @@ pub mod home_connect;
 pub mod home_scene;
 pub mod item;
 pub mod item_body;
+pub mod item_rail;
 pub mod item_scene;
 pub mod page;
 pub mod panel;
