@@ -23,6 +23,9 @@ pub struct Upkeep {
     seen: Vec<String>,
     /// The draft was given New session's folder once the repositories were known (`applyInitialFolder`).
     pub(super) draft_folder_done: bool,
+    /// The event types the machine's Fleet offers (`fetchEventCatalog`, read once with the repositories); None until it
+    /// answers, and after a failure, when the When menu offers the built-in list.
+    pub(super) events: Option<Vec<String>>,
 }
 
 /// The zone schedules are saved in, read once: finding it reads a link on disk, which a view must not do every frame.
@@ -32,7 +35,7 @@ pub fn time_zone() -> &'static str {
 }
 
 /// The local clock's offset at an instant, as the schedule words read it.
-fn local(ms: i64) -> i64 {
+pub(crate) fn local(ms: i64) -> i64 {
     crate::conv::time::local_offset_at(ms)
 }
 
@@ -161,7 +164,7 @@ impl State {
     /// or first appears in the list (rows 1.8, 1.9); the machine's repositories asked for once, a folder read before they
     /// came upgraded (7.14), and the draft started in New session's folder once they're known (9.3). True when something
     /// changed.
-    pub(crate) fn keep_automation_composer(&mut self) -> bool {
+    pub(crate) fn keep_automation_composer(&mut self, tx: &mut Tx) -> bool {
         let mode = self.automations_nav.mode;
         if mode == ViewMode::List {
             return false;
@@ -183,6 +186,19 @@ impl State {
             self.automations_nav.composer = Upkeep { draft_folder_done: false, ..Upkeep::default() };
             self.automations_nav.composer.asked = Some(machine.clone());
             self.read_repositories(&machine, false);
+            let asked = machine.clone();
+            self.automation_event_catalog(
+                &machine,
+                tx,
+                Box::new(move |s, _, result| {
+                    // The built-in list stays when it fails; a machine switched away from since keeps its answer out.
+                    if let Ok(list) = result
+                        && s.automations_nav.composer.asked.as_deref() == Some(asked.as_str())
+                    {
+                        s.automations_nav.composer.events = Some(list);
+                    }
+                }),
+            );
             return true;
         }
         let feed = self.feeds.repos(&machine);

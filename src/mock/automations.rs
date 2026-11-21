@@ -175,6 +175,12 @@ pub enum Scene {
     CreateAsk,
     /// A create the server refused: the form error over the composer, the text kept.
     CreateError,
+    /// A sentence typed and the When menu open over its chip (piece J).
+    When,
+    /// The same after Once: the menu offers the message's words back, and asks for the date and the time.
+    WhenOnce,
+    /// The same with a cron of four parts applied: the error under its box.
+    WhenCronError,
     /// An automation open with its prompt changed: Save shows.
     EditDirty,
     /// An automation open: its header and nothing else yet.
@@ -223,6 +229,9 @@ impl crate::State {
             Scene::List
             | Scene::Create
             | Scene::CreateTyped
+            | Scene::When
+            | Scene::WhenOnce
+            | Scene::WhenCronError
             | Scene::CreateAsk
             | Scene::CreateError
             | Scene::EditDirty
@@ -250,6 +259,18 @@ impl crate::State {
                 self.automations_nav.start_create();
                 self.automations_nav
                     .set_text(false, "Every Monday at 9, summarise the open pull requests and say what each one still needs.");
+            }
+            Scene::When | Scene::WhenOnce | Scene::WhenCronError => {
+                self.automations_nav.start_create();
+                self.automations_nav.set_text(false, "Every Monday at 9, summarise the open pull requests.");
+                self.show_when_menu();
+                if scene == Scene::WhenOnce {
+                    self.when_once();
+                }
+                if scene == Scene::WhenCronError {
+                    self.automations_nav.when.cron.replace_text("0 9 * *");
+                    self.when_apply_cron();
+                }
             }
             Scene::CreateAsk | Scene::CreateError => {
                 use crate::fleet::new_session::request::Folder;

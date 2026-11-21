@@ -1,12 +1,12 @@
-//! The automation composer (`AutomationComposer.vue` in `ComposerFrame.vue`; rows 7.2-7.6, 7.8, 7.9, 8.1's label, 9.1's
+//! The automation composer (`AutomationComposer.vue` in `ComposerFrame.vue`; rows 7.2-7.6, 7.8, 7.9, 8.1, 9.1's
 //! strip): the message box with the schedule words highlighted, the toolbar's Send (a new one) or Save (a saved one, once
-//! something changed), the strip under it with the When chip, and the plan line saying what Enter will make, with the
-//! "Just once" ask as a link. The When menu, the folder and the other chips are pieces J to N.
-use crate::fleet::automations::schedule::{When, when_chip};
+//! something changed), the strip under it with the When chip and its menu
+//! (`when.rs`), and the plan line saying what Enter will make, with the "Just once" ask as a link. The folder and the other
+//! chips are pieces K to N.
+use crate::fleet::automations::schedule::When;
 use crate::fleet::automations::words::{Part, Plan};
-use crate::icons::{ARROW_UP, LOADER_CIRCLE, ZAP};
+use crate::icons::{ARROW_UP, LOADER_CIRCLE};
 use crate::theme::{Theme, sans};
-use crate::ui::chip::Chip;
 use crate::ui::text_menu::text_input;
 use crate::{State, Tx};
 use rune::{Color, Cursor, El, Link, Shadow, Span, TextHighlight, auto_grow, col, icon, rich, row, spacer, text};
@@ -30,6 +30,8 @@ struct Shown {
     plan: Plan,
     show_send: bool,
     can_submit: bool,
+    /// The message has schedule words, whether or not they decide.
+    has_words: bool,
 }
 
 /// `.automation-composer`: padding 4/24/18, its parts 760 wide at most and centred.
@@ -43,9 +45,8 @@ pub fn section(s: &State, t: &Theme) -> El {
         plan: c.plan(ctx),
         show_send: c.show_send(ctx),
         can_submit: c.can_submit(ctx, busy),
+        has_words: c.hit().is_some(),
     });
-    let from = crate::view::message::now_ms(s);
-    let local = |ms: i64| crate::conv::time::local_offset_at(ms);
     col()
         .key("automation-composer")
         .label(if editing { "Automation" } else { "New automation" })
@@ -55,7 +56,7 @@ pub fn section(s: &State, t: &Theme) -> El {
         .px(24.0)
         .pb(18.0)
         .child(frame(s, t, editing, busy, &shown))
-        .child(strip(t, &shown, from, &local))
+        .child(strip(s, t, &shown, busy))
         .child(plan_line(t, &shown.plan))
 }
 
@@ -139,18 +140,10 @@ fn send_button(t: &Theme, editing: bool, busy: bool, can: bool) -> El {
     }
 }
 
-/// `.automation-composer__strip`: the chips under the box. This piece draws the When chip's label; its menu is J's, the
-/// folder and the rest K's to N's.
-fn strip(t: &Theme, shown: &Shown, from: i64, local: crate::fleet::automations::schedule::Tz) -> El {
-    let label = when_chip(shown.when.as_ref(), from, local);
-    let mut chip = Chip::new("automation-when-chip", label).attention(shown.when.is_none()).still();
-    if matches!(shown.when, Some(When::Event { .. })) {
-        chip = chip.glyph(&ZAP);
-    }
-    // The label is the accent's while it came from the message.
-    if shown.parsed {
-        chip = chip.ink(t.accent_text);
-    }
+/// `.automation-composer__strip`: the chips under the box. The When chip and its menu are `when.rs`; the folder and the
+/// rest are K to N.
+fn strip(s: &State, t: &Theme, shown: &Shown, busy: bool) -> El {
+    let when = super::when::Shown { when: shown.when.clone(), parsed: shown.parsed, message_has_schedule: shown.has_words };
     row()
         .key("automation-strip")
         .w_full()
@@ -160,7 +153,7 @@ fn strip(t: &Theme, shown: &Shown, from: i64, local: crate::fleet::automations::
         .gap(2.0)
         .pt(6.0)
         .px(4.0)
-        .child(chip.view(t, |_: &mut State, _: &mut Tx| {}))
+        .child(super::when::chip(s, t, &when, busy))
 }
 
 /// `.automation-composer__plan`: one line of words (12 px muted, line-height 1.55) with the schedule in the text colour,

@@ -348,3 +348,23 @@ pub fn option(t: &Theme, o: Option_, lead: Option<El>, on_press: impl Fn(&mut St
     }
     r.child(el().w(14.0).center().children(o.checked.then(|| icon(&crate::icons::CHECK, 14.0).color(t.accent))))
 }
+
+/// `.ns-field`: a label over its box, `6px 8px 8px`, 4px apart.
+pub fn pop_field(t: &Theme, label: &str, input: El) -> El {
+    col().w_full().gap(4.0).px(8.0).pt(6.0).pb(8.0).child(text(label).font(sans(11.5, 400.0, 1.3)).color(t.muted)).child(input)
+}
+
+/// `.ns-field__input`: padding `6px 8px`, 1px border, 6px radius, the text at 3%; the border turns accent while the field
+/// inside has the keys.
+pub fn pop_field_box(t: &Theme, input: El) -> El {
+    row()
+        .w_full()
+        .px(8.0)
+        .py(6.0)
+        .items_center()
+        .radius(RADIUS_BTN - 2.0)
+        .border(1.0, t.border)
+        .fill(t.wash(3.0))
+        .focus_within_ring(1.0, -1.0, t.accent)
+        .child(input)
+}

@@ -15,6 +15,7 @@ pub mod composer;
 pub mod detail;
 pub mod list;
 pub mod runs;
+pub mod when;
 
 /// The whole context: the list, its gutter and the detail; with the panel collapsed, the detail alone.
 pub fn page(s: &State, t: &Theme) -> Vec<rune::El> {
