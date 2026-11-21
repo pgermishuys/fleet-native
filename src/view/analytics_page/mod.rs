@@ -1,6 +1,6 @@
 //! The Analytics page (component 20): `[analytics-menu][analytics-detail]`. Ports `components/analytics/AnalyticsContent.vue`
 //! (the page: its `PageHeader` and the section's body) and the context's layout (`AppShell.vue`). The menu is `menu`; each
-//! section's body is an empty slot until its own piece (F to J).
+//! section's body is its own view.
 use crate::State;
 use crate::fleet::analytics::sections::Section;
 use crate::theme::Theme;
@@ -16,6 +16,7 @@ pub mod menu;
 pub mod models;
 pub mod overview;
 pub mod projects;
+pub mod sessions;
 
 pub const TITLE: &str = "Analytics";
 pub const LINE: &str = "Tokens and spend across your sessions, by project and model. Costs are estimates at list prices, not a bill.";
@@ -45,13 +46,13 @@ fn detail(s: &State, t: &Theme) -> rune::El {
     sheet(t, "analytics-detail").child(page.scroll(ScrollSpec { stick_bottom: false }).w_full().grow(1.0).min_h(0.0))
 }
 
-/// A section's body. Overview is drawn; the pieces after F fill the others in.
+/// A section's body.
 fn body(s: &State, t: &Theme, section: Section) -> rune::El {
     match section {
         Section::Overview => overview::overview(s, t),
         Section::Daily => daily::daily(s, t),
         Section::Projects => projects::projects(s, t),
         Section::Models => models::models(s, t),
-        _ => col().key(format!("analytics-body-{}", section.id())).w_full(),
+        Section::Sessions => sessions::sessions(s, t),
     }
 }

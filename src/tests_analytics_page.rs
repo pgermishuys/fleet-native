@@ -51,7 +51,7 @@ fn opens_a_section_by_its_own_route_and_does_nothing_for_the_one_already_open() 
     click(&mut rt, "analytics-section-sessions");
     assert_eq!(rt.state.analytics_nav.section, Section::Sessions);
     assert_eq!(rt.state.analytics_nav.path(), section_path(Section::Sessions));
-    assert!(shown(&rt, "analytics-body-sessions"), "the page swaps its body");
+    assert!(shown(&rt, "analytics-sessions"), "the page swaps its body");
     click(&mut rt, "analytics-section-overview");
     assert_eq!(rt.state.analytics_nav.path(), "/analytics");
     // Pressing the open one changes nothing.

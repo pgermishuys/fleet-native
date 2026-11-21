@@ -2699,3 +2699,9 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **`text(..).truncate()` is `text-overflow: ellipsis`** (there is no `.ellipsis()`); give the text `.grow(1.0).shrink().min_w(0.0)` so the count beside it keeps its place.
 - A test can tell a Fleet menu item's open state only by its `fill` (`ElementInfo.fill.a`): Rune has no `aria-current`.
 - **A test binary of this crate needs about 5 GB to link** (`MemoryMax=7000M`, `-j2`); 4000M is OOM-killed with exit 143 and no message when other sessions are using the machine.
+
+## Component 20, piece J (Sessions)
+
+- **A table whose cells wrap is built as rows, not columns**: each row is a `row()` of cells with `.w(basis).grow(basis).shrink().min_w(0.0)`, so every row shares its columns and the tallest cell sets the row's height (the column-built table of piece I can't do that). The 3 % hover tint is then just `row.hover(color)`.
+- **`text(..).group_color(c)` with `hover_group()` on the button** turns a head's label and icon `--text` together under the pointer.
+- **A scene can't set state the page's mount resets** (the sort, the filters): the first look remounts. `show_analytics_sorted` marks the page mounted first.
