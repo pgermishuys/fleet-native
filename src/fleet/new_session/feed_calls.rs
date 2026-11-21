@@ -68,7 +68,7 @@ impl State {
 
     /// The user's default harness on machine `key`: its preference once known, else (another machine) the one saved from
     /// the last visit, shown at once.
-    fn preferred_harness(&self, key: &str) -> Option<String> {
+    pub(crate) fn preferred_harness(&self, key: &str) -> Option<String> {
         let prefs = self.prefs_for(key);
         if prefs.fetched {
             return prefs.get(DEFAULT_HARNESS_PREFERENCE_KEY).filter(|v| !v.is_empty()).map(str::to_string);

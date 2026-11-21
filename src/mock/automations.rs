@@ -193,6 +193,12 @@ pub enum Scene {
     StripMore,
     /// A new one with no folder after Send: the folder menu opened instead of creating.
     StripFolder,
+    /// An automation open that runs on its own agent and model: the toolbar's chips name them (piece L).
+    AgentModel,
+    /// The same with the model menu open.
+    AgentModelMenu,
+    /// A new one in a repository: the chips say what Default is there.
+    AgentModelNew,
     /// An automation open: its header and nothing else yet.
     Open,
     /// The same, with the info note Run now leaves.
@@ -250,6 +256,9 @@ impl crate::State {
             | Scene::StripSame
             | Scene::StripMore
             | Scene::StripFolder
+            | Scene::AgentModel
+            | Scene::AgentModelMenu
+            | Scene::AgentModelNew
             | Scene::Open
             | Scene::Started
             | Scene::Off
@@ -318,15 +327,20 @@ impl crate::State {
             Scene::StripRepo | Scene::StripBase | Scene::StripMore | Scene::StripSame | Scene::StripFolder => {
                 self.show_automation_strip(scene)
             }
+            Scene::AgentModel | Scene::AgentModelMenu | Scene::AgentModelNew => self.show_automation_agent_model(scene),
             Scene::Builtin | Scene::BuiltinTime | Scene::BuiltinPaused => self.automations_nav.set_active("a-dream"),
             _ => {}
         }
         match scene {
             Scene::RunsEmpty => self.automations_nav.runs.show(HOME_MACHINE_KEY, "a-weekly", Vec::new()),
             Scene::RunsStates => self.automations_nav.runs.show(HOME_MACHINE_KEY, "a-weekly", runs_states("a-weekly")),
-            Scene::Runs | Scene::EditDirty | Scene::StripRepo | Scene::StripBase | Scene::StripMore => {
-                self.automations_nav.runs.show(HOME_MACHINE_KEY, "a-weekly", runs("a-weekly"))
-            }
+            Scene::Runs
+            | Scene::EditDirty
+            | Scene::StripRepo
+            | Scene::StripBase
+            | Scene::StripMore
+            | Scene::AgentModel
+            | Scene::AgentModelMenu => self.automations_nav.runs.show(HOME_MACHINE_KEY, "a-weekly", runs("a-weekly")),
             Scene::Builtin | Scene::BuiltinTime => self.automations_nav.runs.show(HOME_MACHINE_KEY, "a-dream", dreaming_runs()),
             Scene::BuiltinPaused => self.automations_nav.runs.show(HOME_MACHINE_KEY, "a-dream", Vec::new()),
             _ => {}
@@ -371,6 +385,29 @@ impl crate::State {
                     _ => {}
                 }
             }
+        }
+    }
+
+    /// Piece L's scenes: the toolbar's agent and model chips on the invented catalog (`build` and `plan`, Sonnet and Opus).
+    fn show_automation_agent_model(&mut self, scene: Scene) {
+        use crate::fleet::new_session::request::Folder;
+        if scene == Scene::AgentModelNew {
+            self.automations_nav.start_create();
+            self.automations_nav.set_text(false, "Every weekday at 8, triage the new issues and label each one.");
+            self.automations_nav.draft.set_folder(Folder::Repository(REPOSITORY.into()), true, false);
+        } else {
+            // Saved with its own agent and model, on the machine's default harness.
+            for a in self.automations.of_mut(crate::fleet::settings::HOME_MACHINE_KEY).list.iter_mut().filter(|a| a.id == "a-weekly") {
+                a.agent = Some("plan".into());
+                a.model = Some("anthropic/opus".into());
+                a.harness_type = Some("opencode2".into());
+            }
+            self.automations_nav.set_active("a-weekly");
+            self.reset_edit_state();
+        }
+        self.keep_automation_catalog();
+        if scene == Scene::AgentModelMenu {
+            self.open_selector("model");
         }
     }
 }

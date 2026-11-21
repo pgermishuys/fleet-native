@@ -2,7 +2,9 @@
 //! strip): the message box with the schedule words highlighted, the toolbar's Send (a new one) or Save (a saved one, once
 //! something changed), the strip under it with the When chip and its menu
 //! (`when.rs`) and where it runs (`strip.rs`), and the plan line saying what Enter will make, with the "Just once" ask as a
-//! link. The machine, agent and model, and workflow chips are pieces L to N.
+//! link; with a folder, the toolbar's agent and model chips (`AgentSelector`, `ModelSelector`; their menu is New session's).
+//! The machine and workflow chips are pieces M and N.
+use crate::fleet::automations::agent_model::{AGENT_CHIP, MODEL_CHIP};
 use crate::fleet::automations::schedule::When;
 use crate::fleet::automations::words::{Part, Plan};
 use crate::icons::{ARROW_UP, LOADER_CIRCLE};
@@ -90,7 +92,15 @@ fn frame(s: &State, t: &Theme, editing: bool, busy: bool, shown: &Shown) -> El {
     if let Some(range) = shown.highlight.clone() {
         field = field.text_highlights(vec![TextHighlight::new(range, t.accent.alpha(0.16)).pad(1.0)]);
     }
-    let mut toolbar = row().key("automation-toolbar").w_full().center_y().gap(2.0).pt(4.0).px(8.0).pb(8.0).child(spacer());
+    let mut toolbar = row().key("automation-toolbar").w_full().center_y().gap(2.0).pt(4.0).px(8.0).pb(8.0);
+    // The agent and model chips, with a folder and a harness that lists them, not for a workflow (row 10.1).
+    if s.automation_offers_agent_and_model() {
+        let chip = |key: &'static str, label: String| {
+            super::super::composer::selector_chip(t, s.ui.open, key, crate::fleet::catalog::Chip { label, help: None }).disabled(busy)
+        };
+        toolbar = toolbar.child(chip(AGENT_CHIP, s.automation_agent_chip())).child(chip(MODEL_CHIP, s.automation_model_chip()));
+    }
+    toolbar = toolbar.child(spacer());
     // Nothing to save yet: the toolbar is its padding alone, as Fleet's empty slot is.
     if shown.show_send {
         toolbar = toolbar.child(send_button(t, editing, busy, shown.can_submit));

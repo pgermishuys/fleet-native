@@ -26,6 +26,9 @@ pub struct Upkeep {
     /// The event types the machine's Fleet offers (`fetchEventCatalog`, read once with the repositories); None until it
     /// answers, and after a failure, when the When menu offers the built-in list.
     pub(super) events: Option<Vec<String>>,
+    /// What the harness offers the run's folder, for the agent and model chips (`useHarnessCatalog`); the composer's own,
+    /// so New session's chips keep theirs.
+    pub(super) catalog: crate::fleet::new_session::feed_state::CatalogFeed,
 }
 
 /// The zone schedules are saved in, read once: finding it reads a link on disk, which a view must not do every frame.
@@ -43,7 +46,9 @@ impl State {
     /// Runs `f` with the composer's state (the open automation's changes, or the draft) and what it reads from outside.
     pub fn with_composer<R>(&self, editing: bool, f: impl FnOnce(&ComposerState, &Context) -> R) -> R {
         let open = if editing { self.open_automation() } else { None };
-        let ctx = Context::new(open.as_ref(), time_zone(), crate::view::message::now_ms(self), &local);
+        let default_harness = self.automation_default_harness();
+        let mut ctx = Context::new(open.as_ref(), time_zone(), crate::view::message::now_ms(self), &local);
+        ctx.default_harness = Some(default_harness.as_str()).filter(|h| !h.is_empty());
         f(self.automations_nav.composer(editing), &ctx)
     }
 
@@ -179,6 +184,7 @@ impl State {
             self.reset_edit_state();
             changed = true;
         }
+        changed |= self.keep_automation_catalog();
         let machine = self.automations_machine();
         if self.feed_base(&machine).is_none() {
             return changed;
@@ -187,6 +193,11 @@ impl State {
             self.automations_nav.composer = Upkeep { draft_folder_done: false, ..Upkeep::default() };
             self.automations_nav.composer.asked = Some(machine.clone());
             self.read_repositories(&machine, false);
+            // The agent and model chips need the default harness (`useEnabledHarnesses`): another machine's is its own.
+            self.read_harnesses(&machine, false);
+            if machine != crate::fleet::settings::HOME_MACHINE_KEY {
+                self.read_preferences(&machine);
+            }
             let asked = machine.clone();
             self.automation_event_catalog(
                 &machine,

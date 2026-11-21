@@ -36,6 +36,10 @@ impl State {
         if self.workflows_nav.roles.menu.is_some() {
             return self.role_menu_harness();
         }
+        // On the Automations page they are about the harness the composer's runs use.
+        if self.automation_selector() {
+            return Some(self.automation_harness()).filter(|h| !h.is_empty());
+        }
         // On the New session page the menus are about the harness the draft would start on.
         if self.on_new_session_page() {
             return Some(self.resolved_harness()).filter(|h| !h.is_empty());
@@ -62,6 +66,9 @@ impl State {
             };
             return (Vec::new(), self.role_models(), labels);
         }
+        if self.automation_selector() {
+            return (self.automation_agents(), self.automation_models(), self.automation_default_labels());
+        }
         if self.on_new_session_page() {
             return (self.page_agents(), self.page_models(), self.page_default_labels());
         }
@@ -79,7 +86,8 @@ impl State {
             return (rules::agent_items(rules::default_item(&labels.agent_label, &labels.agent_description, false), &agents), None);
         }
         let default = rules::default_item(&labels.model_label, &labels.model_description, true);
-        rules::model_items(default, &models, self.harness_key().as_deref(), &self.model_picker(), true)
+        // The automation composer lists no recent models (`:show-recent="false"`): a run isn't a model just used.
+        rules::model_items(default, &models, self.harness_key().as_deref(), &self.model_picker(), !self.automation_selector())
     }
 
     /// What is drawn now, rows numbered.
@@ -97,6 +105,9 @@ impl State {
     pub fn selector_selected(&self, name: &str) -> String {
         if self.workflows_nav.roles.menu.is_some() {
             return self.role_menu_selected(name == crate::fleet::workflows::roles::EFFORT_MENU);
+        }
+        if self.automation_selector() {
+            return self.automation_selected(name);
         }
         if self.on_new_session_page() {
             let d = self.new_draft.draft();
@@ -162,6 +173,10 @@ impl State {
         self.close_selector();
         if let Some(menu) = role_menu {
             self.pick_role(menu, id);
+            return;
+        }
+        if self.automation_selector() {
+            self.pick_automation_choice(name, id);
             return;
         }
         if self.on_new_session_page() {

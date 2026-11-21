@@ -152,14 +152,14 @@ fn reference_tints(s: &State, t: &Theme) -> Vec<TextHighlight> {
 }
 
 /// `.composer-toolbar` agent or model chip: the label and a chevron that turns over while its menu is open. The New session
-/// page's toolbar draws the same chips.
+/// page's toolbar and the automation composer's draw the same chips; a key ending in "agent" opens the agent menu.
 pub fn selector_chip(t: &Theme, open: Option<crate::ui::Open>, key: &'static str, chip: crate::fleet::catalog::Chip) -> El {
-    let name: &'static str = if key == "agent" { "agent" } else { "model" };
+    let name: &'static str = if key.ends_with("agent") { "agent" } else { "model" };
     let expanded = open == Some(crate::ui::Open::Menu(name));
     let mut b = row()
         .key(key)
         .role("button")
-        .label(if key == "agent" { "Agent selector" } else { "Model selector" })
+        .label(if name == "agent" { "Agent selector" } else { "Model selector" })
         .h(28.0)
         .px(8.0)
         .gap(5.0)
