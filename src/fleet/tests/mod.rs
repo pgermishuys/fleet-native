@@ -480,6 +480,7 @@ fn the_list_leaves_out_sub_agents_and_dims_old_sessions() {
 
 mod agents;
 mod analytics;
+mod analytics_chart;
 mod app_runs;
 mod asks;
 mod attach;

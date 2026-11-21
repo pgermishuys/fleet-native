@@ -146,6 +146,8 @@ pub struct Analytics {
     /// The two date fields' text (`fields.rs`).
     pub fields: super::fields::Fields,
     pub sort: (SortBy, SortDir),
+    /// What the Overview's chart keeps between frames: its width, the hidden lines, the day under the pointer.
+    pub chart: super::chart::View,
     /// The date fields' calendar, while one is open (`calendar.rs`).
     pub calendar: Option<super::calendar::Calendar>,
     /// An export is being read or its save dialog is up (`export.rs`).
@@ -178,6 +180,7 @@ impl Default for Analytics {
             filters: Filters::default(),
             fields: Default::default(),
             sort: (SortBy::CreatedAt, SortDir::Desc),
+            chart: Default::default(),
             calendar: None,
             exporting: false,
             exports_asked: 0,

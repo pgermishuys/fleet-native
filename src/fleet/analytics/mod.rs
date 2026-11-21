@@ -10,6 +10,7 @@
 use serde_json::Value;
 
 pub mod calendar;
+pub mod chart;
 pub mod export;
 pub mod fields;
 pub mod filters;

@@ -427,6 +427,21 @@ pub const RADIUS_CARD: f32 = 10.0;
 pub const RADIUS_BTN: f32 = 8.0;
 pub const RADIUS_PANEL: f32 = 12.0;
 
+/// Chart.js's own defaults on the Overview's chart, which Fleet doesn't set (so they are not CSS variables): the tooltip's
+/// fill (`rgba(0, 0, 0, 0.8)`) and its ink (white), and the right axis' tick marks, whose grid has no colour of Fleet's
+/// (`Chart.defaults.borderColor`, `rgba(0, 0, 0, 0.1)`).
+pub fn chart_tip_bg() -> Color {
+    Color::BLACK.alpha(0.8)
+}
+
+pub fn chart_tip_ink() -> Color {
+    Color::WHITE
+}
+
+pub fn chart_default_grid() -> Color {
+    Color::BLACK.alpha(0.1)
+}
+
 /// Inter at `size`/`weight` with a CSS line-height multiplier.
 pub const fn sans(size: f32, weight: f32, line: f32) -> TextStyle {
     TextStyle::new(size, weight).lh(size * line)

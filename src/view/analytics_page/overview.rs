@@ -1,5 +1,5 @@
 //! The Overview section (`components/analytics/tabs/OverviewTab.vue`, `cards/StatCard.vue`): four stat cards, the chart's panel
-//! and the two cost rankings. The chart itself is piece G's: its panel here holds an empty 300 px slot while rows exist.
+//! and the two cost rankings. The chart in the panel is `chart.rs`.
 use super::cost_bars::{bars, loading_row};
 use crate::State;
 use crate::fleet::analytics::overview::{Card, cards, currency, estimated_total, model_items, project_items};
@@ -7,7 +7,7 @@ use crate::fleet::analytics::{daily_empty, models_empty, projects_empty, with_se
 use crate::theme::{RADIUS_CARD, Theme, sans};
 use crate::ui::error_note::error_note;
 use crate::ui::{empty_state, rem};
-use rune::{El, col, el, row, text};
+use rune::{El, col, row, text};
 
 /// `.overview-tab`: the cards, the chart panel and the rankings, 12 apart.
 pub fn overview(s: &State, t: &Theme) -> El {
@@ -116,7 +116,7 @@ fn trend(s: &State, t: &Theme) -> El {
     let a = &s.analytics;
     let with_project = !a.filters.project_id.trim().is_empty();
     let body = if !a.daily.data.is_empty() {
-        el().key("analytics-chart-slot").w_full().h(300.0)
+        super::chart::chart(s, t, &a.daily.data)
     } else if a.daily_loading() {
         loading_row(t, "analytics-loading", "Loading daily analytics…")
     } else if let Some(reason) = &a.daily.error {
