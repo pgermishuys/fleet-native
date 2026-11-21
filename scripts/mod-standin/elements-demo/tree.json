@@ -1,0 +1,788 @@
+{
+ "type": "Box",
+ "props": {
+  "flexDirection": "column",
+  "gap": 3
+ },
+ "children": [
+  {
+   "type": "Box",
+   "props": {
+    "flexDirection": "row",
+    "gap": 2,
+    "alignItems": "center"
+   },
+   "children": [
+    {
+     "type": "Icon",
+     "props": {
+      "name": "gauge",
+      "color": "accent"
+     }
+    },
+    {
+     "type": "Text",
+     "props": {
+      "bold": true
+     },
+     "children": [
+      "Deploy 1.8 to ",
+      {
+       "type": "Text",
+       "props": {
+        "code": true
+       },
+       "children": [
+        "staging"
+       ]
+      }
+     ]
+    },
+    {
+     "type": "Text",
+     "props": {
+      "dimColor": true
+     },
+     "children": [
+      "three checks, one waiting"
+     ]
+    }
+   ]
+  },
+  {
+   "type": "Text",
+   "props": {
+    "dimColor": true,
+    "bold": true
+   },
+   "children": [
+    "Text"
+   ]
+  },
+  {
+   "type": "Box",
+   "props": {
+    "flexDirection": "row",
+    "gap": 3,
+    "flexWrap": "wrap"
+   },
+   "children": [
+    {
+     "type": "Text",
+     "props": {},
+     "children": [
+      "plain"
+     ]
+    },
+    {
+     "type": "Text",
+     "props": {
+      "bold": true
+     },
+     "children": [
+      "bold"
+     ]
+    },
+    {
+     "type": "Text",
+     "props": {
+      "italic": true
+     },
+     "children": [
+      "italic"
+     ]
+    },
+    {
+     "type": "Text",
+     "props": {
+      "strikethrough": true
+     },
+     "children": [
+      "struck"
+     ]
+    },
+    {
+     "type": "Text",
+     "props": {
+      "code": true
+     },
+     "children": [
+      "code"
+     ]
+    },
+    {
+     "type": "Text",
+     "props": {
+      "dimColor": true
+     },
+     "children": [
+      "dim"
+     ]
+    }
+   ]
+  },
+  {
+   "type": "Box",
+   "props": {
+    "flexDirection": "row",
+    "gap": 3,
+    "flexWrap": "wrap"
+   },
+   "children": [
+    {
+     "type": "Text",
+     "props": {
+      "color": "text"
+     },
+     "children": [
+      "text"
+     ]
+    },
+    {
+     "type": "Text",
+     "props": {
+      "color": "muted"
+     },
+     "children": [
+      "muted"
+     ]
+    },
+    {
+     "type": "Text",
+     "props": {
+      "color": "accent"
+     },
+     "children": [
+      "accent"
+     ]
+    },
+    {
+     "type": "Text",
+     "props": {
+      "color": "good"
+     },
+     "children": [
+      "good"
+     ]
+    },
+    {
+     "type": "Text",
+     "props": {
+      "color": "warn"
+     },
+     "children": [
+      "warn"
+     ]
+    },
+    {
+     "type": "Text",
+     "props": {
+      "color": "bad"
+     },
+     "children": [
+      "bad"
+     ]
+    }
+   ]
+  },
+  {
+   "type": "Text",
+   "props": {},
+   "children": [
+    "Nested: ",
+    {
+     "type": "Text",
+     "props": {
+      "bold": true,
+      "color": "good"
+     },
+     "children": [
+      "bold and good"
+     ]
+    },
+    " then ",
+    {
+     "type": "Text",
+     "props": {
+      "italic": true,
+      "color": "warn"
+     },
+     "children": [
+      "italic warn"
+     ]
+    },
+    " and ",
+    {
+     "type": "Text",
+     "props": {
+      "code": true
+     },
+     "children": [
+      "code"
+     ]
+    },
+    " in one sentence that wraps."
+   ]
+  },
+  {
+   "type": "Text",
+   "props": {
+    "wrap": "truncate",
+    "color": "muted"
+   },
+   "children": [
+    "A long line that is cut with an ellipsis instead of wrapping onto a second line when the pane is narrow"
+   ]
+  },
+  {
+   "type": "Text",
+   "props": {
+    "dimColor": true,
+    "bold": true
+   },
+   "children": [
+    "Pill"
+   ]
+  },
+  {
+   "type": "Box",
+   "props": {
+    "flexDirection": "row",
+    "gap": 2,
+    "flexWrap": "wrap"
+   },
+   "children": [
+    {
+     "type": "Pill",
+     "props": {
+      "tone": "good",
+      "label": "Build passed",
+      "icon": "check"
+     }
+    },
+    {
+     "type": "Pill",
+     "props": {
+      "tone": "warn",
+      "label": "2 checks waiting",
+      "icon": "clock"
+     }
+    },
+    {
+     "type": "Pill",
+     "props": {
+      "tone": "bad",
+      "label": "1 failed",
+      "icon": "x"
+     }
+    },
+    {
+     "type": "Pill",
+     "props": {
+      "tone": "neutral",
+      "label": "Draft"
+     }
+    },
+    {
+     "type": "Pill",
+     "props": {
+      "tone": "accent",
+      "label": "Review",
+      "icon": "eye"
+     }
+    }
+   ]
+  },
+  {
+   "type": "Box",
+   "props": {
+    "flexDirection": "row"
+   },
+   "children": [
+    {
+     "type": "Box",
+     "props": {
+      "width": "50%"
+     },
+     "children": [
+      {
+       "type": "Pill",
+       "props": {
+        "tone": "accent",
+        "label": "A pill with a label far too long to fit in half of this pane",
+        "icon": "sparkles"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "Text",
+   "props": {
+    "dimColor": true,
+    "bold": true
+   },
+   "children": [
+    "Icon"
+   ]
+  },
+  {
+   "type": "Box",
+   "props": {
+    "flexDirection": "row",
+    "gap": 2,
+    "flexWrap": "wrap"
+   },
+   "children": [
+    {
+     "type": "Icon",
+     "props": {
+      "name": "check",
+      "color": "text"
+     }
+    },
+    {
+     "type": "Icon",
+     "props": {
+      "name": "x",
+      "color": "muted"
+     }
+    },
+    {
+     "type": "Icon",
+     "props": {
+      "name": "alert",
+      "color": "accent"
+     }
+    },
+    {
+     "type": "Icon",
+     "props": {
+      "name": "info",
+      "color": "good"
+     }
+    },
+    {
+     "type": "Icon",
+     "props": {
+      "name": "circle",
+      "color": "warn"
+     }
+    },
+    {
+     "type": "Icon",
+     "props": {
+      "name": "dot",
+      "color": "bad"
+     }
+    },
+    {
+     "type": "Icon",
+     "props": {
+      "name": "clock",
+      "color": "text"
+     }
+    },
+    {
+     "type": "Icon",
+     "props": {
+      "name": "loader",
+      "color": "muted"
+     }
+    },
+    {
+     "type": "Icon",
+     "props": {
+      "name": "play",
+      "color": "accent"
+     }
+    },
+    {
+     "type": "Icon",
+     "props": {
+      "name": "skip",
+      "color": "good"
+     }
+    },
+    {
+     "type": "Icon",
+     "props": {
+      "name": "test",
+      "color": "warn"
+     }
+    },
+    {
+     "type": "Icon",
+     "props": {
+      "name": "bug",
+      "color": "bad"
+     }
+    },
+    {
+     "type": "Icon",
+     "props": {
+      "name": "terminal",
+      "color": "text"
+     }
+    },
+    {
+     "type": "Icon",
+     "props": {
+      "name": "file",
+      "color": "muted"
+     }
+    },
+    {
+     "type": "Icon",
+     "props": {
+      "name": "folder",
+      "color": "accent"
+     }
+    },
+    {
+     "type": "Icon",
+     "props": {
+      "name": "git-branch",
+      "color": "good"
+     }
+    },
+    {
+     "type": "Icon",
+     "props": {
+      "name": "search",
+      "color": "warn"
+     }
+    },
+    {
+     "type": "Icon",
+     "props": {
+      "name": "sparkles",
+      "color": "bad"
+     }
+    },
+    {
+     "type": "Icon",
+     "props": {
+      "name": "zap",
+      "color": "text"
+     }
+    },
+    {
+     "type": "Icon",
+     "props": {
+      "name": "gauge",
+      "color": "muted"
+     }
+    },
+    {
+     "type": "Icon",
+     "props": {
+      "name": "arrow-right",
+      "color": "accent"
+     }
+    },
+    {
+     "type": "Icon",
+     "props": {
+      "name": "chevron-right",
+      "color": "good"
+     }
+    },
+    {
+     "type": "Icon",
+     "props": {
+      "name": "external-link",
+      "color": "warn"
+     }
+    },
+    {
+     "type": "Icon",
+     "props": {
+      "name": "copy",
+      "color": "bad"
+     }
+    },
+    {
+     "type": "Icon",
+     "props": {
+      "name": "eye",
+      "color": "text"
+     }
+    },
+    {
+     "type": "Icon",
+     "props": {
+      "name": "eye-off",
+      "color": "muted"
+     }
+    }
+   ]
+  },
+  {
+   "type": "Text",
+   "props": {
+    "dimColor": true,
+    "bold": true
+   },
+   "children": [
+    "Box"
+   ]
+  },
+  {
+   "type": "Box",
+   "props": {
+    "flexDirection": "row",
+    "gap": 2
+   },
+   "children": [
+    {
+     "type": "Box",
+     "props": {
+      "borderStyle": "round",
+      "padding": 2,
+      "flexGrow": 1
+     },
+     "children": [
+      {
+       "type": "Text",
+       "props": {},
+       "children": [
+        "round"
+       ]
+      }
+     ]
+    },
+    {
+     "type": "Box",
+     "props": {
+      "borderStyle": "single",
+      "padding": 2,
+      "flexGrow": 1
+     },
+     "children": [
+      {
+       "type": "Text",
+       "props": {},
+       "children": [
+        "single"
+       ]
+      }
+     ]
+    },
+    {
+     "type": "Box",
+     "props": {
+      "borderStyle": "dashed",
+      "padding": 2,
+      "flexGrow": 1
+     },
+     "children": [
+      {
+       "type": "Text",
+       "props": {},
+       "children": [
+        "dashed"
+       ]
+      }
+     ]
+    },
+    {
+     "type": "Box",
+     "props": {
+      "borderStyle": "quote",
+      "borderColor": "accent",
+      "paddingX": 3,
+      "flexGrow": 1
+     },
+     "children": [
+      {
+       "type": "Text",
+       "props": {
+        "italic": true
+       },
+       "children": [
+        "quote"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "Box",
+   "props": {
+    "flexDirection": "row",
+    "gap": 2
+   },
+   "children": [
+    {
+     "type": "Box",
+     "props": {
+      "background": "subtle",
+      "padding": 2,
+      "flexGrow": 1
+     },
+     "children": [
+      {
+       "type": "Text",
+       "props": {},
+       "children": [
+        "subtle"
+       ]
+      }
+     ]
+    },
+    {
+     "type": "Box",
+     "props": {
+      "background": "tint",
+      "padding": 2,
+      "flexGrow": 1
+     },
+     "children": [
+      {
+       "type": "Text",
+       "props": {},
+       "children": [
+        "tint, muted edge"
+       ]
+      }
+     ]
+    },
+    {
+     "type": "Box",
+     "props": {
+      "background": "tint",
+      "borderStyle": "round",
+      "borderColor": "bad",
+      "padding": 2,
+      "flexGrow": 1
+     },
+     "children": [
+      {
+       "type": "Text",
+       "props": {},
+       "children": [
+        "tint, bad"
+       ]
+      }
+     ]
+    },
+    {
+     "type": "Box",
+     "props": {
+      "background": "tint",
+      "borderColor": "good",
+      "padding": 2,
+      "flexGrow": 1
+     },
+     "children": [
+      {
+       "type": "Text",
+       "props": {},
+       "children": [
+        "tint, good"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "Box",
+   "props": {
+    "flexDirection": "row",
+    "justifyContent": "space-between",
+    "borderStyle": "round",
+    "paddingX": 3,
+    "paddingY": 1
+   },
+   "children": [
+    {
+     "type": "Text",
+     "props": {},
+     "children": [
+      "left"
+     ]
+    },
+    {
+     "type": "Text",
+     "props": {},
+     "children": [
+      "middle"
+     ]
+    },
+    {
+     "type": "Text",
+     "props": {},
+     "children": [
+      "right"
+     ]
+    }
+   ]
+  },
+  {
+   "type": "Box",
+   "props": {
+    "flexDirection": "row",
+    "justifyContent": "center",
+    "alignItems": "center",
+    "borderStyle": "single",
+    "paddingY": 3
+   },
+   "children": [
+    {
+     "type": "Text",
+     "props": {},
+     "children": [
+      "centred"
+     ]
+    }
+   ]
+  },
+  {
+   "type": "Box",
+   "props": {
+    "flexDirection": "row",
+    "gap": 2
+   },
+   "children": [
+    {
+     "type": "Box",
+     "props": {
+      "borderStyle": "round",
+      "padding": 2,
+      "width": "50%"
+     },
+     "children": [
+      {
+       "type": "Text",
+       "props": {},
+       "children": [
+        "half the pane"
+       ]
+      }
+     ]
+    },
+    {
+     "type": "Box",
+     "props": {
+      "borderStyle": "round",
+      "padding": 2,
+      "width": "25%"
+     },
+     "children": [
+      {
+       "type": "Text",
+       "props": {},
+       "children": [
+        "a quarter"
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

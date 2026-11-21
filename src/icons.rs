@@ -838,3 +838,13 @@ pub static CLOCK: Icon = Icon {
     view: 24.0,
     body: r#"<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>"#,
 };
+pub static DOT: Icon = Icon {
+    name: "lucide-dot",
+    view: 24.0,
+    body: r#"<circle cx="12.1" cy="12.1" r="1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>"#,
+};
+pub static SKIP_FORWARD: Icon = Icon {
+    name: "lucide-skip-forward",
+    view: 24.0,
+    body: r#"<path d="M21 4v16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M6.029 4.285A2 2 0 0 0 3 6v12a2 2 0 0 0 3.029 1.715l9.997-5.998a2 2 0 0 0 .003-3.432z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>"#,
+};
