@@ -29,6 +29,8 @@ mod tests_agents_session;
 #[cfg(test)]
 mod tests_agents_tab;
 #[cfg(test)]
+mod tests_analytics_export;
+#[cfg(test)]
 mod tests_analytics_filters;
 #[cfg(test)]
 mod tests_analytics_page;
@@ -5259,6 +5261,10 @@ pub fn spec() -> AppSpec<State> {
             ("analytics-filters-light", |s| s.show_analytics(false, mock::analytics::Scene::Filters)),
             ("analytics-project-open", |s| s.show_analytics(true, mock::analytics::Scene::ProjectOpen)),
             ("analytics-project-open-light", |s| s.show_analytics(false, mock::analytics::Scene::ProjectOpen)),
+            ("analytics-calendar", |s| s.show_analytics(true, mock::analytics::Scene::Calendar)),
+            ("analytics-calendar-light", |s| s.show_analytics(false, mock::analytics::Scene::Calendar)),
+            ("analytics-calendar-limits", |s| s.show_analytics(true, mock::analytics::Scene::CalendarLimits)),
+            ("analytics-calendar-limits-light", |s| s.show_analytics(false, mock::analytics::Scene::CalendarLimits)),
             ("automation-detail", |s| s.show_automations(true, mock::automations::Scene::Started)),
             ("automation-detail-light", |s| s.show_automations(false, mock::automations::Scene::Started)),
             ("automation-detail-off", |s| s.show_automations(true, mock::automations::Scene::Off)),

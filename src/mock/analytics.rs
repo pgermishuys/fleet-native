@@ -114,6 +114,10 @@ pub enum Scene {
     Filters,
     /// The project list open.
     ProjectOpen,
+    /// From's calendar open on the month it holds.
+    Calendar,
+    /// From's calendar a month on: today ringed, the days after To dimmed.
+    CalendarLimits,
 }
 
 impl crate::State {
@@ -139,6 +143,15 @@ impl crate::State {
         if scene == Scene::ProjectOpen {
             self.ui.open = Some(crate::ui::Open::Select(crate::view::analytics_page::filters::PROJECT));
         }
+        if matches!(scene, Scene::Calendar | Scene::CalendarLimits) {
+            // The page mounts on its first look; the calendar opens on the range it will hold.
+            self.analytics.filters = crate::fleet::analytics::filters::Filters::defaults(20_777 * 86_400_000 + 43_200_000);
+            self.analytics_open_calendar(crate::fleet::analytics::calendar::End::From);
+            if scene == Scene::CalendarLimits {
+                self.analytics_calendar_shift(1);
+            }
+        }
+        let a = &mut self.analytics;
         for loading in [
             &mut a.summary.is_loading,
             &mut a.range.is_loading,

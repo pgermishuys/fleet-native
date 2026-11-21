@@ -116,7 +116,7 @@ Each row: what Fleet does, its source, and the native state (with the piece that
 | 2.5 | Counts: Projects = the range's top projects (at most 5, see 5.9), Models = the models list's length, Sessions = the sessions list's length (at most 50, 5.10); Overview and Daily have none | UAM | **Done (C, 21 November 2026)** `menu.rs` `count` |
 | 2.6 | Hover: `--bg` fill, `--text` ink; the open one: border accent 40%, fill `--panel-bg` 88% + accent 12%, `--text`, `aria-current="page"`; focus ring 2 px accent, offset 2 | ANP | **Done (C, 21 November 2026)** `menu.rs` `item` (focus ring included; Rune has no `aria-current`, so the open one is read from `analytics_nav`) |
 | 2.7 | Pressing an item opens its route; pressing the open one does nothing | UAM | **Done (C, 21 November 2026)** `State::open_analytics_section` |
-| 2.8 | Below the groups: the Filters block (margin-top 4, padding-top 8, a 1 px `--border` rule above, gap 8): its label "FILTERS" (padding 0 4), the filters stacked (3.x), Export CSV (4.x) | ANP | Partly (D, 21 November 2026): the label, the rule, the block's spacing and the filters are drawn (`filters.rs` `block`); Export CSV waits for E |
+| 2.8 | Below the groups: the Filters block (margin-top 4, padding-top 8, a 1 px `--border` rule above, gap 8): its label "FILTERS" (padding 0 4), the filters stacked (3.x), Export CSV (4.x) | ANP | Partly (D, 21 November 2026): the label, the rule, the block's spacing and the filters are drawn (`filters.rs` `block`); Export CSV: **Done (E, 21 November 2026)** `filters.rs` `export` |
 | 2.9 | No "By harness" anywhere (a section Fleet removed) | ANP test | **Done (C, 21 November 2026)** no section is named harness; the test checks it |
 
 ### 3. The filters
@@ -127,7 +127,7 @@ Each row: what Fleet does, its source, and the native state (with the piece that
 | 3.2 | Defaults: the last 30 days ending today, every project (`from` = today − 30, `to` = today); "today" is the **UTC** day (the server reads a bare date as a UTC day) | UAF | **Done (A, 20 November 2026)** `filters.rs` `defaults` |
 | 3.3 | Opening moves a range saved on an earlier day to end today, keeping its length and project; a range with no end is left alone; the default stays the default on a later day; while open, a range is left alone | UAF | **Done (A, 20 November 2026)** `filters.rs` `ending_today`, `opened` |
 | 3.4 | `isDefault`: from, to and project are the defaults (nothing to reset) | UAF | **Done (A, 20 November 2026)** `filters.rs` `is_default` |
-| 3.5 | The range box: one 32 px row, padding 0 4, 1 px border, radius `--radius-btn`, `--card-bg`; two date fields (12.5 px tabular, padding 0 6, `--text`, a calendar glyph at 55%) with "–" between (12 px muted); in the stacked menu the two spread apart; labels "From", "To" for a screen reader | AF | Partly (D, 21 November 2026): the box, the two typed fields (`MM/DD/YYYY`, placeholder `mm/dd/yyyy`) and the dash are drawn (`filters.rs` `range`); the calendar glyph and its picker are E's. The field takes years of four digits (Chrome allows six) |
+| 3.5 | The range box: one 32 px row, padding 0 4, 1 px border, radius `--radius-btn`, `--card-bg`; two date fields (12.5 px tabular, padding 0 6, `--text`, a calendar glyph at 55%) with "–" between (12 px muted); in the stacked menu the two spread apart; labels "From", "To" for a screen reader | AF | Partly (D, 21 November 2026): the box, the two typed fields (`MM/DD/YYYY`, placeholder `mm/dd/yyyy`) and the dash are drawn (`filters.rs` `range`); the calendar glyph and its picker: **Done (E, 21 November 2026)** `filters.rs` `date_field` (glyph at 55 %, 24 px wide at the field's right edge), `ui/calendar.rs`. The field takes years of four digits (Chrome allows six) |
 | 3.6 | From's max is To and To's min is From, which limit the browser's picker only: a typed date outside them is still sent. A change is sent on `change` (a whole date); emptied clears that end | AF | **Done (D, 21 November 2026)** `fields.rs` `Fields::step`: a whole date typed is sent, one after To too (no limit from the other end), emptying clears that end; a half-typed field is left alone while it has focus and goes back to the last sent date when it is left (the browser's own segments never show half a date) |
 | 3.7 | The project select (32 tall, 12.5 px, `--card-bg`, full width in the menu): "All projects" (placeholder and first item), then the range's top projects by name; picking one sets `projectId` to the project's **name** (Fleet's bug: the server filters on the project's id, a GUID, so every section but Models empties; picture `fleet-project-picked`; port as Fleet does, reported) | AF, UAF, AR | **Done (D, 21 November 2026)** `filters.rs` `project_select`, `list`: "All projects" then the range's projects by name, the picked one after them when it isn't listed; picking sets the **name** as Fleet does (Fleet's bug kept, reported). Fleet draws the trigger 220 px wide in the menu (its stacked width rule loses to the later max-width), so this does too |
 | 3.8 | Reset: RotateCcw 13 + "Reset", 32 tall, 12.5 px muted, no border; hover 6% text tint; disabled (opacity 0.45) while default; tooltip "Back to the last 30 days, every project" | AF | **Done (D, 21 November 2026)** `filters.rs` `reset`: glyph and "Reset", 6 % tint on hover, faded and inert at the defaults, the tooltip |
@@ -138,10 +138,10 @@ Each row: what Fleet does, its source, and the native state (with the piece that
 
 | # | Row | Source | Native |
 |---|---|---|---|
-| 4.1 | The link: Download 13 + "Export CSV", 32 tall, padding 0 10, 12.5 px muted, radius `--radius-btn`; hover 6% text tint and `--text`; focus ring | ANP | None (E) |
-| 4.2 | `GET /api/analytics/export?format=csv[&from][&to][&projectId]` saved as `analytics.csv` (the live machine: a download link; another machine: fetched with its key, then saved) | UAM `exportHref`, `exportCsv` | None (E: always fetched on a thread, then a save dialog with `analytics.csv` filled in, as the other machine's path does) |
-| 4.3 | A failed export does nothing visible (`if (!response.ok) return`) | UAM | None (E; same) |
-| 4.4 | The server's CSV: header `id,event_id,session_id,project_id,project_name,workspace_directory,model_id,provider_id,tokens_input,tokens_output,tokens_reasoning,tokens_cache_read,tokens_cache_write,tokens_total,cost,estimated_cost,created_at`, one row per token event | AE `BuildCsv` | Server's (E writes the bytes as they come) |
+| 4.1 | The link: Download 13 + "Export CSV", 32 tall, padding 0 10, 12.5 px muted, radius `--radius-btn`; hover 6% text tint and `--text`; focus ring | ANP | **Done (E, 21 November 2026)** `filters.rs` `export`: Download 13 and "Export CSV", 32 tall, hover tint and full ink, focus ring |
+| 4.2 | `GET /api/analytics/export?format=csv[&from][&to][&projectId]` saved as `analytics.csv` (the live machine: a download link; another machine: fetched with its key, then saved) | UAM `exportHref`, `exportCsv` | **Done (E, 21 November 2026)** `export.rs`: always fetched on a thread (the machine shown, with its key for another machine), then a save dialog with `analytics.csv` filled in, then the bytes written on a thread (a toast says `Saved analytics.csv`; Fleet's browser says it in its own downloads list). One export at a time |
+| 4.3 | A failed export does nothing visible (`if (!response.ok) return`) | UAM | **Done (E, 21 November 2026)** `export.rs` `analytics_exported`: a refused or unreachable export ends there, no dialog and no toast |
+| 4.4 | The server's CSV: header `id,event_id,session_id,project_id,project_name,workspace_directory,model_id,provider_id,tokens_input,tokens_output,tokens_reasoning,tokens_cache_read,tokens_cache_write,tokens_total,cost,estimated_cost,created_at`, one row per token event | AE `BuildCsv` | **Done (E, 21 November 2026)** the server's: written as text exactly as it came |
 
 ### 5. The reads, the polling and the states they give
 
@@ -262,7 +262,7 @@ Each row: what Fleet does, its source, and the native state (with the piece that
 | # | Row | Why |
 |---|---|---|
 | 15.1 | The phone strip (`AnalyticsSectionStrip`: chips, the Filters chip) | The phone layout is out of scope (`docs/PORT.md`, "Out of scope") |
-| 15.2 | The browser's date picker (`<input type="date">`'s own calendar and its segmented `mm/dd/yyyy` editing) | Rune has no date field (as 19's 16.3). D draws a text field in the same `MM/DD/YYYY` form taking a typed date; E adds a calendar popover from Rune elements under the glyph. Keyboard stepping of one segment with the arrows is not ported |
+| 15.2 | The browser's date picker (`<input type="date">`'s own calendar and its segmented `mm/dd/yyyy` editing) | Rune has no date field (as 19's 16.3). D draws a text field in the same `MM/DD/YYYY` form taking a typed date; E adds a calendar popover from Rune elements under the glyph: **Done (E, 21 November 2026)** `ui/calendar.rs` (Sunday first, today ringed, the picked day filled, days outside From's max (To) or To's min (From) dimmed and inert, Escape or a press outside closes it, picking closes it). Keyboard stepping of one segment with the arrows is not ported |
 | 15.3 | Chart.js's entry animation and tooltip fade | Drawn at once; a canvas could animate it, but nothing else in the app animates a chart and it isn't worth the code |
 | 15.4 | Live numbers as events arrive | Fleet doesn't either: it polls every 30 s (5.3) |
 
@@ -286,7 +286,7 @@ Each row: what Fleet does, its source, and the native state (with the piece that
 | `lib/__tests__/analytics-sections.test.ts` | 4: "gives every section its own route, Overview being the bare /analytics", "reads the section back from its route, trailing slash included", "opens Overview for an address that isn't a section", "groups Spend (Overview, Daily) apart from Breakdown (Projects, Models, Sessions)" | A |
 | `composables/__tests__/use-analytics-filters.test.ts` | 6: "opens on the last 30 days, ending today", "opens ending today when Fleet has been open since an earlier day", "moves a range saved on an earlier day to end today, keeping its length and project", "keeps the default range the default on a later day", "leaves a range alone while Analytics stays open", "leaves a range with no end alone" | A |
 | `composables/__tests__/use-analytics-machine.test.ts` | 1: "asks only that machine and keeps its own filters" | B |
-| `components/analytics/__tests__/AnalyticsNavPanel.test.ts` | 4: "lists Spend (Overview, Daily) and Breakdown (Projects, Models, Sessions) with counts", "marks the section the address is on", "opens a section by its own route, and does nothing for the one already open" (C); "has the From / To / Project filters and Export below the sections, and no By harness" (E, once Export is there) | C, E |
+| `components/analytics/__tests__/AnalyticsNavPanel.test.ts` | 4: "lists Spend (Overview, Daily) and Breakdown (Projects, Models, Sessions) with counts", "marks the section the address is on", "opens a section by its own route, and does nothing for the one already open" (C); "has the From / To / Project filters and Export below the sections, and no By harness" (**done, E**: `tests_analytics_export.rs` under its name) | C, E |
 | `components/analytics/__tests__/AnalyticsTabsErrorOrEmpty.test.ts` | "analytics tabs with nothing to show": "%s shows the load error, not the empty state, when the load failed" × DailyTab, ProjectsTab (H), HorizontalCostBars (F); "SessionsTab keeps its own words for both" (J); "analytics tabs before their first answer": "%s says it's loading, not that nothing matched" × DailyTab, ProjectsTab (H), HorizontalCostBars (F) | F, H, J |
 | `components/analytics/__tests__/AnalyticsContentLoading.test.ts` | "the %s section says it's loading, not that nothing matched" × overview (F), daily, projects (H) | F, H |
 | `components/layout/__tests__/rails.test.ts` | the two analytics addresses | Done (9 A) |
@@ -400,7 +400,7 @@ en-US, both themes. `scripts/scratch-fleet.sh` switches analytics off; a piece r
 **Done (21 November 2026).** Pictures: `shots/parity/20-analytics/D-filters/` (native), beside A's `fleet-project-select-*` and
 `fleet-project-picked-*`. Left open, with reasons:
 - The calendar glyph in each field and the picker are E's, so the native fields are 112 px wide and empty on the right where Fleet's glyph sits.
-- Export CSV (2.8's last part) is E's.
+- Export CSV (2.8's last part) was E's: done.
 - Fleet's `fleet-project-picked` (every section but Models empties) can't be shown from a scene: the native page has no section bodies until F to J. The
   request carries the name (`projectId=<name>`), a test checks it.
 - The first row of the open list is not lit as Fleet's is (it lights on pointer or arrow keys here).
@@ -421,6 +421,11 @@ en-US, both themes. `scripts/scratch-fleet.sh` switches analytics off; a piece r
   export goes to it; a refused export writes nothing; a day picked in the calendar sets the field and refetches.
 - **Pictures:** the calendar open (no Fleet twin: Chrome's own picker is outside the page, so the native one beside
   Fleet's closed field), and the saved CSV's first lines.
+
+**Done (21 November 2026).** Pictures: `shots/parity/20-analytics/E-calendar-export/` (`analytics-calendar*`, `analytics-calendar-limits*` native, both themes; `fleet-filters-export-*` Fleet's own client with the closed fields, the glyph and Export CSV, beside `analytics-filters*`, which now draw them). Left open, with reasons:
+- Chrome's own calendar is drawn outside the page, so Fleet's picker has no twin; the native one is a Rune element popover in Fleet's colours. Keyboard stepping of one segment with the arrows is not ported.
+- The saved CSV's first lines can't be pictured from the scratch Fleet: it runs with analytics off and answers the export 503. A test holds the server's bytes against what is written.
+- The scratch Fleet shows the real day's range (22 October to 21 November) and the native scenes the invented day (21 October to 20 November).
 
 #### F. Overview: the cards, the panels and the cost bars
 
