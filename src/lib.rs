@@ -181,9 +181,9 @@ mod tests_memory_notice;
 #[cfg(test)]
 mod tests_mission_live;
 #[cfg(test)]
-mod tests_mods_controls;
-#[cfg(test)]
 mod tests_mission_needs_you;
+#[cfg(test)]
+mod tests_mods_controls;
 #[cfg(test)]
 mod tests_mods_tree;
 #[cfg(test)]
