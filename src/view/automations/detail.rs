@@ -57,7 +57,7 @@ pub fn more_menu(t: &Theme) -> Vec<El> {
 pub fn body(t: &Theme, s: &State, a: &Automation) -> El {
     let mut body = col().w_full().items_center();
     if let Some(note) = &s.automations_nav.notice {
-        body = body.child(notice(t, note));
+        body = body.child(notice(t, note, 12.0));
     }
     if let Some(runs) = super::runs::section(s, t, a) {
         body = body.child(runs);
@@ -66,7 +66,7 @@ pub fn body(t: &Theme, s: &State, a: &Automation) -> El {
 }
 
 /// The note: 760 wide at most, centred, 12 under; info in the muted colours, an error in the error ones with its glyph.
-fn notice(t: &Theme, note: &Notice) -> El {
+pub(super) fn notice(t: &Theme, note: &Notice, below: f32) -> El {
     let ink = if note.error { t.error_text } else { t.muted };
     let mut note_row = row()
         .key("automation-action-message")
@@ -75,7 +75,7 @@ fn notice(t: &Theme, note: &Notice) -> El {
         .max_w(760.0)
         .gap(8.0)
         .items_start()
-        .mb(12.0)
+        .mb(below)
         .px(12.0)
         .py(9.0)
         .radius(RADIUS_CARD)

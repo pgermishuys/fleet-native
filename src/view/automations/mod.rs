@@ -10,6 +10,7 @@ use crate::ui::{empty_state, page_header, rem};
 use crate::view::{files_tab, workflows::sheet};
 use rune::{ScrollSpec, col, icon, row, text};
 
+pub mod builtin;
 pub mod detail;
 pub mod list;
 pub mod runs;
@@ -60,6 +61,7 @@ fn detail(s: &State, t: &Theme) -> rune::El {
         _ => "Automations".to_string(),
     };
     let header = match (nav.mode, open) {
+        (ViewMode::Edit, Some(a)) if a.builtin.is_some() => builtin::header(t, a),
         (ViewMode::Edit, Some(a)) => detail::header(s, t, a),
         _ => page_header::bar(t, "automation-header", &title, None),
     };
@@ -85,7 +87,7 @@ fn body(s: &State, t: &Theme) -> rune::El {
     // The open automation's page; one the list doesn't hold (yet) is the list mode's body. A new automation's is piece H's.
     let open = s.automations_nav.open_id().and_then(|id| store.get(id));
     if let (Some(a), ViewMode::Edit) = (open, s.automations_nav.mode) {
-        return detail::body(t, s, a);
+        return if a.builtin.is_some() { builtin::body(t, s, a) } else { detail::body(t, s, a) };
     }
     if s.automations_nav.mode == ViewMode::Create {
         return col().w_full();

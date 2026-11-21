@@ -37,6 +37,8 @@ mod tests_archived;
 #[cfg(test)]
 mod tests_asks;
 #[cfg(test)]
+mod tests_automations_builtin;
+#[cfg(test)]
 mod tests_automations_header;
 #[cfg(test)]
 mod tests_automations_page;
@@ -5217,6 +5219,12 @@ pub fn spec() -> AppSpec<State> {
             ("automation-runs-empty-light", |s| s.show_automations(false, mock::automations::Scene::RunsEmpty)),
             ("automation-runs-states", |s| s.show_automations(true, mock::automations::Scene::RunsStates)),
             ("automation-runs-states-light", |s| s.show_automations(false, mock::automations::Scene::RunsStates)),
+            ("automation-builtin", |s| s.show_automations(true, mock::automations::Scene::Builtin)),
+            ("automation-builtin-light", |s| s.show_automations(false, mock::automations::Scene::Builtin)),
+            ("automation-builtin-time", |s| s.show_automations(true, mock::automations::Scene::BuiltinTime)),
+            ("automation-builtin-time-light", |s| s.show_automations(false, mock::automations::Scene::BuiltinTime)),
+            ("automation-builtin-paused", |s| s.show_automations(true, mock::automations::Scene::BuiltinPaused)),
+            ("automation-builtin-paused-light", |s| s.show_automations(false, mock::automations::Scene::BuiltinPaused)),
             ("rail-labs-on", |s| rail_labs_on(s, false)),
             ("rail-labs-on-light", |s| rail_labs_on(s, true)),
             ("rail-tip", |s| s.rail_tip = Some(Rail::Automations)),

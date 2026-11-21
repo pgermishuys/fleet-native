@@ -251,9 +251,14 @@ impl State {
         !self.settings.choice.is_other(&self.machines)
     }
 
-    /// "Runs as the built-in automation Dreaming": the Automations page. It has no selection to make yet (component 15).
+    /// "Runs as the built-in automation Dreaming" (`openAutomation`): selects the automation the row names, then the Automations
+    /// page opens on it (the link is the live machine's, and the page starts on it).
     pub fn open_dream_automation(&mut self) {
-        self.rail = crate::Rail::Automations;
+        let id = self.settings.memory.nightly.nightly.as_ref().and_then(|n| n.automation_id.clone());
+        self.press_rail(crate::Rail::Automations);
+        if let Some(id) = id {
+            self.set_active_automation(&id);
+        }
     }
 
     /// The harness Dream now follows: the row's, while the row is switched on (`emit("harness")`).

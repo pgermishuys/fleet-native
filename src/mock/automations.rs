@@ -82,6 +82,31 @@ pub fn automations() -> Vec<Automation> {
     ]
 }
 
+/// Dreaming, the built-in one: every night at 03:00, so `Every day at 03:00.`
+pub fn dreaming(paused: bool) -> Automation {
+    let mut a = scheduled("a-dream", "Dreaming", "", "0 3 * * *", (!paused).then_some("2026-09-16T03:00:00Z"));
+    a.workspace_id = None;
+    a.isolation = None;
+    a.target_type = Some("dreaming".into());
+    a.builtin = Some("dreaming".into());
+    a.is_enabled = !paused;
+    a
+}
+
+/// Dreaming's nights: one that kept and dropped notes, one skipped for want of sessions, and one that failed.
+pub fn dreaming_runs() -> Vec<AutomationRun> {
+    let mut night = run("n3", "a-dream", "schedule", RunState::Done);
+    night.started_at = "2026-09-15T03:00:02Z".into();
+    night.summary = Some("kettle: 4 notes changed, 1 note added · 9 min, 214k tokens".into());
+    let mut skipped = run("n2", "a-dream", "schedule", RunState::Skipped);
+    skipped.started_at = "2026-09-14T03:00:02Z".into();
+    skipped.error = Some("Skipped: no new sessions since the last run, nothing to read.".into());
+    let mut manual = run("n1", "a-dream", "manual", RunState::Done);
+    manual.started_at = "2026-09-13T16:20:00Z".into();
+    manual.summary = Some("kettle: 2 notes changed · 4 min, 96k tokens".into());
+    vec![night, skipped, manual]
+}
+
 /// One automation's runs, newest first: a schedule run, a catch-up, a manual run that failed, an event run, one on another
 /// machine that didn't answer, and a skipped one.
 pub fn runs(automation: &str) -> Vec<AutomationRun> {
@@ -161,6 +186,12 @@ pub enum Scene {
     RunsEmpty,
     /// Open, with a run in every state and each kind of note.
     RunsStates,
+    /// The built-in Dreaming automation open, with its nights.
+    Builtin,
+    /// The same with Change time open.
+    BuiltinTime,
+    /// Paused, and no night yet.
+    BuiltinPaused,
 }
 
 impl crate::State {
@@ -194,6 +225,11 @@ impl crate::State {
                 store.is_loading = false;
                 store.list = automations();
             }
+            Scene::Builtin | Scene::BuiltinTime | Scene::BuiltinPaused => {
+                store.is_loading = false;
+                store.list = automations();
+                store.list.insert(0, dreaming(scene == Scene::BuiltinPaused));
+            }
         }
         match scene {
             Scene::Create => self.automations_nav.start_create(),
@@ -206,17 +242,21 @@ impl crate::State {
             | Scene::RunsEmpty
             | Scene::RunsStates => self.automations_nav.set_active("a-weekly"),
             Scene::Off => self.automations_nav.set_active("a-paused"),
+            Scene::Builtin | Scene::BuiltinTime | Scene::BuiltinPaused => self.automations_nav.set_active("a-dream"),
             _ => {}
         }
         match scene {
             Scene::RunsEmpty => self.automations_nav.runs.show(HOME_MACHINE_KEY, "a-weekly", Vec::new()),
             Scene::RunsStates => self.automations_nav.runs.show(HOME_MACHINE_KEY, "a-weekly", runs_states("a-weekly")),
             Scene::Runs => self.automations_nav.runs.show(HOME_MACHINE_KEY, "a-weekly", runs("a-weekly")),
+            Scene::Builtin | Scene::BuiltinTime => self.automations_nav.runs.show(HOME_MACHINE_KEY, "a-dream", dreaming_runs()),
+            Scene::BuiltinPaused => self.automations_nav.runs.show(HOME_MACHINE_KEY, "a-dream", Vec::new()),
             _ => {}
         }
         match scene {
             Scene::Started => self.automation_say(false, crate::fleet::automations::actions::STARTED),
             Scene::Skipped => self.automation_say(true, "Another run was still going"),
+            Scene::BuiltinTime => self.builtin_start_time(),
             Scene::Menu => self.ui.open = Some(crate::ui::Open::Menu("automation-more")),
             Scene::Delete => {
                 let call = crate::fleet::actions::Call::DeleteAutomation { machine: HOME_MACHINE_KEY.into(), id: "a-weekly".into() };
