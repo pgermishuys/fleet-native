@@ -15,6 +15,7 @@ pub mod peek;
 pub mod read;
 pub mod requests;
 pub mod store;
+pub mod wall;
 
 /// A day: an idle session quiet for longer drops off the wall (`FINISHED_FOR_MS`).
 pub const FINISHED_FOR_MS: i64 = 24 * 60 * 60_000;
@@ -64,6 +65,20 @@ pub struct MissionMachine {
     pub asks: HashMap<String, Ask>,
     /// Now lines by session id; empty when the machine is too old to say.
     pub now: HashMap<String, SessionNow>,
+}
+
+impl Clone for MissionMachine {
+    fn clone(&self) -> Self {
+        MissionMachine {
+            id: self.id.clone(),
+            name: self.name.clone(),
+            status: self.status,
+            last_heard_at: self.last_heard_at,
+            sessions: self.sessions.iter().map(Session::row_copy).collect(),
+            asks: self.asks.clone(),
+            now: self.now.clone(),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

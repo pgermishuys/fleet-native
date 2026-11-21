@@ -2677,3 +2677,10 @@ whole-file work that piece R can make incremental (colour from the edited line, 
   a handler must always hand back a `&mut TextEdit`.
 - **`ElementInfo` is enough to test controls**: `fill`, `opacity`, `text_color`, `label`, `role` and the rect read size, tone and state of a laid-out control.
 
+
+## Component 23, piece D (the fleet-menu and Needs you)
+
+- **One border colour per element, and `border_sides` replaces `border`.** Fleet's card (`border` on three sides and a 4 px `border-l-4 border-l-accent`) is a row with `border_sides([1, 1, 1, 0], border)`, `clip_rounded`, and a 4 px accent element as its first child. The order of `border_sides` is CSS's: top, right, bottom, left.
+- **`text(..).truncate()` is `text-overflow: ellipsis`** (there is no `.ellipsis()`); give the text `.grow(1.0).shrink().min_w(0.0)` so the count beside it keeps its place.
+- A test can tell a Fleet menu item's open state only by its `fill` (`ElementInfo.fill.a`): Rune has no `aria-current`.
+- **A test binary of this crate needs about 5 GB to link** (`MemoryMax=7000M`, `-j2`); 4000M is OOM-killed with exit 143 and no message when other sessions are using the machine.

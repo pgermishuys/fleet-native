@@ -44,6 +44,7 @@ pub mod long;
 pub mod machines;
 pub mod machines_page;
 pub mod memory;
+pub mod mission;
 pub mod mod_trees;
 pub mod mods;
 pub mod notices;

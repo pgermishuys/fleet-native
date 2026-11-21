@@ -183,6 +183,8 @@ mod tests_mission_live;
 #[cfg(test)]
 mod tests_mods_controls;
 #[cfg(test)]
+mod tests_mission_needs_you;
+#[cfg(test)]
 mod tests_mods_tree;
 #[cfg(test)]
 mod tests_new_project;
@@ -2647,6 +2649,14 @@ pub fn spec() -> AppSpec<State> {
             // Component 23, piece A: each Labs view with its switch off, the notice that fills the context.
             ("fleet-off", |s| labs_off_scene(s, true, Rail::Fleet)),
             ("fleet-off-light", |s| labs_off_scene(s, false, Rail::Fleet)),
+            ("fleet-needs-you", |s| s.show_mission(mock::mission::Case::Cards, true)),
+            ("fleet-needs-you-light", |s| s.show_mission(mock::mission::Case::Cards, false)),
+            ("fleet-needs-you-empty", |s| s.show_mission(mock::mission::Case::Empty, true)),
+            ("fleet-needs-you-empty-light", |s| s.show_mission(mock::mission::Case::Empty, false)),
+            ("fleet-needs-you-loading", |s| s.show_mission(mock::mission::Case::Loading, true)),
+            ("fleet-needs-you-loading-light", |s| s.show_mission(mock::mission::Case::Loading, false)),
+            ("fleet-needs-you-failed", |s| s.show_mission(mock::mission::Case::Failed, true)),
+            ("fleet-needs-you-failed-light", |s| s.show_mission(mock::mission::Case::Failed, false)),
             ("jobs-off", |s| labs_off_scene(s, true, Rail::Jobs)),
             ("jobs-off-light", |s| labs_off_scene(s, false, Rail::Jobs)),
             ("board-off", |s| labs_off_scene(s, true, Rail::Board)),

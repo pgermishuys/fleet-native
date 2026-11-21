@@ -9,6 +9,22 @@ pub fn bar(t: &Theme, key: &str, title: &str, actions: Option<El>) -> El {
     bar_with(t, key, title, Vec::new(), actions.into_iter().collect())
 }
 
+/// `bar` with `description`, the line of words under the title (14 px muted, 1.5, 4 px down): Fleet's counts.
+pub fn bar_described(t: &Theme, key: &str, title: &str, description: &str) -> El {
+    let heading = text(title.to_string()).font(sans(rem(1.5), 600.0, 1.25).tracking(-0.525)).color(t.text);
+    let line = text(description.to_string()).key(format!("{key}-description")).font(sans(rem(0.875), 400.0, 1.5)).color(t.muted);
+    row()
+        .key(key.to_string())
+        .w_full()
+        .center_y()
+        .gap(8.0)
+        .px(rem(1.25))
+        .py(14.0)
+        .border_sides([0.0, 0.0, 1.0, 0.0], t.border)
+        .border_layout()
+        .child(col().grow(1.0).shrink().min_w(0.0).child(heading).child(row().mt(4.0).child(line)))
+}
+
 /// `bar` with the `meta` slot: what sits beside the title on its row (a switch, a line of words), and the `actions`' buttons.
 pub fn bar_with(t: &Theme, key: &str, title: &str, meta: Vec<El>, actions: Vec<El>) -> El {
     let heading = text(title.to_string()).font(sans(rem(1.5), 600.0, 1.25).tracking(-0.525)).color(t.text);

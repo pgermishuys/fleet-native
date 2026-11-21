@@ -70,3 +70,18 @@ pub fn bordered(t: &Theme, key: &str, title: &str, min_h: f32) -> El {
         .border_layout()
         .child(text(title.to_string()).font(sans(rem(1.0), 600.0, 1.5)).color(t.text).wrap().align(Align::Center))
 }
+
+/// `EmptyState bordered compact`: the dashed card at the compact size (`px-3 py-4`, a 14 px medium title).
+pub fn bordered_compact(t: &Theme, key: &str, title: &str) -> El {
+    col()
+        .key(key.to_string())
+        .w_full()
+        .center()
+        .px(rem(0.75))
+        .py(rem(1.0))
+        .radius(crate::theme::RADIUS_CARD)
+        .border(1.0, t.border)
+        .border_dash(4.0, 3.0)
+        .border_layout()
+        .child(text(title.to_string()).font(sans(rem(0.875), 500.0, 1.43)).color(t.text).wrap().align(Align::Center))
+}

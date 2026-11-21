@@ -26,3 +26,24 @@ pub fn error_note(t: &Theme, key: &str, message: &str, reason: &str) -> El {
                 .child(text(reason.to_string()).font(sans(rem(0.875), 400.0, 1.43)).color(t.error_text).wrap().w_full().mt(2.0)),
         )
 }
+
+/// `ErrorNote compact`: no tint or box, one note of 12 px words with a 14 px glyph, for under a card or a field.
+pub fn compact(t: &Theme, key: &str, message: &str) -> El {
+    row()
+        .key(key.to_string())
+        .role("alert")
+        .w_full()
+        .gap(8.0)
+        .items_start()
+        .child(icon(&CIRCLE_ALERT, 14.0).color(t.error_text).mt(1.0))
+        .child(
+            text(message.to_string())
+                .key(format!("{key}-text"))
+                .font(sans(rem(0.75), 400.0, 1.33))
+                .color(t.error_text)
+                .wrap()
+                .grow(1.0)
+                .shrink()
+                .min_w(0.0),
+        )
+}
