@@ -2781,6 +2781,18 @@ pub fn spec() -> AppSpec<State> {
                 s.dark = Some(false);
                 s.rail = Rail::Plugin("github")
             }),
+            ("github-panel", |s| plugins::scene(s, "github-panel-followed", true)),
+            ("github-panel-light", |s| plugins::scene(s, "github-panel-followed", false)),
+            ("github-panel-onrepo", |s| plugins::scene(s, "github-panel-onrepo", true)),
+            ("github-panel-onrepo-light", |s| plugins::scene(s, "github-panel-onrepo", false)),
+            ("github-panel-loading", |s| plugins::scene(s, "github-panel-loading", true)),
+            ("github-panel-loading-light", |s| plugins::scene(s, "github-panel-loading", false)),
+            ("github-panel-failed", |s| plugins::scene(s, "github-panel-failed", true)),
+            ("github-panel-failed-light", |s| plugins::scene(s, "github-panel-failed", false)),
+            ("github-panel-empty", |s| plugins::scene(s, "github-panel-empty", true)),
+            ("github-panel-empty-light", |s| plugins::scene(s, "github-panel-empty", false)),
+            ("github-panel-off", |s| plugins::scene(s, "github-panel-off", true)),
+            ("github-panel-off-light", |s| plugins::scene(s, "github-panel-off", false)),
             ("settings-plugin-github-off", |s| {
                 use view::settings::plugins_scene::{Look, scene};
                 scene(s, Look { dark: true, page: "plugin:github", off: &["github"], mods_on: false, status: None, none_installed: false })

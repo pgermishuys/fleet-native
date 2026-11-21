@@ -16,7 +16,9 @@ pub fn register(mut places: Places) -> Places {
 
 /// The scenes a plugin adds (`spec()`'s list is static and core's, so it names the scene and this routes it).
 pub fn scene(s: &mut crate::State, name: &str, dark: bool) {
-    if let Some(which) = name.strip_prefix("github-") {
+    if let Some(which) = name.strip_prefix("github-panel-") {
+        github::view::panel_scene::set(s, which, dark);
+    } else if let Some(which) = name.strip_prefix("github-") {
         github::view::scene::set(s, which, dark);
     }
 }
