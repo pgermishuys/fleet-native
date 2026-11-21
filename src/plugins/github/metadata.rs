@@ -107,6 +107,20 @@ pub struct Metadata {
     pub assignees: Store<Assignee>,
 }
 
+impl Metadata {
+    /// A repository's three lists as a scene draws them (`loading` leaves the labels unread and loading), with no request.
+    pub fn show(&mut self, owner: &str, repo: &str, lists: (&Value, &Value, &Value), loading: bool) {
+        fn put<T>(store: &mut Store<T>, owner: &str, repo: &str, list: &Value, read: fn(&Value) -> Option<T>, loading: bool) {
+            let data = if loading { Vec::new() } else { list.as_array().into_iter().flatten().filter_map(read).collect() };
+            let entry = Entry { data, loading, error: None, updated: (!loading).then_some(0.0), generation: 0 };
+            store.0.insert(format!("{owner}/{repo}"), entry);
+        }
+        put(&mut self.labels, owner, repo, lists.0, read_label, loading);
+        put(&mut self.milestones, owner, repo, lists.1, read_milestone, loading);
+        put(&mut self.assignees, owner, repo, lists.2, read_assignee, loading);
+    }
+}
+
 struct Kind<T: 'static> {
     /// "labels": in "Failed to fetch labels."
     name: &'static str,

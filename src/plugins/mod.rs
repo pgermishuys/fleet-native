@@ -20,6 +20,8 @@ pub fn scene(s: &mut crate::State, name: &str, dark: bool) {
         github::view::panel_scene::follow(s, which, dark);
     } else if name.starts_with("github-home") || matches!(name, "github-connect" | "github-connect-waiting" | "github-connect-expired") {
         github::view::home_scene::set(s, name.strip_prefix("github-").unwrap_or(name), dark);
+    } else if let Some(which) = name.strip_prefix("github-issues") {
+        github::view::filters_scene::set(s, which.trim_start_matches('-'), dark);
     } else if let Some(which) = name.strip_prefix("github-repo") {
         github::view::repo_scene::set(s, which.trim_start_matches('-'), dark);
     } else if name == "github-rows" {

@@ -593,7 +593,238 @@
       "reviewers": [],
       "assignees": [
         "mara-quinn"
+      ],
+      "milestone": "Autumn cleanup"
+    },
+    {
+      "kind": "issue",
+      "owner": "acme",
+      "repo": "rocket",
+      "number": 205,
+      "title": "Login redirect loops after sign-in",
+      "url": "https://github.com/acme/rocket/issues/205",
+      "state": "open",
+      "isDraft": false,
+      "author": "devon-park",
+      "authorAvatarUrl": null,
+      "createdAt": "2026-11-19T07:00:00Z",
+      "updatedAt": "2026-11-21T08:00:00Z",
+      "comments": 3,
+      "labels": [
+        {
+          "name": "bug",
+          "color": "d73a4a"
+        }
+      ],
+      "headRef": null,
+      "baseRef": null,
+      "additions": null,
+      "deletions": null,
+      "checks": null,
+      "reviewDecision": null,
+      "mergeable": null,
+      "reviewers": [],
+      "assignees": [],
+      "milestone": "v1.2 launch window"
+    },
+    {
+      "kind": "issue",
+      "owner": "acme",
+      "repo": "rocket",
+      "number": 203,
+      "title": "Pager skips the last page when the count is a multiple of 20",
+      "url": "https://github.com/acme/rocket/issues/203",
+      "state": "open",
+      "isDraft": false,
+      "author": "kit-lee",
+      "authorAvatarUrl": null,
+      "createdAt": "2026-11-18T09:00:00Z",
+      "updatedAt": "2026-11-21T04:30:00Z",
+      "comments": 1,
+      "labels": [
+        {
+          "name": "bug",
+          "color": "d73a4a"
+        },
+        {
+          "name": "good first issue",
+          "color": "7057ff"
+        }
+      ],
+      "headRef": null,
+      "baseRef": null,
+      "additions": null,
+      "deletions": null,
+      "checks": null,
+      "reviewDecision": null,
+      "mergeable": null,
+      "reviewers": [],
+      "assignees": [
+        "devon-park"
+      ],
+      "milestone": "v1.2 launch window"
+    },
+    {
+      "kind": "issue",
+      "owner": "acme",
+      "repo": "rocket",
+      "number": 199,
+      "title": "Webhook payloads are not signed",
+      "url": "https://github.com/acme/rocket/issues/199",
+      "state": "open",
+      "isDraft": false,
+      "author": "devon-park",
+      "authorAvatarUrl": null,
+      "createdAt": "2026-11-12T09:00:00Z",
+      "updatedAt": "2026-11-19T10:00:00Z",
+      "comments": 6,
+      "labels": [
+        {
+          "name": "enhancement",
+          "color": "a2eeef"
+        }
+      ],
+      "headRef": null,
+      "baseRef": null,
+      "additions": null,
+      "deletions": null,
+      "checks": null,
+      "reviewDecision": null,
+      "mergeable": null,
+      "reviewers": [],
+      "assignees": [
+        "sam-rivera"
       ]
+    },
+    {
+      "kind": "issue",
+      "owner": "acme",
+      "repo": "rocket",
+      "number": 196,
+      "title": "Slow first load on the dashboard",
+      "url": "https://github.com/acme/rocket/issues/196",
+      "state": "open",
+      "isDraft": false,
+      "author": "mara-quinn",
+      "authorAvatarUrl": null,
+      "createdAt": "2026-11-08T09:00:00Z",
+      "updatedAt": "2026-11-17T10:00:00Z",
+      "comments": 2,
+      "labels": [
+        {
+          "name": "performance",
+          "color": "fbca04"
+        }
+      ],
+      "headRef": null,
+      "baseRef": null,
+      "additions": null,
+      "deletions": null,
+      "checks": null,
+      "reviewDecision": null,
+      "mergeable": null,
+      "reviewers": [],
+      "assignees": [
+        "mara-quinn"
+      ],
+      "milestone": "Autumn cleanup"
+    },
+    {
+      "kind": "issue",
+      "owner": "acme",
+      "repo": "rocket",
+      "number": 190,
+      "title": "Document the crew roster format",
+      "url": "https://github.com/acme/rocket/issues/190",
+      "state": "closed",
+      "isDraft": false,
+      "author": "sam-rivera",
+      "authorAvatarUrl": null,
+      "createdAt": "2026-10-30T09:00:00Z",
+      "updatedAt": "2026-11-05T10:00:00Z",
+      "comments": 0,
+      "labels": [
+        {
+          "name": "documentation",
+          "color": "0075ca"
+        }
+      ],
+      "headRef": null,
+      "baseRef": null,
+      "additions": null,
+      "deletions": null,
+      "checks": null,
+      "reviewDecision": null,
+      "mergeable": null,
+      "reviewers": [],
+      "assignees": []
     }
-  ]
+  ],
+  "labels": {
+    "acme/rocket": [
+      {
+        "name": "bug",
+        "color": "d73a4a",
+        "description": null
+      },
+      {
+        "name": "enhancement",
+        "color": "a2eeef",
+        "description": null
+      },
+      {
+        "name": "good first issue",
+        "color": "7057ff",
+        "description": null
+      },
+      {
+        "name": "performance",
+        "color": "fbca04",
+        "description": null
+      },
+      {
+        "name": "documentation",
+        "color": "0075ca",
+        "description": null
+      }
+    ]
+  },
+  "milestones": {
+    "acme/rocket": [
+      {
+        "number": 1,
+        "title": "v1.2 launch window",
+        "state": "open",
+        "open_issues": 4,
+        "closed_issues": 9
+      },
+      {
+        "number": 2,
+        "title": "Autumn cleanup",
+        "state": "open",
+        "open_issues": 2,
+        "closed_issues": 5
+      }
+    ]
+  },
+  "assignees": {
+    "acme/rocket": [
+      {
+        "login": "mara-quinn",
+        "avatar_url": "https://avatars.example/mara-quinn"
+      },
+      {
+        "login": "devon-park",
+        "avatar_url": "https://avatars.example/devon-park"
+      },
+      {
+        "login": "kit-lee",
+        "avatar_url": "https://avatars.example/kit-lee"
+      },
+      {
+        "login": "sam-rivera",
+        "avatar_url": "https://avatars.example/sam-rivera"
+      }
+    ]
+  }
 }

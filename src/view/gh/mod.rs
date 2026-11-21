@@ -15,6 +15,6 @@ pub use checks_summary::checks_summary;
 pub use diff_stat::diff_stat;
 pub use gallery::parts;
 pub use item_icon::{ItemKind, item_icon};
-pub use label::label;
+pub use label::{label, label_color};
 pub use pr_state_pill::pr_state_pill;
 pub use reviewer_avatar::reviewer_avatar;

@@ -5,6 +5,7 @@
 //! page, `view::connect`), the connection's `keep`, and the addresses it owns (`Where`). Piece B adds what the pages read: items and the words made from them (`items`), the issue filter
 //! (`filter`) and an invented GitHub for scenes and tests (`mock`). Piece C adds the three stores the pages share: your work (`work`), the repositories you follow (`bookmarks`) and the repository cache (`repos`). Piece D adds the rail's panel (`view::panel`, loaded by `panel_loads`); piece E its Follow a repository dialog (`follow`, `view::follow`); piece F the item's row and its session chip (`view::row`, `view::session_chip`) and Fleet's side, the sessions on an item (`sessions`); piece G Your work (`home`, `view::home`, `view::home_connect`); piece H the stores the repository's page and the `#` picker read: search (`search`), items by number and one item (`item`) and a repository's labels, milestones and assignees (`metadata`); piece I a repository's page (`repo`, `view::repo`); the rest of the pages come in the pieces after.
 pub mod auth;
+pub mod bar;
 pub mod bookmarks;
 pub mod filter;
 pub mod follow;
@@ -26,6 +27,8 @@ pub mod work;
 mod tests_auth;
 #[cfg(test)]
 mod tests_filter;
+#[cfg(test)]
+mod tests_filters;
 #[cfg(test)]
 mod tests_follow;
 #[cfg(test)]
@@ -114,9 +117,16 @@ pub fn entry() -> Entry {
     e.page = Some(view::page::page);
     e.settings = Some(view::connect::content);
     e.keep = Some(keep);
-    e.overlay = Some(view::follow::overlay);
+    e.overlay = Some(overlay);
     e.repositories = Some(repo_cache.source());
     e
+}
+
+/// The dialog and the issue bar's menus, over the window.
+fn overlay(s: &State, t: &crate::theme::Theme) -> Vec<rune::El> {
+    let mut all = view::follow::overlay(s, t);
+    all.extend(view::filters::overlay(s, t));
+    all
 }
 
 fn keep(s: &mut State, now: f64, tx: &mut Tx) -> bool {

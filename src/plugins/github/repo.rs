@@ -1,6 +1,7 @@
 //! A repository's page (`pages/GitHubRepoPage.vue`, rows 8.x of docs/parity/21-github.md): which tab and filter it is on, the query each
 //! makes, the pull requests Fleet's sessions are on (In Fleet), and what it asks for when it opens. The page that draws it is
 //! `view::repo`. Pure but for `keep_github_repo`, which runs from the plugin's `keep`.
+use super::bar::Bar;
 use super::filter::{IssueFilter, issue_filter_query};
 use super::item::Asked;
 use super::items::ItemSummary;
@@ -102,6 +103,8 @@ pub struct RepoPage {
     /// The pull requests' filter box.
     pub text: TextEdit,
     pub issues: IssueFilter,
+    /// The issue filter bar: its field and its open menu.
+    pub bar: Bar,
     pub fleet: FleetPulls,
 }
 
@@ -241,9 +244,13 @@ impl State {
             }
             state(&mut self.places).repo = RepoPage { asked: shown.clone(), ..RepoPage::default() };
             changed = true;
-            if shown.is_some() {
+            if let Some((owner, repo)) = &shown {
                 super::sessions::ensure_loaded(self);
                 self.github_work_load();
+                // `useGitHubLabels` and the others read when the page mounts; the bar's menus open on what they hold.
+                self.github_labels(owner, repo, false);
+                self.github_milestones(owner, repo, false);
+                self.github_assignees(owner, repo, false);
             }
         }
         let Some((owner, repo)) = shown else { return changed };
@@ -252,6 +259,9 @@ impl State {
         self.github_search_set(SEARCH, query.as_deref());
         changed |= before != state_ref(&self.places).search.get(SEARCH).map(|q| (q.query.clone(), q.is_loading));
         changed |= self.keep_github_fleet(&owner, &repo);
+        if state_ref(&self.places).repo.tab == Tab::Issues {
+            changed |= self.keep_github_bar(tx);
+        }
         // A typed query is sent after its pause; the clock has to come round to it.
         if state_ref(&self.places).search.get(SEARCH).is_some_and(|q| q.is_loading) {
             tx.wake_after(Duration::from_millis(100));
