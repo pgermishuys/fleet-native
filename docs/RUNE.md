@@ -2568,3 +2568,9 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **A page that scrolls inside a bordered sheet** is the sheet (`view::workflows::sheet`) holding a column with the padding and `.scroll(ScrollSpec { stick_bottom: false })`, the content column inside it capped with `max_w(1080.0).self_center()`. A `vh` margin is the window's height (`s.ui.sel.window.1`, kept by the root's `on_layout`) times the share.
 - **No underline on a text link's hover:** `group_color` changes the colour, there is no hover underline on a plain `text`, so `.gh-home__link` (muted, text colour and an underline on hover) gets the colour only.
 - **A Rune line of text has no `line-height: 1.5` by default**: the row's lines were set at 1.2 and 1.3 and came out 5 px short of Fleet's 55.5 px row; set `sans(size, weight, 1.5)` where the CSS inherits the page's line height.
+
+
+## Component 21, piece H (search, items, metadata)
+
+- **A debounce is a due time on the app's clock, sent by `keep`**, not a timer: the store sets `due = clock + 0.25`, and the plugin's poll sends it when `now` has passed. A test steps the pause with `rt.frame(secs)` and needs no sleep. Showing "loading" during the pause is a flag set when the query is typed.
+- **Dropping an answer** is a generation per request (Fleet aborts the fetch): the thread's answer is applied only when its generation is still the store's. A test that proves a drop gates the older request on the fake, lets the newer one land, then releases the gate and looks again after a few frames.

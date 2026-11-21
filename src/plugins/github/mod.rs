@@ -3,16 +3,19 @@
 //!
 //! Piece A of component 21 gives it its home and its places: the descriptor, the rail button, the settings page (the connection
 //! page, `view::connect`), the connection's `keep`, and the addresses it owns (`Where`). Piece B adds what the pages read: items and the words made from them (`items`), the issue filter
-//! (`filter`) and an invented GitHub for scenes and tests (`mock`). Piece C adds the three stores the pages share: your work (`work`), the repositories you follow (`bookmarks`) and the repository cache (`repos`). Piece D adds the rail's panel (`view::panel`, loaded by `panel_loads`); piece E its Follow a repository dialog (`follow`, `view::follow`); piece F the item's row and its session chip (`view::row`, `view::session_chip`) and Fleet's side, the sessions on an item (`sessions`); piece G Your work (`home`, `view::home`, `view::home_connect`); the rest of the pages come in the pieces after.
+//! (`filter`) and an invented GitHub for scenes and tests (`mock`). Piece C adds the three stores the pages share: your work (`work`), the repositories you follow (`bookmarks`) and the repository cache (`repos`). Piece D adds the rail's panel (`view::panel`, loaded by `panel_loads`); piece E its Follow a repository dialog (`follow`, `view::follow`); piece F the item's row and its session chip (`view::row`, `view::session_chip`) and Fleet's side, the sessions on an item (`sessions`); piece G Your work (`home`, `view::home`, `view::home_connect`); piece H the stores the repository's page and the `#` picker read: search (`search`), items by number and one item (`item`) and a repository's labels, milestones and assignees (`metadata`); the rest of the pages come in the pieces after.
 pub mod auth;
 pub mod bookmarks;
 pub mod filter;
 pub mod follow;
 pub mod home;
+pub mod item;
 pub mod items;
+pub mod metadata;
 pub mod mock;
 mod panel_loads;
 pub mod repos;
+pub mod search;
 pub mod sessions;
 pub mod view;
 mod where_;
@@ -32,6 +35,8 @@ mod tests_items;
 mod tests_panel;
 #[cfg(test)]
 mod tests_rows;
+#[cfg(test)]
+mod tests_search;
 #[cfg(test)]
 mod tests_stores;
 #[cfg(test)]
@@ -59,6 +64,9 @@ pub struct GitHub {
     pub work: work::WorkStore,
     pub bookmarks: bookmarks::Bookmarks,
     pub repos: repos::Cache,
+    /// Searches (by asker) and each repository's labels, milestones and assignees: what the repository's page and its filter read.
+    pub search: search::Searches,
+    pub metadata: metadata::Metadata,
     /// The rail's panel has asked for what it shows on this visit (`onMounted`): the status, the followed repositories and your work.
     pub panel_asked: bool,
     /// Your work (the page) has asked for what it shows on this visit, and the age words last drawn under its title.
@@ -107,7 +115,7 @@ pub fn entry() -> Entry {
 }
 
 fn keep(s: &mut State, now: f64, tx: &mut Tx) -> bool {
-    s.keep_github(now, tx) | s.keep_github_repos() | s.keep_github_panel() | s.keep_github_home(tx)
+    s.keep_github(now, tx) | s.keep_github_repos() | s.keep_github_panel() | s.keep_github_home(tx) | s.keep_github_search(now)
 }
 
 /// The connection's state, which lives in the plugin's entry.

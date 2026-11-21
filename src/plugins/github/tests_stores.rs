@@ -96,7 +96,7 @@ impl Rig {
     pub(super) fn answer(&self, method: &str, path: &str, status: u16, body: impl ToString) {
         self.fake.lock().unwrap().answers.insert(format!("{method} {path}"), (status, body.to_string()));
     }
-    fn gate(&self, path: &str) -> std::sync::mpsc::Sender<()> {
+    pub(super) fn gate(&self, path: &str) -> std::sync::mpsc::Sender<()> {
         let (go, wait) = channel();
         self.fake.lock().unwrap().gates.insert(path.into(), Arc::new(Mutex::new(wait)));
         go
