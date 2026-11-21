@@ -2574,3 +2574,12 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 
 - **A debounce is a due time on the app's clock, sent by `keep`**, not a timer: the store sets `due = clock + 0.25`, and the plugin's poll sends it when `now` has passed. A test steps the pause with `rt.frame(secs)` and needs no sleep. Showing "loading" during the pause is a flag set when the query is typed.
 - **Dropping an answer** is a generation per request (Fleet aborts the fetch): the thread's answer is applied only when its generation is still the store's. A test that proves a drop gates the older request on the fake, lets the newer one land, then releases the gate and looks again after a few frames.
+
+## Component 20, piece F (Overview: the cards, the panels and the cost bars)
+
+- **`auto-fit` grids are `flex_wrap` rows of `min_w(n).grow(1.0)` children**, as in the workflow facts: four cards across at 1280 and two panels come out the same as Fleet's. A last short row stretches instead of keeping the columns.
+- **A bar fill is a `grow` share**: a row with a clipped round track holding `el().grow(w).w(0.0)` and `el().grow(100 - w).w(0.0)` draws `width: w%` with no pixel width needed (the track's `clip_rounded` makes the pill). It doesn't ease; a 300 ms transition would need the canvas stroke with `live_trim`.
+- **No baseline alignment**: a 24 px value with a 12 px "Est." beside it is `items_end` with the small text raised 3 px (`mb(3.0)`); wrapped under the value it sits 3 px low. `gaps(row, column)` gives CSS `gap: 4px 8px`.
+- **A `scroll()` box's own bottom padding isn't part of its range**: a page column with `padding(24.0)` that is the scroll box scrolled to its end with the last panel flush to the bottom edge. Padding left and top on it and a trailing child for the bottom (`el().h(4.0)` after a 20 px gap) gave Fleet's 24 px below the last panel.
+- **A scene that wants a state the first look would overwrite** (loading, failed, empty) can't set the reads itself: the page mounts on its first poll and asks again, and with no server the invented answers fill in. `Analytics::mock_answers` (`Data`, `Silent`, `Failed`, `Empty`) says what those invented answers are.
+- **Fleet's states by request routing**: Playwright's `page.route('**/api/analytics/**', …)` holds the answers (loading), refuses them with 503 (error) or sends empty bodies (empty), so Fleet's own client draws states the scratch Fleet can't make.

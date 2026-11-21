@@ -33,6 +33,8 @@ mod tests_analytics_export;
 #[cfg(test)]
 mod tests_analytics_filters;
 #[cfg(test)]
+mod tests_analytics_overview;
+#[cfg(test)]
 mod tests_analytics_page;
 #[cfg(test)]
 mod tests_analytics_store;
@@ -5286,6 +5288,14 @@ pub fn spec() -> AppSpec<State> {
             ("analytics-calendar", |s| s.show_analytics(true, mock::analytics::Scene::Calendar)),
             ("analytics-calendar-light", |s| s.show_analytics(false, mock::analytics::Scene::Calendar)),
             ("analytics-calendar-limits", |s| s.show_analytics(true, mock::analytics::Scene::CalendarLimits)),
+            ("analytics-overview", |s| s.show_analytics(true, mock::analytics::Scene::Menu)),
+            ("analytics-overview-light", |s| s.show_analytics(false, mock::analytics::Scene::Menu)),
+            ("analytics-overview-loading", |s| s.show_analytics(true, mock::analytics::Scene::Loading)),
+            ("analytics-overview-loading-light", |s| s.show_analytics(false, mock::analytics::Scene::Loading)),
+            ("analytics-overview-error", |s| s.show_analytics(true, mock::analytics::Scene::Failed)),
+            ("analytics-overview-error-light", |s| s.show_analytics(false, mock::analytics::Scene::Failed)),
+            ("analytics-overview-empty", |s| s.show_analytics(true, mock::analytics::Scene::Nothing)),
+            ("analytics-overview-empty-light", |s| s.show_analytics(false, mock::analytics::Scene::Nothing)),
             ("analytics-calendar-limits-light", |s| s.show_analytics(false, mock::analytics::Scene::CalendarLimits)),
             ("automation-detail", |s| s.show_automations(true, mock::automations::Scene::Started)),
             ("automation-detail-light", |s| s.show_automations(false, mock::automations::Scene::Started)),
