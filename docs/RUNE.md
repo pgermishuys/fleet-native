@@ -2656,3 +2656,8 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **A `--script` run's clock isn't the wall clock.** Frames under `--snap`/`--script` draw slowly on a software renderer, and the app's clock follows frames, so a 300 ms fold showed as 2.5 s between a log's event and read lines. Check timing in a real window under Xvfb (`xvfb-run`), where the same fold measured 301-314 ms.
 - A timer-driven store keeps deadlines in app seconds and calls `tx.wake_after(next deadline)` from its `keep_*`; jobs from threads that change what is due call `tx.wake_after(20 ms)` so the next frame notices.
 - Tests for such a store move the clock with `rt.frame(secs)` and drain jobs with `frame(0.0)` between looks (as the Analytics tests do); the hub of a fake that isn't a SignalR server fails, which is how a test gets "polling".
+
+## Component 20, piece H (Daily and Projects)
+
+- **A table is its columns side by side**: five `col().grow(1.0)`s in a `row`, so a column is as wide as its widest cell and the rows line up. Putting that row inside a `scroll_x()` box drew the columns at the width of their first cell, overlapped (the box measures its child unconstrained); the sideways scroll is left out until a smaller case is written.
+- **A card pinned to its row's bottom** (`margin-top: auto`) is a `grow(1.0).min_h(gap)` spacer between the parts, with no `gap` on the card, or the gap is paid twice.

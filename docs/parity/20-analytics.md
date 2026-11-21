@@ -204,19 +204,19 @@ Each row: what Fleet does, its source, and the native state (with the piece that
 
 | # | Row | Source | Native |
 |---|---|---|---|
-| 9.1 | A table in a box (1 px border, `--radius-btn`, `--card-bg`, scrolls sideways): Day, Tokens, Cost, Sessions, Messages; numbers right-aligned | DT | None (H) |
-| 9.2 | Rows newest first; Day is the raw date ("2026-11-20"); tokens, sessions, messages `formatCount`; cost `formatMoney`; cells 12.5 px tabular, padding 8/12, a 1 px rule under each but the last; the head 11 px 500 muted | DT | None (H) |
-| 9.3 | Empty words: "No daily analytics matched the selected date range." or, with a project, "No daily analytics matched the selected date range and project." | AC | The words done (A): `mod.rs` `daily_empty`. The rest: None (A, the words; H) |
-| 9.4 | States: rows → table; else loading → Spinner + "Loading daily analytics…"; else ErrorNote "Unable to load analytics."; else EmptyState bordered | DT | None (H) |
+| 9.1 | A table in a box (1 px border, `--radius-btn`, `--card-bg`, scrolls sideways): Day, Tokens, Cost, Sessions, Messages; numbers right-aligned | DT | **Done (H, 21 November 2026)** `daily.rs` `table`: five columns side by side in a bordered `--radius-btn` box. Gap: the columns share the spare width equally (Fleet's table gives it by content width), and no sideways scroll (a `scroll_x` box around the columns lost the width and drew them overlapped) |
+| 9.2 | Rows newest first; Day is the raw date ("2026-11-20"); tokens, sessions, messages `formatCount`; cost `formatMoney`; cells 12.5 px tabular, padding 8/12, a 1 px rule under each but the last; the head 11 px 500 muted | DT | **Done (H, 21 November 2026)** `fleet/analytics/tables.rs` `day_rows` |
+| 9.3 | Empty words: "No daily analytics matched the selected date range." or, with a project, "No daily analytics matched the selected date range and project." | AC | The words done (A): `mod.rs` `daily_empty`. The rest: **Done (H, 21 November 2026)** `daily.rs` shows the words |
+| 9.4 | States: rows → table; else loading → Spinner + "Loading daily analytics…"; else ErrorNote "Unable to load analytics."; else EmptyState bordered | DT | **Done (H, 21 November 2026)** `daily.rs` `daily` (loading, error, empty in Fleet's order) |
 
 ### 10. Projects
 
 | # | Row | Source | Native |
 |---|---|---|---|
-| 10.1 | A grid of cards `repeat(auto-fit, minmax(240px, 1fr))`, gap 12 (three across at 1280), sorted by cost then name | PT | None (H) |
-| 10.2 | A card (the kit's Card, no shadow, padding 16, gap 16, full height): the name (14 px 600, wraps anywhere) and the cost (14 px 600 tabular) on top; two stats "Tokens" / "Cost" (labels 11 px muted, values 18 px 600 tabular, `formatCount`, `formatMoney`); at the bottom "Relative spend" and "<n>%" (11 px 500 muted) over a 6 px accent bar (cost ÷ the largest; eases 0.2 s) | PT | None (H) |
-| 10.3 | Its source is the page's project list (3.10): the scoped summary's top 5 | AC | None (H) |
-| 10.4 | Empty words: "No project analytics matched the selected date range." or "No projects matched the selected date range and project."; states as 9.4 with "Loading project analytics…" and EmptyState bordered min-height 157.5 | AC, PT | The words done (A): `mod.rs` `projects_empty`. The rest: None (H) |
+| 10.1 | A grid of cards `repeat(auto-fit, minmax(240px, 1fr))`, gap 12 (three across at 1280), sorted by cost then name | PT | **Done (H, 21 November 2026)** `projects.rs` `projects`, `tables::project_cards`: a `flex_wrap` row of `min_w(240)` cards; Fleet's `auto-fit` keeps equal columns on a short last row, the wrapped row stretches it (the same gap as 6.2 and 8.1) |
+| 10.2 | A card (the kit's Card, no shadow, padding 16, gap 16, full height): the name (14 px 600, wraps anywhere) and the cost (14 px 600 tabular) on top; two stats "Tokens" / "Cost" (labels 11 px muted, values 18 px 600 tabular, `formatCount`, `formatMoney`); at the bottom "Relative spend" and "<n>%" (11 px 500 muted) over a 6 px accent bar (cost ÷ the largest; eases 0.2 s) | PT | **Done (H, 21 November 2026)** `projects.rs` `card`; the bar is a `grow` share of a clipped pill track, drawn at once (Fleet eases it 0.2 s: the same gap as 8.6) |
+| 10.3 | Its source is the page's project list (3.10): the scoped summary's top 5 | AC | **Done (H, 21 November 2026)** `projects.rs` (`with_selected_project` of the summary's top projects) |
+| 10.4 | Empty words: "No project analytics matched the selected date range." or "No projects matched the selected date range and project."; states as 9.4 with "Loading project analytics…" and EmptyState bordered min-height 157.5 | AC, PT | The words done (A): `mod.rs` `projects_empty`. The rest: **Done (H, 21 November 2026)** `projects.rs`: bordered, 157.5 px tall at least |
 
 ### 11. Models
 
@@ -491,6 +491,11 @@ en-US, both themes. `scripts/scratch-fleet.sh` switches analytics off; a piece r
   daily and projects rows under their names; native: newest day first; project cards sorted by cost then name with the
   percent rounded as `toFixed(0)`.
 - **Pictures:** Daily beside `fleet-daily`, Projects beside `fleet-projects`, both themes.
+
+**Done (21 November 2026).** Pictures: `shots/parity/20-analytics/H-daily-projects/` (`analytics-{daily,projects}{,-loading,-error,-empty}{,-light}.png` the app's scenes, `fleet-{daily,projects}{,-loading,-error,-empty}-{dark,light}.png` Fleet's own client from a scratch Fleet with the analytics answers served by request routing, the clock at the scene's day, 1280x760, UTC). Tests: `tests_analytics_tables.rs` (the DailyTab and ProjectsTab rows of `AnalyticsTabsErrorOrEmpty.test.ts` and the daily and projects rows of `AnalyticsContentLoading.test.ts` under their names, newest day first, project cards by cost then name) and `fleet::analytics::tables`' own (the order, `toFixed(0)` rounding halves up). Left open, with reasons:
+- 9.1: equal column widths and no sideways scroll; 10.1: the short last row stretches; 10.2: the bar doesn't ease (see the rows).
+- The error note is 3 px taller here than Fleet's (piece F's `ErrorNote`).
+- Fleet's pictures hold the analytics answers by request routing (the scratch Fleet has analytics off), so the menu counts come from the same invented lists.
 
 #### I. Models
 

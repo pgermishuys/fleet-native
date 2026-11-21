@@ -128,6 +128,12 @@ pub enum Scene {
 }
 
 impl crate::State {
+    /// A scene with another section open (Daily, Projects).
+    pub fn show_analytics_section(&mut self, dark: bool, scene: Scene, section: crate::fleet::analytics::sections::Section) {
+        self.show_analytics(dark, scene);
+        self.open_analytics_section(section);
+    }
+
     pub fn show_analytics(&mut self, dark: bool, scene: Scene) {
         use crate::fleet::analytics::sections::Section;
         self.dark = Some(dark);
