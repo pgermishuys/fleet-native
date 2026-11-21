@@ -91,12 +91,54 @@ class Standin:
                     if not any(b["fullName"] == name for b in fx["bookmarks"]):
                         fx["bookmarks"].append({"fullName": name, "owner": owner, "name": repo})
                     return 200, fx["bookmarks"]
+        if route == "search":
+            return 200, self.search(query.get("q", [""])[0], int(query.get("first", ["30"])[0]), query.get("after", [""])[0])
+        m = re.fullmatch(r"repos/([^/]+)/([^/]+)/items", route)
+        if m and "numbers" in query:
+            want = [int(n) for n in query["numbers"][0].split(",") if n.isdigit()]
+            return 200, [i for i in fx["items"] if i["owner"] == m[1] and i["repo"] == m[2] and i["number"] in want]
         m = re.fullmatch(r"bookmarks/([^/]+)/([^/]+)", route)
         if m and method == "DELETE":
             with self.lock:
                 fx["bookmarks"] = [b for b in fx["bookmarks"] if b["fullName"] != f"{m[1]}/{m[2]}"]
             return 204, None
         return 404, {"error": "The stand-in does not know this route."}
+
+    def search(self, q, first, after):
+        """The fixture's items that a search's qualifiers keep: repo:, is:pr|issue|open|closed, author:@me, review-requested:@me, label:,
+        sort:updated-desc|created-desc, and any other word as part of the title. Paged by position (the cursor is the next position)."""
+        fx = self.fx
+        me = fx["work"]["login"]
+        asked = {(i["repo"], i["number"]) for i in fx["work"]["reviewRequested"]}
+        words = re.findall(r'(?:[^\s"]+:)?"[^"]*"|\S+', q)
+        items = list(fx["items"])
+        for w in words:
+            key, _, val = w.partition(":")
+            val = val.strip('"')
+            if key == "repo":
+                items = [i for i in items if f"{i['owner']}/{i['repo']}" == val]
+            elif w == "is:pr":
+                items = [i for i in items if i["kind"] == "pull"]
+            elif w == "is:issue":
+                items = [i for i in items if i["kind"] == "issue"]
+            elif w == "is:open":
+                items = [i for i in items if i["state"] == "open"]
+            elif w == "is:closed":
+                items = [i for i in items if i["state"] != "open"]
+            elif key == "author":
+                items = [i for i in items if i["author"] == (me if val == "@me" else val)]
+            elif key == "review-requested":
+                items = [i for i in items if (i["repo"], i["number"]) in asked]
+            elif key == "label":
+                items = [i for i in items if any(l["name"] == val for l in i["labels"])]
+            elif key == "sort":
+                items.sort(key=lambda i: i["updatedAt"], reverse=True)
+            elif ":" not in w:
+                items = [i for i in items if w.lower() in i["title"].lower()]
+        start = int(after) if after.isdigit() else 0
+        page = items[start : start + first]
+        more = start + first < len(items)
+        return {"items": page, "totalCount": len(items), "endCursor": str(start + first) if more else None, "hasNextPage": more}
 
     def handle(self, conn):
         try:

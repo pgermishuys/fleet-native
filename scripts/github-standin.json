@@ -314,5 +314,286 @@
       "deletions": 7,
       "updatedAt": "2026-11-19T14:30:00Z"
     }
-  }
+  },
+  "items": [
+    {
+      "kind": "pull",
+      "owner": "acme",
+      "repo": "rocket",
+      "number": 223,
+      "title": "Rename the crew screen",
+      "url": "https://github.com/acme/rocket/pull/223",
+      "state": "open",
+      "isDraft": false,
+      "author": "mara-quinn",
+      "authorAvatarUrl": null,
+      "createdAt": "2026-11-16T09:12:00Z",
+      "updatedAt": "2026-11-19T14:30:00Z",
+      "comments": 2,
+      "labels": [
+        {
+          "name": "backend",
+          "color": "1d76db"
+        }
+      ],
+      "headRef": "feat/pr-223",
+      "baseRef": "main",
+      "additions": 42,
+      "deletions": 7,
+      "checks": "success",
+      "reviewDecision": null,
+      "mergeable": "MERGEABLE",
+      "reviewers": [
+        {
+          "login": "kit-lee",
+          "state": "REQUESTED"
+        }
+      ],
+      "assignees": []
+    },
+    {
+      "kind": "pull",
+      "owner": "acme",
+      "repo": "rocket",
+      "number": 222,
+      "title": "Trim the manifest",
+      "url": "https://github.com/acme/rocket/pull/222",
+      "state": "open",
+      "isDraft": false,
+      "author": "mara-quinn",
+      "authorAvatarUrl": null,
+      "createdAt": "2026-11-16T09:12:00Z",
+      "updatedAt": "2026-11-19T14:30:00Z",
+      "comments": 2,
+      "labels": [
+        {
+          "name": "backend",
+          "color": "1d76db"
+        }
+      ],
+      "headRef": "feat/pr-222",
+      "baseRef": "main",
+      "additions": 42,
+      "deletions": 7,
+      "checks": "success",
+      "reviewDecision": "CHANGES_REQUESTED",
+      "mergeable": "MERGEABLE",
+      "reviewers": [
+        {
+          "login": "kit-lee",
+          "state": "REQUESTED"
+        }
+      ],
+      "assignees": []
+    },
+    {
+      "kind": "pull",
+      "owner": "acme",
+      "repo": "rocket",
+      "number": 221,
+      "title": "Retry the launch hook",
+      "url": "https://github.com/acme/rocket/pull/221",
+      "state": "open",
+      "isDraft": false,
+      "author": "mara-quinn",
+      "authorAvatarUrl": null,
+      "createdAt": "2026-11-16T09:12:00Z",
+      "updatedAt": "2026-11-19T14:30:00Z",
+      "comments": 2,
+      "labels": [
+        {
+          "name": "backend",
+          "color": "1d76db"
+        }
+      ],
+      "headRef": "feat/pr-221",
+      "baseRef": "main",
+      "additions": 42,
+      "deletions": 7,
+      "checks": "failure",
+      "reviewDecision": null,
+      "mergeable": "MERGEABLE",
+      "reviewers": [
+        {
+          "login": "kit-lee",
+          "state": "REQUESTED"
+        }
+      ],
+      "assignees": []
+    },
+    {
+      "kind": "pull",
+      "owner": "acme",
+      "repo": "rocket",
+      "number": 220,
+      "title": "Fuel gauge rounding",
+      "url": "https://github.com/acme/rocket/pull/220",
+      "state": "open",
+      "isDraft": false,
+      "author": "devon-park",
+      "authorAvatarUrl": null,
+      "createdAt": "2026-11-16T09:12:00Z",
+      "updatedAt": "2026-11-19T14:30:00Z",
+      "comments": 2,
+      "labels": [
+        {
+          "name": "backend",
+          "color": "1d76db"
+        }
+      ],
+      "headRef": "feat/pr-220",
+      "baseRef": "main",
+      "additions": 42,
+      "deletions": 7,
+      "checks": "success",
+      "reviewDecision": null,
+      "mergeable": "MERGEABLE",
+      "reviewers": [
+        {
+          "login": "kit-lee",
+          "state": "REQUESTED"
+        }
+      ],
+      "assignees": []
+    },
+    {
+      "kind": "pull",
+      "owner": "acme",
+      "repo": "rocket",
+      "number": 218,
+      "title": "Queue retries with backoff",
+      "url": "https://github.com/acme/rocket/pull/218",
+      "state": "open",
+      "isDraft": false,
+      "author": "devon-park",
+      "authorAvatarUrl": null,
+      "createdAt": "2026-11-16T09:12:00Z",
+      "updatedAt": "2026-11-19T14:30:00Z",
+      "comments": 2,
+      "labels": [
+        {
+          "name": "backend",
+          "color": "1d76db"
+        },
+        {
+          "name": "bug",
+          "color": "d73a4a"
+        },
+        {
+          "name": "needs-tests",
+          "color": "fbca04"
+        }
+      ],
+      "headRef": "feat/pr-218",
+      "baseRef": "main",
+      "additions": 412,
+      "deletions": 88,
+      "checks": "failure",
+      "reviewDecision": "CHANGES_REQUESTED",
+      "mergeable": "CONFLICTING",
+      "reviewers": [
+        {
+          "login": "kit-lee",
+          "state": "CHANGES_REQUESTED"
+        },
+        {
+          "login": "sam-rivera",
+          "state": "APPROVED"
+        }
+      ],
+      "assignees": []
+    },
+    {
+      "kind": "pull",
+      "owner": "acme",
+      "repo": "rocket",
+      "number": 215,
+      "title": "Cache the crew roster",
+      "url": "https://github.com/acme/rocket/pull/215",
+      "state": "merged",
+      "isDraft": false,
+      "author": "devon-park",
+      "authorAvatarUrl": null,
+      "createdAt": "2026-11-16T09:12:00Z",
+      "updatedAt": "2026-11-19T14:30:00Z",
+      "comments": 5,
+      "labels": [],
+      "headRef": "feat/pr-215",
+      "baseRef": "main",
+      "additions": 42,
+      "deletions": 7,
+      "checks": "failure",
+      "reviewDecision": null,
+      "mergeable": "MERGEABLE",
+      "reviewers": [
+        {
+          "login": "kit-lee",
+          "state": "REQUESTED"
+        }
+      ],
+      "assignees": []
+    },
+    {
+      "kind": "pull",
+      "owner": "acme",
+      "repo": "rocket",
+      "number": 214,
+      "title": "Drop the old countdown",
+      "url": "https://github.com/acme/rocket/pull/214",
+      "state": "closed",
+      "isDraft": false,
+      "author": "devon-park",
+      "authorAvatarUrl": null,
+      "createdAt": "2026-11-16T09:12:00Z",
+      "updatedAt": "2026-11-19T14:30:00Z",
+      "comments": 1,
+      "labels": [],
+      "headRef": "feat/pr-214",
+      "baseRef": "main",
+      "additions": 42,
+      "deletions": 7,
+      "checks": "failure",
+      "reviewDecision": null,
+      "mergeable": "MERGEABLE",
+      "reviewers": [
+        {
+          "login": "kit-lee",
+          "state": "REQUESTED"
+        }
+      ],
+      "assignees": []
+    },
+    {
+      "kind": "issue",
+      "owner": "acme",
+      "repo": "rocket",
+      "number": 7,
+      "title": "Launch countdown skips a second",
+      "url": "https://github.com/acme/rocket/issues/7",
+      "state": "open",
+      "isDraft": false,
+      "author": "kit-lee",
+      "authorAvatarUrl": null,
+      "createdAt": "2026-11-10T08:00:00Z",
+      "updatedAt": "2026-11-18T10:00:00Z",
+      "comments": 4,
+      "labels": [
+        {
+          "name": "bug",
+          "color": "d73a4a"
+        }
+      ],
+      "headRef": null,
+      "baseRef": null,
+      "additions": null,
+      "deletions": null,
+      "checks": null,
+      "reviewDecision": null,
+      "mergeable": null,
+      "reviewers": [],
+      "assignees": [
+        "mara-quinn"
+      ]
+    }
+  ]
 }

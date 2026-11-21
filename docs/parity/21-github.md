@@ -244,19 +244,19 @@ imports them (component 7's B10 note). Native is stricter, as component 7 decide
 
 | # | Fleet | Source | Native |
 |---|---|---|---|
-| 8.1 | Page: column, gap 12, max-width 1080, centred. Loads the work (for the counts) | GRP | None (I) |
-| 8.2 | `PageHeader`, title "{owner} /" (muted, 400) then the name; actions **Refresh** (ghost, spinner while the list loads, disabled then) and **GitHub** (ExternalLink 13, a link to the repository) | GRP | None (I) |
-| 8.3 | Tabs (tablist "Pull requests and issues"): **Pull requests** (GitPullRequest 14) and **Issues** (CircleDot 14), each with its open count from the work (mono 11, muted 80 %); 8 12 padding, 13 px 500 muted, a 2 px accent underline on the selected, hover text; bottom border under the row | GRP `.gh-repo__tab*` | None (I) |
-| 8.4 | Pull request filters (chips 28 high, padding 0 10, 1 px border, radius btn, muted 12.5; pressed: no border, `--accent-dim`, text): **Open** (`is:open`), **Needs my review** (`is:open review-requested:@me`), **Mine** (`is:open author:@me`), **In Fleet** (with the count of linked pull requests), **Closed** (`is:closed`); `github-pull-filter-{id}` | GRP `PULL_FILTERS` | None (I) |
-| 8.5 | The filter box: Search 13, mono 12 input, placeholder "Filter, e.g. label:bug author:octocat", label "Filter pull requests", flex 1, min 220, 30 high, 3 % wash; disabled under In Fleet | GRP `.gh-repo__search` | None (I) |
-| 8.6 | The pull request query: `repo:{o}/{r} is:pr {qualifier} {typed} sort:updated-desc`, spaces collapsed; none on the Issues tab or In Fleet | GRP `pullQuery` | None (I; H for the search) |
-| 8.7 | In Fleet: the pull request numbers of this repository any session's header links point at, newest number first, fetched by number (`items?numbers=`); a new set of numbers reloads, a stale answer is dropped; error "GitHub didn't answer." by default | GRP `fleetNumbers`, `fleetPulls` | None (I) |
-| 8.8 | Issues tab: the filter bar (9.x) and its query `repo:{o}/{r} is:issue {issueFilterQuery}` | GRP `issueQuery`, IFQ | None (I; J for the bar) |
-| 8.9 | Clicking a label in a row: on Pull requests it adds or removes `label:x` (quoted when it has a space) in the typed filter; on Issues it toggles the label in the filter | GRP `toggleLabel` | None (I) |
-| 8.10 | The list (grid gap 1): first load, a spinner, centred, padding 40 16; an error: TriangleAlert 14 (`--error`), the message (text colour) and **Try again**; nothing: the words by filter: Issues "No issues match.", Needs my review "Nobody is waiting on your review here.", Mine "You have no open pull requests here.", In Fleet "No session is working on a pull request here.", Closed "No closed pull requests match.", else "No open pull requests match." (muted 13) | GRP | None (I) |
-| 8.11 | Rows without the repository; a row opens the item's page; Start session and the session chip as 6.x | GRP | None (I) |
-| 8.12 | **Load more** (centred, margin-top 8, padding 6 12, muted 12.5, hover wash) while there are more; "Loading…" and disabled meanwhile | GRP | None (I) |
-| 8.13 | Refresh and Try again reload the list on screen (nothing for In Fleet's); the tab, filter and text are kept while on the page, reset when another repository opens | GRP | None (I) |
+| 8.1 | Page: column, gap 12, max-width 1080, centred. Loads the work (for the counts) | GRP | Done (I): `view::repo::repo`, a column 1080 wide, centred, gap 12, in the plugin's sheet; the work is read when the page opens (`keep_github_repo`) |
+| 8.2 | `PageHeader`, title "{owner} /" (muted, 400) then the name; actions **Refresh** (ghost, spinner while the list loads, disabled then) and **GitHub** (ExternalLink 13, a link to the repository) | GRP | Done (I): the muted `owner /` (400) and the name (600), Refresh (ghost, a spinner and disabled while the list loads) and GitHub (opens the repository) |
+| 8.3 | Tabs (tablist "Pull requests and issues"): **Pull requests** (GitPullRequest 14) and **Issues** (CircleDot 14), each with its open count from the work (mono 11, muted 80 %); 8 12 padding, 13 px 500 muted, a 2 px accent underline on the selected, hover text; bottom border under the row | GRP `.gh-repo__tab*` | Done (I): the two tabs (`github-repo-tab-pulls|issues`) with their open counts from the work, a 2 px accent line under the selected |
+| 8.4 | Pull request filters (chips 28 high, padding 0 10, 1 px border, radius btn, muted 12.5; pressed: no border, `--accent-dim`, text): **Open** (`is:open`), **Needs my review** (`is:open review-requested:@me`), **Mine** (`is:open author:@me`), **In Fleet** (with the count of linked pull requests), **Closed** (`is:closed`); `github-pull-filter-{id}` | GRP `PULL_FILTERS` | Done (I): the five chips `github-pull-filter-{id}` (pressed: no border, accent wash); In Fleet's count |
+| 8.5 | The filter box: Search 13, mono 12 input, placeholder "Filter, e.g. label:bug author:octocat", label "Filter pull requests", flex 1, min 220, 30 high, 3 % wash; disabled under In Fleet | GRP `.gh-repo__search` | Done (I): `github-repo-filter`, mono 12, placeholder and label as Fleet's, off (dimmed) under In Fleet |
+| 8.6 | The pull request query: `repo:{o}/{r} is:pr {qualifier} {typed} sort:updated-desc`, spaces collapsed; none on the Issues tab or In Fleet | GRP `pullQuery` | Done (I): `RepoPage::pull_query` |
+| 8.7 | In Fleet: the pull request numbers of this repository any session's header links point at, newest number first, fetched by number (`items?numbers=`); a new set of numbers reloads, a stale answer is dropped; error "GitHub didn't answer." by default | GRP `fleetNumbers`, `fleetPulls` | Done (I): `fleet_numbers` and `keep_github_fleet` (a new key reloads, an older answer is dropped by its generation, "GitHub didn't answer.") |
+| 8.8 | Issues tab: the filter bar (9.x) and its query `repo:{o}/{r} is:issue {issueFilterQuery}` | GRP `issueQuery`, IFQ | Done for the query (I): `RepoPage::issue_query`; the bar itself is J's, so the tab shows the list under no bar until then |
+| 8.9 | Clicking a label in a row: on Pull requests it adds or removes `label:x` (quoted when it has a space) in the typed filter; on Issues it toggles the label in the filter | GRP `toggleLabel` | Done (I): `github_repo_toggle_label`, `toggled_text` |
+| 8.10 | The list (grid gap 1): first load, a spinner, centred, padding 40 16; an error: TriangleAlert 14 (`--error`), the message (text colour) and **Try again**; nothing: the words by filter: Issues "No issues match.", Needs my review "Nobody is waiting on your review here.", Mine "You have no open pull requests here.", In Fleet "No session is working on a pull request here.", Closed "No closed pull requests match.", else "No open pull requests match." (muted 13) | GRP | Done (I): the spinner, the error with Try again, the empty words per filter |
+| 8.11 | Rows without the repository; a row opens the item's page; Start session and the session chip as 6.x | GRP | Done (I): `item_row` without the repository; a row opens the item's address (the page itself is K's); Start session and the chip as 6.x |
+| 8.12 | **Load more** (centred, margin-top 8, padding 6 12, muted 12.5, hover wash) while there are more; "Loading…" and disabled meanwhile | GRP | Done (I): `github-repo-more`, "Loading…" and disabled meanwhile |
+| 8.13 | Refresh and Try again reload the list on screen (nothing for In Fleet's); the tab, filter and text are kept while on the page, reset when another repository opens | GRP | Done (I): Refresh and Try again; the page starts over when another repository opens or the page is left |
 
 ### 9. The issue filter bar
 
@@ -566,6 +566,12 @@ id (the script takes `--link <session-id>=<owner/repo#n>`). Rename the scratch m
   appends with the cursor, null clears, the error words; by number with none asks nothing; metadata shared per repository
   and kept 5 min.
 - **Pictures:** no view changes: the panel drawn as before and the test output.
+- **Done (I).** Rows 8.1-8.13: `repo.rs` (tab, filter, queries, In Fleet, label toggles, what the page asks for), `view/repo.rs` (the page), scenes
+  `github-repo`, `-fleet`, `-loading`, `-error`, `-empty`, `-more` (+ `-light`), tests in `tests_repo.rs` (3 of Fleet's under their names, 9 native).
+  Checked live beside Fleet's own client through the stand-in, which now answers `/search` and `…/items?numbers=`.
+- **Left open, with reasons (I).** (1) The Issues tab has no filter bar until J. (2) A row opens `Where::Item`, but nothing draws that page until K.
+  (3) The page reads the work whether or not GitHub is connected, as Fleet's does; unconnected, the search says why. (4) Fleet's tab is 1 px
+  lower than native's in the pictures (its 8 px padding runs on a 1.5 line); not chased.
 - **Done (H).** Rows 14.8-14.10 and 14.11's routes (`/search`, `/repos/{o}/{r}/items?numbers`, `…/items/{n}`, `…/labels|milestones|assignees`),
   14.12. Files: `search.rs`, `item.rs`, `metadata.rs`; the plugin's state holds `search` and `metadata`; `keep` sends the searches whose
   pause is over; tests in `tests_search.rs` (19, native: Fleet has none for these). No view changed, so the pictures are the test run.
