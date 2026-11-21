@@ -81,7 +81,10 @@ impl Rig {
     }
 
     fn picture(&mut self) -> std::path::PathBuf {
-        let dir = std::env::temp_dir().join(format!("fleet-native-pictures-{}", std::process::id()));
+        // One folder per call: tests share a process, and a sibling rewriting the same file truncates it under the reading thread.
+        static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let dir = std::env::temp_dir().join(format!("fleet-native-pictures-{}-{n}", std::process::id()));
         std::fs::create_dir_all(&dir).expect("a folder");
         let path = dir.join("login-error.png");
         std::fs::write(&path, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).expect("a picture");
