@@ -85,3 +85,13 @@ pub fn bordered_compact(t: &Theme, key: &str, title: &str) -> El {
         .border_layout()
         .child(text(title.to_string()).font(sans(rem(0.875), 500.0, 1.43)).color(t.text).wrap().align(Align::Center))
 }
+
+/// `EmptyState bordered` with its icon and one line under the title: the full size inside the dashed card.
+pub fn bordered_icon(t: &Theme, key: &str, glyph: &'static Icon, title: &str, description: &str) -> El {
+    full(t, key, glyph, title, description, None)
+        .w_full()
+        .radius(crate::theme::RADIUS_CARD)
+        .border(1.0, t.border)
+        .border_dash(4.0, 3.0)
+        .border_layout()
+}

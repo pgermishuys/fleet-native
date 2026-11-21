@@ -12,6 +12,7 @@ use std::collections::{HashMap, HashSet};
 
 pub mod feed;
 pub mod peek;
+pub mod peeking;
 pub mod read;
 pub mod requests;
 pub mod store;
@@ -101,8 +102,9 @@ impl TileState {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Grouping {
+    #[default]
     Folder,
     Machine,
     State,

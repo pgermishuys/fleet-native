@@ -1,6 +1,6 @@
 //! The page (`MissionControlScreen.vue`): the header "Fleet" with what is running, then the view the address names: Needs you,
-//! or a machine's sessions (piece E).
-use super::needs_you;
+//! or a machine's sessions.
+use super::{machine, needs_you};
 use crate::State;
 use crate::fleet::labs::FleetView;
 use crate::fleet::mission::wall::Wall;
@@ -18,8 +18,7 @@ pub fn description(wall: &Wall) -> String {
 pub fn screen(s: &State, t: &Theme, wall: &Wall) -> El {
     let body = match &s.labs.fleet_view {
         FleetView::NeedsYou => col().key("fleet-needs-you-view").grow(1.0).min_h(0.0).w_full().child(needs_you::column(s, t, wall)),
-        // A machine's own view is piece E's.
-        FleetView::Machine(_) => col().key("fleet-machine-view").grow(1.0).min_h(0.0).w_full(),
+        FleetView::Machine(id) => col().key("fleet-machine-body").grow(1.0).min_h(0.0).w_full().child(machine::view(s, t, wall, id)),
     };
     // `center__body`: the page sits in 24 px of padding all round inside the sheet.
     let page = col()

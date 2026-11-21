@@ -47,3 +47,31 @@ pub fn compact(t: &Theme, key: &str, message: &str) -> El {
                 .min_w(0.0),
         )
 }
+
+/// `ErrorNote` with a message and no reason: the tinted box with the words in the regular weight (`font-medium` is only for a
+/// message that has a reason under it).
+pub fn message(t: &Theme, key: &str, message: &str) -> El {
+    row()
+        .key(key.to_string())
+        .role("alert")
+        .w_full()
+        .gap(8.0)
+        .items_start()
+        .px(12.0)
+        .py(8.0)
+        .radius(RADIUS_CARD)
+        .border(1.0, t.error.alpha(0.3))
+        .border_layout()
+        .fill(t.error.alpha(0.1))
+        .child(icon(&CIRCLE_ALERT, 16.0).color(t.error_text).mt(1.0))
+        .child(
+            text(message.to_string())
+                .key(format!("{key}-text"))
+                .font(sans(rem(0.875), 400.0, 1.43))
+                .color(t.error_text)
+                .wrap()
+                .grow(1.0)
+                .shrink()
+                .min_w(0.0),
+        )
+}
