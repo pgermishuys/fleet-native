@@ -38,6 +38,8 @@ pub fn scene(s: &mut State, dark: bool) {
     link_sessions(s, now);
     let g = state(&mut s.places);
     g.panel_asked = true;
+    g.home_asked = true;
+    g.auth.asked = true;
     g.auth.connected = true;
     g.bookmarks.has_loaded = true;
     g.at = Where::Home;

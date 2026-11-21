@@ -53,6 +53,8 @@ impl Pat {
 #[derive(Clone)]
 pub struct Github {
     pub connected: bool,
+    /// `connected` as last acted on (`watch(isConnected)` fires on a change only).
+    announced: bool,
     pub checking: bool,
     /// The page has asked for the status on this visit.
     pub(crate) asked: bool,
@@ -81,6 +83,7 @@ impl Default for Github {
     fn default() -> Self {
         Github {
             connected: false,
+            announced: false,
             checking: false,
             asked: false,
             status_seq: 0,
@@ -132,7 +135,7 @@ pub fn words(body: &str, fallback: &str) -> String {
 }
 
 impl State {
-    /// The page is on screen: GitHub's own settings, while the plugin is on.
+    /// The page is on screen: GitHub's own settings, while the plugin is on. Your work holds the device flow too (`github_home_shown`).
     fn github_page_open(&self) -> bool {
         self.rail == Rail::Settings && self.settings.page == Page::Plugin("github".into()) && self.plugin_enabled("github")
     }
@@ -141,7 +144,8 @@ impl State {
     /// its code down. Leaving the page ends a poll and forgets what was typed (`onUnmounted`'s `stopPolling`; a code still waited
     /// for goes back to the button, where Fleet leaves it on screen with nothing polling). True when something drawn changed.
     pub fn keep_github(&mut self, now: f64, tx: &mut Tx) -> bool {
-        if !self.github_page_open() {
+        let settings = self.github_page_open();
+        if !settings && !self.github_home_shown() {
             let g = super::auth(&mut self.places);
             let had = g.asked || !g.pat.text.is_empty() || g.pat_state != Pat::Idle || matches!(g.device, Device::Awaiting { .. });
             if had {
@@ -160,7 +164,10 @@ impl State {
         let mut changed = super::auth(&mut self.places).token_retyped();
         if !super::auth(&mut self.places).asked {
             super::auth(&mut self.places).asked = true;
-            self.load_github_status();
+            // Your work's status comes from the panel when that is on screen (`GitHubPanel`'s `onMounted`).
+            if settings || !self.github_panel_shown() {
+                self.load_github_status();
+            }
             changed = true;
         }
         let g = super::auth(&mut self.places);
@@ -211,9 +218,16 @@ impl State {
 
     /// `watch(isConnected)`: connected asks for the repository cache (kept 15 minutes), not connected forgets it.
     fn github_connection_changed(&mut self) {
-        if super::auth_ref(&self.places).connected {
+        let g = super::auth(&mut self.places);
+        let arrived = g.connected && !g.announced;
+        g.announced = g.connected;
+        if g.connected {
             self.github_repos_refresh(false);
             self.github_panel_connected();
+            // Your work's own `watch(isConnected)`: a connection that arrives reads the work at once, whatever its age.
+            if arrived && self.github_home_shown() {
+                self.github_work_refresh();
+            }
         } else {
             super::state(&mut self.places).repos.clear();
         }

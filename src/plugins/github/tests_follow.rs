@@ -29,6 +29,8 @@ fn on_the_panel(r: &mut super::tests_stores::Rig, cached: bool) {
         let clock = s.clock;
         let g = state(&mut s.places);
         g.panel_asked = true;
+        g.home_asked = true;
+        g.auth.asked = true;
         g.auth.connected = true;
         g.bookmarks.has_loaded = true;
         g.bookmarks.list = vec![super::bookmarks::Bookmark::of("acme/rocket").unwrap()];

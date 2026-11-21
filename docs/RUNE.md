@@ -2562,3 +2562,9 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - A save dialog answers after the thread's fetch: `tx.save_file` is called from the job the thread posts, and the test drives it with `rt.file_dialog()` then `rt.resolve_file_dialog(Some(path))`; wait for the dialog (jobs applied and a frame between looks) before asking for it.
 - The whole test binary needs more than 5 GB of memory to compile on this machine now (5.3 GB peak, once past 4000M's cap at 5500M): a cap of 7500M with `CARGO_BUILD_JOBS=1` built it.
 
+
+## Component 21, piece G (Your work)
+
+- **A page that scrolls inside a bordered sheet** is the sheet (`view::workflows::sheet`) holding a column with the padding and `.scroll(ScrollSpec { stick_bottom: false })`, the content column inside it capped with `max_w(1080.0).self_center()`. A `vh` margin is the window's height (`s.ui.sel.window.1`, kept by the root's `on_layout`) times the share.
+- **No underline on a text link's hover:** `group_color` changes the colour, there is no hover underline on a plain `text`, so `.gh-home__link` (muted, text colour and an underline on hover) gets the colour only.
+- **A Rune line of text has no `line-height: 1.5` by default**: the row's lines were set at 1.2 and 1.3 and came out 5 px short of Fleet's 55.5 px row; set `sans(size, weight, 1.5)` where the CSS inherits the page's line height.

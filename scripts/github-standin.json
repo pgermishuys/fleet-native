@@ -110,6 +110,41 @@
           }
         ],
         "assignees": []
+      },
+      {
+        "kind": "pull",
+        "owner": "acme",
+        "repo": "rocket",
+        "number": 223,
+        "title": "Rename the crew screen",
+        "url": "https://github.com/acme/rocket/pull/223",
+        "state": "open",
+        "isDraft": false,
+        "author": "mara-quinn",
+        "authorAvatarUrl": null,
+        "createdAt": "2026-11-16T09:12:00Z",
+        "updatedAt": "2026-11-19T14:30:00Z",
+        "comments": 2,
+        "labels": [
+          {
+            "name": "backend",
+            "color": "1d76db"
+          }
+        ],
+        "headRef": "feat/pr-223",
+        "baseRef": "main",
+        "additions": 42,
+        "deletions": 7,
+        "checks": "success",
+        "reviewDecision": null,
+        "mergeable": "MERGEABLE",
+        "reviewers": [
+          {
+            "login": "kit-lee",
+            "state": "REQUESTED"
+          }
+        ],
+        "assignees": []
       }
     ],
     "assigned": [
@@ -261,5 +296,23 @@
       "stargazers_count": 70
     }
   ],
-  "smartLinks": []
+  "smartLinks": [],
+  "linkMeta": {
+    "acme/rocket#215": {
+      "title": "acme/rocket #215: Paginate the audit log",
+      "author": "kit-lee",
+      "headRef": "audit-log-pages",
+      "additions": 96,
+      "deletions": 12,
+      "updatedAt": "2026-11-20T09:00:00Z"
+    },
+    "acme/rocket#221": {
+      "title": "acme/rocket #221: Retry the launch hook",
+      "author": "mara-quinn",
+      "headRef": "feat/pr-221",
+      "additions": 42,
+      "deletions": 7,
+      "updatedAt": "2026-11-19T14:30:00Z"
+    }
+  }
 }

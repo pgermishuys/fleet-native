@@ -32,6 +32,8 @@ fn on_the_rail() -> Runtime<State> {
         s.rail = Rail::Plugin("github");
         let g = state(&mut s.places);
         g.panel_asked = true;
+        g.home_asked = true;
+        g.auth.asked = true;
         g.auth.connected = true;
         g.bookmarks.has_loaded = true;
     });
@@ -105,6 +107,8 @@ fn removes_a_bookmark_on_x_click() {
         s.rail = Rail::Plugin("github");
         let g = state(&mut s.places);
         g.panel_asked = true;
+        g.home_asked = true;
+        g.auth.asked = true;
         g.auth.connected = true;
         g.bookmarks.has_loaded = true;
         g.bookmarks.list = vec![mark("acme/rocket")];
@@ -124,6 +128,8 @@ fn a_refused_removal_keeps_the_bookmark_and_reads_nothing_again() {
         s.rail = Rail::Plugin("github");
         let g = state(&mut s.places);
         g.panel_asked = true;
+        g.home_asked = true;
+        g.auth.asked = true;
         g.auth.connected = true;
         g.bookmarks.list = vec![mark("acme/rocket")];
     });
