@@ -113,18 +113,24 @@ fn says_what_the_machine_said_for_a_refused_read() {
     assert_eq!(parse_list(Ok((200, "not json".into())), 0).err(), Some(None));
 }
 
+/// A question call as the messages route writes it (Fleet's own shape): `state` is `ToolUseState`, 1 running, 2 completed, 3 error.
 fn question_call(call: &str, status: &str, questions: usize) -> serde_json::Value {
     let list: Vec<_> = (0..questions)
         .map(|n| json!({"header": "Retries", "question": format!("Question {n}?"), "options": [{"label": "Three", "description": ""}]}))
         .collect();
-    json!({"id": format!("part-{call}"), "type": "tool", "tool": "question", "callID": call, "state": {"status": status, "input": {"questions": list}}})
+    let state = match status {
+        "running" => 1,
+        "completed" => 2,
+        _ => 3,
+    };
+    json!({"type": "tool", "toolCallId": call, "toolName": "question", "state": state, "arguments": {"questions": list}})
 }
 
 fn page(calls: Vec<serde_json::Value>) -> serde_json::Value {
     let messages: Vec<_> = calls
         .into_iter()
         .enumerate()
-        .map(|(n, part)| json!({"info": {"id": format!("m{n}"), "sessionID": "s1", "role": "assistant"}, "parts": [part]}))
+        .map(|(n, part)| json!({"id": format!("m{n}"), "role": "assistant", "timestamp": "2026-11-21T16:39:01.184+00:00", "textContent": "", "parts": [part]}))
         .collect();
     json!({ "messages": messages })
 }
