@@ -106,7 +106,7 @@ pub mod progress_tab;
 pub mod project_dialogs;
 pub mod project_header;
 pub mod project_menu;
-mod prose;
+pub mod prose;
 pub mod question;
 pub mod queued;
 pub mod quit_dialog;

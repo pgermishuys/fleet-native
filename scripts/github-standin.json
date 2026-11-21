@@ -312,6 +312,61 @@
       "headRef": "feat/pr-221",
       "additions": 42,
       "deletions": 7,
+      "updatedAt": "2026-11-19T14:30:00Z",
+      "ci": {
+        "headSha": "a1b2c3d",
+        "ciStatus": "failure",
+        "checkRuns": [
+          {
+            "id": 11,
+            "name": "build",
+            "status": "completed",
+            "conclusion": "success",
+            "htmlUrl": "https://github.com/acme/rocket/actions/runs/11",
+            "workflowName": "CI",
+            "startedAt": "2026-11-19T14:00:00Z",
+            "completedAt": "2026-11-19T14:04:00Z"
+          },
+          {
+            "id": 13,
+            "name": "test",
+            "status": "completed",
+            "conclusion": "failure",
+            "htmlUrl": "https://github.com/acme/rocket/actions/runs/13",
+            "workflowName": "CI",
+            "startedAt": "2026-11-19T14:00:00Z",
+            "completedAt": "2026-11-19T14:09:00Z"
+          }
+        ]
+      },
+      "reviewThreads": {
+        "threads": [
+          {
+            "threadNodeId": "T1",
+            "isResolved": false,
+            "isOutdated": false,
+            "path": "src/hook.rs",
+            "line": 41,
+            "comments": [
+              {
+                "id": "c1",
+                "databaseId": 1,
+                "body": "Please add a test.",
+                "authorLogin": "kit-lee",
+                "createdAt": "2026-11-18T11:00:00Z",
+                "url": "https://github.com/acme/rocket/pull/221#r1"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "acme/rocket#218": {
+      "title": "acme/rocket #218: Queue retries with backoff",
+      "author": "devon-park",
+      "headRef": "feat/pr-218",
+      "additions": 42,
+      "deletions": 7,
       "updatedAt": "2026-11-19T14:30:00Z"
     }
   },
@@ -826,5 +881,223 @@
         "avatar_url": "https://avatars.example/sam-rivera"
       }
     ]
+  },
+  "details": {
+    "acme/rocket#218": {
+      "body": "Retries a failed launch.\n<!-- bot: release notes -->\n\nCloses #7.",
+      "changedFiles": 5,
+      "mergedAt": null,
+      "mergedBy": null,
+      "checks": [
+        {
+          "name": "build",
+          "state": "success",
+          "url": "https://github.com/acme/rocket/actions/runs/1",
+          "workflowName": "CI",
+          "checkRunId": 11,
+          "startedAt": "2026-11-19T14:00:00Z",
+          "completedAt": "2026-11-19T14:04:00Z"
+        },
+        {
+          "name": "lint",
+          "state": "skipped",
+          "url": null,
+          "workflowName": "CI",
+          "checkRunId": 12,
+          "startedAt": null,
+          "completedAt": null
+        },
+        {
+          "name": "test",
+          "state": "failure",
+          "url": "https://github.com/acme/rocket/actions/runs/2",
+          "workflowName": "CI",
+          "checkRunId": 13,
+          "startedAt": "2026-11-19T14:00:00Z",
+          "completedAt": "2026-11-19T14:09:00Z"
+        }
+      ],
+      "unresolvedThreads": 1,
+      "timeline": [
+        {
+          "kind": "comment",
+          "author": "devon-park",
+          "authorAvatarUrl": null,
+          "createdAt": "2026-11-16T09:20:00Z",
+          "body": "Ready for a look.",
+          "state": null,
+          "url": null,
+          "reference": null
+        },
+        {
+          "kind": "review",
+          "author": "kit-lee",
+          "authorAvatarUrl": null,
+          "createdAt": "2026-11-18T11:00:00Z",
+          "body": "Please add a test.",
+          "state": "CHANGES_REQUESTED",
+          "url": null,
+          "reference": null
+        },
+        {
+          "kind": "referenced",
+          "author": "mara-quinn",
+          "authorAvatarUrl": null,
+          "createdAt": "2026-11-19T08:00:00Z",
+          "body": "Launch countdown skips a second",
+          "state": "open",
+          "url": "https://github.com/acme/rocket/issues/7",
+          "reference": {
+            "kind": "issue",
+            "repository": "acme/rocket",
+            "number": 7
+          }
+        },
+        {
+          "kind": "referenced",
+          "author": "mara-quinn",
+          "authorAvatarUrl": null,
+          "createdAt": "2026-11-19T09:00:00Z",
+          "body": "Signed payloads",
+          "state": "open",
+          "url": "https://github.com/acme/billing/issues/3",
+          "reference": {
+            "kind": "issue",
+            "repository": "acme/billing",
+            "number": 3
+          }
+        }
+      ]
+    },
+    "acme/rocket#221": {
+      "body": "Hooks that fail are tried again.\n\n- one retry\n- then a pause",
+      "changedFiles": 3,
+      "mergedAt": null,
+      "mergedBy": null,
+      "checks": [
+        {
+          "name": "build",
+          "state": "success",
+          "url": "https://github.com/acme/rocket/actions/runs/1",
+          "workflowName": "CI",
+          "checkRunId": 11,
+          "startedAt": "2026-11-19T14:00:00Z",
+          "completedAt": "2026-11-19T14:04:00Z"
+        },
+        {
+          "name": "lint",
+          "state": "skipped",
+          "url": null,
+          "workflowName": "CI",
+          "checkRunId": 12,
+          "startedAt": null,
+          "completedAt": null
+        },
+        {
+          "name": "test",
+          "state": "failure",
+          "url": "https://github.com/acme/rocket/actions/runs/2",
+          "workflowName": "CI",
+          "checkRunId": 13,
+          "startedAt": "2026-11-19T14:00:00Z",
+          "completedAt": "2026-11-19T14:09:00Z"
+        }
+      ],
+      "unresolvedThreads": 1,
+      "timeline": [
+        {
+          "kind": "comment",
+          "author": "mara-quinn",
+          "authorAvatarUrl": null,
+          "createdAt": "2026-11-18T09:00:00Z",
+          "body": "Ready for a look.",
+          "state": null,
+          "url": null,
+          "reference": null
+        },
+        {
+          "kind": "review",
+          "author": "kit-lee",
+          "authorAvatarUrl": null,
+          "createdAt": "2026-11-18T11:00:00Z",
+          "body": "Please add a test.",
+          "state": "CHANGES_REQUESTED",
+          "url": null,
+          "reference": null
+        }
+      ]
+    },
+    "acme/rocket#7": {
+      "body": "The countdown jumps from 4 to 2 when the clock ticks late.\n\n**Steps**\n\n1. Start a launch\n2. Watch the last five seconds\n\nExpected every second to show.",
+      "changedFiles": null,
+      "mergedAt": null,
+      "mergedBy": null,
+      "checks": [],
+      "unresolvedThreads": 0,
+      "timeline": [
+        {
+          "kind": "comment",
+          "author": "devon-park",
+          "authorAvatarUrl": null,
+          "createdAt": "2026-11-16T09:20:00Z",
+          "body": "Seen it twice. Probably the tick handler: it uses `elapsed / 1000` and rounds.",
+          "state": null,
+          "url": null,
+          "reference": null
+        },
+        {
+          "kind": "referenced",
+          "author": "mara-quinn",
+          "authorAvatarUrl": null,
+          "createdAt": "2026-11-18T08:00:00Z",
+          "body": "Queue retries with backoff",
+          "state": "open",
+          "url": "https://github.com/acme/rocket/pull/218",
+          "reference": {
+            "kind": "pull",
+            "repository": "acme/rocket",
+            "number": 218
+          }
+        },
+        {
+          "kind": "referenced",
+          "author": "kit-lee",
+          "authorAvatarUrl": null,
+          "createdAt": "2026-11-19T08:00:00Z",
+          "body": "Count in whole seconds",
+          "state": "merged",
+          "url": "https://github.com/lumen-labs/atlas/pull/12",
+          "reference": {
+            "kind": "pull",
+            "repository": "lumen-labs/atlas",
+            "number": 12
+          }
+        },
+        {
+          "kind": "comment",
+          "author": "kit-lee",
+          "authorAvatarUrl": null,
+          "createdAt": "2026-11-19T12:00:00Z",
+          "body": "I can take this one.\n\n```rust\nlet left = (deadline - now).ceil();\n```",
+          "state": null,
+          "url": null,
+          "reference": null
+        },
+        {
+          "kind": "closed",
+          "author": "mara-quinn",
+          "authorAvatarUrl": null,
+          "createdAt": "2026-11-20T09:00:00Z",
+          "body": null,
+          "state": null,
+          "url": null,
+          "reference": null
+        }
+      ]
+    },
+    "acme/rocket#196": {
+      "_status": 403,
+      "_error": "GitHub rate limit exceeded. Try again in a few minutes."
+    }
   }
 }

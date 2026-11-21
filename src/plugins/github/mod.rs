@@ -3,7 +3,7 @@
 //!
 //! Piece A of component 21 gives it its home and its places: the descriptor, the rail button, the settings page (the connection
 //! page, `view::connect`), the connection's `keep`, and the addresses it owns (`Where`). Piece B adds what the pages read: items and the words made from them (`items`), the issue filter
-//! (`filter`) and an invented GitHub for scenes and tests (`mock`). Piece C adds the three stores the pages share: your work (`work`), the repositories you follow (`bookmarks`) and the repository cache (`repos`). Piece D adds the rail's panel (`view::panel`, loaded by `panel_loads`); piece E its Follow a repository dialog (`follow`, `view::follow`); piece F the item's row and its session chip (`view::row`, `view::session_chip`) and Fleet's side, the sessions on an item (`sessions`); piece G Your work (`home`, `view::home`, `view::home_connect`); piece H the stores the repository's page and the `#` picker read: search (`search`), items by number and one item (`item`) and a repository's labels, milestones and assignees (`metadata`); piece I a repository's page (`repo`, `view::repo`); the rest of the pages come in the pieces after.
+//! (`filter`) and an invented GitHub for scenes and tests (`mock`). Piece C adds the three stores the pages share: your work (`work`), the repositories you follow (`bookmarks`) and the repository cache (`repos`). Piece D adds the rail's panel (`view::panel`, loaded by `panel_loads`); piece E its Follow a repository dialog (`follow`, `view::follow`); piece F the item's row and its session chip (`view::row`, `view::session_chip`) and Fleet's side, the sessions on an item (`sessions`); piece G Your work (`home`, `view::home`, `view::home_connect`); piece H the stores the repository's page and the `#` picker read: search (`search`), items by number and one item (`item`) and a repository's labels, milestones and assignees (`metadata`); piece I a repository's page (`repo`, `view::repo`); piece K an item's page (`item_page`, `view::item`, `view::item_body`); the rest of the pages come in the pieces after.
 pub mod auth;
 pub mod bar;
 pub mod bookmarks;
@@ -11,6 +11,7 @@ pub mod filter;
 pub mod follow;
 pub mod home;
 pub mod item;
+pub mod item_page;
 pub mod items;
 pub mod metadata;
 pub mod mock;
@@ -33,6 +34,8 @@ mod tests_filters;
 mod tests_follow;
 #[cfg(test)]
 mod tests_home;
+#[cfg(test)]
+mod tests_item;
 #[cfg(test)]
 mod tests_items;
 #[cfg(test)]
@@ -80,6 +83,8 @@ pub struct GitHub {
     pub home_age: Option<String>,
     /// A repository's page: its tab, filter and what In Fleet holds.
     pub repo: repo::RepoPage,
+    /// An item's page: what it has loaded.
+    pub item: item_page::Page,
     /// The Follow a repository dialog.
     pub follow: follow::Follow,
     /// The rows scenes' list (`github-rows*`): items the page draws as rows until a repository's page (piece I) draws its own.
@@ -126,6 +131,7 @@ pub fn entry() -> Entry {
 fn overlay(s: &State, t: &crate::theme::Theme) -> Vec<rune::El> {
     let mut all = view::follow::overlay(s, t);
     all.extend(view::filters::overlay(s, t));
+    all.extend(view::item::overlay(s, t));
     all
 }
 
@@ -136,6 +142,7 @@ fn keep(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_github_home(tx)
         | s.keep_github_search(now)
         | s.keep_github_repo(tx)
+        | s.keep_github_item()
 }
 
 /// The connection's state, which lives in the plugin's entry.

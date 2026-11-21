@@ -35,6 +35,9 @@ pub fn page(s: &State, t: &Theme) -> rune::El {
     if matches!(state_ref(&s.places).at, Where::Repo { .. }) {
         return super::repo::repo(s, t);
     }
+    if matches!(state_ref(&s.places).at, Where::Item { .. }) {
+        return super::item::item(s, t);
+    }
     sheet(t, "github-page")
         .center()
         .gap(10.0)
