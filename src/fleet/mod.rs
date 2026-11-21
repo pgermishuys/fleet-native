@@ -95,6 +95,7 @@ pub mod machines;
 pub mod memory_notice;
 pub mod model;
 pub mod modes;
+pub mod mods;
 pub mod new_project;
 pub mod new_session;
 pub mod notice_place;
