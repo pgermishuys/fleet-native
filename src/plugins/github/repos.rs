@@ -114,7 +114,7 @@ impl RepositorySource for Cache {
 }
 
 /// `toCachedRepo`; an entry with no `full_name` is not a repository.
-fn read_repo(v: &Value) -> Option<Repo> {
+pub fn read_repo(v: &Value) -> Option<Repo> {
     let text = |k: &str| v.get(k).and_then(Value::as_str).map(str::to_string);
     let id = match v.get("id")? {
         Value::String(s) => s.clone(),

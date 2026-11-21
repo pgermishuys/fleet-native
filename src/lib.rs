@@ -2783,6 +2783,14 @@ pub fn spec() -> AppSpec<State> {
                 s.dark = Some(false);
                 s.rail = Rail::Plugin("github")
             }),
+            ("github-follow-list", |s| plugins::scene(s, "github-follow-list", true)),
+            ("github-follow-list-light", |s| plugins::scene(s, "github-follow-list", false)),
+            ("github-follow-typed", |s| plugins::scene(s, "github-follow-typed", true)),
+            ("github-follow-typed-light", |s| plugins::scene(s, "github-follow-typed", false)),
+            ("github-follow-loading", |s| plugins::scene(s, "github-follow-loading", true)),
+            ("github-follow-loading-light", |s| plugins::scene(s, "github-follow-loading", false)),
+            ("github-follow-empty", |s| plugins::scene(s, "github-follow-empty", true)),
+            ("github-follow-empty-light", |s| plugins::scene(s, "github-follow-empty", false)),
             ("github-panel", |s| plugins::scene(s, "github-panel-followed", true)),
             ("github-panel-light", |s| plugins::scene(s, "github-panel-followed", false)),
             ("github-panel-onrepo", |s| plugins::scene(s, "github-panel-onrepo", true)),

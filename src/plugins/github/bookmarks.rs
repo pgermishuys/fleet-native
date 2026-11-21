@@ -112,12 +112,21 @@ impl State {
 
     /// `addBookmark`: nothing to do when it is there already.
     pub fn github_bookmark_add(&mut self, full_name: &str) {
+        self.add_bookmark(full_name, None);
+    }
+
+    /// The dialog's pick: once the server has added it, your work is read again, so the panel's counts come (`added`).
+    pub fn github_bookmark_add_and_reload(&mut self, full_name: &str) {
+        self.add_bookmark(full_name, Some(State::github_work_refresh));
+    }
+
+    fn add_bookmark(&mut self, full_name: &str, then: Option<fn(&mut State)>) {
         let Some(repo) = Bookmark::of(full_name) else { return };
         if super::state(&mut self.places).bookmarks.has(full_name) {
             return;
         }
         let body = json!({ "repo": full_name });
-        self.bookmark_call("POST", API.into(), Some(body), "Failed to add bookmark.", None, move |list| {
+        self.bookmark_call("POST", API.into(), Some(body), "Failed to add bookmark.", then, move |list| {
             list.push(repo);
         });
     }

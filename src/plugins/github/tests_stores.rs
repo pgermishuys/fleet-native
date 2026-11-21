@@ -17,7 +17,7 @@ pub(super) struct Fake {
     /// What a request answers, by `METHOD path` (query included); 200 `{}` when nothing is set.
     answers: HashMap<String, (u16, String)>,
     /// Every request to the GitHub routes: method, path with its query, body.
-    log: Vec<(String, String, Value)>,
+    pub(super) log: Vec<(String, String, Value)>,
     /// The next request to one of these paths waits for a message first.
     gates: HashMap<String, Arc<Mutex<Receiver<()>>>>,
 }
@@ -116,7 +116,7 @@ impl Rig {
     pub(super) fn asked(&self, method: &str, path: &str) -> usize {
         self.fake.lock().unwrap().log.iter().filter(|(m, p, _)| m == method && p == path).count()
     }
-    fn bodies(&self, method: &str, path: &str) -> Vec<Value> {
+    pub(super) fn bodies(&self, method: &str, path: &str) -> Vec<Value> {
         self.fake.lock().unwrap().log.iter().filter(|(m, p, _)| m == method && p == path).map(|(_, _, b)| b.clone()).collect()
     }
     fn total(&self) -> usize {

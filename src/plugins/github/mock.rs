@@ -81,3 +81,23 @@ pub fn work() -> Value {
         ],
     })
 }
+
+/// Your repositories as `GET .../repos` sends them: the three the panel scenes follow, and six to pick from (a private one, one with
+/// no language, one with no stars).
+pub fn repos() -> Value {
+    let repo = |id: u64, owner: &str, name: &str, private: bool, language: Value, stars: u64| {
+        json!({"id": id, "full_name": format!("{owner}/{name}"), "name": name, "owner": {"login": owner}, "private": private,
+               "language": language, "stargazers_count": stars})
+    };
+    json!([
+        repo(1, "acme", "rocket", false, json!("Rust"), 120),
+        repo(2, "acme", "launchpad", true, json!("Rust"), 12),
+        repo(3, "acme", "crew-screen", false, json!("TypeScript"), 48),
+        repo(4, "acme", "billing", true, json!("Go"), 0),
+        repo(5, "lumen-labs", "atlas", false, json!("Python"), 9),
+        repo(6, "lumen-labs", "beacon", false, json!("Python"), 3),
+        repo(7, "lumen-labs", "lens", false, json!("Python"), 31),
+        repo(8, "lumen-labs", "observatory", false, Value::Null, 5),
+        repo(9, "mara-quinn", "dotfiles", true, json!("Shell"), 0),
+    ])
+}

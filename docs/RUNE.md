@@ -2471,3 +2471,11 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **No time field** (as Settings' nightly time): the built-in page's Change time is a text box taking `HH:MM`, parsed by
   `dream_nightly::parse_time`; a time that isn't one is the error note "Use the 24-hour form, like 03:30." and nothing is sent. Fleet's
   `<input type=time>` is about 110 px wide with a clock glyph; ours is 63 px.
+
+
+## Component 21, piece E (Follow a repository)
+
+- **A plugin's dialog needs its own place in core**, because Rune's modal layer is built where core draws its overlays (`ui::overlays`). `Entry.overlay` (`src/fleet/places.rs`) is that place: a function from the state to the dialog's elements, empty while the plugin has none open. The dialog keeps its own `open` flag in the plugin's state; it is not `ui.open`, which is core's one-menu-at-a-time enum.
+- **Fleet's `Command` filters by `contains` and its empty words need a typed search** (`Command.vue`, `CommandEmpty.vue`): no fuzzy match, no ranking, and a loading or empty list is blank until you type. Ported as is.
+- **cmdk lights no row on opening, and the first on typing** (read from Fleet's client): so the list's lit row is an `Option`. The command palette's list lights the first from the start; it was ported that way before this was looked at.
+- **A fresh `cargo test` build at `CARGO_BUILD_JOBS=2` was killed at 5500M** (5.3 G peak, 21 Nov 2026); `CARGO_BUILD_JOBS=1` fits in 5500M and took 3 min 30 s.

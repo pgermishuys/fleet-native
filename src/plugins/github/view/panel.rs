@@ -218,9 +218,10 @@ fn compact_error(t: &Theme, message: &str, why: &str) -> El {
         )
 }
 
-/// `data-testid="github-panel-add"`: Follow a repository. Piece E opens the dialog; until then the press does nothing.
+/// `data-testid="github-panel-add"`: Follow a repository.
 fn add_row(t: &Theme) -> El {
     line(t, "github-panel-add".into(), "Follow a repository".into(), false, &PLUS)
         .hover_group()
         .child(text("Follow a repository").font(sans(13.0, 400.0, 1.4)).color(t.muted).group_color(t.text).grow(1.0).truncate())
+        .on_press_tx(|s: &mut State, tx: &mut rune::Tx| s.github_follow_open(tx))
 }

@@ -3,10 +3,11 @@
 //!
 //! Piece A of component 21 gives it its home and its places: the descriptor, the rail button, the settings page (the connection
 //! page, `view::connect`), the connection's `keep`, and the addresses it owns (`Where`). Piece B adds what the pages read: items and the words made from them (`items`), the issue filter
-//! (`filter`) and an invented GitHub for scenes and tests (`mock`). Piece C adds the three stores the pages share: your work (`work`), the repositories you follow (`bookmarks`) and the repository cache (`repos`). Piece D adds the rail's panel (`view::panel`, loaded by `panel_loads`); the page and the rest come in the pieces after.
+//! (`filter`) and an invented GitHub for scenes and tests (`mock`). Piece C adds the three stores the pages share: your work (`work`), the repositories you follow (`bookmarks`) and the repository cache (`repos`). Piece D adds the rail's panel (`view::panel`, loaded by `panel_loads`); piece E its Follow a repository dialog (`follow`, `view::follow`); the page and the rest come in the pieces after.
 pub mod auth;
 pub mod bookmarks;
 pub mod filter;
+pub mod follow;
 pub mod items;
 pub mod mock;
 mod panel_loads;
@@ -19,6 +20,8 @@ pub mod work;
 mod tests_auth;
 #[cfg(test)]
 mod tests_filter;
+#[cfg(test)]
+mod tests_follow;
 #[cfg(test)]
 mod tests_items;
 #[cfg(test)]
@@ -52,6 +55,8 @@ pub struct GitHub {
     pub repos: repos::Cache,
     /// The rail's panel has asked for what it shows on this visit (`onMounted`): the status, the followed repositories and your work.
     pub panel_asked: bool,
+    /// The Follow a repository dialog.
+    pub follow: follow::Follow,
 }
 
 /// The descriptor, the sidebar item and the settings page (`index.ts`'s manifest).
@@ -83,6 +88,7 @@ pub fn entry() -> Entry {
     e.page = Some(view::page::page);
     e.settings = Some(view::connect::content);
     e.keep = Some(keep);
+    e.overlay = Some(view::follow::overlay);
     e.repositories = Some(repo_cache.source());
     e
 }
