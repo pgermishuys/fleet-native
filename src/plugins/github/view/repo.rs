@@ -1,7 +1,7 @@
 //! A repository's page (`plugins/builtin/github/pages/GitHubRepoPage.vue`, rows 8.x of docs/parity/21-github.md): the title with Refresh
 //! and a link to GitHub, the Pull requests and Issues tabs with their open counts, the pull request filters and their box, and the
 //! list of item rows with its loading, failed and empty words and Load more. What the page does is `repo`; the issue filter bar is
-//! piece J's.
+//! `filters`.
 use super::home::{Look, button};
 use super::row::{RowArgs, item_row};
 use crate::State;
@@ -16,7 +16,7 @@ use crate::ui::page_header::heading_actions;
 use crate::ui::rem;
 use crate::ui::text_menu::text_input;
 use crate::view::workflows::sheet;
-use rune::{Color, Cursor, El, ScrollSpec, Tx, col, el, icon, row, text};
+use rune::{Color, Cursor, El, ScrollSpec, Tx, col, icon, row, text};
 
 /// `.gh-repo__tab`: an icon, the words and the open count; the selected one has a 2 px accent line under it.
 fn tab(t: &Theme, key: &str, on: bool, glyph: &'static rune::Icon, words: &str, count: Option<u64>) -> El {
@@ -238,8 +238,7 @@ pub fn repo(s: &State, t: &Theme) -> El {
         }
         page = page.child(filters.child(search_box(s, t, r.filter != PullFilter::Fleet)));
     } else {
-        // The issue filter bar is piece J's: until it is built the tab shows its list under no bar.
-        page = page.child(el().key("github-repo-issue-bar"));
+        page = page.child(super::filters::bar(s, t, l.loading));
     }
     page = page.child(list(s, t, &owner, &name));
     sheet(t, "github-page").child(col().w_full().grow(1.0).min_h(0.0).padding(24.0).child(page).scroll(ScrollSpec { stick_bottom: false }))

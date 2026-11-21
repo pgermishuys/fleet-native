@@ -13,7 +13,7 @@ use serde_json::{Value, json};
 const OPEN: &str = "repo:acme/rocket is:pr is:open sort:updated-desc";
 
 /// A pull request, as search and `items?numbers=` send one (the Vue test's `pull`).
-fn pull(number: u64, title: &str) -> Value {
+pub(super) fn pull(number: u64, title: &str) -> Value {
     json!({
         "kind": "pull", "owner": "acme", "repo": "rocket", "number": number, "title": title,
         "url": format!("https://github.com/acme/rocket/pull/{number}"), "state": "open", "isDraft": false, "author": "pat",
@@ -23,12 +23,12 @@ fn pull(number: u64, title: &str) -> Value {
     })
 }
 
-fn search_answer(items: Vec<Value>, cursor: Option<&str>) -> Value {
+pub(super) fn search_answer(items: Vec<Value>, cursor: Option<&str>) -> Value {
     let total = items.len();
     json!({"items": items, "totalCount": total, "endCursor": cursor, "hasNextPage": cursor.is_some()})
 }
 
-fn work() -> Value {
+pub(super) fn work() -> Value {
     json!({"login": "pat", "avatarUrl": null, "reviewRequested": [], "authored": [], "assigned": [],
            "repos": [{"fullName": "acme/rocket", "openPullRequests": 5, "openIssues": 6}]})
 }
@@ -43,7 +43,7 @@ fn link() -> Value {
     })
 }
 
-fn q(query: &str) -> String {
+pub(super) fn q(query: &str) -> String {
     path(query, None)
 }
 
@@ -61,16 +61,16 @@ fn on_repo() -> Rig {
     r
 }
 
-fn page(s: &State) -> &RepoPage {
+pub(super) fn page(s: &State) -> &RepoPage {
     &state_ref(&s.places).repo
 }
 
-fn listed(s: &State) -> Vec<String> {
+pub(super) fn listed(s: &State) -> Vec<String> {
     s.github_repo_list().items.iter().map(|i: &ItemSummary| i.title.clone()).collect()
 }
 
 /// The searches sent so far: the `q` of each request to the search route.
-fn searches(r: &Rig) -> Vec<String> {
+pub(super) fn searches(r: &Rig) -> Vec<String> {
     let log = r.fake.lock().unwrap().log.clone();
     log.into_iter()
         .filter(|(_, p, _)| p.starts_with("/api/integrations/github/search"))
@@ -82,7 +82,7 @@ fn searches(r: &Rig) -> Vec<String> {
 }
 
 /// A percent-encoded query back to its words.
-fn unescape(q: &str) -> String {
+pub(super) fn unescape(q: &str) -> String {
     let b = q.as_bytes();
     let mut out = Vec::new();
     let mut i = 0;
@@ -105,7 +105,7 @@ fn unescape(q: &str) -> String {
     String::from_utf8_lossy(&out).into_owned()
 }
 
-fn words(r: &Rig) -> String {
+pub(super) fn words(r: &Rig) -> String {
     r.rt.elements().iter().filter_map(|e| e.text.clone()).collect::<Vec<_>>().join("\n")
 }
 

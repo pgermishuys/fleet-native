@@ -97,6 +97,9 @@ class Standin:
         if m and "numbers" in query:
             want = [int(n) for n in query["numbers"][0].split(",") if n.isdigit()]
             return 200, [i for i in fx["items"] if i["owner"] == m[1] and i["repo"] == m[2] and i["number"] in want]
+        m = re.fullmatch(r"repos/([^/]+)/([^/]+)/(labels|milestones|assignees)", route)
+        if m:
+            return 200, fx.get(m[3], {}).get(f"{m[1]}/{m[2]}", [])
         m = re.fullmatch(r"bookmarks/([^/]+)/([^/]+)", route)
         if m and method == "DELETE":
             with self.lock:
@@ -105,8 +108,8 @@ class Standin:
         return 404, {"error": "The stand-in does not know this route."}
 
     def search(self, q, first, after):
-        """The fixture's items that a search's qualifiers keep: repo:, is:pr|issue|open|closed, author:@me, review-requested:@me, label:,
-        sort:updated-desc|created-desc, and any other word as part of the title. Paged by position (the cursor is the next position)."""
+        """The fixture's items that a search's qualifiers keep: repo:, is:pr|issue|open|closed, author:@me, review-requested:@me, label:, milestone:, assignee:, no:assignee,
+        sort:{updated,created,comments}-{asc,desc}, and any other word as part of the title. Paged by position (the cursor is the next position)."""
         fx = self.fx
         me = fx["work"]["login"]
         asked = {(i["repo"], i["number"]) for i in fx["work"]["reviewRequested"]}
@@ -131,8 +134,16 @@ class Standin:
                 items = [i for i in items if (i["repo"], i["number"]) in asked]
             elif key == "label":
                 items = [i for i in items if any(l["name"] == val for l in i["labels"])]
+            elif key == "milestone":
+                items = [i for i in items if (i.get("milestone") is None) == (val == "none") and (val == "none" or i.get("milestone") == val)]
+            elif key == "assignee":
+                items = [i for i in items if val in i["assignees"]]
+            elif w == "no:assignee":
+                items = [i for i in items if not i["assignees"]]
             elif key == "sort":
-                items.sort(key=lambda i: i["updatedAt"], reverse=True)
+                field, _, direction = val.rpartition("-")
+                name = {"updated": "updatedAt", "created": "createdAt", "comments": "comments"}.get(field, "updatedAt")
+                items.sort(key=lambda i: i[name], reverse=direction != "asc")
             elif ":" not in w:
                 items = [i for i in items if w.lower() in i["title"].lower()]
         start = int(after) if after.isdigit() else 0

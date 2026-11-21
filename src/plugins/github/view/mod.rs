@@ -1,5 +1,7 @@
 //! The plugin's screens. Each file is one panel, as under `src/view/`.
 pub mod connect;
+pub mod filters;
+pub mod filters_scene;
 pub mod follow;
 pub mod home;
 pub mod home_connect;

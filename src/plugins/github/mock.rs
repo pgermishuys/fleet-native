@@ -126,3 +126,77 @@ pub fn rows() -> Value {
             "mergeable": null, "reviewers": [], "assignees": []}), "reason": null},
     ])
 }
+
+/// An issue of `acme/rocket` as the Issues tab's scenes draw it (the stand-in's fixture holds the same ones).
+fn rocket_issue(number: u64, title: &str, author: &str, labels: &[(&str, &str)], updated: &str, assignees: &[&str], state: &str) -> Value {
+    let mut item = issue(number, title);
+    item["author"] = json!(author);
+    item["state"] = json!(state);
+    item["updatedAt"] = json!(updated);
+    item["assignees"] = json!(assignees);
+    item["labels"] = json!(labels.iter().map(|(n, c)| json!({"name": n, "color": c})).collect::<Vec<_>>());
+    item
+}
+
+/// The open issues of `acme/rocket`, newest update first.
+pub fn issues() -> Value {
+    json!([
+        rocket_issue(205, "Login redirect loops after sign-in", "devon-park", &[("bug", "d73a4a")], "2026-11-19T13:00:00Z", &[], "open"),
+        rocket_issue(
+            203,
+            "Pager skips the last page when the count is a multiple of 20",
+            "kit-lee",
+            &[("bug", "d73a4a"), ("good first issue", "7057ff")],
+            "2026-11-19T12:00:00Z",
+            &["devon-park"],
+            "open"
+        ),
+        rocket_issue(
+            199,
+            "Webhook payloads are not signed",
+            "devon-park",
+            &[("enhancement", "a2eeef")],
+            "2026-11-19T10:00:00Z",
+            &["sam-rivera"],
+            "open"
+        ),
+        rocket_issue(
+            196,
+            "Slow first load on the dashboard",
+            "mara-quinn",
+            &[("performance", "fbca04")],
+            "2026-11-17T10:00:00Z",
+            &["mara-quinn"],
+            "open"
+        ),
+    ])
+}
+
+/// `GET .../repos/acme/rocket/labels`.
+pub fn labels() -> Value {
+    json!([
+        {"name": "bug", "color": "d73a4a", "description": null},
+        {"name": "enhancement", "color": "a2eeef", "description": null},
+        {"name": "good first issue", "color": "7057ff", "description": null},
+        {"name": "performance", "color": "fbca04", "description": null},
+        {"name": "documentation", "color": "0075ca", "description": null},
+    ])
+}
+
+/// `GET .../repos/acme/rocket/milestones`.
+pub fn milestones() -> Value {
+    json!([
+        {"number": 1, "title": "v1.2 launch window", "state": "open", "open_issues": 4, "closed_issues": 9},
+        {"number": 2, "title": "Autumn cleanup", "state": "open", "open_issues": 2, "closed_issues": 5},
+    ])
+}
+
+/// `GET .../repos/acme/rocket/assignees`.
+pub fn assignees() -> Value {
+    json!([
+        {"login": "mara-quinn", "avatar_url": "https://avatars.example/mara-quinn"},
+        {"login": "devon-park", "avatar_url": "https://avatars.example/devon-park"},
+        {"login": "kit-lee", "avatar_url": "https://avatars.example/kit-lee"},
+        {"login": "sam-rivera", "avatar_url": "https://avatars.example/sam-rivera"},
+    ])
+}

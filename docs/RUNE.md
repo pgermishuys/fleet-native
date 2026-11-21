@@ -2631,3 +2631,13 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 
 - Plain-Rust data pieces need no Rune at all: build sessions in tests from list-row JSON through `parse_sessions_for(.., Retention::All)` (it keeps archived rows, drops hidden ones) instead of constructing `mock::Session`, so a test names fields as Fleet's own tests do.
 - A request that has to go to any machine is kept as data (`Request { method, path, body }`) and sent with `Request::send(base)` on a thread; the address is chosen by the caller from `Machines::key_of_machine` and the link, so the data file never touches `State`.
+
+
+## Component 21, piece J (the issue filter bar)
+
+- **There is no blur event.** A field that commits when it loses focus (`FilterExpressionField`) is watched from the plugin's `keep`: `tx.focused()` there says whether the field still has focus, so focus starts an edit and its loss commits it. Enter and Escape are `on_input_key` handlers that call `tx.blur()`. A control pressed meanwhile has to commit the edit first (the press lands before the next poll).
+- **A field that shows state until it is edited** keeps its `TextEdit` in the state and the poll writes the serialised value into it while no edit is under way; a view can't set a `TextEdit`.
+- **A popover with a search box** is a plain panel on `anchored` + `scrim` + `.modal(true, close)` with the plugin's own close; `ui::menu::dropdown` and `ui::dialog::popover` close through `ui.open`, which a plugin's menu mustn't use (core would draw an unknown name).
+- **`on_hover_change` on a list reports leaving it**, so "the pointer left, nothing is highlighted" works for a list the pointer has been over; it isn't called for a pointer that was never inside.
+- **Fleet's client can draw something other than its CSS says**: `.filter-popover-content` asks for 256 px and no padding, the client draws 252 and 14 px of padding (`w-72`, `p-4` win), the `Button`'s icons draw 14 px whatever `:size` says. Measure the live client (`getBoundingClientRect`) before trusting a component's own style block.
+
