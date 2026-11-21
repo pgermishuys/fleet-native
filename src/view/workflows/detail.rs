@@ -83,15 +83,13 @@ fn header(t: &Theme, w: &Workflow, has_repository: bool) -> El {
         .child(mark)
         .child(title)
         .child(pill);
-    // Repeat on a schedule… waits for a repository and a file without errors; its click waits for component 19.
+    // Repeat on a schedule… waits for a repository and a file without errors; it opens a new automation that runs this.
     let can_repeat = has_repository && w.errors.is_empty();
     let mut repeat = button(t, Variant::Outline, Size::Sm, Some(&CALENDAR_CLOCK), "Repeat on a schedule…")
         .key("workflow-repeat-on-schedule")
         .help(if has_repository { "Run this workflow on a schedule, as an automation" } else { NEEDS_REPOSITORY });
     repeat = if can_repeat {
-        repeat.on_press_tx(|s: &mut State, tx: &mut rune::Tx| {
-            s.menu_waiting("Repeat on a schedule", "Automations is its own component of the port", tx)
-        })
+        repeat.on_press_tx(|s: &mut State, tx: &mut rune::Tx| s.repeat_workflow_on_schedule(tx))
     } else {
         disabled(repeat)
     };

@@ -119,6 +119,13 @@ impl Nav {
         self.moved(None, ViewMode::Create);
     }
 
+    /// `startCreateFromWorkflow` (row 1.7): a fresh draft that runs the seed's workflow, in create mode.
+    pub fn start_create_from_workflow(&mut self, seed: &super::workflow::WorkflowSeed) {
+        self.draft = ComposerState::from_workflow(seed);
+        self.draft_box = rune::TextEdit::new(&seed.request);
+        self.start_create();
+    }
+
     /// `clearSelection`.
     pub fn clear_selection(&mut self) {
         self.moved(None, ViewMode::List);
@@ -171,6 +178,8 @@ impl State {
             self.automations_nav.asked_for = None;
             // The runs stop with the page and are read again when it opens (the poll's timer ends on unmount).
             self.automations_nav.runs = Default::default();
+            // A workflow run's row opens where the run is now, so the runs are followed while Workflows are on (row 12.9).
+            self.keep_automation_workflow_runs();
         }
         self.rail = crate::Rail::Automations;
     }

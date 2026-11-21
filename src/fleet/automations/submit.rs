@@ -29,6 +29,8 @@ pub struct Upkeep {
     /// What the harness offers the run's folder, for the agent and model chips (`useHarnessCatalog`); the composer's own,
     /// so New session's chips keep theirs.
     pub(super) catalog: crate::fleet::new_session::feed_state::CatalogFeed,
+    /// The Library of the run's repository, for a workflow target (`loadLibrary`).
+    pub(super) library: super::workflow::LibraryFeed,
 }
 
 /// The zone schedules are saved in, read once: finding it reads a link on disk, which a view must not do every frame.
@@ -49,6 +51,9 @@ impl State {
         let default_harness = self.automation_default_harness();
         let mut ctx = Context::new(open.as_ref(), time_zone(), crate::view::message::now_ms(self), &local);
         ctx.default_harness = Some(default_harness.as_str()).filter(|h| !h.is_empty());
+        let workflow_harnesses: Vec<String> = self.automation_workflow_harnesses().into_iter().map(|(kind, _)| kind).collect();
+        ctx.workflow_harnesses = &workflow_harnesses;
+        ctx.library = self.automations_nav.composer.library.for_composer(editing);
         f(self.automations_nav.composer(editing), &ctx)
     }
 
@@ -185,6 +190,7 @@ impl State {
             changed = true;
         }
         changed |= self.keep_automation_catalog();
+        changed |= self.keep_automation_library(tx);
         // The machine the runs go to: another machine's folders, harnesses and events are its own (row 11.3).
         let machine = self.composer_machine(mode == ViewMode::Edit);
         if self.feed_base(&machine).is_none() {

@@ -8,6 +8,7 @@ use super::harness_choice::Harnesses;
 use super::request::{Folder, Workspace};
 use crate::State;
 use crate::composer::choice::{AgentModelChoice, describe_defaults, keep_offered, model_from_key};
+use crate::fleet::new_session::host::Host;
 use crate::fleet::settings::HOME_MACHINE_KEY;
 use serde_json::{Map, Value};
 
@@ -185,15 +186,25 @@ impl State {
 
     /// B7.2: the display name, the type id when the list lacks it.
     pub fn harness_chip_label(&self) -> String {
-        let draft = if self.run_box_active() {
-            self.run_box_harness_type()
-        } else {
-            self.new_draft.draft().map(|d| d.harness_type.clone()).unwrap_or_default()
-        };
+        let draft = self.harness_current();
         self.harnesses_here().all.iter().find(|h| h.kind == draft).map_or(draft, |h| h.display_name.clone())
     }
 
+    /// The harness the chip names and the menu checks: the Run box's, the automation composer's workflow harness, or the
+    /// New session draft's.
+    pub fn harness_current(&self) -> String {
+        match self.picker_host() {
+            Host::RunBox => self.run_box_harness_type(),
+            Host::Automation => self.automation_workflow_harness(),
+            Host::NewSession => self.new_draft.draft().map(|d| d.harness_type.clone()).unwrap_or_default(),
+        }
+    }
+
     pub fn harness_names(&self) -> Vec<(String, String)> {
+        // The automation composer shows the chip only for a workflow: the harnesses that run workflows (row 12.6).
+        if self.picker_host() == Host::Automation {
+            return self.automation_workflow_harnesses();
+        }
         if self.run_box_active() {
             return super::super::workflows::run_box::workflow_harnesses(&self.harnesses_here())
                 .into_iter()
@@ -229,6 +240,10 @@ impl State {
     pub fn choose_harness(&mut self, kind: &str) {
         if self.run_box_active() {
             return self.run_box_choose_harness(kind);
+        }
+        if self.picker_host() == Host::Automation {
+            self.automation_choose_workflow_harness(kind);
+            return self.close_chip_menu();
         }
         if let Some(d) = self.new_draft.draft_mut() {
             d.harness_type = kind.to_string();

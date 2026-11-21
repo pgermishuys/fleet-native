@@ -201,6 +201,8 @@ pub enum Scene {
     AgentModelNew,
     /// Piece M: an automation that runs on another machine.
     Machine(crate::fleet::automations::machine::Scene),
+    /// Piece N: an automation that runs a workflow.
+    Workflow(crate::fleet::automations::workflow::Scene),
     /// An automation open: its header and nothing else yet.
     Open,
     /// The same, with the info note Run now leaves.
@@ -270,7 +272,8 @@ impl crate::State {
             | Scene::Runs
             | Scene::RunsEmpty
             | Scene::RunsStates
-            | Scene::Machine(_) => {
+            | Scene::Machine(_)
+            | Scene::Workflow(_) => {
                 store.is_loading = false;
                 store.list = automations();
             }
@@ -332,6 +335,7 @@ impl crate::State {
             }
             Scene::AgentModel | Scene::AgentModelMenu | Scene::AgentModelNew => self.show_automation_agent_model(scene),
             Scene::Machine(m) => self.show_automation_machine(m),
+            Scene::Workflow(w) => self.show_automation_workflow(w),
             Scene::Builtin | Scene::BuiltinTime | Scene::BuiltinPaused => self.automations_nav.set_active("a-dream"),
             _ => {}
         }

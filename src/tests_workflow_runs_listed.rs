@@ -75,6 +75,7 @@ fn started_by_shows_on_the_run_s_group_in_sessions_and_opens_the_automation() {
     click(&mut rt, "workflow-started-by");
     assert_eq!(rt.state.rail, Rail::Automations);
     assert_eq!(rt.state.automations_nav.open_id(), Some("a-bump"));
+    assert_eq!(rt.state.automations_nav.mode, crate::fleet::automations::nav::ViewMode::Edit, "in edit mode (piece N)");
 }
 
 #[test]

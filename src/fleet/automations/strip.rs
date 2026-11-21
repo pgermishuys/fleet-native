@@ -32,7 +32,7 @@ pub fn runs_in_label(target_type: &str) -> &'static str {
 }
 
 impl State {
-    fn composer_mut(&mut self) -> &mut ComposerState {
+    pub(super) fn composer_mut(&mut self) -> &mut ComposerState {
         let editing = self.composer_editing();
         let nav = &mut self.automations_nav;
         if editing { &mut nav.edit } else { &mut nav.draft }
@@ -119,7 +119,7 @@ impl State {
     }
 
     pub fn close_strip_menus(&mut self) {
-        if self.runs_in_menu_open() || self.automation_more_open() {
+        if self.runs_in_menu_open() || self.automation_more_open() || self.target_menu_open() || self.workflow_menu_open() {
             self.ui.open = None;
         }
     }

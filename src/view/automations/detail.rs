@@ -12,7 +12,7 @@ use crate::ui::controls::switch_with;
 use crate::ui::menu::{self, Entry, Item};
 use crate::ui::{overlay, page_header, rem};
 use crate::{Tx, ui};
-use rune::{Align, El, Side, col, icon, row, text};
+use rune::{Align, El, Link, Side, Span, col, icon, rich, row, text};
 
 /// The ⋯ button's key, which the menu anchors to.
 pub const MORE: &str = "automation-more-menu";
@@ -59,6 +59,9 @@ pub fn body(t: &Theme, s: &State, a: &Automation) -> El {
     if let Some(note) = &s.automations_nav.notice {
         body = body.child(notice(t, note, 12.0));
     }
+    if s.automation_workflows_off_warning() {
+        body = body.child(workflows_off(t));
+    }
     if let Some(runs) = super::runs::section(s, t, a) {
         body = body.child(runs);
     }
@@ -98,4 +101,40 @@ fn note_box(t: &Theme, key: &str, note: &Notice, below: f32) -> El {
     note_row.child(
         text(note.text.clone()).key(format!("{key}-text")).font(sans(12.5, 400.0, 1.5)).color(ink).wrap().grow(1.0).shrink().min_w(0.0),
     )
+}
+
+/// `.automation-page__notice--warn` (row 4.10): the automation runs a workflow and Workflows are off; the waiting colours
+/// (35 % border, 10 % fill, the glyph in `--status-waiting`, the words in the text colour) and the underlined link to Labs.
+fn workflows_off(t: &Theme) -> El {
+    let words = "This automation runs a workflow, and Workflows are turned off in Settings. Its runs are skipped until they're back on.";
+    let link = "Open Settings → Labs";
+    let content = format!("{words} {link}");
+    let range = content.len() - link.len()..content.len();
+    let spans = vec![Span::new(range.start, range.end).underline(t.text)];
+    let line = rich(content, spans)
+        .key("automation-workflows-off-text")
+        .font(sans(12.5, 400.0, 1.5))
+        .color(t.text)
+        .wrap()
+        .grow(1.0)
+        .shrink()
+        .min_w(0.0)
+        .link(Link::new(range, "automation-workflows-off-labs".to_string()))
+        .on_link(|s: &mut State, _: &str, _: &mut Tx| s.open_settings("labs", None));
+    row()
+        .key("automation-workflows-off")
+        .role("status")
+        .w_full()
+        .max_w(760.0)
+        .gap(8.0)
+        .items_start()
+        .mb(12.0)
+        .px(12.0)
+        .py(9.0)
+        .radius(RADIUS_CARD)
+        .border(1.0, t.idle.alpha(0.35))
+        .border_layout()
+        .fill(t.idle.alpha(0.1))
+        .child(icon(&CIRCLE_ALERT, rem(1.0)).color(t.idle).mt(2.0))
+        .child(line)
 }

@@ -64,11 +64,6 @@ impl Runs {
     }
 }
 
-/// The session a run opens (`sessionOf`): the run's own; a workflow run's waiting or newest step is piece N's.
-pub fn session_of(run: &AutomationRun) -> Option<&str> {
-    run.session_id.as_deref()
-}
-
 impl State {
     /// The poll and the open (`loadRuns`, and the watch on the open automation): which automation the runs are for follows
     /// the open one; with a server they are read when due, without one they are the invented runs. True when something
@@ -159,7 +154,8 @@ impl State {
             return;
         }
         let Some(run) = self.automations_nav.runs.list.iter().find(|r| r.id == run_id).cloned() else { return };
-        let Some(session) = session_of(&run).map(str::to_string) else { return };
+        // A workflow run opens where it is now: its waiting session, else its newest step's (row 5.9).
+        let Some(session) = super::workflow::session_of(&run, self.workflow_run_of(&run)).map(str::to_string) else { return };
         // A run that went to another machine started its session there: it opens on that machine (row 5.9).
         let machine = self.run_machine(run.machine_id.as_deref(), &session).unwrap_or(machine);
         self.open_workflow_session(&machine, &session, tx);

@@ -17,6 +17,7 @@ pub mod list;
 pub mod runs;
 pub mod strip;
 pub mod when;
+pub mod workflow;
 
 /// The whole context: the list, its gutter and the detail; with the panel collapsed, the detail alone.
 pub fn page(s: &State, t: &Theme) -> Vec<rune::El> {

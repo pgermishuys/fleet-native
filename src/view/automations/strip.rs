@@ -20,19 +20,39 @@ pub fn separator(t: &Theme) -> El {
     el().w(1.0).h(14.0).mx(3.0).fill(t.border)
 }
 
-/// The chips after the When chip, in Fleet's order: the folder, then for a repository the workspace and (for a new worktree)
-/// the base, then Runs in, and the "…" chip pushed to the end.
+/// The chips after the When chip, in Fleet's order: the folder; for a workflow New worktree and the base, else for a repository
+/// the workspace and (for a new worktree) the base; the Runs chip; for a workflow its chip, its steps and the harness, else
+/// Runs in; and the "…" chip pushed to the end.
 pub fn chips(s: &State, t: &Theme, busy: bool) -> Vec<El> {
     let editing = s.composer_editing();
     let c = s.automations_nav.composer(editing);
     let mut out = vec![separator(t), crate::view::folder_menu::trigger(s, t)];
-    if matches!(c.folder, Some(Folder::Repository(_))) {
+    let repository = matches!(c.folder, Some(Folder::Repository(_)));
+    let workflow = c.is_workflow();
+    if workflow {
+        // A workflow always runs in a new worktree: a fact, not a choice (row 12.3).
+        out.push(super::workflow::new_worktree(t));
+        if repository {
+            out.push(crate::view::base_picker::chip(s, t));
+        }
+    } else if repository {
         out.push(crate::view::workspace_picker::chip(s, t));
         if c.workspace == Workspace::New {
             out.push(crate::view::base_picker::chip(s, t));
         }
     }
-    out.push(runs_in_chip(s, t, &c.target_type, busy));
+    if s.automation_shows_target_chip() {
+        out.push(super::workflow::target_chip(s, t, workflow, busy));
+    }
+    if workflow {
+        out.push(super::workflow::workflow_chip(s, t, busy));
+        out.extend(super::workflow::step_chips(s, t, busy));
+        if s.automation_workflow_harnesses().len() > 1 {
+            out.push(crate::view::harness_picker::chip(s, t));
+        }
+    } else {
+        out.push(runs_in_chip(s, t, &c.target_type, busy));
+    }
     // `.automation-composer__strip-end` (`margin-left: auto`): at the right end of whichever line it wraps onto.
     out.push(row().grow(1.0).justify_end().child(more_chip(s, t, busy)));
     out

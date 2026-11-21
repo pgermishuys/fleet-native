@@ -86,6 +86,14 @@ impl Rig {
         self.rt.elements().iter().filter_map(|e| e.text.clone()).collect::<Vec<_>>().join("\n")
     }
 
+    /// Every word drawn inside the element at `key`, in order.
+    pub(crate) fn texts_of_inside(&self, key: &str) -> String {
+        let all = self.rt.elements();
+        let Some([x, y, w, h]) = all.iter().find(|e| e.key.as_deref() == Some(key)).map(|e| e.rect) else { return String::new() };
+        let inside = |e: &&rune::ElementInfo| e.rect[0] >= x && e.rect[0] < x + w && e.rect[1] >= y && e.rect[1] < y + h;
+        all.iter().filter(inside).filter_map(|e| e.text.clone()).collect::<Vec<_>>().join(" ")
+    }
+
     pub(crate) fn texts_of(&self, key: &str) -> Vec<String> {
         self.rt.elements().iter().filter(|e| e.key.as_deref() == Some(key)).filter_map(|e| e.text.clone()).collect()
     }
