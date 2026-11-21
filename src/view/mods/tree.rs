@@ -3,8 +3,9 @@
 //! the mod weren't there (the site's own drawing alone) and a `Fleet` node draws that drawing in place. At the inline sites
 //! (a tool row's line, the status bar) the root is one compact row and every row Box in it wraps.
 //!
-//! Pill and Icon are in `leaves`; Button, Input, Select, Markdown, Code and Page are piece C's and J's, and draw nothing yet.
+//! Pill and Icon are in `leaves`, Button, Input and Select in `controls`, Markdown and Code in `rich`; Page is piece J's and draws nothing yet.
 use super::leaves::{self, flag, role_color, space_px, str_prop};
+use super::{controls, rich};
 use crate::State;
 use crate::fleet::mods::types::Site;
 use crate::fleet::mods::validate::{Check, validate_tree};
@@ -160,6 +161,7 @@ impl Ink {
 }
 
 struct Ctx<'a> {
+    s: &'a State,
     t: &'a Theme,
     look: Look,
     inline: bool,
@@ -168,15 +170,15 @@ struct Ctx<'a> {
 
 /// `ModTree`: the tree drawn for `site`, or `fleet` (the site's own drawing, if it has one) when the tree breaks the contract.
 /// A `null` tree draws nothing. Every element is keyed `<key>.<path>`, so a test and a press can name one.
-pub fn tree(_s: &State, t: &Theme, tree: &Value, site: Site, fleet: Option<El>) -> El {
-    tree_keyed(_s, t, "mod-tree", tree, site, Look::of(site), fleet)
+pub fn tree(s: &State, t: &Theme, tree: &Value, site: Site, fleet: Option<El>) -> El {
+    tree_keyed(s, t, "mod-tree", tree, site, Look::of(site), fleet)
 }
 
-pub fn tree_keyed(_s: &State, t: &Theme, key: &str, tree: &Value, site: Site, look: Look, fleet: Option<El>) -> El {
+pub fn tree_keyed(s: &State, t: &Theme, key: &str, tree: &Value, site: Site, look: Look, fleet: Option<El>) -> El {
     let inline = site.inline();
-    // `inline-flex` at an inline site: as wide as what it holds. Elsewhere a block: a Box fills it, a lone Pill or Icon is as
-    // wide as it is (`inline-flex` in a block).
-    let lone_leaf = matches!(tree.get("type").and_then(Value::as_str), Some("Pill" | "Icon" | "Fleet"));
+    // `inline-flex` at an inline site: as wide as what it holds. Elsewhere a block: a Box fills it, a lone Pill, Icon or Button is
+    // as wide as it is (`inline-flex` in a block).
+    let lone_leaf = matches!(tree.get("type").and_then(Value::as_str), Some("Pill" | "Icon" | "Button" | "Fleet"));
     let root = if inline {
         row().center_y().gap(6.0).self_start()
     } else if lone_leaf {
@@ -192,7 +194,7 @@ pub fn tree_keyed(_s: &State, t: &Theme, key: &str, tree: &Value, site: Site, lo
         },
         Draw::Nothing => root,
         Draw::Tree(tree) => {
-            let mut cx = Ctx { t, look, inline, fleet };
+            let mut cx = Ctx { s, t, look, inline, fleet };
             root.child(node(&mut cx, &format!("{key}.0"), &tree, true))
         }
     }
@@ -229,9 +231,18 @@ fn node(cx: &mut Ctx, key: &str, value: &Value, lone: bool) -> El {
         Some("Pill") => leaves::pill(cx.t, key, &props, !cx.inline || lone),
         Some("Icon") => leaves::icon_el(cx.t, key, &props, cx.t.text).unwrap_or_else(el),
         Some("Fleet") => cx.fleet.take().unwrap_or_else(el),
-        // Button, Input, Select, Markdown, Code and Page: pieces C and J.
+        Some("Button") => controls::button(cx.t, key, &props, &handles_of(map), !cx.inline || lone),
+        Some("Input") => controls::input(cx.s, cx.t, key, &props, &handles_of(map), cx.look.size),
+        Some("Select") => controls::select_control(cx.s, cx.t, key, &props, &handles_of(map)),
+        Some("Markdown") => rich::markdown(cx.t, key, &props, cx.look.size),
+        Some("Code") => rich::code(cx.s, cx.t, key, &props),
+        // Page is piece J's.
         _ => el(),
     }
+}
+
+fn handles_of(node: &Map<String, Value>) -> Map<String, Value> {
+    node.get("handles").and_then(Value::as_object).cloned().unwrap_or_default()
 }
 
 fn plain(cx: &Ctx, key: &str, words: &str) -> El {

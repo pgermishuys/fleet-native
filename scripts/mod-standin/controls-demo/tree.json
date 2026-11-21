@@ -1,0 +1,240 @@
+{
+ "type": "Box",
+ "props": {
+  "flexDirection": "column",
+  "gap": 3
+ },
+ "children": [
+  {
+   "type": "Box",
+   "props": {
+    "flexDirection": "row",
+    "gap": 2,
+    "alignItems": "center"
+   },
+   "children": [
+    {
+     "type": "Text",
+     "props": {},
+     "children": [
+      "Release 1.8 ",
+      {
+       "type": "Text",
+       "props": {
+        "code": true
+       },
+       "children": [
+        "controls"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "Text",
+   "props": {
+    "dimColor": true,
+    "bold": true
+   },
+   "children": [
+    "Button"
+   ]
+  },
+  {
+   "type": "Box",
+   "props": {
+    "flexDirection": "row",
+    "gap": 2,
+    "flexWrap": "wrap",
+    "alignItems": "center"
+   },
+   "children": [
+    {
+     "type": "Button",
+     "props": {
+      "key": "quiet",
+      "label": "Quiet"
+     },
+     "handles": {
+      "onPress": "h-quiet"
+     }
+    },
+    {
+     "type": "Button",
+     "props": {
+      "key": "run",
+      "label": "Run checks",
+      "tone": "primary",
+      "icon": "play"
+     },
+     "handles": {
+      "onPress": "h-run"
+     }
+    },
+    {
+     "type": "Button",
+     "props": {
+      "key": "cancel",
+      "label": "Cancel run",
+      "tone": "danger",
+      "icon": "x"
+     },
+     "handles": {
+      "onPress": "h-cancel"
+     }
+    },
+    {
+     "type": "Button",
+     "props": {
+      "key": "copy",
+      "label": "Copy",
+      "icon": "copy"
+     },
+     "handles": {
+      "onPress": "h-copy"
+     }
+    },
+    {
+     "type": "Button",
+     "props": {
+      "key": "off",
+      "label": "Disabled",
+      "tone": "primary",
+      "disabled": true
+     },
+     "handles": {
+      "onPress": "h-off"
+     }
+    }
+   ]
+  },
+  {
+   "type": "Text",
+   "props": {
+    "dimColor": true,
+    "bold": true
+   },
+   "children": [
+    "Input"
+   ]
+  },
+  {
+   "type": "Input",
+   "props": {
+    "key": "filter",
+    "label": "Branch",
+    "placeholder": "Type a branch name",
+    "submitLabel": "Search"
+   },
+   "handles": {
+    "onSubmit": "h-search",
+    "onInput": "h-typed"
+   }
+  },
+  {
+   "type": "Input",
+   "props": {
+    "key": "note",
+    "value": "release/1.8",
+    "placeholder": "A note"
+   },
+   "handles": {
+    "onInput": "h-note"
+   }
+  },
+  {
+   "type": "Text",
+   "props": {
+    "dimColor": true,
+    "bold": true
+   },
+   "children": [
+    "Select"
+   ]
+  },
+  {
+   "type": "Select",
+   "props": {
+    "key": "env",
+    "label": "Environment",
+    "value": "staging",
+    "options": [
+     {
+      "value": "dev",
+      "label": "Development"
+     },
+     {
+      "value": "staging",
+      "label": "Staging"
+     },
+     {
+      "value": "prod",
+      "label": "Production"
+     }
+    ]
+   },
+   "handles": {
+    "onSelect": "h-env"
+   }
+  },
+  {
+   "type": "Text",
+   "props": {
+    "dimColor": true,
+    "bold": true
+   },
+   "children": [
+    "Markdown"
+   ]
+  },
+  {
+   "type": "Markdown",
+   "props": {
+    "text": "## Rollout notes\n\nThe **canary** went out at `09:40` and held. See the [runbook](https://example.com/runbook), the [config](src/deploy.ts) and ![the latency chart](https://example.com/latency.png).\n\n- Checks: three of four passed\n- Next: promote on Friday"
+   }
+  },
+  {
+   "type": "Markdown",
+   "props": {
+    "text": "Dimmed: the same words in the quiet colour, with a [link](https://example.com).",
+    "dimColor": true
+   }
+  },
+  {
+   "type": "Text",
+   "props": {
+    "dimColor": true,
+    "bold": true
+   },
+   "children": [
+    "Code"
+   ]
+  },
+  {
+   "type": "Code",
+   "props": {
+    "path": "src/deploy.ts",
+    "startLine": 12,
+    "language": "typescript",
+    "source": "export function plan(env: string, count: number) {\n  const waves = Math.ceil(count / 4);\n  return { env, waves, pause: env === \"prod\" ? 300 : 30 };\n}"
+   }
+  },
+  {
+   "type": "Code",
+   "props": {
+    "path": "notes.txt",
+    "wrap": "truncate",
+    "source": "A very long line that stays whole and scrolls sideways inside the block instead of wrapping onto a second line.\nshort"
+   }
+  },
+  {
+   "type": "Code",
+   "props": {
+    "path": "src/deploy.ts",
+    "format": "diff",
+    "source": "--- a/src/deploy.ts\n+++ b/src/deploy.ts\n@@ -12,3 +12,3 @@\n export function plan(env: string, count: number) {\n-  const waves = Math.ceil(count / 8);\n+  const waves = Math.ceil(count / 4);\n   return { env, waves };"
+   }
+  }
+ ]
+}

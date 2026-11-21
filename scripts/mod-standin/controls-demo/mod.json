@@ -1,0 +1,13 @@
+{
+  "name": "controls-demo",
+  "version": "0.1.0",
+  "description": "A pane that draws every Button, Input and Select variant, Markdown and Code",
+  "hooks": "./mod.ts",
+  "panes": [
+    {
+      "id": "controls",
+      "title": "Controls",
+      "icon": "gauge"
+    }
+  ]
+}

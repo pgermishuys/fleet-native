@@ -1216,6 +1216,7 @@ dependencies = [
  "gtk",
  "libc",
  "png 0.18.1",
+ "pulldown-cmark",
  "regex",
  "rune",
  "rune-kit",

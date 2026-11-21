@@ -2661,3 +2661,19 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 
 - **A table is its columns side by side**: five `col().grow(1.0)`s in a `row`, so a column is as wide as its widest cell and the rows line up. Putting that row inside a `scroll_x()` box drew the columns at the width of their first cell, overlapped (the box measures its child unconstrained); the sideways scroll is left out until a smaller case is written.
 - **A card pinned to its row's bottom** (`margin-top: auto`) is a `grow(1.0).min_h(gap)` spacer between the parts, with no `gap` on the card, or the gap is paid twice.
+
+## Component 22, piece C: a mod's controls, Markdown and Code
+
+- **No percentage maximum**: `w_frac` sets a share, but nothing says "at most half of the parent" (`max-width: 50%`). An Input's submit button
+  shrinks with its field instead, so a very long `submitLabel` takes more than half the row. A control that needs `min(10em, 100%)` has only the 10 em.
+- **A `Markdown` can't drop images or dead links**: with no `images` handler an image draws Chromium's broken-image glyph and its alt text; Rune has
+  no hook that turns a link into plain text. A mod's Markdown is therefore rewritten as source first (pulldown-cmark's offset events: replace each
+  image by its alt text, strip the marks of each link that isn't `http(s):` or `mailto:`, escape raw HTML) and drawn as the conversation is.
+- **`MarkdownStyle` has no heading colour or rule**: Fleet's `--md-heading` (62% accent) and the 1 px rule under h1 and h2 can't be drawn, in a message or
+  in a mod's Markdown. Only the fonts are set (`heading_font`), so headings are in the text colour with no rule.
+- **A column doesn't shrink its children's widths**: a fixed-width item in a column overflows a narrow parent; put it in a row of its own (main axis) to let
+  `shrink` work. The Select's field is built so.
+- **`text_input(...).on_edit` takes a capturing closure**, so one `TextEdit` per element key can live in a map; return a spare edit when the key is gone, as
+  a handler must always hand back a `&mut TextEdit`.
+- **`ElementInfo` is enough to test controls**: `fill`, `opacity`, `text_color`, `label`, `role` and the rect read size, tone and state of a laid-out control.
+
