@@ -80,6 +80,8 @@ pub struct Nav {
     pub stepper: super::stepper::Stepper,
     /// The run card above the composer: its note, the answer on its way and the words of a refusal (piece G).
     pub card: super::card::Card,
+    /// The finish bar above the composer: its note, the press on its way and the words of a refusal (piece H).
+    pub finish: super::finish::Finish,
     /// Turn on is saving.
     pub turning_on: bool,
     /// Something asked for the library to be read again: the folder changed, or Turn on saved.

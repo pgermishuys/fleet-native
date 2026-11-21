@@ -8,6 +8,7 @@ use crate::view::feature_off;
 use rune::{ScrollSpec, col, row, text};
 
 pub mod detail;
+pub mod finish_bar;
 pub mod list;
 pub mod project_picker;
 pub mod roles;
