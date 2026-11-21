@@ -278,6 +278,27 @@ fn body(s: &State, t: &Theme) -> El {
             Some(payload) => super::document_tab::document_tab(s, t, payload),
             None => stand_in(t, CanvasKind::Visual),
         },
+        // A scene's tree; the pane's own drawing is piece F of component 22.
+        Some(CanvasKind::Mod) if s.mod_scene.is_some() => {
+            let scene = s.mod_scene.as_ref().expect("checked");
+            // Stands for the site's own drawing, which a `Fleet` node and an invalid tree draw.
+            let own = row()
+                .key("mod-scene-fleet")
+                .h(18.0)
+                .px(6.0)
+                .center_y()
+                .child(text("Fleet draws").font(sans(12.0, 400.0, 1.3)).color(t.muted));
+            let drawn = super::mods::tree::tree(s, t, &scene.tree, scene.site, scene.slot.then_some(own));
+            col()
+                .key("mod-pane")
+                .w_full()
+                .grow(1.0)
+                .min_h(0.0)
+                .px(12.0)
+                .py(12.0)
+                .child(drawn)
+                .scroll(rune::ScrollSpec { stick_bottom: false })
+        }
         Some(kind) => stand_in(t, kind),
         None => el(),
     };

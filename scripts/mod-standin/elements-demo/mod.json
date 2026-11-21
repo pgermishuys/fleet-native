@@ -1,0 +1,7 @@
+{
+  "name": "elements-demo",
+  "version": "0.1.0",
+  "description": "A pane that draws every Box, Text, Pill and Icon variant",
+  "hooks": "./mod.ts",
+  "panes": [{ "id": "elements", "title": "Elements", "icon": "gauge" }]
+}

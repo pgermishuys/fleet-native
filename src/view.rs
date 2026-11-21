@@ -80,6 +80,7 @@ pub mod machines_page;
 mod marks;
 pub mod message;
 pub mod mission;
+pub mod mods;
 pub mod more_options;
 pub mod new_project;
 pub mod new_session;

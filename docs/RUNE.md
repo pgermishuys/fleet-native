@@ -2605,3 +2605,25 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - A page that is several sibling panes (`[panel][gutter][page]`, or the notice alone) is a `Vec<El>` from the view; `view.rs` puts `ml(8.0)` on the first and appends the rest, as Workflows and Analytics do. A fn pointer can't capture, so a shared frame that takes a Turn on handler per feature matches on the feature to give each its own non-capturing closure.
 - A test fake sees requests the app makes for its own sake (the events hub negotiate, the update check). Assert on the prefixes you mean (`/api/jobs`, `/api/boards`, `/api/sessions`), never on "nothing but the preferences".
 - The test binary was OOM-killed at 4000M and again at 5500M here; 7000M with `CARGO_BUILD_JOBS=2` built and ran it.
+
+## Component 22, piece B: a mod's tree (Box, Text, Pill, Icon)
+
+- **`grow` shares the room, not the extras.** CSS's `flex-grow: 1` on Boxes of different content widths (`flex: 1 1 auto`) gives each its
+  content plus an equal share of what is left; `.grow(1.0)` sets the basis to 0, so each gets an equal share of the whole. Four
+  `flexGrow` Boxes side by side come out equal in width here and proportional to their words in Fleet. No fix: Rune has no `basis`.
+- **No baseline alignment.** `alignItems: "baseline"` draws as `start` (a row of different sizes lines up at its top).
+- **A nested `Text` is spans of one text element**, not nested elements: `Span` takes weight, mono, size, colour and italic, and
+  strike-through is `El::strike(start, end, None)` (byte offsets). The words of a Text and its nested Texts flow and wrap as one paragraph,
+  as inline spans do.
+- **`inline-flex` is `.self_start()`**, and a lone Pill or Icon at a block root needs `items_start` on its parent; a stretched `col()` makes
+  it as wide as the room, where a browser keeps an inline-flex item at its content.
+- **An icon in a row that stretches its items** (CSS: `inline-flex; align-items: center`, so the 14 px glyph sits in the middle of a
+  taller line) is the glyph inside a `row().center()` wrapper; a bare `icon()` would stay at the top.
+- **A pill that can't squeeze:** `row().min_w(0.0).shrink()` with a `.truncate()` label cuts the label to the room and keeps the pill 22 px
+  high; a wrapping row (`flex_wrap`) moves a whole pill to the next line first, as `flex-wrap: wrap` does.
+- **`border_sides([0, 0, 0, 3], c)` with `border_layout()`** is a 3 px left-only quote bar that takes its 3 px of room; the order is
+  top, right, bottom, left.
+- **The loader spins in Fleet** and fades here (no looping rotation, see above); the `prefers-reduced-motion` 3 s turn has no twin.
+- **`Runtime::accessibility_json()`** is how a test reads a label or role off an element: the roles and labels of an `El` aren't readable from
+  outside Rune.
+
