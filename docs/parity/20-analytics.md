@@ -95,29 +95,29 @@ Each row: what Fleet does, its source, and the native state (with the piece that
 
 | # | Row | Source | Native |
 |---|---|---|---|
-| 1.1 | The rail entry Analytics opens `/analytics`; its panel is the analytics-menu (`AnalyticsMachinePanel`) | CR | Rail done; the panel None (C) |
+| 1.1 | The rail entry Analytics opens `/analytics`; its panel is the analytics-menu (`AnalyticsMachinePanel`) | CR | **Done (C, 21 November 2026)** `view/analytics_page/menu.rs` `panel`; the rail opens it |
 | 1.2 | Sections: `overview`, `daily` (group Spend), `projects`, `models`, `sessions` (group Breakdown), with those labels; groups "Spend", "Breakdown" | LS | **Done (A, 20 November 2026)** `src/fleet/analytics/sections.rs` |
-| 1.3 | Each section has its own route: Overview is the bare `/analytics`, the others `/analytics/<id>`; the address is read back with a trailing slash; anything else (`/analytics/harness`, `/analytics/`) is Overview; a `$section` that isn't one redirects to `/analytics` | LS, `routes/analytics.*.tsx` | **Done (A, 20 November 2026)** the mapping: `sections.rs` `section_path`, `section_from_path` (C: the route on `State`) |
-| 1.4 | The menu and the page read the section from the address (neither passes it to the other); a reload keeps it | UAS, AC | None (C) |
-| 1.5 | The context: `[analytics-menu][gutter][analytics-detail]`; the menu at the context panel's width (306 at 1280), the left gutter drags it; Ctrl+B hides the menu (the page alone) | AppShell, CR | None (C) |
-| 1.6 | The page sits in the centre sheet with Fleet's page padding (24 px, `.center__body`), scrolling as one; the parts stacked with gap 20 (`.analytics-page`) | `CenterContent.vue`, AC | None (C) |
-| 1.7 | `PageHeader`: "Analytics" (21 px, 600, tight) and "Tokens and spend across your sessions, by project and model. Costs are estimates at list prices, not a bill." (14 px muted, line-height 1.5, margin-top 4) | AC, PH | None (C; lift Settings' `page_header` into `src/ui/page_header.rs`) |
-| 1.8 | The section's body under the header; switching section swaps it (`:key="activeTab"`: its own scroll and hover state start fresh) | AC | None (C, the switch; F-J, the bodies) |
+| 1.3 | Each section has its own route: Overview is the bare `/analytics`, the others `/analytics/<id>`; the address is read back with a trailing slash; anything else (`/analytics/harness`, `/analytics/`) is Overview; a `$section` that isn't one redirects to `/analytics` | LS, `routes/analytics.*.tsx` | **Done (A, 20 November 2026)** the mapping: `sections.rs` `section_path`, `section_from_path` **C (21 November 2026): the route is `State.analytics_nav`, `open_analytics_address` reads an address** |
+| 1.4 | The menu and the page read the section from the address (neither passes it to the other); a reload keeps it | UAS, AC | **Done (C, 21 November 2026)** the section is `State.analytics_nav`; menu and page both read it (`fleet/analytics/nav.rs`) |
+| 1.5 | The context: `[analytics-menu][gutter][analytics-detail]`; the menu at the context panel's width (306 at 1280), the left gutter drags it; Ctrl+B hides the menu (the page alone) | AppShell, CR | **Done (C, 21 November 2026)** `view.rs` `root` (`analytics_page::page`): `[menu][gutter][page]`, the menu at the panel width, the shared left gutter, Ctrl+B hides the menu |
+| 1.6 | The page sits in the centre sheet with Fleet's page padding (24 px, `.center__body`), scrolling as one; the parts stacked with gap 20 (`.analytics-page`) | `CenterContent.vue`, AC | **Done (C, 21 November 2026)** `analytics_page/mod.rs` `detail`: the centre sheet, 24 px padding, scrolling as one, gap 20 |
+| 1.7 | `PageHeader`: "Analytics" (21 px, 600, tight) and "Tokens and spend across your sessions, by project and model. Costs are estimates at list prices, not a bill." (14 px muted, line-height 1.5, margin-top 4) | AC, PH | **Done (C, 21 November 2026)** `ui/page_header.rs` `plain` (lifted from Settings' header, which now uses it) |
+| 1.8 | The section's body under the header; switching section swaps it (`:key="activeTab"`: its own scroll and hover state start fresh) | AC | **Done (C, 21 November 2026)** the body is keyed by its section; it is an empty slot until F to J |
 | 1.9 | On a phone (≤767 px) the menu is a strip of chips above the section (`AnalyticsSectionStrip`, with a Filters chip that opens the filters inline) | ASS, AC | Out of scope (15.1) |
 
 ### 2. The analytics-menu
 
 | # | Row | Source | Native |
 |---|---|---|---|
-| 2.1 | Header "ANALYTICS": 10 px, 600, upper case, tracking 0.05 em, muted, padding 18/4/10; the panel padding 0/12/12, scrolls when tall | ANP | None (C) |
-| 2.2 | The machine switch under the header (padding 0 12 6) only when another machine is listed: "Analytics for machine" chip, the menu "Analytics for", each machine with its session count, a check on the shown one; testids `analytics-machine-switch`, `analytics-machine-<key>` | ANP, MS | None (C; the switch view is 17 N's) |
-| 2.3 | Groups, each `role="group"` labelled: the label (10 px, 600, upper case, tracking 0.05 em, muted, margin 8/0/2, padding 0 12), items with gap 4, group margin-bottom 8 | ANP | None (C) |
-| 2.4 | An item: a button, 36 tall min, padding 0 12, radius `--radius-btn`, 1 px transparent border, 12 px 500 muted; the label left, the count right (11 px tabular muted) | ANP | None (C) |
-| 2.5 | Counts: Projects = the range's top projects (at most 5, see 5.9), Models = the models list's length, Sessions = the sessions list's length (at most 50, 5.10); Overview and Daily have none | UAM | None (C) |
-| 2.6 | Hover: `--bg` fill, `--text` ink; the open one: border accent 40%, fill `--panel-bg` 88% + accent 12%, `--text`, `aria-current="page"`; focus ring 2 px accent, offset 2 | ANP | None (C) |
-| 2.7 | Pressing an item opens its route; pressing the open one does nothing | UAM | None (C) |
+| 2.1 | Header "ANALYTICS": 10 px, 600, upper case, tracking 0.05 em, muted, padding 18/4/10; the panel padding 0/12/12, scrolls when tall | ANP | **Done (C, 21 November 2026)** `menu.rs` `panel` |
+| 2.2 | The machine switch under the header (padding 0 12 6) only when another machine is listed: "Analytics for machine" chip, the menu "Analytics for", each machine with its session count, a check on the shown one; testids `analytics-machine-switch`, `analytics-machine-<key>` | ANP, MS | **Done (C, 21 November 2026)** `menu.rs` `SWITCH`, `overlay`; the switch is drawn only when another machine is listed |
+| 2.3 | Groups, each `role="group"` labelled: the label (10 px, 600, upper case, tracking 0.05 em, muted, margin 8/0/2, padding 0 12), items with gap 4, group margin-bottom 8 | ANP | **Done (C, 21 November 2026)** `menu.rs` `panel` (groups with `role=group`) |
+| 2.4 | An item: a button, 36 tall min, padding 0 12, radius `--radius-btn`, 1 px transparent border, 12 px 500 muted; the label left, the count right (11 px tabular muted) | ANP | **Done (C, 21 November 2026)** `menu.rs` `item` |
+| 2.5 | Counts: Projects = the range's top projects (at most 5, see 5.9), Models = the models list's length, Sessions = the sessions list's length (at most 50, 5.10); Overview and Daily have none | UAM | **Done (C, 21 November 2026)** `menu.rs` `count` |
+| 2.6 | Hover: `--bg` fill, `--text` ink; the open one: border accent 40%, fill `--panel-bg` 88% + accent 12%, `--text`, `aria-current="page"`; focus ring 2 px accent, offset 2 | ANP | **Done (C, 21 November 2026)** `menu.rs` `item` (focus ring included; Rune has no `aria-current`, so the open one is read from `analytics_nav`) |
+| 2.7 | Pressing an item opens its route; pressing the open one does nothing | UAM | **Done (C, 21 November 2026)** `State::open_analytics_section` |
 | 2.8 | Below the groups: the Filters block (margin-top 4, padding-top 8, a 1 px `--border` rule above, gap 8): its label "FILTERS" (padding 0 4), the filters stacked (3.x), Export CSV (4.x) | ANP | None (D, E) |
-| 2.9 | No "By harness" anywhere (a section Fleet removed) | ANP test | None (C, the test) |
+| 2.9 | No "By harness" anywhere (a section Fleet removed) | ANP test | **Done (C, 21 November 2026)** no section is named harness; the test checks it |
 
 ### 3. The filters
 
@@ -246,16 +246,16 @@ Each row: what Fleet does, its source, and the native state (with the piece that
 | # | Row | Source | Native |
 |---|---|---|---|
 | 13.1 | Analytics shows the machine its switch picked; every read and the export go to that machine with its key; the live machine's reads are untouched | UAMa, AP, AMP, test | **Done (B, 20 November 2026)** `store.rs` `analytics.choice` (`MachineChoice`) picks the machine; every read goes to it; its filters are saved under its key |
-| 13.2 | Switching machine rebuilds the page and the menu (`MachineScope :key`): that machine's own filters (3.1), fresh reads, loading states | AP, AMP | **Done (B, 20 November 2026)** `store.rs` `mount`: a new machine starts over with its own filters and loading reads (C rebuilds the page) |
-| 13.3 | Moving between sections keeps the pick; leaving Analytics forgets it, so the next visit opens on the machine you're on | AP | None (C: `MachineChoice::reset` on entering) |
+| 13.2 | Switching machine rebuilds the page and the menu (`MachineScope :key`): that machine's own filters (3.1), fresh reads, loading states | AP, AMP | **Done (B, 20 November 2026)** `store.rs` `mount`: a new machine starts over with its own filters and loading reads **C (21 November 2026): the page reads the machine's own reads, so it follows** |
+| 13.3 | Moving between sections keeps the pick; leaving Analytics forgets it, so the next visit opens on the machine you're on | AP | **Done (C, 21 November 2026)** `enter_analytics` resets the pick when coming from another view, not from a section |
 
 ### 14. Ways in
 
 | # | Row | Source | Native |
 |---|---|---|---|
-| 14.1 | The rail entry's address is `/analytics`, so it always opens Overview, not the section last shown | CR | None (C) |
-| 14.2 | "Go to Analytics" (command palette) opens `/analytics` | `use-commands.ts` | Rail only (C: opens Overview) |
-| 14.3 | The home page's spend sparkline opens `/analytics` | `SummaryBar.vue` | Rail only (C: opens Overview) |
+| 14.1 | The rail entry's address is `/analytics`, so it always opens Overview, not the section last shown | CR | **Done (C, 21 November 2026)** `press_rail(Rail::Analytics)` opens Overview |
+| 14.2 | "Go to Analytics" (command palette) opens `/analytics` | `use-commands.ts` | **Done (C, 21 November 2026)** `nav-analytics` calls `enter_analytics` |
+| 14.3 | The home page's spend sparkline opens `/analytics` | `SummaryBar.vue` | **Done (C, 21 November 2026)** the sparkline presses the rail, so it opens Overview |
 
 ### 15. Out of reach, and why
 
@@ -373,6 +373,14 @@ en-US, both themes. `scripts/scratch-fleet.sh` switches analytics off; a piece r
   forgets the machine pick.
 - **Pictures:** the menu and the header beside Fleet's, Overview and Models open, both themes (the section bodies are
   still blank: say so).
+
+**Done (21 November 2026).** Pictures: `shots/parity/20-analytics/C-page-menu/` (native), beside A's Fleet pictures
+(`fleet-overview-*`, `fleet-models-*`). Left open, with reasons:
+- The Filters block (2.8), and with it Export CSV, is not drawn: D and E own it. The menu ends after Sessions.
+- The section bodies are blank, as the brief says (F to J).
+- Fleet's Sessions count in the pictures is 19 and the native scene's 18: the scratch Fleet has one more session than the invented list.
+- Another machine's switch is shown from a scene only; a second live Fleet was not run for this piece.
+- Row 1.9 (the phone strip) stays out of scope (15.1).
 
 #### D. The filters
 

@@ -238,6 +238,9 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
     if s.rail == crate::Rail::Settings {
         layer.extend(crate::view::settings::machine_header::overlay(s, t));
     }
+    if s.rail == crate::Rail::Analytics {
+        layer.extend(crate::view::analytics_page::menu::overlay(s, t));
+    }
     if s.rail == crate::Rail::Automations {
         layer.extend(crate::view::automations::list::overlay(s, t));
     }

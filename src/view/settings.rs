@@ -230,14 +230,9 @@ pub fn menu(s: &State, t: &Theme) -> El {
 
 /// `PageHeader`: the title (21, 600) and the line under it.
 pub fn page_header(s: &State, t: &Theme, page: &Page) -> El {
-    let title = text(page.title_in(&s.places)).font(sans(rem(1.5), 600.0, 1.25).tracking(-0.525)).color(t.text);
     // The title row's meta slot: gap 10, the chip of the machine the page shows (`PageHeader`, `SettingsPage`).
-    let title_row = row().wrap().center_y().gap(10.0).child(title).children(machine_header::title_chip(s, t, page));
-    col()
-        .key("settings-header")
-        .w_full()
-        .child(title_row)
-        .child(row().mt(4.0).child(text(page.line_in(&s.places)).font(sans(rem(0.875), 400.0, 1.5)).color(t.muted)))
+    let meta = machine_header::title_chip(s, t, page).into_iter().collect();
+    crate::ui::page_header::plain(t, "settings-header", &page.title_in(&s.places), Some(&page.line_in(&s.places)), meta)
 }
 
 /// What a page that isn't ported yet shows (`rounded-btn border px-4 py-3 text-sm text-muted`).

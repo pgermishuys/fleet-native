@@ -10,6 +10,7 @@
 use serde_json::Value;
 
 pub mod filters;
+pub mod nav;
 pub mod sections;
 pub mod sessions_sort;
 pub mod store;

@@ -7,6 +7,7 @@ pub mod agents;
 pub mod agents_row;
 pub mod allowed;
 pub mod analytics;
+pub mod analytics_page;
 pub mod annotation;
 pub mod ask_card;
 pub mod attachments;
@@ -192,6 +193,13 @@ pub fn root(s: &State, cx: &mut Cx<State>) -> El {
         Rail::Settings => main.child(settings::detail(s, &t).ml(8.0)),
         Rail::Workflows => {
             let mut panes = workflows::page(s, &t).into_iter();
+            if let Some(first) = panes.next() {
+                main = main.child(first.ml(8.0));
+            }
+            main.children(panes)
+        }
+        Rail::Analytics => {
+            let mut panes = analytics_page::page(s, &t).into_iter();
             if let Some(first) = panes.next() {
                 main = main.child(first.ml(8.0));
             }

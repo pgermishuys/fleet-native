@@ -100,3 +100,44 @@ pub fn sessions() -> Vec<SessionRow> {
         })
         .collect()
 }
+
+/// The Analytics page for the pictures and tests: no server, so the reads are the invented answers above.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Scene {
+    /// Overview open.
+    Menu,
+    /// Models open.
+    Models,
+    /// Another machine is listed, so the menu has its switch.
+    Machines,
+}
+
+impl crate::State {
+    pub fn show_analytics(&mut self, dark: bool, scene: Scene) {
+        use crate::fleet::analytics::sections::Section;
+        self.dark = Some(dark);
+        if scene == Scene::Machines {
+            self.show_machines_only(super::machines::Case::Several);
+        }
+        self.enter_analytics();
+        if scene == Scene::Models {
+            self.open_analytics_section(Section::Models);
+        }
+        // The counts are the reads' lengths, so the scene holds the answers the first look would ask for.
+        let a = &mut self.analytics;
+        a.summary.data = Some(summary());
+        a.range.data = Some(summary());
+        a.daily.data = daily();
+        a.models.data = models();
+        a.sessions.data = sessions();
+        for loading in [
+            &mut a.summary.is_loading,
+            &mut a.range.is_loading,
+            &mut a.daily.is_loading,
+            &mut a.models.is_loading,
+            &mut a.sessions.is_loading,
+        ] {
+            *loading = false;
+        }
+    }
+}

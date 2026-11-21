@@ -2479,3 +2479,12 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **Fleet's `Command` filters by `contains` and its empty words need a typed search** (`Command.vue`, `CommandEmpty.vue`): no fuzzy match, no ranking, and a loading or empty list is blank until you type. Ported as is.
 - **cmdk lights no row on opening, and the first on typing** (read from Fleet's client): so the list's lit row is an `Option`. The command palette's list lights the first from the start; it was ported that way before this was looked at.
 - **A fresh `cargo test` build at `CARGO_BUILD_JOBS=2` was killed at 5500M** (5.3 G peak, 21 Nov 2026); `CARGO_BUILD_JOBS=1` fits in 5500M and took 3 min 30 s.
+
+## Component 20, piece C (the page and the menu)
+
+- **Light scenes can draw dark headless.** A `-light` scene snapped in a fresh data folder came out dark here; the light twin that
+  works is the dark scene with the theme key (`{"type":"key","name":"l","cmd":true,"shift":true}`) in `--script`, `--at 0.6`, and a
+  fresh `FLEET_NATIVE_DATA_DIR` for each run (the toggle saves the theme there).
+- **No `aria-current` found:** I found no way in Rune at the pin to mark the open item of a menu to a screen reader; the native menu keys each item
+  (`analytics-section-<id>`) and a test reads the open one from `State`.
+- **A test build was OOM-killed again (exit 143) at 5500M with `CARGO_BUILD_JOBS=2`:** 7000M with one job built and ran it.
