@@ -5480,6 +5480,30 @@ pub fn spec() -> AppSpec<State> {
             ("analytics-projects-empty-light", |s| {
                 s.show_analytics_section(false, mock::analytics::Scene::Nothing, fleet::analytics::sections::Section::Projects)
             }),
+            ("analytics-models", |s| {
+                s.show_analytics_section(true, mock::analytics::Scene::Menu, fleet::analytics::sections::Section::Models)
+            }),
+            ("analytics-models-light", |s| {
+                s.show_analytics_section(false, mock::analytics::Scene::Menu, fleet::analytics::sections::Section::Models)
+            }),
+            ("analytics-models-loading", |s| {
+                s.show_analytics_section(true, mock::analytics::Scene::Loading, fleet::analytics::sections::Section::Models)
+            }),
+            ("analytics-models-loading-light", |s| {
+                s.show_analytics_section(false, mock::analytics::Scene::Loading, fleet::analytics::sections::Section::Models)
+            }),
+            ("analytics-models-error", |s| {
+                s.show_analytics_section(true, mock::analytics::Scene::Failed, fleet::analytics::sections::Section::Models)
+            }),
+            ("analytics-models-error-light", |s| {
+                s.show_analytics_section(false, mock::analytics::Scene::Failed, fleet::analytics::sections::Section::Models)
+            }),
+            ("analytics-models-empty", |s| {
+                s.show_analytics_section(true, mock::analytics::Scene::Nothing, fleet::analytics::sections::Section::Models)
+            }),
+            ("analytics-models-empty-light", |s| {
+                s.show_analytics_section(false, mock::analytics::Scene::Nothing, fleet::analytics::sections::Section::Models)
+            }),
             ("analytics-calendar-limits-light", |s| s.show_analytics(false, mock::analytics::Scene::CalendarLimits)),
             ("automation-detail", |s| s.show_automations(true, mock::automations::Scene::Started)),
             ("automation-detail-light", |s| s.show_automations(false, mock::automations::Scene::Started)),
