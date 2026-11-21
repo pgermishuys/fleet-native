@@ -185,6 +185,8 @@ mod tests_memory_notice;
 #[cfg(test)]
 mod tests_mission_live;
 #[cfg(test)]
+mod tests_mission_machine;
+#[cfg(test)]
 mod tests_mission_needs_you;
 #[cfg(test)]
 mod tests_mods_controls;
@@ -2661,6 +2663,20 @@ pub fn spec() -> AppSpec<State> {
             ("fleet-needs-you-loading-light", |s| s.show_mission(mock::mission::Case::Loading, false)),
             ("fleet-needs-you-failed", |s| s.show_mission(mock::mission::Case::Failed, true)),
             ("fleet-needs-you-failed-light", |s| s.show_mission(mock::mission::Case::Failed, false)),
+            ("fleet-machine", |s| s.show_machine(mock::mission::MachineCase::Tiles, true)),
+            ("fleet-machine-light", |s| s.show_machine(mock::mission::MachineCase::Tiles, false)),
+            ("fleet-machine-state", |s| s.show_machine(mock::mission::MachineCase::ByState, true)),
+            ("fleet-machine-state-light", |s| s.show_machine(mock::mission::MachineCase::ByState, false)),
+            ("fleet-machine-peek", |s| s.show_machine(mock::mission::MachineCase::Peek, true)),
+            ("fleet-machine-peek-light", |s| s.show_machine(mock::mission::MachineCase::Peek, false)),
+            ("fleet-machine-asking", |s| s.show_machine(mock::mission::MachineCase::Asking, true)),
+            ("fleet-machine-asking-light", |s| s.show_machine(mock::mission::MachineCase::Asking, false)),
+            ("fleet-machine-unreachable", |s| s.show_machine(mock::mission::MachineCase::Unreachable, true)),
+            ("fleet-machine-unreachable-light", |s| s.show_machine(mock::mission::MachineCase::Unreachable, false)),
+            ("fleet-machine-empty", |s| s.show_machine(mock::mission::MachineCase::Empty, true)),
+            ("fleet-machine-empty-light", |s| s.show_machine(mock::mission::MachineCase::Empty, false)),
+            ("fleet-machine-gone", |s| s.show_machine(mock::mission::MachineCase::Gone, true)),
+            ("fleet-machine-gone-light", |s| s.show_machine(mock::mission::MachineCase::Gone, false)),
             ("jobs-off", |s| labs_off_scene(s, true, Rail::Jobs)),
             ("jobs-off-light", |s| labs_off_scene(s, false, Rail::Jobs)),
             ("board-off", |s| labs_off_scene(s, true, Rail::Board)),

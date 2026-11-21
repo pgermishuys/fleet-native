@@ -10,7 +10,7 @@ use crate::{State, Tx};
 use rune::{Align, Color, Cycle, El, Shadow, col, el, icon, row, text};
 
 /// `xl:grid-cols-2`: Tailwind's `xl` is 1280px of the 16px browser rem, not 14px-root pixels (Fleet issue 12).
-const TWO_COLUMNS_FROM: f32 = 1280.0;
+pub(crate) const TWO_COLUMNS_FROM: f32 = 1280.0;
 
 pub fn page(s: &State, t: &Theme) -> El {
     let (key, label, body) = match s.route {

@@ -80,6 +80,12 @@ pub struct Mission {
     pub(crate) busy: HashSet<String>,
     /// What went wrong with a tile's last answer, by tile key; a good answer takes it away.
     pub(crate) errors: HashMap<String, String>,
+    /// How a machine's view groups its tiles; one choice for every machine, kept while the app runs and not saved.
+    pub grouping: super::Grouping,
+    /// The tile key a press picked (`selectedKey`); the peek shows it while that tile is on the open machine's page.
+    pub picked: Option<String>,
+    /// The peek's reads, field and outcome.
+    pub peek: super::peeking::Peek,
 }
 
 impl Mission {
@@ -175,6 +181,7 @@ impl State {
             return self.mission_close_all();
         }
         let mut changed = self.mission_sync(now);
+        changed |= self.keep_peek();
         for note in std::mem::take(&mut self.mission.notes) {
             let (Note::Hub(key, _) | Note::Sessions(key)) = &note;
             let Some(open) = self.mission.feeds.iter_mut().find(|f| f.key == *key) else { continue };
