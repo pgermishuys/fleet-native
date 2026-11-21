@@ -132,6 +132,9 @@ fn runs_on_the_machine_picked_its_folders_harnesses_and_models_and_the_machine_i
 
     assert!(chip_text(&r, MACHINE_CHIP).contains("atlas"), "{}", chip_text(&r, MACHINE_CHIP));
     assert!(chip_text(&r, FOLDER_CHIP).contains("kettle"));
+    // Home's own catalog for kettle is answered before the pick, so a slow runner can't hear it after the count starts.
+    r.wait("home's catalog", |s| s.automation_offers_agent_and_model());
+    r.frames();
     let (home_from, harbor_from) = (heard(&r.home), heard(&r.harbor));
 
     pick_machine(&mut r, HARBOR);
