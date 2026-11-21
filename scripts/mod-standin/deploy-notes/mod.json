@@ -1,0 +1,7 @@
+{
+  "name": "deploy-notes",
+  "version": "0.1.0",
+  "description": "A Deploy notes pane with a checklist, a target picker and a note field",
+  "hooks": "./mod.ts",
+  "panes": [{ "id": "notes", "title": "Deploy notes", "icon": "file" }]
+}
