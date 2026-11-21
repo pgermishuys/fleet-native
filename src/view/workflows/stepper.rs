@@ -64,7 +64,7 @@ fn title(t: &Theme, run: &Run) -> El {
 }
 
 /// `WorkflowStartedBy`: a link that opens the automation (Zap, "Started by <name>", 11.5 px).
-fn started_by(t: &Theme, by: &StartedBy) -> El {
+pub(super) fn started_by(t: &Theme, by: &StartedBy) -> El {
     let id = by.automation_id.clone();
     row()
         .key("workflow-started-by")

@@ -247,15 +247,15 @@ ones with the theme toggled by the script (Cmd+Shift+L) in a scratch data folder
 
 | # | Fleet | Source | Native |
 |---|---|---|---|
-| 10.1 | Sessions: a run's step sessions group under one row where its newest session was, steps in the order they ran (`groupRunSessions` on the project's roots); a run the store doesn't know groups by the sessions' `workflowRunId` under the title before " · " and steps named from their titles; another machine's steps don't group (06's 2.103) | PG 102-104; LW `groupRunSessions` | Logic done (A): `group_run_sessions` (+ `RunMember`); I draws it |
-| 10.2 | The group's head (min-height 32, gap 9, padding 0 10 0 6, 500): the 14 px caret slot, the working quad while running else Workflow 13 px accent, the title (13 px), the status 12 px ("Needs you" idle, "With you" accent, "Working" running, "Failed"/result error, "Ended", "Done"); hover 5 %; label "<title>, <workflow>, <status>"; a click opens the session the run waits in, else the newest step | WRG | None (I) |
-| 10.3 | "Started by <automation>" under the head (padding 0 10 2 42), a link that opens the automation in Automations; not on a run started from the Run box | WRG; WSB | None (I draws; the click is component 19's) |
-| 10.4 | Each step row is the session row indented 32 px with its step label as its title ("Implement · 2nd pass") and "With you" as its step note while the user finishes it (06's 3.41, 3.55); rows keep their actions and drag | WRG; LW `stepLabel` | Slots there (I) |
-| 10.5 | The dashboard: a session whose run waits on the user in it counts under Needs you (09's 10.8), and its row says what it waits for: the step title in the attention tone, described "<workflow>: <step>" | `components/dashboard/FleetDashboard.vue` 103-116, `DashboardSessionRow.vue` 36-44; `lib/needs-you.ts` | Wired to "never" (I) |
+| 10.1 | Sessions: a run's step sessions group under one row where its newest session was, steps in the order they ran (`groupRunSessions` on the project's roots); a run the store doesn't know groups by the sessions' `workflowRunId` under the title before " · " and steps named from their titles; another machine's steps don't group (06's 2.103) | PG 102-104; LW `groupRunSessions` | Done (I): `view::family::family_rows` groups the live machine's top-level rows by `group_run_sessions` (a step's children are not drawn, as in Fleet); another machine's rows never reach it |
+| 10.2 | The group's head (min-height 32, gap 9, padding 0 10 0 6, 500): the 14 px caret slot, the working quad while running else Workflow 13 px accent, the title (13 px), the status 12 px ("Needs you" idle, "With you" accent, "Working" running, "Failed"/result error, "Ended", "Done"); hover 5 %; label "<title>, <workflow>, <status>"; a click opens the session the run waits in, else the newest step | WRG | Done (I): `view/workflows/run_group.rs` `head` (key `workflow-run-head-<run>`; the click uses `press_row`, so picking rows still works) |
+| 10.3 | "Started by <automation>" under the head (padding 0 10 2 42), a link that opens the automation in Automations; not on a run started from the Run box | WRG; WSB | Done (I): the row reuses `stepper::started_by`; its click is `open_started_by`, which already opens Automations (the checklist expected a toast until component 19) |
+| 10.4 | Each step row is the session row indented 32 px with its step label as its title ("Implement · 2nd pass") and "With you" as its step note while the user finishes it (06's 3.41, 3.55); rows keep their actions and drag | WRG; LW `stepLabel` | Done (I): `Slots { label, step, step_note }`; a step row has no caret place and its glyph 10 px in, as measured on Fleet's DOM |
+| 10.5 | The dashboard: a session whose run waits on the user in it counts under Needs you (09's 10.8), and its row says what it waits for: the step title in the attention tone, described "<workflow>: <step>" | `components/dashboard/FleetDashboard.vue` 103-116, `DashboardSessionRow.vue` 36-44; `lib/needs-you.ts` | Done (I): `State::dashboard_machine_key`, `waiting_run_step`; the section rule reads `waiting_session_ids` and the row's word is the step title in the attention tone |
 | 10.6 | The conversation: a user message Fleet sent into a step session carries the workflow mark (Workflow icon + "Workflow · step 2 of 6", "… · you finish this step", or "Fleet · you pressed Move on"), found by the session's prompt id, Fleet's footer ("This is one step of a Fleet workflow."), or the wrap-up id (03's 1.54, 2.17; testid `workflow-step-prompt`) | `composables/use-activity-messages.ts` 193-285; `ActivityStream.vue` 702-718; LW `workflowMessageLabel` | Done (F): `message::marks` draws it first among the marks above a user bubble (03's 2.19 order: workflow, mod, steered), key `workflow-step-prompt`, Workflow icon, no title; the label is `State::workflow_mark` (A's `workflow_message_label`) for the open session's messages only, looked up only while a run holds the session |
 | 10.7 | The Fix a bug starter opens `/workflows` with `workflow=builtin:fix-a-bug` and the page's folder (07's A15.4) | `NewSessionComposer.vue` | Done (B): `keep_workflows` takes the request, enters Workflows, picks the folder and opens the workflow. The starter's "not in the native app yet" toast is gone |
 | 10.8 | The row menu's **Save as workflow…** (06's 3.98) | SI 248-255, 562-565, 1014-1021 | None (S) |
-| 10.9 | A session moved to a project takes its run's other steps along | `stores/sessions.ts` 79-84 | Done (`src/fleet/store.rs`) |
+| 10.9 | A session moved to a project takes its run's other steps along | `stores/sessions.ts` 79-84 | Done (`src/fleet/store.rs`); wired by I: `move_to_project` (a drag or the menu) calls `patch_project`, it only moved the dragged row before |
 
 ### 11. The runs store, events and routes
 
@@ -613,6 +613,17 @@ mark after Move on, beside Fleet's own client, both themes. **Left open, with re
 
 #### I. Runs in Sessions and on the dashboard
 
+- **Done 21 November 2026.** Rows 10.1-10.5 and the wiring of 10.9. Tests: `src/tests_workflow_runs_listed.rs`: `WorkflowRunGroup` (2) and
+  `WorkflowStartedBy` "shows on the run's group in Sessions…" and "isn't shown on a run started from the Run box" under their names,
+  and native: steps group in the order they ran under the newest one's place, a run the store doesn't know groups by `workflowRunId`
+  under the title before " · ", another machine's steps don't group, the head opens the session the run waits in (else the newest
+  step), dragging a step row moves the run, the dashboard's Needs you row says the step, and a run that waits in another session
+  leaves a row as it was. Checked live on a scratch Fleet v0.74.0 (Fix a bug with Check with me: With you on the head and on its step;
+  Build a feature: Needs you, and the dashboard's "Plan" word), beside Fleet's own client, both themes. **Left open, with reasons:**
+  Started by has no live picture (a live automation needs component 19; its scene is `sessions-workflow-run`); Fleet's head title
+  fits "The pager skips the last page" where the native one cuts it ("pa…"), the text being about 4 % wider here (the same in every
+  native row); the dashboard's other-machine page reads that machine's runs only once the Workflows page or a step session asked
+  (piece A's gap about other machines' events stands).
 - **Rows:** 10.1-10.5 (10.3's link opens the waiting toast until component 19).
 - **Files:** new `src/view/workflows/run_group.rs`; `src/view/sessions.rs` (entries of sessions and runs on a project's
   roots); `src/view/session_row.rs` (label and step note filled); `src/fleet/dashboard.rs` and `src/view/dashboard.rs`

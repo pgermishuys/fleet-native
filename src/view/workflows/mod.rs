@@ -14,6 +14,7 @@ pub mod project_picker;
 pub mod roles;
 pub mod run_box;
 pub mod run_card;
+pub mod run_group;
 pub mod stepper;
 
 pub const DESCRIPTION: &str =

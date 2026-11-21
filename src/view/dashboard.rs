@@ -39,8 +39,9 @@ fn placed(s: &State) -> [Vec<Placed<'_>>; 3] {
             .collect()
     };
     let shown = dashboard::shown(all.iter().map(|x| x.session), s.store.retention, &|id| s.archive.hides(id));
-    // `workflowWaiting` is the workflows' store (component 23): no run waits until it exists.
-    let sections = dashboard::sections(&shown, &|_| false);
+    // `workflowWaiting`: the sessions whose run waits on the user in them, on the machine the page shows.
+    let waiting = s.workflow_runs(&s.dashboard_machine_key()).waiting_session_ids();
+    let sections = dashboard::sections(&shown, &|id| waiting.contains(id));
     sections.map(|list| list.iter().filter_map(|x| all.iter().find(|a| std::ptr::eq(a.session, *x)).copied()).collect())
 }
 

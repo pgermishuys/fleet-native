@@ -86,6 +86,10 @@ fn word(t: &Theme, id: &str, status: &RowStatus, dim: Dim) -> Option<El> {
 /// another component) or how the session came from its parent (`kindLabel`); and what lineage adds at its left.
 #[derive(Clone, Copy, Default)]
 pub struct Slots<'a> {
+    /// A workflow step's name, which the row shows in place of the session's title (`label`).
+    pub label: Option<&'a str>,
+    /// A step row of a workflow run's group: no caret place, and the glyph 10 px in (`.wf-group__step`'s `SessionItem`).
+    pub step: bool,
     pub step_note: Option<&'a str>,
     pub kind_label: Option<&'a str>,
     /// `Some(open)` on a top-level row with something under it: its caret, and Right and Left fold it.
@@ -166,10 +170,10 @@ pub fn session_row_with(s: &State, t: &Theme, clock: &RowClock, p: usize, i: usi
     if s.row_renaming(p, i) {
         return el().w_full().py(1.0).child(editing(s, t, format!("session-{key}"), glyph));
     }
-    let title = row_status::display_title(None, &session.title);
+    let title = row_status::display_title(slots.label, &session.title);
     let caret_open = slots.caret;
     // The place a row with children puts its caret in: 14x14, tucked 4px toward the glyph (`.session-caret-slot`). A child has none.
-    let slot = slots.child.is_none().then(|| match slots.caret {
+    let slot = (slots.child.is_none() && !slots.step).then(|| match slots.caret {
         Some(open) => caret(t, &key, &session.id, open),
         None => el().key(format!("session-caret-{key}")).size(14.0, 14.0).mr(-4.0),
     });
@@ -179,7 +183,7 @@ pub fn session_row_with(s: &State, t: &Theme, clock: &RowClock, p: usize, i: usi
         .min_h(if slots.child.is_some() { 28.0 } else { 32.0 })
         .center_y()
         .gap(9.0)
-        .pl(slots.child.unwrap_or(6.0))
+        .pl(slots.child.unwrap_or(if slots.step { 10.0 } else { 6.0 }))
         .pr(10.0)
         .radius(RADIUS_BTN)
         .fill(if picked {
