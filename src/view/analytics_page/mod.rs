@@ -13,6 +13,7 @@ pub mod cost_bars;
 pub mod daily;
 pub mod filters;
 pub mod menu;
+pub mod models;
 pub mod overview;
 pub mod projects;
 
@@ -50,6 +51,7 @@ fn body(s: &State, t: &Theme, section: Section) -> rune::El {
         Section::Overview => overview::overview(s, t),
         Section::Daily => daily::daily(s, t),
         Section::Projects => projects::projects(s, t),
+        Section::Models => models::models(s, t),
         _ => col().key(format!("analytics-body-{}", section.id())).w_full(),
     }
 }

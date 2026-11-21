@@ -222,10 +222,10 @@ Each row: what Fleet does, its source, and the native state (with the piece that
 
 | # | Row | Source | Native |
 |---|---|---|---|
-| 11.1 | Sorted by cost, then estimated cost, then tokens (all descending), then model id | MT | None (I) |
-| 11.2 | "Cost by model": a panel (as 7.1) with the cost bars; detail "<provider> · <formatCount> messages · Est. <estimated>" | MT | None (I) |
-| 11.3 | "Model details": a panel with no side padding, its title padded 16; a table (at least 720 wide, scrolls sideways): Model, Provider, Tokens, Cost, Estimated cost, Messages, Avg cost/msg; the head 12 px 500 muted, padding 8/16, a rule under it; cells 13 px, line-height 1.5, padding 10/16; model and provider 500 `--text`, wrapping anywhere; numbers right, tabular; rows ruled between; hover 3% text tint | MT | None (I) |
-| 11.4 | States: loading **first** ("Loading model analytics…" in a dashed box, min-height 280, 13 px `--text`), so a filter change blanks the section while it refetches; then no models and an error → ErrorNote "Unable to load model analytics."; then no models → EmptyState bordered, min-height 245, "No model analytics matched the selected date range." (or "… date range and project.") | MT, AC | The words done (A): `mod.rs` `models_empty`. The rest: None (I) |
+| 11.1 | Sorted by cost, then estimated cost, then tokens (all descending), then model id | MT | **Done (I, 21 November 2026)** `fleet/analytics/tables.rs` `sorted_models` |
+| 11.2 | "Cost by model": a panel (as 7.1) with the cost bars; detail "<provider> · <formatCount> messages · Est. <estimated>" | MT | **Done (I, 21 November 2026)** `models.rs`, `tables::model_bars`; the bars are F's `cost_bars::bars` |
+| 11.3 | "Model details": a panel with no side padding, its title padded 16; a table (at least 720 wide, scrolls sideways): Model, Provider, Tokens, Cost, Estimated cost, Messages, Avg cost/msg; the head 12 px 500 muted, padding 8/16, a rule under it; cells 13 px, line-height 1.5, padding 10/16; model and provider 500 `--text`, wrapping anywhere; numbers right, tabular; rows ruled between; hover 3% text tint | MT | **Done (I, 21 November 2026)** `models.rs` `table`: seven columns side by side in a `scroll_x` box 720 wide at least, the head ruled, rows ruled and tinted 3 % on hover. Gaps: the columns share the spare width equally (Fleet's table gives it by content width) and a model or provider cell never wraps |
+| 11.4 | States: loading **first** ("Loading model analytics…" in a dashed box, min-height 280, 13 px `--text`), so a filter change blanks the section while it refetches; then no models and an error → ErrorNote "Unable to load model analytics."; then no models → EmptyState bordered, min-height 245, "No model analytics matched the selected date range." (or "… date range and project.") | MT, AC | The words done (A): `mod.rs` `models_empty`. The rest: **Done (I, 21 November 2026)** `models.rs` `models` (loading first, the failure with no rows, then the empty words) |
 | 11.5 | A project filter doesn't change Models (the server ignores it, 5.1) | AE | Server's |
 
 ### 12. Sessions
@@ -507,6 +507,11 @@ en-US, both themes. `scripts/scratch-fleet.sh` switches analytics off; a piece r
 - **Tests:** native: the four-key sort; loading shown first even with rows (a refresh blanks it, as Fleet); the error
   only with no rows.
 - **Pictures:** Models beside `fleet-models` and `fleet-models-scrolled`, both themes.
+
+**Done (21 November 2026).** Pictures: `shots/parity/20-analytics/I-models/` (`analytics-models{,-scrolled,-loading,-error,-empty}{,-light}.png` the app's scenes, `analytics-models-narrow.png` the table clipped and scrolling at 900 wide, `fleet-models{,-scrolled,-loading,-error,-empty}-{dark,light}.png` Fleet's own client from a scratch Fleet with the analytics answers served by request routing, the clock at the scene's day, 1280x760, UTC). Tests: `tests_analytics_tables.rs` (the chart and table, loading shown first even with rows, the error only with no rows, the empty words) and `fleet::analytics::tables`' own (the four-key sort, the lines and the bars' detail). Left open, with reasons:
+- 11.3: equal column widths, and no wrapping of a model or provider cell (see the row); the table's rows are 40 px, Fleet's 40.4.
+- The error picture's menu counts differ: Fleet's client keeps the summary's counts when only the models read fails, the scene fails every read.
+- The sideways scroll is shown clipped at 900 px; it wasn't driven by a wheel or a drag.
 
 #### J. Sessions
 
