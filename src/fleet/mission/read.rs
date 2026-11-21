@@ -5,8 +5,8 @@
 use super::{Ask, NowKind, SessionNow};
 use crate::asks::permission::to_permission_ask;
 use crate::asks::question::{QuestionPart, QuestionStatus};
+use crate::conv::export_history::convert_fleet_message;
 use crate::fleet::groups::Listed;
-use crate::fleet::history::{Page, prepend_page};
 use crate::fleet::http;
 use crate::fleet::machine::Machine;
 use crate::fleet::machine_routes;
@@ -108,7 +108,10 @@ fn read_ask(reach: &Reach, session: &str) -> Option<Ask> {
 /// `findPendingQuestion`: the newest question tool call that still waits, from a page of messages as the server writes it.
 /// A call answered anywhere counts as answered, because a snapshot and a live update can carry one call as two parts.
 pub fn find_pending_question(page: &Value) -> Option<Ask> {
-    let messages = prepend_page(Vec::new(), &Page::from_wire(page).messages);
+    // The messages route writes Fleet's own flat shape (`FleetMessage`), not the hub's: `findPendingQuestion` converts it with
+    // `convertFleetMessageToAccumulated`.
+    let wire = page.get("messages").and_then(Value::as_array).map_or(&[][..], Vec::as_slice);
+    let messages: Vec<_> = wire.iter().filter_map(|m| convert_fleet_message(m, "")).collect();
     let calls = |part: &PartData| match part {
         PartData::Tool { id, tool, call_id, state } => {
             // History written by older servers has no call id; the part's id stands in for it.

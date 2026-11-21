@@ -18,23 +18,24 @@ use std::collections::HashMap;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
-const TOKEN: &str = "mini-token-0123456789abcdef";
+pub(crate) const TOKEN: &str = "mini-token-0123456789abcdef";
 
 #[derive(Clone, Debug)]
-struct Heard {
-    method: String,
-    path: String,
-    auth: Option<String>,
+pub(crate) struct Heard {
+    pub(crate) method: String,
+    pub(crate) path: String,
+    pub(crate) auth: Option<String>,
+    pub(crate) body: String,
 }
 
 /// A fake machine: what it was asked, with the `Authorization` it carried, and the answer of each route (404 for the rest).
-struct Node {
-    base: String,
-    heard: Arc<Mutex<Vec<Heard>>>,
+pub(crate) struct Node {
+    pub(crate) base: String,
+    pub(crate) heard: Arc<Mutex<Vec<Heard>>>,
     routes: Arc<Mutex<HashMap<String, (u16, String)>>>,
 }
 
-fn node(sessions: Value) -> Node {
+pub(crate) fn node(sessions: Value) -> Node {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("a port");
     let base = format!("http://{}", listener.local_addr().expect("an address"));
     let heard: Arc<Mutex<Vec<Heard>>> = Arc::default();
@@ -47,7 +48,12 @@ fn node(sessions: Value) -> Node {
             let (log, table) = (log.clone(), table.clone());
             std::thread::spawn(move || {
                 let req = crate::test_http::read(&mut stream);
-                log.lock().unwrap().push(Heard { method: req.method.clone(), path: req.path.clone(), auth: req.header("authorization") });
+                log.lock().unwrap().push(Heard {
+                    method: req.method.clone(),
+                    path: req.path.clone(),
+                    auth: req.header("authorization"),
+                    body: req.body_text(),
+                });
                 let (status, body) = table.lock().unwrap().get(req.route()).cloned().unwrap_or((404, "{}".into()));
                 crate::test_http::respond_json(&mut stream, format!("{status} X"), &body);
             });
@@ -57,28 +63,28 @@ fn node(sessions: Value) -> Node {
 }
 
 impl Node {
-    fn route(&self, path: &str, status: u16, body: Value) {
+    pub(crate) fn route(&self, path: &str, status: u16, body: Value) {
         self.routes.lock().unwrap().insert(path.to_string(), (status, body.to_string()));
     }
 
     /// How many requests of `method` for a path starting with `prefix` were heard.
-    fn count(&self, method: &str, prefix: &str) -> usize {
+    pub(crate) fn count(&self, method: &str, prefix: &str) -> usize {
         self.heard.lock().unwrap().iter().filter(|h| h.method == method && h.path.starts_with(prefix)).count()
     }
 
-    fn counter(&self, method: &'static str, prefix: &'static str) -> impl Fn() -> usize + use<> {
+    pub(crate) fn counter(&self, method: &'static str, prefix: &'static str) -> impl Fn() -> usize + use<> {
         let heard = self.heard.clone();
         move || heard.lock().unwrap().iter().filter(|h| h.method == method && h.path.starts_with(prefix)).count()
     }
 
-    fn everything(&self) -> Vec<Heard> {
+    pub(crate) fn everything(&self) -> Vec<Heard> {
         self.heard.lock().unwrap().iter().filter(|h| h.path.starts_with("/api/sessions")).cloned().collect()
     }
 }
 
-const LIST: &str = "/api/sessions?limit=100&offset=0";
+pub(crate) const LIST: &str = "/api/sessions?limit=100&offset=0";
 
-fn row(id: &str, status: &str) -> Value {
+pub(crate) fn row(id: &str, status: &str) -> Value {
     json!({
         "session": {"id": id, "title": id, "time": {"created": 1_000, "updated": 2_000}},
         "sessionStatus": status, "activityStatus": "busy", "retentionStatus": "active", "isHidden": false,
@@ -86,15 +92,15 @@ fn row(id: &str, status: &str) -> Value {
     })
 }
 
-struct Rig {
-    rt: Runtime<State>,
-    queue: Receiver<Job>,
-    home: Node,
-    mini: Node,
+pub(crate) struct Rig {
+    pub(crate) rt: Runtime<State>,
+    pub(crate) queue: Receiver<Job>,
+    pub(crate) home: Node,
+    pub(crate) mini: Node,
 }
 
 /// The app connected to a fake home, with a second machine listed at another fake, on the Fleet view with Mission control on.
-fn rig() -> Rig {
+pub(crate) fn rig() -> Rig {
     let (home, mini) = (node(json!([row("h1", "active")])), node(json!([row("m1", "active"), row("m2", "waiting_input")])));
     let (jobs, queue) = channel::<Job>();
     let jobs = Mutex::new(jobs);
@@ -118,7 +124,7 @@ fn listing(base: &str, name: &str, token: &str) -> crate::fleet::machines::Liste
 
 impl Rig {
     /// Applies what the threads hand back and draws frames, without moving the clock, until `done` holds.
-    fn wait(&mut self, what: &str, mut done: impl FnMut(&State) -> bool) {
+    pub(crate) fn wait(&mut self, what: &str, mut done: impl FnMut(&State) -> bool) {
         let queue = &self.queue;
         test_wait::until(
             &mut self.rt,
@@ -138,7 +144,7 @@ impl Rig {
     }
 
     /// Shows the Fleet view and waits for both feeds' first reads.
-    fn open(&mut self) {
+    pub(crate) fn open(&mut self) {
         self.rt.update(|s, _| s.rail = Rail::Fleet);
         self.rt.frame(FRAME);
         let (home, mini) = (self.home.counter("GET", LIST), self.mini.counter("GET", LIST));
@@ -147,7 +153,7 @@ impl Rig {
     }
 
     /// Moves the clock on, so a timer falls due.
-    fn later(&mut self, secs: f64) {
+    pub(crate) fn later(&mut self, secs: f64) {
         self.rt.frame(secs);
     }
 
@@ -188,9 +194,10 @@ fn finds_a_question_in_the_last_messages_when_there_is_no_permission() {
     r.mini.route(
         "/api/sessions/m2/messages",
         200,
-        json!({"messages": [{"info": {"id": "x1", "sessionID": "m2", "role": "assistant"}, "parts": [
-            {"id": "p1", "type": "tool", "tool": "question", "callID": "call-q",
-             "state": {"status": "running", "input": {"questions": [{"header": "Retries", "question": "Three or five?", "options": [{"label": "Three", "description": ""}]}]}}}]}]}),
+        // Fleet's own message shape, as v0.74 writes it: a tool part has a numeric state and its `arguments` on the part.
+        json!({"messages": [{"id": "x1", "role": "assistant", "timestamp": "2026-11-21T16:39:01.184+00:00", "textContent": "", "parts": [
+            {"type": "tool", "toolCallId": "call-q", "toolName": "question", "state": 1,
+             "arguments": {"questions": [{"header": "Retries", "question": "Three or five?", "options": [{"label": "Three", "description": ""}]}]}}]}]}),
     );
     r.open();
     assert!(

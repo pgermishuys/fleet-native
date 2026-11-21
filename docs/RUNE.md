@@ -2692,3 +2692,10 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **An absolute child at a negative left** (`el().absolute(-24.0, 14.0)`) draws outside its parent and keeps the parent's size, which is how the conversation's dots (`::before` at `left: -24px`) sit on the rule beside it.
 - **`rich(text, spans)` is the by-line**: "{author} wants to merge" with the author in 500 is one wrapping text with a span; the branch chips beside it are rows with their own padding, so the sentence is a wrapping row of the text and two chips.
 - **A scroll column's `grow` child** (the body row under the header) takes the rest of the column when the content is short, so the rail's wash reaches the page's bottom as `flex: 1` does.
+
+## Component 23, piece D (the fleet-menu and Needs you)
+
+- **One border colour per element, and `border_sides` replaces `border`.** Fleet's card (`border` on three sides and a 4 px `border-l-4 border-l-accent`) is a row with `border_sides([1, 1, 1, 0], border)`, `clip_rounded`, and a 4 px accent element as its first child. The order of `border_sides` is CSS's: top, right, bottom, left.
+- **`text(..).truncate()` is `text-overflow: ellipsis`** (there is no `.ellipsis()`); give the text `.grow(1.0).shrink().min_w(0.0)` so the count beside it keeps its place.
+- A test can tell a Fleet menu item's open state only by its `fill` (`ElementInfo.fill.a`): Rune has no `aria-current`.
+- **A test binary of this crate needs about 5 GB to link** (`MemoryMax=7000M`, `-j2`); 4000M is OOM-killed with exit 143 and no message when other sessions are using the machine.
