@@ -131,6 +131,12 @@ pub struct Analytics {
     /// The two date fields' text (`fields.rs`).
     pub fields: super::fields::Fields,
     pub sort: (SortBy, SortDir),
+    /// The date fields' calendar, while one is open (`calendar.rs`).
+    pub calendar: Option<super::calendar::Calendar>,
+    /// An export is being read or its save dialog is up (`export.rs`).
+    pub exporting: bool,
+    /// Counts the exports asked for, for a test.
+    pub exports_asked: u32,
     pub summary: Read<Option<Summary>>,
     pub range: Read<Option<Summary>>,
     pub daily: Read<Vec<Daily>>,
@@ -156,6 +162,9 @@ impl Default for Analytics {
             filters: Filters::default(),
             fields: Default::default(),
             sort: (SortBy::CreatedAt, SortDir::Desc),
+            calendar: None,
+            exporting: false,
+            exports_asked: 0,
             summary: Read::new(0),
             range: Read::new(0),
             daily: Read::new(0),
@@ -242,6 +251,7 @@ impl Analytics {
         self.all = Pending { id: self.all.id + 1, left: 0 };
         self.only_sessions = Pending { id: self.only_sessions.id + 1, left: 0 };
         self.mounted = None;
+        self.calendar = None;
         self.wants = Wants::default();
         self.due = None;
     }
@@ -375,18 +385,23 @@ impl State {
         changed
     }
 
+    /// Where the machine `key`'s reads go: none with no server (the invented answers), or for a machine that isn't known.
+    pub(crate) fn analytics_target(&self, key: &str) -> Option<Target> {
+        if key == HOME_MACHINE_KEY {
+            return self.link.as_ref().map(|link| Target::Here(link.base.clone()));
+        }
+        match self.machines.machine(key).cloned() {
+            Some(machine) if self.link.is_some() => Some(Target::There(Box::new(machine))),
+            _ => None,
+        }
+    }
+
     /// Sends `kinds` to the machine `key`, each on its own thread so a slow one doesn't hold the others back.
     fn analytics_ask(&mut self, key: &str, kinds: &[Kind], batch: Batch) {
-        let target = if key == HOME_MACHINE_KEY {
-            match &self.link {
-                Some(link) => Target::Here(link.base.clone()),
-                None => return self.analytics_mock(kinds, batch),
-            }
-        } else {
-            match self.machines.machine(key).cloned() {
-                Some(machine) if self.link.is_some() => Target::There(Box::new(machine)),
-                _ => return,
-            }
+        let Some(target) = self.analytics_target(key) else {
+            return if key == HOME_MACHINE_KEY && self.link.is_none() {
+                self.analytics_mock(kinds, batch)
+            };
         };
         let Some(post) = self.link.as_ref().map(|l| l.post()) else { return };
         let target = std::sync::Arc::new(target);

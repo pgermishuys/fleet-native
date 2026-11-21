@@ -2544,3 +2544,10 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **A field that is also state elsewhere**: the composer's text lives in `ComposerState::text` (H's rules read it) and the box needs a
   `TextEdit`. Keep both and copy in `on_input_change`; anything that sets the text from outside (a scene, a test, a read) goes
   through one helper that sets both (`replace_text` keeps the focus).
+
+## Component 20, piece E (the calendar and Export CSV)
+
+- A popover with a scrim: `.modal(true, close)` on the panel makes Escape close it, and a keyed full-window scrim under it closes on a press outside; `ui::calendar::popover` does both and anchors under a glyph with `anchored`. A test closes it by pressing the scrim's key.
+- A save dialog answers after the thread's fetch: `tx.save_file` is called from the job the thread posts, and the test drives it with `rt.file_dialog()` then `rt.resolve_file_dialog(Some(path))`; wait for the dialog (jobs applied and a frame between looks) before asking for it.
+- The whole test binary needs more than 5 GB of memory to compile on this machine now (5.3 GB peak, once past 4000M's cap at 5500M): a cap of 7500M with `CARGO_BUILD_JOBS=1` built it.
+

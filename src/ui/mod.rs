@@ -4,6 +4,7 @@
 //! `Ui::open`, anchored to the key of the element that opened them.
 pub mod age;
 pub mod button;
+pub mod calendar;
 pub mod chip;
 pub mod code_box;
 pub mod commands;
@@ -193,6 +194,7 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
         Some(Open::Popover("usage")) => crate::view::usage_popover::overlay(s, t),
         Some(Open::Popover("running")) => crate::view::running_counter::overlay(s, t),
         Some(Open::Popover("pr")) => crate::view::pr_popover::overlay(s, t),
+        Some(Open::Popover(crate::fleet::analytics::calendar::POPOVER)) => crate::view::analytics_page::filters::calendar_overlay(s, t),
         Some(Open::Popover("analytics")) => crate::view::analytics::overlay(s, t),
         Some(Open::Popover("workflow-models")) => crate::view::workflows::roles::popover(s, t),
         Some(Open::Popover("workflow-project")) => crate::view::workflows::project_picker::overlay(s, t),
