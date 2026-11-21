@@ -21,7 +21,7 @@ fn row_key(i: usize) -> String {
 pub fn chip(s: &State, t: &Theme) -> El {
     let base = s.effective_base();
     let no_fetch = base.as_deref().is_some_and(|b| b.starts_with("origin/")) && !s.fetch_origin();
-    let disabled = if s.run_box_active() { s.workflows_nav.run_box.starting } else { s.new_draft.draft().is_some_and(|d| d.is_starting) };
+    let disabled = s.picker_busy();
     let mut chip = Chip::new(BASE_CHIP, base.clone().unwrap_or_else(|| "the default branch".into()))
         .glyph(&GIT_BRANCH)
         .head("from ")
@@ -196,12 +196,14 @@ fn branch_field(s: &State, t: &Theme) -> El {
 /// The menu: 6px above the chip, its left edge on the chip's (B3.5).
 pub fn overlay(s: &State, t: &Theme) -> Vec<El> {
     let mut body = vec![search(s, t), pop_label(t, "Start from"), list(s, t)];
-    // A run leaves out Fetch origin first and the branch's name: it fetches, and the server names each run's branch.
-    if !s.run_box_active() {
+    // A run and an automation leave out Fetch origin first and the branch's name: they fetch, and the server names each
+    // run's branch (`hide-fetch`, `hide-branch-name`).
+    if s.picker_host() == crate::fleet::new_session::host::Host::NewSession {
         body.extend([pop_separator(t), fetch(s, t), pop_separator(t), branch_field(s, t)]);
     }
-    let panel =
-        pop(t, "new-session-base-pop", WIDTH, body).focus_return(BASE_CHIP.to_string()).modal(true, |s: &mut State| s.close_picker_menu());
+    let panel = pop(t, "new-session-base-pop", WIDTH, body)
+        .focus_return(s.picker_focus_return(BASE_CHIP))
+        .modal(true, |s: &mut State| s.close_picker_menu());
     vec![
         crate::ui::overlay::scrim("new-session-base-scrim", |s: &mut State| s.close_picker_menu()),
         crate::ui::overlay::anchored(panel, BASE_CHIP, Side::Top, Align::Start, 6.0),

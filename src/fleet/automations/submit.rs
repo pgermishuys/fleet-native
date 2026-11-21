@@ -52,8 +52,8 @@ impl State {
         self.automations_nav.mode == ViewMode::Edit
     }
 
-    /// Enter in the box, or Send (`submit`): nothing unless it can be sent; with no folder chosen nothing is sent (piece K
-    /// opens the folder menu there); else create or save.
+    /// Enter in the box, or Send (`submit`): nothing unless it can be sent; with no folder chosen the folder menu opens
+    /// instead (row 7.7); else create or save.
     pub fn automation_submit(&mut self, tx: &mut Tx) {
         let editing = self.composer_editing();
         let busy = self.automations_nav.submitting;
@@ -62,6 +62,7 @@ impl State {
         };
         // Like a new session: where it runs is a choice, not a silent default.
         if self.automations_nav.composer(editing).folder.is_none() {
+            self.open_folder_menu(tx);
             return;
         }
         if editing { self.automation_save(request, tx) } else { self.automation_create_now(request, tx) }
@@ -214,6 +215,13 @@ impl State {
             let initial = self.sidebar.new_session_defaults(&machine).initial_folder(&paths);
             // This app talks to a machine's own Fleet, never a cloud one, so a plain folder is a fine start.
             self.automations_nav.draft.apply_initial_folder(false, true, initial, false);
+            changed = true;
+        }
+        // The base chip's branches, default base and current branch are the chosen repository's (`useRepositoryDetail`).
+        if let Some(path) = self.repository_path()
+            && self.feeds.detail.path.as_deref() != Some(path.as_str())
+        {
+            self.read_detail(&machine, Some(&path));
             changed = true;
         }
         changed

@@ -15,6 +15,7 @@ pub mod composer;
 pub mod detail;
 pub mod list;
 pub mod runs;
+pub mod strip;
 pub mod when;
 
 /// The whole context: the list, its gutter and the detail; with the panel collapsed, the detail alone.

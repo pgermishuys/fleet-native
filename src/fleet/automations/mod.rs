@@ -7,6 +7,7 @@ pub mod nav;
 pub mod runs;
 pub mod schedule;
 pub mod store;
+pub mod strip;
 pub mod submit;
 pub mod when;
 pub mod words;

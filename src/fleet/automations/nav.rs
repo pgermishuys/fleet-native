@@ -54,6 +54,8 @@ pub struct Nav {
     /// kept equal through [`Nav::set_text`] and the box's change handler.
     pub draft_box: rune::TextEdit,
     pub edit_box: rune::TextEdit,
+    /// The "…" menu's Name field; its text is the composer's `name`, filled when the menu opens.
+    pub name_box: rune::TextEdit,
     /// A create or save is waiting for the server (`isSubmitting`): the box is read-only and Send spins.
     pub submitting: bool,
     /// Why the server refused the last create or save, over the composer (`formError`).

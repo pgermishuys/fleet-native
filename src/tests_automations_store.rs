@@ -93,6 +93,15 @@ pub(crate) fn fake(initial: Vec<Value>) -> Fake {
                     let all = repos_gate.lock().unwrap().clone();
                     return crate::test_http::respond_json(&mut stream, "200 X", &json!({"repositories": all, "scannedAt": 1}).to_string());
                 }
+                // A repository's branches (the composer's base chip): every repository is on main with one other branch.
+                if req.route() == "/api/repositories/detail" {
+                    let repository = json!({"name": "kettle", "path": "", "branch": "main", "defaultBase": "origin/main",
+                        "defaultBranch": "main", "remotes": [], "branches": [
+                            {"name": "origin/main", "shortHash": "a1b2c3d", "message": "Steady the spout", "isRemote": true},
+                            {"name": "main", "shortHash": "a1b2c3d", "message": "Steady the spout", "isCurrent": true},
+                            {"name": "release/2.0", "shortHash": "e4f5a6b", "message": "Cut 2.0"}]});
+                    return crate::test_http::respond_json(&mut stream, "200 X", &json!({"repository": repository}).to_string());
+                }
                 if req.route() == "/api/memory/dreaming/nightly" {
                     log.lock().unwrap().push((req.method.clone(), req.path.clone(), req.json()));
                     return match time_gate.lock().unwrap().take() {

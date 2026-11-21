@@ -3,6 +3,7 @@
 //! nothing here draws. The branches and worktrees are the page's reads (`feed_calls.rs`); this decides what the chips say
 //! from them, and reads them again when the folder changes.
 use super::feeds::{Branch, Detail, Worktree};
+use super::host::Host;
 use super::naming::{Context, Name, resolve_worktree_name};
 use super::plan::{PlanInput, PlanPart, base_name, describe_new_session, tilde_path};
 use super::request::{Folder, Workspace, resolve_new_worktree_branch};
@@ -81,10 +82,12 @@ fn today() -> String {
 impl State {
     /// The repository the draft is in, when the folder is one.
     pub fn repository_path(&self) -> Option<String> {
-        if self.run_box_active() {
-            return self.workflows_nav.repository_path().map(str::to_string);
-        }
-        match self.new_draft.draft()?.folder.as_ref()? {
+        let folder = match self.picker_host() {
+            Host::RunBox => return self.workflows_nav.repository_path().map(str::to_string),
+            Host::Automation => self.automation_folder()?,
+            Host::NewSession => self.new_draft.draft()?.folder.as_ref()?,
+        };
+        match folder {
             Folder::Repository(p) => Some(p.clone()),
             _ => None,
         }
@@ -92,10 +95,10 @@ impl State {
 
     /// The base picked: the Run box's while that is on screen, else the draft's.
     fn chosen_base(&self) -> Option<String> {
-        let chosen = if self.run_box_active() {
-            self.workflows_nav.run_box.base_branch.clone()
-        } else {
-            self.new_draft.draft().and_then(|d| d.base_branch.clone())
+        let chosen = match self.picker_host() {
+            Host::RunBox => self.workflows_nav.run_box.base_branch.clone(),
+            Host::Automation => self.automation_base(),
+            Host::NewSession => self.new_draft.draft().and_then(|d| d.base_branch.clone()),
         };
         chosen.filter(|b| !b.is_empty())
     }
@@ -147,8 +150,8 @@ impl State {
     }
 
     pub fn fetch_origin(&self) -> bool {
-        // A run always fetches (the Run box leaves the switch out).
-        if self.run_box_active() {
+        // A run always fetches (the Run box and the automation composer leave the switch out).
+        if self.picker_host() != Host::NewSession {
             return true;
         }
         self.new_draft.draft().is_none_or(|d| d.fetch_origin)
@@ -161,6 +164,10 @@ impl State {
 
     /// The worktrees listed for the chosen repository, the last used first.
     pub fn workspace_worktrees(&self) -> Vec<Worktree> {
+        // An automation runs in its folder as it is or in a new worktree each run, never one that exists (`:worktrees="[]"`).
+        if self.picker_host() == Host::Automation {
+            return Vec::new();
+        }
         let Some(path) = self.repository_path() else { return Vec::new() };
         let slot = &self.feeds.worktrees;
         if slot.path.as_deref() != Some(path.as_str()) {
@@ -173,7 +180,7 @@ impl State {
 
     /// Worktrees are still on their way and none are known yet.
     pub fn worktrees_loading(&self) -> bool {
-        self.feeds.worktrees.loading
+        self.picker_host() != Host::Automation && self.feeds.worktrees.loading
     }
 
     pub fn workspace_menu_open(&self) -> bool {
@@ -186,6 +193,11 @@ impl State {
 
     /// `update:workspace`: the draft's workspace; the menu closes (B4.11).
     pub fn choose_workspace(&mut self, workspace: Workspace) {
+        if self.picker_host() == Host::Automation {
+            self.automation_set_workspace(workspace);
+            self.close_picker_menu();
+            return;
+        }
         if let Some(d) = self.new_draft.draft_mut() {
             d.workspace = workspace;
         }
@@ -244,14 +256,15 @@ impl State {
 
     /// `choose`: the default is "no choice", so the server's default rules apply to it (B3.14).
     pub fn choose_base(&mut self, name: &str) {
-        if self.run_box_active() {
-            self.run_box_choose_base(name);
-            self.close_picker_menu();
-            return;
-        }
-        let default = self.default_base();
-        if let Some(d) = self.new_draft.draft_mut() {
-            d.base_branch = if default.as_deref() == Some(name) { None } else { Some(name.to_string()) };
+        match self.picker_host() {
+            Host::RunBox => self.run_box_choose_base(name),
+            Host::Automation => self.automation_choose_base(name),
+            Host::NewSession => {
+                let default = self.default_base();
+                if let Some(d) = self.new_draft.draft_mut() {
+                    d.base_branch = if default.as_deref() == Some(name) { None } else { Some(name.to_string()) };
+                }
+            }
         }
         self.close_picker_menu();
     }

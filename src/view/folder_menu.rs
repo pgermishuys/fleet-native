@@ -3,6 +3,7 @@
 //! `fleet::new_session::folder_menu`.
 use crate::fleet::new_session::folder::{self, FolderOption, Group, Mark};
 use crate::fleet::new_session::folder_menu::{CHIP, Make, SEARCH_KEY, View, row_key};
+use crate::fleet::new_session::host::Host;
 use crate::fleet::new_session::plan::tilde_path;
 use crate::fleet::new_session::request::Folder;
 use crate::icons::*;
@@ -20,9 +21,11 @@ const LIST_MAX_H: f32 = 340.0;
 /// The folder chip (`FolderPicker.vue`'s trigger, B2.1-B2.17): a mark for the kind of folder (a spinner while a clone for it runs),
 /// its name, a `new` tag for a folder made from this menu, a chevron; the accent-tinted border while nothing is chosen.
 pub fn trigger(s: &State, t: &Theme) -> El {
-    let run_box = s.run_box_active();
-    let run_folder = s.workflows_nav.folder().cloned();
-    let chosen = if run_box { run_folder.as_ref() } else { s.new_draft.draft().and_then(|d| d.folder.as_ref()) };
+    let chosen = match s.picker_host() {
+        Host::NewSession => s.new_draft.draft().and_then(|d| d.folder.as_ref()),
+        Host::RunBox => s.workflows_nav.folder(),
+        Host::Automation => s.automation_folder(),
+    };
     let cloning = s.folder_menu.make == Make::Cloning && s.folder_menu.clone_name.is_some() && !s.folder_menu.clone_superseded;
     let glyph = match chosen {
         Some(Folder::None) => &MESSAGE_SQUARE,
@@ -33,7 +36,7 @@ pub fn trigger(s: &State, t: &Theme) -> El {
         Some(Folder::Repository(p) | Folder::Directory(p)) => Some(p.clone()),
         _ => None,
     };
-    let disabled = if run_box { s.workflows_nav.run_box.starting } else { s.new_draft.draft().is_some_and(|d| d.is_starting) };
+    let disabled = s.picker_busy();
     Chip::new(CHIP, s.folder_chip_label(chosen))
         .glyph(glyph)
         .busy(cloning)
@@ -258,8 +261,9 @@ pub fn overlay(s: &State, t: &Theme) -> Vec<El> {
     } else {
         list_view(s, t)
     };
-    let panel =
-        pop(t, "new-session-folder-pop", WIDTH, body).focus_return(CHIP.to_string()).modal(true, |s: &mut State| s.close_folder_menu());
+    let panel = pop(t, "new-session-folder-pop", WIDTH, body)
+        .focus_return(s.picker_focus_return(CHIP))
+        .modal(true, |s: &mut State| s.close_folder_menu());
     vec![
         crate::ui::overlay::scrim("new-session-folder-scrim", |s: &mut State| s.close_folder_menu()),
         crate::ui::overlay::anchored(panel, CHIP, Side::Top, Align::Start, 6.0),
