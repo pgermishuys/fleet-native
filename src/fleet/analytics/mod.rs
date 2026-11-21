@@ -14,6 +14,7 @@ pub mod export;
 pub mod fields;
 pub mod filters;
 pub mod nav;
+pub mod overview;
 pub mod sections;
 pub mod sessions_sort;
 pub mod store;

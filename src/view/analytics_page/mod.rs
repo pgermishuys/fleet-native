@@ -8,8 +8,10 @@ use crate::ui::page_header;
 use crate::view::workflows::sheet;
 use rune::{ScrollSpec, col};
 
+pub mod cost_bars;
 pub mod filters;
 pub mod menu;
+pub mod overview;
 
 pub const TITLE: &str = "Analytics";
 pub const LINE: &str = "Tokens and spend across your sessions, by project and model. Costs are estimates at list prices, not a bill.";
@@ -29,13 +31,20 @@ fn detail(s: &State, t: &Theme) -> rune::El {
         .w_full()
         .min_w(0.0)
         .gap(20.0)
-        .padding(24.0)
+        .px(24.0)
+        .pt(24.0)
         .child(page_header::plain(t, "analytics-header", TITLE, Some(LINE), Vec::new()))
-        .child(body(s, t, section));
+        .child(body(s, t, section))
+        // The scroll range leaves out the box's own bottom padding (docs/RUNE.md), so the last 24 px are a child: 20 of the
+        // page's gap and this 4.
+        .child(rune::el().h(4.0));
     sheet(t, "analytics-detail").child(page.scroll(ScrollSpec { stick_bottom: false }).w_full().grow(1.0).min_h(0.0))
 }
 
-/// A section's body. Nothing is drawn yet: the pieces after this one fill each in.
-fn body(_s: &State, _t: &Theme, section: Section) -> rune::El {
-    col().key(format!("analytics-body-{}", section.id())).w_full()
+/// A section's body. Overview is drawn; the pieces after F fill the others in.
+fn body(s: &State, t: &Theme, section: Section) -> rune::El {
+    match section {
+        Section::Overview => overview::overview(s, t),
+        _ => col().key(format!("analytics-body-{}", section.id())).w_full(),
+    }
 }

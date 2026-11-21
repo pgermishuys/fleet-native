@@ -122,7 +122,22 @@ struct Wants {
     sessions: bool,
 }
 
+/// What the invented answers (no server) say: a scene or a test picks the state it wants drawn.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum MockAnswers {
+    #[default]
+    Data,
+    /// Never answers: the first look's wait.
+    Silent,
+    /// Every read fails.
+    Failed,
+    /// Every read answers with nothing in it.
+    Empty,
+}
+
 pub struct Analytics {
+    /// See `MockAnswers`; used only with no server.
+    pub mock_answers: MockAnswers,
     /// The machine the page shows: the machine you're on until its switch picks another (`useAnalyticsMachine`).
     pub choice: MachineChoice,
     /// The machine the reads are for: none until Analytics is shown, and again once it is left.
@@ -157,6 +172,7 @@ pub struct Analytics {
 impl Default for Analytics {
     fn default() -> Analytics {
         Analytics {
+            mock_answers: MockAnswers::default(),
             choice: MachineChoice::default(),
             mounted: None,
             filters: Filters::default(),
@@ -441,15 +457,27 @@ impl State {
     /// No server: the invented answers, in place of the reads.
     fn analytics_mock(&mut self, kinds: &[Kind], batch: Batch) {
         use crate::mock::analytics as mock;
+        let how = self.analytics.mock_answers;
         for &kind in kinds {
             let request = self.analytics.read_number(kind);
             let batch = if kind == Kind::Range { Batch::None } else { batch };
-            let answer = match kind {
-                Kind::Summary => Answer::Summary(Some(mock::summary())),
-                Kind::Range => Answer::Range(Some(mock::summary())),
-                Kind::Daily => Answer::Daily(Some(mock::daily())),
-                Kind::Models => Answer::Models(Some(mock::models())),
-                Kind::Sessions => Answer::Sessions(Some(mock::sessions())),
+            let answer = match (how, kind) {
+                (MockAnswers::Silent, _) => continue,
+                (MockAnswers::Failed, Kind::Summary) => Answer::Summary(None),
+                (MockAnswers::Failed, Kind::Range) => Answer::Range(None),
+                (MockAnswers::Failed, Kind::Daily) => Answer::Daily(None),
+                (MockAnswers::Failed, Kind::Models) => Answer::Models(None),
+                (MockAnswers::Failed, Kind::Sessions) => Answer::Sessions(None),
+                (MockAnswers::Empty, Kind::Summary) => Answer::Summary(Some(Default::default())),
+                (MockAnswers::Empty, Kind::Range) => Answer::Range(Some(Default::default())),
+                (MockAnswers::Empty, Kind::Daily) => Answer::Daily(Some(Vec::new())),
+                (MockAnswers::Empty, Kind::Models) => Answer::Models(Some(Vec::new())),
+                (MockAnswers::Empty, Kind::Sessions) => Answer::Sessions(Some(Vec::new())),
+                (MockAnswers::Data, Kind::Summary) => Answer::Summary(Some(mock::summary())),
+                (MockAnswers::Data, Kind::Range) => Answer::Range(Some(mock::summary())),
+                (MockAnswers::Data, Kind::Daily) => Answer::Daily(Some(mock::daily())),
+                (MockAnswers::Data, Kind::Models) => Answer::Models(Some(mock::models())),
+                (MockAnswers::Data, Kind::Sessions) => Answer::Sessions(Some(mock::sessions())),
             };
             self.analytics.answer(kind, request, answer, batch);
         }

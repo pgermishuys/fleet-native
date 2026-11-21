@@ -53,3 +53,20 @@ pub fn full(t: &Theme, key: &str, glyph: &'static Icon, title: &str, description
     }
     c
 }
+
+/// The compact-less `EmptyState bordered` inside a panel (`p-6`, title only): a dashed card, at least `min_h` tall,
+/// its words in the middle (`rounded-card border border-dashed border-border`, `text-base` 600).
+pub fn bordered(t: &Theme, key: &str, title: &str, min_h: f32) -> El {
+    col()
+        .key(key.to_string())
+        .w_full()
+        .min_h(min_h)
+        .center()
+        .gap(rem(0.25))
+        .padding(rem(1.5))
+        .radius(crate::theme::RADIUS_CARD)
+        .border(1.0, t.border)
+        .border_dash(4.0, 3.0)
+        .border_layout()
+        .child(text(title.to_string()).font(sans(rem(1.0), 600.0, 1.5)).color(t.text).wrap().align(Align::Center))
+}

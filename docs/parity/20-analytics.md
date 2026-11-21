@@ -163,21 +163,21 @@ Each row: what Fleet does, its source, and the native state (with the piece that
 
 | # | Row | Source | Native |
 |---|---|---|---|
-| 6.1 | Overview's body: stat cards, the chart panel, the two rankings; gap 12 | OT | None (F) |
-| 6.2 | The cards: a grid `repeat(auto-fit, minmax(140px, 1fr))`, gap 12 (four across at 1280) | OT | None (F) |
-| 6.3 | A card: padding 14/16, gap 4, 1 px border, `--radius-card`, `--card-bg`; the label (12 px 500 muted); the value (24 px 600, tracking −0.01 em, line-height 1.2, tabular) with an optional secondary beside it (12 px 500 muted, wraps under it when narrow); the detail (12 px muted) | SC | None (F) |
-| 6.4 | Tokens: `formatTokens(total)` ("42.3M"); detail "<avg> avg / day" (total ÷ number of daily rows) or "No daily token breakdown available" | OT | None (F) |
-| 6.5 | Cost: `formatMoney` (negative, NaN as $0.00) of the total; secondary "Est. <estimated>"; detail "<avg> avg / day" or "No daily cost breakdown available" | OT | None (F) |
-| 6.6 | Sessions: `formatCount(sessionCount)`; detail "<messages> total messages", or "Derived from the daily activity trend" with no summary | OT | None (F) |
-| 6.7 | Messages: `formatCount(messageCount)`; detail "<sessions> active sessions", or "Derived from the daily activity trend" | OT | None (F) |
-| 6.8 | With no summary (loading or failed) the totals are summed from the daily rows | OT | None (F) |
+| 6.1 | Overview's body: stat cards, the chart panel, the two rankings; gap 12 | OT | **Done (F, 21 November 2026)** `view/analytics_page/overview.rs` `overview`: the cards, the chart panel, the rankings, 12 apart |
+| 6.2 | The cards: a grid `repeat(auto-fit, minmax(140px, 1fr))`, gap 12 (four across at 1280) | OT | **Done (F, 21 November 2026)** `overview.rs` `cards` row: `flex_wrap` of cards with `min_w(140)` and `grow(1)` (four across at 1280; a wrapped last row stretches where a grid keeps its columns) |
+| 6.3 | A card: padding 14/16, gap 4, 1 px border, `--radius-card`, `--card-bg`; the label (12 px 500 muted); the value (24 px 600, tracking −0.01 em, line-height 1.2, tabular) with an optional secondary beside it (12 px 500 muted, wraps under it when narrow); the detail (12 px muted) | SC | **Done (F, 21 November 2026)** `overview.rs` `card`: padding 14/16, gap 4, 12 px label, 24 px value (tracking, tabular), the secondary beside it bottom-aligned (3 px up for the baseline; Rune has no baseline alignment, so wrapped under the value it sits 3 px lower than Fleet) and the detail |
+| 6.4 | Tokens: `formatTokens(total)` ("42.3M"); detail "<avg> avg / day" (total ÷ number of daily rows) or "No daily token breakdown available" | OT | **Done (F, 21 November 2026)** `fleet/analytics/overview.rs` `cards` |
+| 6.5 | Cost: `formatMoney` (negative, NaN as $0.00) of the total; secondary "Est. <estimated>"; detail "<avg> avg / day" or "No daily cost breakdown available" | OT | **Done (F, 21 November 2026)** `overview.rs` `cards`, `currency` |
+| 6.6 | Sessions: `formatCount(sessionCount)`; detail "<messages> total messages", or "Derived from the daily activity trend" with no summary | OT | **Done (F, 21 November 2026)** `overview.rs` `cards` |
+| 6.7 | Messages: `formatCount(messageCount)`; detail "<sessions> active sessions", or "Derived from the daily activity trend" | OT | **Done (F, 21 November 2026)** `overview.rs` `cards` |
+| 6.8 | With no summary (loading or failed) the totals are summed from the daily rows | OT | **Done (F, 21 November 2026)** `overview.rs` `totals` |
 
 ### 7. Overview: the chart
 
 | # | Row | Source | Native |
 |---|---|---|---|
-| 7.1 | The panel (`analytics-overview-daily-trend`): padding 16, gap 12, 1 px border, `--radius-card`, `--card-bg`; the head: "Daily tokens and cost" (13 px 600) left, "Est. total <estimated>" (12 px muted tabular) right, baseline aligned | OT | None (F: the panel and its states; G: the chart) |
-| 7.2 | States in order: rows → the chart (300 tall); else loading → Spinner + "Loading daily analytics…" (`analytics-loading`, 13 px muted, centred, padding 24); else error → ErrorNote "Unable to load analytics." with the reason; else EmptyState bordered, min-height 210, the empty words (5.x, 9.3) | OT | None (F) |
+| 7.1 | The panel (`analytics-overview-daily-trend`): padding 16, gap 12, 1 px border, `--radius-card`, `--card-bg`; the head: "Daily tokens and cost" (13 px 600) left, "Est. total <estimated>" (12 px muted tabular) right, baseline aligned | OT | **Done (F, 21 November 2026)** the panel, its head and "Est. total" (`overview.rs` `panel`, `trend`); the chart in it is G's |
+| 7.2 | States in order: rows → the chart (300 tall); else loading → Spinner + "Loading daily analytics…" (`analytics-loading`, 13 px muted, centred, padding 24); else error → ErrorNote "Unable to load analytics." with the reason; else EmptyState bordered, min-height 210, the empty words (5.x, 9.3) | OT | **Done (F, 21 November 2026)** `view/analytics_page/overview.rs` `trend`: the 300 px slot (key `analytics-chart-slot`) while rows exist, else the wait, the error note or the dashed empty state; G draws the chart in the slot |
 | 7.3 | Two datasets on one x axis of days (`formatDate`: "Oct 23"): Tokens on the left axis (`--accent`, 2 px, filled to zero at 14% alpha) and Cost on the right (`--running`, 2 px, dashed 4/3, no fill); curves with tension 0.35 (Chart.js's spline control points, clamped to the chart area); no points until hovered | OT | None (G) |
 | 7.4 | The left axis: from zero, Chart.js's "nice" ticks (the count from the axis height: at most 11, about one per 40 px), labels `formatTokens` (11 px muted), grid lines `--border`, no axis line | OT | None (G) |
 | 7.5 | The right axis: from zero, its own nice ticks, labels `formatMoney`, no grid, no axis line | OT | None (G) |
@@ -192,13 +192,13 @@ Each row: what Fleet does, its source, and the native state (with the piece that
 
 | # | Row | Source | Native |
 |---|---|---|---|
-| 8.1 | Overview's rankings: "Top models by cost" and "Top projects by cost", each a panel as 7.1 with its title; a grid `repeat(auto-fit, minmax(min(100%, 320px), 1fr))`, gap 12 (two across at 1280) | OT | None (F) |
-| 8.2 | Model bars: the models read (name `modelId`, detail "Est. <estimated>"), or with none the summary's top models (no detail); max = the largest cost | OT | None (F) |
-| 8.3 | Project bars: the page's project list (3.10), or the summary's top projects; detail "<formatTokens> tokens" | OT | None (F) |
-| 8.4 | `HorizontalCostBars`: sorted by cost, then name; each item gap 6: the name (13 px 500, one line, ellipsis) and the detail (12 px muted; default "<cost> of <max>") left, the cost (13 px 600 tabular) right, gap 16; under them a 6 px track (8% text tint, full radius) with the accent fill at cost ÷ max (0 for zero, negative or not a number; at most 100%); items gap 14 | HCB | None (F) |
-| 8.5 | States: items → the list; else loading → Spinner + "Loading…" (`analytics-loading`); else error → ErrorNote "Unable to load analytics." + reason; else EmptyState compact with the empty words (Overview's model bars wait for both the models and the summary) | HCB, AC | None (F) |
+| 8.1 | Overview's rankings: "Top models by cost" and "Top projects by cost", each a panel as 7.1 with its title; a grid `repeat(auto-fit, minmax(min(100%, 320px), 1fr))`, gap 12 (two across at 1280) | OT | **Done (F, 21 November 2026)** `overview.rs`: two panels in a `flex_wrap` row, `min_w(320)` |
+| 8.2 | Model bars: the models read (name `modelId`, detail "Est. <estimated>"), or with none the summary's top models (no detail); max = the largest cost | OT | **Done (F, 21 November 2026)** `fleet/analytics/overview.rs` `model_items` |
+| 8.3 | Project bars: the page's project list (3.10), or the summary's top projects; detail "<formatTokens> tokens" | OT | **Done (F, 21 November 2026)** `overview.rs` `project_items` (the page list is `with_selected_project` of the summary's top projects) |
+| 8.4 | `HorizontalCostBars`: sorted by cost, then name; each item gap 6: the name (13 px 500, one line, ellipsis) and the detail (12 px muted; default "<cost> of <max>") left, the cost (13 px 600 tabular) right, gap 16; under them a 6 px track (8% text tint, full radius) with the accent fill at cost ÷ max (0 for zero, negative or not a number; at most 100%); items gap 14 | HCB | **Done (F, 21 November 2026)** `view/analytics_page/cost_bars.rs` `bars`, `overview::rank`, `relative_width`: the fill is a `grow` share of a 6 px clipped pill track |
+| 8.5 | States: items → the list; else loading → Spinner + "Loading…" (`analytics-loading`); else error → ErrorNote "Unable to load analytics." + reason; else EmptyState compact with the empty words (Overview's model bars wait for both the models and the summary) | HCB, AC | **Done (F, 21 November 2026)** `cost_bars.rs` `bars` (loading, error, empty in Fleet's order) |
 | 8.6 | The fill eases to its width (300 ms ease-out; none with reduced motion) | HCB | None (F: a round-capped 6 px canvas stroke with `live_trim` is the same pill and can ease; else drawn at once, a gap) |
-| 8.7 | A bar's track is `role="img"`, "<name> cost bar at <n> percent" | HCB | None (F) |
+| 8.7 | A bar's track is `role="img"`, "<name> cost bar at <n> percent" | HCB | **Done (F, 21 November 2026)** `cost_bars.rs`: the track's `role` "img" and label |
 
 ### 9. Daily
 
@@ -442,6 +442,14 @@ en-US, both themes. `scripts/scratch-fleet.sh` switches analytics off; a piece r
   sorted by cost then name, widths clamped, the model bars falling back to the summary's.
 - **Pictures:** Overview beside `fleet-overview` and `fleet-overview-scrolled`, both themes (the chart area empty: say
   so), and the loading and error states.
+
+**Done (21 November 2026).** Pictures: `shots/parity/20-analytics/F-overview/` (`native-live-*` the app against the scratch Fleet, `fleet-overview-*` Fleet's own client against the same server, both themes, 1280x760: the top, and scrolled to the rankings; `analytics-overview*` the mock scenes, including `-loading`, `-error` and `-empty`; `fleet-overview-{loading,error,empty}-*` are Fleet's client with its analytics answers held, refused with 503 and emptied by the browser's request routing, since the scratch Fleet can't make those states itself). Tests: `tests_analytics_overview.rs` (the two `HorizontalCostBars` rows of `AnalyticsTabsErrorOrEmpty.test.ts` and the overview row of `AnalyticsContentLoading.test.ts`, under their names) and `fleet::analytics::overview`'s own (card details with and without daily rows and without a summary, bars sorted by cost then name, widths clamped, the model and project bars' fallbacks). Left open, with reasons:
+- The chart's 300 px slot is empty until G (the pictures say so).
+- 8.6: the fill doesn't ease to its width.
+- 6.2, 8.1: Fleet's `auto-fit` grids keep equal columns on a last short row; the `flex_wrap` rows stretch it (four cards across at 1280 and two panels, both the same as Fleet's).
+- A card whose value and "Est." text don't fit on one line wraps the secondary under the value 3 px lower than Fleet (no baseline alignment in Rune).
+- The scratch Fleet runs with analytics on for these pictures (`Fleet__AnalyticsEnabled=true`, invented events seeded into `fleet-analytics.db`, rollups recomputed with the server's own SQL); `scripts/scratch-fleet.sh` still switches it off.
+- Fleet draws `Est. total $…` in the accent tint in one dark picture (a Chromium selection artefact of the screenshot, not in the source); not ported.
 
 #### G. Overview: the chart
 

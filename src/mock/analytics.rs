@@ -1,5 +1,6 @@
 //! Invented Analytics answers for scenes and tests with no server (component 20, piece B): six projects over 30 days, five
 //! models on three providers, 18 sessions. The summary lists the top five projects and models by cost, as the server does.
+use crate::fleet::analytics::store::MockAnswers;
 use crate::fleet::analytics::{Daily, ModelRow, SessionRow, Summary, TopItem};
 
 const PROJECTS: [(&str, f64, f64); 5] = [
@@ -118,6 +119,12 @@ pub enum Scene {
     Calendar,
     /// From's calendar a month on: today ringed, the days after To dimmed.
     CalendarLimits,
+    /// No read has answered yet (piece F).
+    Loading,
+    /// Every read failed with the server's 503.
+    Failed,
+    /// Every read answered with nothing.
+    Nothing,
 }
 
 impl crate::State {
@@ -135,11 +142,19 @@ impl crate::State {
         }
         // The counts are the reads' lengths, so the scene holds the answers the first look would ask for.
         let a = &mut self.analytics;
-        a.summary.data = Some(summary());
-        a.range.data = Some(summary());
-        a.daily.data = daily();
-        a.models.data = models();
-        a.sessions.data = sessions();
+        a.mock_answers = match scene {
+            Scene::Loading => MockAnswers::Silent,
+            Scene::Failed => MockAnswers::Failed,
+            Scene::Nothing => MockAnswers::Empty,
+            _ => MockAnswers::Data,
+        };
+        if a.mock_answers == MockAnswers::Data {
+            a.summary.data = Some(summary());
+            a.range.data = Some(summary());
+            a.daily.data = daily();
+            a.models.data = models();
+            a.sessions.data = sessions();
+        }
         if scene == Scene::ProjectOpen {
             self.ui.open = Some(crate::ui::Open::Select(crate::view::analytics_page::filters::PROJECT));
         }
@@ -152,6 +167,10 @@ impl crate::State {
             }
         }
         let a = &mut self.analytics;
+        if a.mock_answers != MockAnswers::Data {
+            // The page mounts on its first look and asks again: the answers come from there.
+            return;
+        }
         for loading in [
             &mut a.summary.is_loading,
             &mut a.range.is_loading,

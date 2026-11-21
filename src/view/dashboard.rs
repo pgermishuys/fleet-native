@@ -7,7 +7,7 @@ use super::session_row::RowClock;
 use crate::State;
 use crate::fleet::dashboard::{self, Bucket};
 use crate::fleet::store::Retention;
-use crate::icons::{CHEVRON_DOWN, CIRCLE_ALERT, DOWNLOAD, LOADER_CIRCLE, MESSAGE_SQUARE, PLUS};
+use crate::icons::{CHEVRON_DOWN, DOWNLOAD, LOADER_CIRCLE, MESSAGE_SQUARE, PLUS};
 use crate::mock::Session;
 use crate::theme::{RADIUS_BTN, RADIUS_CARD, RADIUS_PANEL, Theme, sans};
 use crate::ui::button::{Size, Variant, button};
@@ -109,28 +109,8 @@ fn harness_banner(t: &Theme, reason: &str) -> El {
         )
 }
 
-/// `ErrorNote`: the red box, the message in medium weight and the reason under it.
 fn error_note(t: &Theme, message: &str, reason: &str) -> El {
-    row()
-        .key("home-load-error")
-        .role("alert")
-        .w_full()
-        .gap(8.0)
-        .items_start()
-        .px(12.0)
-        .py(8.0)
-        .radius(RADIUS_CARD)
-        .border(1.0, t.error.alpha(0.3))
-        .border_layout()
-        .fill(t.error.alpha(0.1))
-        .child(icon(&CIRCLE_ALERT, 16.0).color(t.error_text).mt(1.0))
-        .child(
-            col()
-                .grow(1.0)
-                .min_w(0.0)
-                .child(text(message.to_string()).font(sans(rem(0.875), 500.0, 1.43)).color(t.error_text).wrap().w_full())
-                .child(text(reason.to_string()).font(sans(rem(0.875), 400.0, 1.43)).color(t.error_text).wrap().w_full().mt(2.0)),
-        )
+    crate::ui::error_note::error_note(t, "home-load-error", message, reason)
 }
 
 /// `EmptyState bordered`: nothing to list. (Fleet's border is dashed; Rune has no dashed line, so this one is solid.)
