@@ -36,6 +36,8 @@ pub(crate) struct Fake {
     pub(crate) hold_runs: Arc<AtomicBool>,
     /// The next read of the runs is refused.
     pub(crate) refuse_runs: Arc<AtomicBool>,
+    /// The next `PUT /api/memory/dreaming/nightly` (the built-in page's Change time) is refused with these words.
+    pub(crate) refuse_time: Arc<Mutex<Option<String>>>,
 }
 
 /// Takes the refusal waiting for `verb`, if that is the one.
@@ -71,14 +73,24 @@ pub(crate) fn fake(initial: Vec<Value>) -> Fake {
     let runs = Arc::new(Mutex::new(vec![runs_of("a1", 2, "running"), runs_of("a1", 1, "done")]));
     let (hold_runs, refuse_runs) = (Arc::new(AtomicBool::new(false)), Arc::new(AtomicBool::new(false)));
     let (runs_gate, hold_gate, refuse_gate) = (runs.clone(), hold_runs.clone(), refuse_runs.clone());
+    let refuse_time = Arc::new(Mutex::new(None::<String>));
+    let time_gate = refuse_time.clone();
     std::thread::spawn(move || {
         for mut stream in listener.incoming().flatten() {
             let (log, items, refuse_next, gate) = (log.clone(), items.clone(), refuse_next.clone(), gate.clone());
             let refuse_list = refuse_list.clone();
             let (verb_gate, run_gate) = (verb_gate.clone(), run_gate.clone());
             let (runs_gate, hold_gate, refuse_gate) = (runs_gate.clone(), hold_gate.clone(), refuse_gate.clone());
+            let time_gate = time_gate.clone();
             std::thread::spawn(move || {
                 let req = crate::test_http::read(&mut stream);
+                if req.route() == "/api/memory/dreaming/nightly" {
+                    log.lock().unwrap().push((req.method.clone(), req.path.clone(), req.json()));
+                    return match time_gate.lock().unwrap().take() {
+                        Some(error) => crate::test_http::respond_json(&mut stream, "400 X", &json!({"error": error}).to_string()),
+                        None => crate::test_http::respond_json(&mut stream, "200 X", "{}"),
+                    };
+                }
                 if !req.route().starts_with(BASE) {
                     return crate::test_http::respond_json(&mut stream, "404 X", "{}");
                 }
@@ -184,6 +196,7 @@ pub(crate) fn fake(initial: Vec<Value>) -> Fake {
         runs,
         hold_runs,
         refuse_runs,
+        refuse_time,
     }
 }
 
@@ -196,7 +209,7 @@ impl Fake {
         self.heard.lock().unwrap().iter().filter(|(m, p, _)| m == method && p == path).count()
     }
 
-    fn body_of(&self, method: &str, path: &str) -> Value {
+    pub(crate) fn body_of(&self, method: &str, path: &str) -> Value {
         self.heard.lock().unwrap().iter().rev().find(|(m, p, _)| m == method && p == path).map(|c| c.2.clone()).unwrap_or(Value::Null)
     }
 

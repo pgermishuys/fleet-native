@@ -50,6 +50,8 @@ pub struct Nav {
     pub notice: Option<Notice>,
     /// The switch is waiting for the server (`isTogglingEnabled`).
     pub toggling: bool,
+    /// The built-in automation's page: the action in flight and the time box.
+    pub builtin: super::builtin::Builtin,
     /// The open automation's runs.
     pub runs: super::runs::Runs,
     /// The machine whose list was asked for since the page opened; another machine, or the next visit, asks again.
@@ -79,6 +81,7 @@ impl Nav {
     fn moved(&mut self, active: Option<String>, mode: ViewMode) {
         if self.active != active || self.mode != mode {
             self.notice = None;
+            self.builtin.editing = false;
         }
         self.active = active;
         self.mode = mode;

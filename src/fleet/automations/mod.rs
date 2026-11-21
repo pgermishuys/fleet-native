@@ -1,5 +1,6 @@
 //! Automations (component 19, `docs/parity/19-automations.md`). Plain Rust, no Rune.
 pub mod actions;
+pub mod builtin;
 pub mod model;
 pub mod nav;
 pub mod runs;

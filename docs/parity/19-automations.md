@@ -75,7 +75,7 @@ live against the same server at the same size, `TZ=UTC`, the light one with the 
 | The machine choice a view with its own switch holds (`MachineChoice`: `enabled`, `key`, `is_other`, `pick`, `reset`), and the switch chip and menu | Done (component 17, piece N); Automations has no `MachineChoice` yet | `src/fleet/machine_choice.rs`, `src/view/machine_switch.rs` |
 | Per-machine requests (`machine_routes`, the token per machine) | Done (component 17) | `src/fleet/machine_routes.rs`, `src/fleet/http.rs` |
 | The session row menu's **Repeat on a schedule…** (Repeat, hint, id `session-repeat-on-schedule`, left out for another machine's row) | Stub: a "waiting" toast | `src/fleet/row_menu.rs` |
-| Settings → Memory's "Runs as the built-in automation Dreaming" (`dream-automation`, only on the live machine) and "Paused in Automations" | Done (component 16, piece S); the link only switches the rail, it selects nothing | `src/fleet/settings/dream_nightly_actions.rs` `open_dream_automation`, `src/view/settings/dream_nightly.rs` |
+| Settings → Memory's "Runs as the built-in automation Dreaming" (`dream-automation`, only on the live machine) and "Paused in Automations" | Done (component 16, piece S); G makes the link select the automation | `src/fleet/settings/dream_nightly_actions.rs` `open_dream_automation`, `src/view/settings/dream_nightly.rs` |
 | The machine's IANA zone (`local_time_zone`: `TZ` or the `/etc/localtime` link; none on Windows) | Done (16 S) for the nightly time; reuse | `src/fleet/settings/dream_nightly.rs` |
 | The local offset (`local_offset_secs`, now only; 0 on Windows) and civil dates (`civil`) | Done; the schedule needs the offset **at a given instant** (DST) | `src/conv/time.rs` |
 | `regex` (no look-around: Fleet's `(?![\w'])` becomes a check of the next character) | In `Cargo.toml` | |
@@ -172,14 +172,14 @@ live against the same server at the same size, `TZ=UTC`, the light one with the 
 
 | # | Fleet | Source | Native |
 |---|---|---|---|
-| 6.1 | A built-in (`builtin` set) opens a compact page instead: no composer, no delete, no editing | ADP, BAD | None (G) |
-| 6.2 | Header: the name, pills **Built in** (testid `automation-builtin-pill`) and **Experimental** (1 px border, full radius, padding 1/8, 11.5 px 500 muted), the meta: paused "Paused. It won't run until you resume it.", else "Next run <date>" | BAD | None (G) |
-| 6.3 | The description (13.5 px muted, line-height 1.5; testid `builtin-description`): "Every day at HH:MM." (a cron `m h * * *`) or "On the schedule <cron>.", then "Starts one dreaming session for each repository with sessions since the last run. Skips the rest at no cost." | BAD | None (G) |
-| 6.4 | Actions (wrap, gap 6): **Run now**, **Change time** → a time field (28 px, aria-label "Time each night", `builtin-time`) with **Save** (`builtin-time-save`, disabled while busy or empty) and **Cancel**; **Pause**/**Resume** (`builtin-pause`); **Settings → Memory** (ghost; `builtin-settings`) | BAD | None (G): the time a text box taking `HH:MM`, as Settings' nightly time is (Rune has no time field) |
-| 6.5 | Change time saves `PUT /api/memory/dreaming/nightly {time, timeZone}` (the browser's zone, else UTC) on the view's machine, then reloads the list; Pause/Resume disable/enable; one action at a time; a refusal shows as the error note (fallbacks "Couldn't start a run.", "Couldn't change it.", "Couldn't change the time.") | BAD `act`, `saveTime` | None (G) |
-| 6.6 | Settings → Memory opens Settings on Memory | BAD | None (G) |
-| 6.7 | Runs: loaded and polled as 5.1; none yet "No runs yet. The first is <date or tonight>, or press Run now."; else the runs list (rows don't open) | BAD | None (G; the list from F) |
-| 6.8 | A night's summary and a skipped night's reason show under its run (5.8) | ARL | None (G with F) |
+| 6.1 | A built-in (`builtin` set) opens a compact page instead: no composer, no delete, no editing | ADP, BAD | Done (G) |
+| 6.2 | Header: the name, pills **Built in** (testid `automation-builtin-pill`) and **Experimental** (1 px border, full radius, padding 1/8, 11.5 px 500 muted), the meta: paused "Paused. It won't run until you resume it.", else "Next run <date>" | BAD | Done (G) |
+| 6.3 | The description (13.5 px muted, line-height 1.5; testid `builtin-description`): "Every day at HH:MM." (a cron `m h * * *`) or "On the schedule <cron>.", then "Starts one dreaming session for each repository with sessions since the last run. Skips the rest at no cost." | BAD | Done (G) |
+| 6.4 | Actions (wrap, gap 6): **Run now**, **Change time** → a time field (28 px, aria-label "Time each night", `builtin-time`) with **Save** (`builtin-time-save`, disabled while busy or empty) and **Cancel**; **Pause**/**Resume** (`builtin-pause`); **Settings → Memory** (ghost; `builtin-settings`) | BAD | Done (G): the time a text box taking `HH:MM` (Rune has no time field); Save is disabled while busy or empty; Enter in the box saves |
+| 6.5 | Change time saves `PUT /api/memory/dreaming/nightly {time, timeZone}` (the browser's zone, else UTC) on the view's machine, then reloads the list; Pause/Resume disable/enable; one action at a time; a refusal shows as the error note (fallbacks "Couldn't start a run.", "Couldn't change it.", "Couldn't change the time.") | BAD `act`, `saveTime` | Done (G): the zone is this computer's IANA zone, else UTC; a time that isn't one is the error note "Use the 24-hour form, like 03:30." and nothing is sent (Fleet's browser field can't make one) |
+| 6.6 | Settings → Memory opens Settings on Memory | BAD | Done (G) |
+| 6.7 | Runs: loaded and polled as 5.1; none yet "No runs yet. The first is <date or tonight>, or press Run now."; else the runs list (rows don't open) | BAD | Done (G): the rows look as on any automation but a click does nothing (Fleet binds no `open` here); **open:** none |
+| 6.8 | A night's summary and a skipped night's reason show under its run (5.8) | ARL | Done (G) |
 
 ### 7. The composer (box, plan line, create and save)
 
@@ -271,7 +271,7 @@ live against the same server at the same size, `TZ=UTC`, the light one with the 
 | 13.2 | The seed: `GET /api/automations/draft-from-session/{id}` → `{prompt, folder, isolation}`: the text, the folder (a repository for a worktree), chosen, a new worktree unless it ran in the folder as it was; focus to the box; a failure is the form error "Couldn't read that session." | ADP watch `seedSessionId` | None (O) |
 | 13.3 | The Workflows Library's **Repeat on a schedule…** (18's 3.3, 5.16): `startCreateFromWorkflow` with the Run box's choices | WDP `repeatOnSchedule` | None (N; 18 D keeps the values) |
 | 13.4 | **Started by <automation>** on a workflow run (18's 10.3, 4.x): opens that automation in edit mode | WSB | None (N; 18 C and I draw the link) |
-| 13.5 | Settings → Memory's "Runs as the built-in automation Dreaming" selects the Dreaming automation | DN `openAutomation` | Partly (16 S switches the rail; G selects it) |
+| 13.5 | Settings → Memory's "Runs as the built-in automation Dreaming" selects the Dreaming automation | DN `openAutomation` | Done (G): selects the automation the nightly row names (`automationId`), then opens the page; the rail follows |
 | 13.6 | A session an automation started shows its origin chip and Context row | `SessionContextChips.vue`, `SessionContextCanvas.vue` | Done (components 8, 10) |
 
 ### 14. The schedule logic (`lib/automation-schedule.ts`, `lib/automations.ts`)
@@ -480,6 +480,8 @@ and tests need no server.
   both themes.
 
 #### G. The built-in Dreaming automation
+
+**Done (21 November 2026).** `src/fleet/automations/builtin.rs` (the words: `clock`, `description`, `meta`, `no_runs`; the actions, one at a time, each on a thread to the machine the view shows; with no server a change is made on the invented list), `src/view/automations/builtin.rs`, `open_dream_automation` selects the nightly row's `automationId`, the runs poll now also reads the built-in's runs (`runs.rs` no longer skips it), scenes `automation-builtin*`, `automation-builtin-time*`, `automation-builtin-paused*`, pictures under `shots/parity/19g-builtin/` (live against a scratch Fleet with nightly dreaming switched on, beside Fleet's own, both themes: the page, Change time open, paused), tests in `src/tests_automations_builtin.rs` (Fleet's six G cases under their names; the link opens Dreaming; Run now's run first and a refusal's words with the fallbacks; one action at a time; a bad time said and nothing sent, a refused save keeps the box; the runs don't open; the empty words; the words follow the cron). Gaps, written down: the time box is a text box 63 px wide (Fleet's is a 110 px `type=time` with a clock); the scratch Fleet's Dreaming run fails ("Couldn't start the dreaming session", no model behind the scripted harness), so a night with notes changed is shown from scenes only; Fleet's pause button in its picture is hovered, ours is the same when the pointer is over it.
 
 - **Rows:** 6.1-6.8, 13.5.
 - **Files:** new `src/view/automations/builtin.rs`; its actions in `src/fleet/automations/builtin.rs` (Run now, Pause,

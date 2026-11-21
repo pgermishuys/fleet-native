@@ -15,8 +15,7 @@ pub const IDLE_POLL_MS: i64 = 20_000;
 /// What the page holds of the open automation's runs.
 #[derive(Debug, Default)]
 pub struct Runs {
-    /// The machine and the automation the runs are for; none while nothing is open (or the open one is built in, which
-    /// loads its own).
+    /// The machine and the automation the runs are for; none while nothing is open.
     pub of: Option<(String, String)>,
     /// Newest first.
     pub list: Vec<AutomationRun>,
@@ -76,11 +75,7 @@ impl State {
     /// changed.
     pub fn keep_automation_runs(&mut self, tx: &mut Tx) -> bool {
         let machine = self.automations_machine();
-        let wanted = self
-            .automations_nav
-            .open_id()
-            .filter(|id| !self.shown_automations().get(id).is_some_and(|a| a.builtin.is_some()))
-            .map(|id| (machine.clone(), id.to_string()));
+        let wanted = self.automations_nav.open_id().map(|id| (machine.clone(), id.to_string()));
         let mut changed = false;
         if self.automations_nav.runs.of != wanted {
             self.automations_nav.runs.reset(wanted.clone());
@@ -159,6 +154,10 @@ impl State {
     /// session this machine's list doesn't hold (yet).
     pub fn open_automation_run(&mut self, run_id: &str, tx: &mut Tx) {
         let machine = self.automations_machine();
+        // The built-in page lists its runs but its rows don't open (`BuiltinAutomationDetail.vue` binds no `open`).
+        if self.open_automation().is_some_and(|a| a.builtin.is_some()) {
+            return;
+        }
         let Some(session) = self.automations_nav.runs.list.iter().find(|r| r.id == run_id).and_then(session_of).map(str::to_string) else {
             return;
         };

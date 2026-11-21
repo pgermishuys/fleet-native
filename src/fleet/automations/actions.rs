@@ -38,7 +38,7 @@ pub fn header_meta(a: &Automation, tz: Tz) -> String {
 }
 
 /// `messageOf`: the server's words, else `fallback`.
-fn words_of(error: String, fallback: &str) -> String {
+pub(super) fn words_of(error: String, fallback: &str) -> String {
     if error.is_empty() { fallback.to_string() } else { error }
 }
 
@@ -50,12 +50,12 @@ impl State {
     }
 
     /// The open automation's id, while it is the one a request was made for (its answer is about it, not about the next one).
-    fn still_open(&self, id: &str) -> bool {
+    pub(super) fn still_open(&self, id: &str) -> bool {
         self.automations_nav.open_id() == Some(id)
     }
 
     /// The open automation, as the list has it now.
-    fn open_automation(&self) -> Option<Automation> {
+    pub(super) fn open_automation(&self) -> Option<Automation> {
         let id = self.automations_nav.open_id()?;
         self.shown_automations().get(id).cloned()
     }

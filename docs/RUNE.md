@@ -2464,3 +2464,10 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **A `hover` colour is drawn over the row's `fill`, not instead of it**: a lit row (9 % wash) with the same colour as its hover came out twice as dark under the pointer, so the lit row's hover is transparent.
 - **The cargo test build outgrew 5500M** (an OOM kill at 5.3 G peak, 20 Nov 2026); `MemoryMax=7000M` with `CARGO_BUILD_JOBS=1` passed.
 
+## Component 19, piece G (the built-in Dreaming automation)
+
+- **A disabled button shows only in `opacity`.** `ui::button::disabled` sets `opacity(0.5)` and `disabled(true)`, and `ElementInfo` has no
+  `disabled` field, so a test reads `opacity < 1.0` on the keyed element.
+- **No time field** (as Settings' nightly time): the built-in page's Change time is a text box taking `HH:MM`, parsed by
+  `dream_nightly::parse_time`; a time that isn't one is the error note "Use the 24-hour form, like 03:30." and nothing is sent. Fleet's
+  `<input type=time>` is about 110 px wide with a clock glyph; ours is 63 px.
