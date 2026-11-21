@@ -2677,3 +2677,11 @@ whole-file work that piece R can make incremental (colour from the edited line, 
   a handler must always hand back a `&mut TextEdit`.
 - **`ElementInfo` is enough to test controls**: `fill`, `opacity`, `text_color`, `label`, `role` and the rect read size, tone and state of a laid-out control.
 
+
+## Component 22, piece D (tool rows asking the server)
+
+- **No view, so nothing new about Rune.** What this piece needed from the app's side: a request in flight has to be counted by the app, not by the test. A
+  store that starts work on threads keeps its own `idle()` (renders running or queued, reads of the sites or the switch on their way) so a test drives frames until
+  it holds, then a frame or two more and checks again: the first answer's job can start the next request.
+- A store with a bounded number of requests at once is tested with a fake server that holds each one on a `Condvar` permit and counts `active`/`peak`; the
+  test hands out permits one at a time and waits for the next request to arrive before the next permit.
