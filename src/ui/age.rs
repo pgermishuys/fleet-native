@@ -8,6 +8,38 @@ pub fn compact(at: &str, now: i64, offset_secs: i64) -> String {
     to_timestamp(at, offset_secs).map(|ms| format_relative(ms, now, offset_secs)).unwrap_or_default()
 }
 
+/// `RelativeTime` without `compact`: "just now", "3 hours ago", "in 4 minutes"; a date from eight weeks on, as the compact form.
+pub fn long(at: &str, now: i64, offset_secs: i64) -> String {
+    let Some(ms) = to_timestamp(at, offset_secs) else { return String::new() };
+    let (diff, minute) = (now - ms, 60_000);
+    let span = diff.abs();
+    if span < minute {
+        return "just now".into();
+    }
+    if span >= 8 * 7 * 24 * 60 * minute {
+        return format_relative(ms, now, offset_secs);
+    }
+    let (value, unit) = if span < 60 * minute {
+        (span / minute, "minute")
+    } else if span < 24 * 60 * minute {
+        (span / (60 * minute), "hour")
+    } else if span < 7 * 24 * 60 * minute {
+        (span / (24 * 60 * minute), "day")
+    } else {
+        (span / (7 * 24 * 60 * minute), "week")
+    };
+    // `Intl.RelativeTimeFormat` with `numeric: "auto"`: one day or week away is a word of its own.
+    match (unit, value, diff >= 0) {
+        ("day", 1, true) => return "yesterday".into(),
+        ("day", 1, false) => return "tomorrow".into(),
+        ("week", 1, true) => return "last week".into(),
+        ("week", 1, false) => return "next week".into(),
+        _ => {}
+    }
+    let words = format!("{value} {unit}{}", if value == 1 { "" } else { "s" });
+    if diff >= 0 { format!("{words} ago") } else { format!("in {words}") }
+}
+
 /// The tooltip: "Oct 12, 2:07 PM"; empty for no time.
 pub fn exact(at: &str, now: i64, offset_secs: i64) -> String {
     to_timestamp(at, offset_secs).map(|ms| format_date_time(ms, now, offset_secs)).unwrap_or_default()
@@ -18,6 +50,18 @@ mod tests {
     use super::*;
 
     const NOW: i64 = 1_792_065_600_000; // 2026-10-15T12:00:00Z
+
+    #[test]
+    fn reads_the_long_form() {
+        assert_eq!(long("2026-10-15T11:59:30Z", NOW, 0), "just now");
+        assert_eq!(long("2026-10-15T11:59:00Z", NOW, 0), "1 minute ago");
+        assert_eq!(long("2026-10-15T10:00:00Z", NOW, 0), "2 hours ago");
+        assert_eq!(long("2026-10-12 12:00:00", NOW, 0), "3 days ago");
+        assert_eq!(long("2026-10-14 12:00:00", NOW, 0), "yesterday");
+        assert_eq!(long("2026-10-08 12:00:00", NOW, 0), "last week");
+        assert_eq!(long("2026-10-16 12:00:00", NOW, 0), "tomorrow");
+        assert_eq!(long("2026-10-15T12:04:00Z", NOW, 0), "in 4 minutes");
+    }
 
     #[test]
     fn reads_fleets_text_times_compactly() {

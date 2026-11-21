@@ -22,6 +22,8 @@ pub fn scene(s: &mut crate::State, name: &str, dark: bool) {
         github::view::home_scene::set(s, name.strip_prefix("github-").unwrap_or(name), dark);
     } else if let Some(which) = name.strip_prefix("github-issues") {
         github::view::filters_scene::set(s, which.trim_start_matches('-'), dark);
+    } else if name.starts_with("github-pull") || name == "github-issue" || name.starts_with("github-item-") {
+        github::view::item_scene::set(s, name.strip_prefix("github-").unwrap_or(name), dark);
     } else if let Some(which) = name.strip_prefix("github-repo") {
         github::view::repo_scene::set(s, which.trim_start_matches('-'), dark);
     } else if name == "github-rows" {

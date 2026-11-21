@@ -35,7 +35,8 @@ fn fleet(fake: Shared) -> String {
                 if req.method.is_empty() {
                     return;
                 }
-                if !req.path.starts_with("/api/integrations/github/") {
+                // A prompt sent to a session is logged too (the item page's Fix checks), and answered like the rest.
+                if !req.path.starts_with("/api/integrations/github/") && !req.path.ends_with("/prompt") {
                     return test_http::respond_json(&mut stream, "200 OK", "{}");
                 }
                 let key = format!("{} {}", req.method, req.path);
