@@ -1,5 +1,5 @@
 //! The analytics-menu, `[analytics-menu]` (`AnalyticsMachinePanel.vue`, `AnalyticsNavPanel.vue`): the header, the machine switch,
-//! the two groups of sections with their counts. The filters and Export CSV below them are pieces D and E.
+//! the two groups of sections with their counts. The filters under them are `filters`; Export CSV is piece E.
 use crate::State;
 use crate::fleet::analytics::sections::{GROUPS, SECTIONS, Section};
 use crate::theme::{RADIUS_BTN, Theme, sans};
@@ -28,7 +28,7 @@ pub fn count(s: &State, section: Section) -> Option<usize> {
 }
 
 /// `.analytics-nav__header` and `__group-label`: 10 px, 600, upper case, tracking 0.05 em, muted.
-fn label(t: &Theme, words: &str) -> El {
+pub fn label(t: &Theme, words: &str) -> El {
     text(words.to_uppercase()).font(sans(rem(0.71429), 600.0, 1.5).tracking(0.5)).color(t.muted)
 }
 
@@ -87,7 +87,8 @@ pub fn panel(s: &State, t: &Theme) -> El {
         .pb(12.0)
         .child(row().px(4.0).pt(18.0).pb(10.0).child(label(t, "Analytics").key("analytics-menu-header")))
         .children(machine)
-        .child(sections);
+        .child(sections)
+        .child(super::filters::block(s, t));
     col()
         .key("analytics-menu")
         .label("Analytics navigation")

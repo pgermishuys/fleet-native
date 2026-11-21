@@ -2522,3 +2522,12 @@ whole-file work that piece R can make incremental (colour from the edited line, 
   nothing, and a tap on a key the scroll has put below the window fails with "no element with key".
 - **One `--video` run gives every state of a long live walk**: a `--snap` runs the whole script again (and starts another run on
   the server), so the walk is recorded once and `ffmpeg -ss <mark time> -frames:v 1` takes each state.
+
+## Component 20, piece D (the filters)
+
+- **No date field in Rune**, so the two dates are plain text fields (`MM/DD/YYYY`). Rune's `TextEdit` has no blur callback; `focused` is a
+  field the runtime sets, so `Fields::step` (run by the page's poll) reads it: a typed whole date or an emptied field is sent, a half-typed field
+  goes back when it loses focus.
+- **`Open::Select(name)` falls to the gallery's list for a name `ui::overlays` doesn't match** (a stray model list drew in the corner); a new
+  select needs its own arm there, not only a list of its own.
+- **`border_sides` takes no layout space** unless `border_layout()` follows it, so a rule above a block with padding needs both.

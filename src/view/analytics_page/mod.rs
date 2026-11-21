@@ -8,6 +8,7 @@ use crate::ui::page_header;
 use crate::view::workflows::sheet;
 use rune::{ScrollSpec, col};
 
+pub mod filters;
 pub mod menu;
 
 pub const TITLE: &str = "Analytics";

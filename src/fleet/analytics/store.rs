@@ -128,6 +128,8 @@ pub struct Analytics {
     /// The machine the reads are for: none until Analytics is shown, and again once it is left.
     mounted: Option<String>,
     pub filters: Filters,
+    /// The two date fields' text (`fields.rs`).
+    pub fields: super::fields::Fields,
     pub sort: (SortBy, SortDir),
     pub summary: Read<Option<Summary>>,
     pub range: Read<Option<Summary>>,
@@ -152,6 +154,7 @@ impl Default for Analytics {
             choice: MachineChoice::default(),
             mounted: None,
             filters: Filters::default(),
+            fields: Default::default(),
             sort: (SortBy::CreatedAt, SortDir::Desc),
             summary: Read::new(0),
             range: Read::new(0),
@@ -296,6 +299,14 @@ impl State {
         self.analytics.wants.range |= range_moved;
     }
 
+    /// Picks the project in the filters' select: "" is All projects. Fleet sends the project's name where the server
+    /// wants its id (row 3.7), so the name is what is kept.
+    pub fn analytics_pick_project(&mut self, name: &str) {
+        let mut next = self.analytics.filters.clone();
+        next.project_id = name.to_string();
+        self.analytics_set_filters(next);
+    }
+
     /// Reset: back to the last 30 days, every project (`resetFilters`).
     pub fn analytics_reset_filters(&mut self) {
         let now = self.now_ms.unwrap_or_else(crate::fleet::link::now_ms);
@@ -336,6 +347,12 @@ impl State {
         }
         if std::mem::take(&mut self.analytics.hidden) {
             self.analytics.due = Some(now);
+        }
+        let looked = self.analytics.fields.step(&self.analytics.filters);
+        changed |= looked.redraw;
+        if let Some(next) = looked.next {
+            self.analytics_set_filters(next);
+            changed = true;
         }
         let wants = std::mem::take(&mut self.analytics.wants);
         if wants.all {

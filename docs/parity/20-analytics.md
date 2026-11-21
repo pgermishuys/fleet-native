@@ -116,7 +116,7 @@ Each row: what Fleet does, its source, and the native state (with the piece that
 | 2.5 | Counts: Projects = the range's top projects (at most 5, see 5.9), Models = the models list's length, Sessions = the sessions list's length (at most 50, 5.10); Overview and Daily have none | UAM | **Done (C, 21 November 2026)** `menu.rs` `count` |
 | 2.6 | Hover: `--bg` fill, `--text` ink; the open one: border accent 40%, fill `--panel-bg` 88% + accent 12%, `--text`, `aria-current="page"`; focus ring 2 px accent, offset 2 | ANP | **Done (C, 21 November 2026)** `menu.rs` `item` (focus ring included; Rune has no `aria-current`, so the open one is read from `analytics_nav`) |
 | 2.7 | Pressing an item opens its route; pressing the open one does nothing | UAM | **Done (C, 21 November 2026)** `State::open_analytics_section` |
-| 2.8 | Below the groups: the Filters block (margin-top 4, padding-top 8, a 1 px `--border` rule above, gap 8): its label "FILTERS" (padding 0 4), the filters stacked (3.x), Export CSV (4.x) | ANP | None (D, E) |
+| 2.8 | Below the groups: the Filters block (margin-top 4, padding-top 8, a 1 px `--border` rule above, gap 8): its label "FILTERS" (padding 0 4), the filters stacked (3.x), Export CSV (4.x) | ANP | Partly (D, 21 November 2026): the label, the rule, the block's spacing and the filters are drawn (`filters.rs` `block`); Export CSV waits for E |
 | 2.9 | No "By harness" anywhere (a section Fleet removed) | ANP test | **Done (C, 21 November 2026)** no section is named harness; the test checks it |
 
 ### 3. The filters
@@ -127,10 +127,10 @@ Each row: what Fleet does, its source, and the native state (with the piece that
 | 3.2 | Defaults: the last 30 days ending today, every project (`from` = today − 30, `to` = today); "today" is the **UTC** day (the server reads a bare date as a UTC day) | UAF | **Done (A, 20 November 2026)** `filters.rs` `defaults` |
 | 3.3 | Opening moves a range saved on an earlier day to end today, keeping its length and project; a range with no end is left alone; the default stays the default on a later day; while open, a range is left alone | UAF | **Done (A, 20 November 2026)** `filters.rs` `ending_today`, `opened` |
 | 3.4 | `isDefault`: from, to and project are the defaults (nothing to reset) | UAF | **Done (A, 20 November 2026)** `filters.rs` `is_default` |
-| 3.5 | The range box: one 32 px row, padding 0 4, 1 px border, radius `--radius-btn`, `--card-bg`; two date fields (12.5 px tabular, padding 0 6, `--text`, a calendar glyph at 55%) with "–" between (12 px muted); in the stacked menu the two spread apart; labels "From", "To" for a screen reader | AF | None (D: typed fields; E: the calendar) |
-| 3.6 | From's max is To and To's min is From, which limit the browser's picker only: a typed date outside them is still sent. A change is sent on `change` (a whole date); emptied clears that end | AF | None (D) |
-| 3.7 | The project select (32 tall, 12.5 px, `--card-bg`, full width in the menu): "All projects" (placeholder and first item), then the range's top projects by name; picking one sets `projectId` to the project's **name** (Fleet's bug: the server filters on the project's id, a GUID, so every section but Models empties; picture `fleet-project-picked`; port as Fleet does, reported) | AF, UAF, AR | None (D) |
-| 3.8 | Reset: RotateCcw 13 + "Reset", 32 tall, 12.5 px muted, no border; hover 6% text tint; disabled (opacity 0.45) while default; tooltip "Back to the last 30 days, every project" | AF | None (D) |
+| 3.5 | The range box: one 32 px row, padding 0 4, 1 px border, radius `--radius-btn`, `--card-bg`; two date fields (12.5 px tabular, padding 0 6, `--text`, a calendar glyph at 55%) with "–" between (12 px muted); in the stacked menu the two spread apart; labels "From", "To" for a screen reader | AF | Partly (D, 21 November 2026): the box, the two typed fields (`MM/DD/YYYY`, placeholder `mm/dd/yyyy`) and the dash are drawn (`filters.rs` `range`); the calendar glyph and its picker are E's. The field takes years of four digits (Chrome allows six) |
+| 3.6 | From's max is To and To's min is From, which limit the browser's picker only: a typed date outside them is still sent. A change is sent on `change` (a whole date); emptied clears that end | AF | **Done (D, 21 November 2026)** `fields.rs` `Fields::step`: a whole date typed is sent, one after To too (no limit from the other end), emptying clears that end; a half-typed field is left alone while it has focus and goes back to the last sent date when it is left (the browser's own segments never show half a date) |
+| 3.7 | The project select (32 tall, 12.5 px, `--card-bg`, full width in the menu): "All projects" (placeholder and first item), then the range's top projects by name; picking one sets `projectId` to the project's **name** (Fleet's bug: the server filters on the project's id, a GUID, so every section but Models empties; picture `fleet-project-picked`; port as Fleet does, reported) | AF, UAF, AR | **Done (D, 21 November 2026)** `filters.rs` `project_select`, `list`: "All projects" then the range's projects by name, the picked one after them when it isn't listed; picking sets the **name** as Fleet does (Fleet's bug kept, reported). Fleet draws the trigger 220 px wide in the menu (its stacked width rule loses to the later max-width), so this does too |
+| 3.8 | Reset: RotateCcw 13 + "Reset", 32 tall, 12.5 px muted, no border; hover 6% text tint; disabled (opacity 0.45) while default; tooltip "Back to the last 30 days, every project" | AF | **Done (D, 21 November 2026)** `filters.rs` `reset`: glyph and "Reset", 6 % tint on hover, faded and inert at the defaults, the tooltip |
 | 3.9 | A change refetches every section at once (`refreshAnalytics`) and the menu's counts (`watch` on from, to, project); the range alone refetches the project list | AC, UAM, UAF | **Done (B, 20 November 2026)** `store.rs` `analytics_set_filters`: the four page reads at once, the range alone also the project list (`Kind::Range`); the menu's models and sessions are the page's (5.8) |
 | 3.10 | The page's own project list (`scopedTopProjects`) is the scoped summary's top projects plus the picked project when it isn't among them (0 tokens, $0.00) | AC `withSelectedProject` | **Done (A, 20 November 2026)** `mod.rs` `with_selected_project` (F/H use it) |
 
@@ -396,6 +396,14 @@ en-US, both themes. `scripts/scratch-fleet.sh` switches analytics off; a piece r
   filters survive a restart (the settings file).
 - **Pictures:** the filters block and the open project menu beside Fleet's `fleet-project-select`, both themes; the
   project-picked state beside `fleet-project-picked` (Fleet's bug reproduced, 3.7).
+
+**Done (21 November 2026).** Pictures: `shots/parity/20-analytics/D-filters/` (native), beside A's `fleet-project-select-*` and
+`fleet-project-picked-*`. Left open, with reasons:
+- The calendar glyph in each field and the picker are E's, so the native fields are 112 px wide and empty on the right where Fleet's glyph sits.
+- Export CSV (2.8's last part) is E's.
+- Fleet's `fleet-project-picked` (every section but Models empties) can't be shown from a scene: the native page has no section bodies until F to J. The
+  request carries the name (`projectId=<name>`), a test checks it.
+- The first row of the open list is not lit as Fleet's is (it lights on pointer or arrow keys here).
 
 #### E. The calendar and Export CSV
 

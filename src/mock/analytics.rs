@@ -110,12 +110,18 @@ pub enum Scene {
     Models,
     /// Another machine is listed, so the menu has its switch.
     Machines,
+    /// Overview, the filters block shown.
+    Filters,
+    /// The project list open.
+    ProjectOpen,
 }
 
 impl crate::State {
     pub fn show_analytics(&mut self, dark: bool, scene: Scene) {
         use crate::fleet::analytics::sections::Section;
         self.dark = Some(dark);
+        // The day the pictures are drawn for, so the range the filters show is the same every time.
+        self.now_ms = Some(20_777 * 86_400_000 + 43_200_000);
         if scene == Scene::Machines {
             self.show_machines_only(super::machines::Case::Several);
         }
@@ -130,6 +136,9 @@ impl crate::State {
         a.daily.data = daily();
         a.models.data = models();
         a.sessions.data = sessions();
+        if scene == Scene::ProjectOpen {
+            self.ui.open = Some(crate::ui::Open::Select(crate::view::analytics_page::filters::PROJECT));
+        }
         for loading in [
             &mut a.summary.is_loading,
             &mut a.range.is_loading,
