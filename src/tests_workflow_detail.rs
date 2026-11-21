@@ -118,7 +118,42 @@ fn waits_for_a_repository_and_for_a_file_without_errors() {
     assert!((repeat.opacity - 1.0).abs() < f32::EPSILON);
     assert_eq!(repeat.help.as_deref(), Some("Run this workflow on a schedule, as an automation"));
     click(&mut rt, "workflow-repeat-on-schedule");
-    assert!(rt.state.ui.toast.is_some(), "the press waits for Automations (component 19) with a toast");
+    assert_eq!(rt.state.rail, Rail::Automations, "the press opens Automations on a new automation");
+}
+
+// ─── WorkflowStartedBy.test.ts: "Repeat on a schedule… in the Library" (component 19, piece N) ─────────────────────────
+
+#[test]
+fn opens_a_new_automation_that_runs_the_workflow_with_the_run_box_s_request_steps_base_and_harness() {
+    let mut rt = app();
+    rt.update(|s, _| s.show_workflows(true, Scene::Detail));
+    rt.frame(FRAME);
+    let (workflow, folder) = (
+        rt.state.workflows_nav.active_workflow().map(|w| w.id.clone()).unwrap(),
+        rt.state.workflows_nav.repository_path().unwrap().to_string(),
+    );
+    rt.update(|s, _| {
+        let run_box = &mut s.workflows_nav.run_box;
+        run_box.request = rune::TextEdit::new("Bump the client's dependencies");
+        run_box.optional_on = ["verify".to_string()].into();
+        run_box.base_branch = Some("main".into());
+        run_box.harness_choice = Some("opencode2".into());
+    });
+    click(&mut rt, "workflow-repeat-on-schedule");
+
+    let nav = &rt.state.automations_nav;
+    assert_eq!(rt.state.rail, Rail::Automations);
+    assert_eq!(nav.mode, crate::fleet::automations::nav::ViewMode::Create);
+    let d = &nav.draft;
+    assert_eq!(d.text, "Bump the client's dependencies");
+    assert_eq!(d.target_type, "workflow");
+    assert_eq!(d.workflow_id.as_deref(), Some(workflow.as_str()));
+    assert_eq!(d.workflow_steps, ["verify"]);
+    assert_eq!(d.folder, Some(crate::fleet::new_session::request::Folder::Repository(folder)));
+    assert_eq!(d.workspace, crate::fleet::new_session::request::Workspace::New);
+    assert_eq!(d.base_branch.as_deref(), Some("main"));
+    assert_eq!(d.harness_type.as_deref(), Some("opencode2"));
+    assert_eq!(d.manual_when, None);
 }
 
 // ─── The native detail ──────────────────────────────────────────────────────────────────────────────────────────────

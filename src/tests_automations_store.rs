@@ -52,6 +52,18 @@ pub(crate) struct Fake {
     pub(crate) requests: Requests,
     /// The token this fake's machine holds (`Bearer <token>`): each request says whether it came with it.
     pub(crate) token: Arc<Mutex<Option<String>>>,
+    /// What piece N's tests serve: harnesses, the Library and the workflow runs.
+    pub(crate) workflows: WorkflowFake,
+}
+
+/// A workflow target's routes: a harness list in place of OpenCode alone, the Library (each path asked is kept, query
+/// included: Fleet's test's `libraryRequests`) and the recent workflow runs (none unless set).
+#[derive(Clone, Default)]
+pub(crate) struct WorkflowFake {
+    pub(crate) harnesses: Arc<Mutex<Option<Value>>>,
+    pub(crate) library: Arc<Mutex<Option<Value>>>,
+    pub(crate) libraries: Arc<Mutex<Vec<String>>>,
+    pub(crate) runs: Arc<Mutex<Option<Value>>>,
 }
 
 /// The machine's harnesses, as Fleet's test mocks them: OpenCode, which the server marks as the default.
@@ -111,6 +123,8 @@ pub(crate) fn fake(initial: Vec<Value>) -> Fake {
     let catalogs_gate = catalogs.clone();
     let hold_harnesses = Arc::new(AtomicBool::new(false));
     let harness_hold = hold_harnesses.clone();
+    let workflows = WorkflowFake::default();
+    let workflows_gate = workflows.clone();
     let (requests, token) = (Requests::default(), Arc::new(Mutex::new(None::<String>)));
     let (requests_gate, token_gate) = (requests.clone(), token.clone());
     std::thread::spawn(move || {
@@ -121,19 +135,32 @@ pub(crate) fn fake(initial: Vec<Value>) -> Fake {
             let (runs_gate, hold_gate, refuse_gate) = (runs_gate.clone(), hold_gate.clone(), refuse_gate.clone());
             let time_gate = time_gate.clone();
             let repos_gate = repos_gate.clone();
-            let (catalogs_gate, harness_hold) = (catalogs_gate.clone(), harness_hold.clone());
+            let (catalogs_gate, harness_hold, wf) = (catalogs_gate.clone(), harness_hold.clone(), workflows_gate.clone());
             let (requests_gate, token_gate) = (requests_gate.clone(), token_gate.clone());
             std::thread::spawn(move || {
                 let req = crate::test_http::read(&mut stream);
                 let wanted = token_gate.lock().unwrap().as_ref().map(|t| format!("Bearer {t}"));
                 let tokened = wanted.is_some() && req.header("authorization") == wanted;
                 requests_gate.lock().unwrap().push((req.method.clone(), req.route().to_string(), tokened));
+                // A workflow target: the Library of a repository, and the workflow runs.
+                if req.route() == "/api/workflows" {
+                    wf.libraries.lock().unwrap().push(req.path.clone());
+                    return match wf.library.lock().unwrap().clone() {
+                        Some(library) => crate::test_http::respond_json(&mut stream, "200 X", &library.to_string()),
+                        None => crate::test_http::respond_json(&mut stream, "404 X", &json!({"error": "not faked"}).to_string()),
+                    };
+                }
+                if req.route().starts_with("/api/workflows/runs") {
+                    let runs = wf.runs.lock().unwrap().clone().unwrap_or_else(|| json!([]));
+                    return crate::test_http::respond_json(&mut stream, "200 X", &runs.to_string());
+                }
                 // The composer's agent and model chips: the harnesses, and what one offers a folder.
                 if req.route() == "/api/harnesses" {
                     while harness_hold.load(Ordering::SeqCst) {
                         std::thread::sleep(std::time::Duration::from_millis(5));
                     }
-                    return crate::test_http::respond_json(&mut stream, "200 X", &harnesses().to_string());
+                    let list = wf.harnesses.lock().unwrap().clone().unwrap_or_else(harnesses);
+                    return crate::test_http::respond_json(&mut stream, "200 X", &list.to_string());
                 }
                 if let Some(harness) = req.route().strip_prefix("/api/harnesses/").and_then(|r| r.strip_suffix("/catalog")) {
                     let directory = req.path.split_once("directory=").map(|(_, d)| d.split('&').next().unwrap_or("").replace("%2F", "/"));
@@ -287,6 +314,7 @@ pub(crate) fn fake(initial: Vec<Value>) -> Fake {
         catalogs,
         requests,
         token,
+        workflows,
     }
 }
 

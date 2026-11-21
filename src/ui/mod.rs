@@ -204,6 +204,12 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
         Some(Open::Popover(crate::fleet::automations::when::WHEN_POPOVER)) => crate::view::automations::when::overlay(s, t),
         Some(Open::Popover(crate::fleet::automations::strip::RUNS_IN_POPOVER)) => crate::view::automations::strip::runs_in_overlay(s, t),
         Some(Open::Popover(crate::fleet::automations::strip::MORE_POPOVER)) => crate::view::automations::strip::more_overlay(s, t),
+        Some(Open::Popover(crate::fleet::automations::workflow::TARGET_POPOVER)) => {
+            crate::view::automations::workflow::target_overlay(s, t)
+        }
+        Some(Open::Popover(crate::fleet::automations::workflow::WORKFLOW_POPOVER)) => {
+            crate::view::automations::workflow::workflow_overlay(s, t)
+        }
         Some(Open::Popover(name)) => gallery::popover_content(s, t, name),
         Some(Open::Directory) => directory_picker::view(s, t, "g-dir"),
         Some(Open::GoToFile) => crate::view::go_to_file::overlay(s, t),

@@ -71,6 +71,8 @@ mod tests_automations_strip;
 #[cfg(test)]
 mod tests_automations_when;
 #[cfg(test)]
+mod tests_automations_workflow;
+#[cfg(test)]
 mod tests_browser;
 #[cfg(test)]
 mod tests_browser_agent;
@@ -5420,6 +5422,24 @@ pub fn spec() -> AppSpec<State> {
             }),
             ("automation-machine-fixed-light", |s| {
                 s.show_automations(false, mock::automations::Scene::Machine(fleet::automations::machine::Scene::MachineFixed))
+            }),
+            ("automation-workflow", |s| {
+                s.show_automations(true, mock::automations::Scene::Workflow(fleet::automations::workflow::Scene::Workflow))
+            }),
+            ("automation-workflow-light", |s| {
+                s.show_automations(false, mock::automations::Scene::Workflow(fleet::automations::workflow::Scene::Workflow))
+            }),
+            ("automation-workflow-menu", |s| {
+                s.show_automations(true, mock::automations::Scene::Workflow(fleet::automations::workflow::Scene::WorkflowMenu))
+            }),
+            ("automation-workflow-menu-light", |s| {
+                s.show_automations(false, mock::automations::Scene::Workflow(fleet::automations::workflow::Scene::WorkflowMenu))
+            }),
+            ("automation-workflows-off", |s| {
+                s.show_automations(true, mock::automations::Scene::Workflow(fleet::automations::workflow::Scene::WorkflowsOff))
+            }),
+            ("automation-workflows-off-light", |s| {
+                s.show_automations(false, mock::automations::Scene::Workflow(fleet::automations::workflow::Scene::WorkflowsOff))
             }),
             ("automation-strip-folder", |s| s.show_automations(true, mock::automations::Scene::StripFolder)),
             ("automation-strip-folder-light", |s| s.show_automations(false, mock::automations::Scene::StripFolder)),
