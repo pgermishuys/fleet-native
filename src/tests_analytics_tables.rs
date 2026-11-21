@@ -1,4 +1,4 @@
-//! Component 20, piece H: Daily's table and Projects' cards. Fleet's `AnalyticsTabsErrorOrEmpty.test.ts` rows for DailyTab and
+//! Component 20, pieces H and I: Daily's table, Projects' cards and Models' panels. Fleet's `AnalyticsTabsErrorOrEmpty.test.ts` rows for DailyTab and
 //! ProjectsTab and `AnalyticsContentLoading.test.ts`'s daily and projects rows, under their names; the row order and the
 //! percent are also held in `fleet::analytics::tables`'s own tests.
 use crate::State;
@@ -90,4 +90,48 @@ fn projects_are_cards_by_cost_with_the_percent_of_the_largest() {
     );
     let y = |name: &str| info(&rt, &format!("analytics-project-{name}")).map(|e| e.rect[1]).unwrap();
     assert!(y("harbor-api") <= y("meadow-infra"));
+}
+
+#[test]
+fn models_shows_the_chart_and_the_table_sorted_by_cost() {
+    let rt = page(Scene::Menu, Section::Models);
+    assert!(shown(&rt, "analytics-models-chart") && shown(&rt, "analytics-models-details"));
+    assert!(shown(&rt, "analytics-models-table"));
+    let first = text_of(&rt, "analytics-models-0-3");
+    let second = text_of(&rt, "analytics-models-1-3");
+    let money = |w: &str| w.trim_start_matches('$').replace(',', "").parse::<f64>().unwrap();
+    assert!(money(&first) >= money(&second), "{first} then {second}");
+    assert_eq!(text_of(&rt, "analytics-models-head-6"), "Avg cost/msg");
+    assert!(shown(&rt, "analytics-bars-models"));
+}
+
+#[test]
+fn models_says_its_loading_first_even_with_rows() {
+    let mut rt = page(Scene::Menu, Section::Models);
+    assert!(shown(&rt, "analytics-models-table"));
+    // A filter change asks again: the rows are still held, and the section blanks anyway.
+    rt.update(|s, _| s.analytics.models.is_loading = true);
+    rt.frame(FRAME);
+    rt.frame(FRAME);
+    assert!(shown(&rt, "analytics-loading"));
+    assert!(!shown(&rt, "analytics-models-table") && !shown(&rt, "analytics-empty"));
+    assert!(rt.elements().iter().any(|e| e.text.as_deref() == Some("Loading model analytics…")));
+}
+
+#[test]
+fn models_shows_the_error_only_with_no_rows() {
+    let rt = page(Scene::Failed, Section::Models);
+    assert_eq!(info(&rt, "analytics-error").map(|e| e.role), Some("alert"));
+    assert!(rt.elements().iter().any(|e| e.text.as_deref() == Some("Unable to load model analytics.")));
+    assert!(!shown(&rt, "analytics-empty"));
+    let mut rt = page(Scene::Menu, Section::Models);
+    rt.update(|s, _| s.analytics.models.error = Some("boom".into()));
+    rt.frame(FRAME);
+    assert!(!shown(&rt, "analytics-error") && shown(&rt, "analytics-models-table"));
+}
+
+#[test]
+fn models_nothing_found_says_its_words() {
+    let rt = page(Scene::Nothing, Section::Models);
+    assert!(rt.elements().iter().any(|e| e.text.as_deref() == Some("No model analytics matched the selected date range.")));
 }

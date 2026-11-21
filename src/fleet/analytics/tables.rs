@@ -1,7 +1,8 @@
 //! What Daily's table and Projects' cards show (`tabs/DailyTab.vue`, `tabs/ProjectsTab.vue`): the rows in their order, with
 //! every number already written the way Fleet writes it. Plain Rust, no Rune.
+use super::overview::BarItem;
 use super::overview::relative_width;
-use super::{Daily, TopItem};
+use super::{Daily, ModelRow, TopItem};
 use crate::composer::format::{format_count, format_money};
 
 /// One line of the Daily table.
@@ -70,6 +71,67 @@ pub fn project_cards(projects: &[TopItem]) -> Vec<ProjectCard> {
         .collect()
 }
 
+/// One line of the Models table, every number written the way Fleet writes it.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ModelLine {
+    pub model: String,
+    pub provider: String,
+    pub tokens: String,
+    pub cost: String,
+    pub estimated: String,
+    pub messages: String,
+    pub average: String,
+}
+
+/// `ModelsTab`'s `sortedModels`: cost, then estimated cost, then tokens (each largest first), then the model id.
+pub fn sorted_models(models: &[ModelRow]) -> Vec<&ModelRow> {
+    let mut sorted: Vec<&ModelRow> = models.iter().collect();
+    let desc = |a: f64, b: f64| b.partial_cmp(&a).filter(|o| o.is_ne());
+    sorted.sort_by(|a, b| {
+        desc(a.cost, b.cost)
+            .or_else(|| desc(a.estimated_cost, b.estimated_cost))
+            .or_else(|| desc(a.tokens, b.tokens))
+            .unwrap_or_else(|| a.model_id.to_lowercase().cmp(&b.model_id.to_lowercase()).then_with(|| a.model_id.cmp(&b.model_id)))
+    });
+    sorted
+}
+
+/// The table's lines, in that order.
+pub fn model_lines(models: &[ModelRow]) -> Vec<ModelLine> {
+    sorted_models(models)
+        .into_iter()
+        .map(|m| ModelLine {
+            model: m.model_id.clone(),
+            provider: m.provider_id.clone(),
+            tokens: format_count(Some(m.tokens)),
+            cost: format_money(Some(m.cost)),
+            estimated: format_money(Some(m.estimated_cost)),
+            messages: format_count(Some(m.message_count)),
+            average: format_money(Some(m.avg_cost_per_message)),
+        })
+        .collect()
+}
+
+/// "Cost by model": the same order, the detail "<provider> · <messages> messages · Est. <estimated>", the largest cost as the max.
+pub fn model_bars(models: &[ModelRow]) -> Vec<BarItem> {
+    let sorted = sorted_models(models);
+    let max = sorted.iter().fold(0.0_f64, |m, x| m.max(x.cost));
+    sorted
+        .into_iter()
+        .map(|m| BarItem {
+            name: m.model_id.clone(),
+            cost: m.cost,
+            max_cost: max,
+            detail: Some(format!(
+                "{} · {} messages · Est. {}",
+                m.provider_id,
+                format_count(Some(m.message_count)),
+                format_money(Some(m.estimated_cost))
+            )),
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -108,5 +170,42 @@ mod tests {
     #[test]
     fn no_projects_make_no_cards() {
         assert!(project_cards(&[]).is_empty());
+    }
+
+    fn model(id: &str, cost: f64, est: f64, tokens: f64) -> ModelRow {
+        ModelRow {
+            model_id: id.into(),
+            provider_id: "acme".into(),
+            tokens,
+            cost,
+            estimated_cost: est,
+            message_count: 1200.0,
+            avg_cost_per_message: 0.0125,
+        }
+    }
+
+    #[test]
+    fn models_sort_by_cost_then_estimated_cost_then_tokens_then_id() {
+        let rows = [
+            model("d", 1.0, 1.0, 5.0),
+            model("c", 1.0, 1.0, 9.0),
+            model("b", 1.0, 2.0, 1.0),
+            model("a", 9.0, 0.0, 0.0),
+            model("f", 1.0, 1.0, 5.0),
+            model("E", 1.0, 1.0, 5.0),
+        ];
+        let ids: Vec<&str> = sorted_models(&rows).iter().map(|m| m.model_id.as_str()).collect();
+        assert_eq!(ids, ["a", "b", "c", "d", "E", "f"]);
+    }
+
+    #[test]
+    fn model_lines_and_bars_carry_fleets_words() {
+        let rows = [model("m1", 2.0, 2.5, 12_500.0), model("m2", 1.0, 1.0, 1.0)];
+        let lines = model_lines(&rows);
+        assert_eq!((lines[0].tokens.as_str(), lines[0].cost.as_str(), lines[0].estimated.as_str()), ("12,500", "$2.00", "$2.50"));
+        assert_eq!((lines[0].messages.as_str(), lines[0].average.as_str()), ("1,200", "$0.01"));
+        let bars = model_bars(&rows);
+        assert_eq!(bars[0].detail.as_deref(), Some("acme · 1,200 messages · Est. $2.50"));
+        assert_eq!(bars[1].max_cost, 2.0);
     }
 }

@@ -2677,3 +2677,10 @@ whole-file work that piece R can make incremental (colour from the edited line, 
   a handler must always hand back a `&mut TextEdit`.
 - **`ElementInfo` is enough to test controls**: `fill`, `opacity`, `text_color`, `label`, `role` and the rect read size, tone and state of a laid-out control.
 
+
+## Component 20, piece I (Models)
+
+- **`scroll_x()` does work around a table once the inner row has `min_w(720.0).grow(1.0)`** (not `w_full()`): at 1280 the columns fill the panel, at 900 the box clips at its edge and scrolls. With `w_full()` the box measured the row at its content width and the columns stopped short of the panel's right edge. (This is the smaller case piece H's note asked for.)
+- **A row's hover tint across separate column boxes**: give every cell of a row `hover_group_shared("<table>-row-<n>")` and a child `el().pin(Some(0.0), Some(0.0), Some(0.0), Some(0.0)).fill(tint).group_opacity(0.0, 1.0)`; the pointer over any cell tints the whole row.
+- **A wrapped cell breaks a column-built table**: each column is its own box, so a cell that wraps makes its row taller in that column only. The model and provider cells stay on one line (Fleet wraps them anywhere when the table is narrower than its content).
+- **`cargo test`'s binary isn't `cargo build`'s**: a scene snapshot after only `cargo test` draws the old binary ("no scene ..."); run `cargo build` too.
