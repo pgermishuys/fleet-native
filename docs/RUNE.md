@@ -2441,6 +2441,7 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **A scratch Fleet's commit of a step's files names the user.** With no git identity in the scratch home the server's error is
   "unable to auto-detect email address (got '<user>@<host>.(none)')", which the card then shows. Put a `.gitconfig` with an invented
   name in the scratch home before running a workflow.
+
 ## Component 19, piece F (the runs list)
 
 - **Sibling keys must be unique even for text.** A run's notes were one `text().key("automation-run-note")` each under the same
