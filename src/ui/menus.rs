@@ -11,10 +11,12 @@ use rune::{Align, El, Side};
 /// The composer's pickers: Fleet's selector box (`view/selector.rs`) above the chip, over a scrim that closes it.
 fn selector(s: &State, t: &Theme, name: &'static str) -> Vec<El> {
     let key = format!("{name}-pop");
-    let panel = crate::view::selector::panel(s, t, name).focus_return(name.to_string()).modal(true, |s: &mut State| s.close_selector());
+    // On the Automations page the chips are the composer's (`automation-agent`, `automation-model`).
+    let anchor = if s.automation_selector() { format!("automation-{name}") } else { name.to_string() };
+    let panel = crate::view::selector::panel(s, t, name).focus_return(anchor.clone()).modal(true, |s: &mut State| s.close_selector());
     vec![
         super::overlay::scrim(&format!("{key}-scrim"), |s: &mut State| s.close_selector()),
-        super::overlay::anchored(panel, name, Side::Top, Align::Start, rules::GAP),
+        super::overlay::anchored(panel, &anchor, Side::Top, Align::Start, rules::GAP),
     ]
 }
 

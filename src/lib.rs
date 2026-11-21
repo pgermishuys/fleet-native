@@ -45,6 +45,8 @@ mod tests_archived;
 #[cfg(test)]
 mod tests_asks;
 #[cfg(test)]
+mod tests_automations_agent_model;
+#[cfg(test)]
 mod tests_automations_builtin;
 #[cfg(test)]
 mod tests_automations_composer;
@@ -5312,6 +5314,12 @@ pub fn spec() -> AppSpec<State> {
             ("automation-strip-same-light", |s| s.show_automations(false, mock::automations::Scene::StripSame)),
             ("automation-strip-more", |s| s.show_automations(true, mock::automations::Scene::StripMore)),
             ("automation-strip-more-light", |s| s.show_automations(false, mock::automations::Scene::StripMore)),
+            ("automation-agent-model", |s| s.show_automations(true, mock::automations::Scene::AgentModel)),
+            ("automation-agent-model-light", |s| s.show_automations(false, mock::automations::Scene::AgentModel)),
+            ("automation-agent-model-menu", |s| s.show_automations(true, mock::automations::Scene::AgentModelMenu)),
+            ("automation-agent-model-menu-light", |s| s.show_automations(false, mock::automations::Scene::AgentModelMenu)),
+            ("automation-agent-model-new", |s| s.show_automations(true, mock::automations::Scene::AgentModelNew)),
+            ("automation-agent-model-new-light", |s| s.show_automations(false, mock::automations::Scene::AgentModelNew)),
             ("automation-strip-folder", |s| s.show_automations(true, mock::automations::Scene::StripFolder)),
             ("automation-strip-folder-light", |s| s.show_automations(false, mock::automations::Scene::StripFolder)),
             ("automation-open", |s| s.show_automations(true, mock::automations::Scene::Open)),

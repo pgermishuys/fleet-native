@@ -234,9 +234,9 @@ live against the same server at the same size, `TZ=UTC`, the light one with the 
 
 | # | Fleet | Source | Native |
 |---|---|---|---|
-| 10.1 | With a folder (not for a workflow) and a harness that offers them: the agent and model chips in the toolbar (`automation-agent`, `automation-model`), "Default" labels and descriptions from `describeDefaults`, no recent models | AC | None (L): the composer's `SelectorDropdown` chips |
-| 10.2 | The harness: the automation's own, else the default harness; the catalog is that harness's for the run's folder | AC `harnessType`, `useHarnessCatalog` | None (L) |
-| 10.3 | Sent: `model` as `provider/model`, `agent` or null, `harnessType` only when either is set | AC `request` | None (L, with H's request) |
+| 10.1 | With a folder (not for a workflow) and a harness that offers them: the agent and model chips in the toolbar (`automation-agent`, `automation-model`), "Default" labels and descriptions from `describeDefaults`, no recent models | AC | Done (L, 21 November 2026): New session's chips (`view::composer::selector_chip`, keyed `automation-agent` and `automation-model`, off while saving) and its menu, which on the Automations page lists, picks and anchors for the composer; No folder counts as a folder, as in Fleet; the model menu has no Recent section. Tests |
+| 10.2 | The harness: the automation's own, else the default harness; the catalog is that harness's for the run's folder | AC `harnessType`, `useHarnessCatalog` | Done (L): the default is the machine's (`resolveDefaultHarness` over its harness list, read with the repositories, and its preference); the catalog is the composer's own feed (New session's `CatalogFeed`), asked when the folder, harness, target or machine changes, with the folder's path as the directory (a new worktree's repository; none for No folder). Test |
+| 10.3 | Sent: `model` as `provider/model`, `agent` or null, `harnessType` only when either is set | AC `request` | Done (H's request, L's chips): the composer's context now carries the default harness. Tests |
 
 ### 11. Another machine
 
@@ -573,6 +573,24 @@ only; the machine chip and "Runs on" are M's, the target and workflow chips N's.
 - **Depends on:** K.
 - **Tests:** the three L cases of `AutomationsPage.test.ts`.
 - **Pictures:** the toolbar with an agent and a model picked beside Fleet's, the model menu open; live, both themes.
+
+**Done (21 November 2026).** `src/fleet/automations/agent_model.rs` (`automation_selector`: the agent and model menus are
+the composer's while the Automations page is on screen; `automation_default_harness`, `automation_harness`, the catalog key
+of the run's folder, `automation_offers_agent_and_model`, the Default labels, lists and chip words, the picks, and
+`keep_automation_catalog`, called from the composer's upkeep; with no server the invented catalog), the composer's own
+`CatalogFeed` on its upkeep, the machine's harness list (and another machine's preferences) read with the repositories,
+`with_composer` filling the context's default harness, `fleet/selector.rs` and `ui/menus.rs` serving the composer on the
+Automations page (no Recent section; the menu anchored to the composer's chip), the chips in
+`src/view/automations/composer.rs`'s toolbar, scenes `automation-agent-model*` (`-menu*`, `-new*`), pictures under
+`shots/parity/19l-agent-model/`, tests in `src/tests_automations_agent_model.rs` (Fleet's three L cases under their names;
+native: the catalog asked once for the run's folder, a workflow has no chips and drops the picks, no Recent models, the
+machine's default harness and No folder's catalog). The fake Fleet now answers `/api/harnesses` (OpenCode, the default) and
+`/api/harnesses/{type}/catalog` (Fleet's test's catalog) and keeps the catalogs asked. New session's and the composer's
+chip and menu scenes were drawn before and after and are byte-identical. Gaps, written down: no live walk against a scratch
+Fleet (this Windows machine can't run one: no `opencode`, no Python), and the planning session's Fleet pictures
+(`fleet-detail-*.png`, `fleet-new-*.png`) show no agent or model chips, because the scratch Fleet's scripted harness lists
+none; so the chips and the menu are native only; the catalog is asked of the machine the view shows (the machine runs go to
+is M's). Nothing new about Rune.
 
 #### M. Another machine
 

@@ -16,6 +16,8 @@ use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
 type Heard = Arc<Mutex<Vec<(String, String, Value)>>>;
+/// The catalogs asked for, as (harness, directory).
+type Asked = Arc<Mutex<Vec<(String, Option<String>)>>>;
 
 /// A stand-in for `/api/automations` that keeps its list between calls, like Fleet's `fakeServer`.
 pub(crate) struct Fake {
@@ -40,6 +42,24 @@ pub(crate) struct Fake {
     pub(crate) refuse_runs: Arc<AtomicBool>,
     /// The next `PUT /api/memory/dreaming/nightly` (the built-in page's Change time) is refused with these words.
     pub(crate) refuse_time: Arc<Mutex<Option<String>>>,
+    /// Each `GET /api/harnesses/{type}/catalog` asked, as (harness, directory): Fleet's test's `catalogRequests`.
+    pub(crate) catalogs: Asked,
+}
+
+/// The machine's harnesses, as Fleet's test mocks them: OpenCode, which the server marks as the default.
+fn harnesses() -> Value {
+    json!([{"type": "opencode", "displayName": "OpenCode", "available": true, "userEnabled": true, "isDefault": true,
+        "state": "ready", "capabilities": {"supportsAgents": true, "supportsModelSelection": true, "supportsWorkflowSteps": true}}])
+}
+
+/// What OpenCode offers any folder, as Fleet's test's `catalog`: loom (the default, on Claude Opus 4.7) and tapestry.
+fn catalog() -> Value {
+    json!({"supported": true,
+        "agents": [{"name": "loom", "mode": "primary", "model": {"providerID": "github-copilot", "modelID": "claude-opus-4.7"}},
+                   {"name": "tapestry", "mode": "primary"}],
+        "providers": [{"id": "github-copilot", "name": "GitHub Copilot",
+            "models": [{"id": "claude-opus-4.7", "name": "Claude Opus 4.7"}, {"id": "claude-haiku-4.5", "name": "Claude Haiku 4.5"}]}],
+        "defaultAgent": "loom", "defaultModel": null})
 }
 
 /// Takes the refusal waiting for `verb`, if that is the one.
@@ -79,6 +99,8 @@ pub(crate) fn fake(initial: Vec<Value>) -> Fake {
     let time_gate = refuse_time.clone();
     let repositories = Arc::new(Mutex::new(Vec::<Value>::new()));
     let repos_gate = repositories.clone();
+    let catalogs = Asked::default();
+    let catalogs_gate = catalogs.clone();
     std::thread::spawn(move || {
         for mut stream in listener.incoming().flatten() {
             let (log, items, refuse_next, gate) = (log.clone(), items.clone(), refuse_next.clone(), gate.clone());
@@ -87,8 +109,18 @@ pub(crate) fn fake(initial: Vec<Value>) -> Fake {
             let (runs_gate, hold_gate, refuse_gate) = (runs_gate.clone(), hold_gate.clone(), refuse_gate.clone());
             let time_gate = time_gate.clone();
             let repos_gate = repos_gate.clone();
+            let catalogs_gate = catalogs_gate.clone();
             std::thread::spawn(move || {
                 let req = crate::test_http::read(&mut stream);
+                // The composer's agent and model chips: the harnesses, and what one offers a folder.
+                if req.route() == "/api/harnesses" {
+                    return crate::test_http::respond_json(&mut stream, "200 X", &harnesses().to_string());
+                }
+                if let Some(harness) = req.route().strip_prefix("/api/harnesses/").and_then(|r| r.strip_suffix("/catalog")) {
+                    let directory = req.path.split_once("directory=").map(|(_, d)| d.split('&').next().unwrap_or("").replace("%2F", "/"));
+                    catalogs_gate.lock().unwrap().push((harness.to_string(), directory));
+                    return crate::test_http::respond_json(&mut stream, "200 X", &catalog().to_string());
+                }
                 if req.route() == "/api/repositories" {
                     let all = repos_gate.lock().unwrap().clone();
                     return crate::test_http::respond_json(&mut stream, "200 X", &json!({"repositories": all, "scannedAt": 1}).to_string());
@@ -232,6 +264,7 @@ pub(crate) fn fake(initial: Vec<Value>) -> Fake {
         hold_runs,
         refuse_runs,
         refuse_time,
+        catalogs,
     }
 }
 
