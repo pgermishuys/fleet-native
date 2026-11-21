@@ -17,19 +17,7 @@ pub fn models(s: &State, t: &Theme) -> El {
     let with_project = !a.filters.project_id.trim().is_empty();
     let has = !a.models.data.is_empty();
     let body = if a.models_loading() {
-        // `.models-tab__state--loading`: a dashed box, 280 tall at least, the words in `--text` (no spinner).
-        col()
-            .key("analytics-loading")
-            .label("Loading model analytics…")
-            .w_full()
-            .min_h(280.0)
-            .center()
-            .padding(24.0)
-            .radius(RADIUS_CARD)
-            .border(1.0, t.border)
-            .border_dash(4.0, 3.0)
-            .border_layout()
-            .child(text("Loading model analytics…").font(sans(13.0, 400.0, 1.5)).color(t.text).align(Align::Center))
+        loading_box(t, "Loading model analytics…")
     } else if !has && a.models.error.is_some() {
         error_note(t, "analytics-error", "Unable to load model analytics.", a.models.error.as_deref().unwrap_or_default())
     } else if !has {
@@ -111,4 +99,20 @@ fn table(t: &Theme, lines: &[ModelLine]) -> El {
         .w_full()
         .scroll_x()
         .child(row().min_w(720.0).grow(1.0).children(columns))
+}
+
+/// `.models-tab__state--loading` (the same box in Sessions): a dashed box, 280 tall at least, the words in `--text` (no spinner).
+pub fn loading_box(t: &Theme, words: &str) -> El {
+    col()
+        .key("analytics-loading")
+        .label(words.to_string())
+        .w_full()
+        .min_h(280.0)
+        .center()
+        .padding(24.0)
+        .radius(RADIUS_CARD)
+        .border(1.0, t.border)
+        .border_dash(4.0, 3.0)
+        .border_layout()
+        .child(text(words.to_string()).font(sans(13.0, 400.0, 1.5)).color(t.text).align(Align::Center))
 }

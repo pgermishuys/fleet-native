@@ -39,6 +39,8 @@ mod tests_analytics_overview;
 #[cfg(test)]
 mod tests_analytics_page;
 #[cfg(test)]
+mod tests_analytics_sessions;
+#[cfg(test)]
 mod tests_analytics_store;
 #[cfg(test)]
 mod tests_analytics_tables;
@@ -5529,6 +5531,38 @@ pub fn spec() -> AppSpec<State> {
             }),
             ("analytics-models-empty-light", |s| {
                 s.show_analytics_section(false, mock::analytics::Scene::Nothing, fleet::analytics::sections::Section::Models)
+            }),
+            ("analytics-sessions", |s| {
+                s.show_analytics_section(true, mock::analytics::Scene::Menu, fleet::analytics::sections::Section::Sessions);
+            }),
+            ("analytics-sessions-sorted", |s| {
+                s.show_analytics_section(true, mock::analytics::Scene::Menu, fleet::analytics::sections::Section::Sessions);
+                s.show_analytics_sorted(fleet::analytics::sessions_sort::SortBy::Title, fleet::analytics::sessions_sort::SortDir::Asc);
+            }),
+            ("analytics-sessions-loading", |s| {
+                s.show_analytics_section(true, mock::analytics::Scene::Loading, fleet::analytics::sections::Section::Sessions);
+            }),
+            ("analytics-sessions-error", |s| {
+                s.show_analytics_section(true, mock::analytics::Scene::Failed, fleet::analytics::sections::Section::Sessions);
+            }),
+            ("analytics-sessions-empty", |s| {
+                s.show_analytics_section(true, mock::analytics::Scene::Nothing, fleet::analytics::sections::Section::Sessions);
+            }),
+            ("analytics-sessions-light", |s| {
+                s.show_analytics_section(false, mock::analytics::Scene::Menu, fleet::analytics::sections::Section::Sessions);
+            }),
+            ("analytics-sessions-sorted-light", |s| {
+                s.show_analytics_section(false, mock::analytics::Scene::Menu, fleet::analytics::sections::Section::Sessions);
+                s.show_analytics_sorted(fleet::analytics::sessions_sort::SortBy::Title, fleet::analytics::sessions_sort::SortDir::Asc);
+            }),
+            ("analytics-sessions-loading-light", |s| {
+                s.show_analytics_section(false, mock::analytics::Scene::Loading, fleet::analytics::sections::Section::Sessions);
+            }),
+            ("analytics-sessions-error-light", |s| {
+                s.show_analytics_section(false, mock::analytics::Scene::Failed, fleet::analytics::sections::Section::Sessions);
+            }),
+            ("analytics-sessions-empty-light", |s| {
+                s.show_analytics_section(false, mock::analytics::Scene::Nothing, fleet::analytics::sections::Section::Sessions);
             }),
             ("analytics-calendar-limits-light", |s| s.show_analytics(false, mock::analytics::Scene::CalendarLimits)),
             ("automation-detail", |s| s.show_automations(true, mock::automations::Scene::Started)),

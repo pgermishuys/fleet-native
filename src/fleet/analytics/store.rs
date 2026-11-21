@@ -342,6 +342,14 @@ impl State {
         self.analytics_set_filters(Filters::defaults(now));
     }
 
+    /// For a scene: the page already mounted and sorted. A mount opens on Created, so a sort set before the first look is lost.
+    pub fn show_analytics_sorted(&mut self, by: SortBy, dir: SortDir) {
+        let now = self.now_ms.unwrap_or_else(crate::fleet::link::now_ms);
+        self.analytics.mounted = Some(self.analytics_machine());
+        self.analytics.filters = Filters::defaults(now);
+        self.analytics.sort = (by, dir);
+    }
+
     /// A sort change reads the sessions alone (`refreshSessionsOnly`). A refresh of everything already reads them.
     pub fn analytics_set_sort(&mut self, by: SortBy, dir: SortDir) {
         if self.analytics.sort == (by, dir) {
