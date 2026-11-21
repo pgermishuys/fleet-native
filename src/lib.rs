@@ -29,6 +29,8 @@ mod tests_agents_session;
 #[cfg(test)]
 mod tests_agents_tab;
 #[cfg(test)]
+mod tests_analytics_page;
+#[cfg(test)]
 mod tests_analytics_store;
 #[cfg(test)]
 pub(crate) mod tests_archive_pins;
@@ -573,6 +575,8 @@ pub struct State {
     pub automations: fleet::automations::store::Automations,
     /// Analytics' machine, filters and reads (`fleet::analytics::store`).
     pub analytics: fleet::analytics::store::Analytics,
+    /// The section Analytics shows (`fleet::analytics::nav`).
+    pub analytics_nav: fleet::analytics::nav::Nav,
     /// The Workflows page: its Library, the open workflow, the machine it shows (`fleet::workflows::nav`).
     pub automations_nav: fleet::automations::nav::Nav,
     pub workflows_nav: fleet::workflows::nav::Nav,
@@ -904,6 +908,7 @@ impl Default for State {
             workflows: Default::default(),
             automations: Default::default(),
             analytics: Default::default(),
+            analytics_nav: Default::default(),
             automations_nav: Default::default(),
             workflows_nav: Default::default(),
             links: Default::default(),
@@ -5211,6 +5216,12 @@ pub fn spec() -> AppSpec<State> {
             ("automation-open", |s| s.show_automations(true, mock::automations::Scene::Open)),
             ("automation-open-light", |s| s.show_automations(false, mock::automations::Scene::Open)),
             ("analytics-rail", |s| s.rail = Rail::Analytics),
+            ("analytics-menu", |s| s.show_analytics(true, mock::analytics::Scene::Menu)),
+            ("analytics-menu-light", |s| s.show_analytics(false, mock::analytics::Scene::Menu)),
+            ("analytics-menu-models", |s| s.show_analytics(true, mock::analytics::Scene::Models)),
+            ("analytics-menu-models-light", |s| s.show_analytics(false, mock::analytics::Scene::Models)),
+            ("analytics-machines", |s| s.show_analytics(true, mock::analytics::Scene::Machines)),
+            ("analytics-machines-light", |s| s.show_analytics(false, mock::analytics::Scene::Machines)),
             ("automation-detail", |s| s.show_automations(true, mock::automations::Scene::Started)),
             ("automation-detail-light", |s| s.show_automations(false, mock::automations::Scene::Started)),
             ("automation-detail-off", |s| s.show_automations(true, mock::automations::Scene::Off)),

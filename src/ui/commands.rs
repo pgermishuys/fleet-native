@@ -116,7 +116,7 @@ pub fn all(s: &State) -> Vec<Command> {
             Navigation,
             None,
             &["usage", "stats"],
-            now(|s, _| s.rail = Rail::Analytics),
+            now(|s, _| s.enter_analytics()),
         ),
         c(
             "nav-settings",
