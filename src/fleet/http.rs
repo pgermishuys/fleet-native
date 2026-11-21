@@ -25,8 +25,16 @@ fn plain_builder() -> ureq::config::ConfigBuilder<ureq::typestate::AgentScope> {
 }
 
 fn agent() -> ureq::Agent {
-    agent_for(15)
+    agent_for(GET_SECS)
 }
+
+/// How long a plain call waits. A test holds a fake's answer on purpose and waits for other reads meanwhile; on a loaded
+/// runner that can pass 15 s with nothing wrong, and the held call then fails on its own and settles what the test holds
+/// open. So a test's calls wait as long as the test's own waits do.
+#[cfg(not(test))]
+const GET_SECS: u64 = 15;
+#[cfg(test)]
+const GET_SECS: u64 = crate::test_wait::BOUND.as_secs();
 
 fn agent_for(seconds: u64) -> ureq::Agent {
     builder().timeout_global(Some(Duration::from_secs(seconds))).build().into()

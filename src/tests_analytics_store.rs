@@ -145,17 +145,32 @@ fn rig() -> Rig {
 }
 
 impl Rig {
-    fn wait(&mut self, what: &str, done: impl FnMut(&State) -> bool) {
-        test_wait::drive(&mut self.rt, &self.queue, what, done, |s| {
-            let a = &s.analytics;
-            format!(
-                "machine {:?}, asked {}, loading {:?}, errors {:?}",
-                a.machine(),
-                a.asked,
-                [a.summary.is_loading, a.daily.is_loading, a.models.is_loading, a.sessions.is_loading],
-                [&a.summary.error, &a.daily.error, &a.models.error, &a.sessions.error]
-            )
-        });
+    /// Applies what the reads hand back until `done` holds. Unlike `test_wait::drive` its frames don't move the clock: the
+    /// polls are due 30 s after a read, and a slow runner looking a few thousand times would otherwise make one due in the
+    /// middle of a test. The clock moves only where a test says so (`later`).
+    fn wait(&mut self, what: &str, mut done: impl FnMut(&State) -> bool) {
+        let queue = &self.queue;
+        test_wait::until(
+            &mut self.rt,
+            what,
+            |rt| {
+                while let Ok(job) = queue.try_recv() {
+                    rt.update(job);
+                }
+                rt.frame(0.0);
+                done(&rt.state)
+            },
+            |rt| {
+                let a = &rt.state.analytics;
+                format!(
+                    "machine {:?}, asked {}, loading {:?}, errors {:?}",
+                    a.machine(),
+                    a.asked,
+                    [a.summary.is_loading, a.daily.is_loading, a.models.is_loading, a.sessions.is_loading],
+                    [&a.summary.error, &a.daily.error, &a.models.error, &a.sessions.error]
+                )
+            },
+        );
     }
 
     /// Shows Analytics and waits for the first answers of all five reads.
@@ -443,7 +458,12 @@ fn another_machine_starts_over_with_its_own_filters_and_loading_states() {
     assert_eq!(r.rt.state.analytics.machine(), Some("m-harbor"));
     assert_eq!(r.rt.state.analytics.filters.project_id, "harbor-api");
     assert!(r.rt.state.analytics.summary.is_loading, "fresh reads");
-    r.wait("harbor's answers", |s| !s.analytics.summary.is_loading && !s.analytics.sessions.is_loading);
+    // Each read is its own request on its own thread, so the summary and the sessions can answer before the daily one is even
+    // heard: wait for every read, the daily one the assertion is about among them.
+    r.wait("harbor's answers", |s| {
+        let a = &s.analytics;
+        !(a.summary.is_loading || a.range.is_loading || a.daily.is_loading || a.models.is_loading || a.sessions.is_loading)
+    });
     assert!(r.harbor.on("daily")[0].contains("projectId=harbor-api"));
 }
 
