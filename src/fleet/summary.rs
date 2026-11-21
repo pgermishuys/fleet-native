@@ -171,13 +171,13 @@ impl Bar {
 }
 
 /// Where a read goes: this machine's server, or another machine's with its own token and addresses.
-enum Target {
+pub(crate) enum Target {
     Here(String),
     There(Box<Machine>),
 }
 
 impl Target {
-    fn get(&self, path: &str) -> Result<Value, String> {
+    pub(crate) fn get(&self, path: &str) -> Result<Value, String> {
         match self {
             Target::Here(base) => super::http::get(base, path),
             Target::There(machine) => {

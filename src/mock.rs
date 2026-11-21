@@ -4,6 +4,7 @@ use crate::view::conversation::{Message, Part, ToolState};
 pub mod agent_tab;
 pub mod agents;
 pub mod agents_tab;
+pub mod analytics;
 pub mod asks;
 // Nothing draws these until piece D (the page and the list); the tests read them now.
 #[allow(dead_code)]

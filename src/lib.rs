@@ -29,6 +29,8 @@ mod tests_agents_session;
 #[cfg(test)]
 mod tests_agents_tab;
 #[cfg(test)]
+mod tests_analytics_store;
+#[cfg(test)]
 pub(crate) mod tests_archive_pins;
 #[cfg(test)]
 mod tests_archived;
@@ -563,6 +565,8 @@ pub struct State {
     pub workflows: fleet::workflows::runs::Workflows,
     /// Every machine's automations (`fleet::automations::store`).
     pub automations: fleet::automations::store::Automations,
+    /// Analytics' machine, filters and reads (`fleet::analytics::store`).
+    pub analytics: fleet::analytics::store::Analytics,
     /// The Workflows page: its Library, the open workflow, the machine it shows (`fleet::workflows::nav`).
     pub automations_nav: fleet::automations::nav::Nav,
     pub workflows_nav: fleet::workflows::nav::Nav,
@@ -893,6 +897,7 @@ impl Default for State {
             skills: Default::default(),
             workflows: Default::default(),
             automations: Default::default(),
+            analytics: Default::default(),
             automations_nav: Default::default(),
             workflows_nav: Default::default(),
             links: Default::default(),
@@ -1736,6 +1741,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_dashboard_machine(now, tx)
         | s.keep_usage_watch(now, tx)
         | s.keep_summary(now, tx)
+        | s.keep_analytics(now, tx)
         | s.keep_settings_anchor(tx)
         | s.keep_memory(tx)
         | s.keep_credentials(tx)

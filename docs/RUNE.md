@@ -2340,6 +2340,15 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 
 - **Nothing new about Rune:** the piece is plain Rust (data, queries, dates and comparisons), tested headless.
 
+## Component 20, piece B (the store and the reads)
+
+- **A numbered read has to settle its batch even when dropped:** `refreshing_all` is `Promise.allSettled`, so an answer that a newer request
+  overtook still counts. The test holds one read of a filter change, lets a poll overtake it, then releases it: `refreshing_all` going false
+  is the only sign the old answer arrived, so the test asserts the newer numbers survive after waiting for that, with no sleep.
+- **A test that counts a fake's requests must wait for them:** `asked` (counted when the UI thread sends) is exact at once; what the fake
+  heard is not. Wait on the fake's own counter before asserting on its paths.
+- **The test build was OOM-killed again at `MemoryMax=4000M`** (exit 143, `Failed with result 'oom-kill'` in the user journal, 3.9G peak);
+  5500M built it in under three minutes.
 
 ## Component 21, piece A (the plugin seam)
 
