@@ -521,6 +521,8 @@ mod machine_diagnosis;
 mod machine_routes;
 mod machines;
 mod modes;
+mod mods_resolve;
+mod mods_validate;
 mod ordering;
 mod pages;
 mod presence;
