@@ -2728,3 +2728,8 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **`on_hover(|s| ...)` is `mouseenter`**: the picker's row sets the selected index with it, and `on_press_tx` picks. A row with `.focusable(false)` takes the press without taking the box's focus (Fleet's `@mousedown.prevent`).
 - **A `position: sticky` head and foot are fixed rows outside the scroller** when the popup has a `max_h`: the rows scroll between them, which looks the same.
 - **A test fake that answers by exact path** needs the query string encoded as the request encodes it; build the expected path with the same `encode_component` the request uses.
+
+
+## Component 20, piece K (the sweep)
+
+- A scripted run answers a save dialog with `{"type":"file-dialog","path":…}` (`file-dialog-cancel` cancels), so Export CSV can be walked live and the saved file compared with the server's.
