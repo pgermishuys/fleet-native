@@ -359,6 +359,8 @@ mod tests_workflow_card;
 #[cfg(test)]
 mod tests_workflow_detail;
 #[cfg(test)]
+mod tests_workflow_finish;
+#[cfg(test)]
 mod tests_workflow_roles;
 #[cfg(test)]
 mod tests_workflow_run_box;
@@ -1765,6 +1767,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_sign_in_flow(now, tx)
         | s.keep_places(now, tx)
         | s.keep_workflow_card(tx)
+        | s.keep_workflow_finish()
         | s.keep_updates(now, tx)
         | s.keep_whats_new(now, tx)
         | s.keep_locations(tx)
@@ -2648,6 +2651,16 @@ pub fn spec() -> AppSpec<State> {
             ("workflow-card-skill-off-light", |s| s.show_workflow_card(false, mock::workflow_card::Case::SkillOff)),
             ("workflow-card-resolved", |s| s.show_workflow_card(true, mock::workflow_card::Case::Resolved)),
             ("workflow-card-resolved-light", |s| s.show_workflow_card(false, mock::workflow_card::Case::Resolved)),
+            ("workflow-finish", |s| s.show_workflow_finish(true, mock::workflow_finish::Case::Design)),
+            ("workflow-finish-light", |s| s.show_workflow_finish(false, mock::workflow_finish::Case::Design)),
+            ("workflow-finish-note", |s| s.show_workflow_finish(true, mock::workflow_finish::Case::Note)),
+            ("workflow-finish-note-light", |s| s.show_workflow_finish(false, mock::workflow_finish::Case::Note)),
+            ("workflow-finish-outcomes", |s| s.show_workflow_finish(true, mock::workflow_finish::Case::Outcomes)),
+            ("workflow-finish-outcomes-light", |s| s.show_workflow_finish(false, mock::workflow_finish::Case::Outcomes)),
+            ("workflow-finish-blocked", |s| s.show_workflow_finish(true, mock::workflow_finish::Case::Blocked)),
+            ("workflow-finish-blocked-light", |s| s.show_workflow_finish(false, mock::workflow_finish::Case::Blocked)),
+            ("workflow-wrapping-up", |s| s.show_workflow_finish(true, mock::workflow_finish::Case::Wrapping)),
+            ("workflow-wrapping-up-light", |s| s.show_workflow_finish(false, mock::workflow_finish::Case::Wrapping)),
             ("workflow-detail", |s| s.show_workflows(true, mock::workflows::Scene::Detail)),
             ("workflow-detail-light", |s| s.show_workflows(false, mock::workflows::Scene::Detail)),
             ("workflow-detail-errors", |s| s.show_workflows(true, mock::workflows::Scene::DetailErrors)),

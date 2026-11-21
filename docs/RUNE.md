@@ -2488,3 +2488,13 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **No `aria-current` found:** I found no way in Rune at the pin to mark the open item of a menu to a screen reader; the native menu keys each item
   (`analytics-section-<id>`) and a test reads the open one from `State`.
 - **A test build was OOM-killed again (exit 143) at 5500M with `CARGO_BUILD_JOBS=2`:** 7000M with one job built and ran it.
+
+## Component 18, piece H (the finish bar)
+
+- **A text field's `.disabled(true)` dims it but leaves it `focusable`.** The test reads `opacity < 1.0` for the field, and `opacity < 1.0
+  && !focusable` for a button. Put `.disabled` on the field itself (the element that holds the key), not on its frame.
+- **A button with something after its label** (`Move on to Plan →`): `button_lead` only puts an element in front. Chain `.child(icon)`
+  onto the returned row and set `.px(..)` to the padding `has-[>svg]` gives.
+- **An underlined word is a `Span` with `underline` set**, drawn through `rich(..)`; a plain `text` has no underline.
+- **A test build of this crate needs about 5.3 GB of memory in its peak** (20 and 21 November 2026): it was killed at 4000M and at 5500M
+  and passed at 7500M with `CARGO_BUILD_JOBS=1`.
