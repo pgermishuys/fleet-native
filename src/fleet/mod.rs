@@ -74,6 +74,7 @@ pub mod images;
 pub mod improve;
 pub mod instance;
 pub mod interrupted;
+pub mod labs;
 pub mod lineage;
 pub mod lineage_moves;
 pub mod link;

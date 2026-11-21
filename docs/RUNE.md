@@ -2599,3 +2599,9 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **A page that watches a query asks from `keep`, not from the view:** a view can't change the state, so the plugin's poll computes the query the tab, filter and typed text make and hands it to the search each tick; the same query again does nothing. A test types into the state, steps `DEBOUNCE` with `rt.frame` and waits for the request.
 - **A tab strip with a line under the selected tab** is a row with a 1 px bottom border whose tabs have a transparent 2 px bottom border (accent when selected) and `mb(-1.0)`, as `ui::controls`' underline tabs do. A pressed state is `.checked(on)`; Rune has no `.selected`.
 - **A wrapping row of chips** is `flex_wrap()` (there is no `wrap()` on a row); the box that takes the rest of the line is `grow(1.0).min_w(220.0)`.
+
+## Component 23, piece A (the Labs frame)
+
+- A page that is several sibling panes (`[panel][gutter][page]`, or the notice alone) is a `Vec<El>` from the view; `view.rs` puts `ml(8.0)` on the first and appends the rest, as Workflows and Analytics do. A fn pointer can't capture, so a shared frame that takes a Turn on handler per feature matches on the feature to give each its own non-capturing closure.
+- A test fake sees requests the app makes for its own sake (the events hub negotiate, the update check). Assert on the prefixes you mean (`/api/jobs`, `/api/boards`, `/api/sessions`), never on "nothing but the preferences".
+- The test binary was OOM-killed at 4000M and again at 5500M here; 7000M with `CARGO_BUILD_JOBS=2` built and ran it.
