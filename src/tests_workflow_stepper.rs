@@ -258,3 +258,19 @@ fn the_prompts_fleet_sent_into_a_step_wear_the_workflow_mark() {
     r.rt.update(|s, _| *s.workflows.of_mut(HOME_MACHINE_KEY) = Default::default());
     assert_eq!(r.rt.state.workflow_mark(PROMPT, "anything"), None);
 }
+
+#[test]
+fn a_long_branch_shrinks_in_a_narrow_header_instead_of_running_over_the_title_and_the_switch() {
+    let mut r = rig(|v| v["branch"] = json!("fleet/the-pager-skips-the-last-page-when-the-total-is-not-a-multiple-of-the-page-size"));
+    r.rt.set_viewport((760.0, 760.0), 1.0);
+    r.rt.frame(FRAME);
+    r.rt.frame(FRAME);
+    let rect = |key: &str| r.rt.elements().into_iter().find(|e| e.key.as_deref() == Some(key)).unwrap_or_else(|| panic!("{key}")).rect;
+    let (branch, switch) = (rect("workflow-stepper-branch"), rect("workflow-check-with-me"));
+    assert!(
+        branch[0] + branch[2] <= switch[0] + 0.5,
+        "the branch ends at {} and the switch starts at {}",
+        branch[0] + branch[2],
+        switch[0]
+    );
+}

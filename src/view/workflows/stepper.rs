@@ -19,7 +19,16 @@ pub fn stepper(s: &State, t: &Theme) -> Option<El> {
     let mut line = row().key("workflow-stepper-run").w_full().min_w(0.0).center_y().gap(6.0);
     line = line.child(icon(&WORKFLOW, 12.0).color(t.accent)).child(title(t, run));
     if let Some(branch) = run.branch.as_deref().filter(|b| !b.is_empty()) {
-        line = line.child(text(branch.to_string()).font(mono(11.0, 400.0, 1.4)).color(t.muted));
+        // Fleet's span wraps in a narrow header; a text that can't shrink here ran over the title and the switch.
+        line = line.child(
+            text(branch.to_string())
+                .key("workflow-stepper-branch")
+                .font(mono(11.0, 400.0, 1.4))
+                .color(t.muted)
+                .truncate()
+                .shrink()
+                .min_w(0.0),
+        );
     }
     if let Some(by) = &run.started_by {
         line = line.child(started_by(t, by));
