@@ -2416,3 +2416,28 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **`rt.frame(dt)` moves the app's clock by `dt`**, which is how a test passes 60 s or 15 minutes without waiting; the stores' TTLs read
   `State::clock`, not the wall clock (the wall clock is kept beside it only to say "updated 3m ago").
 
+
+## Component 18, piece G (the run card)
+
+- **`flex: 1 1 240px` has no spelling.** `.grow(g)` sets the flex basis to 0, so `.w(240.0).grow(1.0)` in a wrapping row packs every
+  item onto one line and squeezes them. `.min_w(240.0).grow(1.0)` does what the CSS does: the floor is what the line break counts,
+  then the item takes the free space of its line.
+- **`margin-left: auto` has no spelling either.** An empty `spacer()` at the end of a wrapping row joins the line before it and takes
+  space from its neighbour; the button ends up alone on the next line, on the left. A growing box with `.min_w(<width of the
+  button>).justify_end()` around the button wraps as the button would and puts it at the end of its own line. The width is an
+  estimate when the label comes from the server (a step's name).
+- **A field's `:focus` outline shows for any focus; `.focus_ring` only for the keyboard's.** For a text field in a frame, put
+  `.focus_within_ring(2.0, -1.0, accent)` on the frame (the Run box does the same) and keep the field itself bare.
+- **A field can only take the keyboard once its key is in the drawn tree.** A press that opens it (a "Send back" choice) sets a counter;
+  `poll` moves it on once per call, and the second call asks for `tx.focus`. The same shape as the start page's `autofocus`.
+- **State that belongs to "this wait" is dropped from `poll`, not from the view:** the card keeps `owner` (session, step id) and
+  `keep_workflow_card` starts it again when the wait it is drawn for changes, as the component's `watch` does. Answers that come back
+  for an owner that has gone are ignored, so a late reply never fills the next wait's card.
+- **A scripted live picture leaves the server as it was after the click.** A script that presses a choice moves the run on, so a
+  second theme has to open the session without pressing again.
+- **The scripted model writes `$HOME` into its answers** (a path in a "show-page" reply, the file written by `write-file`). It also
+  answers `show-page` to any prompt that contains that word, such as a step's file name; give the run a request that avoids it, and
+  start the model with a scratch `HOME`.
+- **A scratch Fleet's commit of a step's files names the user.** With no git identity in the scratch home the server's error is
+  "unable to auto-detect email address (got '<user>@<host>.(none)')", which the card then shows. Put a `.gitconfig` with an invented
+  name in the scratch home before running a workflow.

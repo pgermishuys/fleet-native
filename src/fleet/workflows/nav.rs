@@ -78,6 +78,8 @@ pub struct Nav {
     pub roles: super::roles::Roles,
     /// The stepper under a step session's header: its switch and the error under it (piece F).
     pub stepper: super::stepper::Stepper,
+    /// The run card above the composer: its note, the answer on its way and the words of a refusal (piece G).
+    pub card: super::card::Card,
     /// Turn on is saving.
     pub turning_on: bool,
     /// Something asked for the library to be read again: the folder changed, or Turn on saved.

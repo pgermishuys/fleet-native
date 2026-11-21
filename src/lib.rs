@@ -349,6 +349,8 @@ mod tests_web_host;
 #[cfg(test)]
 mod tests_window;
 #[cfg(test)]
+mod tests_workflow_card;
+#[cfg(test)]
 mod tests_workflow_detail;
 #[cfg(test)]
 mod tests_workflow_roles;
@@ -1753,6 +1755,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_harness_strips(now, tx)
         | s.keep_sign_in_flow(now, tx)
         | s.keep_places(now, tx)
+        | s.keep_workflow_card(tx)
         | s.keep_updates(now, tx)
         | s.keep_whats_new(now, tx)
         | s.keep_locations(tx)
@@ -2624,6 +2627,18 @@ pub fn spec() -> AppSpec<State> {
             ("workflow-stepper-note-light", |s| s.show_workflow_stepper(false, mock::workflow_stepper::Case::Note)),
             ("workflow-step-mark", |s| s.show_workflow_stepper(true, mock::workflow_stepper::Case::Mark)),
             ("workflow-step-mark-light", |s| s.show_workflow_stepper(false, mock::workflow_stepper::Case::Mark)),
+            ("workflow-card-you", |s| s.show_workflow_card(true, mock::workflow_card::Case::You)),
+            ("workflow-card-you-light", |s| s.show_workflow_card(false, mock::workflow_card::Case::You)),
+            ("workflow-card-involvement", |s| s.show_workflow_card(true, mock::workflow_card::Case::Involvement)),
+            ("workflow-card-involvement-light", |s| s.show_workflow_card(false, mock::workflow_card::Case::Involvement)),
+            ("workflow-card-note", |s| s.show_workflow_card(true, mock::workflow_card::Case::Note)),
+            ("workflow-card-note-light", |s| s.show_workflow_card(false, mock::workflow_card::Case::Note)),
+            ("workflow-card-no-outcome", |s| s.show_workflow_card(true, mock::workflow_card::Case::NoOutcome)),
+            ("workflow-card-no-outcome-light", |s| s.show_workflow_card(false, mock::workflow_card::Case::NoOutcome)),
+            ("workflow-card-skill-off", |s| s.show_workflow_card(true, mock::workflow_card::Case::SkillOff)),
+            ("workflow-card-skill-off-light", |s| s.show_workflow_card(false, mock::workflow_card::Case::SkillOff)),
+            ("workflow-card-resolved", |s| s.show_workflow_card(true, mock::workflow_card::Case::Resolved)),
+            ("workflow-card-resolved-light", |s| s.show_workflow_card(false, mock::workflow_card::Case::Resolved)),
             ("workflow-detail", |s| s.show_workflows(true, mock::workflows::Scene::Detail)),
             ("workflow-detail-light", |s| s.show_workflows(false, mock::workflows::Scene::Detail)),
             ("workflow-detail-errors", |s| s.show_workflows(true, mock::workflows::Scene::DetailErrors)),
