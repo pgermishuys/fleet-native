@@ -230,6 +230,15 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
         layer.push(panel.anchored_fit(anchor, rune::Side::Top, rune::Align::Start, 6.0));
         floats.push("autocomplete-popup");
     }
+    // The `#` popup of the New session box: the host draws it, 8 px above the frame and as wide as it.
+    if s.ui.open.is_none()
+        && s.on_new_session_page()
+        && s.pickers.composer_w > 0.0
+        && let Some(popup) = s.new_hash_view(t)
+    {
+        layer.push(popup.anchored_fit("new-session-frame", rune::Side::Top, rune::Align::Start, 8.0));
+        floats.push("github-item-picker");
+    }
     // The completion popup under the code's caret; it never takes focus from the code. Its own function: this one's frame is large
     // in a debug build, and Windows' main thread has 1 MB of stack.
     if s.ui.open.is_none()

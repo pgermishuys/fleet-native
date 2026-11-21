@@ -223,3 +223,14 @@ pub fn assignees() -> Value {
         {"login": "sam-rivera", "avatar_url": "https://avatars.example/sam-rivera"},
     ])
 }
+
+/// What the `#` popup lists in a scene: two assigned to the user, then the recently updated, one an issue and one with a session.
+pub fn picker_items() -> Value {
+    json!([
+        pull(218, "Queue retries with backoff", json!({})),
+        issue(7, "Launch countdown skips a second"),
+        pull(220, "Fuel gauge rounding", json!({"checks": "failure", "assignees": []})),
+        issue(12, "Stage plan cache never expires"),
+        pull(221, "Hook retries into the launch log", json!({"isDraft": true, "assignees": []})),
+    ])
+}

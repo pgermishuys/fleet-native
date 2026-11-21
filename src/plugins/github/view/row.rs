@@ -44,7 +44,7 @@ pub fn description(item: &ItemSummary) -> String {
 }
 
 /// The state the icon draws: a pull request's by `prState`, an issue open or closed.
-fn icon_state(item: &ItemSummary) -> PrState {
+pub(super) fn icon_state(item: &ItemSummary) -> PrState {
     if item.kind == Kind::Pull {
         pr_state(&item_pr_facts(item, None))
     } else if item.state == "closed" {

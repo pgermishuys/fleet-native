@@ -2118,7 +2118,7 @@ Checked on Linux (lavapipe); not on Windows or macOS (CI).
   (the place; nothing in core names GitHub but the id string the preset carries), **A4.11, A4.13, A4.16**. Tests in `src/tests_new_refs.rs` and `tests_places.rs`: A21.37-38, 52-59 (A21.52-55 over a fake
   preset and a fake `ItemPicker`), A21.82-84 were done with F. Pictures: `shots/parity/07-new-session-m/` (live against a scratch Fleet: `@` and a picture, beside Fleet's own; scenes for the chip and the folder line).
   Gaps, each with its reason:
-  - **A6.2-A6.10, B10 (the `#` popup, its keys, Esc, Shift+Enter "open its session", the GitHub search and the repository from the remotes)**: component 21's. Core offers the trigger, `search` and `pick_item`; with
+  - **A6.2-A6.10, B10 (the `#` popup, its keys, Esc, Shift+Enter "open its session", the GitHub search and the repository from the remotes)**: component 21's. **Done in 21 M** (`docs/parity/21-github.md`, rows 13.1-13.5). Core offers the trigger, `search` and `pick_item`; with
     no host registered `#` stays text. A21.46-51 and A21.206 are 21's too.
   - **A8.12 and A9.7 (the references as chips and the pictures in the sent bubble)**: the seeded prompt (`SentPrompt`) carries no references or images and the message list draws no reference chips (component 3). The
     first message shows its words only.
@@ -2216,7 +2216,7 @@ Checked on Linux (lavapipe); not on Windows or macOS (CI).
   Live on a scratch Fleet (v0.72.0, scripted model): a repository on a new worktree (picture and video, both themes; the session is made on its own branch under `demo-worktrees`, the first message shows at once and the reply streams), and no folder (a chat). A plain folder and a typed branch are covered by tests (`uses_a_typed_folder`, the branch cases of A21.12-21), not run live. Pictures: `shots/parity/07-new-session-q/`.
   **Startup screen, written once more for component 9**: Fleet opens on `/` (the dashboard, `C17.1-17.4`), with one redirect to `/fleet` when the Labs preference is on. Native opens the first session, or the New session page when the list is empty. Replace it when components 23 (dashboard) and 9 (app frame) land.
   **Rows still open, each with its owner:**
-  - **A6.1-A6.12, B10.1-B10.21, A21.46-A21.51, A21.206** (the `#` popup): component 21 (core keeps the trigger, `ItemPicker` and its registry).
+  - **A6.1-A6.12, B10.1-B10.21, A21.46-A21.51, A21.206** (the `#` popup): component 21 (core keeps the trigger, `ItemPicker` and its registry). **Done in 21 M**: the popup, its keys and the search are GitHub's (`plugins::github::picker`).
   - **A7.8, A7.10, A7.12** (preset-only send, folder limits, missing repository text): the preset code is M's and is tested over a fake item (A21.52-55); the real item arrives with 21.
   - **A8.12, A9.7** (references and pictures in the sent bubble): component 3's message list.
   - **A4.3 drag wash, A4.14, A4.15, C12.6, C12.9, B2.30** (accessibility roles, focus text): component 26.

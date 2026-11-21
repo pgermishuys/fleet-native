@@ -2713,9 +2713,18 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **`border_sides([0, 0, 1, 0], …)` is the rule under the rail** in one column; the same rail has `[0, 0, 0, 1]` beside the conversation. `border_layout()` goes with both.
 - **Capitals are `to_uppercase()`** on the string (there is no text-transform); `.tracking(0.66)` is `letter-spacing: .06em` at 11 px.
 - **`cargo test`'s build needs `MemoryMax=7000M`** here: at 4000M it is killed with a silent exit 143.
+
 ## Component 23, piece E (a machine's view and the peek)
 
 - **A tile's border that changes on hover is a ring**: an outer column with `padding(1.0)` and the border colour as its fill, `hover(...)` on it, and the tile's own fill inside (`ring.hover` shows at the edge only, because the face covers the rest). `.hover()` on the outer element still fires with the pointer over its child.
 - **Measure Fleet's spacing in its DOM, not from the class names**: Tailwind's steps are 3.5 px at the 14 px root (`gap-3` is 10.5, `p-3` 10.5, `mb-5` 17.5, `px-1.5` 5.25). A first try with 4 px steps left every tile 3 px taller than Fleet's; Playwright's `getBoundingClientRect` on one tile and its children settled it.
 - **A test clock that is moved in one frame folds a noted event too early**: `mission_sessions_event` is noted on a frame and its 300 ms fold runs from that frame, so `later(FOLD + 0.1)` in one step never fires it; move the clock in two (`later(0.1)`, then `later(FOLD + 0.1)`).
 - **`text_input(...).on_edit(|s| &mut s.x)` with `.on_submit` is a complete nudge field**; `press_key(Key::Text(..))` after a `click` on its key types into it, `Key::Enter` submits.
+
+## Component 21, piece M (the `#` picker)
+
+- **A key reaches the field after the frame's `poll`.** A test that types `#` and then reads what the page's `keep` made of it must draw one more frame first, or it sees the state from before the key (it read "not loading" and went on).
+- **A popup above a frame is `anchored_fit(frame_key, Side::Top, Align::Start, gap)`**, as wide as the frame by setting its own width from the frame's `on_layout`; the host's row keys (`github-item-picker-row-{n}`) and `scroll_into_view_in` keep the arrow keys' row on screen.
+- **`on_hover(|s| ...)` is `mouseenter`**: the picker's row sets the selected index with it, and `on_press_tx` picks. A row with `.focusable(false)` takes the press without taking the box's focus (Fleet's `@mousedown.prevent`).
+- **A `position: sticky` head and foot are fixed rows outside the scroller** when the popup has a `max_h`: the rows scroll between them, which looks the same.
+- **A test fake that answers by exact path** needs the query string encoded as the request encodes it; build the expected path with the same `encode_component` the request uses.

@@ -16,6 +16,7 @@ pub mod items;
 pub mod metadata;
 pub mod mock;
 mod panel_loads;
+pub mod picker;
 pub mod repo;
 pub mod repos;
 pub mod search;
@@ -42,6 +43,8 @@ mod tests_item_rail;
 mod tests_items;
 #[cfg(test)]
 mod tests_panel;
+#[cfg(test)]
+mod tests_picker;
 #[cfg(test)]
 mod tests_repo;
 #[cfg(test)]
@@ -87,6 +90,8 @@ pub struct GitHub {
     pub repo: repo::RepoPage,
     /// An item's page: what it has loaded.
     pub item: item_page::Page,
+    /// The `#` picker's list (the New session box).
+    pub picker: picker::Picker,
     /// The Follow a repository dialog.
     pub follow: follow::Follow,
     /// The rows scenes' list (`github-rows*`): items the page draws as rows until a repository's page (piece I) draws its own.
@@ -126,6 +131,7 @@ pub fn entry() -> Entry {
     e.keep = Some(keep);
     e.overlay = Some(overlay);
     e.repositories = Some(repo_cache.source());
+    e.item_picker = Some(picker::host());
     e
 }
 

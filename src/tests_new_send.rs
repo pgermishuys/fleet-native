@@ -33,6 +33,12 @@ pub(crate) struct Fake {
     pub(crate) preferences: Vec<(String, String)>,
     /// What `GET /api/machines` lists.
     machines: Vec<Value>,
+    /// What `GET /api/repositories/detail` answers (a 404 while none is set), and, for the GitHub routes (the `#` picker's), what
+    /// each path with its query answers, every one asked in order, and the paths whose next request waits for a message.
+    pub(crate) detail: Option<Value>,
+    pub(crate) github: std::collections::HashMap<String, (u16, Value)>,
+    pub(crate) github_log: Vec<String>,
+    pub(crate) github_gates: std::collections::HashMap<String, Arc<Mutex<Receiver<()>>>>,
 }
 
 pub(crate) type Shared = Arc<Mutex<Fake>>;
@@ -93,6 +99,18 @@ fn answer(mut stream: std::net::TcpStream, fake: Shared) {
         let files: Vec<String> =
             f.folder_files.get(&dir).map(|l| l.iter().filter(|p| p.contains(&q)).cloned().collect()).unwrap_or_default();
         (200, json!({ "directory": dir, "files": files }))
+    } else if method == "GET" && path.split('?').next() == Some("/api/repositories/detail") {
+        fake.lock().unwrap().detail.clone().map_or((404, json!({})), |d| (200, d))
+    } else if path.starts_with("/api/integrations/github/") {
+        let (hit, gate) = {
+            let mut f = fake.lock().unwrap();
+            f.github_log.push(path.to_string());
+            (f.github.get(path).cloned(), f.github_gates.remove(path))
+        };
+        if let Some(gate) = gate {
+            let _ = gate.lock().unwrap().recv_timeout(test_wait::BOUND);
+        }
+        hit.unwrap_or((200, json!({})))
     } else if method == "GET" && path.split('?').next() == Some("/api/machines") {
         (200, json!({ "machines": fake.lock().unwrap().machines.clone() }))
     } else if method == "PUT" && path.starts_with("/api/preferences/") {
@@ -123,7 +141,7 @@ pub(crate) fn rig() -> Rig {
     rig_with(Default::default())
 }
 
-fn rig_with(fake: Shared) -> Rig {
+pub(crate) fn rig_with(fake: Shared) -> Rig {
     let base = serve(fake.clone());
     let (jobs, queue) = channel::<Job>();
     let jobs = Mutex::new(jobs);
