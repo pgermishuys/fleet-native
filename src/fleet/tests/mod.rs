@@ -485,6 +485,7 @@ mod asks;
 mod attach;
 pub(crate) mod auth;
 mod autocomplete;
+mod automation_composer;
 mod automation_schedule;
 mod automations;
 mod canvases;

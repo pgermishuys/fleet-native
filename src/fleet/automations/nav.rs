@@ -1,6 +1,7 @@
 //! What the Automations page shows, shared by its list and its detail (`composables/use-automations-nav.ts`,
 //! `use-automations-machine.ts`): which automation is open, the list / create / edit mode, the new automation's draft, and the
 //! machine the view shows. Plain Rust apart from the `State` methods that start a request on a thread.
+use super::composer::ComposerState;
 use super::model::Automation;
 use crate::State;
 use crate::fleet::machine_choice::MachineChoice;
@@ -12,14 +13,6 @@ pub enum ViewMode {
     List,
     Create,
     Edit,
-}
-
-/// The new automation being written. It survives leaving the page, and the list's draft row shows it. Piece H gives it the
-/// rest of Fleet's `AutomationComposerState`; until then it holds what the row's title reads.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Draft {
-    pub text: String,
-    pub name: String,
 }
 
 /// A short note over the open automation: that a run started, or why the switch, Run now or Delete failed (`notice`).
@@ -43,7 +36,10 @@ pub struct Nav {
     pub choice: MachineChoice,
     pub active: Option<String>,
     pub mode: ViewMode,
-    pub draft: Draft,
+    /// The new automation being written (`draft`). It survives leaving the page, and the list's draft row shows it.
+    pub draft: ComposerState,
+    /// The open automation's changes (`editState` of `AutomationDetailPanel.vue`): the automation as saved until edited.
+    pub edit: ComposerState,
     /// Try again is running (`retrying`).
     pub retrying: bool,
     /// The note over the open automation (`notice`); opening another one clears it.
@@ -65,10 +61,16 @@ impl Nav {
         self.active.as_deref().filter(|_| self.mode == ViewMode::Edit)
     }
 
-    /// The draft row's title: the name typed, else "New automation". Piece H reads the sentence for it (`draftTitle`).
+    /// The draft row's title: the name typed, else the name the sentence gives, else "New automation" (`draftTitle`).
     pub fn draft_title(&self) -> String {
-        let name = self.draft.name.trim();
-        if name.is_empty() { "New automation".to_string() } else { name.to_string() }
+        self.draft.title()
+    }
+
+    /// A folder read before the repository list arrived is a repository after all, in the draft and the edit state (row
+    /// 7.14). Call it when the repositories of the machine the composer works on change.
+    pub fn repositories_changed(&mut self, repositories: &[String]) {
+        self.draft.upgrade_folder(repositories);
+        self.edit.upgrade_folder(repositories);
     }
 
     /// The scenes say the list was asked for, so the page doesn't read it again over what they set.
@@ -104,7 +106,7 @@ impl Nav {
 
     /// `resetDraft`.
     pub fn reset_draft(&mut self) {
-        self.draft = Draft::default();
+        self.draft = ComposerState::fresh();
     }
 }
 
