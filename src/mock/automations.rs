@@ -168,8 +168,15 @@ pub enum Scene {
     Failed,
     /// New automation pressed: the draft row, and the detail's title says so.
     Create,
-    /// New automation with a sentence typed (piece H): the draft row takes its title from the sentence.
+    /// New automation with a sentence typed (piece H): the draft row takes its title from the sentence; the composer reads
+    /// the schedule out of it (piece I).
     CreateTyped,
+    /// A sentence that says "on Friday" in a repository: the plan line asks "Every Friday, or just once?".
+    CreateAsk,
+    /// A create the server refused: the form error over the composer, the text kept.
+    CreateError,
+    /// An automation open with its prompt changed: Save shows.
+    EditDirty,
     /// An automation open: its header and nothing else yet.
     Open,
     /// The same, with the info note Run now leaves.
@@ -216,6 +223,9 @@ impl crate::State {
             Scene::List
             | Scene::Create
             | Scene::CreateTyped
+            | Scene::CreateAsk
+            | Scene::CreateError
+            | Scene::EditDirty
             | Scene::Open
             | Scene::Started
             | Scene::Off
@@ -239,8 +249,26 @@ impl crate::State {
             Scene::CreateTyped => {
                 self.automations_nav.start_create();
                 self.automations_nav
-                    .draft
-                    .set_text("Every Monday at 9, summarise the open pull requests and say what each one still needs.");
+                    .set_text(false, "Every Monday at 9, summarise the open pull requests and say what each one still needs.");
+            }
+            Scene::CreateAsk | Scene::CreateError => {
+                use crate::fleet::new_session::request::Folder;
+                self.automations_nav.start_create();
+                let words = if scene == Scene::CreateAsk {
+                    "Tidy the changelog on Friday."
+                } else {
+                    "Every Monday at 9, summarise the open pull requests and say what each one still needs."
+                };
+                self.automations_nav.set_text(false, words);
+                self.automations_nav.draft.set_folder(Folder::Repository(REPOSITORY.into()), true, false);
+                if scene == Scene::CreateError {
+                    self.automations_nav.form_error = Some("That time has already passed. Pick a later one.".into());
+                }
+            }
+            Scene::EditDirty => {
+                self.automations_nav.set_active("a-weekly");
+                self.reset_edit_state();
+                self.automations_nav.set_text(true, "Summarise the open pull requests and the drafts");
             }
             Scene::Open
             | Scene::Started
@@ -257,7 +285,7 @@ impl crate::State {
         match scene {
             Scene::RunsEmpty => self.automations_nav.runs.show(HOME_MACHINE_KEY, "a-weekly", Vec::new()),
             Scene::RunsStates => self.automations_nav.runs.show(HOME_MACHINE_KEY, "a-weekly", runs_states("a-weekly")),
-            Scene::Runs => self.automations_nav.runs.show(HOME_MACHINE_KEY, "a-weekly", runs("a-weekly")),
+            Scene::Runs | Scene::EditDirty => self.automations_nav.runs.show(HOME_MACHINE_KEY, "a-weekly", runs("a-weekly")),
             Scene::Builtin | Scene::BuiltinTime => self.automations_nav.runs.show(HOME_MACHINE_KEY, "a-dream", dreaming_runs()),
             Scene::BuiltinPaused => self.automations_nav.runs.show(HOME_MACHINE_KEY, "a-dream", Vec::new()),
             _ => {}

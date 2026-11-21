@@ -50,6 +50,19 @@ pub struct Nav {
     pub builtin: super::builtin::Builtin,
     /// The open automation's runs.
     pub runs: super::runs::Runs,
+    /// The composer's message box for the draft and for the open automation; their text is `draft.text` and `edit.text`,
+    /// kept equal through [`Nav::set_text`] and the box's change handler.
+    pub draft_box: rune::TextEdit,
+    pub edit_box: rune::TextEdit,
+    /// A create or save is waiting for the server (`isSubmitting`): the box is read-only and Send spins.
+    pub submitting: bool,
+    /// Why the server refused the last create or save, over the composer (`formError`).
+    pub form_error: Option<String>,
+    /// The automation `edit` was made from; another one (or none) makes it again from the list (`resetEditState`).
+    pub(super) edit_for: Option<String>,
+    /// The composer's upkeep: the machine whose repositories were asked for, the paths last seen, and whether the draft
+    /// was given its first folder.
+    pub(super) composer: super::submit::Upkeep,
     /// The machine whose list was asked for since the page opened; another machine, or the next visit, asks again.
     asked_for: Option<String>,
     last_tick: i64,
@@ -83,7 +96,10 @@ impl Nav {
     fn moved(&mut self, active: Option<String>, mode: ViewMode) {
         if self.active != active || self.mode != mode {
             self.notice = None;
+            self.form_error = None;
             self.builtin.editing = false;
+            // The unsaved changes belong to the automation they were made on: the next one starts as it is saved.
+            self.edit_for = None;
         }
         self.active = active;
         self.mode = mode;
@@ -107,6 +123,28 @@ impl Nav {
     /// `resetDraft`.
     pub fn reset_draft(&mut self) {
         self.draft = ComposerState::fresh();
+        self.draft_box = rune::TextEdit::new("");
+        self.composer.draft_folder_done = false;
+    }
+
+    /// The composer's state: the open automation's changes, or the draft.
+    pub fn composer(&self, editing: bool) -> &ComposerState {
+        if editing { &self.edit } else { &self.draft }
+    }
+
+    /// Sets the composer's text, in its box too (a scene, a test, or a draft read from a session).
+    pub fn set_text(&mut self, editing: bool, text: &str) {
+        let (state, field) = if editing { (&mut self.edit, &mut self.edit_box) } else { (&mut self.draft, &mut self.draft_box) };
+        field.replace_text(text);
+        state.set_text(text);
+    }
+
+    /// The box changed: the state takes its text (and "Just once" goes with a new phrase).
+    pub fn box_changed(&mut self, editing: bool) {
+        let (state, field) = if editing { (&mut self.edit, &self.edit_box) } else { (&mut self.draft, &self.draft_box) };
+        if state.text != field.text {
+            state.set_text(field.text.clone());
+        }
     }
 }
 
@@ -138,9 +176,10 @@ impl State {
         self.automations_nav.set_active(id);
     }
 
-    /// `startCreate`.
-    pub fn start_automation_create(&mut self) {
+    /// `startCreate`, and the box takes the keys (`focusMessage` on mount).
+    pub fn start_automation_create(&mut self, tx: &mut rune::Tx) {
         self.automations_nav.start_create();
+        tx.focus(crate::view::automations::composer::MESSAGE, false);
     }
 
     /// The list's Try again: reads again while the failed note stays up and its button waits (`retry`).
@@ -186,6 +225,7 @@ impl State {
             changed = true;
         }
         changed |= self.keep_automation_runs(tx);
+        changed |= self.keep_automation_composer();
         if now - self.automations_nav.last_tick >= TICK_MS {
             self.automations_nav.last_tick = now;
             changed = true;

@@ -1,6 +1,6 @@
 //! An open automation's page (`AutomationDetailPanel.vue`, the existing-automation branch): the bar with its name, the switch
 //! and the line beside it, Run now and the ⋯ menu, and the body under it, which starts with the note the actions leave. The
-//! runs go under it, and the composer (pieces H to N) go under the note.
+//! runs go under it; the composer goes under the body (`composer`), with the form error over it.
 use crate::State;
 use crate::fleet::automations::actions::header_meta;
 use crate::fleet::automations::model::Automation;
@@ -67,9 +67,20 @@ pub fn body(t: &Theme, s: &State, a: &Automation) -> El {
 
 /// The note: 760 wide at most, centred, 12 under; info in the muted colours, an error in the error ones with its glyph.
 pub(super) fn notice(t: &Theme, note: &Notice, below: f32) -> El {
+    note_box(t, "automation-action-message", note, below)
+}
+
+/// `.automation-page__error`: why the server refused a create or save, over the composer, in the error colours; as wide as
+/// the composer's parts (100 % less its 24 px sides, 760 at most) and 8 above it (row 4.11).
+pub(super) fn form_error(t: &Theme, words: &str) -> El {
+    let note = Notice { error: true, text: words.to_string(), until: None };
+    row().w_full().px(24.0).justify_center().child(note_box(t, "automation-form-error", &note, 8.0))
+}
+
+fn note_box(t: &Theme, key: &str, note: &Notice, below: f32) -> El {
     let ink = if note.error { t.error_text } else { t.muted };
     let mut note_row = row()
-        .key("automation-action-message")
+        .key(key.to_string())
         .role(if note.error { "alert" } else { "status" })
         .w_full()
         .max_w(760.0)
@@ -85,13 +96,6 @@ pub(super) fn notice(t: &Theme, note: &Notice, below: f32) -> El {
         note_row = note_row.fill(t.error.alpha(0.1)).child(icon(&CIRCLE_ALERT, rem(1.0)).color(ink).mt(2.0));
     }
     note_row.child(
-        text(note.text.clone())
-            .key("automation-action-message-text")
-            .font(sans(12.5, 400.0, 1.5))
-            .color(ink)
-            .wrap()
-            .grow(1.0)
-            .shrink()
-            .min_w(0.0),
+        text(note.text.clone()).key(format!("{key}-text")).font(sans(12.5, 400.0, 1.5)).color(ink).wrap().grow(1.0).shrink().min_w(0.0),
     )
 }

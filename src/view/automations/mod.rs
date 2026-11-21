@@ -1,6 +1,6 @@
 //! The Automations page (component 19): `[automations-list][automations-detail]`. Ports `components/pages/AutomationsPage.vue`
-//! and `AutomationDetailPanel.vue`. The list is `list`; an open automation's header, actions and note are `detail`; a new
-//! automation's detail is its bar alone until piece H.
+//! and `AutomationDetailPanel.vue`. The list is `list`; an open automation's header, actions and note are `detail`; the
+//! composer under a new or an open automation is `composer`.
 use crate::State;
 use crate::fleet::automations::nav::{RETRYING, ViewMode};
 use crate::icons::{CIRCLE_ALERT, PLUS, ZAP};
@@ -11,6 +11,7 @@ use crate::view::{files_tab, workflows::sheet};
 use rune::{ScrollSpec, col, icon, row, text};
 
 pub mod builtin;
+pub mod composer;
 pub mod detail;
 pub mod list;
 pub mod runs;
@@ -63,7 +64,16 @@ fn detail(s: &State, t: &Theme) -> rune::El {
     let header = match (nav.mode, open) {
         (ViewMode::Edit, Some(a)) if a.builtin.is_some() => builtin::header(t, a),
         (ViewMode::Edit, Some(a)) => detail::header(s, t, a),
+        (ViewMode::Create, _) => {
+            page_header::bar_with(t, "automation-header", &title, vec![builtin::pill(t, "automation-not-saved", "Not saved")], Vec::new())
+        }
         _ => page_header::bar(t, "automation-header", &title, None),
+    };
+    // A new automation, and one of yours open: the composer under the body, the form error over it (a built-in has none).
+    let composes = match (nav.mode, open) {
+        (ViewMode::Create, _) => true,
+        (ViewMode::Edit, Some(a)) => a.builtin.is_none(),
+        _ => false,
     };
     // `center__body`: the page sits in 24 px of padding all round, and its own body scrolls under the bar.
     let page = col().w_full().grow(1.0).min_h(0.0).padding(24.0).child(header).child(
@@ -78,6 +88,11 @@ fn detail(s: &State, t: &Theme) -> rune::El {
             .child(body(s, t))
             .scroll(ScrollSpec { stick_bottom: false }),
     );
+    let page = if composes {
+        page.children(nav.form_error.as_deref().map(|words| detail::form_error(t, words))).child(composer::section(s, t))
+    } else {
+        page
+    };
     sheet(t, "automations-detail").child(page)
 }
 
@@ -90,7 +105,7 @@ fn body(s: &State, t: &Theme) -> rune::El {
         return if a.builtin.is_some() { builtin::body(t, s, a) } else { detail::body(t, s, a) };
     }
     if s.automations_nav.mode == ViewMode::Create {
-        return col().w_full();
+        return create_prompt(t);
     }
     let first_load = store.is_loading && store.list.is_empty();
     let failed = store.list.is_empty() && (store.error.is_some() || s.automations_nav.retrying);
@@ -119,7 +134,34 @@ fn body(s: &State, t: &Theme) -> rune::El {
     let action = none.then(|| {
         button(t, Variant::Default, Size::Sm, Some(&PLUS), "New automation")
             .key("automation-empty-create")
-            .on_press(|s: &mut State| s.start_automation_create())
+            .on_press_tx(|s: &mut State, tx: &mut rune::Tx| s.start_automation_create(tx))
     });
     centred.child(empty_state::full(t, "automation-empty", &ZAP, title, words, action))
+}
+
+/// `.automation-page__empty`: what a new automation's page says over the composer, centred in the body.
+fn create_prompt(t: &Theme) -> rune::El {
+    col().key("automation-create-prompt").w_full().grow(1.0).center().child(
+        col()
+            .w_full()
+            .max_w(460.0)
+            .items_center()
+            .child(
+                text("What should run on its own?")
+                    .font(sans(17.0, 600.0, 1.4).tracking(-0.17))
+                    .color(t.text)
+                    .wrap()
+                    .w_full()
+                    .align(rune::Align::Center)
+                    .mb(4.0),
+            )
+            .child(
+                text("Say what it should do and when. The chips under the box say where it runs.")
+                    .font(sans(13.5, 400.0, 1.5))
+                    .color(t.muted)
+                    .wrap()
+                    .w_full()
+                    .align(rune::Align::Center),
+            ),
+    )
 }

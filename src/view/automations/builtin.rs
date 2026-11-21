@@ -12,7 +12,7 @@ use crate::ui::{page_header, rem};
 use rune::{El, Tx, col, row, text};
 
 /// `.builtin-page__pill`: a 1 px border, full radius, 1/8 padding, 11.5 px 500 muted.
-fn pill(t: &Theme, key: &str, word: &str) -> El {
+pub(super) fn pill(t: &Theme, key: &str, word: &str) -> El {
     row()
         .key(key.to_string())
         .px(8.0)
