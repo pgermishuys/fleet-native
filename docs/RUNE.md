@@ -2498,3 +2498,10 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **An underlined word is a `Span` with `underline` set**, drawn through `rich(..)`; a plain `text` has no underline.
 - **A test build of this crate needs about 5.3 GB of memory in its peak** (20 and 21 November 2026): it was killed at 4000M and at 5500M
   and passed at 7500M with `CARGO_BUILD_JOBS=1`.
+
+## Component 18, piece I (runs in Sessions and on the dashboard)
+
+- **Nothing new about Rune.** A group is plain columns of the existing session row: the row took two more `Slots` fields (`label`, `step`)
+  instead of a second row view. A scene's mock sessions need an id (`mock::machines::listed`), or the runs store can't find them.
+- **The scratch Fleet's `Workflows` switch is the preference `Workflows`**, not `features.workflows.enabled`; with the wrong key the
+  routes answer 404. v0.72.0 has no workflow routes at all: use the v0.74.0 package.

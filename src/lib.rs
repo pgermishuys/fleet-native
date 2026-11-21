@@ -367,6 +367,8 @@ mod tests_workflow_run_box;
 #[cfg(test)]
 mod tests_workflow_runs;
 #[cfg(test)]
+mod tests_workflow_runs_listed;
+#[cfg(test)]
 mod tests_workflow_stepper;
 #[cfg(test)]
 mod tests_workflows_page;
@@ -2633,6 +2635,10 @@ pub fn spec() -> AppSpec<State> {
             ("workflow-run-models-light", |s| s.show_roles(false, mock::workflows::RolesScene::Popover)),
             ("workflow-run-models-changed", |s| s.show_roles(true, mock::workflows::RolesScene::PopoverChanged)),
             ("workflow-run-models-changed-light", |s| s.show_roles(false, mock::workflows::RolesScene::PopoverChanged)),
+            ("sessions-workflow-run", |s| s.show_workflow_runs(true)),
+            ("sessions-workflow-run-light", |s| s.show_workflow_runs(false)),
+            ("dashboard-workflow-waiting", |s| s.show_dashboard_workflow_waiting(true)),
+            ("dashboard-workflow-waiting-light", |s| s.show_dashboard_workflow_waiting(false)),
             ("workflow-stepper", |s| s.show_workflow_stepper(true, mock::workflow_stepper::Case::Stepper)),
             ("workflow-stepper-light", |s| s.show_workflow_stepper(false, mock::workflow_stepper::Case::Stepper)),
             ("workflow-stepper-note", |s| s.show_workflow_stepper(true, mock::workflow_stepper::Case::Note)),

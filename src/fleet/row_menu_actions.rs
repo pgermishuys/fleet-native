@@ -102,6 +102,8 @@ impl State {
         let (p2, n2) = (target.clone(), target.is_some().then(|| label.clone()));
         let mut projects = std::mem::take(&mut self.projects);
         self.store.patch(&mut projects, id, |s| set(s, p2.clone(), n2.clone()));
+        // A workflow run's steps move together (`patchSessionProject`).
+        crate::fleet::store::patch_project(&mut projects, id, p2.as_deref(), n2.as_deref());
         self.projects = projects;
         self.machines.patch_session(&key, id, |s| set(s, p2.clone(), n2.clone()));
         let Some(link) = self.link_for(id) else { return };

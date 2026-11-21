@@ -4,7 +4,7 @@
 use super::progress_ring::progress_ring;
 use super::row_actions::Buttons;
 use super::session_row::{RowClock, glyph_el};
-use crate::fleet::row_status::{self, RowItem, Tone};
+use crate::fleet::row_status::{self, RowItem, RowStatus, Tone};
 use crate::icons::{ARCHIVE, TRASH_2};
 use crate::mock::Session;
 use crate::theme::{RADIUS_BTN, Theme, sans};
@@ -121,7 +121,13 @@ fn actions(t: &Theme, key: &str, session: &Session, p: usize, i: usize) -> Vec<E
 /// in `State::projects`, which opening it goes by.
 fn row_line(s: &State, t: &Theme, clock: &RowClock, at: At, session: &Session) -> El {
     let item = RowItem::of(session, clock.now);
-    let status = row_status::row_status(&item, clock.now, clock.offset_secs, true);
+    // A run waiting on the user in this session says what it waits for, not the session's own state.
+    let status = match s.waiting_run_step(&session.id) {
+        Some((step, workflow)) => {
+            RowStatus { label: step.clone(), tone: Tone::Attention, description: format!("{workflow}: {step}"), title: None }
+        }
+        None => row_status::row_status(&item, clock.now, clock.offset_secs, true),
+    };
     let key = row_key(session, at);
     let title = row_status::display_title(None, &session.title);
 

@@ -212,6 +212,18 @@ impl State {
         self.workflows.of(machine).unwrap_or_else(|| NONE.get_or_init(WorkflowRuns::default))
     }
 
+    /// The machine the home dashboard shows: another machine's page reads its own runs.
+    pub fn dashboard_machine_key(&self) -> String {
+        self.dashboard_on_other().unwrap_or_else(|| HOME_MACHINE_KEY.to_string())
+    }
+
+    /// A run waiting on the user in this session: the step it waits at and the workflow's name (`DashboardSessionRow`).
+    pub fn waiting_run_step(&self, session_id: &str) -> Option<(String, String)> {
+        let run = self.workflow_runs(&self.dashboard_machine_key()).run_for_session(session_id)?;
+        let waiting = run.waiting.as_ref().filter(|w| run.status == RunStatus::Waiting && w.session_id.as_deref() == Some(session_id))?;
+        Some((waiting.step_title.clone(), run.workflow_name.clone()))
+    }
+
     /// `ensureLoaded`: follows `workflow_run` events and reads the recent runs once. A read that failed leaves the list to
     /// fill from events, and is tried again by the next call. With no server (scenes, tests) there is nothing to read.
     pub fn workflow_runs_ensure_loaded(&mut self, machine: &str) {
