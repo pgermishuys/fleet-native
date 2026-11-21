@@ -260,7 +260,9 @@ fn a_typed_date_and_a_project_pick_each_read_the_sections_again_with_them() {
     assert_eq!(r.on("daily"), ["/api/analytics/daily?from=2026-10-21&to=2026-11-20"]);
 
     type_in(&mut r.rt, "analytics-filter-from", "11/05/2026");
+    // Each read leaves on its own thread, so wait for every one this count looks at.
     r.wait_heard("daily", 2);
+    r.wait_heard("summary", 4);
     assert_eq!(r.on("daily")[1], "/api/analytics/daily?from=2026-11-05&to=2026-11-20");
     assert_eq!(r.on("summary").iter().filter(|p| p.contains("from=2026-11-05")).count(), 2, "the page's and the project list's");
 
