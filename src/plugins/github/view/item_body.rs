@@ -1,11 +1,12 @@
 //! An item's description and conversation (`GitHubWorkItemDetailPage.vue`'s `.gh-item__body`, rows 11.x of docs/parity/21-github.md):
 //! the body in Markdown, then each comment, review and change of state down a rule with a dot at each, and the rail's column beside
-//! them (empty until piece L fills it).
+//! them (`item_rail`).
 use crate::State;
 use crate::fleet::pr_state::PrState;
 use crate::plugins::github::Kind;
 use crate::plugins::github::item_page::{Dot, reference_state, timeline_tone, timeline_words};
 use crate::plugins::github::items::{ItemDetail, TimelineEntry, TimelineKind, visible_body};
+use crate::plugins::github::view::item_rail;
 use crate::theme::{RADIUS_CARD, Theme, sans};
 use crate::ui::age;
 use crate::view::gh::{ItemKind, item_icon, reviewer_avatar};
@@ -16,9 +17,6 @@ use rune::{Cursor, El, Tx, col, el, row, text};
 /// `max-width: 78ch` at the description's and a comment's sizes.
 const DESCRIPTION_W: f32 = 630.0;
 const COMMENT_W: f32 = 606.0;
-
-/// The rail's width (`grid-template-columns: minmax(0, 1fr) 300px`).
-pub const RAIL_W: f32 = 300.0;
 
 fn dot(t: &Theme, tone: Dot) -> El {
     let ring = match tone {
@@ -102,9 +100,9 @@ fn conversation(s: &State, t: &Theme, detail: &ItemDetail) -> El {
 }
 
 /// `.gh-item__main`: the description (or "No description.") and the conversation.
-fn main(s: &State, t: &Theme, detail: &ItemDetail) -> El {
+fn main(s: &State, t: &Theme, detail: &ItemDetail, side: f32) -> El {
     let description = visible_body(detail.body.as_deref());
-    let mut main = col().key("github-item-main").grow(1.0).shrink().min_w(0.0).gap(18.0).pt(20.0).px(28.0).pb(32.0);
+    let mut main = col().key("github-item-main").grow(1.0).shrink().min_w(0.0).gap(18.0).pt(20.0).px(side).pb(32.0);
     main = if description.is_empty() {
         main.child(text("No description.").key("github-item-empty").font(sans(14.0, 400.0, 1.5).italic()).color(t.muted))
     } else {
@@ -121,19 +119,12 @@ fn main(s: &State, t: &Theme, detail: &ItemDetail) -> El {
     main
 }
 
-/// The rail's column: its fill, its left rule and its width; piece L draws what is in it.
-fn rail(t: &Theme) -> El {
-    col()
-        .key("github-item-rail")
-        .role("complementary")
-        .label("Details")
-        .w(RAIL_W)
-        .self_stretch()
-        .border_sides([0.0, 0.0, 0.0, 1.0], t.border)
-        .border_layout()
-        .fill(t.wash(2.0))
-}
-
 pub fn body(s: &State, t: &Theme, detail: &ItemDetail) -> El {
-    row().key("github-item-body").w_full().grow(1.0).min_h(0.0).child(main(s, t, detail)).child(rail(t))
+    // Narrower than 820 the page is one column with the rail first; narrower than 520 the main column's side padding is 16.
+    let one = item_rail::one_column(s);
+    let rail = item_rail::rail(s, t, detail, one);
+    let main = main(s, t, detail, if item_rail::tight(s) { 16.0 } else { 28.0 });
+    let frame = if one { col() } else { row() };
+    let frame = frame.key("github-item-body").w_full().grow(1.0).min_h(0.0);
+    if one { frame.child(rail).child(main) } else { frame.child(main).child(rail) }
 }

@@ -556,7 +556,10 @@
           "state": "APPROVED"
         }
       ],
-      "assignees": []
+      "assignees": [
+        "devon-park",
+        "mara-quinn"
+      ]
     },
     {
       "kind": "pull",

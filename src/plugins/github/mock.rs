@@ -42,7 +42,10 @@ pub fn pull_detail() -> Value {
     json!({
         "summary": pull(218, "Queue retries with backoff", json!({
             "checks": "failure", "reviewDecision": "CHANGES_REQUESTED", "mergeable": "CONFLICTING",
-            "reviewers": [{"login": "kit-lee", "avatarUrl": "https://avatars.example/kit-lee", "state": "CHANGES_REQUESTED"}],
+            "reviewers": [{"login": "kit-lee", "avatarUrl": "https://avatars.example/kit-lee", "state": "CHANGES_REQUESTED"},
+                          {"login": "mara-quinn", "state": "APPROVED"}],
+            "assignees": ["devon-park"],
+            "labels": [{"name": "backend", "color": "1d76db"}, {"name": "needs-tests", "color": "fbca04"}],
         })),
         "body": "Retries a failed launch.\n<!-- bot: release notes -->\nCloses #7.",
         "changedFiles": 5, "mergedAt": null, "mergedBy": null,

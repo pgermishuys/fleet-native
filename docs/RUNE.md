@@ -2705,3 +2705,10 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **A table whose cells wrap is built as rows, not columns**: each row is a `row()` of cells with `.w(basis).grow(basis).shrink().min_w(0.0)`, so every row shares its columns and the tallest cell sets the row's height (the column-built table of piece I can't do that). The 3 % hover tint is then just `row.hover(color)`.
 - **`text(..).group_color(c)` with `hover_group()` on the button** turns a head's label and icon `--text` together under the pointer.
 - **A scene can't set state the page's mount resets** (the sort, the filters): the first look remounts. `show_analytics_sorted` marks the page mounted first.
+
+## Component 21, piece L (an item's side rail)
+
+- **A container query is the page's own `on_layout` width.** The column that holds header and body writes its width into `Page.width`; the body reads it one frame later and switches between `row()` (rail at the right) and `col()` (rail first). A scene has no window to narrow, so it pins the width (`pinned_width`) instead.
+- **`border_sides([0, 0, 1, 0], …)` is the rule under the rail** in one column; the same rail has `[0, 0, 0, 1]` beside the conversation. `border_layout()` goes with both.
+- **Capitals are `to_uppercase()`** on the string (there is no text-transform); `.tracking(0.66)` is `letter-spacing: .06em` at 11 px.
+- **`cargo test`'s build needs `MemoryMax=7000M`** here: at 4000M it is killed with a silent exit 143.

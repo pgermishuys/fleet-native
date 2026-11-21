@@ -1,6 +1,6 @@
 //! An item's page (`plugins/builtin/github/pages/GitHubWorkItemDetailPage.vue`, rows 10.x of docs/parity/21-github.md): loading and
 //! failing, the header (the trail, the title, Refresh, GitHub and the split button, the line under the title) and the menu behind the
-//! chevron. The description and the conversation are `item_body`; the rail beside them is piece L's.
+//! chevron. The description and the conversation are `item_body`; the rail beside them is `item_rail`.
 use super::item_body::body;
 use crate::State;
 use crate::fleet::send_to_agent::FIX;
@@ -281,6 +281,7 @@ pub fn item(s: &State, t: &Theme) -> El {
             .min_h(0.0)
             .child(header(s, t, detail, p.refreshing))
             .child(body(s, t, detail))
+            .on_layout(|s: &mut State, [_, _, w, _]| state(&mut s.places).item.width = w)
             .scroll(rune::ScrollSpec { stick_bottom: false })
     } else {
         let why = p.error.clone().unwrap_or_else(|| format!("Couldn't load the {}.", noun(kind)));

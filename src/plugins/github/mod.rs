@@ -37,6 +37,8 @@ mod tests_home;
 #[cfg(test)]
 mod tests_item;
 #[cfg(test)]
+mod tests_item_rail;
+#[cfg(test)]
 mod tests_items;
 #[cfg(test)]
 mod tests_panel;

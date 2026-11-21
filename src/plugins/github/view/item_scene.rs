@@ -39,7 +39,7 @@ pub fn set(s: &mut State, which: &str, dark: bool) {
     s.dark = Some(dark);
     s.rail = crate::Rail::Plugin(crate::plugins::github::ID);
     rows_scene::link(s);
-    let issue = which == "issue";
+    let issue = which.starts_with("issue");
     let (kind, number, detail) = if issue { (Kind::Issue, 7, mock::issue_detail()) } else { (Kind::Pull, 218, mock::pull_detail()) };
     let g = state(&mut s.places);
     g.panel_asked = true;
@@ -54,6 +54,10 @@ pub fn set(s: &mut State, which: &str, dark: bool) {
         "item-error" => Page::show(key, None, false, Some("Connect GitHub in Settings to see this.")),
         _ => Page::show(key, Some(ItemDetail::read(&detail)), false, None),
     };
+    if which.ends_with("-narrow") {
+        // A scene has no window to narrow: the width a 760 px window leaves the page, for the one-column layout.
+        state(&mut s.places).item.pinned_width = Some(700.0);
+    }
     match which {
         "pull-fix" | "pull-fix-sent" | "pull-fix-failed" => failing_link(s),
         "pull-menu" => state(&mut s.places).item.menu = true,
