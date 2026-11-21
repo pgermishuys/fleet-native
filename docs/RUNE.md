@@ -2505,3 +2505,11 @@ whole-file work that piece R can make incremental (colour from the edited line, 
   instead of a second row view. A scene's mock sessions need an id (`mock::machines::listed`), or the runs store can't find them.
 - **The scratch Fleet's `Workflows` switch is the preference `Workflows`**, not `features.workflows.enabled`; with the wrong key the
   routes answer 404. v0.72.0 has no workflow routes at all: use the v0.74.0 package.
+
+## Component 21, piece F (an item's row and its session chip)
+
+- **A row whose right side swaps on hover is two elements stacked, not a grid cell**: the signals stay in the row (they give it its width, with a `min_w` for the actions) and the actions are pinned over them (`pin(None, Some(0), Some(10), Some(0))` plus `center_y`), each with `group_opacity` against the shell's `hover_group`. The shell, not the row, holds the 5 % wash, so it stays while the pointer is over the actions (a pinned sibling is not inside the row). `hover_group` follows keyboard focus too, so Tab reaches the buttons as `:focus-within` does.
+- **A link is a button**: a Rune element has no anchor, so "Open on GitHub" calls `tx.open_url`. Fleet's `@media (hover: none)` rule (touch has no hover, so the actions are hidden) has no counterpart on desktop.
+- **A press on a child inside a pressable row goes to the child only** (the label chip and the session chip are inside the row that opens the item): the row's own handler is not called, which is Fleet's `@click.stop`.
+- **No `clip()`**: a row that must cut its content short uses `clip_rounded(0.0)`.
+- **A cargo test build at `CARGO_BUILD_JOBS=1` and `MemoryMax=7000M`** took over ten minutes of wall time on this machine; `2` and 5500M is killed at the test link.

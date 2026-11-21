@@ -20,6 +20,8 @@ impl State {
         if shown {
             self.github_bookmarks_use();
             self.load_github_status();
+            // The pages show the sessions on each item, which come from the sessions' header links (`useGitHubSessions`).
+            super::sessions::ensure_loaded(self);
             if super::auth_ref(&self.places).connected {
                 self.github_work_load();
             }

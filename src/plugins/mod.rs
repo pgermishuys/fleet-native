@@ -18,6 +18,8 @@ pub fn register(mut places: Places) -> Places {
 pub fn scene(s: &mut crate::State, name: &str, dark: bool) {
     if let Some(which) = name.strip_prefix("github-follow-") {
         github::view::panel_scene::follow(s, which, dark);
+    } else if name == "github-rows" {
+        github::view::rows_scene::scene(s, dark);
     } else if let Some(which) = name.strip_prefix("github-panel-") {
         github::view::panel_scene::set(s, which, dark);
     } else if let Some(which) = name.strip_prefix("github-") {

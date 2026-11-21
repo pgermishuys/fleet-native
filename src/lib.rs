@@ -2807,6 +2807,8 @@ pub fn spec() -> AppSpec<State> {
                 s.dark = Some(false);
                 s.rail = Rail::Plugin("github")
             }),
+            ("github-rows", |s| plugins::scene(s, "github-rows", true)),
+            ("github-rows-light", |s| plugins::scene(s, "github-rows", false)),
             ("github-follow-list", |s| plugins::scene(s, "github-follow-list", true)),
             ("github-follow-list-light", |s| plugins::scene(s, "github-follow-list", false)),
             ("github-follow-typed", |s| plugins::scene(s, "github-follow-typed", true)),

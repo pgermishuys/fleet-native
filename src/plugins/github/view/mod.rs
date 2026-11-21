@@ -4,4 +4,7 @@ pub mod follow;
 pub mod page;
 pub mod panel;
 pub mod panel_scene;
+pub mod row;
+pub mod rows_scene;
 pub mod scene;
+pub mod session_chip;
