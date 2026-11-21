@@ -17,7 +17,7 @@ use crate::mock::Session;
 use crate::{Rail, State};
 use rune::Tx;
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 
 /// How often each machine is asked what its sessions are doing; the sessions themselves come with the feed's events.
@@ -74,6 +74,12 @@ pub struct Mission {
     feeds: Vec<Open>,
     notes: Vec<Note>,
     next_id: u64,
+    /// Machines a scene or a test holds in place of feeds (a scene has no Fleet to read).
+    pub(crate) fixed: Option<Vec<MissionMachine>>,
+    /// The tiles whose answer is on its way (`NeedsYouColumn`'s `busy`).
+    pub(crate) busy: HashSet<String>,
+    /// What went wrong with a tile's last answer, by tile key; a good answer takes it away.
+    pub(crate) errors: HashMap<String, String>,
 }
 
 impl Mission {
@@ -101,12 +107,23 @@ impl Mission {
         self.find(key).map_or(0, |f| f.reads)
     }
 
+    /// A copy of the listed session `id` of machine `key`, as that machine last read it.
+    pub fn session(&self, key: &str, id: &str) -> Option<Session> {
+        if let Some(fixed) = &self.fixed {
+            return fixed.iter().find(|m| m.id == key)?.sessions.iter().find(|s| s.id == id).map(Session::row_copy);
+        }
+        self.find(key)?.inbox.sessions.iter().find(|s| s.id == id).map(Session::row_copy)
+    }
+
     fn find(&self, key: &str) -> Option<&Open> {
         self.feeds.iter().find(|f| f.key == key)
     }
 
     /// The machines as mission control holds them: what each feed last read, with its status.
     pub fn machines(&self) -> Vec<MissionMachine> {
+        if let Some(fixed) = &self.fixed {
+            return fixed.clone();
+        }
         self.feeds
             .iter()
             .map(|f| MissionMachine {
