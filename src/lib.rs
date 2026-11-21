@@ -41,6 +41,8 @@ mod tests_analytics_page;
 #[cfg(test)]
 mod tests_analytics_store;
 #[cfg(test)]
+mod tests_analytics_tables;
+#[cfg(test)]
 pub(crate) mod tests_archive_pins;
 #[cfg(test)]
 mod tests_archived;
@@ -5404,6 +5406,54 @@ pub fn spec() -> AppSpec<State> {
             ("analytics-overview-error-light", |s| s.show_analytics(false, mock::analytics::Scene::Failed)),
             ("analytics-overview-empty", |s| s.show_analytics(true, mock::analytics::Scene::Nothing)),
             ("analytics-overview-empty-light", |s| s.show_analytics(false, mock::analytics::Scene::Nothing)),
+            ("analytics-daily", |s| {
+                s.show_analytics_section(true, mock::analytics::Scene::Menu, fleet::analytics::sections::Section::Daily)
+            }),
+            ("analytics-daily-light", |s| {
+                s.show_analytics_section(false, mock::analytics::Scene::Menu, fleet::analytics::sections::Section::Daily)
+            }),
+            ("analytics-daily-loading", |s| {
+                s.show_analytics_section(true, mock::analytics::Scene::Loading, fleet::analytics::sections::Section::Daily)
+            }),
+            ("analytics-daily-loading-light", |s| {
+                s.show_analytics_section(false, mock::analytics::Scene::Loading, fleet::analytics::sections::Section::Daily)
+            }),
+            ("analytics-daily-error", |s| {
+                s.show_analytics_section(true, mock::analytics::Scene::Failed, fleet::analytics::sections::Section::Daily)
+            }),
+            ("analytics-daily-error-light", |s| {
+                s.show_analytics_section(false, mock::analytics::Scene::Failed, fleet::analytics::sections::Section::Daily)
+            }),
+            ("analytics-daily-empty", |s| {
+                s.show_analytics_section(true, mock::analytics::Scene::Nothing, fleet::analytics::sections::Section::Daily)
+            }),
+            ("analytics-daily-empty-light", |s| {
+                s.show_analytics_section(false, mock::analytics::Scene::Nothing, fleet::analytics::sections::Section::Daily)
+            }),
+            ("analytics-projects", |s| {
+                s.show_analytics_section(true, mock::analytics::Scene::Menu, fleet::analytics::sections::Section::Projects)
+            }),
+            ("analytics-projects-light", |s| {
+                s.show_analytics_section(false, mock::analytics::Scene::Menu, fleet::analytics::sections::Section::Projects)
+            }),
+            ("analytics-projects-loading", |s| {
+                s.show_analytics_section(true, mock::analytics::Scene::Loading, fleet::analytics::sections::Section::Projects)
+            }),
+            ("analytics-projects-loading-light", |s| {
+                s.show_analytics_section(false, mock::analytics::Scene::Loading, fleet::analytics::sections::Section::Projects)
+            }),
+            ("analytics-projects-error", |s| {
+                s.show_analytics_section(true, mock::analytics::Scene::Failed, fleet::analytics::sections::Section::Projects)
+            }),
+            ("analytics-projects-error-light", |s| {
+                s.show_analytics_section(false, mock::analytics::Scene::Failed, fleet::analytics::sections::Section::Projects)
+            }),
+            ("analytics-projects-empty", |s| {
+                s.show_analytics_section(true, mock::analytics::Scene::Nothing, fleet::analytics::sections::Section::Projects)
+            }),
+            ("analytics-projects-empty-light", |s| {
+                s.show_analytics_section(false, mock::analytics::Scene::Nothing, fleet::analytics::sections::Section::Projects)
+            }),
             ("analytics-calendar-limits-light", |s| s.show_analytics(false, mock::analytics::Scene::CalendarLimits)),
             ("automation-detail", |s| s.show_automations(true, mock::automations::Scene::Started)),
             ("automation-detail-light", |s| s.show_automations(false, mock::automations::Scene::Started)),

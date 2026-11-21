@@ -10,9 +10,11 @@ use rune::{ScrollSpec, col};
 
 pub mod chart;
 pub mod cost_bars;
+pub mod daily;
 pub mod filters;
 pub mod menu;
 pub mod overview;
+pub mod projects;
 
 pub const TITLE: &str = "Analytics";
 pub const LINE: &str = "Tokens and spend across your sessions, by project and model. Costs are estimates at list prices, not a bill.";
@@ -46,6 +48,8 @@ fn detail(s: &State, t: &Theme) -> rune::El {
 fn body(s: &State, t: &Theme, section: Section) -> rune::El {
     match section {
         Section::Overview => overview::overview(s, t),
+        Section::Daily => daily::daily(s, t),
+        Section::Projects => projects::projects(s, t),
         _ => col().key(format!("analytics-body-{}", section.id())).w_full(),
     }
 }

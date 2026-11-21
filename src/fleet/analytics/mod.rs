@@ -19,6 +19,7 @@ pub mod overview;
 pub mod sections;
 pub mod sessions_sort;
 pub mod store;
+pub mod tables;
 
 use filters::Filters;
 use sessions_sort::{SortBy, SortDir};
