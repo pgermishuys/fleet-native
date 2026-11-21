@@ -97,6 +97,16 @@ class Standin:
         if m and "numbers" in query:
             want = [int(n) for n in query["numbers"][0].split(",") if n.isdigit()]
             return 200, [i for i in fx["items"] if i["owner"] == m[1] and i["repo"] == m[2] and i["number"] in want]
+        m = re.fullmatch(r"repos/([^/]+)/([^/]+)/items/(\d+)", route)
+        if m:
+            found = [i for i in fx["items"] if i["owner"] == m[1] and i["repo"] == m[2] and i["number"] == int(m[3])]
+            if not found:
+                return 404, {"error": "Not Found"}
+            blank = {"body": None, "changedFiles": None, "mergedAt": None, "mergedBy": None, "checks": [], "unresolvedThreads": 0, "timeline": []}
+            detail = fx.get("details", {}).get(f"{m[1]}/{m[2]}#{m[3]}", blank)
+            if "_status" in detail:  # a detail that fails, to look at the page's error
+                return detail["_status"], {"error": detail["_error"]}
+            return 200, {"summary": found[0], **detail}
         m = re.fullmatch(r"repos/([^/]+)/([^/]+)/(labels|milestones|assignees)", route)
         if m:
             return 200, fx.get(m[3], {}).get(f"{m[1]}/{m[2]}", [])

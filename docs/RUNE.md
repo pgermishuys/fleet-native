@@ -2677,3 +2677,10 @@ whole-file work that piece R can make incremental (colour from the edited line, 
   a handler must always hand back a `&mut TextEdit`.
 - **`ElementInfo` is enough to test controls**: `fill`, `opacity`, `text_color`, `label`, `role` and the rect read size, tone and state of a laid-out control.
 
+## Component 21, piece K (an item's page)
+
+- **`border_sides` is top, right, bottom, left**, as CSS writes it: `[1, 0, 0, 0]` is a rule above, not at the left. A timeline's left rule is `[0, 0, 0, 1]`; the first try drew a line under the description instead.
+- **`Open::Menu(name)` draws core's menu by name** (`ui::menus::dropdown`), and any name it doesn't know draws the gallery's menu in the corner. A plugin's own menu keeps its open state in its own state and draws `menu::panel` on `anchored` + `scrim` + `.modal(true, close)`, as the issue bar's sort menu does.
+- **An absolute child at a negative left** (`el().absolute(-24.0, 14.0)`) draws outside its parent and keeps the parent's size, which is how the conversation's dots (`::before` at `left: -24px`) sit on the rule beside it.
+- **`rich(text, spans)` is the by-line**: "{author} wants to merge" with the author in 500 is one wrapping text with a span; the branch chips beside it are rows with their own padding, so the sentence is a wrapping row of the text and two chips.
+- **A scroll column's `grow` child** (the body row under the header) takes the rest of the column when the content is short, so the rail's wash reaches the page's bottom as `flex: 1` does.
