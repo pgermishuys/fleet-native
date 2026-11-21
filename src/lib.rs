@@ -167,6 +167,8 @@ mod tests_images;
 #[cfg(test)]
 mod tests_improve_skill;
 #[cfg(test)]
+mod tests_jobs_store;
+#[cfg(test)]
 mod tests_labs_frame;
 #[cfg(test)]
 mod tests_lineage;
@@ -623,6 +625,8 @@ pub struct State {
     pub analytics: fleet::analytics::store::Analytics,
     /// Mission control's feeds, open while the Fleet view is shown (`fleet::mission::store`).
     pub mission: fleet::mission::store::Mission,
+    /// The queue and the machines' seats of the home Fleet, read while something watches (`fleet::jobs::store`).
+    pub jobs: fleet::jobs::store::Jobs,
     /// The section Analytics shows (`fleet::analytics::nav`).
     pub analytics_nav: fleet::analytics::nav::Nav,
     /// Where Fleet, Jobs and the Board are, and Turn on for each (component 23, piece A).
@@ -967,6 +971,7 @@ impl Default for State {
             automations: Default::default(),
             analytics: Default::default(),
             mission: Default::default(),
+            jobs: Default::default(),
             analytics_nav: Default::default(),
             labs: Default::default(),
             automations_nav: Default::default(),
@@ -1814,6 +1819,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_summary(now, tx)
         | s.keep_analytics(now, tx)
         | s.keep_mission(now, tx)
+        | s.keep_jobs(now, tx)
         | s.keep_settings_anchor(tx)
         | s.keep_memory(tx)
         | s.keep_credentials(tx)
