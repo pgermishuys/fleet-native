@@ -107,7 +107,7 @@ ones with the theme toggled by the script (Cmd+Shift+L) in a scratch data folder
 | 1.4 | Off, the page shows `FeatureOffNotice`: "Workflows is off" (`text-2xl` 600), the description "A workflow is a recipe of steps for an agent, like fixing a bug or reviewing a change, that you can run again and again." (`text-sm` muted), **Turn on** (disabled while turning on), "You can change this any time in Settings." (`text-xs` muted); centred, `max-w-2xl`, `p-8` | FON, WPG `WorkflowsPane.vue` | Done (B): `view::feature_off::notice` (shared; component 23 uses it for Board, Jobs and Fleet). Same sizes, wording and centring; disabled while turning on. Picture beside Fleet's, both themes |
 | 1.5 | Until the preferences have loaded nothing is drawn (no flash of "is off") | FON `v-if="preferences.hasFetched"` | Done (B): nothing is drawn but the empty sheet until the machine's preferences have loaded (`workflows_feature() == None`) |
 | 1.6 | Turn on saves the preference, then loads the library and the runs again (what loaded in the gap was refused) | `WorkflowsPane.vue` `turnOn` | Done (B): `workflows_turn_on` saves the preference on the machine shown (`save_pref_on_machine`, rolled back and read again on a refusal), then asks for the library and the runs again. Gap: for the live machine the runs may already have been asked for in the gap (`workflows_settle` follows the local value); a refused ask is retried by this call only if it had finished |
-| 1.7 | On, the pane is the detail panel plus the Model roles dialog | `WorkflowsPane.vue` | Partly (B): on, the pane is the detail (the bare `PageHeader` until C); Model roles sets `roles_open`, E draws the dialog |
+| 1.7 | On, the pane is the detail panel plus the Model roles dialog | `WorkflowsPane.vue` | Done (B, C, E): on, the pane is the detail (C) plus the Model roles dialog (E, `roles_open`) |
 | 1.8 | The page opens on the machine you're on (`resetWorkflowsMachine` on every visit); the list's machine switch picks the machine the list and the pane show | WPG; `composables/use-workflows-machine.ts` | Done (B): `enter_workflows` resets the machine choice when the page is entered from another rail; the list's switch (`machine_switch` with testid `workflows`) picks the machine |
 | 1.9 | A link `/workflows?workflow=<id>&folder=<path>` sets the Run box's folder (chosen) and opens that workflow; nothing starts; the address goes back to plain `/workflows` | WPG watch; `routes/workflows.tsx` | Done (B): the starter's `WorkflowRequest` is taken in `poll` (`keep_workflows`): the Run box's folder is chosen, the workflow opens, nothing starts. There is no address to clean; taking the request is the same |
 | 1.10 | Another machine: nothing of the last one's library, folder, open workflow, run view, create dialog or unsaved mark carries over; the library reloads if one was loaded | UWN machine watch | Done (B): `Nav::forget_machine` drops the library, folder, chosen mark, open workflow, run view and unsaved mark, and reads again if a library was loaded. The create dialog (R) has no state yet |
@@ -192,7 +192,7 @@ ones with the theme toggled by the script (Cmd+Shift+L) in a scratch data folder
 | 6.2 | A harness segment (`wf-seg`) only with more than one workflow harness; roles are kept per harness | WMR | Done (E): a bordered group of buttons (`wf-seg`: 2 padding, buttons 3/10, the pressed one on a 9% wash, weight 500), only with more than one workflow harness; `State::roles_harness_type` (the one picked, else the default when it is one, else the first); the roles read and written are that harness's |
 | 6.3 | Per role (Strong "Judgement: deciding what to build and whether it's right", Standard "Doing the work: writing and running code", Fast "Reading and sorting: short tasks with a clear answer"): name 14 px 500, description 12 px muted; the model menu (default "Default model · <composer default>", description "The model the session composer uses when you don't pick one"; disabled without a catalog or while saving; testid `workflows-role-model-<role>`); the effort menu ("Effort: default" "The model's own effort", then "Effort: <variant>"; disabled with fewer than two); "Used by" with a chip per step title asking for the role across the library, or "no steps yet" | WMR; LW `ROLE_*` | Done (E): per role the name (12.25 px, 500) and description (10.5 px, `text-xs` at Fleet's 14 px root), the model trigger (key `workflows-role-model-<role>`, off without a catalog or while saving) and the effort trigger (`workflows-role-effort-<role>`, off with fewer than two items), then "Used by" with a chip per step title or "no steps yet". The menus are the composer's selector (`view::selector`) pointed at a role through `Open::Menu("wf-model" | "wf-effort")`; the model menu's Default row says "Default model · <the composer's default>" and slides left to stay 8 px inside the dialog (`shift_left`). Fleet's own placement `auto` is `anchored_fit`'s flip |
 | 6.4 | Picking a model saves `{model, effort: null}`; picking an effort keeps the model | WMR `pickModel`, `pickEffort`; UMR `setChoice` | Done (E): `pick_role`: a model saves `{model, effort: null}`, an effort keeps the model; the whole preference is written with the other roles kept (`save_pref_on_machine`, `PUT /api/preferences/WorkflowModelRoles`), shown at once and rolled back on a refusal; the model trigger is off while it saves. `src/fleet/workflows/roles.rs` |
-| 6.5 | The preference `WorkflowModelRoles`: JSON `harness → role → {model, effort}`; unreadable JSON reads as empty | LW `parseModelRoles`; UMR | Parsed (A): `parse_model_roles`, unreadable JSON reads as empty. E writes it. `src/fleet/workflows/mod.rs` |
+| 6.5 | The preference `WorkflowModelRoles`: JSON `harness → role → {model, effort}`; unreadable JSON reads as empty | LW `parseModelRoles`; UMR | Done (A, E): `parse_model_roles`, unreadable JSON reads as empty; the Model roles dialog writes it. `src/fleet/workflows/mod.rs` |
 | 6.6 | Notes: Check "Checked when a run starts. If a role's model isn't available, for example because its provider signed out, the run doesn't start and names the step." and "A run can use different models from the Models menu in its Run box without changing these." | WMR | Done (E): both notes, the first with the Check in the running colour, the second lined up with its words |
 | 6.7 | No workflow harness on (but some harnesses known): "Workflows run on A, B and C. Turn one of them on in Settings → Harnesses." (or "…Turn it on…" for one; "None of the harnesses here can run workflows yet." for none) | WMR `workflowHarnessesNote` | Done (E): `roles_harness_note`, in Fleet's three forms, only while some harness is known |
 | 6.8 | Opening it with no library loads it; leaving the page closes it for good (the flag outlives the page) | WMR | Done (E): the page already loads the library when it is on and there is none; `keep_workflows` closes the dialog and clears the flag once the page isn't showing (`roles_open` is set by links before navigating, so it is cleared on the way out) |
@@ -371,6 +371,35 @@ ones with the theme toggled by the script (Cmd+Shift+L) in a scratch data folder
 | 18.1 | The phone drawer closing when a workflow is picked (`use-close-drawer-on-pick.ts`) | The phone is out of scope (`docs/PORT.md`) |
 | 18.2 | `prefers-reduced-motion` on the rows' and buttons' transitions | The native app has no reduced-motion setting yet (component 26) |
 | 18.3 | Repeat on a schedule… and Started by's link opening Automations | Component 19 (Automations) owns `startCreateFromWorkflow` and `setActiveAutomation`. Until then the button and link are drawn and say "Automations is its own component of the port", as the row menu's Repeat does today |
+
+### Slice 1 sweep (piece J, 21 November 2026)
+
+Every slice 1 row (1 to 11) is **Done** or open with its reason and owner. Rows 12 to 17 are slice 2 and untouched here.
+
+| Open row | Why | Owner |
+|---|---|---|
+| 2.3 New workflow, 3.4 Duplicate to this repo (the press) | Drawn, with Fleet's disabled state and titles; the dialog they open is slice 2 | Piece R |
+| 2.13, 3.5, 3.14, 10.8 (a draft's row, its Describe it entry and its mark) | Drafts are slice 2 | Pieces M, S |
+| 11.6 (the draft routes) | Slice 2 | Pieces L, S |
+| 3.3 Repeat on a schedule…, Started by's link and the Run box's values it carries | Drawn; the press says "Automations is its own component" until component 19 opens a new automation with them (18.3) | Component 19, piece N |
+| 2.3's hover border | Rune has no hover border (`docs/RUNE.md`); the text takes the hover colour | Rune |
+| The stepper's run line when the column is narrow | Fleet's title wraps onto a second line; native truncates it (the branch shrinks too, since J). The text is about 4 % wider than Chromium's, so the cut comes a little earlier | Rune (text width) |
+
+**Fleet's tests (slice 1): all 64 accounted for.** 63 are ported under their names (`src/fleet/tests/workflows.rs` for
+`workflows.test.ts` and the store, `src/tests_workflows_page.rs`, `tests_workflow_detail.rs`, `tests_workflow_run_box.rs`,
+`tests_workflow_roles.rs`, `tests_workflow_stepper.rs`, `tests_workflow_card.rs`, `tests_workflow_finish.rs`,
+`tests_workflow_runs_listed.rs`). The one left is `WorkflowStartedBy`'s "opens a new automation that runs the workflow, with the
+Run box's request, steps, base and harness": D keeps the values the Run box holds, component 19 ports the opening.
+
+**The live walk** (scratch Fleet v0.74.0, the scripted model, native beside Fleet's own client, both themes, 1280 × 760):
+the Library and a workflow's detail with its recent runs, the Run box filled (folder, base, Check with me), Models for
+this run, a run started with Check with me, the finish bar on its first step, Move on and the wrapping-up line, the
+no-outcome card ("declares … but it isn't in the run's worktree", Move on anyway), the You step's card (the plan open on
+the right, two ways to approve, Send back with a note, Stop here), End run, and the group in Sessions at each step
+(`shots/parity/18j-sweep/`). The walk found one bug, fixed here: with the content panel open the stepper's branch ran over
+"Step of" and the Check with me switch (it could not shrink); a test holds it. Not walked live: another machine's Workflows
+(needs a second Fleet; `WorkflowsPageMachine` and `workflows-machine` hold it), a committed file and a finished run (the
+scripted model never calls `fleet_step_done`), Started by (needs an automation, component 19).
 
 ## Fleet's tests, and where they go
 

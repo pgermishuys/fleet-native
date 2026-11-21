@@ -2513,3 +2513,12 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **A press on a child inside a pressable row goes to the child only** (the label chip and the session chip are inside the row that opens the item): the row's own handler is not called, which is Fleet's `@click.stop`.
 - **No `clip()`**: a row that must cut its content short uses `clip_rounded(0.0)`.
 - **A cargo test build at `CARGO_BUILD_JOBS=1` and `MemoryMax=7000M`** took over ten minutes of wall time on this machine; `2` and 5500M is killed at the test link.
+
+## Component 18, piece J (slice 1 sweep)
+
+- **A row with text that can't shrink runs over its neighbours.** A `text` in a flex row has no `min-width: 0`: give it
+  `.truncate().shrink().min_w(0.0)` or it overflows (the stepper's branch ran over the title and the switch).
+- **A script scrolls with `move` then `wheel` and a negative `dy`** (`dy: -500` scrolls down); a `wheel` with no `move` before it did
+  nothing, and a tap on a key the scroll has put below the window fails with "no element with key".
+- **One `--video` run gives every state of a long live walk**: a `--snap` runs the whole script again (and starts another run on
+  the server), so the walk is recorded once and `ffmpeg -ss <mark time> -frames:v 1` takes each state.
