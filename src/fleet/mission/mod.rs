@@ -10,8 +10,11 @@ use crate::mock::Session;
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 
+pub mod feed;
 pub mod peek;
+pub mod read;
 pub mod requests;
+pub mod store;
 
 /// A day: an idle session quiet for longer drops off the wall (`FINISHED_FOR_MS`).
 pub const FINISHED_FOR_MS: i64 = 24 * 60 * 60_000;

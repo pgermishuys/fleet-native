@@ -175,6 +175,8 @@ mod tests_machines_page;
 #[cfg(test)]
 mod tests_memory_notice;
 #[cfg(test)]
+mod tests_mission_live;
+#[cfg(test)]
 mod tests_mods_tree;
 #[cfg(test)]
 mod tests_new_project;
@@ -601,6 +603,8 @@ pub struct State {
     pub automations: fleet::automations::store::Automations,
     /// Analytics' machine, filters and reads (`fleet::analytics::store`).
     pub analytics: fleet::analytics::store::Analytics,
+    /// Mission control's feeds, open while the Fleet view is shown (`fleet::mission::store`).
+    pub mission: fleet::mission::store::Mission,
     /// The section Analytics shows (`fleet::analytics::nav`).
     pub analytics_nav: fleet::analytics::nav::Nav,
     /// Where Fleet, Jobs and the Board are, and Turn on for each (component 23, piece A).
@@ -943,6 +947,7 @@ impl Default for State {
             workflows: Default::default(),
             automations: Default::default(),
             analytics: Default::default(),
+            mission: Default::default(),
             analytics_nav: Default::default(),
             labs: Default::default(),
             automations_nav: Default::default(),
@@ -1789,6 +1794,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_usage_watch(now, tx)
         | s.keep_summary(now, tx)
         | s.keep_analytics(now, tx)
+        | s.keep_mission(now, tx)
         | s.keep_settings_anchor(tx)
         | s.keep_memory(tx)
         | s.keep_credentials(tx)

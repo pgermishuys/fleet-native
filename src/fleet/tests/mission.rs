@@ -342,4 +342,7 @@ fn a_tile_whose_machine_left_the_list_says_so() {
     assert_eq!(machine_key(&machines, &tiles[0]), Err(MACHINE_GONE));
     machines.list.push(Machine::from_json(&json!({"id": "m2", "name": "mini", "baseUrl": "http://mini:5732"})).unwrap());
     assert_eq!(machine_key(&machines, &tiles[0]), Ok("m2".to_string()));
+    // Home's tiles carry the feed's key, `home`, which is not an id the list holds.
+    let home = build_tiles(&[machine("home", "atlas", vec![row("h", minutes_ago(1), json!({}))])], NOW, FINISHED_FOR_MS, &none());
+    assert_eq!(machine_key(&Machines::default(), &home[0]), Ok("home".to_string()));
 }

@@ -28,9 +28,20 @@ pub struct Topics {
     sides: Vec<String>,
     /// The last snapshot of each topic, and how many events arrived since (`eventCount`).
     last: HashMap<String, (Value, u32)>,
+    /// Mission control's feed of this machine is open: the `sessions` topic is listened to and its events are passed on.
+    feed: bool,
 }
 
 impl Topics {
+    pub fn feed(&self) -> bool {
+        self.feed
+    }
+
+    /// Sets whether the feed is open; true when that changed.
+    pub fn set_feed(&mut self, on: bool) -> bool {
+        std::mem::replace(&mut self.feed, on) != on
+    }
+
     pub fn open(&self) -> Option<&str> {
         self.open.as_deref()
     }

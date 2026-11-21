@@ -2650,3 +2650,9 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **`rune::text::measure` for layout, a fixed-width stand-in for tests.** Chart.js's layout depends on label widths, so the geometry takes a `Measure` closure; the headless test passes 0.55 of the size per character and the numbers in `analytics_chart_cases.json` were made by Chart.js 4.5 with `measureText` replaced the same way, so the test holds the geometry against Chart.js's exactly, with no font involved.
 - **`Family::Named("Helvetica Neue, Helvetica, Arial")` falls back to the sans slot** where none of them is installed (this Linux machine): the text is Inter, wider than Chart.js's Helvetica, and the area comes out 2 px narrower on each side than Fleet's. Chart.js text isn't Fleet's font, which is why it is named.
 - **Playwright's `page.clock.setFixedTime` freezes Chart.js's entry animation at its first frame** (the lines sit flat at zero): use `page.clock.install({ time })` then `page.clock.resume()` to have a fixed day and a clock that runs.
+
+## Component 23, piece C (mission control kept live)
+
+- **A `--script` run's clock isn't the wall clock.** Frames under `--snap`/`--script` draw slowly on a software renderer, and the app's clock follows frames, so a 300 ms fold showed as 2.5 s between a log's event and read lines. Check timing in a real window under Xvfb (`xvfb-run`), where the same fold measured 301-314 ms.
+- A timer-driven store keeps deadlines in app seconds and calls `tx.wake_after(next deadline)` from its `keep_*`; jobs from threads that change what is due call `tx.wake_after(20 ms)` so the next frame notices.
+- Tests for such a store move the clock with `rt.frame(secs)` and drain jobs with `frame(0.0)` between looks (as the Analytics tests do); the hub of a fake that isn't a SignalR server fails, which is how a test gets "polling".
