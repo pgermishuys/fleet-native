@@ -12,6 +12,7 @@ pub mod list;
 pub mod project_picker;
 pub mod roles;
 pub mod run_box;
+pub mod stepper;
 
 pub const DESCRIPTION: &str =
     "A workflow is a recipe of steps for an agent, like fixing a bug or reviewing a change, that you can run again and again.";

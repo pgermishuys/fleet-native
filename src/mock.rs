@@ -73,6 +73,7 @@ pub mod usage;
 pub mod visuals;
 pub mod weave;
 pub mod work;
+pub mod workflow_stepper;
 pub mod workflows;
 pub mod working;
 

@@ -11,6 +11,7 @@ pub mod nav;
 pub mod roles;
 pub mod run_box;
 pub mod runs;
+pub mod stepper;
 
 /// The user preference behind the switch in Settings → Labs.
 pub const WORKFLOWS_PREFERENCE_KEY: &str = "Workflows";

@@ -3,7 +3,7 @@
 //! rules (what the marks say, who shows a pill) are `conv::bubble`, and the note of attached files is `conv::attached`.
 //!
 //! Not drawn here yet: image thumbnails (piece N), `@` session and `$` skill chips and file links in running text (Rune's
-//! `Markdown` has no inline-chip hook; `docs/RUNE.md`), the workflow and peer marks (other components), `message--shown`.
+//! `Markdown` has no inline-chip hook; `docs/RUNE.md`), the peer mark (another component), `message--shown`.
 use super::conversation::{Message, Part, Role, Styles};
 use super::prose;
 use super::toolcard::mix;
@@ -36,7 +36,7 @@ pub fn now_ms(s: &State) -> i64 {
 
 /// `.peer-from`: the pill above a bubble that says where it came from.
 fn chip(t: &Theme, key: &str, glyph: &'static Icon, label: String, tip: &str) -> El {
-    row()
+    let pill = row()
         .key(key)
         .gap(5.0)
         .center_y()
@@ -47,18 +47,23 @@ fn chip(t: &Theme, key: &str, glyph: &'static Icon, label: String, tip: &str) ->
         .border(1.0, t.border.alpha(t.border.a * 0.9))
         .border_layout()
         .fill(mix(t.card_bg, t.accent_dim, 0.04))
-        .help(tip)
         .child(icon(glyph, 11.9).color(t.muted))
-        .child(text(label).font(sans(10.5, 600.0, 1.5)).color(t.text).truncate())
+        .child(text(label).font(sans(10.5, 600.0, 1.5)).color(t.text).truncate());
+    // The workflow mark has no title.
+    if tip.is_empty() { pill } else { pill.help(tip) }
 }
 
-/// The marks above a user's bubble (rows 1.55, 1.56 / 2.15, 2.16), right-aligned with it.
-pub fn marks(t: &Theme, msg: &Message, lead: f32) -> Option<El> {
-    if msg.role != Role::User || (msg.meta.mod_mark.is_none() && !msg.meta.steered) {
+/// The marks above a user's bubble (rows 1.55, 1.56 / 2.15-2.17), right-aligned with it. `workflow` is what Fleet sent into a
+/// workflow step ("Workflow \u{b7} step 2 of 6"): it comes first, then a mod's, then "Sent mid-turn" (row 2.19).
+pub fn marks(t: &Theme, msg: &Message, lead: f32, workflow: Option<String>) -> Option<El> {
+    if msg.role != Role::User || (workflow.is_none() && msg.meta.mod_mark.is_none() && !msg.meta.steered) {
         return None;
     }
     // Fleet's chips end in a 6px margin and the bubble's own 2px padding follows: 8px to the bubble.
     let mut marks = col().items_end().w_full().mt(lead).gap(6.0).mb(6.0);
+    if let Some(label) = workflow {
+        marks = marks.child(chip(t, "workflow-step-prompt", &WORKFLOW, label, ""));
+    }
     if let Some(m) = &msg.meta.mod_mark {
         let (label, tip) = mod_mark_text(m.kind, &m.name);
         marks = marks.child(chip(t, "mod-mark", &PUZZLE, label, tip));
