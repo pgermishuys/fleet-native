@@ -44,6 +44,8 @@ pub(crate) struct Fake {
     pub(crate) refuse_runs: Arc<AtomicBool>,
     /// The next `PUT /api/memory/dreaming/nightly` (the built-in page's Change time) is refused with these words.
     pub(crate) refuse_time: Arc<Mutex<Option<String>>>,
+    /// While set, `GET /api/harnesses` is held back: the request is heard but not answered.
+    pub(crate) hold_harnesses: Arc<AtomicBool>,
     /// Each `GET /api/harnesses/{type}/catalog` asked, as (harness, directory): Fleet's test's `catalogRequests`.
     pub(crate) catalogs: Asked,
     /// Every request of any route, in order; a test counts only the ones it means.
@@ -107,6 +109,8 @@ pub(crate) fn fake(initial: Vec<Value>) -> Fake {
     let repos_gate = repositories.clone();
     let catalogs = Asked::default();
     let catalogs_gate = catalogs.clone();
+    let hold_harnesses = Arc::new(AtomicBool::new(false));
+    let harness_hold = hold_harnesses.clone();
     let (requests, token) = (Requests::default(), Arc::new(Mutex::new(None::<String>)));
     let (requests_gate, token_gate) = (requests.clone(), token.clone());
     std::thread::spawn(move || {
@@ -117,7 +121,7 @@ pub(crate) fn fake(initial: Vec<Value>) -> Fake {
             let (runs_gate, hold_gate, refuse_gate) = (runs_gate.clone(), hold_gate.clone(), refuse_gate.clone());
             let time_gate = time_gate.clone();
             let repos_gate = repos_gate.clone();
-            let catalogs_gate = catalogs_gate.clone();
+            let (catalogs_gate, harness_hold) = (catalogs_gate.clone(), harness_hold.clone());
             let (requests_gate, token_gate) = (requests_gate.clone(), token_gate.clone());
             std::thread::spawn(move || {
                 let req = crate::test_http::read(&mut stream);
@@ -126,6 +130,9 @@ pub(crate) fn fake(initial: Vec<Value>) -> Fake {
                 requests_gate.lock().unwrap().push((req.method.clone(), req.route().to_string(), tokened));
                 // The composer's agent and model chips: the harnesses, and what one offers a folder.
                 if req.route() == "/api/harnesses" {
+                    while harness_hold.load(Ordering::SeqCst) {
+                        std::thread::sleep(std::time::Duration::from_millis(5));
+                    }
                     return crate::test_http::respond_json(&mut stream, "200 X", &harnesses().to_string());
                 }
                 if let Some(harness) = req.route().strip_prefix("/api/harnesses/").and_then(|r| r.strip_suffix("/catalog")) {
@@ -276,6 +283,7 @@ pub(crate) fn fake(initial: Vec<Value>) -> Fake {
         hold_runs,
         refuse_runs,
         refuse_time,
+        hold_harnesses,
         catalogs,
         requests,
         token,
