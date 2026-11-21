@@ -2441,3 +2441,17 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **A scratch Fleet's commit of a step's files names the user.** With no git identity in the scratch home the server's error is
   "unable to auto-detect email address (got '<user>@<host>.(none)')", which the card then shows. Put a `.gitconfig` with an invented
   name in the scratch home before running a workflow.
+
+## Component 19, piece F (the runs list)
+
+- **Sibling keys must be unique even for text.** A run's notes were one `text().key("automation-run-note")` each under the same
+  column; Rune renamed the later ones (`#dupN`) and `rt.elements()` then left them out of a test's read. Each note sits in its own
+  keyed row (`automation-run-<id>-note-<n>`) with the text keeping the shared key, which `texts_of` reads.
+- **A poll from the app's tick needs a clock the test can move.** The runs poll reads `view::message::now_ms` (`State::now_ms` when a
+  test fixes it), so a test sets `now_ms` to just before and just at the due time and counts the requests the fake heard. To know an
+  answer has landed (and the next read is scheduled from the clock as it stood), wait on the state the answer sets (`next_poll`), not on
+  the request having been heard: the request is heard before the answer is applied, and moving the clock in between changes the schedule.
+- **Dashed card = `border(1.0, c).border_dash(4.0, 3.0).border_layout()`** (the Workflows list's dashed buttons do the same); Fleet's
+  `EmptyState bordered` is that around the title and one line.
+- **The theme toggle flips on every run of a script.** With `FLEET_NATIVE_DATA_DIR` set, `cmd+shift+l` in the script saves the new
+  theme, so a second run with the same folder and the same toggle draws dark again. After the first light run, leave the toggle out.

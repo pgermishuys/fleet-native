@@ -41,6 +41,8 @@ mod tests_automations_header;
 #[cfg(test)]
 mod tests_automations_page;
 #[cfg(test)]
+mod tests_automations_runs;
+#[cfg(test)]
 mod tests_automations_store;
 #[cfg(test)]
 mod tests_browser;
@@ -5197,6 +5199,12 @@ pub fn spec() -> AppSpec<State> {
             ("automation-more-light", |s| s.show_automations(false, mock::automations::Scene::Menu)),
             ("automation-delete", |s| s.show_automations(true, mock::automations::Scene::Delete)),
             ("automation-delete-light", |s| s.show_automations(false, mock::automations::Scene::Delete)),
+            ("automation-runs", |s| s.show_automations(true, mock::automations::Scene::Runs)),
+            ("automation-runs-light", |s| s.show_automations(false, mock::automations::Scene::Runs)),
+            ("automation-runs-empty", |s| s.show_automations(true, mock::automations::Scene::RunsEmpty)),
+            ("automation-runs-empty-light", |s| s.show_automations(false, mock::automations::Scene::RunsEmpty)),
+            ("automation-runs-states", |s| s.show_automations(true, mock::automations::Scene::RunsStates)),
+            ("automation-runs-states-light", |s| s.show_automations(false, mock::automations::Scene::RunsStates)),
             ("rail-labs-on", |s| rail_labs_on(s, false)),
             ("rail-labs-on-light", |s| rail_labs_on(s, true)),
             ("rail-tip", |s| s.rail_tip = Some(Rail::Automations)),

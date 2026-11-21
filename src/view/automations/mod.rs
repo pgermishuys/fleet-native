@@ -12,6 +12,7 @@ use rune::{ScrollSpec, col, icon, row, text};
 
 pub mod detail;
 pub mod list;
+pub mod runs;
 
 /// The whole context: the list, its gutter and the detail; with the panel collapsed, the detail alone.
 pub fn page(s: &State, t: &Theme) -> Vec<rune::El> {
@@ -82,9 +83,9 @@ fn detail(s: &State, t: &Theme) -> rune::El {
 fn body(s: &State, t: &Theme) -> rune::El {
     let store = s.shown_automations();
     // The open automation's page; one the list doesn't hold (yet) is the list mode's body. A new automation's is piece H's.
-    let open = s.automations_nav.open_id().is_some_and(|id| store.get(id).is_some());
-    if open && s.automations_nav.mode == ViewMode::Edit {
-        return detail::body(t, s);
+    let open = s.automations_nav.open_id().and_then(|id| store.get(id));
+    if let (Some(a), ViewMode::Edit) = (open, s.automations_nav.mode) {
+        return detail::body(t, s, a);
     }
     if s.automations_nav.mode == ViewMode::Create {
         return col().w_full();
