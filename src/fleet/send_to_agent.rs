@@ -119,6 +119,12 @@ impl State {
     /// reads the way a Fleet that can't be reached does.
     pub fn send_to_agent(&mut self, key: &str, text: String) {
         let session = self.session().id.clone();
+        self.send_to_session(&session, key, text);
+    }
+
+    /// `send_to_agent` for any session, on whichever machine it is (a GitHub page sends to the first session working on its item).
+    pub fn send_to_session(&mut self, session: &str, key: &str, text: String) {
+        let session = session.to_string();
         // A button that is off sends nothing, whatever reaches it.
         if self.agent_sends.is_sent(&session, key) || !self.agent_sends.begin(&session, key) {
             return;

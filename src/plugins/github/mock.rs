@@ -64,6 +64,26 @@ pub fn pull_detail() -> Value {
     })
 }
 
+/// One issue's page: a body, two comments, a pull request in this repository that mentions it and one in another, and a closing.
+pub fn issue_detail() -> Value {
+    json!({
+        "summary": issue(7, "Launch countdown skips a second"),
+        "body": "The countdown jumps from 4 to 2 when the clock ticks late.\n\n**Steps**\n\n1. Start a launch\n2. Watch the last five seconds\n\nExpected every second to show.",
+        "changedFiles": null, "mergedAt": null, "mergedBy": null, "checks": [], "unresolvedThreads": 0,
+        "timeline": [
+            {"kind": "comment", "author": "devon-park", "authorAvatarUrl": null, "createdAt": "2026-11-16T09:20:00Z",
+             "body": "Seen it twice. Probably the tick handler: it uses `elapsed / 1000` and rounds.", "state": null, "url": null, "reference": null},
+            {"kind": "referenced", "author": "mara-quinn", "authorAvatarUrl": null, "createdAt": "2026-11-18T08:00:00Z", "body": "Queue retries with backoff",
+             "state": "open", "url": "https://github.com/acme/rocket/pull/218", "reference": {"kind": "pull", "repository": "acme/rocket", "number": 218}},
+            {"kind": "referenced", "author": "kit-lee", "authorAvatarUrl": null, "createdAt": "2026-11-19T08:00:00Z", "body": "Count in whole seconds",
+             "state": "merged", "url": "https://github.com/lumen-labs/atlas/pull/12", "reference": {"kind": "pull", "repository": "lumen-labs/atlas", "number": 12}},
+            {"kind": "comment", "author": "kit-lee", "authorAvatarUrl": null, "createdAt": "2026-11-19T12:00:00Z",
+             "body": "I can take this one.\n\n```rust\nlet left = (deadline - now).ceil();\n```", "state": null, "url": null, "reference": null},
+            {"kind": "closed", "author": "mara-quinn", "authorAvatarUrl": null, "createdAt": "2026-11-20T09:00:00Z", "body": null, "state": null, "url": null, "reference": null},
+        ],
+    })
+}
+
 /// What the signed-in user has to do: one review asked, three of their own (a failing check, requested changes, nothing wrong).
 pub fn work() -> Value {
     json!({
