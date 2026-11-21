@@ -13,6 +13,8 @@ pub mod item_scene;
 pub mod page;
 pub mod panel;
 pub mod panel_scene;
+pub mod picker;
+pub mod picker_scene;
 pub mod repo;
 pub mod repo_scene;
 pub mod row;

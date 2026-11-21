@@ -3460,6 +3460,12 @@ pub fn spec() -> AppSpec<State> {
                 s.dark = Some(false);
                 s.show_new_session_refs(fleet::new_session::refs::RefsScene::Preset)
             }),
+            ("new-session-hash", |s| plugins::scene(s, "github-hash", true)),
+            ("new-session-hash-light", |s| plugins::scene(s, "github-hash", false)),
+            ("new-session-hash-loading", |s| plugins::scene(s, "github-hash-loading", true)),
+            ("new-session-hash-loading-light", |s| plugins::scene(s, "github-hash-loading", false)),
+            ("new-session-hash-no-repo", |s| plugins::scene(s, "github-hash-no-repo", true)),
+            ("new-session-hash-no-repo-light", |s| plugins::scene(s, "github-hash-no-repo", false)),
             ("new-session-notice", |s| s.show_new_session_refs(fleet::new_session::refs::RefsScene::Notice)),
             ("new-session-notice-light", |s| {
                 s.dark = Some(false);

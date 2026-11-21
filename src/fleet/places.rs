@@ -51,6 +51,8 @@ pub struct Entry {
     pub overlay: Option<Overlay>,
     /// Where the Clone view's suggestions come from (`repositorySources`).
     pub repositories: Option<std::sync::Arc<dyn crate::fleet::new_session::clone::RepositorySource>>,
+    /// The popup of the New session box's `#` (`GitHubItemPicker`, the `#` place).
+    pub item_picker: Option<std::sync::Arc<dyn crate::fleet::new_session::places::ItemPicker>>,
     pub state: Box<dyn Any + Send>,
 }
 
@@ -65,6 +67,7 @@ impl Entry {
             keep: None,
             overlay: None,
             repositories: None,
+            item_picker: None,
             state: Box::new(state),
         }
     }
@@ -96,6 +99,11 @@ impl Places {
     /// The entries that are on, for the questions below.
     fn on<'a>(&'a self, prefs: &'a Prefs) -> impl Iterator<Item = &'a Entry> {
         self.entries.iter().filter(|e| e.manifest.enabled(prefs))
+    }
+
+    /// The `#` popup of the first plugin that is on and fills the place.
+    pub fn item_picker(&self, prefs: &Prefs) -> Option<std::sync::Arc<dyn crate::fleet::new_session::places::ItemPicker>> {
+        self.on(prefs).find_map(|e| e.item_picker.clone())
     }
 
     /// The rail buttons of the plugins that are on: id and item.

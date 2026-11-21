@@ -1,13 +1,11 @@
 //! Piece M of the New session page: `@`, pictures and the GitHub place (`NewSessionComposer.test.ts`: "keyboard", "GitHub preset",
 //! "@ references"; rows A8, A9, A7, A19), against the fake Fleet of `tests_new_send` with folders and sessions to list.
-use crate::fleet::new_session::places::{ItemKind, ItemPicker, PickerItem};
 use crate::fleet::new_session::request::{Folder, GitHubPreset};
 use crate::fleet::store::Route;
 use crate::tests::{FRAME, app, click};
 use crate::tests_new_send::{ROCKET, Rig, rig};
 use rune::{Key, KeyEvent, Mods};
 use serde_json::json;
-use std::sync::Arc;
 
 const COMET: &str = "/home/me/src/comet";
 const BILLING: &str = "Pick up where @billing-retries-spike left off: finish @src/billing/retry-policy.ts and @docs/billing/ ";
@@ -199,52 +197,28 @@ fn github_preset_can_be_removed() {
 }
 
 // ─── the place a host fills ─────────────────────────────────────────────────────
-
-struct Fake;
-
-impl ItemPicker for Fake {
-    fn search(&self, _folder: &str, query: &str) -> Vec<PickerItem> {
-        if !"318".starts_with(query) {
-            return Vec::new();
-        }
-        let mut preset = issue();
-        preset.number = 318;
-        preset.title = "Cache the login page".into();
-        vec![PickerItem { kind: ItemKind::Issue, number: 318, title: preset.title.clone(), preset }]
-    }
-}
+// What GitHub's host does with it is tested in `plugins::github::tests_picker`; here is only what core keeps.
 
 #[test]
-fn nothing_registered_keeps_the_hash_as_text() {
+fn the_hash_stays_text_while_the_plugin_that_fills_the_place_is_off() {
     let mut r = rig();
+    r.rt.update(|s, _| s.pickers.prefs.adopt(&json!({ "plugins.disabled": "[\"github\"]" })));
     r.text("Fix #31");
     assert!(r.rt.state.new_hash_trigger().is_none());
-    assert!(r.rt.state.new_hash_items().is_empty());
+    r.rt.update(|s, _| s.pickers.prefs.adopt(&json!({})));
+    r.rt.frame(FRAME);
+    assert!(r.rt.state.new_hash_trigger().is_some(), "on again, the same # opens the place");
 }
 
 #[test]
-fn a_registered_host_fills_the_hash_and_picking_attaches_the_item() {
+fn esc_shuts_the_hash_until_the_text_changes() {
     let mut r = rig();
-    r.rt.update(|s, _| s.register_item_picker(Arc::new(Fake)));
     r.text("Fix #31");
-    let items = r.rt.state.new_hash_items();
-    assert_eq!(items.len(), 1);
-    r.rt.update(move |s, tx| s.pick_item(&items[0], tx));
-    r.rt.frame(FRAME);
-    r.rt.frame(FRAME);
-    assert_eq!(r.box_text(), "Fix ", "the #query left the box");
-    let d = r.rt.state.new_draft.draft().expect("draft");
-    assert_eq!(d.github_preset.as_ref().map(|p| p.number), Some(318));
-    assert_eq!(d.workspace, crate::fleet::new_session::request::Workspace::New);
-    assert!(r.posted().is_empty(), "nothing was created");
-}
-
-#[test]
-fn stays_shut_for_a_hash_inside_a_word() {
-    let mut r = rig();
-    r.rt.update(|s, _| s.register_item_picker(Arc::new(Fake)));
-    r.text("Port it to C#");
+    assert!(r.rt.state.new_hash_trigger().is_some());
+    r.rt.update(|s, _| s.new_hash_dismiss());
     assert!(r.rt.state.new_hash_trigger().is_none());
+    r.text("2");
+    assert!(r.rt.state.new_hash_trigger().is_some(), "typing opens it again");
 }
 
 // ─── @ references ───────────────────────────────────────────────────────────────

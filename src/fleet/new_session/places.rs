@@ -4,29 +4,23 @@
 //! `#` stays text, as Fleet's picker does with the plugin off. Plain data and plain functions: no Rune, no I/O.
 use super::feeds::Repository;
 use super::request::GitHubPreset;
+use crate::State;
+use crate::theme::Theme;
+use rune::{El, KeyEvent, Tx};
 use std::sync::Arc;
 
-/// What a pull request or an issue is, for the glyph of its row and the preset it makes.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ItemKind {
-    Issue,
-    PullRequest,
-}
-
-/// One row of the `#` list: what to show, and the preset picking it attaches (`itemSessionPreset`).
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct PickerItem {
-    pub kind: ItemKind,
-    pub number: u64,
-    pub title: String,
-    pub preset: GitHubPreset,
-}
-
-/// A host's items for the `#` list. Called from a thread of the host's own, never from a view or a handler.
+/// A host's `#` popup. The host keeps its own list in its own state and asks its own server on its own threads; core only tells it
+/// what is typed (`keep`), draws what it returns above the box (`view`) and hands it the keys while the popup is open (`key`).
+/// Called from the UI thread, so none of them waits for anything.
 pub trait ItemPicker: Send + Sync {
-    /// The items for what was typed after `#`, in the repository of `folder` (a path on the target machine). Nothing when the
-    /// folder's repository isn't this host's.
-    fn search(&self, folder: &str, query: &str) -> Vec<PickerItem>;
+    /// Whether the host is on (a plugin that is switched off adds nothing, and the `#` stays text).
+    fn on(&self, s: &State) -> bool;
+    /// Every tick: the `#query` the caret is typing, or `None` while the popup is shut. True when something drawn changed.
+    fn keep(&self, s: &mut State, open: Option<&HashTrigger>, now: f64, tx: &mut Tx) -> bool;
+    /// A key while the popup is open, before the box sees it. True when the popup took it.
+    fn key(&self, s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool;
+    /// The popup, 8 px above the box's frame and as wide as it; `None` while the host has nothing to draw.
+    fn view(&self, s: &State, t: &Theme) -> Option<El>;
 }
 
 /// The pickers registered at start-up.
@@ -42,9 +36,9 @@ impl ItemPickers {
         self.0.is_empty()
     }
 
-    /// Every registered host's items, in the order they were registered.
-    pub fn search(&self, folder: &str, query: &str) -> Vec<PickerItem> {
-        self.0.iter().flat_map(|p| p.search(folder, query)).collect()
+    /// The first registered host that is on.
+    pub fn active(&self, s: &State) -> Option<Arc<dyn ItemPicker>> {
+        self.0.iter().find(|p| p.on(s)).cloned()
     }
 }
 

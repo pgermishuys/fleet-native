@@ -2,8 +2,8 @@
 //! engine (`composer::triggers`), popup model and held pictures, driven by the box's own text instead of an open session's draft.
 //! The page has no session, so there is no `/` list, no `$`, no agents; the files come from the Folder chip's folder, on the
 //! machine the page is for, and a pick belongs to the draft's row.
-use super::places::{ItemPickers, PickerItem, find_hash_trigger, remove_trigger, repository_for_preset};
-use super::request::{Folder, Image, Workspace};
+use super::places::{HashTrigger, ItemPickers, find_hash_trigger, remove_trigger, repository_for_preset};
+use super::request::{Folder, GitHubPreset, Image, Workspace};
 use super::send::MESSAGE_KEY;
 use crate::State;
 use crate::composer::attach::HeldImage;
@@ -38,6 +38,8 @@ pub struct NewRefs {
     preset_folder_pending: bool,
     /// What hosts registered for the `#` place; empty until component 21.
     pub places: ItemPickers,
+    /// The message as it was when Esc (or leaving the box) shut the `#` popup; it opens again when the text changes (`dismissedAt`).
+    pub dismissed_at: Option<String>,
 }
 
 /// The name of a folder as the notice and the list's group hint say it (`folderName`).
@@ -179,6 +181,12 @@ impl State {
         if self.new_box.edit.is_composing() || self.new_session_starting() {
             return false;
         }
+        if self.new_hash_trigger().is_some()
+            && let Some(host) = self.new_hash_host()
+            && host.key(self, ev, tx)
+        {
+            return true;
+        }
         let key = match ev.key {
             rune::Key::Down => Key::Down,
             rune::Key::Up => Key::Up,
@@ -256,7 +264,9 @@ impl State {
     /// page must be drawn again.
     pub fn keep_new_mentions(&mut self, now: f64, tx: &mut Tx) -> bool {
         if !self.on_new_session_page() {
-            return std::mem::take(&mut self.new_box.refs.popup).is_some();
+            let mut changed = std::mem::take(&mut self.new_box.refs.popup).is_some();
+            changed |= self.keep_new_hash(now, tx);
+            return changed;
         }
         let mut changed = self.take_initial_source();
         let Some(key) = self.new_row_key() else { return changed };
@@ -281,6 +291,7 @@ impl State {
         self.new_box.refs.unfound.retain(|t| crate::composer::refs::text_has_token(&text, t));
         changed |= before != self.new_box.refs.unfound.len();
         changed |= self.keep_folder_picks(&key, tx);
+        changed |= self.keep_new_hash(now, tx);
         changed | self.keep_new_popup(&key, now, tx)
     }
 
@@ -453,30 +464,50 @@ impl State {
         self.new_box.refs.places.register(picker);
     }
 
-    /// A `#query` the caret is typing, when some host can answer it (A6.1; inert with nothing registered).
-    pub fn new_hash_trigger(&self) -> Option<super::places::HashTrigger> {
-        if self.new_box.refs.places.is_empty() || self.new_session_starting() {
+    /// A `#query` the caret is typing, when some host is on (A6.1; inert with nothing registered). Not while Esc shut it.
+    pub fn new_hash_trigger(&self) -> Option<HashTrigger> {
+        if self.new_session_starting() || !self.on_new_session_page() {
             return None;
         }
-        find_hash_trigger(&self.new_box.edit.text, self.new_box.edit.range().1)
+        self.new_hash_host()?;
+        let text = &self.new_box.edit.text;
+        if self.new_box.refs.dismissed_at.as_deref() == Some(text.as_str()) {
+            return None;
+        }
+        find_hash_trigger(text, self.new_box.edit.range().1)
     }
 
-    /// The items the host offers for the `#` the caret is typing in the Folder chip's folder.
-    pub fn new_hash_items(&self) -> Vec<PickerItem> {
-        match (self.new_hash_trigger(), self.new_files_directory()) {
-            (Some(t), Some(dir)) => self.new_box.refs.places.search(&dir, &t.query),
-            _ => Vec::new(),
-        }
+    /// The host that fills the `#` place: a plugin that is on, else one registered by hand (core's own tests).
+    fn new_hash_host(&self) -> Option<std::sync::Arc<dyn super::places::ItemPicker>> {
+        self.places.item_picker(&self.pickers.prefs).or_else(|| self.new_box.refs.places.active(self))
+    }
+
+    /// Esc: the popup shuts and the message stays; typing opens it again (A6.10).
+    pub fn new_hash_dismiss(&mut self) {
+        self.new_box.refs.dismissed_at = Some(self.new_box.edit.text.clone());
+    }
+
+    /// The `#` popup, when a host is on and the caret is in a `#query`.
+    pub fn new_hash_view(&self, t: &crate::theme::Theme) -> Option<rune::El> {
+        self.new_hash_trigger()?;
+        self.new_hash_host()?.view(self, t)
+    }
+
+    /// Tells the host what is typed after `#` (or that nothing is), once a tick. True when the host changed something drawn.
+    fn keep_new_hash(&mut self, now: f64, tx: &mut Tx) -> bool {
+        let Some(host) = self.new_hash_host() else { return false };
+        let open = self.new_hash_trigger();
+        host.keep(self, open.as_ref(), now, tx)
     }
 
     /// `pickGitHubItem`: the `#query` leaves the message, the item attaches, the workspace is a new worktree, the branch name clears.
-    pub fn pick_item(&mut self, item: &PickerItem, tx: &mut Tx) {
+    pub fn pick_item(&mut self, preset: &GitHubPreset, tx: &mut Tx) {
         if let Some(trigger) = self.new_hash_trigger() {
             let (text, caret) = remove_trigger(&self.new_box.edit.text, &trigger);
             self.apply_new_edit(Edit { text, caret }, tx);
         }
         if let Some(draft) = self.new_draft.draft_mut() {
-            draft.github_preset = Some(item.preset.clone());
+            draft.github_preset = Some(preset.clone());
             draft.workspace = Workspace::New;
             draft.branch_name.clear();
         }

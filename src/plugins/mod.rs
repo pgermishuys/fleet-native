@@ -31,6 +31,8 @@ pub fn scene(s: &mut crate::State, name: &str, dark: bool) {
         github::view::rows_scene::scene(s, dark);
     } else if let Some(which) = name.strip_prefix("github-panel-") {
         github::view::panel_scene::set(s, which, dark);
+    } else if let Some(which) = name.strip_prefix("github-hash") {
+        github::view::picker_scene::set(s, which.trim_start_matches('-'), dark);
     } else if let Some(which) = name.strip_prefix("github-") {
         github::view::scene::set(s, which, dark);
     }

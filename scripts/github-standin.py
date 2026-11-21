@@ -118,7 +118,7 @@ class Standin:
         return 404, {"error": "The stand-in does not know this route."}
 
     def search(self, q, first, after):
-        """The fixture's items that a search's qualifiers keep: repo:, is:pr|issue|open|closed, author:@me, review-requested:@me, label:, milestone:, assignee:, no:assignee,
+        """The fixture's items that a search's qualifiers keep: repo:, is:pr|issue|open|closed, author:@me, review-requested:@me, label:, milestone:, assignee:(@me too), no:assignee,
         sort:{updated,created,comments}-{asc,desc}, and any other word as part of the title. Paged by position (the cursor is the next position)."""
         fx = self.fx
         me = fx["work"]["login"]
@@ -147,7 +147,7 @@ class Standin:
             elif key == "milestone":
                 items = [i for i in items if (i.get("milestone") is None) == (val == "none") and (val == "none" or i.get("milestone") == val)]
             elif key == "assignee":
-                items = [i for i in items if val in i["assignees"]]
+                items = [i for i in items if (me if val == "@me" else val) in i["assignees"]]
             elif w == "no:assignee":
                 items = [i for i in items if not i["assignees"]]
             elif key == "sort":
