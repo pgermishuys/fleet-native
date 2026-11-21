@@ -183,6 +183,16 @@ pub enum Scene {
     WhenCronError,
     /// An automation open with its prompt changed: Save shows.
     EditDirty,
+    /// An automation open in a repository, a new worktree each run from a base: the strip's chips (piece K).
+    StripRepo,
+    /// The same with its base menu open: no Fetch origin first, no branch name.
+    StripBase,
+    /// A new one in a repository, Same session each run, the Runs in menu open.
+    StripSame,
+    /// An automation open with the "…" popover: its name and skipping.
+    StripMore,
+    /// A new one with no folder after Send: the folder menu opened instead of creating.
+    StripFolder,
     /// An automation open: its header and nothing else yet.
     Open,
     /// The same, with the info note Run now leaves.
@@ -235,6 +245,11 @@ impl crate::State {
             | Scene::CreateAsk
             | Scene::CreateError
             | Scene::EditDirty
+            | Scene::StripRepo
+            | Scene::StripBase
+            | Scene::StripSame
+            | Scene::StripMore
+            | Scene::StripFolder
             | Scene::Open
             | Scene::Started
             | Scene::Off
@@ -300,13 +315,18 @@ impl crate::State {
             | Scene::RunsEmpty
             | Scene::RunsStates => self.automations_nav.set_active("a-weekly"),
             Scene::Off => self.automations_nav.set_active("a-paused"),
+            Scene::StripRepo | Scene::StripBase | Scene::StripMore | Scene::StripSame | Scene::StripFolder => {
+                self.show_automation_strip(scene)
+            }
             Scene::Builtin | Scene::BuiltinTime | Scene::BuiltinPaused => self.automations_nav.set_active("a-dream"),
             _ => {}
         }
         match scene {
             Scene::RunsEmpty => self.automations_nav.runs.show(HOME_MACHINE_KEY, "a-weekly", Vec::new()),
             Scene::RunsStates => self.automations_nav.runs.show(HOME_MACHINE_KEY, "a-weekly", runs_states("a-weekly")),
-            Scene::Runs | Scene::EditDirty => self.automations_nav.runs.show(HOME_MACHINE_KEY, "a-weekly", runs("a-weekly")),
+            Scene::Runs | Scene::EditDirty | Scene::StripRepo | Scene::StripBase | Scene::StripMore => {
+                self.automations_nav.runs.show(HOME_MACHINE_KEY, "a-weekly", runs("a-weekly"))
+            }
             Scene::Builtin | Scene::BuiltinTime => self.automations_nav.runs.show(HOME_MACHINE_KEY, "a-dream", dreaming_runs()),
             Scene::BuiltinPaused => self.automations_nav.runs.show(HOME_MACHINE_KEY, "a-dream", Vec::new()),
             _ => {}
@@ -321,6 +341,36 @@ impl crate::State {
                 self.ui.confirm = Some(crate::ui::confirm::Confirm::delete_automation("Monday digest".into(), call));
             }
             _ => {}
+        }
+    }
+
+    /// Piece K's scenes: the open automation (or a new one) with the strip's chips and one of its menus.
+    fn show_automation_strip(&mut self, scene: Scene) {
+        use crate::fleet::new_session::request::Folder;
+        // The base chip's branches: the invented repository's, under the automations' folder.
+        let seq = self.feeds.detail.begin(Some(REPOSITORY), false).unwrap_or_default();
+        self.feeds.detail.finish(seq, Ok(crate::mock::feeds::detail_in("/work")));
+        match scene {
+            Scene::StripSame | Scene::StripFolder => {
+                self.automations_nav.start_create();
+                self.automations_nav.set_text(false, "Every weekday at 8, triage the new issues and label each one.");
+                if scene == Scene::StripSame {
+                    self.automations_nav.draft.set_folder(Folder::Repository(REPOSITORY.into()), true, false);
+                    self.automations_nav.draft.target_type = crate::fleet::automations::strip::SAME_SESSION.into();
+                    self.open_runs_in_menu();
+                } else {
+                    self.begin_folder_menu();
+                }
+            }
+            _ => {
+                self.automations_nav.set_active("a-weekly");
+                self.reset_edit_state();
+                match scene {
+                    Scene::StripBase => self.open_base_menu(),
+                    Scene::StripMore => self.open_automation_more(),
+                    _ => {}
+                }
+            }
         }
     }
 }

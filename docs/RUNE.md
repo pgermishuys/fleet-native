@@ -2532,6 +2532,15 @@ whole-file work that piece R can make incremental (colour from the edited line, 
   select needs its own arm there, not only a list of its own.
 - **`border_sides` takes no layout space** unless `border_layout()` follows it, so a rule above a block with padding needs both.
 
+## Component 19, piece K (where it runs)
+
+- **`margin-left: auto` in a wrapping row is not `spacer()`.** With a `spacer()` before the last chip of a `flex_wrap()` row, the
+  chip went onto a line of its own, at that line's start, though it fit on the first line. A `row().grow(1.0).justify_end()`
+  around the chip fits it on the line when there is room and puts it at the right end of the next line when there isn't, as
+  Fleet's `.automation-composer__strip-end` does.
+- **`ElementInfo` has no `checked` or `placeholder`** at this pin: a test reads a checkbox's or a placeholder's value from the
+  state, not from `elements()`.
+
 ## Component 19, piece J (the When menu)
 
 - **A popover that scrolls is `pop(..).scroll(ScrollSpec { stick_bottom: false }).max_h(h)` on the panel itself**, padding and all; with

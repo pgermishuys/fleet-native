@@ -20,6 +20,9 @@ fn worktree_key(i: usize) -> String {
 }
 
 fn workspace(s: &State) -> Workspace {
+    if s.picker_host() == crate::fleet::new_session::host::Host::Automation {
+        return s.automation_workspace();
+    }
     s.new_draft.draft().map(|d| d.workspace.clone()).unwrap_or(Workspace::New)
 }
 
@@ -33,7 +36,7 @@ pub fn chip(s: &State, t: &Theme) -> El {
         Workspace::Existing(path) => (&GIT_BRANCH, s.worktree_chip_label(path)),
     };
     let tail = (ws == Workspace::Current).then(|| s.current_branch().map(|b| format!(" · {b}"))).flatten();
-    let disabled = s.new_draft.draft().is_some_and(|d| d.is_starting);
+    let disabled = s.picker_busy();
     Chip::new(WORKSPACE_CHIP, label).glyph(glyph).tail(tail).open(s.workspace_menu_open()).disabled(disabled).view(
         t,
         |s: &mut State, tx: &mut Tx| {
@@ -126,7 +129,7 @@ pub fn overlay(s: &State, t: &Theme) -> Vec<El> {
         body.push(option(t, spec, None, move |s, _| s.choose_workspace(Workspace::Existing(path.clone()))).help(w.path.clone()));
     }
     let panel = pop(t, "new-session-workspace-pop", WIDTH, body)
-        .focus_return(WORKSPACE_CHIP.to_string())
+        .focus_return(s.picker_focus_return(WORKSPACE_CHIP))
         .modal(true, |s: &mut State| s.close_picker_menu());
     vec![
         crate::ui::overlay::scrim("new-session-workspace-scrim", |s: &mut State| s.close_picker_menu()),

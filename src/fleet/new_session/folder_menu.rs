@@ -3,6 +3,7 @@
 //! `folder.rs`. The path view and creating a folder are `folder_path.rs`; the clone view and the clone itself are
 //! `folder_clone.rs`.
 use super::folder::{self, Act, FolderOption, Inputs};
+use super::host::Host;
 use super::request::Folder;
 use crate::{State, Tx};
 use rune::TextEdit;
@@ -146,15 +147,22 @@ impl State {
         let defaults = self.sidebar.new_session_defaults(&key);
         let paths: Vec<String> = repos.iter().map(|r| r.path.clone()).collect();
         let mut recent = defaults.recent_folders(&paths);
-        let run_box = self.run_box_active();
-        let run_folder = self.workflows_nav.folder().cloned();
+        let host = self.picker_host();
+        let run_box = host == Host::RunBox;
+        let new_session = host == Host::NewSession;
         let draft = self.new_draft.draft();
-        let current = if run_box { run_folder.as_ref() } else { draft.and_then(|d| d.folder.as_ref()) };
-        let issue = !run_box && draft.is_some_and(|d| d.github_preset.is_some());
+        let current = match host {
+            Host::NewSession => draft.and_then(|d| d.folder.as_ref()),
+            Host::RunBox => self.workflows_nav.folder(),
+            Host::Automation => self.automation_folder(),
+        };
+        let issue = new_session && draft.is_some_and(|d| d.github_preset.is_some());
         if run_box {
             // A run is in a repository: no plain folders, no "No folder", no create or clone.
             recent.retain(|f| matches!(f, Folder::Repository(_)));
         }
+        // An automation offers "No folder" unless it runs a workflow, which needs a repository (`allowNone="!isWorkflow"`).
+        let automation_none = host == Host::Automation && !self.automations_nav.composer(self.composer_editing()).is_workflow();
         let current_path = match current {
             Some(Folder::Repository(p) | Folder::Directory(p)) => Some(p.as_str()),
             _ => None,
@@ -168,13 +176,14 @@ impl State {
         let input = Inputs {
             repositories: &repos,
             recent: &recent,
-            plain: if run_box { &[] } else { defaults.plain_folders() },
+            // Only New session hands the picker the plain folders sessions ran in and lets it create or clone.
+            plain: if new_session { defaults.plain_folders() } else { &[] },
             current,
             query: &self.folder_menu.query.text,
             // Off in cloud mode (not in this app) and while a GitHub issue is attached (B2.86).
             allow_browse: !issue,
-            allow_create: !issue && !run_box,
-            allow_none: !issue && !run_box,
+            allow_create: !issue && new_session,
+            allow_none: (!issue && new_session) || automation_none,
             root: root.as_deref(),
             first_branch: self.feeds.first_branch(),
         };

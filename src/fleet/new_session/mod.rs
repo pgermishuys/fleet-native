@@ -12,6 +12,7 @@ pub mod folder_menu;
 pub mod folder_path;
 pub mod harness;
 pub mod harness_choice;
+pub mod host;
 pub mod machines;
 pub mod more;
 pub mod naming;

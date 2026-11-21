@@ -57,6 +57,8 @@ mod tests_automations_runs;
 #[cfg(test)]
 mod tests_automations_store;
 #[cfg(test)]
+mod tests_automations_strip;
+#[cfg(test)]
 mod tests_automations_when;
 #[cfg(test)]
 mod tests_browser;
@@ -5272,6 +5274,16 @@ pub fn spec() -> AppSpec<State> {
             ("automation-when-cron-error-light", |s| s.show_automations(false, mock::automations::Scene::WhenCronError)),
             ("automation-edit-dirty", |s| s.show_automations(true, mock::automations::Scene::EditDirty)),
             ("automation-edit-dirty-light", |s| s.show_automations(false, mock::automations::Scene::EditDirty)),
+            ("automation-strip-repo", |s| s.show_automations(true, mock::automations::Scene::StripRepo)),
+            ("automation-strip-repo-light", |s| s.show_automations(false, mock::automations::Scene::StripRepo)),
+            ("automation-strip-base", |s| s.show_automations(true, mock::automations::Scene::StripBase)),
+            ("automation-strip-base-light", |s| s.show_automations(false, mock::automations::Scene::StripBase)),
+            ("automation-strip-same", |s| s.show_automations(true, mock::automations::Scene::StripSame)),
+            ("automation-strip-same-light", |s| s.show_automations(false, mock::automations::Scene::StripSame)),
+            ("automation-strip-more", |s| s.show_automations(true, mock::automations::Scene::StripMore)),
+            ("automation-strip-more-light", |s| s.show_automations(false, mock::automations::Scene::StripMore)),
+            ("automation-strip-folder", |s| s.show_automations(true, mock::automations::Scene::StripFolder)),
+            ("automation-strip-folder-light", |s| s.show_automations(false, mock::automations::Scene::StripFolder)),
             ("automation-open", |s| s.show_automations(true, mock::automations::Scene::Open)),
             ("automation-open-light", |s| s.show_automations(false, mock::automations::Scene::Open)),
             ("analytics-rail", |s| s.rail = Rail::Analytics),

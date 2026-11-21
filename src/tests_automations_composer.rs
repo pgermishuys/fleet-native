@@ -1,7 +1,7 @@
 //! Component 19, piece I: the composer's box, plan line, create and save. Fleet's seven I cases of `AutomationsPage.test.ts`
 //! under their names, against a fake Fleet; then what the native composer keeps: Enter creates and Shift+Enter is a new line,
-//! a refused save, nothing sent without a folder, the form error going with another automation, and the edit state made
-//! when the list arrives after the page opened.
+//! a refused save, the form error going with another automation, and the edit state made when the list arrives after the
+//! page opened. Nothing sent without a folder is K's Fleet case, in `tests_automations_strip`.
 use crate::fleet::automations::nav::ViewMode;
 use crate::fleet::automations::submit::{SAVED, time_zone};
 use crate::fleet::new_session::request::{Folder, Workspace};
@@ -13,9 +13,9 @@ use serde_json::{Value, json};
 use std::sync::atomic::Ordering;
 
 /// The repository the invented automations run in.
-const KETTLE: &str = "/work/kettle";
+pub(crate) const KETTLE: &str = "/work/kettle";
 
-fn weekly_digest(extra: Value) -> Value {
+pub(crate) fn weekly_digest(extra: Value) -> Value {
     let mut extra = extra;
     for (k, v) in json!({"workspaceId": KETTLE, "isolation": "worktree", "baseBranch": null}).as_object().unwrap() {
         if extra.get(k).is_none() {
@@ -26,7 +26,7 @@ fn weekly_digest(extra: Value) -> Value {
 }
 
 /// The page on a fake Fleet whose machine has `/work/kettle`, which New session used last; the list loaded.
-fn page(list: Vec<Value>, remembered: bool) -> Rig {
+pub(crate) fn page(list: Vec<Value>, remembered: bool) -> Rig {
     let mut r = rig(list, vec![]);
     *r.home.repositories.lock().unwrap() = vec![json!({"name": "kettle", "path": KETTLE, "parentRoot": "/work"})];
     if remembered {
@@ -42,7 +42,7 @@ fn page(list: Vec<Value>, remembered: bool) -> Rig {
 }
 
 /// Selects all in the focused box and types `words` over it, as `setValue` does.
-fn type_over(r: &mut Rig, words: &str) {
+pub(crate) fn type_over(r: &mut Rig, words: &str) {
     click(&mut r.rt, "automation-message");
     press_key(&mut r.rt, Key::Command('a'), Mods::default());
     press_key(&mut r.rt, Key::Text(words.into()), Mods::default());
@@ -50,7 +50,7 @@ fn type_over(r: &mut Rig, words: &str) {
 }
 
 /// New automation, then the sentence typed; waits for the folder New session would start in when one was remembered.
-fn start_new(r: &mut Rig, words: &str) {
+pub(crate) fn start_new(r: &mut Rig, words: &str) {
     click(&mut r.rt, "new-automation");
     r.frames();
     r.wait("the repositories", |s| !s.feeds.repos(HOME_MACHINE_KEY).loading && s.feeds.repos(HOME_MACHINE_KEY).scanned_at.is_some());
@@ -58,7 +58,7 @@ fn start_new(r: &mut Rig, words: &str) {
     type_over(r, words);
 }
 
-fn plan(r: &Rig) -> String {
+pub(crate) fn plan(r: &Rig) -> String {
     r.texts_of("automation-plan").concat()
 }
 
@@ -66,7 +66,7 @@ fn when_chip(r: &Rig) -> String {
     r.rt.elements().iter().find(|e| e.key.as_deref() == Some("automation-when-chip")).and_then(|e| e.label.clone()).unwrap_or_default()
 }
 
-fn submit_shown(r: &Rig) -> bool {
+pub(crate) fn submit_shown(r: &Rig) -> bool {
     r.has("automation-submit")
 }
 
@@ -202,7 +202,7 @@ fn says_why_the_server_refused_a_create_and_keeps_the_text() {
 }
 
 /// Opens automation `id` by its row and waits for its composer.
-fn open(r: &mut Rig, id: &str) {
+pub(crate) fn open(r: &mut Rig, id: &str) {
     click(&mut r.rt, &format!("automation-row-{id}"));
     r.frames();
     r.frames();
@@ -295,18 +295,6 @@ fn a_refused_save_says_why_over_the_composer_and_keeps_the_change() {
     assert_eq!(form_error(&r), ["Invalid cron expression: bad format"]);
     assert_eq!(r.rt.state.automations_nav.edit.text, "Summarise the open PRs and the drafts");
     assert!(submit_shown(&r), "still changed");
-}
-
-#[test]
-fn sends_nothing_without_a_folder() {
-    // Nothing remembered from New session: the draft has no folder, and the plan says to choose one (K opens the menu).
-    let mut r = page(vec![weekly_digest(json!({}))], false);
-    start_new(&mut r, "Every Monday at 9am, summarise the open PRs");
-
-    assert!(plan(&r).contains("Choose where it runs."), "{}", plan(&r));
-    click(&mut r.rt, "automation-submit");
-    r.frames();
-    assert_eq!(r.home.calls("POST", "/api/automations"), 0);
 }
 
 #[test]

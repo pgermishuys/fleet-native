@@ -1,5 +1,6 @@
 //! What the chips under the New session box show and when (`NewSessionComposer.vue`'s strip; rows A11.1, A11.3-A11.6, A11.8).
 //! Plain state changes: nothing here draws. The pickers behind the chips are pieces F-K; this decides which chips there are.
+use super::host::Host;
 use super::plan::{base_name, tilde_path};
 use super::request::{Folder, Workspace};
 use crate::State;
@@ -36,8 +37,11 @@ impl State {
     /// The machine key the draft starts on: the machine the app works in unless the draft picked another (`target.key`).
     pub fn target_key(&self) -> String {
         // The Run box on the Workflows page is on the machine that page shows.
-        if self.run_box_active() {
-            return self.workflows_machine();
+        match self.picker_host() {
+            Host::RunBox => return self.workflows_machine(),
+            // Its folders are those of the machine the Automations page shows (another machine's runs are piece M's).
+            Host::Automation => return self.automations_machine(),
+            Host::NewSession => {}
         }
         self.new_draft.machine().unwrap_or_else(|| self.machines.current_key()).to_string()
     }
@@ -73,8 +77,10 @@ impl State {
     /// `setFolder(folder, chosen)`: a different folder forgets the base, fetch and branch name; a repository gets its
     /// remembered workspace, anything else a new one.
     pub fn set_folder(&mut self, folder: Folder, chosen: bool) {
-        if self.run_box_active() {
-            return self.run_box_set_folder(folder, chosen);
+        match self.picker_host() {
+            Host::RunBox => return self.run_box_set_folder(folder, chosen),
+            Host::Automation => return self.automation_set_folder(folder, chosen),
+            Host::NewSession => {}
         }
         let workspace = match &folder {
             // An attached item always starts in a new worktree (A7.11).

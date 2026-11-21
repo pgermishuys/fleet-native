@@ -1,8 +1,8 @@
 //! The automation composer (`AutomationComposer.vue` in `ComposerFrame.vue`; rows 7.2-7.6, 7.8, 7.9, 8.1, 9.1's
 //! strip): the message box with the schedule words highlighted, the toolbar's Send (a new one) or Save (a saved one, once
 //! something changed), the strip under it with the When chip and its menu
-//! (`when.rs`), and the plan line saying what Enter will make, with the "Just once" ask as a link. The folder and the other
-//! chips are pieces K to N.
+//! (`when.rs`) and where it runs (`strip.rs`), and the plan line saying what Enter will make, with the "Just once" ask as a
+//! link. The machine, agent and model, and workflow chips are pieces L to N.
 use crate::fleet::automations::schedule::When;
 use crate::fleet::automations::words::{Part, Plan};
 use crate::icons::{ARROW_UP, LOADER_CIRCLE};
@@ -140,8 +140,8 @@ fn send_button(t: &Theme, editing: bool, busy: bool, can: bool) -> El {
     }
 }
 
-/// `.automation-composer__strip`: the chips under the box. The When chip and its menu are `when.rs`; the folder and the
-/// rest are K to N.
+/// `.automation-composer__strip`: the chips under the box. The When chip and its menu are `when.rs`; where it runs is
+/// `strip.rs`; the machine, the agent and model, and a workflow target are L to N.
 fn strip(s: &State, t: &Theme, shown: &Shown, busy: bool) -> El {
     let when = super::when::Shown { when: shown.when.clone(), parsed: shown.parsed, message_has_schedule: shown.has_words };
     row()
@@ -154,6 +154,7 @@ fn strip(s: &State, t: &Theme, shown: &Shown, busy: bool) -> El {
         .pt(6.0)
         .px(4.0)
         .child(super::when::chip(s, t, &when, busy))
+        .children(super::strip::chips(s, t, busy))
 }
 
 /// `.automation-composer__plan`: one line of words (12 px muted, line-height 1.55) with the schedule in the text colour,
