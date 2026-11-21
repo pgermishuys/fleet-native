@@ -18,6 +18,8 @@ use std::sync::{Arc, Mutex};
 type Heard = Arc<Mutex<Vec<(String, String, Value)>>>;
 /// The catalogs asked for, as (harness, directory).
 type Asked = Arc<Mutex<Vec<(String, Option<String>)>>>;
+/// Every request heard, as (method, route, whether it carried this fake's machine's token).
+type Requests = Arc<Mutex<Vec<(String, String, bool)>>>;
 
 /// A stand-in for `/api/automations` that keeps its list between calls, like Fleet's `fakeServer`.
 pub(crate) struct Fake {
@@ -44,6 +46,10 @@ pub(crate) struct Fake {
     pub(crate) refuse_time: Arc<Mutex<Option<String>>>,
     /// Each `GET /api/harnesses/{type}/catalog` asked, as (harness, directory): Fleet's test's `catalogRequests`.
     pub(crate) catalogs: Asked,
+    /// Every request of any route, in order; a test counts only the ones it means.
+    pub(crate) requests: Requests,
+    /// The token this fake's machine holds (`Bearer <token>`): each request says whether it came with it.
+    pub(crate) token: Arc<Mutex<Option<String>>>,
 }
 
 /// The machine's harnesses, as Fleet's test mocks them: OpenCode, which the server marks as the default.
@@ -101,6 +107,8 @@ pub(crate) fn fake(initial: Vec<Value>) -> Fake {
     let repos_gate = repositories.clone();
     let catalogs = Asked::default();
     let catalogs_gate = catalogs.clone();
+    let (requests, token) = (Requests::default(), Arc::new(Mutex::new(None::<String>)));
+    let (requests_gate, token_gate) = (requests.clone(), token.clone());
     std::thread::spawn(move || {
         for mut stream in listener.incoming().flatten() {
             let (log, items, refuse_next, gate) = (log.clone(), items.clone(), refuse_next.clone(), gate.clone());
@@ -110,8 +118,12 @@ pub(crate) fn fake(initial: Vec<Value>) -> Fake {
             let time_gate = time_gate.clone();
             let repos_gate = repos_gate.clone();
             let catalogs_gate = catalogs_gate.clone();
+            let (requests_gate, token_gate) = (requests_gate.clone(), token_gate.clone());
             std::thread::spawn(move || {
                 let req = crate::test_http::read(&mut stream);
+                let wanted = token_gate.lock().unwrap().as_ref().map(|t| format!("Bearer {t}"));
+                let tokened = wanted.is_some() && req.header("authorization") == wanted;
+                requests_gate.lock().unwrap().push((req.method.clone(), req.route().to_string(), tokened));
                 // The composer's agent and model chips: the harnesses, and what one offers a folder.
                 if req.route() == "/api/harnesses" {
                     return crate::test_http::respond_json(&mut stream, "200 X", &harnesses().to_string());
@@ -265,6 +277,8 @@ pub(crate) fn fake(initial: Vec<Value>) -> Fake {
         refuse_runs,
         refuse_time,
         catalogs,
+        requests,
+        token,
     }
 }
 

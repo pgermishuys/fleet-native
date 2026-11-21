@@ -150,17 +150,18 @@ impl State {
         runs.add_first(run);
     }
 
-    /// A click on a run: the session it started opens in Sessions (`openRun`). A run with none opens nothing, and so does a
-    /// session this machine's list doesn't hold (yet).
+    /// A click on a run: the session it started opens in Sessions (`openRun`), on the machine the run went to. A run with
+    /// none opens nothing, and so does a session that machine's list doesn't hold (yet).
     pub fn open_automation_run(&mut self, run_id: &str, tx: &mut Tx) {
         let machine = self.automations_machine();
         // The built-in page lists its runs but its rows don't open (`BuiltinAutomationDetail.vue` binds no `open`).
         if self.open_automation().is_some_and(|a| a.builtin.is_some()) {
             return;
         }
-        let Some(session) = self.automations_nav.runs.list.iter().find(|r| r.id == run_id).and_then(session_of).map(str::to_string) else {
-            return;
-        };
+        let Some(run) = self.automations_nav.runs.list.iter().find(|r| r.id == run_id).cloned() else { return };
+        let Some(session) = session_of(&run).map(str::to_string) else { return };
+        // A run that went to another machine started its session there: it opens on that machine (row 5.9).
+        let machine = self.run_machine(run.machine_id.as_deref(), &session).unwrap_or(machine);
         self.open_workflow_session(&machine, &session, tx);
     }
 

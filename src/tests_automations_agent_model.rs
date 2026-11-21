@@ -34,7 +34,7 @@ fn pick(r: &mut Rig, chip: &str, label: &str) {
 }
 
 /// What a chip says, as drawn: the text inside it.
-fn chip_text(r: &Rig, key: &str) -> String {
+pub(crate) fn chip_text(r: &Rig, key: &str) -> String {
     let Some(chip) = r.rt.elements().into_iter().find(|e| e.key.as_deref() == Some(key)) else { return String::new() };
     let [x, y, w, h] = chip.rect;
     let inside = |e: &&rune::ElementInfo| {

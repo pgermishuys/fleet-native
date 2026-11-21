@@ -1,5 +1,6 @@
 //! Ports `NSD/MachinePicker.vue`: the chip that names the machine a session starts on, and the menu above it (rows B5.1-B5.19).
-//! Which machines there are, and what each says, is `fleet::new_session::machines`.
+//! The automation composer draws the same chip as Runs on (component 19, row 11.1). Which machines there are, and what each
+//! says, is `fleet::new_session::machines`.
 use crate::fleet::new_session::machines::{MACHINE_CHIP, MachineRow};
 use crate::icons::*;
 use crate::theme::{Theme, sans};
@@ -22,7 +23,7 @@ fn dot(t: &Theme, reachable: bool) -> El {
 /// B5.2-B5.4: the dot, the name in the UI font at 13px, a chevron. Red while the selected machine can't be reached.
 pub fn chip(s: &State, t: &Theme) -> El {
     let down = s.target_is_down();
-    let disabled = s.new_draft.draft().is_some_and(|d| d.is_starting);
+    let disabled = s.picker_busy();
     let chip = Chip::new(MACHINE_CHIP, s.target_name())
         .dot(if down { t.error } else { t.running })
         .label_font(sans(13.0, 500.0, 1.2))
@@ -54,7 +55,7 @@ fn machine_option(t: &Theme, r: MachineRow) -> El {
 
 /// B5.5-B5.15: the heading, every machine, a rule, Add a machine….
 pub fn overlay(s: &State, t: &Theme) -> Vec<El> {
-    let mut body = vec![pop_label(t, "Start on")];
+    let mut body = vec![pop_label(t, s.machine_menu_heading())];
     body.extend(s.machine_rows().into_iter().map(|r| machine_option(t, r)));
     body.push(pop_separator(t));
     body.push(option(
@@ -64,7 +65,7 @@ pub fn overlay(s: &State, t: &Theme) -> Vec<El> {
         |s, tx| s.add_machine_from_menu(tx),
     ));
     let panel = pop(t, "new-session-machine-pop", WIDTH, body)
-        .focus_return(MACHINE_CHIP.to_string())
+        .focus_return(s.picker_focus_return(MACHINE_CHIP))
         .modal(true, |s: &mut State| s.close_machine_menu());
     vec![
         crate::ui::overlay::scrim("new-session-machine-scrim", |s: &mut State| s.close_machine_menu()),

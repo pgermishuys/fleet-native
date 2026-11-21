@@ -1,6 +1,6 @@
 //! The composer's Send and Save, and what it keeps up to date while the page is open (`handleCreate`, `handleSave`,
 //! `resetEditState` and the repository watches of `AutomationDetailPanel.vue`; `submit` of `AutomationComposer.vue`; rows
-//! 1.8, 1.9, 4.11, 7.11, 7.12, 7.14, 9.3). Each request goes to the machine the view shows, on a thread; with no server
+//! 1.8, 1.9, 4.11, 7.11, 7.12, 7.14, 9.3, 11.3). Each change goes to the machine the view shows and each read for the composer to the machine its runs go to, on a thread; with no server
 //! (scenes, the app with no Fleet) a create or save changes the invented list, so the page can be tried.
 use super::actions::words_of;
 use super::composer::{ComposerState, Context, composer_time_zone};
@@ -154,16 +154,16 @@ impl State {
     /// `resetEditState`: the open automation's composer is the automation as saved (as the list has it now).
     pub(crate) fn reset_edit_state(&mut self) {
         let Some(a) = self.open_automation() else { return };
-        let repositories = self.composer_repositories();
+        let repositories = self.composer_repositories(&self.machine_of_automation(&a));
         let nav = &mut self.automations_nav;
         nav.edit = ComposerState::state_for(&a, &repositories);
         nav.edit_box = rune::TextEdit::new(&a.prompt);
         nav.edit_for = Some(a.id);
     }
 
-    /// The repository paths of the machine the view shows, as far as they are known.
-    fn composer_repositories(&self) -> Vec<String> {
-        self.feeds.repos(&self.automations_machine()).list.iter().map(|r| r.path.clone()).collect()
+    /// The repository paths of `machine`, as far as they are known.
+    fn composer_repositories(&self, machine: &str) -> Vec<String> {
+        self.feeds.repos(machine).list.iter().map(|r| r.path.clone()).collect()
     }
 
     /// The composer's upkeep, each frame while the page is open: the edit state made from the open automation when it opens
@@ -185,7 +185,8 @@ impl State {
             changed = true;
         }
         changed |= self.keep_automation_catalog();
-        let machine = self.automations_machine();
+        // The machine the runs go to: another machine's folders, harnesses and events are its own (row 11.3).
+        let machine = self.composer_machine(mode == ViewMode::Edit);
         if self.feed_base(&machine).is_none() {
             return changed;
         }
@@ -216,7 +217,13 @@ impl State {
         let feed = self.feeds.repos(&machine);
         let paths: Vec<String> = feed.list.iter().map(|r| r.path.clone()).collect();
         if paths != self.automations_nav.composer.seen {
-            self.automations_nav.repositories_changed(&paths);
+            // Each composer's folder is read against the repositories of the machine its runs go to (rows 7.14, 11.6).
+            if self.composer_machine(false) == machine {
+                self.automations_nav.draft.upgrade_folder(&paths);
+            }
+            if self.composer_machine(true) == machine {
+                self.automations_nav.edit.upgrade_folder(&paths);
+            }
             self.automations_nav.composer.seen = paths.clone();
             changed = true;
         }

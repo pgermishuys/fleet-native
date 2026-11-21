@@ -127,6 +127,9 @@ impl State {
             return;
         }
         self.close_machine_menu();
+        if self.picker_host() == super::host::Host::Automation {
+            return self.automation_pick_machine(key);
+        }
         let live = self.machines.current_key().to_string();
         let before = self.target_key();
         self.new_draft.set_machine(Some(key), &live);

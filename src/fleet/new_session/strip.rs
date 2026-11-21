@@ -39,8 +39,8 @@ impl State {
         // The Run box on the Workflows page is on the machine that page shows.
         match self.picker_host() {
             Host::RunBox => return self.workflows_machine(),
-            // Its folders are those of the machine the Automations page shows (another machine's runs are piece M's).
-            Host::Automation => return self.automations_machine(),
+            // The automation composer's are those of the machine its runs go to (row 11.3).
+            Host::Automation => return self.composer_machine(self.composer_editing()),
             Host::NewSession => {}
         }
         self.new_draft.machine().unwrap_or_else(|| self.machines.current_key()).to_string()
