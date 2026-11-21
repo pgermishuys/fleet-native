@@ -101,3 +101,28 @@ pub fn repos() -> Value {
         repo(9, "mara-quinn", "dotfiles", true, json!("Shell"), 0),
     ])
 }
+
+/// The rows the `github-rows` scenes draw, one of every kind and state: `{item, reason}` each. A working, a waiting and an idle session
+/// are linked to three of them by the scene (see `view::rows_scene`).
+pub fn rows() -> Value {
+    let kit = json!({"login": "kit-lee", "state": "CHANGES_REQUESTED"});
+    let sam = json!({"login": "sam-rivera", "state": "APPROVED"});
+    let more = json!({"login": "ana-brook", "state": "COMMENTED"});
+    json!([
+        {"item": pull(218, "Queue retries with backoff", json!({
+            "checks": "failure", "reviewDecision": "CHANGES_REQUESTED", "mergeable": "CONFLICTING", "reviewers": [kit, sam, more],
+            "labels": [{"name": "backend", "color": "1d76db"}, {"name": "bug", "color": "d73a4a"}, {"name": "needs-tests", "color": "fbca04"}, {"name": "extra", "color": "0e8a16"}],
+            "additions": 412, "deletions": 88})), "reason": null},
+        {"item": pull(220, "Fuel gauge rounding", json!({"checks": "pending", "reviewers": [{"login": "kit-lee", "state": "REQUESTED"}], "comments": 1})),
+         "reason": "Review requested"},
+        {"item": pull(221, "Retry the launch hook", json!({"author": "mara-quinn", "reviewDecision": "APPROVED", "reviewers": [sam], "comments": 0})), "reason": null},
+        {"item": pull(222, "Trim the manifest", json!({"isDraft": true, "checks": "none", "labels": [], "comments": 0, "additions": 3, "deletions": 1})), "reason": null},
+        {"item": pull(215, "Cache the crew roster", json!({"state": "merged", "checks": "success", "labels": [], "comments": 5})), "reason": null},
+        {"item": pull(214, "Drop the old countdown", json!({"state": "closed", "checks": "failure", "labels": [], "comments": 1})), "reason": null},
+        {"item": issue(7, "Launch countdown skips a second"), "reason": null},
+        {"item": json!({"kind": "issue", "owner": "lumen-labs", "repo": "atlas", "number": 3, "title": "Tiles flicker when zooming", "url": "https://github.com/lumen-labs/atlas/issues/3",
+            "state": "closed", "isDraft": false, "author": "devon-park", "authorAvatarUrl": null, "createdAt": "2026-11-01T08:00:00Z", "updatedAt": "2026-11-17T10:00:00Z",
+            "comments": 1, "labels": [], "headRef": null, "baseRef": null, "additions": null, "deletions": null, "checks": null, "reviewDecision": null,
+            "mergeable": null, "reviewers": [], "assignees": []}), "reason": null},
+    ])
+}

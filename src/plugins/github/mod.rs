@@ -3,7 +3,7 @@
 //!
 //! Piece A of component 21 gives it its home and its places: the descriptor, the rail button, the settings page (the connection
 //! page, `view::connect`), the connection's `keep`, and the addresses it owns (`Where`). Piece B adds what the pages read: items and the words made from them (`items`), the issue filter
-//! (`filter`) and an invented GitHub for scenes and tests (`mock`). Piece C adds the three stores the pages share: your work (`work`), the repositories you follow (`bookmarks`) and the repository cache (`repos`). Piece D adds the rail's panel (`view::panel`, loaded by `panel_loads`); piece E its Follow a repository dialog (`follow`, `view::follow`); the page and the rest come in the pieces after.
+//! (`filter`) and an invented GitHub for scenes and tests (`mock`). Piece C adds the three stores the pages share: your work (`work`), the repositories you follow (`bookmarks`) and the repository cache (`repos`). Piece D adds the rail's panel (`view::panel`, loaded by `panel_loads`); piece E its Follow a repository dialog (`follow`, `view::follow`); piece F the item's row and its session chip (`view::row`, `view::session_chip`) and Fleet's side, the sessions on an item (`sessions`); the page and the rest come in the pieces after.
 pub mod auth;
 pub mod bookmarks;
 pub mod filter;
@@ -12,6 +12,7 @@ pub mod items;
 pub mod mock;
 mod panel_loads;
 pub mod repos;
+pub mod sessions;
 pub mod view;
 mod where_;
 pub mod work;
@@ -26,6 +27,8 @@ mod tests_follow;
 mod tests_items;
 #[cfg(test)]
 mod tests_panel;
+#[cfg(test)]
+mod tests_rows;
 #[cfg(test)]
 mod tests_stores;
 #[cfg(test)]
@@ -57,6 +60,10 @@ pub struct GitHub {
     pub panel_asked: bool,
     /// The Follow a repository dialog.
     pub follow: follow::Follow,
+    /// The rows scenes' list (`github-rows*`): items the page draws as rows until Your work (piece G) and a repository's page (piece I) draw their own.
+    pub demo_rows: Vec<(items::ItemSummary, Option<String>)>,
+    /// The label last pressed on a demo row (the repository page, piece I, filters by it).
+    pub demo_label: Option<String>,
 }
 
 /// The descriptor, the sidebar item and the settings page (`index.ts`'s manifest).
