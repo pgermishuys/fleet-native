@@ -2455,3 +2455,12 @@ whole-file work that piece R can make incremental (colour from the edited line, 
   `EmptyState bordered` is that around the title and one line.
 - **The theme toggle flips on every run of a script.** With `FLEET_NATIVE_DATA_DIR` set, `cmd+shift+l` in the script saves the new
   theme, so a second run with the same folder and the same toggle draws dark again. After the first light run, leave the toggle out.
+
+## Component 21, piece D (the GitHub rail panel)
+
+- **Nothing in Rune stopped this piece.** A row with a button revealed on its hover is the session list's pattern: `hover_group()` on a shell,
+  `group_opacity(0.0, 1.0)` on the child, and `group_color(TRANSPARENT)` on the text that gives way to it (the counts).
+- **A bottom-only border does not exist**: `border` draws all four sides, so Fleet's `border-bottom` on the account row is a 1 px `el()` under it.
+- **A `hover` colour is drawn over the row's `fill`, not instead of it**: a lit row (9 % wash) with the same colour as its hover came out twice as dark under the pointer, so the lit row's hover is transparent.
+- **The cargo test build outgrew 5500M** (an OOM kill at 5.3 G peak, 20 Nov 2026); `MemoryMax=7000M` with `CARGO_BUILD_JOBS=1` passed.
+

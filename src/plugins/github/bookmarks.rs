@@ -117,28 +117,43 @@ impl State {
             return;
         }
         let body = json!({ "repo": full_name });
-        self.bookmark_call("POST", API.into(), Some(body), "Failed to add bookmark.", move |list| {
+        self.bookmark_call("POST", API.into(), Some(body), "Failed to add bookmark.", None, move |list| {
             list.push(repo);
         });
     }
 
     /// `removeBookmark`: `owner/name` goes into the address as it is; a name without both halves is refused before asking.
     pub fn github_bookmark_remove(&mut self, full_name: &str) {
+        self.remove_bookmark(full_name, None);
+    }
+
+    /// The panel's Stop following (`handleRemove`): once the server has removed it, your work is read again, so the counts go too.
+    /// A refused removal reloads nothing.
+    pub fn github_bookmark_remove_and_reload(&mut self, full_name: &str) {
+        self.remove_bookmark(full_name, Some(State::github_work_refresh));
+    }
+
+    fn remove_bookmark(&mut self, full_name: &str, then: Option<fn(&mut State)>) {
         let Some(mark) = Bookmark::of(full_name) else {
             super::state(&mut self.places).bookmarks.action_error = Some("Invalid bookmark name.".into());
             return;
         };
         let gone = full_name.to_string();
-        self.bookmark_call("DELETE", format!("{API}/{}/{}", mark.owner, mark.name), None, "Failed to remove bookmark.", move |list| {
-            list.retain(|b| b.full_name != gone)
-        });
+        self.bookmark_call(
+            "DELETE",
+            format!("{API}/{}/{}", mark.owner, mark.name),
+            None,
+            "Failed to remove bookmark.",
+            then,
+            move |list| list.retain(|b| b.full_name != gone),
+        );
     }
 
     /// `replaceBookmarks`: the whole list, sorted.
     pub fn github_bookmarks_replace(&mut self, repos: Vec<Bookmark>) {
         let next = sorted(repos);
         let body = json!({ "bookmarks": next.iter().map(|b| json!({"fullName": b.full_name, "owner": b.owner, "name": b.name})).collect::<Vec<_>>() });
-        self.bookmark_call("PUT", API.into(), Some(body), "Failed to sync bookmarks.", move |list| *list = next);
+        self.bookmark_call("PUT", API.into(), Some(body), "Failed to sync bookmarks.", None, move |list| *list = next);
     }
 
     /// One change: asked of the server, applied to the list when it said yes, the reason kept when it didn't.
@@ -148,6 +163,7 @@ impl State {
         path: String,
         body: Option<Value>,
         fallback: &'static str,
+        then: Option<fn(&mut State)>,
         apply: impl FnOnce(&mut Vec<Bookmark>) + Send + 'static,
     ) {
         let sent = self.feed_call(
@@ -160,6 +176,9 @@ impl State {
                     apply(&mut b.list);
                     b.list = sorted(std::mem::take(&mut b.list));
                     b.error = None;
+                    if let Some(then) = then {
+                        then(s);
+                    }
                 }
             },
         );

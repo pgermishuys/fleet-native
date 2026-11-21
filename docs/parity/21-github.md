@@ -146,7 +146,7 @@ imports them (component 7's B10 note). Native is stricter, as component 7 decide
 | # | Fleet | Source | Native |
 |---|---|---|---|
 | 1.1 | Descriptor: id `github`, "GitHub", built-in, front end and back end, "Pull requests, issues and checks beside your sessions." | IDX | Done (A): the plugin's own `entry()` in `src/plugins/github/mod.rs`; core lists it from `Places::manifests` |
-| 1.2 | Sidebar item `{viewId github, label GitHub, icon Github, defaultPath /github, order 100}`; sidebar panel `GitHubPanel` order 100 | IDX | Rail item: done (A), the plugin's through `places` (`Rail::Plugin("github")`); the panel: D draws it (until then the rail shows the notice) |
+| 1.2 | Sidebar item `{viewId github, label GitHub, icon Github, defaultPath /github, order 100}`; sidebar panel `GitHubPanel` order 100 | IDX | Done: the rail item (A) and its panel (D), through `places` (`Rail::Plugin("github")`); the page beside it is G's and I's |
 | 1.3 | Config page "GitHub integration", nav label "GitHub", icon Github, `GitHubSettings` | IDX, GS | Done (A): the connection page is the plugin's `settings` place (`src/plugins/github/view/connect.rs`) |
 | 1.4 | Repository source `github` (Github icon): your repositories `{id, fullName, name}` for the Clone view, loading only when the view asks (`autoLoad: false`) | CON | Done (C): `repos::Cache` is core's `RepositorySource` (`src/plugins/github/repos.rs`), offered through the plugin's entry (`Entry.repositories`) and read by the Clone view while the plugin is on; opening the view only says it is wanted, and the plugin's `keep` asks (kept 15 min, so reopening it reads nothing) |
 | 1.5 | Board source `github`: the description, the empty hint (16's 11.56), your bookmarks with `isLoading`, `error`, `refresh` | CON | None (N registers it once component 23 offers the place) |
@@ -158,22 +158,22 @@ imports them (component 7's B10 note). Native is stricter, as component 7 decide
 
 | # | Fleet | Source | Native |
 |---|---|---|---|
-| 2.1 | Panel: column, gap 1, padding 4 6, full height | GP `.github-panel` | None (D) |
-| 2.2 | Account row: gap 9, margin-bottom 6, padding 6 6 10, bottom border. Avatar 24 (`ReviewerAvatar`) when the work answer has a login, else a 24 px circle at 10 % text | GP `.panel-account` | None (D) |
-| 2.3 | Name: the login or "GitHub", 12.5 px 600, ellipsis. Status under it: 11 px muted, a 6 px dot (`--error`, `--running` when connected), "Connected" / "Not connected" | GP | None (D) |
-| 2.4 | Gear: 22×22 icon button, radius 5, muted, hover 8 % wash and text; Settings 13; title "GitHub settings"; opens Settings › Plugins › GitHub | GP `openSettings` | None (D) |
-| 2.5 | **Your work** row (`github-panel-home`, Inbox 14): opens `/github`; current while there. Count (hot, `--pr-blocked-text`) = `needsYou(work).length`, title "{n} need you", hidden at 0 | GP | None (D) |
-| 2.6 | Rows: min-height 32, gap 8, padding 0 8, radius btn, 13 px, text 86 %; hover 5 % wash and text; current 9 % wash, text, 500; focus ring 2 px accent inset; icon muted; name ellipsis | GP `.panel-row` | None (D) |
-| 2.7 | The rest only when connected. Heading "REPOSITORIES": margin 12 8 4, muted 80 %, 11 px 600, letter-spacing .06em, uppercase | GP `.panel-heading` | None (D) |
-| 2.8 | Loading (no bookmarks yet and loading): the spinner (16) centred, padding 12, label "Loading the repositories you follow…" (`github-bookmarks-loading`) | GP | None (D) |
-| 2.9 | Failed (no bookmarks, an error): compact `ErrorNote` "Couldn't load the repositories you follow." with the reason, margin 0 12 (`github-bookmarks-error`) | GP | None (D) |
-| 2.10 | Empty: compact `EmptyState` "Follow a repository to see its pull requests and issues here" | GP | None (D) |
-| 2.11 | A followed repository: FolderGit2 14, `owner/` muted then the name, title the full name, opens `/github/owner/name`; current when the path is it or under it (not a repository whose name only starts the same) | GP `isCurrent` | None (D) |
-| 2.12 | Its counts "{open pull requests} · {open issues}" (mono 11, tabular, muted; title "Open pull requests · open issues"), from the work answer's `repos`, matched ignoring case | GP `countsFor` | None (D) |
-| 2.13 | **Stop following** (X 11, 22×22, absolute right 5, title/label "Stop following {full name}"): shown on the row's hover or its own focus, the counts hidden meanwhile; removes the bookmark, then reloads the work | GP `.bookmark-remove`, `handleRemove` | None (D) |
-| 2.14 | **Follow a repository** (Plus 14, muted row, `github-panel-add`): opens the dialog (3.x); its `added` reloads the work | GP | None (D, E) |
-| 2.15 | Loads the work when mounted connected, and when it becomes connected | GP | None (D) |
-| 2.16 | The panel is the session list's width with its gutter, and Ctrl/Cmd+B hides it, as every rail's | `AppShell.vue` | None (D): the rail view pattern |
+| 2.1 | Panel: column, gap 1, padding 4 6, full height | GP `.github-panel` | Done (D): `view/panel.rs`, `github-panel`, the session list's width (`sidebar_w`) |
+| 2.2 | Account row: gap 9, margin-bottom 6, padding 6 6 10, bottom border. Avatar 24 (`ReviewerAvatar`) when the work answer has a login, else a 24 px circle at 10 % text | GP `.panel-account` | Done (D): the avatar is `reviewer_avatar` (the initial, as component 8 draws it; Fleet's picture is not fetched), a plain circle before the work says who; the border is a 1 px line under the row |
+| 2.3 | Name: the login or "GitHub", 12.5 px 600, ellipsis. Status under it: 11 px muted, a 6 px dot (`--error`, `--running` when connected), "Connected" / "Not connected" | GP | Done (D): the dot is `running` when connected, `error` when not; "Not connected" until the status has answered, as Fleet's `isConnected` starts false |
+| 2.4 | Gear: 22×22 icon button, radius 5, muted, hover 8 % wash and text; Settings 13; title "GitHub settings"; opens Settings › Plugins › GitHub | GP `openSettings` | Done (D): `github-panel-settings`, opens Settings › Plugins › GitHub |
+| 2.5 | **Your work** row (`github-panel-home`, Inbox 14): opens `/github`; current while there. Count (hot, `--pr-blocked-text`) = `needsYou(work).length`, title "{n} need you", hidden at 0 | GP | Done (D): `github-panel-home`; the count is `pr_tone_text(Blocked)` (`--pr-blocked-text`); current while `Where::Home` |
+| 2.6 | Rows: min-height 32, gap 8, padding 0 8, radius btn, 13 px, text 86 %; hover 5 % wash and text; current 9 % wash, text, 500; focus ring 2 px accent inset; icon muted; name ellipsis | GP `.panel-row` | Done (D). Hover: the row's own wash, the text brightens to full; the 2 px accent ring is `focus_ring` |
+| 2.7 | The rest only when connected. Heading "REPOSITORIES": margin 12 8 4, muted 80 %, 11 px 600, letter-spacing .06em, uppercase | GP `.panel-heading` | Done (D): `github-panel-heading`, only while connected |
+| 2.8 | Loading (no bookmarks yet and loading): the spinner (16) centred, padding 12, label "Loading the repositories you follow…" (`github-bookmarks-loading`) | GP | Done (D): `github-bookmarks-loading`, the label is the accessible name (Fleet draws the spinner alone) |
+| 2.9 | Failed (no bookmarks, an error): compact `ErrorNote` "Couldn't load the repositories you follow." with the reason, margin 0 12 (`github-bookmarks-error`) | GP | Done (D): `github-bookmarks-error`, the compact note (no tint, 12 px, the reason under the message) |
+| 2.10 | Empty: compact `EmptyState` "Follow a repository to see its pull requests and issues here" | GP | Done (D): `github-panel-empty`, `empty_state::compact_bare` |
+| 2.11 | A followed repository: FolderGit2 14, `owner/` muted then the name, title the full name, opens `/github/owner/name`; current when the path is it or under it (not a repository whose name only starts the same) | GP `isCurrent` | Done (D): `github-bookmark-<owner/name>`; `current_repo` (tested: `acme/rock` is not `acme/rocket`; a pull request's page under it counts) |
+| 2.12 | Its counts "{open pull requests} · {open issues}" (mono 11, tabular, muted; title "Open pull requests · open issues"), from the work answer's `repos`, matched ignoring case | GP `countsFor` | Done (D): `counts_for`, matched ignoring case; a repository the work does not list shows none |
+| 2.13 | **Stop following** (X 11, 22×22, absolute right 5, title/label "Stop following {full name}"): shown on the row's hover or its own focus, the counts hidden meanwhile; removes the bookmark, then reloads the work | GP `.bookmark-remove`, `handleRemove` | Done (D): `github-bookmark-remove-<owner/name>`, shown while the row has the pointer, the counts hidden meanwhile; the work is read again once the server has removed it (`github_bookmark_remove_and_reload`), not after a refusal. **Gap:** a hidden button cannot take the keyboard's focus (docs/RUNE.md, component 6), so Fleet's show-on-focus has no counterpart |
+| 2.14 | **Follow a repository** (Plus 14, muted row, `github-panel-add`): opens the dialog (3.x); its `added` reloads the work | GP | Row drawn (D): `github-panel-add`; it opens nothing until E |
+| 2.15 | Loads the work when mounted connected, and when it becomes connected | GP | Done (D): `panel_loads.rs` asks once per visit to the panel for the status, the repositories you follow and, when connected, your work; a connection that arrives while it is shown reads the work |
+| 2.16 | The panel is the session list's width with its gutter, and Ctrl/Cmd+B hides it, as every rail's | `AppShell.vue` | Done (D): the plugin's panel and page sit either side of the session list's gutter (`view.rs`), and Ctrl/Cmd+B hides the panel so the page takes the context (test "ctrl_b_hides_the_panel…"). **Gap:** pressing the rail again does not go back to Your work (Fleet's rail goes to `/github`); that needs the address to be core's, which `Where` is not yet |
 
 ### 3. Follow a repository (`AddRepositoryDialog`)
 
@@ -496,6 +496,18 @@ id (the script takes `--link <session-id>=<owner/repo#n>`). Rename the scratch m
 - **Tests:** `GitHubPanel.test.ts` (7) under their names.
 - **Pictures:** the panel beside Fleet's (connected with counts; not connected; loading, failed and empty from scenes),
   both themes, live through the stand-in.
+
+- **Done (D).** Rows 2.1-2.16 (2.14's dialog is E: the row is drawn and opens nothing). Files: `view/panel.rs` (the panel), `view/page.rs`
+  (the page beside it: the notice, until G and I), `view/panel_scene.rs`, `panel_loads.rs` (what the panel asks for), `Inbox` in
+  `src/icons.rs`, the plugin's `panel` and `page` in `mod.rs`, `bookmarks.rs` (`github_bookmark_remove_and_reload`), the gutter between a
+  plugin's panel and its page (`src/view.rs`); tests in `tests_panel.rs` (the seven of `GitHubPanel.test.ts` under their names, and six
+  native); scenes `github-panel`, `-onrepo`, `-loading`, `-failed`, `-empty`, `-off` (and `-light` twins). Pictures under
+  `shots/parity/21-github/panel/`: Fleet's client and the native app against the same stand-in (connected with counts, a repository's page open,
+  a row hovered, no repository followed, not connected), both themes, and the loading and failed states from scenes.
+- **Left open, with reasons.** (1) Loading and failed cannot be made live with the stand-in (it answers at once and never refuses
+  bookmarks), so they are shown from scenes beside the words Fleet's source and test give. (2) The rail press does not return to Your work
+  (2.16's gap). (3) Stop following cannot be reached from the keyboard (2.13's gap). (4) Fleet's `title` tooltips are Rune's help
+  bubbles, which come up with the pointer resting on a row.
 
 #### E. Follow a repository
 

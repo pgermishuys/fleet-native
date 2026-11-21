@@ -13,7 +13,7 @@ use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
 #[derive(Default)]
-struct Fake {
+pub(super) struct Fake {
     /// What a request answers, by `METHOD path` (query included); 200 `{}` when nothing is set.
     answers: HashMap<String, (u16, String)>,
     /// Every request to the GitHub routes: method, path with its query, body.
@@ -22,7 +22,7 @@ struct Fake {
     gates: HashMap<String, Arc<Mutex<Receiver<()>>>>,
 }
 
-type Shared = Arc<Mutex<Fake>>;
+pub(super) type Shared = Arc<Mutex<Fake>>;
 
 fn fleet(fake: Shared) -> String {
     let listener = TcpListener::bind("127.0.0.1:0").expect("a port");
@@ -55,13 +55,13 @@ fn fleet(fake: Shared) -> String {
     base
 }
 
-struct Rig {
-    rt: Runtime<State>,
-    queue: Receiver<Job>,
-    fake: Shared,
+pub(super) struct Rig {
+    pub(super) rt: Runtime<State>,
+    pub(super) queue: Receiver<Job>,
+    pub(super) fake: Shared,
 }
 
-fn rig() -> Rig {
+pub(super) fn rig() -> Rig {
     let fake: Shared = Arc::default();
     let base = fleet(fake.clone());
     let (jobs, queue) = channel::<Job>();
@@ -78,8 +78,8 @@ fn rig() -> Rig {
     Rig { rt, queue, fake }
 }
 
-const WORK: &str = "/api/integrations/github/work";
-const MARKS: &str = "/api/integrations/github/bookmarks";
+pub(super) const WORK: &str = "/api/integrations/github/work";
+pub(super) const MARKS: &str = "/api/integrations/github/bookmarks";
 
 fn page(from: usize, n: usize) -> String {
     let repos: Vec<Value> = (from..from + n)
@@ -93,7 +93,7 @@ fn repo_path(page: usize) -> String {
 }
 
 impl Rig {
-    fn answer(&self, method: &str, path: &str, status: u16, body: impl ToString) {
+    pub(super) fn answer(&self, method: &str, path: &str, status: u16, body: impl ToString) {
         self.fake.lock().unwrap().answers.insert(format!("{method} {path}"), (status, body.to_string()));
     }
     fn gate(&self, path: &str) -> std::sync::mpsc::Sender<()> {
@@ -101,19 +101,19 @@ impl Rig {
         self.fake.lock().unwrap().gates.insert(path.into(), Arc::new(Mutex::new(wait)));
         go
     }
-    fn wait(&mut self, what: &str, done: impl FnMut(&State) -> bool) {
+    pub(super) fn wait(&mut self, what: &str, done: impl FnMut(&State) -> bool) {
         test_wait::drive(&mut self.rt, &self.queue, what, done, |s| {
             let g = state_ref(&s.places);
             format!("work {:?} bookmarks {:?} repos {:?}", g.work, g.bookmarks, *g.repos.get())
         });
         self.rt.frame(FRAME);
     }
-    fn set(&mut self, f: impl FnOnce(&mut State) + 'static) {
+    pub(super) fn set(&mut self, f: impl FnOnce(&mut State) + 'static) {
         self.rt.update(move |s, _| f(s));
         self.rt.frame(FRAME);
     }
     /// How many requests of `method` reached `path` (the path as sent, query included).
-    fn asked(&self, method: &str, path: &str) -> usize {
+    pub(super) fn asked(&self, method: &str, path: &str) -> usize {
         self.fake.lock().unwrap().log.iter().filter(|(m, p, _)| m == method && p == path).count()
     }
     fn bodies(&self, method: &str, path: &str) -> Vec<Value> {

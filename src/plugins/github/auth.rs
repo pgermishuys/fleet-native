@@ -213,6 +213,7 @@ impl State {
     fn github_connection_changed(&mut self) {
         if super::auth_ref(&self.places).connected {
             self.github_repos_refresh(false);
+            self.github_panel_connected();
         } else {
             super::state(&mut self.places).repos.clear();
         }

@@ -206,7 +206,7 @@ pub fn root(s: &State, cx: &mut Cx<State>) -> El {
         }
         Rail::Plugin(id) => match s.places.rail_views(id, &s.pickers.prefs) {
             // A plugin's panel (when it has one) and its page: the plugin owns the whole context.
-            Some((Some(panel), page)) if s.context_panel_shown() => main.child(panel(s, &t).ml(8.0)).child(page(s, &t).ml(8.0)),
+            Some((Some(panel), page)) if s.context_panel_shown() => main.child(panel(s, &t).ml(8.0)).child(gutter(&t)).child(page(s, &t)),
             Some((_, page)) => main.child(page(s, &t).ml(8.0)),
             None => main.child(notice(s, &t, Rail::Plugin(id)).ml(8.0)),
         },

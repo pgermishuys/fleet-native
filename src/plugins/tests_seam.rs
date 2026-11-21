@@ -114,8 +114,9 @@ fn the_github_rail_opens_the_plugins_panel_and_page() {
     let mut r = app();
     click(&mut r, "rail-github");
     assert_eq!(r.state.rail, Rail::Plugin("github"));
-    // Until the pieces that draw its panel and page land, the plugin's rail opens its notice, named by the plugin.
-    assert!(r.state.places.rail_views("github", &r.state.pickers.prefs).is_none());
+    // GitHub's own panel (piece D) and page are what its rail draws; the page says so until pieces G and I build it.
+    assert!(r.state.places.rail_views("github", &r.state.pickers.prefs).is_some_and(|(panel, _)| panel.is_some()));
+    assert!(r.find("github-panel").is_some() && r.find("github-page").is_some());
     // A plugin with a panel and a page gets both drawn, and with them the page's own address.
     r.update(|s: &mut State, _| {
         s.places.register(stand_in());

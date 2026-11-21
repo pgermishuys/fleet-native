@@ -3,12 +3,13 @@
 //!
 //! Piece A of component 21 gives it its home and its places: the descriptor, the rail button, the settings page (the connection
 //! page, `view::connect`), the connection's `keep`, and the addresses it owns (`Where`). Piece B adds what the pages read: items and the words made from them (`items`), the issue filter
-//! (`filter`) and an invented GitHub for scenes and tests (`mock`). Piece C adds the three stores the pages share: your work (`work`), the repositories you follow (`bookmarks`) and the repository cache (`repos`). Its panel, page and the rest come in the pieces after.
+//! (`filter`) and an invented GitHub for scenes and tests (`mock`). Piece C adds the three stores the pages share: your work (`work`), the repositories you follow (`bookmarks`) and the repository cache (`repos`). Piece D adds the rail's panel (`view::panel`, loaded by `panel_loads`); the page and the rest come in the pieces after.
 pub mod auth;
 pub mod bookmarks;
 pub mod filter;
 pub mod items;
 pub mod mock;
+mod panel_loads;
 pub mod repos;
 pub mod view;
 mod where_;
@@ -20,6 +21,8 @@ mod tests_auth;
 mod tests_filter;
 #[cfg(test)]
 mod tests_items;
+#[cfg(test)]
+mod tests_panel;
 #[cfg(test)]
 mod tests_stores;
 #[cfg(test)]
@@ -47,6 +50,8 @@ pub struct GitHub {
     pub work: work::WorkStore,
     pub bookmarks: bookmarks::Bookmarks,
     pub repos: repos::Cache,
+    /// The rail's panel has asked for what it shows on this visit (`onMounted`): the status, the followed repositories and your work.
+    pub panel_asked: bool,
 }
 
 /// The descriptor, the sidebar item and the settings page (`index.ts`'s manifest).
@@ -74,6 +79,8 @@ pub fn entry() -> Entry {
     let repo_cache = state.repos.clone();
     let mut e = Entry::new(manifest, state);
     e.rail = Some(RailItem { label: "GitHub", icon: &GITHUB, path: "/github", order: 100, placement: Placement::Plugin });
+    e.panel = Some(view::panel::panel);
+    e.page = Some(view::page::page);
     e.settings = Some(view::connect::content);
     e.keep = Some(keep);
     e.repositories = Some(repo_cache.source());
@@ -81,7 +88,7 @@ pub fn entry() -> Entry {
 }
 
 fn keep(s: &mut State, now: f64, tx: &mut Tx) -> bool {
-    s.keep_github(now, tx) | s.keep_github_repos()
+    s.keep_github(now, tx) | s.keep_github_repos() | s.keep_github_panel()
 }
 
 /// The connection's state, which lives in the plugin's entry.
