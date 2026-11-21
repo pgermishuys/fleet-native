@@ -2819,6 +2819,18 @@ pub fn spec() -> AppSpec<State> {
                 s.dark = Some(false);
                 s.rail = Rail::Plugin("github")
             }),
+            ("github-repo", |s| plugins::scene(s, "github-repo", true)),
+            ("github-repo-light", |s| plugins::scene(s, "github-repo", false)),
+            ("github-repo-fleet", |s| plugins::scene(s, "github-repo-fleet", true)),
+            ("github-repo-fleet-light", |s| plugins::scene(s, "github-repo-fleet", false)),
+            ("github-repo-loading", |s| plugins::scene(s, "github-repo-loading", true)),
+            ("github-repo-loading-light", |s| plugins::scene(s, "github-repo-loading", false)),
+            ("github-repo-error", |s| plugins::scene(s, "github-repo-error", true)),
+            ("github-repo-error-light", |s| plugins::scene(s, "github-repo-error", false)),
+            ("github-repo-empty", |s| plugins::scene(s, "github-repo-empty", true)),
+            ("github-repo-empty-light", |s| plugins::scene(s, "github-repo-empty", false)),
+            ("github-repo-more", |s| plugins::scene(s, "github-repo-more", true)),
+            ("github-repo-more-light", |s| plugins::scene(s, "github-repo-more", false)),
             ("github-home", |s| plugins::scene(s, "github-home", true)),
             ("github-home-light", |s| plugins::scene(s, "github-home", false)),
             ("github-home-loading", |s| plugins::scene(s, "github-home-loading", true)),

@@ -47,3 +47,14 @@ pub fn plain_actions(t: &Theme, key: &str, title: &str, line: Option<&str>, acti
         .child(plain(t, &format!("{key}-lead"), title, line, Vec::new()).grow(1.0).shrink().min_w(0.0))
         .child(row().gap(8.0).center_y().children(actions))
 }
+
+/// `plain_actions` with a heading made of several parts (a muted owner and the name), for a title that isn't one run of words.
+pub fn heading_actions(key: &str, heading: El, actions: Vec<El>) -> El {
+    row()
+        .key(key.to_string())
+        .w_full()
+        .center_y()
+        .gap(16.0)
+        .child(row().grow(1.0).shrink().min_w(0.0).center_y().child(heading))
+        .child(row().gap(8.0).center_y().children(actions))
+}

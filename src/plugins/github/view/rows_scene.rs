@@ -20,6 +20,24 @@ const SESSIONS: [(&str, &str, Status, &str, i64, bool); 5] = [
 pub fn scene(s: &mut State, dark: bool) {
     s.dark = Some(dark);
     s.rail = crate::Rail::Plugin(crate::plugins::github::ID);
+    link(s);
+    let g = state(&mut s.places);
+    g.panel_asked = true;
+    g.home_asked = true;
+    g.auth.asked = true;
+    g.auth.connected = true;
+    g.bookmarks.has_loaded = true;
+    g.at = Where::Home;
+    g.demo_rows = mock::rows()
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|r| (ItemSummary::read(&r["item"]), r["reason"].as_str().map(str::to_string)))
+        .collect();
+}
+
+/// The invented sessions, linked to their pull requests, in the sessions list.
+pub fn link(s: &mut State) {
     s.now_ms = Some(1_795_176_000_000); // 20 Nov 2026, noon UTC: the invented items are a day or two old
     let now = s.now_ms.unwrap_or_default();
     let wires: Vec<_> = SESSIONS
@@ -36,19 +54,6 @@ pub fn scene(s: &mut State, dark: bool) {
         .collect();
     s.smart_links.header_links_loaded(&wires);
     link_sessions(s, now);
-    let g = state(&mut s.places);
-    g.panel_asked = true;
-    g.home_asked = true;
-    g.auth.asked = true;
-    g.auth.connected = true;
-    g.bookmarks.has_loaded = true;
-    g.at = Where::Home;
-    g.demo_rows = mock::rows()
-        .as_array()
-        .into_iter()
-        .flatten()
-        .map(|r| (ItemSummary::read(&r["item"]), r["reason"].as_str().map(str::to_string)))
-        .collect();
 }
 
 /// Makes the list's first sessions the ones the links name, with their status and age.

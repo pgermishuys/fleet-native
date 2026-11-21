@@ -7,6 +7,8 @@ pub mod home_scene;
 pub mod page;
 pub mod panel;
 pub mod panel_scene;
+pub mod repo;
+pub mod repo_scene;
 pub mod row;
 pub mod rows_scene;
 pub mod scene;

@@ -43,6 +43,22 @@ impl Searches {
     pub fn get(&self, id: &str) -> Option<&Search> {
         self.0.get(id)
     }
+
+    /// A search as a scene draws it, with no request: `asker` has asked for `query` and the page holds what is given.
+    pub fn show(&mut self, asker: &str, query: &str, items: Vec<ItemSummary>, has_more: bool, loading: bool, error: Option<&str>) {
+        let total_count = items.len() as u64;
+        let found = Search {
+            query: Some(query.to_string()),
+            total_count,
+            items,
+            has_more,
+            is_loading: loading,
+            error: error.map(str::to_string),
+            asked_before: true,
+            ..Search::default()
+        };
+        self.0.insert(asker.to_string(), found);
+    }
 }
 
 /// The request for one page: `q`, `first` and the cursor of the page before.
