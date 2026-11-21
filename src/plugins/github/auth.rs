@@ -199,11 +199,22 @@ impl State {
                     }
                     _ => false,
                 };
+                s.github_connection_changed();
             },
         );
         if !sent {
             super::auth(&mut self.places).checking = false;
             super::auth(&mut self.places).connected = false;
+            self.github_connection_changed();
+        }
+    }
+
+    /// `watch(isConnected)`: connected asks for the repository cache (kept 15 minutes), not connected forgets it.
+    fn github_connection_changed(&mut self) {
+        if super::auth_ref(&self.places).connected {
+            self.github_repos_refresh(false);
+        } else {
+            super::state(&mut self.places).repos.clear();
         }
     }
 
@@ -326,6 +337,7 @@ impl State {
                         Err(why) => Device::Error(why),
                     },
                 );
+                s.github_connection_changed();
             },
         );
         if !sent {
@@ -407,6 +419,7 @@ impl State {
                     Ok((_, body)) => g.pat_state = Pat::Error(words(&body, "Failed to connect GitHub.")),
                     Err(_) => g.pat_state = Pat::Error("Failed to connect GitHub.".into()),
                 }
+                s.github_connection_changed();
             },
         );
         if !sent {
@@ -440,6 +453,7 @@ impl State {
                     Ok((status, body)) => g.device = Device::Error(words(&body, &format!("HTTP {status}"))),
                     Err(_) => g.device = Device::Error("Failed to disconnect GitHub.".into()),
                 }
+                s.github_connection_changed();
             },
         );
         if !sent {

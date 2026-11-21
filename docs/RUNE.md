@@ -2403,3 +2403,16 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **A scripted live picture leaves the server changed.** The snap ends the process at its mark, so a run's switch flipped by the
   script stays flipped for the next picture: set it back through the API (`PUT …/check-with-me`) before each one.
 - **A test build can be OOM-killed (exit 143) at 4000M** again here: 5600M built `cargo test --no-run` in 1 m 40 s.
+
+## Component 21, piece C (GitHub's stores)
+
+- **A `Send + Sync` object can't reach `State`.** Core's `RepositorySource` is shared (`Arc<dyn …>`) and has `&self` methods, so it
+  can't start a request through `State::feed_call`. The repository cache is an `Arc<Mutex<…>>` that the plugin's state and the source
+  both hold; the source only sets a `wanted` flag and the plugin's `keep` (run from `poll`) asks on the next frame. Opening the Clone
+  view therefore costs one frame before the request leaves.
+- **A test for an answer dropped after `clear` takes the job off the queue itself.** `test_wait::drive` stops as soon as its condition
+  holds, so a late answer that must change nothing is never seen being dropped; the test receives the job from the `Link` queue
+  (`test_wait::recv`), applies it, and then looks at the state.
+- **`rt.frame(dt)` moves the app's clock by `dt`**, which is how a test passes 60 s or 15 minutes without waiting; the stores' TTLs read
+  `State::clock`, not the wall clock (the wall clock is kept beside it only to say "updated 3m ago").
+

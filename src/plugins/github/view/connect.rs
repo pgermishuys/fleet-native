@@ -120,7 +120,7 @@ fn copy(t: &Theme, title: &str, hint: &str, extra: Option<El>) -> El {
     c
 }
 
-fn connected(t: &Theme, g: &Github) -> El {
+fn connected(s: &State, t: &Theme, g: &Github) -> El {
     let ok = icon(&CIRCLE_CHECK, 18.0).color(t.running_text).mt(1.0).self_start();
     let first = settings_row(
         t,
@@ -136,17 +136,23 @@ fn connected(t: &Theme, g: &Github) -> El {
         ),
         None,
     );
-    // Component 21 fills the cache; until then it has nothing cached.
-    let refresh = button(t, "github-refresh", Look::Secondary, Some(icon(&REFRESH_CW, 14.0).color(t.text)), "Refresh", !g.disconnecting);
-    let second = settings_row(
+    let (summary, beside, loading) = {
+        let c = crate::plugins::github::state_ref(&s.places).repos.get();
+        let now = s.now_ms.unwrap_or_else(crate::fleet::link::now_ms);
+        (c.summary(now, crate::conv::time::local_offset_secs()), c.error_beside().map(str::to_string), c.loading)
+    };
+    let lead = if loading { spinner(t.text) } else { icon(&REFRESH_CW, 14.0).color(t.text) };
+    let refresh = button(
         t,
-        "github-row-cache",
-        false,
-        false,
-        None,
-        copy(t, "Repository cache", "No repositories cached yet.", None),
-        Some(refresh),
-    );
+        "github-refresh",
+        Look::Secondary,
+        Some(lead),
+        if loading { "Refreshing\u{2026}" } else { "Refresh" },
+        !loading && !g.disconnecting,
+    )
+    .on_press(|s: &mut State| s.github_repos_refresh(true));
+    let why = beside.map(|m| text(m).key("github-cache-error").font(sans(12.0, 400.0, 1.5)).color(t.error_text).wrap().mt(4.0));
+    let second = settings_row(t, "github-row-cache", false, false, None, copy(t, "Repository cache", &summary, why), Some(refresh));
     let lead = if g.disconnecting { spinner(t.error_text) } else { icon(&UNPLUG, 14.0).color(t.error_text) };
     let disconnect = button(
         t,
@@ -357,7 +363,7 @@ pub fn content(s: &State, t: &Theme) -> El {
     let body = if g.checking {
         checking(t)
     } else if g.connected {
-        connected(t, g)
+        connected(s, t, g)
     } else {
         col().w_full().gap(rem(1.0)).child(device_card(s, t, g)).child(pat_card(t, g))
     };

@@ -1,0 +1,265 @@
+{
+  "connected": true,
+  "work": {
+    "login": "mara-quinn",
+    "avatarUrl": null,
+    "reviewRequested": [
+      {
+        "kind": "pull",
+        "owner": "acme",
+        "repo": "rocket",
+        "number": 220,
+        "title": "Fuel gauge rounding",
+        "url": "https://github.com/acme/rocket/pull/220",
+        "state": "open",
+        "isDraft": false,
+        "author": "devon-park",
+        "authorAvatarUrl": null,
+        "createdAt": "2026-11-16T09:12:00Z",
+        "updatedAt": "2026-11-19T14:30:00Z",
+        "comments": 2,
+        "labels": [
+          {
+            "name": "backend",
+            "color": "1d76db"
+          }
+        ],
+        "headRef": "feat/pr-220",
+        "baseRef": "main",
+        "additions": 42,
+        "deletions": 7,
+        "checks": "success",
+        "reviewDecision": null,
+        "mergeable": "MERGEABLE",
+        "reviewers": [
+          {
+            "login": "kit-lee",
+            "state": "REQUESTED"
+          }
+        ],
+        "assignees": []
+      }
+    ],
+    "authored": [
+      {
+        "kind": "pull",
+        "owner": "acme",
+        "repo": "rocket",
+        "number": 221,
+        "title": "Retry the launch hook",
+        "url": "https://github.com/acme/rocket/pull/221",
+        "state": "open",
+        "isDraft": false,
+        "author": "mara-quinn",
+        "authorAvatarUrl": null,
+        "createdAt": "2026-11-16T09:12:00Z",
+        "updatedAt": "2026-11-19T14:30:00Z",
+        "comments": 2,
+        "labels": [
+          {
+            "name": "backend",
+            "color": "1d76db"
+          }
+        ],
+        "headRef": "feat/pr-221",
+        "baseRef": "main",
+        "additions": 42,
+        "deletions": 7,
+        "checks": "failure",
+        "reviewDecision": null,
+        "mergeable": "MERGEABLE",
+        "reviewers": [
+          {
+            "login": "kit-lee",
+            "state": "REQUESTED"
+          }
+        ],
+        "assignees": []
+      },
+      {
+        "kind": "pull",
+        "owner": "acme",
+        "repo": "rocket",
+        "number": 222,
+        "title": "Trim the manifest",
+        "url": "https://github.com/acme/rocket/pull/222",
+        "state": "open",
+        "isDraft": false,
+        "author": "mara-quinn",
+        "authorAvatarUrl": null,
+        "createdAt": "2026-11-16T09:12:00Z",
+        "updatedAt": "2026-11-19T14:30:00Z",
+        "comments": 2,
+        "labels": [
+          {
+            "name": "backend",
+            "color": "1d76db"
+          }
+        ],
+        "headRef": "feat/pr-222",
+        "baseRef": "main",
+        "additions": 42,
+        "deletions": 7,
+        "checks": "success",
+        "reviewDecision": "CHANGES_REQUESTED",
+        "mergeable": "MERGEABLE",
+        "reviewers": [
+          {
+            "login": "kit-lee",
+            "state": "REQUESTED"
+          }
+        ],
+        "assignees": []
+      }
+    ],
+    "assigned": [
+      {
+        "kind": "issue",
+        "owner": "acme",
+        "repo": "rocket",
+        "number": 7,
+        "title": "Launch countdown skips a second",
+        "url": "https://github.com/acme/rocket/issues/7",
+        "state": "open",
+        "isDraft": false,
+        "author": "kit-lee",
+        "authorAvatarUrl": null,
+        "createdAt": "2026-11-10T08:00:00Z",
+        "updatedAt": "2026-11-18T10:00:00Z",
+        "comments": 4,
+        "labels": [
+          {
+            "name": "bug",
+            "color": "d73a4a"
+          }
+        ],
+        "headRef": null,
+        "baseRef": null,
+        "additions": null,
+        "deletions": null,
+        "checks": null,
+        "reviewDecision": null,
+        "mergeable": null,
+        "reviewers": [],
+        "assignees": [
+          "mara-quinn"
+        ]
+      }
+    ],
+    "repos": [
+      {
+        "fullName": "acme/rocket",
+        "openPullRequests": 4,
+        "openIssues": 9
+      },
+      {
+        "fullName": "lumen-labs/atlas",
+        "openPullRequests": 0,
+        "openIssues": 2
+      }
+    ]
+  },
+  "bookmarks": [
+    {
+      "fullName": "acme/rocket",
+      "owner": "acme",
+      "name": "rocket"
+    },
+    {
+      "fullName": "lumen-labs/atlas",
+      "owner": "lumen-labs",
+      "name": "atlas"
+    }
+  ],
+  "repos": [
+    {
+      "id": 1000,
+      "full_name": "acme/rocket",
+      "name": "rocket",
+      "owner": {
+        "login": "acme"
+      },
+      "private": true,
+      "language": "Rust",
+      "stargazers_count": 0
+    },
+    {
+      "id": 1001,
+      "full_name": "acme/anvil",
+      "name": "anvil",
+      "owner": {
+        "login": "acme"
+      },
+      "private": false,
+      "language": "TypeScript",
+      "stargazers_count": 10
+    },
+    {
+      "id": 1002,
+      "full_name": "acme/billing",
+      "name": "billing",
+      "owner": {
+        "login": "acme"
+      },
+      "private": false,
+      "language": "Python",
+      "stargazers_count": 20
+    },
+    {
+      "id": 1003,
+      "full_name": "lumen-labs/atlas",
+      "name": "atlas",
+      "owner": {
+        "login": "lumen-labs"
+      },
+      "private": true,
+      "language": "Rust",
+      "stargazers_count": 30
+    },
+    {
+      "id": 1004,
+      "full_name": "lumen-labs/beacon",
+      "name": "beacon",
+      "owner": {
+        "login": "lumen-labs"
+      },
+      "private": false,
+      "language": "TypeScript",
+      "stargazers_count": 40
+    },
+    {
+      "id": 1005,
+      "full_name": "lumen-labs/compass",
+      "name": "compass",
+      "owner": {
+        "login": "lumen-labs"
+      },
+      "private": false,
+      "language": "Python",
+      "stargazers_count": 50
+    },
+    {
+      "id": 1006,
+      "full_name": "acme/ledger",
+      "name": "ledger",
+      "owner": {
+        "login": "acme"
+      },
+      "private": true,
+      "language": "Rust",
+      "stargazers_count": 60
+    },
+    {
+      "id": 1007,
+      "full_name": "acme/orbit",
+      "name": "orbit",
+      "owner": {
+        "login": "acme"
+      },
+      "private": false,
+      "language": "TypeScript",
+      "stargazers_count": 70
+    }
+  ],
+  "smartLinks": []
+}

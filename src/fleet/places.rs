@@ -45,12 +45,14 @@ pub struct Entry {
     /// The body of the plugin's page under Settings › Plugins (`configPage`).
     pub settings: Option<View>,
     pub keep: Option<Keep>,
+    /// Where the Clone view's suggestions come from (`repositorySources`).
+    pub repositories: Option<std::sync::Arc<dyn crate::fleet::new_session::clone::RepositorySource>>,
     pub state: Box<dyn Any + Send>,
 }
 
 impl Entry {
     pub fn new(manifest: Plugin, state: impl Any + Send) -> Entry {
-        Entry { manifest, rail: None, panel: None, page: None, settings: None, keep: None, state: Box::new(state) }
+        Entry { manifest, rail: None, panel: None, page: None, settings: None, keep: None, repositories: None, state: Box::new(state) }
     }
 }
 
@@ -106,6 +108,11 @@ impl Places {
     /// The `keep` of every plugin that is on.
     pub fn keeps(&self, prefs: &Prefs) -> Vec<Keep> {
         self.on(prefs).filter_map(|e| e.keep).collect()
+    }
+
+    /// The repository sources of the plugins that are on.
+    pub fn repository_sources(&self, prefs: &Prefs) -> Vec<std::sync::Arc<dyn crate::fleet::new_session::clone::RepositorySource>> {
+        self.on(prefs).filter_map(|e| e.repositories.clone()).collect()
     }
 
     /// The manifests Settings › Plugins lists, in `main.ts`' order: the registered plugins, then core's own.

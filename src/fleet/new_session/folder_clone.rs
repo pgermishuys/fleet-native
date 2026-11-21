@@ -29,7 +29,7 @@ impl State {
         self.folder_menu.clone_location = self.folder_root();
         self.folder_menu.clone_parent = TextEdit::new("");
         self.folder_menu.clone_root_list = false;
-        self.folder_menu.sources.refresh();
+        self.repository_sources().refresh();
         self.folder_menu.view = View::Clone;
     }
 
@@ -38,10 +38,17 @@ impl State {
         clone::plan(&m.clone_text.text, m.clone_location.as_deref(), &m.clone_parent.text)
     }
 
+    /// What the Clone view suggests from: the sources registered directly and those of the plugins that are on.
+    fn repository_sources(&self) -> clone::RepositorySources {
+        let mut all = self.folder_menu.sources.clone();
+        self.places.repository_sources(&self.pickers.prefs).into_iter().for_each(|s| all.register(s));
+        all
+    }
+
     /// `cloneSuggestions`: repositories the sources offer that are not here yet.
     pub fn clone_suggestions(&self) -> Vec<Suggestion> {
         let local: Vec<String> = self.feeds.repos(&self.target_key()).list.into_iter().map(|r| r.name).collect();
-        clone::suggestions(&self.folder_menu.sources, &local, &self.folder_menu.clone_text.text)
+        clone::suggestions(&self.repository_sources(), &local, &self.folder_menu.clone_text.text)
     }
 
     /// `canSubmitClone`.
