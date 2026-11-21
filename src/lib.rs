@@ -29,6 +29,8 @@ mod tests_agents_session;
 #[cfg(test)]
 mod tests_agents_tab;
 #[cfg(test)]
+mod tests_analytics_filters;
+#[cfg(test)]
 mod tests_analytics_page;
 #[cfg(test)]
 mod tests_analytics_store;
@@ -5245,6 +5247,10 @@ pub fn spec() -> AppSpec<State> {
             ("analytics-menu-models-light", |s| s.show_analytics(false, mock::analytics::Scene::Models)),
             ("analytics-machines", |s| s.show_analytics(true, mock::analytics::Scene::Machines)),
             ("analytics-machines-light", |s| s.show_analytics(false, mock::analytics::Scene::Machines)),
+            ("analytics-filters", |s| s.show_analytics(true, mock::analytics::Scene::Filters)),
+            ("analytics-filters-light", |s| s.show_analytics(false, mock::analytics::Scene::Filters)),
+            ("analytics-project-open", |s| s.show_analytics(true, mock::analytics::Scene::ProjectOpen)),
+            ("analytics-project-open-light", |s| s.show_analytics(false, mock::analytics::Scene::ProjectOpen)),
             ("automation-detail", |s| s.show_automations(true, mock::automations::Scene::Started)),
             ("automation-detail-light", |s| s.show_automations(false, mock::automations::Scene::Started)),
             ("automation-detail-off", |s| s.show_automations(true, mock::automations::Scene::Off)),

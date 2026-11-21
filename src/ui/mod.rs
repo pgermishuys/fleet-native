@@ -178,6 +178,7 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
         Some(Open::Select("update-machine-rule")) => crate::view::settings::updates_version::list(s, t),
         Some(Open::Select("browser-port")) => crate::view::browser_app::port_list(s, t),
         Some(Open::Select("default-harness")) => crate::view::settings::harnesses::default_list(s, t),
+        Some(Open::Select(crate::view::analytics_page::filters::PROJECT)) => crate::view::analytics_page::filters::list(s, t),
         Some(Open::Select(name)) => gallery::select_content(s, t, name),
         Some(Open::Popover("context")) => crate::view::ring_popover::overlay(s, t),
         Some(Open::Popover("allowed")) => crate::view::allowed::overlay(s, t),
