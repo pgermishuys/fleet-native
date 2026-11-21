@@ -21,7 +21,9 @@ type Heard = Arc<Mutex<Vec<(String, String, Value)>>>;
 pub(crate) struct Fake {
     pub(crate) base: String,
     heard: Heard,
-    refuse_next_create: Arc<Mutex<Option<String>>>,
+    pub(crate) refuse_next_create: Arc<Mutex<Option<String>>>,
+    /// What `GET /api/repositories` lists (the composer's folders).
+    pub(crate) repositories: Arc<Mutex<Vec<Value>>>,
     /// The next read of the list is refused with these words (the page's Try again).
     pub(crate) refuse_next_list: Arc<Mutex<Option<String>>>,
     /// While set, the list is held back: the request is heard but not answered.
@@ -75,6 +77,8 @@ pub(crate) fn fake(initial: Vec<Value>) -> Fake {
     let (runs_gate, hold_gate, refuse_gate) = (runs.clone(), hold_runs.clone(), refuse_runs.clone());
     let refuse_time = Arc::new(Mutex::new(None::<String>));
     let time_gate = refuse_time.clone();
+    let repositories = Arc::new(Mutex::new(Vec::<Value>::new()));
+    let repos_gate = repositories.clone();
     std::thread::spawn(move || {
         for mut stream in listener.incoming().flatten() {
             let (log, items, refuse_next, gate) = (log.clone(), items.clone(), refuse_next.clone(), gate.clone());
@@ -82,8 +86,13 @@ pub(crate) fn fake(initial: Vec<Value>) -> Fake {
             let (verb_gate, run_gate) = (verb_gate.clone(), run_gate.clone());
             let (runs_gate, hold_gate, refuse_gate) = (runs_gate.clone(), hold_gate.clone(), refuse_gate.clone());
             let time_gate = time_gate.clone();
+            let repos_gate = repos_gate.clone();
             std::thread::spawn(move || {
                 let req = crate::test_http::read(&mut stream);
+                if req.route() == "/api/repositories" {
+                    let all = repos_gate.lock().unwrap().clone();
+                    return crate::test_http::respond_json(&mut stream, "200 X", &json!({"repositories": all, "scannedAt": 1}).to_string());
+                }
                 if req.route() == "/api/memory/dreaming/nightly" {
                     log.lock().unwrap().push((req.method.clone(), req.path.clone(), req.json()));
                     return match time_gate.lock().unwrap().take() {
@@ -101,7 +110,11 @@ pub(crate) fn fake(initial: Vec<Value>) -> Fake {
                     .strip_prefix("/api/automations/")
                     .and_then(|r| r.split_once('/'))
                     .map(|(id, verb)| (id.replace("%20", " "), verb));
-                let verb = if req.method == "DELETE" { Some("delete") } else { toggle.as_ref().map(|t| t.1) };
+                let verb = match req.method.as_str() {
+                    "DELETE" => Some("delete"),
+                    "PUT" => Some("save"),
+                    _ => toggle.as_ref().map(|t| t.1),
+                };
                 if let Some(error) = verb.and_then(|v| refusal(&verb_gate, v)) {
                     return crate::test_http::respond_json(&mut stream, "400 X", &json!({"error": error}).to_string());
                 }
@@ -122,6 +135,8 @@ pub(crate) fn fake(initial: Vec<Value>) -> Fake {
                             let mut list = items.lock().unwrap();
                             let mut extra = body;
                             extra["isEnabled"] = json!(true);
+                            // As Fleet's fake: the server says when it runs first.
+                            extra["nextRunAt"] = json!("2026-09-21T09:00:00Z");
                             let created = automation(&format!("a{}", list.len() + 1), extra);
                             list.push(created.clone());
                             crate::test_http::respond_json(&mut stream, "201 X", &created.to_string());
@@ -166,7 +181,17 @@ pub(crate) fn fake(initial: Vec<Value>) -> Fake {
                         let all = runs_gate.lock().unwrap().clone();
                         crate::test_http::respond_json(&mut stream, "200 X", &json!({"runs": all}).to_string());
                     }
-                    ("PUT", _, None) => crate::test_http::respond_json(&mut stream, "200 X", "{}"),
+                    // A save changes the automation as sent, as Fleet's fake does.
+                    ("PUT", _, None) => {
+                        let id = route.rsplit('/').next().unwrap_or("").replace("%20", " ");
+                        let mut list = items.lock().unwrap();
+                        for a in list.iter_mut().filter(|a| a["id"] == id.as_str()) {
+                            for (k, v) in body.as_object().into_iter().flatten() {
+                                a[k] = v.clone();
+                            }
+                        }
+                        crate::test_http::respond_json(&mut stream, "200 X", "{}")
+                    }
                     ("DELETE", _, None) => {
                         let id = route.rsplit('/').next().unwrap_or("").replace("%20", " ");
                         items.lock().unwrap().retain(|a| a["id"] != id.as_str());
@@ -189,6 +214,7 @@ pub(crate) fn fake(initial: Vec<Value>) -> Fake {
         base,
         heard,
         refuse_next_create: refuse,
+        repositories,
         refuse_next_list: list_refusal,
         hold_list: hold,
         refuse_verb,

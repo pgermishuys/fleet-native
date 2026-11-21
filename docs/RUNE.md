@@ -2531,3 +2531,16 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **`Open::Select(name)` falls to the gallery's list for a name `ui::overlays` doesn't match** (a stray model list drew in the corner); a new
   select needs its own arm there, not only a list of its own.
 - **`border_sides` takes no layout space** unless `border_layout()` follows it, so a rule above a block with padding needs both.
+
+## Component 19, piece I (the automation composer)
+
+- **A `Link` in `rich` text is its own element in `elements()`**: role `link`, keyed by the link's id, its text the linked words, a
+  Tab stop. So a test presses it with `click(rt, id)`, and the id should be the test key the view promises (`automation-plan-ask`,
+  Fleet's testid), not an action name. The text's own `on_link` gets the id.
+- **A `row().role("button").on_press(..)` is not a Tab stop** (`ElementInfo.focusable` false); `.focusable(true)` makes it one,
+  as Fleet's `<button>` is. Leave it off a disabled one.
+- **`tx.focus(key, false)` from the press that makes the field appear works**: New automation switches the page to create mode and
+  focuses the box in the same handler; the box has the focus on the next frame.
+- **A field that is also state elsewhere**: the composer's text lives in `ComposerState::text` (H's rules read it) and the box needs a
+  `TextEdit`. Keep both and copy in `on_input_change`; anything that sets the text from outside (a scene, a test, a read) goes
+  through one helper that sets both (`replace_text` keeps the focus).

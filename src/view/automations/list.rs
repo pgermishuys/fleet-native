@@ -83,7 +83,7 @@ fn new_automation(t: &Theme) -> El {
         .focus_ring(2.0, 2.0, t.accent)
         .child(icon(&PLUS, 16.0).color(t.text))
         .child(text("New automation").font(sans(rem(0.85714), 500.0, 1.5)).color(t.text))
-        .on_press(|s: &mut State| s.start_automation_create())
+        .on_press_tx(|s: &mut State, tx: &mut rune::Tx| s.start_automation_create(tx))
 }
 
 /// The list: the draft row while creating, then built-ins first and the rest as the server sent them (a stable sort).
