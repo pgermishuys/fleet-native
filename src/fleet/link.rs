@@ -72,6 +72,8 @@ pub enum Cmd {
     WindowVisible(bool),
     /// Whether the focus report is wanted at all (Session recap or Desktop notifications on).
     ReportFocus(bool),
+    /// Whether mission control's feed of this machine wants its `sessions` topic (the hub of home has it always).
+    SessionsFeed(bool),
 }
 
 /// What the UI keeps of the connection. A clone shares the same threads.
@@ -183,6 +185,11 @@ impl Link {
     pub fn window_visible(&self, visible: bool) {
         let _ = self.machines.send(super::machine_poll::Cmd::Visible(visible));
         let _ = self.cmds.send(Cmd::WindowVisible(visible));
+    }
+
+    /// Mission control's feed of this machine opened or closed: its `sessions` topic events reach the feed while it is open.
+    pub fn feed(&self, on: bool) {
+        let _ = self.cmds.send(Cmd::SessionsFeed(on));
     }
 
     pub fn unwatch(&self, session: &str) {
@@ -303,7 +310,7 @@ fn run(key: String, base: String, rx: Receiver<Cmd>, post: Post) {
                 connection(&post, &key, Connection::Online);
                 let k = key.clone();
                 post.update(move |s, _| s.on_reconnected_for(&k));
-                serve(ws, (&base, home), &rx, &mut topics, &mut pending, &mut presence, &post)
+                serve(ws, (&base, home, &key), &rx, &mut topics, &mut pending, &mut presence, &post)
             }
             Err(e) if super::auth::is_refusal(&e) => {
                 // A reconnect loop would only knock again: say what is needed and stop.
@@ -360,6 +367,9 @@ fn run(key: String, base: String, rx: Receiver<Cmd>, post: Post) {
                 }
                 Ok(Cmd::ReportFocus(wanted)) => {
                     presence.set_enabled(wanted);
+                }
+                Ok(Cmd::SessionsFeed(on)) => {
+                    topics.set_feed(on);
                 }
                 // Not connected: no page can come (`loadSessionHistory` answers null).
                 Ok(Cmd::LoadOlder { session, cursor }) => history_failed(&post, session, cursor, "not connected"),
@@ -441,8 +451,8 @@ pub(crate) fn connect(base: &str) -> Result<WebSocket<Stream>, String> {
 /// Serves one connection until it fails; the error says why.
 fn serve(
     mut ws: WebSocket<Stream>,
-    // The Fleet's address, and whether it is home (the one whose list the window shows).
-    (base, home): (&str, bool),
+    // The Fleet's address, whether it is home (the one whose list the window shows), and the machine's key.
+    (base, home, key): (&str, bool, &str),
     rx: &Receiver<Cmd>,
     topics: &mut Topics,
     pending: &mut Pending,
@@ -474,7 +484,7 @@ fn serve(
     // Every topic again, so each gets a fresh snapshot (`topicListenersV2` after a reconnect).
     let started = (|| -> Result<(), String> {
         // The sessions topic feeds the live list, which is home's: another machine's list is read by `machine_poll`.
-        if home {
+        if home || topics.feed() {
             call(&mut ws, "SubscribeToSessionsTopicAsync", vec![])?;
         }
         for id in topics.all() {
@@ -581,6 +591,11 @@ fn serve(
                     presence.visibility_changed(visible, Instant::now()).into_iter().try_for_each(|c| send_call(&mut call, &mut ws, c))
                 }
                 Cmd::ReportFocus(wanted) => presence.set_enabled(wanted).into_iter().try_for_each(|c| send_call(&mut call, &mut ws, c)),
+                // Another machine's hub listens to `sessions` only while its feed is open; home's always does.
+                Cmd::SessionsFeed(on) => match topics.set_feed(on) && on && !home {
+                    true => call(&mut ws, "SubscribeToSessionsTopicAsync", vec![]).map(|_| ()),
+                    false => Ok(()),
+                },
                 Cmd::LoadOlder { session, cursor } => (|| {
                     let n = call(&mut ws, "LoadHistoryAsync", vec![json!(session), json!(cursor)])?;
                     pending.add(n.to_string(), session, cursor);
@@ -606,7 +621,23 @@ fn serve(
             Ok(Message::Text(text)) => {
                 for frame in signalr::parse(&text) {
                     match frame {
+                        Frame::Event { topic, .. } if topic == "sessions" && !home => {
+                            if topics.feed() {
+                                let key = key.to_string();
+                                post.update(move |s, tx| {
+                                    s.mission_sessions_event(&key);
+                                    tx.wake_after(Duration::from_millis(20));
+                                });
+                            }
+                        }
                         Frame::Event { topic, data, .. } if topic == "sessions" && home => {
+                            if topics.feed() {
+                                let key = key.to_string();
+                                post.update(move |s, tx| {
+                                    s.mission_sessions_event(&key);
+                                    tx.wake_after(Duration::from_millis(20));
+                                });
+                            }
                             // Whoever owns an event reads it from here (`State::subscribe`); the list's own
                             // reactions below don't wait for them.
                             if let Some(event) = Event::from_wire(&data) {

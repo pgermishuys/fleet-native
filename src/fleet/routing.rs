@@ -26,6 +26,10 @@ impl Links {
         keys
     }
 
+    pub fn get(&self, key: &str) -> Option<Link> {
+        self.lock().get(key).cloned()
+    }
+
     pub fn all(&self) -> Vec<Link> {
         self.lock().values().cloned().collect()
     }
@@ -80,6 +84,11 @@ impl State {
         super::machine_poll::spawn_read(job, link.post());
     }
 
+    /// The link to a machine if it has one already, without starting any (home's for `home`).
+    pub fn link_if_any(&self, key: &str) -> Option<Link> {
+        if key == HOME_MACHINE_KEY { self.link.clone() } else { self.links.get(key) }
+    }
+
     fn link_of(&self, target: &Target) -> Option<Link> {
         let home = self.link.as_ref()?;
         if target.is_home() {
@@ -102,6 +111,7 @@ impl State {
 
     /// A hub's state: home's is the app's connection, another machine's is kept by its id (and not for one that's gone).
     pub fn set_connection(&mut self, key: &str, connection: Connection) {
+        self.mission_hub(key, &connection);
         if key == HOME_MACHINE_KEY {
             // The Fleet asks who this is: the sign-in page opens once per refusal.
             let refused = connection == Connection::Refused && self.connection != Connection::Refused;

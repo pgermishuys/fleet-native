@@ -85,6 +85,10 @@ pub const MACHINE_GONE: &str = "That machine isn't in the list any more.";
 
 /// The key of the machine a tile belongs to, or the words for its having left the list.
 pub fn machine_key(machines: &Machines, tile: &Tile) -> Result<String, &'static str> {
+    // A tile's machine is the feed's key (`home`, or a listed machine's id), and `key_of_machine` knows home by its own id.
+    if tile.machine_id == crate::fleet::settings::HOME_MACHINE_KEY {
+        return Ok(tile.machine_id.clone());
+    }
     machines.key_of_machine(&tile.machine_id).ok_or(MACHINE_GONE)
 }
 
