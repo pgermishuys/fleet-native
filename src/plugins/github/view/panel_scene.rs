@@ -66,3 +66,29 @@ pub fn scene(s: &mut State, dark: bool, which: Which) {
         _ => {}
     }
 }
+
+/// The Follow a repository dialog over the panel (`github-follow*`): `list` (the repositories you do not follow), `typed` (a search that
+/// keeps some), `loading` (the cache still being read, something typed), `empty` (nothing matches).
+pub fn follow(s: &mut State, which: &str, dark: bool) {
+    scene(s, dark, Which::Followed);
+    let g = state(&mut s.places);
+    g.follow.open = true;
+    match which {
+        "list" => {}
+        "typed" => {
+            g.follow.query.replace_text("la");
+            g.follow.active = Some(0);
+        }
+        "loading" => {
+            // The list says nothing until something is typed (`CommandEmpty`), so the loading words need a search.
+            g.follow.query.replace_text("la");
+            g.repos.get().loading = true;
+        }
+        "empty" => g.follow.query.replace_text("zzz"),
+        other => panic!("no Follow a repository scene called {other}"),
+    }
+    if which != "loading" {
+        g.repos.get().repos =
+            mock::repos().as_array().map(|a| a.iter().filter_map(super::super::repos::read_repo).collect()).unwrap_or_default();
+    }
+}

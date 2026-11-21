@@ -16,6 +16,8 @@ use std::any::Any;
 
 /// A panel, a page or a settings body: drawn from the state like every other view.
 pub type View = fn(&State, &Theme) -> El;
+/// A modal layer over the window (a dialog and its scrim); empty while the plugin has none open.
+pub type Overlay = fn(&State, &Theme) -> Vec<El>;
 /// Run from `State::poll`; true when something drawn changed.
 pub type Keep = fn(&mut State, f64, &mut Tx) -> bool;
 
@@ -45,6 +47,8 @@ pub struct Entry {
     /// The body of the plugin's page under Settings › Plugins (`configPage`).
     pub settings: Option<View>,
     pub keep: Option<Keep>,
+    /// The plugin's dialogs, drawn over the window with core's own.
+    pub overlay: Option<Overlay>,
     /// Where the Clone view's suggestions come from (`repositorySources`).
     pub repositories: Option<std::sync::Arc<dyn crate::fleet::new_session::clone::RepositorySource>>,
     pub state: Box<dyn Any + Send>,
@@ -52,7 +56,17 @@ pub struct Entry {
 
 impl Entry {
     pub fn new(manifest: Plugin, state: impl Any + Send) -> Entry {
-        Entry { manifest, rail: None, panel: None, page: None, settings: None, keep: None, repositories: None, state: Box::new(state) }
+        Entry {
+            manifest,
+            rail: None,
+            panel: None,
+            page: None,
+            settings: None,
+            keep: None,
+            overlay: None,
+            repositories: None,
+            state: Box::new(state),
+        }
     }
 }
 
@@ -108,6 +122,11 @@ impl Places {
     /// The `keep` of every plugin that is on.
     pub fn keeps(&self, prefs: &Prefs) -> Vec<Keep> {
         self.on(prefs).filter_map(|e| e.keep).collect()
+    }
+
+    /// The dialogs of the plugins that are on, in registration order.
+    pub fn overlays(&self, prefs: &Prefs) -> Vec<Overlay> {
+        self.on(prefs).filter_map(|e| e.overlay).collect()
     }
 
     /// The repository sources of the plugins that are on.
