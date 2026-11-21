@@ -2627,3 +2627,7 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **`Runtime::accessibility_json()`** is how a test reads a label or role off an element: the roles and labels of an `El` aren't readable from
   outside Rune.
 
+## Component 23, piece B (mission control's data)
+
+- Plain-Rust data pieces need no Rune at all: build sessions in tests from list-row JSON through `parse_sessions_for(.., Retention::All)` (it keeps archived rows, drops hidden ones) instead of constructing `mock::Session`, so a test names fields as Fleet's own tests do.
+- A request that has to go to any machine is kept as data (`Request { method, path, body }`) and sent with `Request::send(base)` on a thread; the address is chosen by the caller from `Machines::key_of_machine` and the link, so the data file never touches `State`.

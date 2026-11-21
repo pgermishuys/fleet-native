@@ -520,6 +520,7 @@ mod machine;
 mod machine_diagnosis;
 mod machine_routes;
 mod machines;
+mod mission;
 mod modes;
 mod mods_resolve;
 mod mods_validate;
