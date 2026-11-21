@@ -36,3 +36,14 @@ pub fn plain(t: &Theme, key: &str, title: &str, line: Option<&str>, meta: Vec<El
         None => head,
     }
 }
+
+/// `plain` with the `actions` slot: the buttons sit at the end of the title row, 8 px apart, centred on the title and its line.
+pub fn plain_actions(t: &Theme, key: &str, title: &str, line: Option<&str>, actions: Vec<El>) -> El {
+    row()
+        .key(key.to_string())
+        .w_full()
+        .center_y()
+        .gap(16.0)
+        .child(plain(t, &format!("{key}-lead"), title, line, Vec::new()).grow(1.0).shrink().min_w(0.0))
+        .child(row().gap(8.0).center_y().children(actions))
+}

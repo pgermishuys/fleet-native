@@ -163,7 +163,8 @@ fn actions(t: &Theme, a: &RowArgs) -> El {
 /// The second line: where, who, when, which branch.
 fn meta(s: &State, t: &Theme, a: &RowArgs) -> El {
     let (item, key) = (a.item, a.key);
-    let small = || sans(12.0, 400.0, 1.2);
+    // `line-height` is the page's 1.5: a row is 55.5 high in Fleet (8 + 19.5 + 2 + 18 + 8).
+    let small = || sans(12.0, 400.0, 1.5);
     let dot = |n: &str| text("·").key(format!("{key}-dot-{n}")).font(small()).color(t.muted);
     let mut line = row().w_full().min_w(0.0).gap(6.0).center_y().clip_rounded(0.0);
     if a.show_repo {
@@ -182,7 +183,7 @@ fn meta(s: &State, t: &Theme, a: &RowArgs) -> El {
         .child(text(age::compact(&item.updated_at, clock.now, clock.offset_secs)).key(format!("{key}-age")).font(small()).color(t.muted));
     if let Some(branch) = &item.head_ref {
         line = line.child(dot("branch")).child(
-            text(branch.clone()).key(format!("{key}-branch")).font(mono(11.0, 400.0, 1.2)).color(t.muted.alpha(0.85)).truncate().shrink(),
+            text(branch.clone()).key(format!("{key}-branch")).font(mono(11.0, 400.0, 1.5)).color(t.muted.alpha(0.85)).truncate().shrink(),
         );
     }
     line
@@ -200,7 +201,7 @@ pub fn item_row(s: &State, t: &Theme, a: &RowArgs) -> El {
         .min_w(0.0)
         .gap(8.0)
         .center_y()
-        .child(text(item.title.clone()).key(format!("{key}-title")).font(sans(13.0, 500.0, 1.3)).color(t.text).truncate().shrink());
+        .child(text(item.title.clone()).key(format!("{key}-title")).font(sans(13.0, 500.0, 1.5)).color(t.text).truncate().shrink());
     for l in item.labels.iter().take(3) {
         let mut chip = label(t, &format!("{key}-label-{}", l.name), &l.name, &l.color);
         if let Some(on_label) = a.on_label {

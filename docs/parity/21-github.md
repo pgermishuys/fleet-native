@@ -190,38 +190,38 @@ imports them (component 7's B10 note). Native is stricter, as component 7 decide
 
 | # | Fleet | Source | Native |
 |---|---|---|---|
-| 4.1 | While the status loads and it isn't known to be connected, nothing; not connected: the connect section (`github-connect`): a 440 px column, centred, 12 vh from the top, gap 12, centred text | GBP `.gh-connect` | None (G) |
-| 4.2 | Github 34 muted; "Connect GitHub" 20 px 600; "See which pull requests need you, watch each session's checks and reviews, and start a session from any issue." muted, line-height 1.5 | GBP | None (G) |
-| 4.3 | **Connect with GitHub** (`github-connect-start`, primary, 34 high, Github 14, a spinner instead while starting, disabled while starting): starts the device flow (16's `github_connect_device`) | GBP | None (G); the flow is done (16 AF) |
-| 4.4 | Waiting box (card, padding 16, gap 10, centred): "Enter this code at {address without https://}" (the address mono, a link), the code (mono 24, 500, letter-spacing .2em), **Copy code** (Copy 13) and **Open GitHub** (ExternalLink 13) buttons, a spinner with "Waiting for you to approve it (the code works for {n} more minutes)…" (the minutes rounded, the bracket left out at 0), **Cancel** (a link button) | GBP | None (G); the countdown on the clock |
-| 4.5 | After a failed try: TriangleAlert 14 with "The code expired. Start again for a new one.", "GitHub says the request was denied." or the error's message, `--error-text` 12.5 px, above the button | GBP | None (G) |
-| 4.6 | **Use a personal access token instead** (link button, muted 12.5, hover text): opens Settings › Plugins › GitHub | GBP `openSettings` | None (G) |
-| 4.7 | Connecting loads the work at once (`load(true)`); leaving the page stops the device polling (UGA `onUnmounted`) | GBP, UGA | None (G) |
+| 4.1 | While the status loads and it isn't known to be connected, nothing; not connected: the connect section (`github-connect`): a 440 px column, centred, 12 vh from the top, gap 12, centred text | GBP `.gh-connect` | Done (G): `view::home_connect::connect`, a 440 px column 12 % of the window's height from the top; shown when the status isn't loading and it isn't connected (Fleet draws it for the frame before the first status too) |
+| 4.2 | Github 34 muted; "Connect GitHub" 20 px 600; "See which pull requests need you, watch each session's checks and reviews, and start a session from any issue." muted, line-height 1.5 | GBP | Done (G): the Github mark, "Connect GitHub" (20 px 600, line 1.5 as Fleet's h1) and the lede, centred |
+| 4.3 | **Connect with GitHub** (`github-connect-start`, primary, 34 high, Github 14, a spinner instead while starting, disabled while starting): starts the device flow (16's `github_connect_device`) | GBP | Done (G): `github-connect-start`, primary 34 px, a spinner while starting and disabled; runs 16 AF's `github_connect_device` |
+| 4.4 | Waiting box (card, padding 16, gap 10, centred): "Enter this code at {address without https://}" (the address mono, a link), the code (mono 24, 500, letter-spacing .2em), **Copy code** (Copy 13) and **Open GitHub** (ExternalLink 13) buttons, a spinner with "Waiting for you to approve it (the code works for {n} more minutes)…" (the minutes rounded, the bracket left out at 0), **Cancel** (a link button) | GBP | Done (G): the box (`github-connect-code`) with the address (a link: `tx.open_url`), the code (mono 24, tracking .2em), Copy code, Open GitHub, the spinner line with the minutes (`home::waiting_words`, rounded, bracket left out at 0) and Cancel; the countdown is kept by the plugin's `keep` on the clock |
+| 4.5 | After a failed try: TriangleAlert 14 with "The code expired. Start again for a new one.", "GitHub says the request was denied." or the error's message, `--error-text` 12.5 px, above the button | GBP | Done (G): `github-connect-error` over the button for expired, denied and an error's message (`home::failure_words`) |
+| 4.6 | **Use a personal access token instead** (link button, muted 12.5, hover text): opens Settings › Plugins › GitHub | GBP `openSettings` | Done (G): `github-connect-token` opens Settings › Plugins › GitHub; hover takes the text colour but no underline (docs/RUNE.md) |
+| 4.7 | Connecting loads the work at once (`load(true)`); leaving the page stops the device polling (UGA `onUnmounted`) | GBP, UGA | Done (G): a connection that arrives (`github_connection_changed`, once per change) reads the work with `github_work_refresh`; the device polling runs while Your work or Settings' GitHub page is open and stops, the code going back to the button, when you leave (`keep_github`) |
 
 ### 5. Your work: the page (`/github`)
 
 | # | Fleet | Source | Native |
 |---|---|---|---|
-| 5.1 | Page: column, gap 22, max-width 1080, centred | GBP `.gh-home` | None (G) |
-| 5.2 | `PageHeader` "Your work"; the line under it: "Everything you're involved in" with no bookmarks, else "{n} repository/repositories", then " · updated {relative time}" once loaded (ticks) | GBP `scope` | None (G) |
-| 5.3 | Actions: **Refresh** (ghost icon button, RefreshCw 14, a spinner while loading, disabled while loading, title "Refresh") forces a reload; **Follow a repository** (Plus 14) opens the dialog | GBP | None (G) |
-| 5.4 | Buttons: 30 high, padding 0 11, 1 px border, radius btn, card fill, 12.5 px 500; disabled at 70 %; ghost: no border, no fill, muted; primary: accent, `--primary-foreground`; focus ring 2 px accent offset 1 | GBP `.gh-home__btn` | None (G) |
-| 5.5 | An error: TriangleAlert 14 and the message, `--error-text` 13 px | GBP | None (G) |
-| 5.6 | First load: the spinner (16) and "Asking GitHub what needs you…" muted | GBP | None (G) |
-| 5.7 | A bucket: grid gap 2; its title 12 px 600 muted, padding 0 10, margin-bottom 4, gap 7, an icon, then the count (mono, muted 75 %, 400) | GBP `.gh-home__bucket*` | None (G) |
-| 5.8 | **Needs you** (`github-needs-you`, TriangleAlert 13 in `--pr-blocked`): review requests ("Review requested"), then your pull requests something blocks, each with why (`prWords`) | GBP, GI `needsYou` | None (G; B for the list) |
-| 5.9 | **In Fleet** (`github-in-fleet`, Zap 13 accent): items a session's header links point at, open (`!isTerminal`), resolved, not already under Needs you, with a live session; one row per item, newest update first; the row built from the link (`summaryFromLink`), no request to GitHub | GBP `inFleet` | None (G; B for `summary_from_link`) |
-| 5.10 | **Your pull requests** (no icon): yours that nothing blocks, not listed above | GBP, GI `yourPullRequests` | None (G) |
-| 5.11 | **Assigned to you** (CircleDot 13): not listed above | GBP | None (G) |
-| 5.12 | Rows show the repository (`show-repo`); a row opens the item's page, its Start session starts one, its session chip opens the session (6.x, 7.x) | GBP | None (G) |
-| 5.13 | Nothing in any bucket: `EmptyState` (Github) "Nothing needs you", "No review requests, open pull requests or assigned issues." (" in the repositories you follow" before the full stop when following any), padding 48 0 | GBP | None (G) |
-| 5.14 | Loads once when opened connected (kept for 60 s, shared with the panel) | GBP, UGW | None (G; C for the store) |
+| 5.1 | Page: column, gap 22, max-width 1080, centred | GBP `.gh-home` | Done (G): `view::home::home`, 22 gap, at most 1080, centred, in the scrolling sheet with 24 px around |
+| 5.2 | `PageHeader` "Your work"; the line under it: "Everything you're involved in" with no bookmarks, else "{n} repository/repositories", then " · updated {relative time}" once loaded (ticks) | GBP `scope` | Done (G): `ui::page_header::plain_actions`; the line is `home::header_line` (scope, then " · updated {long relative time}", ticked every few seconds by `keep_github_home`) |
+| 5.3 | Actions: **Refresh** (ghost icon button, RefreshCw 14, a spinner while loading, disabled while loading, title "Refresh") forces a reload; **Follow a repository** (Plus 14) opens the dialog | GBP | Done (G): Refresh (`github-refresh`, ghost, a spinner and disabled while loading) forces a read; Follow a repository (`github-follow`) opens E's dialog |
+| 5.4 | Buttons: 30 high, padding 0 11, 1 px border, radius btn, card fill, 12.5 px 500; disabled at 70 %; ghost: no border, no fill, muted; primary: accent, `--primary-foreground`; focus ring 2 px accent offset 1 | GBP `.gh-home__btn` | Done (G): `view::home::button` and `link` at Fleet's sizes, fills, 70 % disabled and focus ring |
+| 5.5 | An error: TriangleAlert 14 and the message, `--error-text` 13 px | GBP | Done (G): `github-home-error`, TriangleAlert 14 and the words in `error_text` |
+| 5.6 | First load: the spinner (16) and "Asking GitHub what needs you…" muted | GBP | Done (G): `github-home-loading`, the spinner and "Asking GitHub what needs you…" |
+| 5.7 | A bucket: grid gap 2; its title 12 px 600 muted, padding 0 10, margin-bottom 4, gap 7, an icon, then the count (mono, muted 75 %, 400) | GBP `.gh-home__bucket*` | Done (G): `bucket`: 2 apart, the title 12 px 600 muted with an icon and the count in mono at 75 % |
+| 5.8 | **Needs you** (`github-needs-you`, TriangleAlert 13 in `--pr-blocked`): review requests ("Review requested"), then your pull requests something blocks, each with why (`prWords`) | GBP, GI `needsYou` | Done (G): `github-needs-you`, each row with its reason (`items::needs_you`) |
+| 5.9 | **In Fleet** (`github-in-fleet`, Zap 13 accent): items a session's header links point at, open (`!isTerminal`), resolved, not already under Needs you, with a live session; one row per item, newest update first; the row built from the link (`summaryFromLink`), no request to GitHub | GBP `inFleet` | Done (G): `github-in-fleet`, `home::buckets` reads the sessions' header links (open, resolved, not under Needs you, with an unarchived session), newest first, built with `summary_from_link`; no request |
+| 5.10 | **Your pull requests** (no icon): yours that nothing blocks, not listed above | GBP, GI `yourPullRequests` | Done (G): `github-your-pulls` |
+| 5.11 | **Assigned to you** (CircleDot 13): not listed above | GBP | Done (G): `github-assigned`, CircleDot |
+| 5.12 | Rows show the repository (`show-repo`); a row opens the item's page, its Start session starts one, its session chip opens the session (6.x, 7.x) | GBP | Done (G): rows with `show_repo`; opening, starting and the chip are F's |
+| 5.13 | Nothing in any bucket: `EmptyState` (Github) "Nothing needs you", "No review requests, open pull requests or assigned issues." (" in the repositories you follow" before the full stop when following any), padding 48 0 | GBP | Done (G): `github-empty`, the full empty state with Fleet's words (" in the repositories you follow" with any followed), padding 48 vertical |
+| 5.14 | Loads once when opened connected (kept for 60 s, shared with the panel) | GBP, UGW | Done (G): `keep_github_home` loads once per visit when connected (the store keeps it 60 s and shares it with the panel) |
 
 ### 6. An item's row and its session chip
 
 | # | Fleet | Source | Native |
 |---|---|---|---|
-| 6.1 | Row (`github-row`, a button, focusable): grid 18 / 1fr / auto, gap 2 10, padding 8 10, radius btn; hover or focus within: 5 % wash; focus ring 2 px accent inset; Enter or Space opens it | GIR | Done (F): `view::row` `item_row`; the shell holds the 5 % wash, the line is the focusable button; Enter or Space opens the item's page |
+| 6.1 | Row (`github-row`, a button, focusable): grid 18 / 1fr / auto, gap 2 10, padding 8 10, radius btn; hover or focus within: 5 % wash; focus ring 2 px accent inset; Enter or Space opens it | GIR | Done (F; G set the title and second lines to line height 1.5, so a row is Fleet's 55.5 px, not 50): `view::row` `item_row`; the shell holds the 5 % wash, the line is the focusable button; Enter or Space opens the item's page |
 | 6.2 | Its title and label: "{Pull request/Issue} #{n}: {title}", then " · {prWords}" for an open pull request, then " · {n} comment(s)" | GIR `description` | Done (F): `row::description`, the line's label and tooltip |
 | 6.3 | Icon (15, spanning both lines, margin-top 2): `GitHubItemIcon` by kind and state (`prState` for a pull request; open/closed for an issue) | GIR | Done (F): `gh::item_icon` by `icon_state` |
 | 6.4 | First line: the title (13 px 500, ellipsis), then up to 3 labels (`GitHubLabel`); clicking a label emits `label` (the repository page filters by it) and doesn't open the row | GIR | Done (F): the title, three labels at most; a label press goes to `RowArgs.on_label` and does not open the row |
@@ -549,6 +549,11 @@ id (the script takes `--link <session-id>=<owner/repo#n>`). Rename the scratch m
   terminal links, the scope words, leaving the page stops the device polling.
 - **Pictures:** Your work and the connect page beside Fleet's (`fleet-home-*`, `fleet-connect-*`), both themes, live;
   the device code box from a scene.
+- **Done (G).** Rows 4.1-4.7 and 5.1-5.14. Pictures in `shots/parity/21-github/g/`: Fleet's client (through the stand-in, which gained a
+  `linkMeta` part in its fixture so In Fleet shows a title, author, branch and diff) beside the native app, both themes, for Your
+  work, loading, failed, empty and the connect page; the device code box and the expired code are scenes only, because Fleet needs a
+  real GitHub to hand out a code. Open: the text link's hover underline (Rune has none, `docs/RUNE.md`); the connect section shows for
+  the frame before the first status answer, as Fleet's does.
 
 #### H. Search, items and repository metadata (stores, no view)
 

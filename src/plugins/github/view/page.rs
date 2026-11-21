@@ -1,10 +1,10 @@
-//! The page the GitHub rail draws beside its panel. Your work (`GitHubBrowserPage.vue`) is piece G and a repository's page is piece I;
+//! The page the GitHub rail draws beside its panel. Your work (`GitHubBrowserPage.vue`) is `home` (piece G) and a repository's page is piece I;
 //! until they are built the page says so, in the words every unbuilt rail uses.
 use super::row::{RowArgs, item_row};
 use crate::State;
 use crate::icons::GITHUB;
 use crate::plugins::github::sessions::sessions_of;
-use crate::plugins::github::{state, state_ref};
+use crate::plugins::github::{Where, state, state_ref};
 use crate::theme::{Theme, sans};
 use crate::view::workflows::sheet;
 use rune::{icon, text};
@@ -28,6 +28,9 @@ pub fn page(s: &State, t: &Theme) -> rune::El {
                 },
             )
         }));
+    }
+    if state_ref(&s.places).at == Where::Home {
+        return super::home::home(s, t);
     }
     sheet(t, "github-page")
         .center()

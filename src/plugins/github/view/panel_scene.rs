@@ -43,6 +43,8 @@ pub fn scene(s: &mut State, dark: bool, which: Which) {
     let g = state(&mut s.places);
     // Nothing asks a server in a scene: the panel has read already.
     g.panel_asked = true;
+    g.home_asked = true;
+    g.auth.asked = true;
     g.auth.connected = !matches!(which, Which::Off);
     g.at = Where::Home;
     if matches!(which, Which::Off) {

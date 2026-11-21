@@ -3,11 +3,12 @@
 //!
 //! Piece A of component 21 gives it its home and its places: the descriptor, the rail button, the settings page (the connection
 //! page, `view::connect`), the connection's `keep`, and the addresses it owns (`Where`). Piece B adds what the pages read: items and the words made from them (`items`), the issue filter
-//! (`filter`) and an invented GitHub for scenes and tests (`mock`). Piece C adds the three stores the pages share: your work (`work`), the repositories you follow (`bookmarks`) and the repository cache (`repos`). Piece D adds the rail's panel (`view::panel`, loaded by `panel_loads`); piece E its Follow a repository dialog (`follow`, `view::follow`); piece F the item's row and its session chip (`view::row`, `view::session_chip`) and Fleet's side, the sessions on an item (`sessions`); the page and the rest come in the pieces after.
+//! (`filter`) and an invented GitHub for scenes and tests (`mock`). Piece C adds the three stores the pages share: your work (`work`), the repositories you follow (`bookmarks`) and the repository cache (`repos`). Piece D adds the rail's panel (`view::panel`, loaded by `panel_loads`); piece E its Follow a repository dialog (`follow`, `view::follow`); piece F the item's row and its session chip (`view::row`, `view::session_chip`) and Fleet's side, the sessions on an item (`sessions`); piece G Your work (`home`, `view::home`, `view::home_connect`); the rest of the pages come in the pieces after.
 pub mod auth;
 pub mod bookmarks;
 pub mod filter;
 pub mod follow;
+pub mod home;
 pub mod items;
 pub mod mock;
 mod panel_loads;
@@ -23,6 +24,8 @@ mod tests_auth;
 mod tests_filter;
 #[cfg(test)]
 mod tests_follow;
+#[cfg(test)]
+mod tests_home;
 #[cfg(test)]
 mod tests_items;
 #[cfg(test)]
@@ -58,9 +61,12 @@ pub struct GitHub {
     pub repos: repos::Cache,
     /// The rail's panel has asked for what it shows on this visit (`onMounted`): the status, the followed repositories and your work.
     pub panel_asked: bool,
+    /// Your work (the page) has asked for what it shows on this visit, and the age words last drawn under its title.
+    pub home_asked: bool,
+    pub home_age: Option<String>,
     /// The Follow a repository dialog.
     pub follow: follow::Follow,
-    /// The rows scenes' list (`github-rows*`): items the page draws as rows until Your work (piece G) and a repository's page (piece I) draw their own.
+    /// The rows scenes' list (`github-rows*`): items the page draws as rows until a repository's page (piece I) draws its own.
     pub demo_rows: Vec<(items::ItemSummary, Option<String>)>,
     /// The label last pressed on a demo row (the repository page, piece I, filters by it).
     pub demo_label: Option<String>,
@@ -101,7 +107,7 @@ pub fn entry() -> Entry {
 }
 
 fn keep(s: &mut State, now: f64, tx: &mut Tx) -> bool {
-    s.keep_github(now, tx) | s.keep_github_repos() | s.keep_github_panel()
+    s.keep_github(now, tx) | s.keep_github_repos() | s.keep_github_panel() | s.keep_github_home(tx)
 }
 
 /// The connection's state, which lives in the plugin's entry.

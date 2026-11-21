@@ -164,10 +164,14 @@ def main():
         if m:
             owner, repo, number = m[1], m[2], int(m[3])
             meta = {"owner": owner, "repo": repo, "number": number, "htmlUrl": f"https://github.com/{owner}/{repo}/pull/{number}"}
+            # What the watcher would have read from GitHub for it (a title, an author, a branch, a diff), from the fixture's "linkMeta".
+            extra = fixture.get("linkMeta", {}).get(ref, {})
+            title = extra.pop("title", f"Pull request {number}")
+            meta.update(extra)
             links.append(
                 {
                     "id": f"link-{sid}-{number}", "sessionId": sid, "url": meta["htmlUrl"], "providerId": "github", "resourceType": "pull_request",
-                    "resourceId": f"{owner}/{repo}#{number}", "title": f"Pull request {number}", "status": "open", "statusLabel": "Open",
+                    "resourceId": f"{owner}/{repo}#{number}", "title": title, "status": "open", "statusLabel": "Open",
                     "metadataJson": json.dumps(meta), "isDismissed": False, "isTerminal": False, "relationship": "created",
                     "enrichmentStatus": "resolved", "createdAt": "2026-11-19T09:00:00Z", "updatedAt": "2026-11-19T09:00:00Z",
                 }
