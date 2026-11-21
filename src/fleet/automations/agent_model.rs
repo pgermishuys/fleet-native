@@ -27,10 +27,10 @@ impl State {
         self.automations_nav.composer(self.composer_editing())
     }
 
-    /// `defaultHarnessType` of the machine the view shows: the user's pick, else the one the server marks, else the first;
+    /// `defaultHarnessType` of the machine the runs go to: the user's pick, else the one the server marks, else the first;
     /// empty until the harnesses have loaded.
     pub fn automation_default_harness(&self) -> String {
-        let machine = self.automations_machine();
+        let machine = self.composer_machine(self.composer_editing());
         let all = self.feeds.harnesses.get(&machine).map_or(&[][..], |f| f.harnesses.all.as_slice());
         resolve_default_harness(self.preferred_harness(&machine).as_deref(), all)
     }
@@ -130,7 +130,7 @@ impl State {
         if self.automations_nav.composer.catalog.wanted == want {
             return false;
         }
-        let machine = self.automations_machine();
+        let machine = self.composer_machine(self.composer_editing());
         let now = crate::fleet::link::now_ms();
         let mock = self.feed_base(&machine).is_none();
         let feed = &mut self.automations_nav.composer.catalog;

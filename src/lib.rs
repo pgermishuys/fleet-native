@@ -57,6 +57,8 @@ mod tests_automations_composer;
 #[cfg(test)]
 mod tests_automations_header;
 #[cfg(test)]
+mod tests_automations_machine;
+#[cfg(test)]
 mod tests_automations_page;
 #[cfg(test)]
 mod tests_automations_runs;
@@ -5363,6 +5365,24 @@ pub fn spec() -> AppSpec<State> {
             ("automation-agent-model-menu-light", |s| s.show_automations(false, mock::automations::Scene::AgentModelMenu)),
             ("automation-agent-model-new", |s| s.show_automations(true, mock::automations::Scene::AgentModelNew)),
             ("automation-agent-model-new-light", |s| s.show_automations(false, mock::automations::Scene::AgentModelNew)),
+            ("automation-machine", |s| {
+                s.show_automations(true, mock::automations::Scene::Machine(fleet::automations::machine::Scene::Machine))
+            }),
+            ("automation-machine-light", |s| {
+                s.show_automations(false, mock::automations::Scene::Machine(fleet::automations::machine::Scene::Machine))
+            }),
+            ("automation-machine-menu", |s| {
+                s.show_automations(true, mock::automations::Scene::Machine(fleet::automations::machine::Scene::MachineMenu))
+            }),
+            ("automation-machine-menu-light", |s| {
+                s.show_automations(false, mock::automations::Scene::Machine(fleet::automations::machine::Scene::MachineMenu))
+            }),
+            ("automation-machine-fixed", |s| {
+                s.show_automations(true, mock::automations::Scene::Machine(fleet::automations::machine::Scene::MachineFixed))
+            }),
+            ("automation-machine-fixed-light", |s| {
+                s.show_automations(false, mock::automations::Scene::Machine(fleet::automations::machine::Scene::MachineFixed))
+            }),
             ("automation-strip-folder", |s| s.show_automations(true, mock::automations::Scene::StripFolder)),
             ("automation-strip-folder-light", |s| s.show_automations(false, mock::automations::Scene::StripFolder)),
             ("automation-open", |s| s.show_automations(true, mock::automations::Scene::Open)),

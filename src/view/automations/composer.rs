@@ -3,7 +3,8 @@
 //! something changed), the strip under it with the When chip and its menu
 //! (`when.rs`) and where it runs (`strip.rs`), and the plan line saying what Enter will make, with the "Just once" ask as a
 //! link; with a folder, the toolbar's agent and model chips (`AgentSelector`, `ModelSelector`; their menu is New session's).
-//! The machine and workflow chips are pieces M and N.
+//! First in the strip, the Runs on machine chip (New session's `MachinePicker`) or, on a view of another machine, the
+//! machine an open automation runs on (piece M). The workflow chips are piece N.
 use crate::fleet::automations::agent_model::{AGENT_CHIP, MODEL_CHIP};
 use crate::fleet::automations::schedule::When;
 use crate::fleet::automations::words::{Part, Plan};
@@ -59,7 +60,7 @@ pub fn section(s: &State, t: &Theme) -> El {
         .pb(18.0)
         .child(frame(s, t, editing, busy, &shown))
         .child(strip(s, t, &shown, busy))
-        .child(plan_line(t, &shown.plan))
+        .child(plan_line(t, &shown.plan, s.automation_plan_machine()))
 }
 
 /// `ComposerFrame`: the raised box with the field over the toolbar.
@@ -151,9 +152,16 @@ fn send_button(t: &Theme, editing: bool, busy: bool, can: bool) -> El {
 }
 
 /// `.automation-composer__strip`: the chips under the box. The When chip and its menu are `when.rs`; where it runs is
-/// `strip.rs`; the machine, the agent and model, and a workflow target are L to N.
+/// `strip.rs`; a workflow target is N. First, where the runs go: the Runs on chip, or another machine's name.
 fn strip(s: &State, t: &Theme, shown: &Shown, busy: bool) -> El {
     let when = super::when::Shown { when: shown.when.clone(), parsed: shown.parsed, message_has_schedule: shown.has_words };
+    let mut machine = Vec::new();
+    if let Some(name) = s.automation_runs_on_name() {
+        machine.extend([runs_on(t, &name), super::strip::separator(t)]);
+    }
+    if s.automation_shows_machine_chip() {
+        machine.extend([crate::view::machine_picker::chip(s, t), super::strip::separator(t)]);
+    }
     row()
         .key("automation-strip")
         .w_full()
@@ -163,15 +171,23 @@ fn strip(s: &State, t: &Theme, shown: &Shown, busy: bool) -> El {
         .gap(2.0)
         .pt(6.0)
         .px(4.0)
+        .children(machine)
         .child(super::when::chip(s, t, &when, busy))
         .children(super::strip::chips(s, t, busy))
 }
 
 /// `.automation-composer__plan`: one line of words (12 px muted, line-height 1.55) with the schedule in the text colour,
-/// warnings in the waiting colour, paths in mono, and the ask's answer underlined as a link (row 7.9).
-fn plan_line(t: &Theme, plan: &Plan) -> El {
+/// warnings in the waiting colour, paths in mono, and the ask's answer underlined as a link (row 7.9). Runs on another machine
+/// start it with `On name:` in the machine coral, mono 11.5, 4 px before the rest (row 7.8).
+fn plan_line(t: &Theme, plan: &Plan, machine: Option<String>) -> El {
     let mut content = String::new();
     let mut spans = Vec::new();
+    if let Some(name) = machine {
+        content.push_str(&format!("On {name}:"));
+        spans.push(Span::new(0, content.len()).color(t.coral_text).mono().size(11.5));
+        // `margin-right: 4px`: a space in the UI font is about that wide at 12 px.
+        content.push(' ');
+    }
     let push = |content: &mut String, spans: &mut Vec<Span>, part: &Part| {
         let at = content.len();
         content.push_str(&part.text);
@@ -211,4 +227,11 @@ fn plan_line(t: &Theme, plan: &Plan) -> El {
         line = line.link(link).on_link(|s: &mut State, _: &str, _: &mut Tx| s.automation_plan_answer());
     }
     row().w_full().max_w(COLUMN).min_h(22.0).pt(4.0).px(11.0).child(line)
+}
+
+/// `.automation-composer__runs-on`: `Runs on <b>name</b>`, 11 px muted with the name in coral at 500, 6 px either side.
+fn runs_on(t: &Theme, name: &str) -> El {
+    let content = format!("Runs on {name}");
+    let spans = vec![Span::new("Runs on ".len(), content.len()).color(t.coral_text).weight(500.0)];
+    rich(content, spans).key("automation-runs-on").font(sans(11.0, 400.0, 1.3)).color(t.muted).px(6.0)
 }

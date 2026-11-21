@@ -3,6 +3,7 @@ pub mod actions;
 pub mod agent_model;
 pub mod builtin;
 pub mod composer;
+pub mod machine;
 pub mod model;
 pub mod nav;
 pub mod runs;
