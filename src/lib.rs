@@ -29,6 +29,8 @@ mod tests_agents_session;
 #[cfg(test)]
 mod tests_agents_tab;
 #[cfg(test)]
+mod tests_analytics_chart;
+#[cfg(test)]
 mod tests_analytics_export;
 #[cfg(test)]
 mod tests_analytics_filters;
@@ -5373,6 +5375,23 @@ pub fn spec() -> AppSpec<State> {
             ("analytics-calendar-limits", |s| s.show_analytics(true, mock::analytics::Scene::CalendarLimits)),
             ("analytics-overview", |s| s.show_analytics(true, mock::analytics::Scene::Menu)),
             ("analytics-overview-light", |s| s.show_analytics(false, mock::analytics::Scene::Menu)),
+            // Component 20, piece G: the tooltip on Nov 12, and the legend with Cost pressed.
+            ("analytics-overview-hover", |s| {
+                s.show_analytics(true, mock::analytics::Scene::Menu);
+                s.analytics.chart.hover = Some(7);
+            }),
+            ("analytics-overview-hover-light", |s| {
+                s.show_analytics(false, mock::analytics::Scene::Menu);
+                s.analytics.chart.hover = Some(7);
+            }),
+            ("analytics-overview-cost-hidden", |s| {
+                s.show_analytics(true, mock::analytics::Scene::Menu);
+                s.analytics.chart.hidden = [false, true];
+            }),
+            ("analytics-overview-cost-hidden-light", |s| {
+                s.show_analytics(false, mock::analytics::Scene::Menu);
+                s.analytics.chart.hidden = [false, true];
+            }),
             ("analytics-overview-loading", |s| s.show_analytics(true, mock::analytics::Scene::Loading)),
             ("analytics-overview-loading-light", |s| s.show_analytics(false, mock::analytics::Scene::Loading)),
             ("analytics-overview-error", |s| s.show_analytics(true, mock::analytics::Scene::Failed)),

@@ -38,6 +38,8 @@ impl State {
     pub fn open_analytics_section(&mut self, section: Section) {
         if self.analytics_nav.section != section {
             self.analytics_nav.section = section;
+            // Fleet's chart is destroyed with its section: its hidden lines come back.
+            self.analytics.chart = Default::default();
         }
     }
 
@@ -45,5 +47,6 @@ impl State {
     pub fn open_analytics_address(&mut self, path: &str) {
         self.enter_analytics();
         self.analytics_nav.section = super::sections::section_from_path(path);
+        self.analytics.chart = Default::default();
     }
 }
