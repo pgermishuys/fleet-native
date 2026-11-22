@@ -1,7 +1,7 @@
 name: Verify release
 
-# Downloads the published `latest` assets from their public links with no sign-in, checks each against latest.json (and its
-# .sha256 where the release has one), then proves every package on its own system: the server inside, the icon and version,
+# Downloads the published `latest` assets from their public links with no sign-in, checks each against latest.json (and the
+# .sha256 the release has for it), then proves every package on its own system: the server inside, the icon and version,
 # and a smoke run of the app from the package (scripts/smoke-desktop.sh, scripts/smoke-desktop.ps1). Run by hand after a
 # publish; it only reads the release.
 on: workflow_dispatch
@@ -25,9 +25,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: linux, os: ubuntu-latest, assets: fleet-native-linux-x64.tar.gz fleet-native-linux-x64.deb fleet-native-linux-x64.AppImage, sums: true }
-          - { name: windows, os: windows-latest, assets: fleet-native-windows-x64.zip fleet-native-windows-x64-setup.exe, sums: true }
-          - { name: macos, os: macos-15, assets: fleet-native-macos-arm64.dmg, sums: false }
+          - { name: linux, os: ubuntu-latest, assets: fleet-native-linux-x64.tar.gz fleet-native-linux-x64.deb fleet-native-linux-x64.AppImage, sums: fleet-native-linux-x64.tar.gz fleet-native-linux-x64.deb fleet-native-linux-x64.AppImage }
+          - { name: windows, os: windows-latest, assets: fleet-native-windows-x64.zip fleet-native-windows-x64-setup.exe, sums: fleet-native-windows-x64-setup.exe }
+          - { name: macos, os: macos-15, assets: fleet-native-macos-arm64.dmg, sums: "" }
     steps:
       # Only for the scripts; nothing is built.
       - uses: actions/checkout@v4
@@ -50,7 +50,7 @@ jobs:
             got=$(sha "$a")
             echo "$a: want $want, got $got"
             test "$want" = "$got"
-            if [ "$SUMS" = true ]; then
+            if [[ " $SUMS " == *" $a "* ]]; then
               curl -fsSL -O "$BASE/$a.sha256"
               test "$(cut -d' ' -f1 "$a.sha256")" = "$got" || { echo "$a.sha256 does not match"; exit 1; }
               echo "$a.sha256 matches"
@@ -60,7 +60,7 @@ jobs:
 
       - name: Linux packages
         if: runner.os == 'Linux'
-        run: sudo apt-get -o Acquire::Retries=5 update && sudo apt-get -o Acquire::Retries=5 install -y libxkbcommon-x11-0 mesa-vulkan-drivers xvfb ffmpeg desktop-file-utils
+        run: sudo apt-get -o Acquire::Retries=5 update && sudo apt-get -o Acquire::Retries=5 install -y libxkbcommon-x11-0 libwebkit2gtk-4.1-0 mesa-vulkan-drivers xvfb ffmpeg desktop-file-utils
 
       - name: Linux, run it
         if: runner.os == 'Linux'
