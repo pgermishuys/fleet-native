@@ -1,15 +1,11 @@
 //! Ports `components/canvas/CanvasHost.vue` (the header: the tab strip, the `+` button and its menu, Widen, the slot for the
 //! collapse button; the body: the active tab's component) and the frame of `SessionsV2RightPanel.vue`. A tab whose body is
 //! another component's draws a stand-in that names that component, until it is built.
-use super::mods::tree::Look;
 use super::right_rail;
 use crate::State;
 use crate::fleet::canvas_host::{Badge, STRIP, STRIP_ROOM, close_key, pin_key, reach_key, tab_key};
 use crate::fleet::canvases::{CanvasInstance, CanvasKind, VisualType};
-use crate::fleet::mods::panes::pane_key;
 use crate::fleet::mods::renders::DeclaredPane;
-use crate::fleet::mods::resolve::Resolved;
-use crate::fleet::mods::types::Site;
 use crate::fleet::tab_motion::{PULSE_ICON_SHARE, bezier, ease_out};
 use crate::icons::*;
 use crate::theme::{RADIUS_BTN, RADIUS_PANEL, Theme, mono, sans};
@@ -291,20 +287,9 @@ fn body(s: &State, t: &Theme) -> El {
             Some(payload) => super::document_tab::document_tab(s, t, payload),
             None => stand_in(t, CanvasKind::Visual),
         },
-        // A pane a mod drew: its tree, until piece G gives the pane its own states (waiting, nothing yet, off).
-        Some(CanvasKind::Mod) if tabs.active().and_then(|c| pane_tree(s, c)).is_some() => {
-            let (key, tree) = tabs.active().and_then(|c| pane_tree(s, c)).expect("checked");
-            let drawn = super::mods::tree::tree_keyed(s, t, &key, &tree, Site::Pane, Look::of(Site::Pane), false, None);
-            col()
-                .key("mod-pane")
-                .w_full()
-                .grow(1.0)
-                .min_h(0.0)
-                .px(12.0)
-                .py(12.0)
-                .gap(12.0)
-                .child(drawn)
-                .scroll(rune::ScrollSpec { stick_bottom: false })
+        // A pane a mod opened: its tree, or waiting, nothing yet, or off.
+        Some(CanvasKind::Mod) if tabs.active().is_some_and(|c| c.mod_pane.is_some()) => {
+            super::mods::pane::pane(s, t, tabs.active().expect("checked"))
         }
         // A scene's tree.
         Some(CanvasKind::Mod) if s.mod_scene.is_some() => {
@@ -329,17 +314,6 @@ fn body(s: &State, t: &Theme) -> El {
         None => el(),
     };
     col().key("canvas-body").role("tabpanel").w_full().grow(1.0).min_h(0.0).child(inner)
-}
-
-/// The tree a pane's tab draws, with the key it is drawn under: what its mod last drew, checked for the Pane site.
-fn pane_tree(s: &State, canvas: &CanvasInstance) -> Option<(String, std::sync::Arc<serde_json::Value>)> {
-    let pane = canvas.mod_pane.as_ref()?;
-    let session = s.canvas_session();
-    let view = s.mod_panes.get(&session, &pane.mod_name, &pane.pane_id)?;
-    match s.mod_resolver.resolve(Some(&view), Site::Pane) {
-        Resolved::Draws { tree, .. } => Some((pane_key(&session, &pane.mod_name, &pane.pane_id), tree)),
-        Resolved::NothingDrawn => None,
-    }
 }
 
 /// What a tab that isn't built yet says, in the muted 13 px, centred; Fleet has no such state.

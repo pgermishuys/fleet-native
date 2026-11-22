@@ -203,10 +203,10 @@ a real Fleet. 1280×760, both themes. Fleet's client by Playwright, the native a
 
 | # | Element / behaviour | Source | Native |
 |---|---|---|---|
-| 8.1 | The body (testid `mod-pane`): padding 12, scrolls; draws the pane's tree at site `Pane`; actions go out as `desktop`; it draws its own mod's view only (another pane's redraw doesn't touch it) | MPC | None (stand-in) |
-| 8.2 | No view yet (a restored tab before the mod draws): compact empty state, `Puzzle`, "Waiting for {mod} to draw this pane"; a view with a null or invalid tree: "Nothing to show here yet" (testid `mod-pane-empty`) | MPC 58-64 | None |
-| 8.3 | Off: a declared pane is off when the server lists it `off`; an undeclared one is judged by the kept mods (loaded when the pane mounts if they aren't) | MO 9-13, MPC 31-35 | None |
-| 8.4 | The off state (testid `mod-pane-off`): centred, padding `56 24 24`, gap 8: "{mod} is off" (15 px 600), "This pane is drawn by the {mod} mod. Turn it on to see it here." (13 px muted, max 280), **Turn on** (small button, disabled while it works; testid `mod-pane-turn-on`): a draft's pane turns the draft on in its session, a kept mod's turns the mod on (the same switch as Settings); failure: "Couldn't turn {mod} on. Try again, or use Settings → Skills & tools → Mods." Once the server says on, the pane draws | MPO, MO 16-21 | None |
+| 8.1 | The body (testid `mod-pane`): padding 12, scrolls; draws the pane's tree at site `Pane`; actions go out as `desktop`; it draws its own mod's view only (another pane's redraw doesn't touch it) | MPC | Done (22G) |
+| 8.2 | No view yet (a restored tab before the mod draws): compact empty state, `Puzzle`, "Waiting for {mod} to draw this pane"; a view with a null or invalid tree: "Nothing to show here yet" (testid `mod-pane-empty`) | MPC 58-64 | Done (22G) |
+| 8.3 | Off: a declared pane is off when the server lists it `off`; an undeclared one is judged by the kept mods (loaded when the pane mounts if they aren't) | MO 9-13, MPC 31-35 | Done (22G) |
+| 8.4 | The off state (testid `mod-pane-off`): centred, padding `56 24 24`, gap 8: "{mod} is off" (15 px 600), "This pane is drawn by the {mod} mod. Turn it on to see it here." (13 px muted, max 280), **Turn on** (small button, disabled while it works; testid `mod-pane-turn-on`): a draft's pane turns the draft on in its session, a kept mod's turns the mod on (the same switch as Settings); failure: "Couldn't turn {mod} on. Try again, or use Settings → Skills & tools → Mods." Once the server says on, the pane draws | MPO, MO 16-21 | Done (22G) |
 
 ### 9. Draft cards (DCS, DC, MDM, ST, KA)
 
@@ -437,7 +437,7 @@ Open: the cap and the floor are shares of a measured width (Rune has no percenta
 #### F. Panes: the tab, the events, the `+` menu
 
 **Done** (22F): `src/fleet/mods/panes.rs` (open, update, close, `draw_mod_pane`, the events, a control's action), `CanvasInstance::mod_pane` and `open_mod_pane` / `update_mod_pane` in `src/fleet/canvases.rs`, `view::mods::draft_mark` (full and compact), `view::canvas_host` (the Draft mark on the tab, the strip's room, the "From mods" group, a pane's tree as the body), `src/mock/mod_trees.rs` (`PaneCase`), scenes `mods-pane-menu` and `mods-pane-tab` (and `-light`), `src/tests_mods_panes.rs`: all 9 of "mod panes", the 5 of `use-session-mod-panes`, the 5 of `CanvasHost.mods`, the two "From mods" cases of `CanvasHost.paneMenu` (and its "no group" case), and the newest-ask, no-mods and control cases (7.4) under their names. Pictures: `shots/parity/22-mods/F-menu-*` and `F-tab-*`, native beside Fleet's own client, both themes, live on a scratch Fleet (release-board kept, the invented `deploy-notes` draft); `F-scene-*` are the scenes.
-Open: a pane's body draws its tree with no waiting, empty or off state (G); a pane of a session that isn't open isn't redrawn by events (no topic for it); the `+` menu's mod name is not 1000× shrinkable.
+Open: a pane of a session that isn't open isn't redrawn by events (no topic for it); the `+` menu's mod name is not 1000× shrinkable.
 
 - **Rows:** 7.1-7.8.
 - **Files:** new `src/fleet/mods/panes.rs` (open, update, close against `Canvases`; the pane views; `draw_pane` with the
@@ -452,6 +452,10 @@ Open: a pane's body draws its tree with no waiting, empty or off state (G); a pa
 - **Pictures:** native beside `fleet-pane-menu-*` (live), both themes; the tab with its Draft mark.
 
 #### G. The pane's body
+
+**Done** (22G): `src/view/mods/pane.rs` (the body: tree, waiting, nothing yet, off with Turn on; replaces the stand-in in `view::canvas_host`), `is_mod_off`, `turn_mod_on`, the on-demand kept-mods read and the failed/busy state in `src/fleet/mods/panes.rs`, `src/mock/mod_trees.rs` (`PaneCase::Board`, `Waiting`, `Off`), scenes `mods-pane`, `mods-pane-waiting`, `mods-pane-off` (and `-light`), `src/tests_mods_pane_body.rs`: the 6 of `ModPaneCanvas.test.ts` and the 4 of `ModPaneCanvas.off.test.ts` under their names, plus a refused Turn on. Pictures: `shots/parity/22-mods/G-board-*`, `G-draft-*` and `G-off-*`, native beside Fleet's own client, both themes, live on a scratch Fleet (`G-board-fleet-*` and `G-draft-fleet-*` are F's `fleet-pane-board-*` and `fleet-pane-draft-*`; the off state is release-board turned off with `POST /api/mods/release-board/off`); `G-scene-pane*` are the scenes.
+Differences, on purpose: both calls go to the **session's machine**; Fleet's `turnModOn` sends a kept mod's switch to the home machine (`setOn(name, on, home.connection)`), so on another machine's session Turn on turns the wrong machine's mod on (a Fleet bug, not ported). A null tree draws the quiet "Nothing to show here yet" (as Fleet's `resolved.draws ? tree : null`). A failed read of the kept mods leaves the pane judging its mod as on, and asks again the next time it is shown.
+Not made live: the waiting state (a restored tab before its mod draws) can't be made on a scratch Fleet; shown from the scene.
 
 - **Rows:** 8.1-8.4.
 - **Files:** new `src/view/mods/pane.rs` (the body: tree, waiting, nothing yet, off with Turn on), replacing the Mod

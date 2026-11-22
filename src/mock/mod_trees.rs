@@ -1,6 +1,7 @@
 //! Invented trees for the mod views' scenes and tests (component 22). Nothing here is from a real mod or machine.
 use crate::State;
 use crate::fleet::canvases::{CanvasInstance, CanvasKind};
+use crate::fleet::mods::points::ModPaneView;
 use crate::fleet::mods::types::Site;
 use serde_json::Value;
 
@@ -76,6 +77,28 @@ pub enum PaneCase {
     Menu,
     /// The draft's pane open: its tab carries the compact Draft mark, beside the kept mod's open one.
     Tab,
+    /// Piece G: the kept `release-board`'s pane open, drawing its tree (the board of the sample).
+    Board,
+    /// A pane restored after a reload, before its mod has drawn it.
+    Waiting,
+    /// `release-board` turned off: its pane says so and offers Turn on.
+    Off,
+}
+
+/// What `release-board`'s own pane draws (the sample's tree, with its invented items).
+pub fn release_board() -> Value {
+    let pill = |tone: &str, label: &str, title: &str| {
+        serde_json::json!({ "type": "Box", "props": { "flexDirection": "row", "gap": 2, "alignItems": "center" }, "children": [
+            { "type": "Pill", "props": { "tone": tone, "label": label } },
+            { "type": "Text", "props": {}, "children": [title] } ] })
+    };
+    serde_json::json!({ "type": "Box", "props": { "flexDirection": "column", "gap": 3 }, "children": [
+        { "type": "Text", "props": { "bold": true }, "children": ["Release 2.4"] },
+        pill("good", "Done", "Cut the release branch"),
+        pill("warn", "Running", "Smoke test on staging"),
+        pill("neutral", "To do", "Write the release notes"),
+        { "type": "Box", "props": { "flexDirection": "row" }, "children": [
+            { "type": "Button", "props": { "key": "close", "label": "Close" }, "handles": { "onPress": "h1" } } ] } ] })
 }
 
 impl State {
@@ -95,7 +118,7 @@ impl State {
             title: title.into(),
             icon: Some(icon.into()),
             draft,
-            off: false,
+            off: matches!(case, PaneCase::Off) && m == "release-board",
         };
         self.mod_renders.set_declared_panes(
             &session,
@@ -104,7 +127,40 @@ impl State {
                 pane("deploy-notes", "notes", "Deploy notes", "file", true),
             ],
         );
+        let open_board = |s: &mut State| {
+            s.sidebar_open = false;
+            s.right.widened = true;
+        };
         match case {
+            PaneCase::Board => {
+                open_board(self);
+                self.open_mod_pane(ModPaneView {
+                    session_id: session.clone(),
+                    pane_id: "board".into(),
+                    title: "Release board".into(),
+                    mod_id: "release-board".into(),
+                    view: ModTreeView::new(release_board(), vec![Author { name: "release-board".into(), draft: false }]),
+                });
+            }
+            PaneCase::Waiting => {
+                open_board(self);
+                // The tab is there and its mod hasn't drawn it: no view.
+                self.canvases.open_mod_pane(
+                    &session,
+                    crate::fleet::canvases::ModPaneRef { mod_name: "release-board".into(), pane_id: "board".into() },
+                    "Release board",
+                );
+            }
+            PaneCase::Off => {
+                open_board(self);
+                self.open_mod_pane(ModPaneView {
+                    session_id: session.clone(),
+                    pane_id: "board".into(),
+                    title: "Release board".into(),
+                    mod_id: "release-board".into(),
+                    view: ModTreeView::new(release_board(), vec![Author { name: "release-board".into(), draft: false }]),
+                });
+            }
             PaneCase::Menu => self.ui.open = Some(crate::ui::Open::Menu("canvas")),
             PaneCase::Tab => {
                 self.sidebar_open = false;
