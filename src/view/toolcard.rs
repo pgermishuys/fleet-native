@@ -13,6 +13,7 @@ use crate::icons::*;
 use crate::theme::{Theme, mono, sans};
 use rune::color::{srgb_decode, srgb_encode};
 use rune::{Color, Cursor, El, ScrollSpec, Span, Tx, col, el, icon, rich, row, text};
+use serde_json::Value;
 use std::rc::Rc;
 
 /// A write shows this many lines of its diff until asked for the rest (`DIFF_PREVIEW_LINES`).
@@ -229,10 +230,22 @@ pub fn preview(t: &Theme, id: &str, line: &str) -> El {
         .pb(6.0)
 }
 
-/// `.tool-body`: summary, output, or the empty state.
-pub fn body(t: &Theme, s: &State, id: &str, tool: &str, b: &ToolBody) -> El {
+/// `.tool-body`: summary, output, or the empty state. A mod's `ToolResult` tree (`mod_body`: the call's id and the checked tree) replaces
+/// them: a `Fleet` node draws them in place, and a `null` tree leaves the body empty (not "No output captured").
+pub fn body(t: &Theme, s: &State, id: &str, tool: &str, b: &ToolBody, mod_body: Option<(&str, &Value)>) -> El {
+    let inner = col().key(format!("tool-{id}-body")).w_full().pl(31.0).pr(8.0).pt(2.0).pb(8.0);
+    match mod_body {
+        Some((call, tree)) => {
+            let own = fleet_body(t, s, id, tool, b, col().w_full());
+            inner.child(super::mods::row::body_tree(s, t, call, tree, own))
+        }
+        None => fleet_body(t, s, id, tool, b, inner),
+    }
+}
+
+/// Fleet's own body, added to `inner`.
+fn fleet_body(t: &Theme, s: &State, id: &str, tool: &str, b: &ToolBody, mut inner: El) -> El {
     let diff = shows_diff(tool, b, s.inline_diffs);
-    let mut inner = col().key(format!("tool-{id}-body")).w_full().pl(31.0).pr(8.0).pt(2.0).pb(8.0);
     if !b.summary.is_empty() {
         inner = inner
             .child(text(b.summary.clone()).key(format!("tool-{id}-summary")).font(sans(12.0, 400.0, 1.6)).color(t.muted).wrap().mb(8.0));

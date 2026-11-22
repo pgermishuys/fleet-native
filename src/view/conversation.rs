@@ -339,6 +339,7 @@ pub fn stream(t: &Theme, which: Which, session: &Session, plan: &FoldPlan, parti
                             browser_steps::key(s, &msg.parts),
                             question::key(s, msg),
                             improvable(s, msg),
+                            super::mods::row::key(s, msg),
                         ),
                         (s.is_shown(&msg.id), s.find_row_key(&msg.id)),
                     ),

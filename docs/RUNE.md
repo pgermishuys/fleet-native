@@ -2764,3 +2764,16 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 - **A wait after the last key needs the clock, and a handler has none.** An edit arms a timer; `keep_*` (called from `poll` with `now`) turns "armed" into a deadline and asks `tx.wake_after` for the frame. The wait therefore starts at the next poll, so a test draws a frame, then the delay.
 - **`Runtime::update` returns nothing**: read a value out of the state with `rt.state.…` (a `&mut self` method such as `take_saved()` works there too).
 - **A test fake that must answer from the request** (a check echoing its text) is easier as a small handler table than as fixed routes; one that must be slow waits in its handler on an `AtomicBool` with no lock held.
+
+## Component 22, piece E (tool rows: drawing the trees)
+
+- **`max-width: 60%` and `min-width: min(30%, 12ch)` are a measured width.** Rune has no percentage size, so the header row measures itself (`on_layout`) into one
+  number in `State` and the slot's `max_w` and the title's `min_w` are shares of it (less the header's padding). It arrives a frame late and is the width of the
+  last row that measured, so a row built before any has measured is uncapped for a frame. Rows in a column are all as wide as each other, which is why one number does.
+- **A press on an element with its own `on_press` stops there**, even where the press lands on text under it that has no handler: that is `@click.stop` for a mod's
+  slot (an empty `on_press(|_| {})` on the slot), and a control inside it, being the innermost, takes its own press first.
+- **A reused row (`memo`) has to be told what a view changed.** A row's memo key is a tuple of things the row reads; a store that changes how a row draws without
+  changing its message (a view arriving from a thread) adds a number to that key. A pointer is not one (a freed view's address comes back): `Views::stamp` is the
+  contribution's own counter. A message none of whose rows has a view hashes to 0, so another row's view never moves it.
+- **One `ModControls` can't hold one sink per site.** A tool row's controls all go through one `send`; the sink is a closure with no `State`, so a row's action is queued
+  (`pending`) and the frame finds the row by the handle in the views' trees before it posts (the session's machine matters). A pane (piece F) routes its own the same way.

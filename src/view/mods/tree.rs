@@ -171,10 +171,13 @@ struct Ctx<'a> {
 /// `ModTree`: the tree drawn for `site`, or `fleet` (the site's own drawing, if it has one) when the tree breaks the contract.
 /// A `null` tree draws nothing. Every element is keyed `<key>.<path>`, so a test and a press can name one.
 pub fn tree(s: &State, t: &Theme, tree: &Value, site: Site, fleet: Option<El>) -> El {
-    tree_keyed(s, t, "mod-tree", tree, site, Look::of(site), fleet)
+    tree_keyed(s, t, "mod-tree", tree, site, Look::of(site), false, fleet)
 }
 
-pub fn tree_keyed(s: &State, t: &Theme, key: &str, tree: &Value, site: Site, look: Look, fleet: Option<El>) -> El {
+/// `wrap`: the root itself wraps (a tool row's line, where `.tool-header__mod :deep(.mod-tree)` says so), so its items run onto
+/// another line when the slot is full.
+#[allow(clippy::too_many_arguments)]
+pub fn tree_keyed(s: &State, t: &Theme, key: &str, tree: &Value, site: Site, look: Look, wrap: bool, fleet: Option<El>) -> El {
     let inline = site.inline();
     // `inline-flex` at an inline site: as wide as what it holds. Elsewhere a block: a Box fills it, a lone Pill, Icon or Button is
     // as wide as it is (`inline-flex` in a block).
@@ -187,6 +190,7 @@ pub fn tree_keyed(s: &State, t: &Theme, key: &str, tree: &Value, site: Site, loo
         col().items_stretch().w_full()
     };
     let root = root.key(key.to_string()).min_w(0.0);
+    let root = if wrap { root.flex_wrap() } else { root };
     match to_draw(tree, site) {
         Draw::Fleet(_) => match fleet {
             Some(own) => root.child(own),

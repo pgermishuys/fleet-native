@@ -13,5 +13,6 @@ pub mod points;
 pub mod renders;
 pub mod renders_state;
 pub mod resolve;
+pub mod rows;
 pub mod types;
 pub mod validate;
