@@ -13,10 +13,10 @@ use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
 #[derive(Clone, Debug)]
-struct Heard {
-    method: String,
-    path: String,
-    body: Value,
+pub(crate) struct Heard {
+    pub(crate) method: String,
+    pub(crate) path: String,
+    pub(crate) body: Value,
 }
 
 type Routes = Arc<Mutex<HashMap<(String, String), (u16, String)>>>;
@@ -83,12 +83,12 @@ impl Fleet {
         move || heard.lock().unwrap().iter().filter(|h| h.method == method && h.path == path).count()
     }
 
-    fn last(&self, method: &str) -> Heard {
+    pub(crate) fn last(&self, method: &str) -> Heard {
         self.heard.lock().unwrap().iter().rev().find(|h| h.method == method).cloned().expect("a request")
     }
 
     /// Every request about jobs; the connected app asks the fake other things too.
-    fn jobs_total(&self) -> usize {
+    pub(crate) fn jobs_total(&self) -> usize {
         self.heard.lock().unwrap().iter().filter(|h| h.path.starts_with("/api/jobs")).count()
     }
 }

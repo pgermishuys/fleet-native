@@ -281,6 +281,9 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
     if let Some(new) = crate::view::new_project::view(s, t) {
         layer.extend(new);
     }
+    if let Some(new) = crate::view::jobs::new_job::view(s, t) {
+        layer.extend(new);
+    }
     for overlay in s.places.overlays(&s.pickers.prefs) {
         layer.extend(overlay(s, t));
     }

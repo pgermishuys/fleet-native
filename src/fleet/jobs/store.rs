@@ -53,6 +53,14 @@ pub struct Jobs {
     pub save: Op,
     pub saving: Option<String>,
     pub repositories: Repositories,
+    /// New job's dialog, while it is open (piece H).
+    pub new: Option<super::new_job::NewJobForm>,
+    /// Each job machine's seat and label fields on its card in Settings → Machines, by machine id.
+    pub seat_fields: std::collections::HashMap<String, super::new_job::SeatFields>,
+    /// The seat field last seen focused: leaving it saves it.
+    pub seat_focus: Option<(String, super::new_job::SeatField)>,
+    /// Settings → Machines has been shown since the last time it wasn't (the queue is read once per visit).
+    pub seats_visit: bool,
     /// Counts the reads of the queue sent, for a test.
     pub asked: u32,
     watchers: HashSet<u64>,
@@ -124,7 +132,7 @@ fn send(base: &str, method: &str, path: &str, body: Option<&Value>, fallback: &s
 
 impl State {
     /// The home Fleet's address: where every jobs request goes. None with no server (scenes, tests with no fake).
-    fn jobs_base(&self) -> Option<String> {
+    pub(super) fn jobs_base(&self) -> Option<String> {
         self.link.as_ref().map(|l| l.base.clone())
     }
 
@@ -135,6 +143,10 @@ impl State {
 
     /// Watches while the Jobs page is shown, reads when the timer falls due. True when something changed.
     pub(crate) fn keep_jobs(&mut self, now: f64, tx: &mut Tx) -> bool {
+        self.keep_jobs_queue(now, tx) | self.keep_job_seats(tx)
+    }
+
+    fn keep_jobs_queue(&mut self, now: f64, tx: &mut Tx) -> bool {
         let shown = self.jobs_page_shown();
         match (shown, self.jobs.page) {
             (true, None) => self.jobs.page = Some(self.jobs.watch()),
@@ -158,7 +170,7 @@ impl State {
     }
 
     /// `load`, off the UI thread.
-    fn jobs_load(&mut self, base: &str) {
+    pub(super) fn jobs_load(&mut self, base: &str) {
         let (Some(post), read) = (self.link.as_ref().map(|l| l.post()), self.jobs.next_read()) else { return };
         let base = base.to_string();
         std::thread::spawn(move || {
@@ -180,6 +192,7 @@ impl State {
                 if let Some(got) = loaded {
                     s.jobs.took(read, got);
                 }
+                s.new_job_posted();
             });
         });
     }
@@ -259,6 +272,7 @@ impl State {
                     Ok(list) => s.jobs.repositories.list = Some(list),
                     Err(words) => s.jobs.repositories.error = Some(words),
                 }
+                s.new_job_repositories_arrived();
             });
         });
     }

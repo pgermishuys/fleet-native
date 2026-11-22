@@ -1,13 +1,14 @@
 //! Jobs (component 23): `[jobs-list][jobs-detail]`. Ports `components/pages/JobsPage.vue` (the off notice or the screen) and
-//! the context's layout. `list` is `JobsNavPanel`, `page` is `JobsScreen`, `detail` is `JobDetail`; the Agents tab and New job
-//! come with piece H.
+//! the context's layout. `list` is `JobsNavPanel`, `page` is `JobsScreen`, `detail` is `JobDetail`; `agents` is `JobsAgents` and `new_job` is `NewJobDialog`.
 use crate::State;
 use crate::fleet::labs::Feature;
 use crate::theme::Theme;
 use crate::view::labs_frame;
 
+pub mod agents;
 pub mod detail;
 pub mod list;
+pub mod new_job;
 pub mod page;
 
 pub fn page(s: &State, t: &Theme) -> Vec<rune::El> {

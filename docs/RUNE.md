@@ -2753,6 +2753,13 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 - **Rune has no grid:** a two-column `dl` whose first column is `auto` takes the width of its widest name; when that name is always there ("Repository"), a fixed width equals it.
 - **A text element's key belongs on the text to read it in a test** (`e.text`); a keyed row around it has no text of its own.
 
+## Component 23, piece H (the Agents tab, New job, the seats in Settings)
+
+- **An element has no change or blur event.** A browser input's `@change` (Fleet's seat and label fields save on it) is Enter here, plus the focus moving away: `keep_job_seats` runs in `poll`, remembers which field `tx.focused()` last named and saves it when the focus is somewhere else. A poll-driven refill of the field from the server must skip the field being typed in.
+- **Rune gives a view no window width**, so a Tailwind `lg:grid-cols-2` can't be switched on; two columns are rows of two `grow(1).w(0.0).min_w(0.0)` cards (without `min_w(0.0)` a card with a long wrapped line won't shrink to its half). `items_stretch` on the row makes the cards of a row equal in height, as a grid does.
+- **A select in a dialog**: `ui::select::trigger` + `content_in` with a `close` that only clears the form's own `picking` keeps the dialog open when a list is picked from or dismissed (Escape closes the list first, then the dialog).
+- **`ErrorNote` needs a text key on its words to read in a test** (`<key>-text`, from `error_note::message`).
+
 ## Component 25, piece A (the server inside)
 
 - Nothing in Rune was needed. Two things about this machine's builds: `cargo test` of the whole crate is OOM-killed (silent exit 143) at `MemoryMax=4000M`; it finished at 7000M. A non-test `cargo build` of the app and an example fits in 4000M.
