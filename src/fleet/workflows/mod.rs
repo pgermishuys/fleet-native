@@ -5,6 +5,7 @@ use crate::composer::choice;
 use serde_json::Value;
 use std::collections::BTreeMap;
 
+pub mod canvas;
 pub mod card;
 pub mod create;
 pub mod detail;

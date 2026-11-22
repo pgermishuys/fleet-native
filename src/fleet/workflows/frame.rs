@@ -139,6 +139,8 @@ impl State {
             return true;
         }
         let mut changed = self.follow_workflow_into_editor();
+        let steps = self.workflows_nav.editor.draft.as_ref().map_or(0, |d| d.steps.len());
+        self.workflows_nav.editor.canvas.keep(steps);
         let ed = &self.workflows_nav.editor;
         let unsaved = ed.file.as_ref().filter(|_| ed.is_dirty()).map(|f| f.workflow_id.clone());
         if self.workflows_nav.unsaved != unsaved {

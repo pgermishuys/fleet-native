@@ -409,6 +409,8 @@ mod tests_web_host;
 #[cfg(test)]
 mod tests_window;
 #[cfg(test)]
+mod tests_workflow_canvas;
+#[cfg(test)]
 mod tests_workflow_card;
 #[cfg(test)]
 mod tests_workflow_create;
@@ -2823,6 +2825,14 @@ pub fn spec() -> AppSpec<State> {
             ("workflow-file-light", |s| s.show_workflow_editor(false, mock::workflow_editor::Case::File)),
             ("workflow-file-errors", |s| s.show_workflow_editor(true, mock::workflow_editor::Case::FileErrors)),
             ("workflow-file-errors-light", |s| s.show_workflow_editor(false, mock::workflow_editor::Case::FileErrors)),
+            ("workflow-canvas", |s| s.show_workflow_canvas(true, mock::workflow_canvas::Case::Picked)),
+            ("workflow-canvas-light", |s| s.show_workflow_canvas(false, mock::workflow_canvas::Case::Picked)),
+            ("workflow-canvas-loops", |s| s.show_workflow_canvas(true, mock::workflow_canvas::Case::Loops)),
+            ("workflow-canvas-loops-light", |s| s.show_workflow_canvas(false, mock::workflow_canvas::Case::Loops)),
+            ("workflow-canvas-add", |s| s.show_workflow_canvas(true, mock::workflow_canvas::Case::Add)),
+            ("workflow-canvas-add-light", |s| s.show_workflow_canvas(false, mock::workflow_canvas::Case::Add)),
+            ("workflow-canvas-error", |s| s.show_workflow_canvas(true, mock::workflow_canvas::Case::Error)),
+            ("workflow-canvas-error-light", |s| s.show_workflow_canvas(false, mock::workflow_canvas::Case::Error)),
             ("workflow-stepper", |s| s.show_workflow_stepper(true, mock::workflow_stepper::Case::Stepper)),
             ("workflow-stepper-light", |s| s.show_workflow_stepper(false, mock::workflow_stepper::Case::Stepper)),
             ("workflow-stepper-note", |s| s.show_workflow_stepper(true, mock::workflow_stepper::Case::Note)),

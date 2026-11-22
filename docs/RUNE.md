@@ -2841,3 +2841,12 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 - **The scripted theme toggle flips the saved theme on every start**: with `FLEET_NATIVE_DATA_DIR` kept between runs, only the first run of a theme may carry the Cmd+Shift+L key, or the next run comes out the other theme.
 - **A script's `type` is slow (`every`, 0.03 s a letter by default)**: a later `tap` placed too soon cuts the typing short, so a picture of a submitted name needs the tap after the last letter.
 - **Rune has no select-all on focus** for a `TextEdit` (a browser input selects its text when autofocused, which Fleet's Duplicate name does); the caret sits at the end.
+## Component 18, piece O (the canvas and its loop arcs)
+
+- **Loop arcs are a flattened path with the dashes made by hand.** `Path::quad_to` gives the corners; the code samples each curve at 8 points, walks the polyline by length (4 on, 3 off) and strokes every dash as its own `LineCap::Butt` stroke, so a dash goes round a corner unbroken. The arrow head (SVG `marker-end`) is a filled triangle placed from the end point.
+- **Arcs are drawn from the nodes' measured places**: every node and the flow report `on_layout`, and the view subtracts the flow's origin. The rects are in window points, so a scroll moves all of them together and the difference holds; the first frame has no places and draws no arc.
+- **A label turned -90 degrees about a point**: an absolute box of a fixed size centred on the point, `rotate(-FRAC_PI_2)` about its centre, with the pill centred inside. Rune has no `translate(-50%, -50%)` for a box of unknown size.
+- **A pattern background (CSS `radial-gradient` tiled) has no equivalent**: the dots are one `Shape` of small squares on the viewport element, which stays still while its scroll child moves. About 2,700 fills at 1280x760.
+- **A box-shadow ring is `outline(3.0, 0.0, colour)`** (Fleet's `0 0 0 3px`).
+- **A menu that must sit over the next sibling is an overlay**: a child of the connector would be drawn under the node after it. `anchored(..)` with `.modal(true, close)` gives Escape and click-outside.
+- **`on_layout` fires only when the element moves**, so measured places kept in `State` must not be cleared while the same elements stay on screen (opening another file with the same layout): the arcs would vanish for good. `Canvas::reopen` clears the picks and keeps the places.
