@@ -462,6 +462,7 @@ then the walks (AE to AI), then the report.
   stale "can't" lines, each read against the pin's README and source), `docs/PORT.md` (tracks v0.74.0; 26's row).
 - **Depends on:** nothing.
 - **Pictures:** the app still draws the same: `session` and `home` pairs from this file's folder retaken.
+- **Done (22 November 2026):** the Part 7 rows for 06, 10, 12, 16, 17, 18, 22, 24 (and a few in 03) are closed in their checklists; `docs/RUNE.md`'s reduced-motion, password-field, dashed-border and spinner lines are marked out of date (the live-region lines are in 06); `docs/PORT.md` tracks v0.74.0. Left open on purpose: 06's 3.98 (18 S), 12.22 (wiring the secure field), 22's loader wiring, 03's 1.81, 1.91, 6.4 (not confirmed in code).
 
 ### B. Catch-up: colours and words
 
