@@ -249,7 +249,7 @@ fn item(s: &State, t: &Theme, i: usize, r: Row) -> El {
         .child(icon(glyph, rem(1.0)).color(soft))
         .child(text(label).font(sans(rem(0.875), 400.0, 1.43)).color(ink).grow(1.0));
     if !desc.is_empty() {
-        e = e.child(text(desc).font(sans(rem(0.75), 400.0, 1.3)).color(soft).truncate().shrink().mr(rem(0.5)));
+        e = e.child(text(desc).font(sans(rem(0.75), 400.0, 1.3)).color(soft).wrap().shrink().mr(rem(0.5)));
     }
     e = match tail {
         Tail::Level => e.child(text("›").font(sans(rem(0.75), 400.0, 1.3)).color(soft)),

@@ -251,6 +251,8 @@ mod tests_pages;
 #[cfg(test)]
 mod tests_pages_native;
 #[cfg(test)]
+mod tests_palette_last_five;
+#[cfg(test)]
 mod tests_panel;
 #[cfg(test)]
 mod tests_pr_popover;
@@ -716,6 +718,9 @@ pub struct State {
     /// The "inline tool diffs" setting (`inlineToolDiffs`, off by default): other edit rows show their diff too. Settings
     /// and the palette own the switch; until they are built only a scene turns it on.
     pub inline_diffs: bool,
+    /// The page zoom the zoom commands set (`zoomDocument`): a percent, 70 to 150, on top of Appearance's font size. Fleet
+    /// keeps it only until the page is reloaded, so this is not saved either.
+    pub zoom_pct: f32,
     /// How thinking is drawn (`weave:thinking`), and the reasoning blocks, compaction summaries and shell commands the user
     /// opened, by part id. Settings owns the choice; until it is built only a scene changes it.
     pub thinking: conv::gist::Thinking,
@@ -1049,6 +1054,7 @@ impl Default for State {
             diff_open: Default::default(),
             diff_all: Default::default(),
             inline_diffs: false,
+            zoom_pct: 100.0,
             thinking: Default::default(),
             turns_open: Default::default(),
             watched: Default::default(),
@@ -2102,6 +2108,10 @@ fn on_key(s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool {
     } else if ev.is_command('f') && ev.mods.shift && !ev.mods.alt {
         // Find in files: the palette's command, from anywhere, the composer too (`allowInEditable`).
         ui::commands::run(s, tx, "find-in-files");
+    } else if ev.is_command('=') || ev.is_command('+') {
+        s.zoom_by(10.0);
+    } else if ev.is_command('-') {
+        s.zoom_by(-10.0);
     } else if ev.is_command('p') && !ev.mods.shift && !ev.mods.alt {
         // Go to file, from anywhere, the composer too (`allowInEditable`); with no session open it does nothing.
         ui::commands::run(s, tx, "go-to-file");
@@ -4505,6 +4515,32 @@ pub fn spec() -> AppSpec<State> {
             ("row-menu-open-in-empty-light", |s| s.show_row_menu(fleet::row_menu::Scene::OpenInEmpty, false)),
             ("row-menu-submenu", |s| s.show_row_menu(fleet::row_menu::Scene::Submenu, true)),
             ("row-menu-submenu-light", |s| s.show_row_menu(fleet::row_menu::Scene::Submenu, false)),
+            ("palette-zoom-in", |s| s.zoom_by(30.0)),
+            ("palette-zoom-in-light", |s| {
+                s.dark = Some(false);
+                s.zoom_by(30.0);
+            }),
+            ("palette-zoom-out", |s| s.zoom_by(-30.0)),
+            ("palette-zoom-out-light", |s| {
+                s.dark = Some(false);
+                s.zoom_by(-30.0);
+            }),
+            ("palette-long-description", |s| {
+                s.ui.open = Some(ui::Open::Palette);
+                s.ui.palette.query = rune::TextEdit::new("mods");
+                s.mod_sites.switch = Some(fleet::settings::mods_kept::Switch { on: true, safe_mode: false });
+            }),
+            ("palette-long-description-light", |s| {
+                s.dark = Some(false);
+                s.ui.open = Some(ui::Open::Palette);
+                s.ui.palette.query = rune::TextEdit::new("mods");
+                s.mod_sites.switch = Some(fleet::settings::mods_kept::Switch { on: true, safe_mode: false });
+            }),
+            ("palette-show-all", |s| s.show_all_sessions_scene()),
+            ("palette-show-all-light", |s| {
+                s.dark = Some(false);
+                s.show_all_sessions_scene();
+            }),
             ("archived-view", |s| s.show_archived_scene()),
             ("archived-view-light", |s| {
                 s.dark = Some(false);

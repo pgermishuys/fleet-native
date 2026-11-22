@@ -175,7 +175,7 @@ pub fn root(s: &State, cx: &mut Cx<State>) -> El {
     let t = s.with_code_theme(Theme::of(s.dark.unwrap_or_else(|| cx.system_dark())));
     s.drawn_dark.set(t.dark);
     // Font size (Appearance): Fleet sets the root size, 13 to 16 px against 14; the window scales as a page zoom does.
-    cx.zoom(s.sidebar.appearance().font_size.px() / 14.0);
+    cx.zoom(s.sidebar.appearance().font_size.px() / 14.0 * s.zoom_pct / 100.0);
     cx.help_look(crate::ui::help_look(&t));
     // The splash and the error page are pages of their own too, while the app starts its Fleet.
     if let Some(page) = start_page::page(s, &t) {

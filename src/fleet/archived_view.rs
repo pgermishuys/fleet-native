@@ -33,3 +33,30 @@ impl State {
         self.store.retention = Retention::Archived;
     }
 }
+
+impl State {
+    /// `toggleActivityFilter` (palette "Show all sessions"): the active list becomes the whole list, anything else goes back
+    /// to active only.
+    pub fn toggle_activity_filter(&mut self) {
+        let next = if self.store.retention == Retention::Active { Retention::All } else { Retention::Active };
+        self.pick_retention(next);
+    }
+
+    /// `toggleInlineToolDiffs`.
+    pub fn toggle_inline_diffs(&mut self) {
+        self.inline_diffs = !self.inline_diffs;
+    }
+
+    /// `zoomDocument`: a step of 10 percent, kept between 70 and 150.
+    pub fn zoom_by(&mut self, delta: f32) {
+        self.zoom_pct = (self.zoom_pct + delta).clamp(70.0, 150.0);
+    }
+}
+
+impl State {
+    /// A scene: "Show all sessions" on, with the same three archived sessions among the active ones.
+    pub fn show_all_sessions_scene(&mut self) {
+        self.show_archived_scene();
+        self.store.retention = Retention::All;
+    }
+}

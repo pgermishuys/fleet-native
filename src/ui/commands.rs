@@ -87,6 +87,7 @@ fn now(f: impl Fn(&mut State, &mut Tx) + 'static) -> Run {
 pub fn all(s: &State) -> Vec<Command> {
     use Category::*;
     let open = s.has_session();
+    let all_shown = s.store.retention == crate::fleet::store::Retention::All;
     let mut list = vec![
         c(
             "nav-fleet",
@@ -155,8 +156,8 @@ pub fn all(s: &State) -> Vec<Command> {
             &REFRESH_CW,
             Session,
             None,
-            &["reload"],
-            Run::Waiting(2),
+            &["reload", "sync", "refresh"],
+            now(|s, _| s.retry_list()),
         ),
     ];
     let file = |id: &str, label: &str, d: &str, icon: &'static Icon, keys: &str| {
@@ -347,15 +348,24 @@ pub fn all(s: &State) -> Vec<Command> {
         },
         c(
             "toggle-diff-view",
-            "Show inline tool diffs",
-            "Show edits as diffs in the conversation.",
+            if s.inline_diffs { "Hide inline tool diffs" } else { "Show inline tool diffs" },
+            if s.inline_diffs { "Collapse inline diff rendering in tool cards." } else { "Show inline diff rendering in tool cards." },
             &SQUARE_DASHED_BOTTOM,
             View,
             Some(md("D")),
-            &[],
-            Run::Waiting(3),
+            &["diff", "patch", "changes", "inline"],
+            now(|s, _| s.toggle_inline_diffs()),
         ),
-        c("toggle-activity-filter", "Show all sessions", "List archived sessions too.", &ARCHIVE, View, None, &[], Run::Waiting(6)),
+        c(
+            "toggle-activity-filter",
+            if all_shown { "Show active sessions" } else { "Show all sessions" },
+            if all_shown { "Toggle the sessions filter back to active only." } else { "Toggle the sessions filter from active to all." },
+            &ARCHIVE,
+            View,
+            None,
+            &["filter", "activity", "sessions", "retention"],
+            now(|s, _| s.toggle_activity_filter()),
+        ),
         c(
             "cycle-theme",
             "Cycle theme",
@@ -394,8 +404,17 @@ pub fn all(s: &State) -> Vec<Command> {
             &[],
             now(|s, tx| s.menu_run(Item::ToggleFullScreen, tx)),
         ),
-        c("zoom-in", "Zoom in", "Increase the interface scale.", &ZOOM_IN, View, Some(md("=")), &["larger"], Run::Waiting(9)),
-        c("zoom-out", "Zoom out", "Decrease the interface scale.", &ZOOM_OUT, View, Some(md("-")), &["smaller"], Run::Waiting(9)),
+        c("zoom-in", "Zoom in", "Increase the interface scale.", &ZOOM_IN, View, Some(md("=")), &["larger"], now(|s, _| s.zoom_by(10.0))),
+        c(
+            "zoom-out",
+            "Zoom out",
+            "Decrease the interface scale.",
+            &ZOOM_OUT,
+            View,
+            Some(md("-")),
+            &["smaller"],
+            now(|s, _| s.zoom_by(-10.0)),
+        ),
         c(
             "open-marketplace-panel",
             "Open plugins",
