@@ -2940,3 +2940,7 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
   whole window scales, as the font size already did.
 - A `text(..)` with `.shrink()` and no `.truncate()` does not wrap on its own in a row; add `.wrap()` (the palette's
   descriptions).
+
+## Component 26, piece F (Machines: the list)
+
+- Nothing new about Rune: the reach line is a `text` under the state line, coloured by its tone. Build note: even `CARGO_BUILD_JOBS=1` can pass 5000 MB while compiling the test build of this crate (peak 4.8 GB, killed at 5000M twice, exit 143 or 137); 5600M finished.

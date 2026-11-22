@@ -109,6 +109,8 @@ pub struct Page {
     pub copied: Option<(String, f64)>,
     /// The page was opened once, so the access is read once per visit.
     pub opened: bool,
+    /// The machine whose own page is open (Manage); piece G draws the page.
+    pub managing: Option<String>,
     /// The address lists' own state (`MachineAddressList.vue`).
     pub addresses: super::machine_addresses::Lists,
 }
@@ -175,10 +177,17 @@ impl State {
             return false;
         }
         self.machine_page.access = AccessState::Loading;
+        // The reach line on home's card needs who the desktop app lets reach it.
+        self.read_reach();
         if let Some(link) = self.link.clone() {
             link.off_thread(read_access, |s, _, access| s.machine_page.access = access);
         }
         true
+    }
+
+    /// Manage (`page.open`): the section gives way to the machine's own page. Piece G draws it.
+    pub fn manage_machine(&mut self, key: &str) {
+        self.machine_page.managing = Some(key.to_string());
     }
 
     // ---- rename -----------------------------------------------------------------------------------------------------------
@@ -354,11 +363,28 @@ impl State {
     /// The Forget button (`forget`): asks first. Its sessions stay on the machine; this app just stops listing them.
     pub fn ask_forget_machine(&mut self, key: &str, tx: &mut Tx) {
         let Some(name) = self.card_name(key).filter(|_| key != HOME_MACHINE_KEY) else { return };
+        // An SSH machine is only this device's own entry; any other is forgotten by every machine in the Fleet (#1087).
+        let ssh = self.machines.machine(key).is_some_and(|m| m.ssh_destination.is_some());
+        let (title, body, confirm_label) = if ssh {
+            (
+                format!("Forget {name}?"),
+                format!("Its sessions stay on {name}; this device just stops listing them."),
+                "Forget machine".to_string(),
+            )
+        } else {
+            (
+                format!("Forget {name} on every machine in your Fleet?"),
+                format!(
+                    "Every machine drops it from its list and its keys stop working, even on machines that are off now: they hear when they're back. Its sessions stay on {name}. To use it again, add it again with its pairing code."
+                ),
+                format!("Forget {name}"),
+            )
+        };
         let confirm = Confirm {
-            title: format!("Forget {name}?"),
+            title,
             subject: name.clone(),
-            body: format!("Its sessions stay on {name}; this device just stops listing them."),
-            confirm_label: "Forget machine".into(),
+            body,
+            confirm_label,
             busy_label: "Forgetting…".into(),
             error_message: "Couldn't forget the machine.".into(),
             destructive: true,

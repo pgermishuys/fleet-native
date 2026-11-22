@@ -3,6 +3,7 @@
 //! draws it, so every word is testable without a window.
 use super::machine::{Address, AddressResult, Kind, kind_of};
 use super::machine_diagnosis::Diagnosis;
+use super::machines::reach::{ReachLine, ReachLineInput};
 use super::machines::{AgentWork, Capabilities, Entry, Machines, Source};
 use crate::State;
 
@@ -38,6 +39,8 @@ pub struct Card {
     pub route: Option<Route>,
     /// Where the machine can be reached, in the order Fleet tries them (`addressesOf`); none for home or an SSH machine.
     pub addresses: Vec<AddressRow>,
+    /// How a phone reaches it (`reachOf`); set by `State::machine_cards`, which knows home's access and reach.
+    pub reach: Option<ReachLine>,
 }
 
 /// `routeLine`: how this app is connected, from the kind of the address in use.
@@ -194,6 +197,7 @@ impl Machines {
                     diagnosis: why,
                     route,
                     addresses,
+                    reach: None,
                 }
             })
             .collect()
@@ -201,10 +205,35 @@ impl Machines {
 }
 
 impl State {
+    /// `reachOf` (`use-machine-lines.ts`): home's addresses come from its access, another machine's from its own list.
+    fn reach_of(&self, card: &Card, offset: impl Fn(i64) -> i64) -> ReachLine {
+        use super::machine_actions::AccessState;
+        let kinds: Vec<Kind> = if card.is_home {
+            match &self.machine_page.access {
+                AccessState::Loaded(a) => a.addresses.iter().map(|x| kind_of(&x.url)).collect(),
+                _ => Vec::new(),
+            }
+        } else {
+            self.machines.machine(&card.key).map(|m| m.addresses.iter().map(|a| a.kind).collect()).unwrap_or_default()
+        };
+        let state = self.machine_data.reach.as_ref().filter(|r| card.is_home && r.available);
+        let loaded_at = self.machines.others.get(&card.key).and_then(|o| o.loaded_at);
+        let input = ReachLineInput {
+            answering: self.machines.is_answering(&card.key),
+            offline_since: loaded_at,
+            addresses: &kinds,
+            reach_mode: state.map(|r| r.mode),
+            own_address: self.machine_data.reach.as_ref().and_then(|r| r.own_address.as_deref()),
+        };
+        super::machines::reach::reach_line(&input, offset(loaded_at.unwrap_or(0)))
+    }
+
     /// The cards, with an address list drawn in the order just asked for while that order is being saved.
     pub fn machine_cards(&self) -> Vec<Card> {
         let mut cards = self.machines.cards();
+        let offset = |ms: i64| crate::conv::time::local_offset_at(ms);
         for card in &mut cards {
+            card.reach = Some(self.reach_of(card, offset));
             if let Some(order) = self.machine_page.addresses.order.get(&card.key) {
                 card.addresses.sort_by_key(|a| order.iter().position(|u| *u == a.url).unwrap_or(usize::MAX));
             }

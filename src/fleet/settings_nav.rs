@@ -71,7 +71,9 @@ impl Page {
             Page::Skills => "What agents can use: skills, tools and, with Mods on, mods.",
             Page::Memory => "What Fleet remembers about each repository.",
             Page::Folders => "Where your repositories are, how worktrees are named, and the disk they take.",
-            Page::Machines => "The machines you work on, phones and devices, and the access token.",
+            Page::Machines => {
+                "A machine is anywhere Fleet runs: the desktop app, or a server running fleet node. Your phone and browsers look at them."
+            }
             Page::Labs => "Experiments. They can change or go away, and each is off until you turn it on.",
             Page::Updates => "Every version and update: Fleet, harnesses and machines, and what's new.",
             Page::Credentials => "Credentials for model providers.",

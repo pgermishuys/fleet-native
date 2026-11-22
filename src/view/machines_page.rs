@@ -1,5 +1,5 @@
 //! Settings → Machines (`MachinesSection.vue`, inside `SettingsPage.vue`'s detail pane): the machines this app knows as cards, and
-//! "This machine", how other devices reach it, with its access token. `settings.rs` mounts `content` as the Machines page. The
+//! "Phones and browsers", which holds how other devices reach this machine and its access token until pieces G and I move them. `settings.rs` mounts `content` as the Machines page. The
 //! pairing form is piece K's, the address list and route line piece M's, phones are out.
 use super::machine_card::{card, faded};
 use super::settings::kit::{self, Row};
@@ -169,7 +169,6 @@ fn token_block(s: &State, t: &Theme, access: &Access) -> El {
 }
 
 fn access_group(s: &State, t: &Theme) -> El {
-    let name = s.machines.home.as_ref().map_or("This machine", |h| h.name.as_str());
     let rows =
         match &s.machine_page.access {
             AccessState::Loaded(access) => access_rows(s, t, access),
@@ -196,7 +195,13 @@ fn access_group(s: &State, t: &Theme) -> El {
                 )]
             }
         };
-    kit::group(t, "phones", &format!("Let other devices reach {name}"), Some("Phones and devices, and the access token."), rows)
+    kit::group(
+        t,
+        "phones",
+        "Phones and browsers",
+        Some("Every phone and browser that has keys, wherever it connected. Remove one and it loses them on every machine."),
+        rows,
+    )
 }
 
 /// The page's content: the title and its line, then the groups. The Settings shell (`settings.rs`) gives it the sheet and the scroll.
@@ -226,6 +231,6 @@ pub fn content(s: &State, t: &Theme) -> El {
         .w_full()
         .gap(21.0)
         .child(header)
-        .child(kit::group(t, "machines", "Machines", None, rows))
+        .child(kit::group(t, "machines", "Your machines", None, rows))
         .child(access_group(s, t))
 }
