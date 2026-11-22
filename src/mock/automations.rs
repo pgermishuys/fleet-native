@@ -175,6 +175,10 @@ pub enum Scene {
     CreateAsk,
     /// A create the server refused: the form error over the composer, the text kept.
     CreateError,
+    /// Repeat on a schedule… from a session (piece O): its first message and its folder as it is, the When still to add.
+    FromSession,
+    /// The same when the session couldn't be read: the form error, the draft fresh.
+    FromSessionError,
     /// A sentence typed and the When menu open over its chip (piece J).
     When,
     /// The same after Once: the menu offers the message's words back, and asks for the date and the time.
@@ -254,6 +258,8 @@ impl crate::State {
             | Scene::WhenCronError
             | Scene::CreateAsk
             | Scene::CreateError
+            | Scene::FromSession
+            | Scene::FromSessionError
             | Scene::EditDirty
             | Scene::StripRepo
             | Scene::StripBase
@@ -314,6 +320,20 @@ impl crate::State {
                 self.automations_nav.draft.set_folder(Folder::Repository(REPOSITORY.into()), true, false);
                 if scene == Scene::CreateError {
                     self.automations_nav.form_error = Some("That time has already passed. Pick a later one.".into());
+                }
+            }
+            Scene::FromSession | Scene::FromSessionError => {
+                self.automations_nav.start_create_from_session("s-review");
+                if scene == Scene::FromSession {
+                    let seed = crate::fleet::automations::model::AutomationDraft {
+                        prompt: "Go through the open pull requests and summarise each one.".into(),
+                        folder: Some(REPOSITORY.into()),
+                        isolation: "existing".into(),
+                    };
+                    self.automations_nav.take_seed(&seed, &[REPOSITORY.to_string()]);
+                } else {
+                    self.automations_nav.seed_session = None;
+                    self.automations_nav.form_error = Some(crate::fleet::automations::nav::SEED_FAILED.into());
                 }
             }
             Scene::EditDirty => {

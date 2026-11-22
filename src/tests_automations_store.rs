@@ -54,6 +54,8 @@ pub(crate) struct Fake {
     pub(crate) token: Arc<Mutex<Option<String>>>,
     /// What piece N's tests serve: harnesses, the Library and the workflow runs.
     pub(crate) workflows: WorkflowFake,
+    /// What `GET …/draft-from-session/{id}` answers, as (status, body); a session in kettle's worktree when unset.
+    pub(crate) draft: Arc<Mutex<Option<(String, Value)>>>,
 }
 
 /// A workflow target's routes: a harness list in place of OpenCode alone, the Library (each path asked is kept, query
@@ -127,8 +129,11 @@ pub(crate) fn fake(initial: Vec<Value>) -> Fake {
     let workflows_gate = workflows.clone();
     let (requests, token) = (Requests::default(), Arc::new(Mutex::new(None::<String>)));
     let (requests_gate, token_gate) = (requests.clone(), token.clone());
+    let draft = Arc::new(Mutex::new(None::<(String, Value)>));
+    let draft_gate = draft.clone();
     std::thread::spawn(move || {
         for mut stream in listener.incoming().flatten() {
+            let draft_gate = draft_gate.clone();
             let (log, items, refuse_next, gate) = (log.clone(), items.clone(), refuse_next.clone(), gate.clone());
             let refuse_list = refuse_list.clone();
             let (verb_gate, run_gate) = (verb_gate.clone(), run_gate.clone());
@@ -287,11 +292,12 @@ pub(crate) fn fake(initial: Vec<Value>) -> Fake {
                     ("GET", "/api/automations/event-catalog", _) => {
                         crate::test_http::respond_json(&mut stream, "200 X", &json!(["session.completed", "run.failed"]).to_string())
                     }
-                    ("GET", _, _) if route.contains("/draft-from-session/") => crate::test_http::respond_json(
-                        &mut stream,
-                        "200 X",
-                        &json!({"prompt": "Tidy the changelog", "folder": "/work/kettle", "isolation": "worktree"}).to_string(),
-                    ),
+                    ("GET", _, _) if route.contains("/draft-from-session/") => {
+                        let (status, answer) = draft_gate.lock().unwrap().clone().unwrap_or_else(|| {
+                            ("200 X".into(), json!({"prompt": "Tidy the changelog", "folder": "/work/kettle", "isolation": "worktree"}))
+                        });
+                        crate::test_http::respond_json(&mut stream, &status, &answer.to_string())
+                    }
                     _ => crate::test_http::respond_json(&mut stream, "404 X", &json!({"error": "not faked"}).to_string()),
                 }
             });
@@ -315,6 +321,7 @@ pub(crate) fn fake(initial: Vec<Value>) -> Fake {
         requests,
         token,
         workflows,
+        draft,
     }
 }
 

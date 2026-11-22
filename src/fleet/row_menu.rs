@@ -166,15 +166,14 @@ pub fn build(s: &State, session: &Session, machine: Option<&str>) -> RowMenu {
         ));
     }
     if !elsewhere {
+        let (id3, invented) = (id.clone(), crate::fleet::automations::nav::invented_draft(session));
         entries.push(Entry::Separator);
         entries.push(Entry::Item(
             Item::new("Repeat on a schedule\u{2026}")
                 .icon(&REPEAT)
                 .id("session-repeat-on-schedule")
                 .hint("Opens Automations with this session's first message and folder filled in.")
-                .on(|s: &mut State, tx: &mut Tx| {
-                    s.menu_waiting("Repeat on a schedule", "Automations is its own component of the port", tx)
-                }),
+                .on(move |s: &mut State, tx: &mut Tx| s.repeat_session_on_schedule(&id3, invented.clone(), tx)),
         ));
     }
     entries.push(Entry::Separator);

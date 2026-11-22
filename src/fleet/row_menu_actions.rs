@@ -127,9 +127,4 @@ impl State {
         self.projects = projects;
         self.machines.patch_session(&key, id, |s| s.listing.detached = detached);
     }
-
-    /// A toast for a menu row whose work is another component's (`waiting`).
-    pub fn menu_waiting(&mut self, what: &str, owner: &str, tx: &mut Tx) {
-        self.toast(format!("{what} isn't in the native app yet ({owner})."), None, 4.0, tx);
-    }
 }

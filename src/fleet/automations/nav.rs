@@ -2,7 +2,7 @@
 //! `use-automations-machine.ts`): which automation is open, the list / create / edit mode, the new automation's draft, and the
 //! machine the view shows. Plain Rust apart from the `State` methods that start a request on a thread.
 use super::composer::ComposerState;
-use super::model::Automation;
+use super::model::{Automation, AutomationDraft};
 use crate::State;
 use crate::fleet::machine_choice::MachineChoice;
 
@@ -26,6 +26,9 @@ pub struct Notice {
 
 /// The words of a load that failed while the list is empty and a retry is running.
 pub const RETRYING: &str = "Trying again…";
+
+/// The form error when a session's seed can't be read (`messageOf(error, …)`).
+pub const SEED_FAILED: &str = "Couldn't read that session.";
 
 /// The row's relative times follow the clock this often (`useRelativeTime`).
 const TICK_MS: i64 = 30_000;
@@ -67,6 +70,10 @@ pub struct Nav {
     /// The composer's upkeep: the machine whose repositories were asked for, the paths last seen, and whether the draft
     /// was given its first folder.
     pub(super) composer: super::submit::Upkeep,
+    /// A session whose first message and folder the draft is being read from ("Repeat on a schedule…", `seedSessionId`).
+    pub seed_session: Option<String>,
+    /// Counts the seeds asked for, so the answer to an earlier one is dropped.
+    seed_generation: u64,
     /// The machine whose list was asked for since the page opened; another machine, or the next visit, asks again.
     asked_for: Option<String>,
     last_tick: i64,
@@ -123,7 +130,26 @@ impl Nav {
     pub fn start_create_from_workflow(&mut self, seed: &super::workflow::WorkflowSeed) {
         self.draft = ComposerState::from_workflow(seed);
         self.draft_box = rune::TextEdit::new(&seed.request);
+        // A session's seed still being read would overwrite this draft.
+        self.seed_session = None;
+        self.seed_generation += 1;
         self.start_create();
+    }
+
+    /// `startCreateFromSession` (row 1.6): a fresh draft, the seed set, create mode. Returns the seed's generation.
+    pub fn start_create_from_session(&mut self, session_id: &str) -> u64 {
+        self.reset_draft();
+        self.seed_session = Some(session_id.to_string());
+        self.seed_generation += 1;
+        self.start_create();
+        self.seed_generation
+    }
+
+    /// The seed read: the draft starts from the session's first message and folder, the When still to add.
+    pub fn take_seed(&mut self, seed: &AutomationDraft, repositories: &[String]) {
+        self.seed_session = None;
+        self.draft = ComposerState::from_session_draft(seed, repositories);
+        self.draft_box = rune::TextEdit::new(&seed.prompt);
     }
 
     /// `clearSelection`.
@@ -195,6 +221,44 @@ impl State {
         tx.focus(crate::view::automations::composer::MESSAGE, false);
     }
 
+    /// The session row menu's **Repeat on a schedule…** (rows 13.1, 13.2, `handleRepeatOnSchedule`): Automations opens on a
+    /// fresh draft, and the session's first message and folder are read into it on a thread; the box then takes the keys. A
+    /// failed read is the form error. With no Fleet to ask, `invented` (the invented row's own first message) is the seed.
+    pub fn repeat_session_on_schedule(&mut self, session_id: &str, invented: Option<AutomationDraft>, tx: &mut rune::Tx) {
+        self.press_rail(crate::Rail::Automations);
+        let generation = self.automations_nav.start_create_from_session(session_id);
+        let machine = self.automations_machine();
+        if self.link_for_machine(&machine).is_none() {
+            return self.session_draft_read(generation, &machine, invented.ok_or_else(|| SEED_FAILED.to_string()), tx);
+        }
+        let asked = machine.clone();
+        self.automation_draft_from_session(
+            &machine,
+            session_id,
+            tx,
+            Box::new(move |s, tx, result| s.session_draft_read(generation, &asked, result, tx)),
+        );
+    }
+
+    /// The seed's answer: the draft starts from it, or the form says why it couldn't. An answer to an earlier seed is dropped.
+    fn session_draft_read(&mut self, generation: u64, machine: &str, result: Result<AutomationDraft, String>, tx: &mut rune::Tx) {
+        if self.automations_nav.seed_generation != generation {
+            return;
+        }
+        self.automations_nav.seed_session = None;
+        match result {
+            Ok(seed) => {
+                let repositories: Vec<String> = self.feeds.repos(machine).list.iter().map(|r| r.path.clone()).collect();
+                let nav = &mut self.automations_nav;
+                nav.take_seed(&seed, &repositories);
+                if nav.mode == ViewMode::Create && self.rail == crate::Rail::Automations {
+                    tx.focus(crate::view::automations::composer::MESSAGE, false);
+                }
+            }
+            Err(e) => self.automations_nav.form_error = Some(super::actions::words_of(e, SEED_FAILED)),
+        }
+    }
+
     /// The list's Try again: reads again while the failed note stays up and its button waits (`retry`).
     pub fn automations_retry(&mut self, tx: &mut rune::Tx) {
         if self.automations_nav.retrying {
@@ -258,4 +322,18 @@ pub fn machine_of(s: &State, automation: &Automation) -> Option<String> {
     }
     let named = s.machines.entries().into_iter().find(|e| e.key == id).map(|e| e.name);
     Some(named.or(last).unwrap_or_else(|| "another machine".into()))
+}
+
+/// An invented session's seed, as Fleet's `draft-from-session` makes it: its first message, and its folder as it is. The
+/// row menu hands it over for the app with no Fleet to ask (scenes, `cargo run` with no server).
+pub fn invented_draft(session: &crate::mock::Session) -> Option<AutomationDraft> {
+    use crate::view::conversation::{Part, Role};
+    let prompt = session.messages.iter().filter(|m| m.role == Role::User).find_map(|m| {
+        m.parts.iter().find_map(|p| match p {
+            Part::Text { text, .. } if !text.trim().is_empty() => Some(text.clone()),
+            _ => None,
+        })
+    })?;
+    let dir = &session.listing.workspace_directory;
+    Some(AutomationDraft { prompt, folder: (!dir.is_empty()).then(|| dir.clone()), isolation: "existing".into() })
 }
