@@ -2896,3 +2896,12 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 - **A test reads "is this button dimmed" from `opacity < 0.9`** (`ui::button::disabled` sets 0.5); there is no disabled flag in `ElementInfo`.
 - **The test build was OOM-killed at 4.8 GB** under a 5000M scope while another session built (exit 143, `oom-kill` in the journal); 7000M with `CARGO_BUILD_JOBS=2` finished.
 - **Opening a link from a button** (updater, piece 25F): a handler that needs the `Tx` (`tx.open_url`) goes on `on_press_tx(|s, tx| …)`; `on_press` closures take only the state and a two-argument closure fails to compile with "expected closure that takes 1 argument".
+
+## Component 23, piece L (the Board's page)
+
+- **A button's words are its `label`, not its `text`**: `ui::button`'s keyed row has the label; the words are a child text with no key, so a test reads `ElementInfo::label`.
+- **Equal columns need `w(0.0).grow(1.0).min_w(0.0)`** (Rune has no flex-basis): with `grow(1.0)` alone the share is what is left after each content's width.
+- **A window `on_key` can't tell a text field from a button**: `tx.focused()` is only the key. The Board's fields are keyed `board-…-input` and `board::page::is_text_field` reads that.
+- **`wrap_anywhere` is `overflow-wrap: anywhere`** (a long unbroken board name wraps); a bare `wrap` overflows.
+- **Opacity eases**: a button that was just enabled still reads below 1 for a few frames, so a test of "not disabled" runs about 30 frames first.
+

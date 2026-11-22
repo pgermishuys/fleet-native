@@ -56,7 +56,7 @@ fn card_fixture(id: &str, lane: &str, title: &str, source_type: Option<&str>, so
 
 /// What the fake Fleet keeps, as `MockBoardState` does.
 #[derive(Default)]
-struct Kept {
+pub(crate) struct Kept {
     boards: Vec<Board>,
     lanes: Vec<Lane>,
     cards: Vec<Card>,
@@ -73,7 +73,7 @@ struct Kept {
     bodies: Vec<(String, Value)>,
 }
 
-fn loaded() -> Kept {
+pub(crate) fn loaded() -> Kept {
     Kept {
         boards: vec![board_fixture("board-1", "Platform Roadmap", 0)],
         lanes: vec![
@@ -93,7 +93,12 @@ fn loaded() -> Kept {
     }
 }
 
-fn empty() -> Kept {
+/// `loaded` with Sync now refused, in `words`.
+pub(crate) fn refusing_sync(words: &str) -> Kept {
+    Kept { fail_sync: Some(words.into()), ..loaded() }
+}
+
+pub(crate) fn empty() -> Kept {
     Kept { board_on: true, ..Default::default() }
 }
 
@@ -275,14 +280,14 @@ fn fake(kept: Kept) -> Fake {
     Fake { base, kept }
 }
 
-struct Rig {
-    rt: Runtime<State>,
+pub(crate) struct Rig {
+    pub(crate) rt: Runtime<State>,
     queue: Receiver<Job>,
     fake: Fake,
 }
 
 /// The app connected to a fake Fleet keeping `kept`, on the Sessions rail with the Board's switch as `kept` says.
-fn rig(kept: Kept) -> Rig {
+pub(crate) fn rig(kept: Kept) -> Rig {
     let on = kept.board_on;
     let fake = fake(kept);
     let (jobs, queue) = channel::<Job>();
@@ -300,7 +305,7 @@ fn rig(kept: Kept) -> Rig {
 
 impl Rig {
     /// Applies what the threads hand back until `done` holds; the frames don't move the clock.
-    fn wait(&mut self, what: &str, mut done: impl FnMut(&State) -> bool) {
+    pub(crate) fn wait(&mut self, what: &str, mut done: impl FnMut(&State) -> bool) {
         let queue = &self.queue;
         test_wait::until(
             &mut self.rt,
@@ -329,7 +334,7 @@ impl Rig {
     }
 
     /// Shows the Board and waits for the store's first load to answer.
-    fn open(&mut self) {
+    pub(crate) fn open(&mut self) {
         self.rt.update(|s, _| s.rail = Rail::Board);
         self.rt.frame(FRAME);
         self.wait("the board's first load", |s| s.board.is_loaded || s.board.error.is_some());
@@ -341,7 +346,7 @@ impl Rig {
         self.settle(what);
     }
 
-    fn settle(&mut self, what: &str) {
+    pub(crate) fn settle(&mut self, what: &str) {
         self.wait(what, |s| s.board.pending == 0);
     }
 
@@ -350,7 +355,7 @@ impl Rig {
         self.fake.kept.lock().unwrap().heard.iter().filter(|h| h.starts_with(prefix)).cloned().collect()
     }
 
-    fn heard_exactly(&self, request: &str) -> usize {
+    pub(crate) fn heard_exactly(&self, request: &str) -> usize {
         self.fake.kept.lock().unwrap().heard.iter().filter(|h| *h == request).count()
     }
 

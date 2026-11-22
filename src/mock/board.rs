@@ -103,3 +103,38 @@ pub fn sources() -> Vec<crate::fleet::board::Source> {
         source("source-spool", r#"{"owner":"acme-labs","repo":"spool","assignee":"@me"}"#, None),
     ]
 }
+
+/// What a scene of the Board's page shows (component 23, piece L).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Case {
+    /// The first load hasn't answered.
+    Loading,
+    /// A Fleet with no board: "No lanes yet".
+    Empty,
+    /// The first load failed.
+    Failed,
+    /// Loaded, and Sync now has just answered: the toast.
+    Synced,
+}
+
+impl crate::State {
+    /// The Board shown with its switch on: the load answers as `case` says (the first poll starts it).
+    pub fn show_board(&mut self, case: Case, dark: bool) {
+        use crate::fleet::board::page::Feedback;
+        use crate::fleet::board::store::MockAnswers;
+        self.dark = Some(dark);
+        self.pickers.prefs.adopt(&serde_json::json!({ "features.board.enabled": "true" }));
+        self.board.mock_answers = match case {
+            Case::Loading => MockAnswers::Silent,
+            Case::Empty => MockAnswers::Empty,
+            Case::Failed => MockAnswers::Failed,
+            Case::Synced => MockAnswers::Data,
+        };
+        if case == Case::Synced {
+            let result =
+                crate::fleet::board::SyncResult { cards_created: 2, cards_updated: 1, cards_marked_stale: 0, ..Default::default() };
+            self.board.page.feedback = Some((Feedback::of(&result), f64::MAX));
+        }
+        self.enter_labs(crate::Rail::Board);
+    }
+}
