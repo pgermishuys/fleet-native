@@ -2910,3 +2910,13 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 - **A sentence with parts that are their own elements** (Fleet's drafted banner: bold lead, a muted cost `<span data-testid>`, an errors span) is one `rich` text with coloured `Span`s here; a span can't be keyed, so a test reads the whole paragraph's text.
 - **A request can't be cancelled from the UI thread's side**: `Link::off_thread` has no abort, so Cancel and "a newer ask" bump a run number and the answer that comes late is dropped (`Nav::draft_answers` counts answers so a test can wait for the dropped one).
 - **Fleet's `<select>` is the browser's own**; the kit's `select::trigger` and `content_in` stand in for it (the list is the kit's, not the OS's).
+
+## Component 23, piece M (the Board's lanes and cards)
+
+- **A card with `border-left: 3px <colour>` and a 1 px border in another is a row**: a 3 px stripe `el()` with `self_stretch()`, then the body, on a box with `border_sides([1.0, 1.0, 1.0, 0.0], c)`, `border_layout()` and `clip_rounded` (Rune has one border colour per box).
+- **No hover border or hover fill on a keyed row that isn't a button**: Fleet's GitHub link on a card changes border and fill on hover; only `El::hover(fill)` exists, so it doesn't.
+- **A hover lift is `offset(0.0, -2.0)` plus a `Spring` `offset_motion`, switched by `on_hover_change`** writing the hovered card's id into the state; `.shadow(y, blur, colour)` adds Fleet's drop shadow with it.
+- **`border_dash(3.0, 3.0)` on a `ui::button`** gives the dashed "+ Add a card" (add `border(1.0, c).border_layout()` first).
+- **A label that must wrap in a narrow grid column needs `.wrap()`**; a bare `text` runs past its column ("GITHUB UPDATED").
+- **Fleet's body line height is 1.5**, not the 1.6 an `h-` guess suggests: measure `getBoundingClientRect` in Playwright (the card was 160.7 px tall with `dt` 15, `dd` 16.5, pill 23).
+- **`TextEdit::insert` returns the old value**: a test's `rt.update(|s, _| map.insert(..))` needs `drop(..)` to return `()`.

@@ -38,7 +38,7 @@ fn lane_fixture(id: &str, name: &str, position: f64, is_inbox: bool, minute: u32
     }
 }
 
-fn card_fixture(id: &str, lane: &str, title: &str, source_type: Option<&str>, source_key: &str, made: u32) -> Card {
+pub(crate) fn card_fixture(id: &str, lane: &str, title: &str, source_type: Option<&str>, source_key: &str, made: u32) -> Card {
     Card {
         id: id.into(),
         board_id: "board-1".into(),
@@ -59,7 +59,7 @@ fn card_fixture(id: &str, lane: &str, title: &str, source_type: Option<&str>, so
 pub(crate) struct Kept {
     boards: Vec<Board>,
     lanes: Vec<Lane>,
-    cards: Vec<Card>,
+    pub(crate) cards: Vec<Card>,
     fail_move: Option<String>,
     fail_reorder: Option<String>,
     fail_sync: Option<String>,
@@ -227,6 +227,22 @@ impl Kept {
                 self.normalize_cards(&lane);
                 ("201 Created", self.cards.iter().find(|c| c.id == card.id).unwrap().to_json().to_string())
             }
+            ("PATCH", [_, "cards", id]) => {
+                let Some(card) = self.cards.iter_mut().find(|c| &c.id == id) else { return refuse("No such card.") };
+                if let Some(title) = body["title"].as_str() {
+                    card.title = title.to_string();
+                }
+                ("200 OK", card.to_json().to_string())
+            }
+            ("DELETE", [_, "cards", id]) => {
+                self.cards.retain(|c| &c.id != id);
+                ("204 No Content", String::new())
+            }
+            ("POST", [_, "cards", id, "archive"]) => {
+                let Some(card) = self.cards.iter_mut().find(|c| &c.id == id) else { return refuse("No such card.") };
+                card.archived_at = Some(ts(70));
+                ("200 OK", card.to_json().to_string())
+            }
             ("POST", [_, "cards", id, "move"]) => {
                 if let Some(words) = self.fail_move.clone() {
                     return refuse(&words);
@@ -353,6 +369,11 @@ impl Rig {
     /// The board requests heard so far that start with `prefix` ("GET /api/boards/board-1/lanes").
     fn heard(&self, prefix: &str) -> Vec<String> {
         self.fake.kept.lock().unwrap().heard.iter().filter(|h| h.starts_with(prefix)).cloned().collect()
+    }
+
+    /// The bodies of the requests heard as exactly `request` ("POST /api/boards/board-1/cards").
+    pub(crate) fn bodies_of(&self, request: &str) -> Vec<Value> {
+        self.kept().bodies.iter().filter(|(r, _)| r == request).map(|(_, b)| b.clone()).collect()
     }
 
     pub(crate) fn heard_exactly(&self, request: &str) -> usize {

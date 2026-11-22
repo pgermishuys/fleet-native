@@ -75,6 +75,8 @@ mod tests_automations_when;
 #[cfg(test)]
 mod tests_automations_workflow;
 #[cfg(test)]
+mod tests_board_cards;
+#[cfg(test)]
 mod tests_board_page;
 #[cfg(test)]
 mod tests_board_store;
@@ -2794,6 +2796,12 @@ pub fn spec() -> AppSpec<State> {
             ("board-synced-light", |s| s.show_board(mock::board::Case::Synced, false)),
             ("jobs-off", |s| labs_off_scene(s, true, Rail::Jobs)),
             ("jobs-off-light", |s| labs_off_scene(s, false, Rail::Jobs)),
+            ("board", |s| s.show_board(mock::board::Case::Board, true)),
+            ("board-light", |s| s.show_board(mock::board::Case::Board, false)),
+            ("board-cards", |s| s.show_board(mock::board::Case::Cards, true)),
+            ("board-cards-light", |s| s.show_board(mock::board::Case::Cards, false)),
+            ("board-card-rename", |s| s.show_board(mock::board::Case::Rename, true)),
+            ("board-card-rename-light", |s| s.show_board(mock::board::Case::Rename, false)),
             ("board-off", |s| labs_off_scene(s, true, Rail::Board)),
             ("board-off-light", |s| labs_off_scene(s, false, Rail::Board)),
             // Piece T: Labs with everything off, with another machine listed, and with everything on.

@@ -62,6 +62,22 @@ impl Confirm {
         }
     }
 
+    /// `handleDelete` of `KanbanCard`.
+    pub fn delete_card(subject: String, call: Call) -> Confirm {
+        Confirm {
+            title: "Delete this card?".into(),
+            subject,
+            body: "It's removed from the board. Archive it instead to keep it out of the way.".into(),
+            confirm_label: "Delete card".into(),
+            busy_label: "Deleting…".into(),
+            error_message: "Couldn't delete the card.".into(),
+            destructive: true,
+            busy: false,
+            error: None,
+            call,
+        }
+    }
+
     /// `handleDelete`.
     pub fn delete_session(subject: String, call: Call) -> Confirm {
         Confirm {
@@ -121,6 +137,10 @@ impl State {
             Call::DeleteAutomation { machine, id } => {
                 self.ui.confirm = None;
                 self.automation_delete_now(&machine, &id, tx);
+            }
+            Call::DeleteCard { id } => {
+                self.ui.confirm = None;
+                self.board_delete_confirmed(&id);
             }
             call => self.send_session_call(call, None, tx),
         }

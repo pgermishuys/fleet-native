@@ -4,6 +4,7 @@
 //! Times stay the server's ISO text, as Fleet keeps them: the sorts compare them as text, which orders ISO times.
 pub mod api;
 pub mod cards;
+pub mod compose;
 pub mod filters;
 pub mod order;
 pub mod page;
