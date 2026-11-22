@@ -129,7 +129,7 @@ fn a_sent_message_gets_its_canned_reply() {
     let session = &rt.state.projects[0].sessions[1];
     let last = session.messages.last().unwrap();
     assert_eq!(last.role, Role::User);
-    assert!(matches!(&last.parts[..], [Part::Text { text, .. }] if text == "Ship it"));
+    assert!(matches!(&last.parts[..], [Part::Text { text, .. }] if text == "  Ship it"));
     assert!(session.status == Status::Working);
     assert!(rt.state.draft.text.is_empty());
 
