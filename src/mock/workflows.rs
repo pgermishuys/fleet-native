@@ -272,9 +272,14 @@ impl crate::State {
                 }
             }
             Scene::DetailNoRepo => open(self, "builtin:fix-a-bug"),
-            Scene::DetailErrors => open(self, "repo:triage-an-issue"),
+            // The run view of a repository's file, which Try it shows (its designer is `mock::workflow_editor`).
+            Scene::DetailErrors => {
+                open(self, "repo:triage-an-issue");
+                self.workflows_nav.showing_runs = true;
+            }
             Scene::DetailRepo => {
                 open(self, "repo:tidy-up-a-flaky-test");
+                self.workflows_nav.showing_runs = true;
                 let runs = self.workflows.of_mut(HOME_MACHINE_KEY);
                 runs.loaded = true;
                 runs.upsert(titled(

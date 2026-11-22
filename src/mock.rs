@@ -82,6 +82,7 @@ pub mod visuals;
 pub mod weave;
 pub mod work;
 pub mod workflow_card;
+pub mod workflow_editor;
 pub mod workflow_finish;
 pub mod workflow_runs;
 pub mod workflow_stepper;

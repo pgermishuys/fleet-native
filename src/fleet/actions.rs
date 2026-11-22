@@ -45,6 +45,10 @@ pub enum Call {
         machine: String,
         id: String,
     },
+    /// Workflows: leave a workflow with unsaved edits (`fleet::workflows::frame`). The dialog closes and the move is made.
+    LeaveWorkflow {
+        to: crate::fleet::workflows::frame::Leave,
+    },
 }
 
 pub fn session_path(id: &str) -> String {
@@ -80,7 +84,11 @@ pub fn run(base: &str, call: &Call) -> Result<(), String> {
         Call::Rename { id, title } => ("PATCH", session_path(id), Some(rename_body(title))),
         Call::ClearAttachments { id } => ("DELETE", attachments_path(id), None),
         Call::Delete { id } => ("DELETE", session_path(id), None),
-        Call::ForgetMachine { .. } | Call::ReplaceToken | Call::Revert { .. } | Call::DeleteAutomation { .. } => {
+        Call::ForgetMachine { .. }
+        | Call::ReplaceToken
+        | Call::Revert { .. }
+        | Call::DeleteAutomation { .. }
+        | Call::LeaveWorkflow { .. } => {
             unreachable!("machine calls are made by machine_actions")
         }
     };
@@ -259,7 +267,11 @@ impl State {
     pub(crate) fn send_session_call(&mut self, call: Call, was: Option<String>, tx: &mut Tx) {
         let session = match &call {
             Call::Rename { id, .. } | Call::ClearAttachments { id } | Call::Delete { id } => id.clone(),
-            Call::ForgetMachine { .. } | Call::ReplaceToken | Call::Revert { .. } | Call::DeleteAutomation { .. } => return,
+            Call::ForgetMachine { .. }
+            | Call::ReplaceToken
+            | Call::Revert { .. }
+            | Call::DeleteAutomation { .. }
+            | Call::LeaveWorkflow { .. } => return,
         };
         let Some(link) = self.link_for(&session) else {
             self.session_call_done(&call, was, Ok(()), tx);
@@ -287,7 +299,11 @@ impl State {
                 }
             }
             Call::ClearAttachments { .. } | Call::Delete { .. } => self.confirm_done(result, tx),
-            Call::ForgetMachine { .. } | Call::ReplaceToken | Call::Revert { .. } | Call::DeleteAutomation { .. } => {}
+            Call::ForgetMachine { .. }
+            | Call::ReplaceToken
+            | Call::Revert { .. }
+            | Call::DeleteAutomation { .. }
+            | Call::LeaveWorkflow { .. } => {}
         }
     }
 

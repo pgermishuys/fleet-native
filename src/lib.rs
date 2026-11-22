@@ -409,6 +409,8 @@ mod tests_workflow_editor;
 #[cfg(test)]
 mod tests_workflow_finish;
 #[cfg(test)]
+mod tests_workflow_frame;
+#[cfg(test)]
 mod tests_workflow_roles;
 #[cfg(test)]
 mod tests_workflow_run_box;
@@ -1865,6 +1867,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_browser(tx)
         | s.keep_workflows(tx)
         | s.keep_workflow_editor(now, tx)
+        | s.keep_workflow_frame(now, tx)
         | s.keep_automations(tx);
     // "Copied" on a message's button ends by itself.
     let copied = match &s.copied {
@@ -2031,6 +2034,9 @@ fn on_key(s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool {
     } else if ev.is_command('p') && !ev.mods.shift && !ev.mods.alt {
         // Go to file, from anywhere, the composer too (`allowInEditable`); with no session open it does nothing.
         ui::commands::run(s, tx, "go-to-file");
+    } else if ev.is_command('s') && !ev.mods.shift && !ev.mods.alt && s.rail == Rail::Workflows && s.workflow_editor_shown() {
+        // `WorkflowEditor`'s keydown on the window: Cmd/Ctrl+S saves the open workflow, wherever the focus is.
+        s.workflow_save_pressed();
     } else if ev.is_command('l') && ev.mods.shift {
         // Not a Fleet shortcut: a quick way to see both themes in the prototype.
         s.toggle_theme();
@@ -2765,6 +2771,16 @@ pub fn spec() -> AppSpec<State> {
             ("sessions-workflow-run-light", |s| s.show_workflow_runs(false)),
             ("dashboard-workflow-waiting", |s| s.show_dashboard_workflow_waiting(true)),
             ("dashboard-workflow-waiting-light", |s| s.show_dashboard_workflow_waiting(false)),
+            ("workflow-editor", |s| s.show_workflow_editor(true, mock::workflow_editor::Case::Edited)),
+            ("workflow-editor-light", |s| s.show_workflow_editor(false, mock::workflow_editor::Case::Edited)),
+            ("workflow-editor-comments", |s| s.show_workflow_editor(true, mock::workflow_editor::Case::Comments)),
+            ("workflow-editor-comments-light", |s| s.show_workflow_editor(false, mock::workflow_editor::Case::Comments)),
+            ("workflow-editor-conflict", |s| s.show_workflow_editor(true, mock::workflow_editor::Case::Conflict)),
+            ("workflow-editor-conflict-light", |s| s.show_workflow_editor(false, mock::workflow_editor::Case::Conflict)),
+            ("workflow-editor-blocked", |s| s.show_workflow_editor(true, mock::workflow_editor::Case::Blocked)),
+            ("workflow-editor-blocked-light", |s| s.show_workflow_editor(false, mock::workflow_editor::Case::Blocked)),
+            ("workflow-editor-saved", |s| s.show_workflow_editor(true, mock::workflow_editor::Case::Saved)),
+            ("workflow-editor-saved-light", |s| s.show_workflow_editor(false, mock::workflow_editor::Case::Saved)),
             ("workflow-stepper", |s| s.show_workflow_stepper(true, mock::workflow_stepper::Case::Stepper)),
             ("workflow-stepper-light", |s| s.show_workflow_stepper(false, mock::workflow_stepper::Case::Stepper)),
             ("workflow-stepper-note", |s| s.show_workflow_stepper(true, mock::workflow_stepper::Case::Note)),

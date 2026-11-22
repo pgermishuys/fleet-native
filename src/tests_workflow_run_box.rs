@@ -372,12 +372,17 @@ fn a_skill_of_an_optional_step_that_is_off_counts_only_with_the_step_on() {
 #[test]
 fn a_file_with_errors_says_to_fix_it_first_and_wont_run() {
     let mut r = rig(RunBoxScene::Filled);
-    r.rt.update(|s, _| s.set_active_workflow("repo:triage-an-issue"));
+    // The run view of a repository's file, which Try it shows (its designer is the editor's).
+    r.rt.update(|s, _| {
+        s.set_active_workflow("repo:triage-an-issue");
+        s.workflows_nav.showing_runs = true;
+    });
     r.rt.frame(FRAME);
     r.rt.frame(FRAME);
     assert!(r.say("Fix the workflow file first."));
     r.run();
-    assert!(r.home.workflow_calls().iter().all(|(m, ..)| m != "POST"));
+    // The editor reads the file whenever a repository's workflow is open (Fleet's watch does too); a run is the other POST.
+    assert!(r.home.workflow_calls().iter().all(|(m, path, _)| m != "POST" || path == "/api/workflows/files/open"));
 }
 
 #[test]

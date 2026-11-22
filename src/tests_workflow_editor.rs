@@ -15,24 +15,25 @@ use std::net::TcpListener;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
-const REPO: &str = "/work/repo";
-const FILES: &str = "/api/workflows/files";
-const CHECK: &str = "/api/workflows/check";
-const OPEN: &str = "/api/workflows/files/open";
-const MISSING_MAX: &str = "review sends work back to an earlier step, so it needs a max: how many times it may do that in a run.";
+pub(crate) const REPO: &str = "/work/repo";
+pub(crate) const FILES: &str = "/api/workflows/files";
+pub(crate) const CHECK: &str = "/api/workflows/check";
+pub(crate) const OPEN: &str = "/api/workflows/files/open";
+pub(crate) const MISSING_MAX: &str =
+    "review sends work back to an earlier step, so it needs a max: how many times it may do that in a run.";
 
-type Heard = Arc<Mutex<Vec<(String, String, Value)>>>;
-type Handler = Arc<dyn Fn(&Value) -> (u16, Value) + Send + Sync>;
+pub(crate) type Heard = Arc<Mutex<Vec<(String, String, Value)>>>;
+pub(crate) type Handler = Arc<dyn Fn(&Value) -> (u16, Value) + Send + Sync>;
 
 /// A Fleet whose workflow routes answer from what they are sent, as the real server's would (a check echoes its text or
 /// writes its draft), and whose answers a test can replace per route. Every request is recorded.
-struct Fleet {
-    base: String,
-    heard: Heard,
-    routes: Arc<Mutex<HashMap<String, Handler>>>,
+pub(crate) struct Fleet {
+    pub(crate) base: String,
+    pub(crate) heard: Heard,
+    pub(crate) routes: Arc<Mutex<HashMap<String, Handler>>>,
 }
 
-fn review_draft() -> Value {
+pub(crate) fn review_draft() -> Value {
     let step = |id: &str, title: &str| json!({"id": id, "title": title, "kind": "agent", "prompt": format!("Do {title}.")});
     json!({"name": "Build it our way", "description": null, "placeholder": null, "steps": [
         step("plan", "Plan"), step("ok-plan", "OK the plan"), step("implement", "Implement"),
@@ -40,15 +41,15 @@ fn review_draft() -> Value {
     ]})
 }
 
-fn check_json(draft: Option<Value>, text: &str, errors: Value, comments: Value) -> Value {
+pub(crate) fn check_json(draft: Option<Value>, text: &str, errors: Value, comments: Value) -> Value {
     json!({"text": text, "errors": errors, "draft": draft, "comments": comments})
 }
 
-fn file_json(check: Value, hash: &str) -> Value {
+pub(crate) fn file_json(check: Value, hash: &str) -> Value {
     json!({"workflowId": "repo:build-it-our-way", "file": ".weave/workflows/build-it-our-way.yaml", "hash": hash, "check": check})
 }
 
-fn default_answer(method: &str, path: &str, body: &Value) -> (u16, Value) {
+pub(crate) fn default_answer(method: &str, path: &str, body: &Value) -> (u16, Value) {
     let draft = body.get("draft").filter(|d| !d.is_null()).cloned();
     let text = body.get("text").and_then(Value::as_str);
     match (method, path) {
@@ -69,7 +70,7 @@ fn default_answer(method: &str, path: &str, body: &Value) -> (u16, Value) {
     }
 }
 
-fn fleet() -> Fleet {
+pub(crate) fn fleet() -> Fleet {
     let listener = TcpListener::bind("127.0.0.1:0").expect("a port");
     let base = format!("http://{}", listener.local_addr().expect("an address"));
     let heard: Heard = Default::default();
@@ -102,41 +103,41 @@ fn fleet() -> Fleet {
 }
 
 impl Fleet {
-    fn on(&self, method: &str, path: &str, handler: impl Fn(&Value) -> (u16, Value) + Send + Sync + 'static) {
+    pub(crate) fn on(&self, method: &str, path: &str, handler: impl Fn(&Value) -> (u16, Value) + Send + Sync + 'static) {
         self.routes.lock().unwrap().insert(format!("{method} {path}"), Arc::new(handler));
     }
 
     /// The same answer every time.
-    fn always(&self, method: &str, path: &str, status: u16, answer: Value) {
+    pub(crate) fn always(&self, method: &str, path: &str, status: u16, answer: Value) {
         self.on(method, path, move |_| (status, answer.clone()));
     }
 
     /// The requests heard for this method and path: their bodies, oldest first.
-    fn bodies(&self, method: &str, path: &str) -> Vec<Value> {
+    pub(crate) fn bodies(&self, method: &str, path: &str) -> Vec<Value> {
         self.heard.lock().unwrap().iter().filter(|(m, p, _)| m == method && p == path).map(|(.., b)| b.clone()).collect()
     }
 
-    fn count(&self, method: &str, path: &str) -> usize {
+    pub(crate) fn count(&self, method: &str, path: &str) -> usize {
         self.bodies(method, path).len()
     }
 
-    fn heard_handle(&self) -> impl Fn(&str, &str) -> usize + use<> {
+    pub(crate) fn heard_handle(&self) -> impl Fn(&str, &str) -> usize + use<> {
         let heard = self.heard.clone();
         move |method, path| heard.lock().unwrap().iter().filter(|(m, p, _)| m == method && p == path).count()
     }
 
-    fn workflow_requests(&self) -> Vec<(String, String)> {
+    pub(crate) fn workflow_requests(&self) -> Vec<(String, String)> {
         self.heard.lock().unwrap().iter().map(|(m, p, _)| (m.clone(), p.clone())).collect()
     }
 }
 
-struct Rig {
-    rt: Runtime<State>,
-    queue: Receiver<Job>,
-    fleet: Fleet,
+pub(crate) struct Rig {
+    pub(crate) rt: Runtime<State>,
+    pub(crate) queue: Receiver<Job>,
+    pub(crate) fleet: Fleet,
 }
 
-fn rig() -> Rig {
+pub(crate) fn rig() -> Rig {
     let fleet = fleet();
     let (jobs, queue) = channel::<Job>();
     let jobs = Mutex::new(jobs);
@@ -148,16 +149,16 @@ fn rig() -> Rig {
     Rig { rt, queue, fleet }
 }
 
-fn check_of(draft: Option<Value>, text: &str, errors: Value, comments: Value) -> WorkflowCheck {
+pub(crate) fn check_of(draft: Option<Value>, text: &str, errors: Value, comments: Value) -> WorkflowCheck {
     WorkflowCheck::from_json(&check_json(draft, text, errors, comments))
 }
 
-fn ed(s: &State) -> &crate::fleet::workflows::editor::Editor {
+pub(crate) fn ed(s: &State) -> &crate::fleet::workflows::editor::Editor {
     &s.workflows_nav.editor
 }
 
 impl Rig {
-    fn wait(&mut self, what: &str, done: impl FnMut(&State) -> bool) {
+    pub(crate) fn wait(&mut self, what: &str, done: impl FnMut(&State) -> bool) {
         test_wait::drive(&mut self.rt, &self.queue, what, done, |s| {
             let e = ed(s);
             format!(
@@ -174,19 +175,19 @@ impl Rig {
     }
 
     /// Time passes: the clock `poll` reads moves on.
-    fn later(&mut self, secs: f64) {
+    pub(crate) fn later(&mut self, secs: f64) {
         self.rt.frame(secs);
     }
 
     /// The wait after the last key ends and the check it sends is answered.
-    fn settle(&mut self) {
+    pub(crate) fn settle(&mut self) {
         self.later(FRAME);
         self.later(CHECK_DELAY + 0.01);
         self.wait("the check to be answered", |s| !ed(s).is_busy());
     }
 
     /// The file `reviewDraft` opens as, adopted as New would.
-    fn adopt(&mut self, comments: bool) {
+    pub(crate) fn adopt(&mut self, comments: bool) {
         let (text, found) = if comments {
             (
                 "# Kept by the platform team.\nname: Build it our way\n",
@@ -199,11 +200,11 @@ impl Rig {
         self.rt.update(move |s, _| s.workflows_nav.editor.adopt(HOME_MACHINE_KEY, REPO, file));
     }
 
-    fn adopt_draft(&mut self, drafted: DraftedWorkflow) {
+    pub(crate) fn adopt_draft(&mut self, drafted: DraftedWorkflow) {
         self.rt.update(move |s, _| s.workflows_nav.editor.adopt_draft(HOME_MACHINE_KEY, drafted));
     }
 
-    fn edit_draft(&mut self, change: impl FnOnce(&mut WorkflowDraft) + Send + 'static) {
+    pub(crate) fn edit_draft(&mut self, change: impl FnOnce(&mut WorkflowDraft) + Send + 'static) {
         self.rt.update(move |s, _| {
             let e = &mut s.workflows_nav.editor;
             let mut next = e.draft.clone().expect("a draft is open");
@@ -212,29 +213,29 @@ impl Rig {
         });
     }
 
-    fn edit_text(&mut self, text: &'static str) {
+    pub(crate) fn edit_text(&mut self, text: &'static str) {
         self.rt.update(move |s, _| s.workflows_nav.editor.edit_text(text));
     }
 
-    fn save(&mut self) {
+    pub(crate) fn save(&mut self) {
         self.rt.update(|s, _| s.workflow_editor_save(false));
     }
 
-    fn view(&mut self, view: EditorView) {
+    pub(crate) fn view(&mut self, view: EditorView) {
         self.rt.update(move |s, _| s.workflow_editor_set_view(view));
     }
 
-    fn ed(&self) -> &crate::fleet::workflows::editor::Editor {
+    pub(crate) fn ed(&self) -> &crate::fleet::workflows::editor::Editor {
         ed(&self.rt.state)
     }
 
     /// A save was answered (or refused).
-    fn saved(&mut self) {
+    pub(crate) fn saved(&mut self) {
         self.wait("the save to be answered", |s| !ed(s).is_saving && ed(s).file.is_some());
     }
 }
 
-fn drafted(check: WorkflowCheck) -> DraftedWorkflow {
+pub(crate) fn drafted(check: WorkflowCheck) -> DraftedWorkflow {
     DraftedWorkflow {
         repository: REPO.into(),
         repository_name: "repo".into(),
@@ -245,7 +246,7 @@ fn drafted(check: WorkflowCheck) -> DraftedWorkflow {
     }
 }
 
-fn drafted_ok() -> DraftedWorkflow {
+pub(crate) fn drafted_ok() -> DraftedWorkflow {
     drafted(check_of(Some(review_draft()), "name: Build it our way\nsteps: []\n", json!([]), json!([])))
 }
 

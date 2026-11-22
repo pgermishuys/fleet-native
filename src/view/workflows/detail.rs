@@ -7,7 +7,7 @@ use crate::fleet::work::parse_iso_ms;
 use crate::fleet::workflows::detail::{RECENT, models, run_text, skills};
 use crate::fleet::workflows::helpers::{Tone, loop_notes};
 use crate::fleet::workflows::{Run, Step, StepKind, Workflow};
-use crate::icons::{BOT, CALENDAR_CLOCK, CHECK, COPY, REPEAT, TRIANGLE_ALERT, USER_ROUND, WORKFLOW, ZAP};
+use crate::icons::{BOT, CALENDAR_CLOCK, CHECK, COPY, PENCIL, REPEAT, TRIANGLE_ALERT, USER_ROUND, WORKFLOW, ZAP};
 use crate::theme::{RADIUS_BTN, RADIUS_CARD, Theme, mono, sans};
 use crate::ui::button::{Size, Variant, button, disabled};
 use crate::ui::{empty_state, rem};
@@ -99,6 +99,10 @@ fn header(t: &Theme, w: &Workflow, has_repository: bool) -> El {
         let mut dup = button(t, Variant::Default, Size::Sm, Some(&COPY), "Duplicate to this repo").key("workflow-duplicate");
         dup = if has_repository { dup.on_press(|_: &mut State| {}) } else { disabled(dup.help(NEEDS_REPOSITORY)) };
         actions = actions.child(dup);
+    } else {
+        // Back to the designer (`nav.showRuns(false)`).
+        let edit = button(t, Variant::Outline, Size::Sm, Some(&PENCIL), "Edit").key("workflow-edit");
+        actions = actions.child(edit.on_press(|s: &mut State| s.workflows_nav.showing_runs = false));
     }
     row().w_full().flex_wrap().center_y().justify_between().gap(8.0).child(lead).child(actions)
 }
