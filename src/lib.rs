@@ -401,6 +401,8 @@ mod tests_workflow_card;
 #[cfg(test)]
 mod tests_workflow_detail;
 #[cfg(test)]
+mod tests_workflow_editor;
+#[cfg(test)]
 mod tests_workflow_finish;
 #[cfg(test)]
 mod tests_workflow_roles;
@@ -1850,6 +1852,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_terminal(tx)
         | s.keep_browser(tx)
         | s.keep_workflows(tx)
+        | s.keep_workflow_editor(now, tx)
         | s.keep_automations(tx);
     // "Copied" on a message's button ends by itself.
     let copied = match &s.copied {

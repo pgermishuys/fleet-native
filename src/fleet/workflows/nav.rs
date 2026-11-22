@@ -80,6 +80,8 @@ pub struct Nav {
     pub stepper: super::stepper::Stepper,
     /// The run card above the composer: its note, the answer on its way and the words of a refusal (piece G).
     pub card: super::card::Card,
+    /// The open workflow file: its draft and text, the checks and the saves (piece L; piece M draws it).
+    pub editor: super::editor::Editor,
     /// The finish bar above the composer: its note, the press on its way and the words of a refusal (piece H).
     pub finish: super::finish::Finish,
     /// Turn on is saving.

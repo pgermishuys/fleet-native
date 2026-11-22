@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 pub mod card;
 pub mod detail;
 pub mod draft;
+pub mod editor;
 pub mod finish;
 pub mod helpers;
 pub mod nav;

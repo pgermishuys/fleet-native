@@ -2758,3 +2758,9 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
   it holds, then a frame or two more and checks again: the first answer's job can start the next request.
 - A store with a bounded number of requests at once is tested with a fake server that holds each one on a `Condvar` permit and counts `active`/`peak`; the
   test hands out permits one at a time and waits for the next request to arrive before the next permit.
+
+## Component 18, piece L (the editor's state)
+
+- **A wait after the last key needs the clock, and a handler has none.** An edit arms a timer; `keep_*` (called from `poll` with `now`) turns "armed" into a deadline and asks `tx.wake_after` for the frame. The wait therefore starts at the next poll, so a test draws a frame, then the delay.
+- **`Runtime::update` returns nothing**: read a value out of the state with `rt.state.…` (a `&mut self` method such as `take_saved()` works there too).
+- **A test fake that must answer from the request** (a check echoing its text) is easier as a small handler table than as fixed routes; one that must be slow waits in its handler on an `AtomicBool` with no lock held.
