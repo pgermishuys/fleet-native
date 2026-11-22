@@ -78,6 +78,8 @@ pub struct Editor {
     pub save_error: Option<String>,
     /// Why Designer didn't open: the File view's text can't be shown there without losing some of it.
     pub designer_blocked: Option<String>,
+    /// Which step is open and which + is asking (piece O).
+    pub canvas: super::canvas::Canvas,
     /// The comments in the file's text as it is now: what a save from the designer would remove.
     pub comments: Vec<WorkflowComment>,
     comments_confirmed: bool,
@@ -178,6 +180,7 @@ impl Editor {
         self.comments_confirmed = false;
         self.asking_to_remove_comments = false;
         self.conflict = None;
+        self.canvas = Default::default();
     }
 
     /// `cancelCheck` (and `dispose`): nothing waits, and an answer on its way will be ignored.

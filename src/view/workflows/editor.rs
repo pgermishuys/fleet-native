@@ -36,6 +36,9 @@ pub fn overlay(s: &State, t: &Theme) -> Vec<El> {
     if !s.workflow_editor_shown() {
         return Vec::new();
     }
+    if ed.canvas.add_at.is_some() && ed.view == EditorView::Designer {
+        return super::canvas::overlay(s, t);
+    }
     if ed.asking_to_remove_comments {
         return comments_dialog(t, ed);
     }
@@ -196,17 +199,7 @@ fn plural(n: usize) -> &'static str {
 
 /// The body above the problems strip: the File view's field, or the designer's workflow (piece O puts its canvas here).
 fn body(s: &State, t: &Theme, ed: &Editor) -> El {
-    let main = if ed.view == EditorView::File {
-        file_field(s, t)
-    } else {
-        let steps = ed
-            .draft
-            .as_ref()
-            .map(|d| d.steps.iter().map(|st| st.title.clone()).collect::<Vec<_>>().join("  \u{2192}  "))
-            .unwrap_or_default();
-        let stand_in = text(steps).key("workflow-steps-stand-in").font(sans(13.0, 400.0, 1.5)).color(t.muted).wrap().w_full();
-        col().w_full().grow(1.0).min_h(0.0).padding(20.0).child(stand_in).scroll(ScrollSpec { stick_bottom: false })
-    };
+    let main = if ed.view == EditorView::File { file_field(s, t) } else { super::canvas::view(s, t, ed) };
     let main = col().grow(1.0).min_h(0.0).w_full().child(main).child(problems(s, t, ed));
     row().w_full().grow(1.0).min_h(0.0).child(main.min_w(0.0))
 }
