@@ -123,19 +123,38 @@ pub fn bar_lead(t: &Theme, key: &str, lead: Vec<El>, actions: Vec<El>) -> El {
         .child(row().ml(0.0).gap(8.0).center_y().flex_wrap().justify_end().children(actions))
 }
 
+/// What `bar_eyebrow` takes beyond words: the `heading` slot and the tint.
+#[derive(Default)]
+pub struct Slots {
+    pub form: Option<El>,
+    pub tinted: bool,
+}
+
 /// `bar` with its eyebrow (`.page-header__eyebrow`: 10.5 px, 600, upper case, 0.05em apart, muted, 6 below), the title (it
-/// wraps anywhere, as a board's long name does) and the line under it (`description`), the `actions` at the end.
-pub fn bar_eyebrow(t: &Theme, key: &str, eyebrow: &str, title: &str, description: &str, actions: Vec<El>) -> El {
+/// wraps anywhere, as a board's long name does) and the line under it (`description`), the `actions` at the end. `form` takes the
+/// title's place (the `heading` slot: the board's rename form); `tinted` is the Board's manage-mode bar (`.kanban-header--manage`:
+/// the accent at 8% over the page, the rule under it the accent at 30% over `--border`, and a 1 px inner line at 22%).
+pub fn bar_eyebrow(t: &Theme, key: &str, eyebrow: &str, title: &str, description: &str, slots: Slots, actions: Vec<El>) -> El {
+    let Slots { form, tinted } = slots;
     let eyebrow = text(eyebrow.to_uppercase())
         .key(format!("{key}-eyebrow"))
         .font(sans(rem(0.75), 600.0, 1.5).tracking(0.05 * rem(0.75)))
         .color(t.muted)
         .mb(6.0);
-    let heading = text(title.to_string())
-        .key(format!("{key}-title"))
-        .font(sans(rem(1.5), 600.0, 1.25).tracking(-0.525))
-        .color(t.text)
-        .wrap_anywhere();
+    let heading = form.unwrap_or_else(|| {
+        text(title.to_string()).key(format!("{key}-title")).font(sans(rem(1.5), 600.0, 1.25).tracking(-0.525)).color(t.text).wrap_anywhere()
+    });
     let line = text(description.to_string()).key(format!("{key}-description")).font(sans(rem(0.875), 400.0, 1.5)).color(t.muted).wrap();
-    bar_lead(t, key, vec![row().child(eyebrow), heading, row().mt(4.0).child(line)], actions)
+    let bar = bar_lead(t, key, vec![row().child(eyebrow), heading, row().mt(4.0).child(line)], actions);
+    if !tinted {
+        return bar;
+    }
+    bar.border_sides([0.0, 0.0, 1.0, 0.0], t.accent_border(30.0)).fill(t.accent.alpha(0.08)).box_shadow(rune::Shadow {
+        x: 0.0,
+        y: -1.0,
+        blur: 0.0,
+        spread: 0.0,
+        color: t.accent.alpha(0.22),
+        inset: true,
+    })
 }

@@ -2944,3 +2944,9 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 ## Component 26, piece F (Machines: the list)
 
 - Nothing new about Rune: the reach line is a `text` under the state line, coloured by its tone. Build note: even `CARGO_BUILD_JOBS=1` can pass 5000 MB while compiling the test build of this crate (peak 4.8 GB, killed at 5000M twice, exit 143 or 137); 5600M finished.
+
+## Component 23, piece N (the Board's manage mode)
+
+- **An inset box-shadow draws a header's inner line**: `.box_shadow(Shadow { x: 0.0, y: -1.0, blur: 0.0, spread: 0.0, color, inset: true })` is Fleet's `inset 0 -1px 0`; `border_sides([0.0, 0.0, 1.0, 0.0], c)` after `bar_lead` recolours its rule, since a later `border_sides` replaces the first.
+- **A button that is off screen can't be clicked in a test**: `rt.find(key)` finds it but the press lands on whatever is there, so a test clicks the lanes it can see (the test window shows three of four lanes) and reaches the rest through the state.
+- **A test build of this crate peaks near 4.8 GB with debug info**: on a shared 14 GB machine it is OOM-killed (exit 143 under `systemd-run`); `--config profile.dev.package.fleet-native.debug=0` with `CARGO_BUILD_JOBS=1` fits (the dependencies stay built).

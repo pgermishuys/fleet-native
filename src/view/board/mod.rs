@@ -1,9 +1,11 @@
 //! The Board (component 23): `[board-controls][board]`. Ports `routes/board.tsx` (the off notice or the board) and the
 //! context's layout, with `KanbanBoard.vue`'s page: the header and its states (`header`). The lanes and cards (`lane`, `card`)
-//! in work mode. Manage mode, dragging, the controls (`BoardControlsPanel`) and the right panel come with later pieces.
+//! and, in manage mode, what `manage` adds. Dragging, the controls (`BoardControlsPanel`) and the right panel come with later
+//! pieces.
 mod card;
 mod header;
 mod lane;
+mod manage;
 
 use crate::State;
 use crate::fleet::labs::Feature;
@@ -29,18 +31,17 @@ fn body(s: &State, t: &Theme) -> El {
             &crate::icons::LAYOUT_GRID,
             "No lanes yet",
             "Click Edit Board to unlock lane management, then add your first board column.",
-            None,
+            manage::create_first_lane(s, t),
         ));
     }
     let clock = RowClock::now(s);
-    let lanes = b.lanes_with_cards().into_iter().map(|(l, cards)| lane::view(s, t, &l, &cards, &clock));
+    let all = b.lanes_with_cards();
+    let last = all.len().saturating_sub(1);
+    let lanes = all.iter().enumerate().map(|(i, (l, cards))| lane::view(s, t, l, cards, &clock, (i > 0, i < last)));
     // `.kanban-board`: 16 24 of padding, 16 between lanes, scrolling sideways only.
-    el().key("board-lanes")
-        .w_full()
-        .grow(1.0)
-        .min_h(0.0)
-        .scroll_x()
-        .child(row().key("board-lanes-row").h_full().items_stretch().gap(16.0).px(24.0).py(16.0).children(lanes))
+    el().key("board-lanes").w_full().grow(1.0).min_h(0.0).scroll_x().child(
+        row().key("board-lanes-row").h_full().items_stretch().gap(16.0).px(24.0).py(16.0).children(lanes).children(manage::adder(s, t)),
+    )
 }
 
 /// `KanbanBoard`: fills the sheet edge to edge (`margin: -24px` cancels the centre's padding), so only the lanes scroll.
@@ -53,6 +54,7 @@ fn board(s: &State, t: &Theme) -> El {
         .min_h(0.0)
         .child(header::bar(s, t))
         .child(header::tiles(s, t))
+        .children(manage::lane_creator(s, t))
         .children(header::toast(s, t))
         .children(header::banner(s, t))
         .child(body(s, t));
