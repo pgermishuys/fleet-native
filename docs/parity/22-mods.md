@@ -159,7 +159,7 @@ a real Fleet. 1280×760, both themes. Fleet's client by Playwright, the native a
 |---|---|---|---|
 | 4.1 | The address: `/api/sessions/{session}/mods/{mod id}/pages/{path}` on the session's machine, every segment encoded, a query from the string values of `query` (others ignored, no `?` when empty) | PU 39-58 | Done (J): `fleet::mods::page_url::mod_page_url` (`encodeURIComponent` for segments, `URLSearchParams`' form encoding for the query, order as the object holds it). The card is given the address on the machine's own API and `page_url_of` puts the session's machine before it. Live: Fleet's iframe and the native dialog ask for the same address (`/api/sessions/<id>/mods/deploy-notes@draft:<id>/pages/ui/notes.html`) |
 | 4.2 | Refused (no address): a session id outside `^[A-Za-z0-9_-]{1,128}$`, a bad mod id, a path not ending `.html`, with a control character, `\`, `:`, an empty, `.` or `..` segment, or an address that isn't on the machine's own origin | PU 25-38, 54-57 | Done (J): all 10 of `page-url.test.ts` ported under their names (`src/fleet/mods/page_url.rs`); the origin check compares `scheme://authority` of the answer with the one of `api_url("/")` where Fleet builds `new URL`, so a base that isn't a URL is refused the same way |
-| 4.3 | A Page draws the conversation's page, contained (no new tab, no pop-ups), titled `title` (else the path), with Open full size; the owner comes from the node's `mod`, never from props. Here, decision 1: 14's page card with `contained` set, opening the page tab at that address | MPG, `docs/parity/14-web-content.md` 14.96 | Done (J): `view::mods::leaves::page` → `view::page_card::card` with `contained` (no Open in a new tab; Open full size opens 14's dialog, whose web view loads the address from the session's machine). Open (J, owner to decide): the brief for 4.3 says the card opens the page tab; it opens 14's full-size dialog instead (the card is `contained`, so it has no new-tab button and the page tab has no mod-page kind). Gaps: a card, not a live frame in the pane (decision 1, row 14.5); the dialog is 14's, so the "no pop-ups" sandbox of 14.96 is the web view's own, not checked per page; a server answers no page yet (Fleet's own client shows the server's 404 in its frame, v0.72.0 and main), so the page picture is served by a stand-in in front of the scratch Fleet |
+| 4.3 | A Page draws the conversation's page, contained (no new tab, no pop-ups), titled `title` (else the path), with Open full size; the owner comes from the node's `mod`, never from props. Here, decision 1: 14's page card with `contained` set, opening the page tab at that address | MPG, `docs/parity/14-web-content.md` 14.96 | Done (J): `view::mods::leaves::page` → `view::page_card::card` with `contained` (no Open in a new tab; Open full size opens 14's dialog, whose web view loads the address from the session's machine). Open (J; closed by L as a decision of 14, see "L. The sweep"): the brief for 4.3 says the card opens the page tab; it opens 14's full-size dialog instead (the card is `contained`, so it has no new-tab button and the page tab has no mod-page kind). Gaps: a card, not a live frame in the pane (decision 1, row 14.5); the dialog is 14's, so the "no pop-ups" sandbox of 14.96 is the web view's own, not checked per page; a server answers no page yet (Fleet's own client shows the server's 404 in its frame, v0.72.0 and main), so the page picture is served by a stand-in in front of the scratch Fleet. **No Fleet server serves mod pages yet (v0.72 to v0.74), so the page pictures used a stand-in; and a mod page opens in 14's full-size dialog, not the page tab** (L, 22 Nov 2026) |
 | 4.4 | No address (no session, a bad owner, a bad path): "{title}: Page unavailable", 12 px `--muted`, wraps anywhere | MPG 37-44 | Done (J): `leaves::page` draws the line at 12 px `--muted`, wrapping anywhere; no machine to serve it counts as no address |
 
 ### 5. Tool rows: asking (R, A)
@@ -279,7 +279,7 @@ preferences or local keys besides the `Mods` preference (16's).
 | 14.2 | `?mods=off` on the address (SM) | The native app has no address. Its purpose, stopping a mod that breaks the page before anything loads, doesn't apply: a tree here is data checked before it is drawn, and a page is inside a web view. The palette command (11.3) is the way in. Its tests (`safe-mode-start.test.ts`) are not ported |
 | 14.3 | The mock-mode test API (`window.__FLEET_MODS_TEST_API`, `test-api.ts`) | Native scenes and tests draw invented trees from `src/mock/` directly; nothing to expose. Its four `panes.test.ts` cases are not ported |
 | 14.4 | `mod-types-drift.test.ts` (reads `mods/types/fleet-mods.d.ts` from weave-fleet) | CI here has no weave-fleet checkout. Piece A pins the lists to `c1a48bd` in a test instead; the catch-up session between milestones diffs the `.d.ts` by hand |
-| 14.5 | A live Page inside a list (a pane or a tool body) | Decision 1: a web view can't scroll or clip inside a Rune list; a card opening the page tab instead (4.3) |
+| 14.5 | A live Page inside a list (a pane or a tool body) | Decision 1: a web view can't scroll or clip inside a Rune list; a card opening 14's full-size dialog instead (4.3, and L's note there) |
 | 14.6 | Live checks of the band and the chip | Fleet's server doesn't send those sites yet (12.x) |
 
 ## Fleet's bugs and quirks found while reading (reported, not fixed here)
@@ -521,6 +521,59 @@ Not made live: the waiting state (a restored tab before its mod draws) can't be 
 - **Tests:** `ModsSafeModeBanner.test.ts` (desktop cases), `StatusBar.mods.test.ts` (6), `Composer.mods.test.ts` (6).
 - **Pictures:** the banner beside `fleet-safe-mode-*` (live), both themes; the band and the chip from mock data (Fleet
   can't show them live, 12.x), with the palette showing "Start without mods".
+
+#### L. The sweep
+
+**Done** (22L), 22 November 2026, weave-fleet `dccee7b` (`main`), the release server v0.72.0 on a scratch Fleet with Mods on.
+
+- **Rows:** 1.1-14.6 all read again. Every row is Done (A to K) or, for 14.x, out of reach with its reason. The gaps the pieces wrote
+  into their rows are listed below with an owner; none is left without one.
+- **Fleet's tests, by name.** All 364 `it` cases of the 25 files in "Fleet's tests, and where they go" were compared with the
+  names of the Rust tests (the Rust name is the sentence in snake case; Fleet's `it.each` rows are one Rust test over the same
+  list). Every case has its twin or is named here as not ported, with its reason:
+  - `validate.test.ts`: "refuses a prop that is undefined or a function", "a handle or prop that only the prototype has is
+    missing", "refuses a tree that cannot be JSON": a `serde_json::Value` can't hold them (A; the prototype names are tested as
+    plain keys). The `%s` cases are `it.each` rows: their Rust twins loop over the same lists.
+  - `ModTree.test.ts`: "alignItems %s", "justifyContent %s", "borderStyle %s", "tone %s", "colours %s", "draws %s" are loops
+    (`box_align_items`, `box_justify_content`, `box_border_style`, `tones`, `colours`); "spins the loader" is
+    `icon_the_loader_draws_and_the_others_do_not_move` (it fades, not turns: Rune); the four inline-wrap cases ("styles every row
+    Box…", "at %s a nested row Box…", "at Pane the rule doesn't apply…") are `inline_sites_wrap`; "does not bubble or follow" is
+    `tests_mods_rows` (a press in a line leaves the row closed).
+  - `mod-markdown.test.ts`: all 9 (`markdown_dims` is "dims on dimColor"; the others differ only in the apostrophes of their names).
+  - `page-url.test.ts`: all 10 (its three `it.each` rows by session id are `refuses_a_session_id_outside_fleets_charset`).
+  - `panes.test.ts`: the 4 mock-mode test-API cases are not ported (14.3); the other 9 are.
+  - `mods.test.ts` and `kept-api.test.ts`: the draft cases are `tests_mods_drafts`; the kept-mod, switch and safe-mode cases
+    (`loads the list…`, `undo and setOn…`, `setSafeMode…`, `reloads kept on %s`, `fetchMods`, `undoMod`, `setModOn`,
+    `setSafeMode PUTs`) are 16AM's `tests_settings_mods_kept.rs` and `tests_mods_sites.rs`.
+  - `ModDraftCard.test.ts` "draws the phone's own buttons" and `ModsSafeModeBanner.test.ts` "uses the phone's button classes":
+    out of scope (14.1).
+  - `ToolCard.mods.test.ts`, `renders.test.ts`, `resolve`, `failures`, `points`, `check-summary`, `ModReviewDialog`, the pane,
+    `CanvasHost`, `StatusBar.mods`, `Composer.mods` files: all ported, as the pieces said (the few that differ from Fleet's name do
+    so by an apostrophe or a trailing clause).
+- **The live walk** (scratch Fleet, Mods on, three samples, the invented `deploy-notes` draft and an invented `broken-notes` draft
+  with a syntax error, Fleet's client and the native app at 1280x760, both themes): the shell row's line (test-chips' counts and
+  the draft's icon), its body (press-counter and release-board's buttons above Fleet's output), the + menu's "From mods" group,
+  the draft's pane and release-board's, the off state with **Turn on** (live: it turned the mod on and the pane drew), both draft
+  cards, the Keep dialog for a good draft and the blocked one ("Fix this first: Unexpected token (line 50:17)", Keep disabled),
+  safe mode's banner with "Start without mods" / "Turn mods back on" in the palette, and a page card. Pictures:
+  `shots/parity/22-mods/L-*`. They match in layout, sizes, colours and words.
+- **Small differences seen, with owners** (none is Mods'):
+  - The conversation header's folder path ellipsizes at its end in Fleet (`/tmp/fleet-n…`) and at its start here: component 6
+    (conversation header).
+  - The right panel's tab strip scrolls the opened tab into view in Fleet (Files is half cut); native keeps the first tab at the
+    left: component 10 (content panel).
+  - The Keep dialog's note field shows a focus ring in Fleet and only a caret here: the kit's text input (component 1 / 16).
+  - A Page inside a pane is Fleet's live frame (showing the server's 404 text today); native is the card (14.5, decision 1).
+- **Open, with owners** (from the rows above): the tool line's cap and floor are shares of a measured width and a Body Input's
+  caret in a reused row moves only with its text (E; Rune); a pane of a session that isn't open isn't redrawn by events (F;
+  needs a topic for it, component 4's session events); `baseline`, the share of `flexGrow`, the heading tint and rule, the
+  looping spinner (B, C; Rune, `docs/RUNE.md`); the Keep note's 2,000-character limit applies on sending (I; trivial, owner
+  component 16/22 follow-up); the palette wraps "Start without mods" on two lines in Fleet (K; component 1). The band (12.1) and
+  the chip (12.2) can't be checked live until Fleet's server sends them (14.6): re-check when it does, in the catch-up session.
+- **Decision recorded (4.3):** a mod's Page card opens 14's full-size dialog, because the card is `contained` and the page tab has
+  no mod-page kind. It is not the page tab; nothing else is planned.
+- **Pictures:** `shots/parity/22-mods/L-<state>-{fleet,native}-{dark,light}.png`; the page card, the band and the chip are the
+  scenes `mods-page`, `mods-band`, `mods-chip` (no server draws them).
 
 ## Seams with other components
 

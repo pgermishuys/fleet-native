@@ -2924,3 +2924,5 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 ## Component 26, piece E (Machines: the data)
 
 - Nothing new about Rune: this piece draws nothing. Two build notes: a test build of this crate peaked above 4.8 GB with `CARGO_BUILD_JOBS=3` and was OOM-killed under a 5000M cap (exit 143 on the wrapper); `CARGO_BUILD_JOBS=1` finished in 6 minutes.
+
+- **A scripted tap on a key that a server answer creates exits 2** (key not found) if it comes too soon after the state change: the `+` menu's mod rows exist only once the session's sites have been read. Give such a tap 1.5 s or more after the one before it (22L, live walk).
