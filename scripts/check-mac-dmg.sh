@@ -6,7 +6,7 @@
 set -uo pipefail
 dmg="${1:?dmg}"; server="${2:?server}"; checker="${3:?checker}"; shots="${4:?picture folder}"
 root="$(cd "$(dirname "$0")/.." && pwd)"
-mkdir -p "$shots"
+mkdir -p "$shots"; shots="$(cd "$shots" && pwd)"
 mnt=""
 for i in 1 2 3 4; do
   if out=$(hdiutil attach "$dmg" -nobrowse -readonly 2>&1); then
@@ -27,7 +27,7 @@ app="$mnt/Fleet Native.app"
 bash "$root/scripts/check-mac-app.sh" "$app" "$server" "$checker" || fail "the app inside the image"
 plutil -p "$app/Contents/Info.plist" > "$shots/plutil-p.txt"
 codesign -dv "$app" 2>&1 | grep -v '^Executable=' > "$shots/codesign-dv.txt"
-{ cd "$mnt" && find . -maxdepth 3 | sort | sed -n '1,40p'; } > "$shots/listing.txt"
+(cd "$mnt" && find . -maxdepth 3 | sort | sed -n "1,40p") > "$shots/listing.txt"
 
 echo "== running the app from the image"
 data=$(mktemp -d "${TMPDIR:-/tmp}/fleet-mac-XXXXXX")

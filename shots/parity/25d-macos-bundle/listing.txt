@@ -1,0 +1,8 @@
+.
+./Applications
+./Fleet Native.app
+./Fleet Native.app/Contents
+./Fleet Native.app/Contents/_CodeSignature
+./Fleet Native.app/Contents/Info.plist
+./Fleet Native.app/Contents/MacOS
+./Fleet Native.app/Contents/Resources
