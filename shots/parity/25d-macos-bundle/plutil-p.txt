@@ -5,8 +5,8 @@
   "CFBundleIdentifier" => "io.tryweave.fleet-native"
   "CFBundleName" => "Fleet Native"
   "CFBundlePackageType" => "APPL"
-  "CFBundleShortVersionString" => "0.0.1584"
-  "CFBundleVersion" => "1584"
+  "CFBundleShortVersionString" => "0.0.1587"
+  "CFBundleVersion" => "1587"
   "LSApplicationCategoryType" => "public.app-category.developer-tools"
   "LSMinimumSystemVersion" => "11.0"
   "NSHighResolutionCapable" => 1
