@@ -80,7 +80,7 @@ fn enter_runs_the_highlighted_command_and_closes() {
 }
 
 #[test]
-fn a_command_waiting_on_a_component_says_so_instead_of_running() {
+fn a_command_chosen_in_the_palette_runs_and_no_command_waits_on_a_component_any_more() {
     let mut rt = app();
     rt.update(|s, tx| {
         super::palette::open(s, tx);
@@ -88,8 +88,8 @@ fn a_command_waiting_on_a_component_says_so_instead_of_running() {
     });
     rt.frame(FRAME);
     key(&mut rt, Key::Enter);
-    let toast = rt.state.ui.toast.as_ref().expect("a toast");
-    assert!(toast.message.contains("component 3"), "{}", toast.message);
+    assert!(rt.state.inline_diffs);
+    assert!(rt.state.ui.toast.is_none());
 }
 
 #[test]

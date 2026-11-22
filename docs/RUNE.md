@@ -2932,3 +2932,11 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 
 - **Walking a scrolled canvas in a script**: `{"type":"wheel","key":"workflow-canvas","dy":-400}` scrolls the canvas down (a negative `dy` moves the content up); a `tap` on a node that is clipped out of the scroll area does nothing, so scroll first. A positive `dy` did nothing at the top.
 - **A script's clock is virtual**: a headless `--script` run takes about 6 times its script time in wall seconds, so an outside change timed by wall clock (a file edited on disk to make a conflict) lands unpredictably. Have a watcher poll for the file the walk creates, then change it a moment later.
+
+## Component 26, piece L (the palette's last five)
+
+- `cx.zoom` is one factor for the whole window, so Appearance's font size and the palette's zoom multiply into one call
+  (`view.rs`). Fleet's zoom changes only what is in `rem`, so its sidebar width and fixed-px parts stay put; here the
+  whole window scales, as the font size already did.
+- A `text(..)` with `.shrink()` and no `.truncate()` does not wrap on its own in a row; add `.wrap()` (the palette's
+  descriptions).

@@ -161,12 +161,12 @@ Rune's limits are in Part 8.
 
 | # | What | Source | Native |
 |---|---|---|---|
-| 2.1 | Refresh sessions | 01 palette, 06 1.63 | `Run::Waiting(2)` |
-| 2.2 | Show inline tool diffs, and a switch for `State.inline_diffs` anywhere (Settings has none) | 01, 03 3.15 | `Run::Waiting(3)` |
-| 2.3 | Show all sessions (`toggle-activity-filter`) | 01, 06 1.62 | `Run::Waiting(6)` |
-| 2.4 | Zoom in / Zoom out (Ctrl = / Ctrl -) step the interface scale; Fleet's zoom and Appearance's font size are one setting | 01, 06 decision 12, 24.104 | `Run::Waiting(9)` |
-| 2.5 | Go to file, Find in files from the palette | 01 | `Run::Waiting(11)` (`commands.rs:163`); check whether 11/12 replaced them |
-| 2.6 | "Start without mods" wraps its description as Fleet's does | 22 11.3 | Cut to one line |
+| 2.1 | Refresh sessions | 01 palette, 06 1.63 | **Done (L, 22 Nov 2026)**: reads the sessions and projects again (`retry_list`), nothing with no server |
+| 2.2 | Show inline tool diffs, and a switch for `State.inline_diffs` anywhere (Settings has none) | 01, 03 3.15 | **Done (L)**: the command flips `State.inline_diffs` and its label reads Show/Hide as Fleet's; Fleet has no Settings switch (checked at 0f832ca-era `main`: only `workspace-ui.ts` and the palette), so there is none here |
+| 2.3 | Show all sessions (`toggle-activity-filter`) | 01, 06 1.62 | **Done (L)**: Active to All and back, label "Show active sessions" while on; the list is read again (`pick_retention`) |
+| 2.4 | Zoom in / Zoom out (Ctrl = / Ctrl -) step the interface scale; Fleet's zoom and Appearance's font size are one setting | 01, 06 decision 12, 24.104 | **Done (L)**: `State.zoom_pct`, 70 to 150 in steps of 10 (Fleet's `zoomDocument`), on top of Appearance's font size, also Ctrl/Cmd = and -; kept for the run only, as Fleet. Fleet bug, not copied: its first zoom after load reads `14px` as 14 percent and clamps to 70, so a zoom in shrinks |
+| 2.5 | Go to file, Find in files from the palette | 01 | **Done**: both were built by 11 (`go_to_file_open`, `find_in_files_ask`); only the stale note was left; Ctrl+P and Ctrl+Shift+F work |
+| 2.6 | "Start without mods" wraps its description as Fleet's does | 22 11.3 | **Done (L)**: the palette row's description wraps (`.wrap()`), as Fleet's span does; scene `palette-long-description` |
 
 #### 2b. The conversation (components 3 and 4)
 
@@ -357,7 +357,7 @@ aria-live"; the pass reads each against the pin.
 | 4.12 | Workflows, Automations, Analytics, GitHub, Labs: optional-step chips pressed, Check with me a switch, the stepper's current step, live plan line, notices' roles, `aria-sort` (in the label), `aria-busy`, Group by pressed, Peek live | 18 5.7, 5.8, 7.6; 19 16.6; 20 2.6, 12.2; 21 10.1; 23 2.3, 5.4, 8.1, 10.4, 25.4 | Open |
 | 4.13 | The palette's list labelled "Commands", a disabled command `aria-disabled` | #1024, #1012 | Open |
 | 4.14 | A live check with a real screen reader: Orca on Linux (if it can run here), Narrator or NVDA on Windows, VoiceOver on a Mac (the owner) | | Never done |
-| 4.15 | `shell-font-scale.test.ts`: the interface scales with the font size setting | 09 tests | Open (with 2.4) |
+| 4.15 | `shell-font-scale.test.ts`: the interface scales with the font size setting | 09 tests | **Done (L)**: `tests_palette_last_five::app_shell_font_sizes_follow_the_font_size_setting` (the shell is one zoom, so no fixed-px list; the test checks the font size and the zoom commands move that one zoom) |
 
 ### 5. Motion
 
