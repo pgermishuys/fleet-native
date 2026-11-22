@@ -151,7 +151,7 @@ Each row: what Fleet does, its source, and the native state (with the piece that
 | 2.4 | Needs you's count: the waiting tiles (needs you **or** error, 3.6), 11 px tabular muted; while above 0 it is 600 `--accent-text` (`fleet-nav__count--alert`) | FNP 36-40, 161-170, UFM 26-27 | **Done (D)**: `Wall::waiting.len()`, 11 px; 600 and `--accent-text` while above 0 |
 | 2.5 | One entry per machine in the machines store's order (home first), labelled with its name (ellipsis when long); its count = that machine's tiles (working, waiting, error and idle in the last day); "offline" (10 px muted) before the count when its feed is unreachable | FNP 44-68, 144-160, UFM 29-35 | **Done (D)**: one entry per `Machines::entries` (home first), its name truncated; the count is that machine's tiles; "offline" while its feed is unreachable. Home's tile and menu name come from the same entry here, where Fleet's client keeps the name its feed opened with ("This machine" until the identity loads; the quirk listed under Fleet's bugs) |
 | 2.6 | Pressing an item opens its route (`/fleet` for Needs you, `/fleet/machines/<id encoded>` for a machine); pressing the open one does nothing | UFM 41-44, LFV | **Done (B the paths, D the press)**: pressing an entry opens `fleet_view_path`; pressing the open one does nothing |
-| 2.7 | The menu and the page read the view from the address (`fleetViewFromPath`), so neither passes it to the other; a reload keeps it | UFV, LFV | Address half **done (A)** (`State.labs.fleet_view`); the menu and page reading it are D's |
+| 2.7 | The menu and the page read the view from the address (`fleetViewFromPath`), so neither passes it to the other; a reload keeps it | UFV, LFV | **Done (A the address, D the menu and page)**: `State.labs.fleet_view` is the one place; the menu and the page both read it, nothing passes it between them (checked live in the sweep: the menu marks the open view while the page shows it) |
 
 ### 3. Fleet: the data (no view)
 
@@ -614,6 +614,10 @@ Neither blocks a piece: each piece follows Fleet as it is until the owner says o
 | `plugins/__tests__/plugin-runtime.test.ts`, `plugin-switch.test.ts` | the board-source cases: "reads repository sources and board sources that plugins contribute, and drops them with the plugin", and a switched-off plugin's board sources being gone | P |
 | `components/layout/__tests__/rails.test.ts`, `stores/__tests__/sidebar.test.ts` | the board rail, "shows no panel for Board while Board is off…", "shows the board controls for Board while Board is on", "keeps the board's right panel out of the session choices" | Done (9A, 10) except the panel being drawn (A draws the shell) |
 
+**Slice 1's tests, accounted for (piece I, 22 November 2026):** every row of the table above that names piece A to H was looked up by
+name in the native tests (the case's words as a snake-case name, `src/tests_labs_frame.rs`, `tests_mission_*.rs`,
+`tests_jobs_*.rs`, `src/fleet/tests/{mission,mission_feed,jobs}.rs`): all are there and pass. Two `inbox-feed` cases are not ported on purpose, as the table says (native has no cookie; the new-key flow is 25.9).
+
 ## Pieces
 
 In build order, slice 1 (A to I) then slice 2 (J to S). Each is one pull request a fresh session can do from this file
@@ -774,6 +778,32 @@ test output.
   done, a second scratch Fleet as another machine (token required) for the "offline" note and an answer on another
   machine.
 - `docs/PORT.md`'s row says what is done.
+
+**Done (22 November 2026), slice 1 is done.** Every row of sections 1-14 is **Done**, **Out of scope** (1.11, the phone strip) or
+**Not ported** (9.7, dead on `main`); what stays open, with its owner:
+
+| Open | Why | Owner |
+|---|---|---|
+| 13.1 the `lg` breakpoint and the stretched grid rows on the Agents tab | Rune gives a view no window width, and a cell's height follows its content; Fleet's stretch to the page's bottom is not drawn | none (a Rune limit, noted in `docs/RUNE.md`) |
+| 14.7 Fleet 0.74's per-machine page (Settings → Machines → Manage) | native's cards hold the seats row on the card, as 0.72's do; 0.74 moved the row to the machine's own page | component 17 |
+| 8.6 the nudge field's accent border for a mouse focus | Fleet draws it for a mouse focus; the ring here shows for a key focus | none (a small difference, left) |
+| the "This machine" name on tiles and cards of home | Fleet's quirk (the Fleet bugs list); native names them by the machine's current name | Fleet (reported, not fixed here) |
+
+What the walk found and fixed in this piece: **a Needs you card was 1.5 to 2 px off Fleet's** (spacing in whole pixels where Fleet's
+Tailwind steps are 3.5 / 5.25 / 7 / 10.5 at its 14 px root, and the card's 1 px top and bottom border taking no room), so every card
+after the first drifted; the heights and the gap now equal Fleet's in the DOM (test `a_card_is_as_tall_as_fleets_and_they_sit_10_and_a_half_apart`).
+Nothing else differed.
+
+**The live walk** (a scratch Fleet as `workbench`, a second scratch Fleet as `harbor` that needs a token, added as a machine through
+`POST /api/machines`; Fleet's own client of the same server beside it, 1280×760, both themes, `shots/parity/23-labs-views/I-sweep/`):
+- *Needs you:* a question answered in place on home, a question answered on `harbor` (the other machine, with its token), a
+  permission allowed on home and on `harbor` (a job's session); each card left and the counts followed.
+- *A machine's view:* grouped by folder and by state, the peek of a tile with its events, a nudge sent (`Sent.`), a machine
+  that was stopped showing "offline" in the menu and "Couldn't reach harbor." on its page, and back when it was started again.
+- *Jobs:* a job posted that started, jobs that waited ("No machine has a free seat", "No machine has `gpu`"), one that needs you
+  (Needs you flag, Open session), done jobs, a waiting job cancelled, the Agents tab with the seats and their jobs, `harbor`
+  given one seat in Settings → Machines (typed, Enter) after which a waiting job started on `harbor` and needed answering there.
+Not checked: macOS and Windows (Linux only; the walk needs a scratch Fleet, which runs here), a phone width.
 
 ### Slice 2: the Board
 

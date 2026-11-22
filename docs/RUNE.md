@@ -2850,3 +2850,10 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 - **A box-shadow ring is `outline(3.0, 0.0, colour)`** (Fleet's `0 0 0 3px`).
 - **A menu that must sit over the next sibling is an overlay**: a child of the connector would be drawn under the node after it. `anchored(..)` with `.modal(true, close)` gives Escape and click-outside.
 - **`on_layout` fires only when the element moves**, so measured places kept in `State` must not be cleared while the same elements stay on screen (opening another file with the same layout): the arcs would vanish for good. `Canvas::reopen` clears the picks and keeps the places.
+## Component 23, piece I (slice 1 sweep)
+
+- **`border_sides` paints but takes no room.** A box with `.border_sides([1.0, 1.0, 1.0, 0.0], c)` lays its content out as if it had no border, so a
+  card Fleet draws with a 1 px border all round (`border border-l-4`) came out 2 px shorter than Fleet's. Put the 1 px in the padding of the box inside
+  (`py(pad + 1.0)`); `.border_layout()` is the other way when all four sides are alike.
+- **Tailwind at a 14 px root**: `mt-1` is 3.5, `mt-2` 7, `gap-1.5` 5.25, `gap-3` 10.5, `px-2` 7. Round numbers (4, 8, 6, 12) look right in a picture and drift by 1 to 2 px a card.
+  Measure Fleet's DOM (`getBoundingClientRect`) once and compare the native card's rect in a test.
