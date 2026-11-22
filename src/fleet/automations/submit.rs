@@ -84,8 +84,14 @@ impl State {
         let machine = self.automations_machine();
         self.automations_nav.form_error = None;
         if self.link_for_machine(&machine).is_none() {
+            let now = crate::view::message::now_ms(self);
             let store = self.automations.of_mut(&machine);
-            let created = invented(&request, &format!("a-new-{}", store.list.len() + 1), None);
+            let mut created = invented(&request, &format!("a-new-{}", store.list.len() + 1), None);
+            // Fleet's server says when a new schedule runs first; with none, the row's next run comes from the schedule here.
+            let tz = |ms: i64| crate::conv::time::local_offset_at(ms);
+            created.next_run_at = super::schedule::from_trigger(&created.trigger_type, &created.trigger_config)
+                .and_then(|w| super::schedule::next_run(&w, now, &tz))
+                .map(crate::fleet::session_commands::iso_utc);
             store.list.push(created.clone());
             self.automation_created(created);
             return;
