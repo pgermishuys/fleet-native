@@ -1,7 +1,7 @@
 # Component 24: Desktop shell (checklist and pieces)
 
 Planned on 19 November 2026, from weave-fleet `main` at commit `107c794` (read in a shallow clone). `desktop/` was last
-changed before that commit; its files are the same in the v0.72.0 release the checks run against.
+changed before that commit. Its four latest changes (#1076-#1078 and the reach dialog's desktop side) first shipped in v0.74.0, not v0.72.0; the checks below ran against v0.72.0 unless a row says otherwise.
 
 Sources (weave-fleet): `desktop/src/main.ts` (MAIN), `server.ts` (SRV), `instance.ts` (INS), `paths.ts` (PA),
 `settings.ts` (SET), `shell-env.ts` (ENV), `menu.ts` (MENU), `links.ts` (LNK), `preload.ts` (PRE), `updates.ts` (UPD),
@@ -132,7 +132,7 @@ No event tells the app the window moved or was resized; a piece polls `placement
 |---|---|---|---|---|
 | 24.1 | Data folder: `FLEET_DESKTOP_DATA_DIR` or `~/.weave`; database `fleet.db`, instance file `fleet.instance.json` beside it | PA `resolvePaths`; DT "shares ~/.weave with CLI installs", "takes overrides for scratch runs" | Done (`instance::data_dir`) | — |
 | 24.2 | Server binary: an override (`FLEET_DESKTOP_SERVER_BIN`, content root `FLEET_DESKTOP_SERVER_CONTENT_ROOT` or the binary's folder) | PA; DT "takes overrides for scratch runs" | Done (`desktop::paths`: `FLEET_NATIVE_SERVER_BIN`, then Fleet's `FLEET_DESKTOP_SERVER_BIN`; an override stands alone) | — |
-| 24.3 | Packaged: `<resources>/fleet/WeaveFleet.Api`, content root that folder; `.exe` on Windows | PA; DT "uses the bundled server when packaged", "names the Windows binary with .exe" | Path done (`<exe dir>/fleet/`, mac `Contents/Resources/fleet`); no bundle until 25 | 25 (the bundle) |
+| 24.3 | Packaged: `<resources>/fleet/WeaveFleet.Api`, content root that folder; `.exe` on Windows | PA; DT "uses the bundled server when packaged", "names the Windows binary with .exe" | Done (`<exe dir>/fleet/`, mac `Contents/Resources/fleet`); component 25's pieces A-D bundle the server (closed by component 26 A, 22 November 2026) | 25 (done) |
 | 24.4 | Development: the repository's Release build `src/WeaveFleet.Api/bin/Release/net10.0/<rid>/` | PA; DT "uses the repo's Release build in development" | n/a: the native app isn't built inside weave-fleet; the override covers it | — |
 | 24.5 | The other installs (decision 1): CLI install, Fleet's desktop app's copy, `fleet` on PATH | native only | Done (`desktop::paths::candidates`: beside the app, CLI install, Fleet's own app, `fleet` on PATH) | — |
 | 24.6 | No binary anywhere: "Fleet isn't where the app expects it: <path>" (native: the places it looked) | SRV `launch` | Words done (`paths::not_found_message`). **Open by design** (decision 4): with no server found the old notice and 3 s search stay, so the page isn't shown; the notice names the places | — |
@@ -189,7 +189,7 @@ for the theme (native: the app's theme). Icon `icon.png`.
 
 | # | Row | Source | Native | Owner |
 |---|---|---|---|---|
-| 24.50 | 1360×880 by default, minimum 720×480, title "Fleet", the app icon | MAIN | Done (size, minimum, title "Fleet" in `spec()`); the icon comes with 25's packages | 25 (icon) |
+| 24.50 | 1360×880 by default, minimum 720×480, title "Fleet", the app icon | MAIN | Done (size, minimum, title "Fleet" in `spec()`); the icon comes with 25's packages (done, pieces B-D; closed by component 26 A, 22 November 2026) | 25 (done) |
 | 24.51 | Save bounds and maximized 400 ms after a move or resize, not while minimized or full screen; normal bounds when maximized | MAIN `saveBounds` | Done (`desktop::window::Keeper`: read from `placement()` by the poll, which asks Rune for a wake every 250 ms while a window exists; written 400 ms after the last change, and on close and quit; skipped while minimised or full screen; the normal frame is kept with the maximised flag, from `placement().restore` on Windows, else the last normal frame seen) | — |
 | 24.52 | Restore saved bounds only if at least 100×100 of them is on a screen now and they're at least 400×300; else default size, centred | SET `restorableBounds`; DT "window bounds" ×3 | Done (`desktop::window::restorable`, DT "window bounds" ×3 plus the 100 px edge, a second screen on the left, and 400 x 300 read in points) | — |
 | 24.53 | Open maximized when it was | MAIN | Done (`App::maximized`; the saved frame stays what restoring returns to). Checked by tests only: the virtual display's window manager here has no maximise | — |
@@ -539,13 +539,13 @@ Rows not listed here are **Done** in the tables above, with the piece named ther
 
 | Row | State | Why, and who |
 |---|---|---|
-| 24.3 | Path done; no bundle | The server bundled beside the app is component 25's package. |
+| 24.3 | Done | The path is done and component 25's piece A puts the server inside the packages (closed by component 26 A, 22 November 2026). |
 | 24.4 | n/a | The app isn't built inside weave-fleet; `FLEET_NATIVE_SERVER_BIN` covers it. |
 | 24.6 | Open by design | With no server found anywhere the old notice and 3 s search stay (decision 4); Fleet's "isn't where the app expects it" page isn't shown. |
-| 24.30 | Done bar one thing | Reduced motion isn't read (Rune has no such query): the bar always slides. |
+| 24.30 | Done bar one thing | Reduced motion isn't read: the bar always slides. (Rune has the query now, `cx.system_reduced_motion()`; wiring it is open.) |
 | 24.34 | Done bar one thing | The card is 470 wide whatever the window (Fleet: `max-width: 100%`); the minimum window is wider. Native's **Use it** shows no focus ring; Fleet's autofocus does (look at `start-pages-*.png`). |
 | 24.46 | n/a | Native sends the key on every request; there's no cookie to sign in. |
-| 24.50 | Open | The app icon comes with 25's packages. **Owner: 25.** |
+| 24.50 | Done | The app icon comes with 25's packages (pieces B-D: `assets/icon/`, the Linux, Windows and macOS bundles; closed by component 26 A, 22 November 2026). |
 | 24.53 | Tests only | Maximised: the virtual display's window manager here has no maximise. |
 | 24.54, 24.55 | n/a | Rune paints the first frame itself; there's no menu bar on Windows and Linux. |
 | 24.56, 24.109 | Out of reach | Rune's text fields have no spell checker. **Owner: Rune.** |

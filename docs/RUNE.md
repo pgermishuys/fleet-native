@@ -524,7 +524,7 @@ Nothing in Rune was needed: this piece is plain Rust. Two things for whoever bui
 - **Tabular figures are a font feature**: `sans(..).features("'tnum' 1")`, not an element method.
 - **Meters don't animate here.** Fleet's `transition: width 300ms` on the size meter and the limits' fills is not ported: the
   bars are drawn at their final width. (`live_trim` moves only a canvas stroke.)
-- **A spinner doesn't turn** (no looping rotation): it fades, as in the older-messages row.
+- **A spinner doesn't turn** (no looping rotation): it fades, as in the older-messages row. **Out of date (22 Nov 2026):** `.looping(LoopSpec::rotation(period))` turns an element forever and holds `still` under reduced motion (`crates/rune/README.md`, "Periodic motion"); the spinners can turn.
 
 ## Component 5, piece I (queue and steer)
 
@@ -969,7 +969,7 @@ A context-menu row's label is one text run, so a machine's name in the mono face
 
 ## Component 8, piece F (smart links, the small GitHub parts)
 
-- No turning animation: `Cycle` only moves opacity, so a spinning icon (`CheckIcon` pending) fades in and out like the other spinners here.
+- No turning animation: `Cycle` only moves opacity, so a spinning icon (`CheckIcon` pending) fades in and out like the other spinners here. **Out of date (22 Nov 2026):** `.looping(LoopSpec::rotation(period))` turns an element forever and holds `still` under reduced motion (`crates/rune/README.md`, "Periodic motion"); the spinners can turn.
 - A ring like `box-shadow: 0 0 0 2px bg, 0 0 0 3.5px ring` is two `box_shadow` calls with `spread`, the wider one first; it takes no layout room, as in CSS.
 - A bar of segments sized by `flex-grow` is `el().grow(n)` children in a row with `clip_rounded` on the row.
 - A fake server for a test of a request: the hub's own negotiate `POST` reaches it too, so filter calls by path before counting them.
@@ -1022,7 +1022,7 @@ A context-menu row's label is one text run, so a machine's name in the mono face
 
 - **A panel sized to its content leaves the widest row touching the right edge**, and a `truncate()` label in it is cut to "Code..." because the panel measures rows at their minimum. `ui::menu::fit_width` estimates the width from the longest label (letters, icon, chevron, paddings) and the rows of such a panel don't truncate. A real measure-then-size would replace it.
 - **Submenus nest by key, one field per level** (`Ui::sub`, `Ui::sub2`): a row's press sets its level's field, and a press on level 0 clears level 1. Escape closes the innermost `modal` first, so each level's panel carries its own close handler.
-- **No looping rotation**: the spinner is the same slow fade as `ui::confirm::spinner`, now shared with the menu's "Detecting tools..." and "Loading..." rows.
+- **No looping rotation**: the spinner is the same slow fade as `ui::confirm::spinner`, now shared with the menu's "Detecting tools..." and "Loading..." rows. **Out of date (22 Nov 2026):** `.looping(LoopSpec::rotation(period))` turns an element forever and holds `still` under reduced motion (`crates/rune/README.md`, "Periodic motion"); the spinners can turn.
 
 ## Component 8, piece I (the Context tab)
 
@@ -1090,7 +1090,7 @@ The small case the checklist asked for (`tests_row_drag.rs`, first test): **Rune
 
 ## Component 17, piece J (Settings → Machines)
 
-- **No password field.** `text_input` has no masked mode, so Fleet's `type="password"` New token field is drawn as plain text; the token is visible while it is pasted. The token shown on the page is a plain `text`, swapped for dots by the view.
+- **No password field.** `text_input` has no masked mode, so Fleet's `type="password"` New token field is drawn as plain text; the token is visible while it is pasted. The token shown on the page is a plain `text`, swapped for dots by the view. **Out of date:** `TextEdit::secure()` makes one (see the note under component 17, piece J, below).
 - **No max length on a field**: Fleet's `maxlength="64"` is applied when the value is saved (`chars().take(64)`).
 - **`border_sides` takes `[top, right, bottom, left]`.** A divider above a row is `[1.0, 0.0, 0.0, 0.0]`; `[0.0, 1.0, 0.0, 0.0]` draws a stripe down the right edge.
 - **`clip_rounded(r)`** is `overflow: hidden` on a rounded box (the setting group's card, the segmented control).
@@ -1141,7 +1141,7 @@ every scene as they were.
 
 ## Component 9, piece D (the home page)
 
-- **No dashed border.** Fleet's bordered empty state is dashed; Rune's border is solid only, so the empty box is solid.
+- **No dashed border.** Fleet's bordered empty state is dashed; Rune's border is solid only, so the empty box is solid. **Out of date:** `.border(..).border_layout().border_dash(dash, gap)` draws one (see the "dashed border" notes below).
 - **A focusable element needs its own Enter and Space.** `on_press` alone opened a row on a click and on Space but not on Enter in a headless run, so the row has an `on_key` for both.
 - **Space arrives as `Key::Text(" ")`**, not a named key.
 ## Component 17, piece O: a drag target that belongs to one group among many
@@ -2105,7 +2105,7 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 
 - `Receiver` isn't `Sync`, so a struct holding one can't go into a posted job inside an `Arc`; hand the UI a small `Clone` handle (`Stopper`) instead.
 - A sliding bar inside a fixed box: `row().clip_rounded(r)` with a child `.offset(x, 0.0)` clips as CSS `overflow: hidden` does; drive `x` from `State::clock` and keep the poll asking for frames (`tx.wake_after`) only while it shows.
-- Rune can't ask for the system's reduced-motion setting, so the splash always moves.
+- Rune can't ask for the system's reduced-motion setting, so the splash always moves. **Out of date (22 Nov 2026, component 26 A):** at the pin `cx.system_reduced_motion()` holds the system's setting (refreshed on window focus) and Rune uses it by default; `cx.reduced_motion(v)` overrides (`crates/rune/README.md`, "Reduced motion"). The splash can hold still.
 - The lib's test build peaked near 3.9 GB again and was OOM-killed at 4000M; 6000M worked.
 ## Component 15, piece A (the side conversation's state and routes)
 
@@ -2624,7 +2624,7 @@ whole-file work that piece R can make incremental (colour from the edited line, 
   high; a wrapping row (`flex_wrap`) moves a whole pill to the next line first, as `flex-wrap: wrap` does.
 - **`border_sides([0, 0, 0, 3], c)` with `border_layout()`** is a 3 px left-only quote bar that takes its 3 px of room; the order is
   top, right, bottom, left.
-- **The loader spins in Fleet** and fades here (no looping rotation, see above); the `prefers-reduced-motion` 3 s turn has no twin.
+- **The loader spins in Fleet** and fades here (no looping rotation, see above); the `prefers-reduced-motion` 3 s turn has no twin. **Out of date (22 Nov 2026):** `.looping(LoopSpec::rotation(period))` turns an element forever and holds `still` under reduced motion (`crates/rune/README.md`, "Periodic motion"); the spinners can turn.
 - **`Runtime::accessibility_json()`** is how a test reads a label or role off an element: the roles and labels of an `El` aren't readable from
   outside Rune.
 
