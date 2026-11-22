@@ -108,6 +108,33 @@ jobs:
           bash scripts/make-appimage.sh target/debug/fleet-native 1 server-staged dist/fleet-native-linux-x64.AppImage
           bash scripts/check-linux-packages.sh dist server-staged target/debug/examples/check-bundled-server
 
+      # The macOS bundle (piece D of component 25): "Fleet Native.app" with the pinned server inside, signed inside out, in a
+      # .dmg, built from this debug build and proven (scripts/check-mac-app.sh: the plist, every Mach-O passes codesign --verify,
+      # the server byte for byte up to the signature), then mounted and run (scripts/check-mac-dmg.sh).
+      - name: Cache the server archive (macOS)
+        if: runner.os == 'macOS'
+        uses: actions/cache@v4
+        with:
+          path: server-download
+          key: server-osx-arm64-${{ hashFiles('packaging/server-version') }}
+      - name: macOS bundle (.app, .dmg)
+        if: runner.os == 'macOS'
+        run: |
+          cargo build --locked --example check-bundled-server
+          bash scripts/fetch-server.sh osx-arm64 server-staged "$PWD/server-download"
+          mkdir dist
+          CHECK_SERVER_CMD=target/debug/examples/check-bundled-server \
+            bash scripts/make-mac-app.sh target/debug/fleet-native 1 dist/fleet-native-macos-arm64.dmg server-staged
+          hdiutil imageinfo dist/fleet-native-macos-arm64.dmg | sed -n '1,12p' || true
+          bash scripts/check-mac-dmg.sh dist/fleet-native-macos-arm64.dmg server-staged target/debug/examples/check-bundled-server shots/out-mac
+      - name: Upload the macOS bundle's checks
+        if: runner.os == 'macOS' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-bundle-checks
+          path: shots/out-mac/
+          if-no-files-found: warn
+
       # A web view is a native window, so no scene can draw it: the app runs in a real window on an invented page canvas served
       # from tests/fixtures/web, with real OS input, and grabs the whole screen after each step (scripts/web-walk.sh).
       # macOS clicks and types with cliclick, if the runner lets a process send input.
@@ -281,19 +308,18 @@ jobs:
             done
           }
           check_dmg
-      # Best effort: mounting is nice to prove, but a flaky mount must not fail the package.
-      - name: Mount the package (macOS, best effort)
+      # Best effort: mounting is nice to prove, but a flaky mount must not fail the package. Checks the volume's title and
+      # the app inside, runs the app from the image and grabs the screen (scripts/check-mac-dmg.sh).
+      - name: Mount the package and run the app (macOS)
         if: runner.os == 'macOS'
-        continue-on-error: true
-        run: |
-          for i in 1 2 3; do
-            hdiutil attach dist/fleet-native-macos-arm64.dmg -mountpoint "$RUNNER_TEMP/dmg" -nobrowse -readonly && break
-            [ "$i" = 3 ] && { echo "::warning::could not mount the .dmg"; exit 0; }
-            sleep $((i * 3))
-          done
-          codesign --verify --deep --strict "$RUNNER_TEMP/dmg/Fleet Native.app"
-          test -L "$RUNNER_TEMP/dmg/Applications"
-          hdiutil detach "$RUNNER_TEMP/dmg" || hdiutil detach "$RUNNER_TEMP/dmg" -force
+        run: bash scripts/check-mac-dmg.sh dist/fleet-native-macos-arm64.dmg server-staged target/release/examples/check-bundled-server shots/out-mac
+      - name: Upload the macOS package's checks
+        if: runner.os == 'macOS' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-package-checks
+          path: shots/out-mac/
+          if-no-files-found: warn
       - name: Check the package (Windows)
         if: runner.os == 'Windows'
         run: |
