@@ -6,6 +6,7 @@ use serde_json::Value;
 use std::collections::BTreeMap;
 
 pub mod card;
+pub mod create;
 pub mod detail;
 pub mod draft;
 pub mod editor;

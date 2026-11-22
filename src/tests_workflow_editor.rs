@@ -12,6 +12,7 @@ use rune::Runtime;
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::net::TcpListener;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
@@ -29,6 +30,9 @@ pub(crate) type Handler = Arc<dyn Fn(&Value) -> (u16, Value) + Send + Sync>;
 /// writes its draft), and whose answers a test can replace per route. Every request is recorded.
 pub(crate) struct Fleet {
     pub(crate) base: String,
+    /// Set when the fake is dropped: its accept loop then ends instead of holding a thread for the rest of the test run
+    /// (the macOS runner has run out of threads with every test's fake still listening).
+    stop: Arc<AtomicBool>,
     pub(crate) heard: Heard,
     pub(crate) routes: Arc<Mutex<HashMap<String, Handler>>>,
 }
@@ -76,8 +80,13 @@ pub(crate) fn fleet() -> Fleet {
     let heard: Heard = Default::default();
     let routes: Arc<Mutex<HashMap<String, Handler>>> = Default::default();
     let (log, table) = (heard.clone(), routes.clone());
+    let stop = Arc::new(AtomicBool::new(false));
+    let ending = stop.clone();
     std::thread::spawn(move || {
         for mut stream in listener.incoming().flatten() {
+            if ending.load(Ordering::SeqCst) {
+                return;
+            }
             let (log, table) = (log.clone(), table.clone());
             std::thread::spawn(move || {
                 let req = crate::test_http::read(&mut stream);
@@ -99,7 +108,15 @@ pub(crate) fn fleet() -> Fleet {
             });
         }
     });
-    Fleet { base, heard, routes }
+    Fleet { base, stop, heard, routes }
+}
+
+impl Drop for Fleet {
+    fn drop(&mut self) {
+        self.stop.store(true, Ordering::SeqCst);
+        // The accept loop is waiting for a connection: one wakes it to see the flag.
+        drop(std::net::TcpStream::connect(self.base.trim_start_matches("http://")));
+    }
 }
 
 impl Fleet {

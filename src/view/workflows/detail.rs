@@ -95,9 +95,13 @@ fn header(t: &Theme, w: &Workflow, has_repository: bool) -> El {
     };
     let mut actions = row().gap(8.0).center_y().flex_wrap().justify_end().child(repeat);
     if w.built_in {
-        // Duplicate opens the create dialog (piece R); until then the press does nothing.
+        let source = crate::fleet::workflows::create::Source { id: w.id.clone(), name: w.name.clone() };
         let mut dup = button(t, Variant::Default, Size::Sm, Some(&COPY), "Duplicate to this repo").key("workflow-duplicate");
-        dup = if has_repository { dup.on_press(|_: &mut State| {}) } else { disabled(dup.help(NEEDS_REPOSITORY)) };
+        dup = if has_repository {
+            dup.on_press_tx(move |s: &mut State, tx: &mut rune::Tx| s.workflow_create_open(Some(source.clone()), tx))
+        } else {
+            disabled(dup.help(NEEDS_REPOSITORY))
+        };
         actions = actions.child(dup);
     } else {
         // Back to the designer (`nav.showRuns(false)`).

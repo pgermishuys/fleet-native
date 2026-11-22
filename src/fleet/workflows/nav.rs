@@ -86,6 +86,8 @@ pub struct Nav {
     pub frame: super::frame::Frame,
     /// The finish bar above the composer: its note, the press on its way and the words of a refusal (piece H).
     pub finish: super::finish::Finish,
+    /// The New workflow / Duplicate dialog, while it is open (piece R).
+    pub create: Option<super::create::Create>,
     /// Turn on is saving.
     pub turning_on: bool,
     /// Something asked for the library to be read again: the folder changed, or Turn on saved.
@@ -192,6 +194,7 @@ impl Nav {
         self.active = None;
         self.showing_runs = false;
         self.unsaved = None;
+        self.create = None;
         self.run_box = super::run_box::RunBox::default();
         had
     }
