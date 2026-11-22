@@ -2927,3 +2927,8 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 
 - **A scripted tap on a key that a server answer creates exits 2** (key not found) if it comes too soon after the state change: the `+` menu's mod rows exist only once the session's sites have been read. Give such a tap 1.5 s or more after the one before it (22L, live walk).
 - **An IME-confirming Enter never reaches a key handler**: Rune gives Return to a composing field first (`rt.ime(Ime::Preedit(..))` then Return in a headless test), so Fleet's app-wide `ime-enter-guard` has nothing to do here (tested on the composer, piece 26C).
+
+## Component 18, piece T (slice 2 sweep)
+
+- **Walking a scrolled canvas in a script**: `{"type":"wheel","key":"workflow-canvas","dy":-400}` scrolls the canvas down (a negative `dy` moves the content up); a `tap` on a node that is clipped out of the scroll area does nothing, so scroll first. A positive `dy` did nothing at the top.
+- **A script's clock is virtual**: a headless `--script` run takes about 6 times its script time in wall seconds, so an outside change timed by wall clock (a file edited on disk to make a conflict) lands unpredictably. Have a watcher poll for the file the walk creates, then change it a moment later.
