@@ -36,16 +36,22 @@ struct Fake {
     /// Turn on answers 500.
     refuse: bool,
     renders: Value,
+    /// The rig is gone: the accept loop ends, so a long run of tests doesn't pile up threads (a macOS runner ran out).
+    stop: bool,
     calls: Vec<(String, String, Value)>,
 }
 
 type Shared = Arc<Mutex<Fake>>;
 
-fn serve(fake: Shared) -> String {
+fn serve(fake: Shared) -> (String, std::net::SocketAddr) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("a port");
-    let base = format!("http://{}", listener.local_addr().expect("an address"));
+    let addr = listener.local_addr().expect("an address");
+    let base = format!("http://{addr}");
     std::thread::spawn(move || {
         for mut stream in listener.incoming().flatten() {
+            if fake.lock().unwrap().stop {
+                break;
+            }
             let fake = fake.clone();
             std::thread::spawn(move || {
                 let req = test_http::read(&mut stream);
@@ -76,13 +82,22 @@ fn serve(fake: Shared) -> String {
             });
         }
     });
-    base
+    (base, addr)
 }
 
 struct Rig {
     rt: Rt,
     queue: Receiver<Job>,
     fake: Shared,
+    addr: std::net::SocketAddr,
+}
+
+impl Drop for Rig {
+    fn drop(&mut self) {
+        self.fake.lock().unwrap().stop = true;
+        // One more connection wakes the accept loop so it sees the flag.
+        let _ = std::net::TcpStream::connect(self.addr);
+    }
 }
 
 fn declared(extra: Value) -> Value {
@@ -101,7 +116,7 @@ fn rig(panes: Value, kept: Value) -> Rig {
         renders: json!({ "tree": text("3 passing"), "mods": [{ "name": "ci-watch", "draft": false }] }),
         ..Default::default()
     }));
-    let base = serve(fake.clone());
+    let (base, addr) = serve(fake.clone());
     let (jobs, queue) = channel::<Job>();
     let jobs = Mutex::new(jobs);
     let link = Link::start(
@@ -119,7 +134,7 @@ fn rig(panes: Value, kept: Value) -> Rig {
         s.sidebar_open = false;
         s.right.widened = true;
     });
-    let mut r = Rig { rt, queue, fake };
+    let mut r = Rig { rt, queue, fake, addr };
     r.settle();
     r
 }
