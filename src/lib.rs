@@ -201,6 +201,8 @@ mod tests_mission_needs_you;
 #[cfg(test)]
 mod tests_mods_controls;
 #[cfg(test)]
+mod tests_mods_drafts;
+#[cfg(test)]
 mod tests_mods_pane_body;
 #[cfg(test)]
 mod tests_mods_panes;
@@ -630,6 +632,7 @@ pub struct State {
     pub mod_renders: fleet::mods::renders::Renders,
     /// The panes the mods drew in the session's tabs (component 22, piece F).
     pub mod_panes: fleet::mods::panes::ModPanes,
+    pub mod_drafts: fleet::mods::drafts::ModDrafts,
     /// Checks each row's tree once (component 22, piece E).
     pub mod_resolver: fleet::mods::resolve::Resolver,
     /// The width of the last tool row a mod drew on, as laid out: the line's 60% cap and the title's floor are shares of it (Rune has no percent).
@@ -994,6 +997,7 @@ impl Default for State {
             mods_ui: Default::default(),
             mod_renders: Default::default(),
             mod_panes: Default::default(),
+            mod_drafts: Default::default(),
             mod_resolver: fleet::mods::resolve::Resolver::new(Default::default()),
             mod_line_w: 0.0,
             working_since: -18.0,
@@ -1870,6 +1874,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.deliver_mod_actions()
         | s.watch_open_mod_session()
         | s.keep_mod_pane_kept()
+        | s.keep_mod_drafts()
         | s.keep_skills(tx)
         | s.keep_built_in(tx)
         | s.keep_harnesses_page(tx)
@@ -6045,6 +6050,11 @@ pub fn spec() -> AppSpec<State> {
             ("mods-pane-waiting-light", |s| s.show_mod_panes(mock::mod_trees::PaneCase::Waiting, false)),
             ("mods-pane-off", |s| s.show_mod_panes(mock::mod_trees::PaneCase::Off, true)),
             ("mods-pane-off-light", |s| s.show_mod_panes(mock::mod_trees::PaneCase::Off, false)),
+            // Piece H: the cards of a session's draft mods after its last reply.
+            ("mods-draft-cards", |s| s.show_mod_drafts(true, false)),
+            ("mods-draft-cards-light", |s| s.show_mod_drafts(false, false)),
+            ("mods-draft-cards-more", |s| s.show_mod_drafts(true, true)),
+            ("mods-draft-cards-more-light", |s| s.show_mod_drafts(false, true)),
             ("mods-controls", |s| s.show_mod_controls(true)),
             ("mods-controls-light", |s| s.show_mod_controls(false)),
             ("panel-tabs", |s| s.show_tabs(mock::canvas_host::Case::Tabs, true)),

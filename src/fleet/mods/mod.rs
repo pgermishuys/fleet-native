@@ -6,6 +6,7 @@
 //! line by line. Nothing here draws; the views (pieces B onward) read what `resolve` hands them.
 pub mod actions;
 pub mod controls;
+pub mod drafts;
 pub mod failures;
 pub mod input_rate;
 pub mod markdown;

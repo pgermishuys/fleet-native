@@ -39,6 +39,7 @@ pub fn sheet(s: &State, t: &Theme) -> El {
             s.older(),
             Scroll {
                 jump: s.pin.show_jump(),
+                drafts: s.open_id().filter(|id| !s.draft_cards(id).is_empty()),
                 probe: s.scroll_probe.clone(),
                 layout: s.scroll_layout,
                 find: super::find::bar(s, t),

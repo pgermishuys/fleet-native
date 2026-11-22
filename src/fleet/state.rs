@@ -60,6 +60,7 @@ impl State {
             self.on_mods_event(topic, event);
             self.on_mod_renders_event(topic, event);
             self.on_mod_panes_event(topic, event);
+            self.on_mod_drafts_event(topic, event);
             self.on_update_event(topic, event);
             self.on_list_work_event(event);
             self.on_queue_event(event);

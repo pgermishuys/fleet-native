@@ -2857,3 +2857,13 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
   (`py(pad + 1.0)`); `.border_layout()` is the other way when all four sides are alike.
 - **Tailwind at a 14 px root**: `mt-1` is 3.5, `mt-2` 7, `gap-1.5` 5.25, `gap-3` 10.5, `px-2` 7. Round numbers (4, 8, 6, 12) look right in a picture and drift by 1 to 2 px a card.
   Measure Fleet's DOM (`getBoundingClientRect`) once and compare the native card's rect in a test.
+
+
+## Component 22, piece H (draft cards)
+
+- **A virtual row's own margin is dropped; its padding is kept.** The cards' wrapper had `mt(8)` and drew flush against the reply above; `pt` on the same column
+  works. CSS margin collapsing (Fleet's cards are in a block parent, so their `margin: 8px 0` meet as 8, not 16) has no Rune equivalent: use `gap` between the cards.
+- **`rt.find(key)` doesn't find every keyed element.** A keyed column that only wraps others (`mod-draft-cards`) was never found, while the keyed row
+  of the Draft mark was; tests of what a row draws read the words (`rt.elements()` text) or a leaf's key.
+- **`ui::button` pressed in a test runs its handler even with `.disabled(true)`**: the test click doesn't check it, so the handler also refuses (Keep… on a draft still being written).
+- **A POST with no body sends `{}`** (`http::text_with`), so Fleet's "no body for an empty note" is `{}` here; the server reads a missing note as none either way.
