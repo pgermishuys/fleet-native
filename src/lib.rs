@@ -6109,6 +6109,9 @@ pub fn start_desktop() {
     if std::env::args().skip(1).any(|a| a == "--update-now") {
         std::process::exit(update::update_now(!std::env::args().any(|a| a == "--no-restart")));
     }
+    // The window's class on Linux (X11 `WM_CLASS`, Wayland `app_id`): the desktop entry's `StartupWMClass`, so the taskbar groups
+    // the window under the entry and shows its icon (component 25, row 25.5). Other systems ignore it.
+    rune::set_app_id("fleet-native");
     if std::env::args().any(|a| a == "--bench-conversation") {
         return bench::conversation();
     }

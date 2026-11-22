@@ -249,6 +249,9 @@ This repository has no licence yet (`docs/PORT.md`, "Open decisions"). What it b
   `assets/fonts/JetBrainsMono-OFL.txt`.
 - The tray icon (`assets/tray.png`) is weave-fleet's `desktop/static/tray.png`, copied unchanged (same owner; weave-fleet has no licence file yet).
 - The app icon (`assets/icon/`) is made from `assets/weave_logo.png` by `tools/gen-app-icon.py`.
+- appimagetool 1.9.1 and the type 2 runtime 20251108 (AppImage project, MIT; build time only, downloaded and checked by SHA-256
+  from `packaging/appimage-tools`; the runtime is embedded in the AppImage). Licence texts, unchanged:
+  `packaging/licences/type2-runtime-LICENSE.txt` and `packaging/licences/appimagetool-LICENSE.txt`.
 - `winresource` (MIT or Apache-2.0, build time only on Windows, nothing of it ships in the exe) writes the exe's icon
   and version information. It is the small, maintained fork of `winres`, and needs no tool beyond the Windows SDK
   the runner has.

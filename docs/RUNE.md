@@ -2777,3 +2777,9 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
   contribution's own counter. A message none of whose rows has a view hashes to 0, so another row's view never moves it.
 - **One `ModControls` can't hold one sink per site.** A tool row's controls all go through one `send`; the sink is a closure with no `State`, so a row's action is queued
   (`pending`) and the frame finds the row by the handle in the views' trees before it posts (the session's machine matters). A pane (piece F) routes its own the same way.
+
+## Component 25, piece B (Linux packages)
+
+- **Rune has `rune::set_app_id(id)`** (call before `run`): it sets X11's `WM_CLASS` (class and instance) and Wayland's `app_id`, which is what a desktop entry's `StartupWMClass` has to match. Without it the window's class is the title. Checked on X11 only (`xdotool search --class`).
+- A Rune binary links libxkbcommon, Wayland and WebKitGTK directly, so a `.deb`'s `Depends` must list them: the app does not start without them.
+

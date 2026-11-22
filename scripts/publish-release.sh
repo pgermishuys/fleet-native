@@ -7,6 +7,12 @@ repo="${GITHUB_REPOSITORY:-pgermishuys/fleet-native}"
 tag=latest
 assets=(fleet-native-windows-x64.zip fleet-native-macos-arm64.dmg fleet-native-linux-x64.tar.gz)
 for a in "${assets[@]}"; do [ -f "$dist/$a" ] || { echo "missing $a" >&2; exit 1; }; done
+# Also released when the build made them, but not in latest.json (one key per system: the updater reads those): the Linux
+# .deb and AppImage and a .sha256 for each Linux file. They are downloads, not update assets (component 25, piece B).
+extras=()
+for e in fleet-native-linux-x64.deb fleet-native-linux-x64.AppImage fleet-native-linux-x64.tar.gz.sha256 fleet-native-linux-x64.deb.sha256 fleet-native-linux-x64.AppImage.sha256; do
+  [ -f "$dist/$e" ] && extras+=("$e")
+done
 
 # A slower, older run must not replace a newer release.
 prev=""
@@ -50,11 +56,11 @@ step() { echo "publish: $*"; }
 run() { step "$*"; "$@" || { echo "::error::publish step failed: $*" >&2; exit 1; }; }
 
 if gh release view "$tag" -R "$repo" >/dev/null 2>&1; then
-  run gh release upload "$tag" -R "$repo" --clobber "${assets[@]/#/$dist/}" "$dist/latest.json"
+  run gh release upload "$tag" -R "$repo" --clobber "${assets[@]/#/$dist/}" ${extras[@]:+"${extras[@]/#/$dist/}"} "$dist/latest.json"
   run gh release edit "$tag" -R "$repo" --title "Latest build ($BUILD)" --notes-file "$dist/notes.md" --prerelease --latest=false
   # An asset from an older layout (the macOS .tar.gz) that is no longer built.
   for old in $(gh release view "$tag" -R "$repo" --json assets -q '.assets[].name'); do
-    case " ${assets[*]} latest.json " in *" $old "*) ;; *) run gh release delete-asset "$tag" -R "$repo" "$old" --yes ;; esac
+    case " ${assets[*]} ${extras[*]:-} latest.json " in *" $old "*) ;; *) run gh release delete-asset "$tag" -R "$repo" "$old" --yes ;; esac
   done
 else
   # Creating the release creates its tag, which the workflow token may be refused. Don't try to work around it.
