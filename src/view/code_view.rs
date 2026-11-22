@@ -440,6 +440,12 @@ pub struct Marks {
     pub editing: bool,
     /// The width the caret's wrapped line was last laid out at.
     pub text_w: f32,
+    /// The workflow file's parser reported an error on this line (`.wf-file__error-line`).
+    pub error_line: bool,
+    /// No agent gutter after the numbers: the workflow file's field has none (CodeMirror there has the line numbers alone).
+    pub bare: bool,
+    /// The caret's line while the field has no keyboard: CodeMirror's `highlightActiveLine` shows it focused or not.
+    pub resting_caret: bool,
 }
 
 type StripeKey = (String, String, String, u64, u64);
@@ -513,7 +519,7 @@ fn line_row(
         _ => (shown, spans, caret_at),
     };
     // CodeMirror's active line is the caret's.
-    let active = active || caret_at.is_some();
+    let active = active || caret_at.is_some() || marks.resting_caret;
     let n = i as u32 + 1;
     let is_picked = picked.is_some_and(|r| r.contains(n));
     let (number_fill, number_ink, number_weight) = if is_picked {
@@ -547,15 +553,17 @@ fn line_row(
         });
     // Edit's stripe gutter: a 3 px bar in `--accent` on the numbers' own ground, 2 px from them (`.cm-agent-gutter`).
     let mut gutters = row().items_center().child(number);
-    gutters = gutters.child(
-        row().w(5.0).h(LINE_H).items_stretch().fill(t.panel_bg).children(
-            marks
-                .stripe
-                .binary_search(&(n as usize))
-                .is_ok()
-                .then(|| el().key(format!("code-no-{n}-stripe")).w(3.0).h(LINE_H).radius(2.0).fill(t.accent)),
-        ),
-    );
+    if !marks.bare {
+        gutters = gutters.child(
+            row().w(5.0).h(LINE_H).items_stretch().fill(t.panel_bg).children(
+                marks
+                    .stripe
+                    .binary_search(&(n as usize))
+                    .is_ok()
+                    .then(|| el().key(format!("code-no-{n}-stripe")).w(3.0).h(LINE_H).radius(2.0).fill(t.accent)),
+            ),
+        );
+    }
     let number = if wrap { gutters } else { gutters.sticky_left(0.0) };
     // `.cm-line`'s `padding: 0 2px 0 6px`. Only the code is selectable: a copy has no line numbers in it.
     let code = |shown: String, spans: Vec<Span>, from: usize| {
@@ -584,6 +592,8 @@ fn line_row(
         t.accent.alpha(0.14)
     } else if let Some(f) = marks.flash.as_ref().filter(|f| (f.lines.0..=f.lines.1).contains(&(n as usize))) {
         flash_tint(t, f.progress)
+    } else if marks.error_line {
+        t.error.alpha(0.16)
     } else if active {
         t.wash(3.0)
     } else {
@@ -660,7 +670,18 @@ pub fn code_view(s: &State, t: &Theme, machine: &str, session: &str, path: &str,
     let flash = s.file_live.flashing(machine, session, path, s.clock).map(|f| (f.progress * 100.0) as u32);
     let editing = s.code_edit.on && s.code_edit_target().is_some_and(|(m, se, p)| m == machine && se == session && p == path);
     let edit_stamp = editing.then(|| (s.code_edit.stamp, s.code_edit.focused, s.code_edit.text_w.to_bits(), s.code_edit.blink_off));
-    let version = (path, buffer.rev(), wrap, picked, hash_of(&format!("{stripe:?}")), flash, s.file_find.stamp(session, path), edit_stamp);
+    let error_lines = Rc::new(s.workflow_error_lines(session));
+    let version = (
+        path,
+        buffer.rev(),
+        wrap,
+        picked,
+        hash_of(&format!("{stripe:?}")),
+        flash,
+        s.file_find.stamp(session, path),
+        edit_stamp,
+        error_lines.clone(),
+    );
     // The matched brackets are found once for the frame: the caret's neighbours and what they pair with.
     let pair = if editing && s.code_edit.focused {
         s.code_edit.file.as_ref().and_then(|_| {
@@ -711,6 +732,11 @@ pub fn code_view(s: &State, t: &Theme, machine: &str, session: &str, path: &str,
                             .map(|e| super::code_edit::line_edit(e, buffer.lines(), i, pair, s.code_edit.blink_off)),
                         editing,
                         text_w: s.code_edit.text_w,
+                        error_line: error_lines.binary_search(&(i + 1)).is_ok(),
+                        bare: session_id == crate::fleet::workflows::file_field::FIELD_SESSION,
+                        resting_caret: session_id == crate::fleet::workflows::file_field::FIELD_SESSION
+                            && !s.code_edit.focused
+                            && buffer.editor.caret.line == i,
                     };
                     line_row(&theme, &colours, buffer, &file, i, gutter, wrap, marked, s.file_pick(&machine_id, &session_id, &file), &marks)
                 }

@@ -62,6 +62,11 @@ impl State {
         if !self.code_edit.on {
             return None;
         }
+        // The workflow editor's File view: a buffer that is no session's file (`workflows::file_field`).
+        if let Some(field) = self.workflow_field_target() {
+            let ready = self.file_buffers.info(&field.0, &field.1, &field.2).is_some_and(|i| i.status == Status::Ready);
+            return ready.then_some(field);
+        }
         let tabs = self.open_canvases();
         let file = tabs.active().and_then(|c| c.file.clone())?;
         let session = self.canvas_session();
@@ -76,6 +81,9 @@ impl State {
 
     /// The element that has the keyboard while the file is edited: Edit's code, or Diff's lines.
     pub fn edit_surface(&self) -> &'static str {
+        if self.workflow_field_target().is_some() {
+            return CODE;
+        }
         let tabs = self.open_canvases();
         let diff = tabs.active().and_then(|c| c.file.as_ref()).is_some_and(|f| {
             let session = self.canvas_session();
@@ -221,7 +229,11 @@ impl State {
             }
             // `Mod-s` in the editor's keymap: the same as the Save button.
             Key::Command('s') if !shift => {
-                self.save_active_file(tx);
+                if self.workflow_field_target().is_some() {
+                    self.workflow_save_pressed();
+                } else {
+                    self.save_active_file(tx);
+                }
                 return true;
             }
             Key::Command('a') if !shift => {

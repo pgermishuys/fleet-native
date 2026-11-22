@@ -194,25 +194,34 @@ fn plural(n: usize) -> &'static str {
     if n == 1 { "" } else { "s" }
 }
 
-/// The body above the problems strip: the File view's text, or the designer's workflow. Pieces N and O put their own here.
+/// The body above the problems strip: the File view's field, or the designer's workflow (piece O puts its canvas here).
 fn body(s: &State, t: &Theme, ed: &Editor) -> El {
-    let stand_in = if ed.view == EditorView::File {
-        text(ed.text.clone()).key("workflow-file-text").font(mono(12.5, 400.0, 1.55)).color(t.text).wrap().w_full()
+    let main = if ed.view == EditorView::File {
+        file_field(s, t)
     } else {
         let steps = ed
             .draft
             .as_ref()
             .map(|d| d.steps.iter().map(|st| st.title.clone()).collect::<Vec<_>>().join("  \u{2192}  "))
             .unwrap_or_default();
-        text(steps).key("workflow-steps-stand-in").font(sans(13.0, 400.0, 1.5)).color(t.muted).wrap().w_full()
+        let stand_in = text(steps).key("workflow-steps-stand-in").font(sans(13.0, 400.0, 1.5)).color(t.muted).wrap().w_full();
+        col().w_full().grow(1.0).min_h(0.0).padding(20.0).child(stand_in).scroll(ScrollSpec { stick_bottom: false })
     };
-    let main = col()
-        .grow(1.0)
-        .min_h(0.0)
-        .w_full()
-        .child(col().w_full().grow(1.0).min_h(0.0).padding(20.0).child(stand_in).scroll(ScrollSpec { stick_bottom: false }))
-        .child(problems(s, t, ed));
+    let main = col().grow(1.0).min_h(0.0).w_full().child(main).child(problems(s, t, ed));
     row().w_full().grow(1.0).min_h(0.0).child(main.min_w(0.0))
+}
+
+/// `WorkflowFileEditor`: the file as it is, in component 11's code editor over a buffer of its own (`fleet::workflows::file_field`).
+/// No wrapping, as CodeMirror's has none; the lines with a parser error are tinted (`.wf-file__error-line`).
+fn file_field(s: &State, t: &Theme) -> El {
+    let panel = |inner: El| {
+        // `.cm-scroller`'s 10 px above and below the lines (outside the scroll here).
+        col().key("workflow-file-editor").label("Workflow file").w_full().grow(1.0).min_h(0.0).py(10.0).fill(t.panel_bg).child(inner)
+    };
+    match s.workflow_field_target() {
+        Some((m, session, path)) => panel(crate::view::code_view::code_view(s, t, &m, &session, &path, false)),
+        None => panel(el()),
+    }
 }
 
 /// `.wf-problems`: padding 8/16, 12 px, at most 120 high; each error "line N · message", or the OK line; the runs note while

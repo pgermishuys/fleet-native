@@ -30,7 +30,7 @@ fn library() -> Library {
 
 impl Rig {
     /// The Workflows page on a repository with two files, `ID` open in the editor as `adopt` leaves it.
-    fn mount(&mut self, comments: bool) {
+    pub(crate) fn mount(&mut self, comments: bool) {
         self.rt.update(|s, _| {
             s.show_workflows(true, Scene::Library);
             let nav = &mut s.workflows_nav;
@@ -44,17 +44,17 @@ impl Rig {
         self.frames();
     }
 
-    fn frames(&mut self) {
+    pub(crate) fn frames(&mut self) {
         self.rt.frame(FRAME);
         self.rt.frame(FRAME);
     }
 
-    fn has(&self, key: &str) -> bool {
+    pub(crate) fn has(&self, key: &str) -> bool {
         self.rt.find(key).is_some()
     }
 
     /// The text of an element and of everything inside it, in order, joined by a space.
-    fn words(&self, key: &str) -> String {
+    pub(crate) fn words(&self, key: &str) -> String {
         let all = self.rt.elements();
         let Some(root) = all.iter().find(|e| e.key.as_deref() == Some(key)) else { return String::new() };
         let inside = format!("{}/", root.path);
@@ -69,17 +69,17 @@ impl Rig {
         click(&mut self.rt, key);
     }
 
-    fn save_enabled(&self) -> bool {
+    pub(crate) fn save_enabled(&self) -> bool {
         self.rt.state.workflows_nav.editor.can_save() && self.has("workflow-save")
     }
 
     /// The wait after the last key ends and the check answers; the frame is drawn after.
-    fn settled(&mut self) {
+    pub(crate) fn settled(&mut self) {
         self.settle();
         self.frames();
     }
 
-    fn drain(&mut self) {
+    pub(crate) fn drain(&mut self) {
         self.saved();
         self.frames();
     }

@@ -9,6 +9,7 @@ pub mod card;
 pub mod detail;
 pub mod draft;
 pub mod editor;
+pub mod file_field;
 pub mod finish;
 pub mod frame;
 pub mod helpers;
