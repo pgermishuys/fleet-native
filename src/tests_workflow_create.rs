@@ -1,14 +1,15 @@
 //! Component 18, piece R: New workflow and Duplicate. `WorkflowCreateDialog.test.ts`'s four dialog tests under their names (the
 //! Describe it form's is piece S's), then what the native dialog adds: the buttons that open it, a blank name, Enter, the spinner
 //! and the refusal's words clearing as you type, a repository picked elsewhere. A fake Fleet answers (`tests_workflow_editor`).
+use crate::State;
 use crate::fleet::new_session::request::Folder;
 use crate::fleet::workflows::draft::WorkflowFile;
 use crate::fleet::workflows::editor::EditorView;
 use crate::fleet::workflows::{Library, Workflow};
 use crate::mock::workflows::Scene;
-use crate::tests::{FRAME, click};
+use crate::tests::{FRAME, app, click};
 use crate::tests_workflow_editor::{FILES, REPO, Rig, check_json, ed, file_json, review_draft, rig};
-use rune::{Key, KeyEvent, Mods};
+use rune::{Key, KeyEvent, Mods, Runtime};
 use serde_json::{Value, json};
 
 const TAKEN: &str = "There's already a workflow called Build a feature. Pick another name.";
@@ -27,25 +28,40 @@ fn created_json(id: &str) -> Value {
         "check": check_json(Some(review_draft()), "name: Tidy up a flaky test\n", json!([]), json!([]))})
 }
 
+/// The Workflows page on a repository picked in the Run box, with nothing open in the designer.
+fn show_page(rt: &mut Runtime<State>) {
+    rt.update(|s, _| {
+        s.show_workflows(true, Scene::Library);
+        let nav = &mut s.workflows_nav;
+        nav.set_folder(Folder::Repository(REPO.into()), true);
+        nav.library = Some(library());
+        nav.library_repository = Some(REPO.into());
+        nav.reload_wanted = false;
+    });
+    rt.frame(FRAME);
+    rt.frame(FRAME);
+}
+
+fn words_in(rt: &Runtime<State>, key: &str) -> String {
+    let all = rt.elements();
+    let Some(root) = all.iter().find(|e| e.key.as_deref() == Some(key)) else { return String::new() };
+    let inside = format!("{}/", root.path);
+    all.iter().filter(|e| e.path == root.path || e.path.starts_with(&inside)).filter_map(|e| e.text.clone()).collect::<Vec<_>>().join(" ")
+}
+
+fn name_in(rt: &mut Runtime<State>, words: &str) {
+    rt.key(KeyEvent { key: Key::Text(words.into()), mods: Mods::default() });
+    rt.frame(FRAME);
+    rt.frame(FRAME);
+}
+
 impl Rig {
-    /// The Workflows page on a repository picked in the Run box, with nothing open in the designer.
     fn page(&mut self) {
-        self.rt.update(|s, _| {
-            s.show_workflows(true, Scene::Library);
-            let nav = &mut s.workflows_nav;
-            nav.set_folder(Folder::Repository(REPO.into()), true);
-            nav.library = Some(library());
-            nav.library_repository = Some(REPO.into());
-            nav.reload_wanted = false;
-        });
-        self.rt.frame(FRAME);
-        self.rt.frame(FRAME);
+        show_page(&mut self.rt);
     }
 
     fn enter_name(&mut self, words: &str) {
-        self.rt.key(KeyEvent { key: Key::Text(words.into()), mods: Mods::default() });
-        self.rt.frame(FRAME);
-        self.rt.frame(FRAME);
+        name_in(&mut self.rt, words);
     }
 
     fn press_enter(&mut self) {
@@ -58,14 +74,7 @@ impl Rig {
     }
 
     fn words_of(&self, key: &str) -> String {
-        let all = self.rt.elements();
-        let Some(root) = all.iter().find(|e| e.key.as_deref() == Some(key)) else { return String::new() };
-        let inside = format!("{}/", root.path);
-        all.iter()
-            .filter(|e| e.path == root.path || e.path.starts_with(&inside))
-            .filter_map(|e| e.text.clone())
-            .collect::<Vec<_>>()
-            .join(" ")
+        words_in(&self.rt, key)
     }
 
     fn wait_closed(&mut self) {
@@ -153,31 +162,31 @@ fn says_so_when_the_name_is_taken_and_stays_open() {
 
 #[test]
 fn duplicate_has_no_describe_it() {
-    let mut r = rig();
-    r.page();
-    click(&mut r.rt, "workflow-duplicate");
-    assert!(r.open());
-    assert!(r.rt.find("workflow-create-describe").is_none());
-    assert!(r.rt.find("workflow-create-blank").is_none());
-    click(&mut r.rt, "workflow-create-cancel");
-    click(&mut r.rt, "workflow-new");
-    assert!(r.rt.find("workflow-create-describe").is_some(), "New has both tabs");
-    assert!(r.rt.find("workflow-create-blank").is_some());
+    let mut rt = app();
+    show_page(&mut rt);
+    click(&mut rt, "workflow-duplicate");
+    assert!(rt.find("workflow-create-dialog").is_some());
+    assert!(rt.find("workflow-create-describe").is_none());
+    assert!(rt.find("workflow-create-blank").is_none());
+    click(&mut rt, "workflow-create-cancel");
+    click(&mut rt, "workflow-new");
+    assert!(rt.find("workflow-create-describe").is_some(), "New has both tabs");
+    assert!(rt.find("workflow-create-blank").is_some());
 }
 
 // ─── What the native dialog adds ───────────────────────────────────────────────────────────────────────────────
 
 #[test]
 fn describe_it_is_a_tab_of_new_and_its_form_is_the_next_piece() {
-    let mut r = rig();
-    r.page();
-    click(&mut r.rt, "workflow-new");
-    click(&mut r.rt, "workflow-create-describe");
-    assert!(r.words_of("workflow-create-dialog").contains("Say what it should do."));
-    assert!(r.rt.find("workflow-create-submit").is_none(), "no Create on this tab");
-    click(&mut r.rt, "workflow-create-blank");
-    assert!(r.rt.find("workflow-create-submit").is_some());
-    assert!(r.words_of("workflow-create-dialog").contains("one agent step"));
+    let mut rt = app();
+    show_page(&mut rt);
+    click(&mut rt, "workflow-new");
+    click(&mut rt, "workflow-create-describe");
+    assert!(words_in(&rt, "workflow-create-dialog").contains("Say what it should do."));
+    assert!(rt.find("workflow-create-submit").is_none(), "no Create on this tab");
+    click(&mut rt, "workflow-create-blank");
+    assert!(rt.find("workflow-create-submit").is_some());
+    assert!(words_in(&rt, "workflow-create-dialog").contains("one agent step"));
 }
 
 #[test]
@@ -199,26 +208,26 @@ fn a_blank_name_makes_nothing_and_enter_does_what_the_button_does() {
 
 #[test]
 fn escape_and_cancel_close_it_and_the_next_one_starts_empty() {
-    let mut r = rig();
-    r.page();
-    click(&mut r.rt, "workflow-new");
-    r.enter_name("Half a name");
-    r.rt.key(KeyEvent { key: Key::Escape, mods: Mods::default() });
-    r.rt.frame(FRAME);
-    assert!(!r.open());
-    click(&mut r.rt, "workflow-new");
-    assert_eq!(r.rt.state.workflows_nav.create.as_ref().map(|c| c.name.text.clone()), Some(String::new()));
+    let mut rt = app();
+    show_page(&mut rt);
+    click(&mut rt, "workflow-new");
+    name_in(&mut rt, "Half a name");
+    rt.key(KeyEvent { key: Key::Escape, mods: Mods::default() });
+    rt.frame(FRAME);
+    assert!(rt.find("workflow-create-dialog").is_none());
+    click(&mut rt, "workflow-new");
+    assert_eq!(rt.state.workflows_nav.create.as_ref().map(|c| c.name.text.clone()), Some(String::new()));
 }
 
 #[test]
 fn the_buttons_are_off_without_a_repository() {
-    let mut r = rig();
-    r.rt.update(|s, _| s.show_workflows(true, Scene::NoRepo));
-    r.rt.frame(FRAME);
-    r.rt.frame(FRAME);
-    r.rt.update(|s, tx| s.workflow_create_open(None, tx));
-    r.rt.frame(FRAME);
-    assert!(!r.open(), "nothing opens with no repository to put the file in");
+    let mut rt = app();
+    rt.update(|s, _| s.show_workflows(true, Scene::NoRepo));
+    rt.frame(FRAME);
+    rt.frame(FRAME);
+    rt.update(|s, tx| s.workflow_create_open(None, tx));
+    rt.frame(FRAME);
+    assert!(rt.find("workflow-create-dialog").is_none(), "nothing opens with no repository to put the file in");
 }
 
 #[test]
