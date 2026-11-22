@@ -1,7 +1,7 @@
 //! The Jobs page (`JobsScreen.vue`): the header with its Queue and Agents tabs, a chip of seats per machine and New job; the
 //! store's error under it; the Queue's body (the open job, or what to do); a failed Cancel's words under the page. The Agents
-//! tab and New job come with piece H.
-use super::detail;
+//! tab is `agents`; New job's button opens `new_job`.
+use super::{agents, detail};
 use crate::State;
 use crate::fleet::jobs::JobMachine;
 use crate::fleet::labs::JobsTab;
@@ -56,8 +56,9 @@ fn header(s: &State, t: &Theme) -> El {
         .center_y()
         .gap(rem(0.5))
         .children(s.jobs.machines.iter().filter(|m| m.seats > 0).map(|m| chip(t, m)));
-    // Piece H opens the New job dialog; until then the button does nothing.
-    let new = button(t, Variant::Default, Size::Sm, Some(&PLUS), "New job").key("jobs-new").on_press(|_: &mut State| {});
+    let new = button(t, Variant::Default, Size::Sm, Some(&PLUS), "New job")
+        .key("jobs-new")
+        .on_press_tx(|s: &mut State, tx: &mut rune::Tx| s.open_new_job(tx));
     page_header::bar_with(t, "jobs-header", "Jobs", vec![tabs], vec![seats, new])
 }
 
@@ -90,8 +91,7 @@ fn note(t: &Theme, key: &str, words: &str) -> El {
 pub fn screen(s: &State, t: &Theme) -> El {
     let body = match s.labs.jobs_tab {
         JobsTab::Queue => queue(s, t),
-        // The seats per machine are piece H's.
-        JobsTab::Agents => col().key("jobs-agents").grow(1.0).min_h(0.0),
+        JobsTab::Agents => agents::view(s, t),
     };
     // `center__body`: the page sits in 24 px of padding all round inside the sheet.
     let page = col()

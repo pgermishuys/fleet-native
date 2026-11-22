@@ -91,3 +91,67 @@ impl State {
         self.open_jobs_address(open);
     }
 }
+
+/// What the New job scene shows.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum NewCase {
+    /// Filled in, a repository picked.
+    Filled,
+    /// No machine that takes jobs has a repository.
+    NoRepositories,
+}
+
+fn repositories() -> Vec<crate::fleet::jobs::JobRepository> {
+    let repo = |name: &str, machines: &[&str]| crate::fleet::jobs::JobRepository {
+        name: name.into(),
+        repository: format!("https://example.com/acme/{name}"),
+        machines: machines.iter().map(|m| m.to_string()).collect(),
+    };
+    vec![repo("ledger-api", &["atlas", "harbor"]), repo("docs-site", &["atlas"])]
+}
+
+impl State {
+    /// The Agents tab: atlas holds one job and has a free seat, harbor's one seat is taken by a job that needs you, the laptop
+    /// takes none.
+    pub fn show_jobs_agents(&mut self, dark: bool) {
+        self.show_jobs(Case::Pick, dark);
+        self.jobs.machines[0].labels = vec!["linux".into(), "gpu".into()];
+        self.jobs.machines[1].labels = vec!["mac".into()];
+        self.labs.jobs_tab = JobsTab::Agents;
+    }
+
+    /// New job over the Queue.
+    pub fn show_new_job(&mut self, case: NewCase, dark: bool) {
+        use crate::fleet::jobs::new_job::NewJobForm;
+        use rune::TextEdit;
+        self.show_jobs(Case::Pick, dark);
+        let mut form = NewJobForm::default();
+        if case == NewCase::Filled {
+            let list = repositories();
+            form.title = TextEdit::new("Add rate limits");
+            form.ask = TextEdit::new("Add a per-key rate limit to the public endpoints.\nKeep the limit in config.");
+            form.labels = TextEdit::new("mac, gpu");
+            form.repository = list[0].repository.clone();
+            form.pinned = "m-harbor".into();
+            self.jobs.repositories.list = Some(list);
+        } else {
+            self.jobs.repositories.list = Some(Vec::new());
+        }
+        self.jobs.new = Some(form);
+    }
+
+    /// Settings → Machines with Jobs on: this machine has 2 seats and two labels, falcon one seat, harbor none.
+    pub fn show_machine_job_seats(&mut self, dark: bool) {
+        self.show_machines_page(dark, false);
+        self.pickers.prefs.adopt(&json!({ "Jobs": "true" }));
+        self.jobs.is_loaded = true;
+        self.jobs.machines = vec![
+            machine("m-home", "atlas", true, 2, 1, "online"),
+            machine("m-falcon", "falcon", false, 1, 0, "online"),
+            machine("m-harbor", "harbor", false, 0, 0, "online"),
+        ];
+        self.jobs.machines[0].labels = vec!["linux".into(), "gpu".into()];
+        self.jobs.machines[1].labels = vec!["mac".into()];
+        self.sync_seat_fields();
+    }
+}

@@ -294,6 +294,9 @@ pub fn card(s: &State, t: &Theme, c: &Card) -> El {
     if let Some((work, level)) = &c.agent_work {
         names = names.child(agent_work(s, t, c, *work, level));
     }
+    if let Some(seats) = super::machine_job_seats::view(s, t, &c.key) {
+        names = names.child(seats);
+    }
     if page.token_for.as_deref() == Some(c.key.as_str()) {
         names = names.child(token_form(s, t, &c.name));
     }

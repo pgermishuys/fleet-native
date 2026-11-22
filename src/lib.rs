@@ -169,6 +169,8 @@ mod tests_images;
 #[cfg(test)]
 mod tests_improve_skill;
 #[cfg(test)]
+mod tests_jobs_new;
+#[cfg(test)]
 mod tests_jobs_page;
 #[cfg(test)]
 mod tests_jobs_store;
@@ -2739,6 +2741,14 @@ pub fn spec() -> AppSpec<State> {
             ("jobs-running-light", |s| s.show_jobs(mock::jobs::Case::Running, false)),
             ("jobs-error", |s| s.show_jobs(mock::jobs::Case::Error, true)),
             ("jobs-error-light", |s| s.show_jobs(mock::jobs::Case::Error, false)),
+            ("jobs-agents", |s| s.show_jobs_agents(true)),
+            ("jobs-agents-light", |s| s.show_jobs_agents(false)),
+            ("jobs-new", |s| s.show_new_job(mock::jobs::NewCase::Filled, true)),
+            ("jobs-new-light", |s| s.show_new_job(mock::jobs::NewCase::Filled, false)),
+            ("jobs-new-no-repos", |s| s.show_new_job(mock::jobs::NewCase::NoRepositories, true)),
+            ("jobs-new-no-repos-light", |s| s.show_new_job(mock::jobs::NewCase::NoRepositories, false)),
+            ("settings-machines-job-seats", |s| s.show_machine_job_seats(true)),
+            ("settings-machines-job-seats-light", |s| s.show_machine_job_seats(false)),
             ("jobs-off", |s| labs_off_scene(s, true, Rail::Jobs)),
             ("jobs-off-light", |s| labs_off_scene(s, false, Rail::Jobs)),
             ("board-off", |s| labs_off_scene(s, true, Rail::Board)),

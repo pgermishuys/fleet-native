@@ -5,6 +5,7 @@
 //! Not ported: `jobColumns` (Waiting, Running, Needs you, Done): exported, and nothing on Fleet's `main` uses it.
 use serde_json::Value;
 
+pub mod new_job;
 pub mod store;
 
 /// How many jobs one machine may run at once, at most (`MAX_JOB_SEATS`).
