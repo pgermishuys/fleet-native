@@ -201,6 +201,8 @@ struct Fake {
     /// What renders answer: the next one each time, the last one kept.
     renders: Vec<Value>,
     action: Option<Value>,
+    /// A render answers with its own title as the tree: which ask an answer belongs to doesn't depend on which request got there first.
+    echo: bool,
     calls: Vec<(String, String, Value)>,
 }
 
@@ -225,6 +227,8 @@ fn serve(fake: Shared) -> String {
                     json!({ "sites": [], "panes": f.panes })
                 } else if req.path.ends_with("/mods/action") {
                     f.action.clone().unwrap_or(json!({ "handled": true }))
+                } else if req.path.ends_with("/mods/render") && f.echo {
+                    drawn(req.json()["props"]["title"].as_str().unwrap_or_default(), false)
                 } else if req.path.ends_with("/mods/render") {
                     let next = if f.renders.len() > 1 { Some(f.renders.remove(0)) } else { f.renders.first().cloned() };
                     next.unwrap_or(json!({ "tree": null, "mods": [] }))
@@ -295,6 +299,19 @@ impl Rig {
 
     fn calls(&self, tail: &str) -> Vec<Value> {
         self.fake.lock().unwrap().calls.iter().filter(|c| c.1.ends_with(tail)).map(|c| c.2.clone()).collect()
+    }
+
+    /// Waits until the fake has heard `n` requests ending in `tail` (a used control's action is no draw `settle` could count).
+    fn wait_calls(&mut self, tail: &str, n: usize) {
+        let (fake, tail) = (self.fake.clone(), tail.to_string());
+        test_wait::drive(
+            &mut self.rt,
+            &self.queue,
+            &format!("{n} requests ending {tail}"),
+            move |_| fake.lock().unwrap().calls.iter().filter(|c| c.1.ends_with(&tail)).count() >= n,
+            |_| String::new(),
+        );
+        self.settle();
     }
 
     fn emit(&mut self, topic: Topic, kind: Kind, payload: Value) {
@@ -400,10 +417,10 @@ fn the_newest_ask_per_pane_wins_and_no_answer_leaves_the_pane_as_it_was() {
     r.emit(Topic::Session("s-1".into()), Kind::ModUi, json!({ "mod": "release-board" }));
     assert_eq!(r.tree_of("release-board", "board"), Some(text("Board")));
     // Two asks at once: only the later one's answer lands.
-    r.with(|f| f.renders = vec![drawn("older", false), drawn("newer", false)]);
+    r.with(|f| f.echo = true);
     r.rt.update(|s, _| {
-        s.draw_mod_pane("s-1", "release-board", "board", "Release board");
-        s.draw_mod_pane("s-1", "release-board", "board", "Release board");
+        s.draw_mod_pane("s-1", "release-board", "board", "older");
+        s.draw_mod_pane("s-1", "release-board", "board", "newer");
     });
     r.settle();
     assert_eq!(r.tree_of("release-board", "board"), Some(text("newer")));
@@ -426,21 +443,13 @@ fn a_used_control_goes_to_the_mod_and_the_pane_draws_again_when_it_was_not_handl
     r.open(board());
     settle(&mut r.rt);
     crate::tests::click(&mut r.rt, "mod-pane:s-1:release-board:board.0");
-    r.settle();
+    r.wait_calls("/mods/action", 1);
     assert_eq!(r.calls("/mods/action").len(), 1);
     assert_eq!(r.calls("/mods/render").len(), 1, "handled: no redraw");
     r.with(|f| f.action = Some(json!({ "handled": false })));
     crate::tests::click(&mut r.rt, "mod-pane:s-1:release-board:board.0");
     // The action's own answer isn't counted by `settle`: wait for the draw it asks for.
-    let fake = r.fake.clone();
-    test_wait::drive(
-        &mut r.rt,
-        &r.queue,
-        "the pane to be drawn again",
-        move |_| fake.lock().unwrap().calls.iter().filter(|c| c.1.ends_with("/mods/render")).count() >= 2,
-        |_| String::new(),
-    );
-    r.settle();
+    r.wait_calls("/mods/render", 2);
     assert_eq!(r.calls("/mods/action").len(), 2);
     assert_eq!(r.calls("/mods/render").len(), 2, "not handled: the pane draws again");
 }
