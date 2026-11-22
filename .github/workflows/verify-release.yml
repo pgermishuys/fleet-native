@@ -1,7 +1,9 @@
 name: Verify release
 
-# Downloads the published `latest` assets from their public links with no sign-in, and checks them against
-# latest.json. Run by hand after a publish.
+# Downloads the published `latest` assets from their public links with no sign-in, checks each against latest.json (and its
+# .sha256 where the release has one), then proves every package on its own system: the server inside, the icon and version,
+# and a smoke run of the app from the package (scripts/smoke-desktop.sh, scripts/smoke-desktop.ps1). Run by hand after a
+# publish; it only reads the release.
 on: workflow_dispatch
 
 permissions:
@@ -18,46 +20,76 @@ jobs:
   verify:
     name: Verify (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { name: linux, os: ubuntu-latest, asset: fleet-native-linux-x64.tar.gz }
-          - { name: windows, os: windows-latest, asset: fleet-native-windows-x64.zip }
-          - { name: macos, os: macos-15, asset: fleet-native-macos-arm64.dmg }
+          - { name: linux, os: ubuntu-latest, assets: fleet-native-linux-x64.tar.gz fleet-native-linux-x64.deb fleet-native-linux-x64.AppImage, sums: true }
+          - { name: windows, os: windows-latest, assets: fleet-native-windows-x64.zip fleet-native-windows-x64-setup.exe, sums: true }
+          - { name: macos, os: macos-15, assets: fleet-native-macos-arm64.dmg, sums: false }
     steps:
+      # Only for the scripts; nothing is built.
+      - uses: actions/checkout@v4
+
       - name: Download without a token
+        env:
+          ASSETS: ${{ matrix.assets }}
+          SUMS: ${{ matrix.sums }}
         run: |
           mkdir dl && cd dl
-          curl -fsSL -O "$BASE/latest.json" -O "$BASE/${{ matrix.asset }}"
+          curl -fsSL -O "$BASE/latest.json"
           cat latest.json
-          want=$(python3 -c "import json;print([a['sha256'] for a in json.load(open('latest.json'))['assets'].values() if a['name']=='${{ matrix.asset }}'][0])")
-          if command -v sha256sum >/dev/null; then got=$(sha256sum "${{ matrix.asset }}" | cut -d' ' -f1); else got=$(shasum -a 256 "${{ matrix.asset }}" | cut -d' ' -f1); fi
-          echo "want $want"; echo "got  $got"
-          test "$want" = "$got"
+          sha() { if command -v sha256sum >/dev/null; then sha256sum "$1" | cut -d' ' -f1; else shasum -a 256 "$1" | cut -d' ' -f1; fi; }
+          for a in $ASSETS; do
+            curl -fsSL -O "$BASE/$a"
+            # Windows runners have `python`; their `python3` may be the Store's stand-in.
+            py=$(command -v python3 || command -v python); [ "$RUNNER_OS" = Windows ] && py=python
+            want=$("$py" -c "import json,sys;print([x['sha256'] for x in json.load(open('latest.json'))['assets'].values() if x['name']==sys.argv[1]][0])" "$a") \
+              || { echo "$a is not in latest.json"; exit 1; }
+            got=$(sha "$a")
+            echo "$a: want $want, got $got"
+            test "$want" = "$got"
+            if [ "$SUMS" = true ]; then
+              curl -fsSL -O "$BASE/$a.sha256"
+              test "$(cut -d' ' -f1 "$a.sha256")" = "$got" || { echo "$a.sha256 does not match"; exit 1; }
+              echo "$a.sha256 matches"
+            fi
+          done
+          ls -la
 
       - name: Linux packages
         if: runner.os == 'Linux'
-        run: sudo apt-get -o Acquire::Retries=5 update && sudo apt-get -o Acquire::Retries=5 install -y libxkbcommon-x11-0 mesa-vulkan-drivers
+        run: sudo apt-get -o Acquire::Retries=5 update && sudo apt-get -o Acquire::Retries=5 install -y libxkbcommon-x11-0 mesa-vulkan-drivers xvfb ffmpeg desktop-file-utils
 
       - name: Linux, run it
         if: runner.os == 'Linux'
         run: |
-          mkdir x && tar -xzf dl/${{ matrix.asset }} -C x && ls -la x
+          mkdir x && tar -xzf dl/fleet-native-linux-x64.tar.gz -C x && ls -la x
           test -f x/fleet-native.desktop && test -f x/fleet-native.png
           x/fleet-native --version
           export VK_ICD_FILENAMES=$(ls /usr/share/vulkan/icd.d/lvp_icd*.json | head -1)
           x/fleet-native --snap x/scene.png --scene dark --size 1280x760 --at 0.3 || x/fleet-native --help
           ls -la x/scene.png
 
-      - uses: actions/upload-artifact@v4
+      # Each package: the .deb's control and its entry, then the .deb (dpkg -x), the AppImage (its AppRun) and the tar started
+      # from what they carry, smoke-tested (row 25.41).
+      - name: Linux, the packages
         if: runner.os == 'Linux'
-        with: { name: verify-linux-scene, path: x/scene.png }
+        run: |
+          dpkg-deb --info dl/fleet-native-linux-x64.deb
+          mkdir deb && dpkg -x dl/fleet-native-linux-x64.deb deb && desktop-file-validate deb/usr/share/applications/fleet-native.desktop
+          test -x deb/opt/Fleet-Native/fleet/WeaveFleet.Api
+          bash scripts/smoke-linux-packages.sh dl shots/verify-smoke
+
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Linux' && always()
+        with: { name: verify-linux, path: "x/scene.png\nshots/verify-smoke/", if-no-files-found: warn }
 
       - name: macOS, mount and check
         if: runner.os == 'macOS'
         run: |
-          hdiutil attach "dl/${{ matrix.asset }}" -mountpoint "$RUNNER_TEMP/dmg" -nobrowse -readonly
+          hdiutil attach "dl/fleet-native-macos-arm64.dmg" -mountpoint "$RUNNER_TEMP/dmg" -nobrowse -readonly
           app="$RUNNER_TEMP/dmg/Fleet Native.app"
           ls -la "$RUNNER_TEMP/dmg"
           test -L "$RUNNER_TEMP/dmg/Applications"
@@ -66,12 +98,18 @@ jobs:
           codesign --verify --deep --strict --verbose=2 "$app"
           codesign -dv "$app" 2>&1 | head
           "$app/Contents/MacOS/fleet-native" --version
+          test -d "$app/Contents/Resources/fleet"
+          # The app from the image, smoke-tested (row 25.41).
+          SMOKE_SHOT=shots/verify-smoke/smoke-macos.png bash scripts/smoke-desktop.sh "$app/Contents/MacOS/fleet-native"
           hdiutil detach "$RUNNER_TEMP/dmg"
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'macOS' && always()
+        with: { name: verify-macos, path: shots/verify-smoke/, if-no-files-found: warn }
 
       - name: Windows, icon and version information
         if: runner.os == 'Windows'
         run: |
-          powershell -NoProfile -Command "Expand-Archive dl/${{ matrix.asset }} -DestinationPath x"
+          powershell -NoProfile -Command "Expand-Archive dl/fleet-native-windows-x64.zip -DestinationPath x"
           powershell -NoProfile -Command "
             \$f = Get-Item x/fleet-native.exe
             \$f.VersionInfo | Format-List ProductName,FileDescription,CompanyName,FileVersion,ProductVersion
@@ -79,6 +117,16 @@ jobs:
             \$i = [System.Drawing.Icon]::ExtractAssociatedIcon(\$f.FullName)
             \$i.ToBitmap().Save('x/icon.png')"
           x/fleet-native.exe --version
-      - uses: actions/upload-artifact@v4
+
+      # The zip and the installer, each smoke-tested; the installer also installs, reinstalls and uninstalls silently, and
+      # what it installs is the zip's exe and server. Nothing needs the Visual C++ redistributable (row 25.43).
+      - name: Windows, the packages
         if: runner.os == 'Windows'
-        with: { name: verify-windows-icon, path: x/icon.png }
+        run: |
+          pwsh -NoProfile -File scripts/check-windows-runtime.ps1 x
+          pwsh -NoProfile -File scripts/smoke-desktop.ps1 -App x/fleet-native.exe -Shot shots/verify-smoke/smoke-windows-zip.png
+          build=$(python -c "import json;print(json.load(open('dl/latest.json'))['build'])")
+          pwsh -NoProfile -File scripts/check-windows-installer.ps1 -Setup dl/fleet-native-windows-x64-setup.exe -Exe x/fleet-native.exe -Build "$build" -Server x/fleet -Smoke -Shot shots/verify-smoke/smoke-windows-installed.png
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Windows' && always()
+        with: { name: verify-windows, path: "x/icon.png\nshots/verify-smoke/", if-no-files-found: warn }

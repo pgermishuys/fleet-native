@@ -40,12 +40,13 @@ $port = if ($env:SMOKE_PORT) { [int] $env:SMOKE_PORT } else {
 }
 Set-Content (Join-Path $appData 'settings.json') "{`"desktopPort`": $port}"
 # The app, like Fleet's, uses a Fleet that already answers on 6262 instead of starting its own; that would test nothing.
-try {
+# SMOKE_SKIP_6262_CHECK=1 is only for a build made not to look there (a local proof on a machine whose own Fleet is up).
+if ($env:SMOKE_SKIP_6262_CHECK -ne '1') { try {
     Invoke-WebRequest -Uri 'http://127.0.0.1:6262/readyz' -TimeoutSec 2 | Out-Null
     Write-Host 'A Fleet already answers on 127.0.0.1:6262, and the app would use it rather than start its own: run this where none runs.'
     Remove-Item -Recurse -Force $root -ErrorAction SilentlyContinue
     exit 2
-} catch { }
+} catch { } }
 $instance = Join-Path $data 'fleet.instance.json'
 $script:apps = @()
 $script:failed = $false
