@@ -282,3 +282,25 @@ fn the_machine_switch_reads_that_machine_s_list_and_the_page_opens_on_this_machi
     r.frames();
     assert_eq!(r.rows(), ["Home digest"]);
 }
+
+#[test]
+fn with_no_fleet_a_new_automation_s_row_says_when_it_first_runs() {
+    // The app with no server makes the automation itself, so it says when the schedule first runs, as Fleet's server does.
+    let mut rt = app();
+    rt.update(|s, tx| {
+        s.now_ms = Some(NOW_MS);
+        s.press_rail(Rail::Automations);
+        s.start_automation_create(tx);
+        s.automations_nav.set_text(false, "Every Monday at 9, summarise the open pull requests.");
+        s.automations_nav.draft.set_folder(crate::fleet::new_session::request::Folder::Repository("/work/kettle".into()), true, false);
+    });
+    rt.frame(FRAME);
+    click(&mut rt, "automation-submit");
+    rt.frame(FRAME);
+    rt.frame(FRAME);
+
+    let made = rt.state.shown_automations().list.last().cloned().expect("the new automation");
+    assert_eq!(rt.state.automations_nav.open_id(), Some(made.id.as_str()), "it opened");
+    let next = made.next_run_at.as_deref().expect("a first run");
+    assert!(next.starts_with("2026-09-21T09:00"), "the Monday after Tuesday 15 September: {next}");
+}
