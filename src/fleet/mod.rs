@@ -16,6 +16,7 @@ pub mod attach;
 pub mod auth;
 pub mod autocomplete;
 pub mod automations;
+pub mod board;
 pub mod brackets;
 pub mod browser;
 pub mod browser_tab;

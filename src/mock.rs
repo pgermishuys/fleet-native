@@ -9,6 +9,9 @@ pub mod asks;
 // Nothing draws these until piece D (the page and the list); the tests read them now.
 #[allow(dead_code)]
 pub mod automations;
+// Only the tests read it until the Board's scenes do (piece L).
+#[cfg(test)]
+pub mod board;
 pub mod browser;
 pub mod browser_agent;
 pub mod browser_tab;

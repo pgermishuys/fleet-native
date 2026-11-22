@@ -489,6 +489,7 @@ mod autocomplete;
 mod automation_composer;
 mod automation_schedule;
 mod automations;
+mod board;
 mod canvases;
 mod cards;
 mod catalog;
