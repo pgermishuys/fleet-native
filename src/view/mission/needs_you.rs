@@ -14,7 +14,7 @@ use rune::{El, ScrollSpec, col, el, row, text};
 /// `aside` "Needs you": the heading with its count, then the cards, the spinner or the empty note.
 pub fn column(s: &State, t: &Theme, wall: &Wall) -> El {
     let heading = row()
-        .gap(8.0)
+        .gap(7.0)
         .center_y()
         .child(text("Needs you").font(sans(rem(0.875), 600.0, 1.43)).color(t.text))
         .child(text(wall.waiting.len().to_string()).key("needs-you-count").font(sans(rem(0.875), 600.0, 1.43)).color(t.accent_text));
@@ -26,7 +26,7 @@ pub fn column(s: &State, t: &Theme, wall: &Wall) -> El {
         .min_w(0.0)
         .h_full()
         .min_h(0.0)
-        .gap(12.0)
+        .gap(10.5)
         .padding(rem(1.0))
         .scroll(ScrollSpec { stick_bottom: false })
         .child(heading);
@@ -50,9 +50,9 @@ pub fn column(s: &State, t: &Theme, wall: &Wall) -> El {
 fn card(s: &State, t: &Theme, tile: &Tile) -> El {
     let key = &tile.key;
     let busy = s.mission.busy.contains(key);
-    let mut chips = row().gap(6.0).mt(4.0).flex_wrap().center_y().child(
+    let mut chips = row().gap(5.25).mt(3.5).flex_wrap().center_y().child(
         row()
-            .px(6.0)
+            .px(5.25)
             .py(1.0)
             .radius(4.0)
             .border(1.0, t.border)
@@ -66,7 +66,9 @@ fn card(s: &State, t: &Theme, tile: &Tile) -> El {
         .grow(1.0)
         .shrink()
         .min_w(0.0)
-        .padding(rem(0.75))
+        .px(rem(0.75))
+        // The card's 1 px top and bottom border takes room in Fleet's layout; here it is only painted.
+        .py(rem(0.75) + 1.0)
         .child(text(tile.title.clone()).key(format!("ask-title-{key}")).font(sans(rem(0.875), 500.0, 1.43)).color(t.text).wrap().w_full())
         .child(chips);
     inner = match &tile.ask {
@@ -78,7 +80,7 @@ fn card(s: &State, t: &Theme, tile: &Tile) -> El {
                     .color(t.text)
                     .wrap()
                     .w_full()
-                    .mt(8.0),
+                    .mt(7.0),
             );
             if !question.multiple && *more == 0 {
                 let options = question.options.iter().enumerate().map(|(i, option)| {
@@ -87,9 +89,9 @@ fn card(s: &State, t: &Theme, tile: &Tile) -> El {
                     let b = if option.description.is_empty() { b } else { b.help(option.description.clone()) };
                     if busy { disabled(b) } else { b.on_press(move |s: &mut State| s.mission_answer_question(&tile, &request_id, &label)) }
                 });
-                body = body.child(row().gap(6.0).mt(8.0).flex_wrap().children(options));
+                body = body.child(row().gap(5.25).mt(7.0).flex_wrap().children(options));
             } else {
-                body = body.child(open_button(t, tile, "Open to answer").mt(8.0));
+                body = body.child(open_button(t, tile, "Open to answer").mt(7.0));
             }
             inner.child(body)
         }
@@ -103,18 +105,18 @@ fn card(s: &State, t: &Theme, tile: &Tile) -> El {
             inner
                 .child(
                     row()
-                        .mt(8.0)
+                        .mt(7.0)
                         .w_full()
-                        .px(8.0)
-                        .py(4.0)
+                        .px(7.0)
+                        .py(3.5)
                         .radius(4.0)
                         .fill(t.panel_bg)
                         .child(text(shown).key(format!("ask-code-{key}")).font(mono(rem(0.75), 400.0, 1.33)).color(t.text).wrap().w_full()),
                 )
                 .child(
                     row()
-                        .gap(6.0)
-                        .mt(8.0)
+                        .gap(5.25)
+                        .mt(7.0)
                         .flex_wrap()
                         .child(reply("Allow once", Variant::Default, Reply::Once, "once"))
                         .child(reply("Always", Variant::Outline, Reply::Always, "always"))
@@ -129,12 +131,12 @@ fn card(s: &State, t: &Theme, tile: &Tile) -> El {
                     .color(t.muted)
                     .wrap()
                     .w_full()
-                    .mt(8.0),
+                    .mt(7.0),
             )
-            .child(open_button(t, tile, "Open").mt(8.0)),
+            .child(open_button(t, tile, "Open").mt(7.0)),
     };
     if let Some(words) = s.mission.errors.get(key).filter(|w| !w.is_empty()) {
-        inner = inner.child(row().mt(8.0).w_full().child(error_note::compact(t, &format!("ask-error-{key}"), words)));
+        inner = inner.child(row().mt(7.0).w_full().child(error_note::compact(t, &format!("ask-error-{key}"), words)));
     }
     row()
         .key(format!("ask-{key}"))

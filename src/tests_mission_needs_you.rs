@@ -217,3 +217,20 @@ fn opens_the_session_of_a_card_that_has_no_ask_to_answer_in_place() {
     assert_eq!(r.rt.state.rail, Rail::Sessions);
     assert_eq!(r.rt.state.machine_key_of("m2"), "m-mini", "its machine remembers it");
 }
+
+/// Fleet's DOM, measured in a scratch Fleet at 1280 x 760: a question card is 121.5 px tall and a permission card 125 (1 px
+/// borders, 10.5 padding, 3.5 and 7 px between the lines, a 28 px button), 10.5 px apart. An earlier build drew them 1.5 to 2 px
+/// off, each a little shorter or taller, so every card after the first drifted.
+#[test]
+fn a_card_is_as_tall_as_fleets_and_they_sit_10_and_a_half_apart() {
+    let r = &mut asking();
+    r.open();
+    r.rt.frame(FRAME);
+    let height = |key: &str| r.rt.elements().into_iter().find(|e| e.key.as_deref() == Some(key) && !e.exiting).map(|e| e.rect).expect(key);
+    let question = height("ask-home:h1");
+    let permission = height("ask-m-mini:m2");
+    assert!((question[3] - 121.5).abs() < 0.6, "the question card is {} px", question[3]);
+    assert!((permission[3] - 125.0).abs() < 0.6, "the permission card is {} px", permission[3]);
+    let (upper, lower) = if question[1] < permission[1] { (question, permission) } else { (permission, question) };
+    assert!((lower[1] - (upper[1] + upper[3]) - 10.5).abs() < 0.6, "the cards are {} px apart", lower[1] - (upper[1] + upper[3]));
+}
