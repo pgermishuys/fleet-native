@@ -10,6 +10,7 @@ pub mod card;
 pub mod create;
 pub mod detail;
 pub mod draft;
+pub mod drafting;
 pub mod editor;
 pub mod file_field;
 pub mod finish;

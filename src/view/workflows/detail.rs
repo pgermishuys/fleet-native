@@ -5,14 +5,15 @@ use crate::State;
 use crate::conv::time::{format_timestamp, local_offset_secs};
 use crate::fleet::work::parse_iso_ms;
 use crate::fleet::workflows::detail::{RECENT, models, run_text, skills};
+use crate::fleet::workflows::drafting::Drafting;
 use crate::fleet::workflows::helpers::{Tone, loop_notes};
 use crate::fleet::workflows::{Run, Step, StepKind, Workflow};
-use crate::icons::{BOT, CALENDAR_CLOCK, CHECK, COPY, PENCIL, REPEAT, TRIANGLE_ALERT, USER_ROUND, WORKFLOW, ZAP};
+use crate::icons::{BOT, CALENDAR_CLOCK, CHECK, COPY, PENCIL, REPEAT, SPARKLES, TRIANGLE_ALERT, USER_ROUND, WORKFLOW, ZAP};
 use crate::theme::{RADIUS_BTN, RADIUS_CARD, Theme, mono, sans};
 use crate::ui::button::{Size, Variant, button, disabled};
 use crate::ui::{empty_state, rem};
 use crate::view::{files_tab, parts};
-use rune::{Cursor, El, col, el, icon, row, text};
+use rune::{Align, Cursor, El, col, el, icon, row, text};
 
 /// "Pick a repository in the Run box first": the title of a button that needs one.
 const NEEDS_REPOSITORY: &str = "Pick a repository in the Run box first";
@@ -47,6 +48,39 @@ pub fn read(s: &State, t: &Theme, w: &Workflow) -> El {
     }
     c = c.child(facts(t, &models(w, &roles, &harness), &skills(w)));
     c.child(recent_runs(s, t, w, &machine)).child(super::run_box::view(s, t, w))
+}
+
+/// `.wf-drafting`: while the model is asked for a draft, and when it couldn't give one. Centred in the pane, at most 420 wide.
+pub fn drafting(t: &Theme, d: &Drafting) -> El {
+    let title =
+        |key: &str, words: String| text(words).key(key.to_string()).font(sans(13.5, 600.0, 1.5)).color(t.text).wrap().align(Align::Center);
+    let mut c = col().key("workflow-drafting").role("status").max_w(420.0).items_center().gap(10.0).padding(24.0);
+    if let Some(why) = &d.error {
+        let close = button(t, Variant::Outline, Size::Sm, None, "Close").key("workflow-drafting-close");
+        let retry = button(t, Variant::Default, Size::Sm, None, "Try again").key("workflow-drafting-retry");
+        return c.child(icon(&SPARKLES, 20.0).color(t.error)).child(title("workflow-drafting-error", why.clone()).role("alert")).child(
+            row()
+                .gap(8.0)
+                .child(close.on_press(|s: &mut State| s.workflows_nav.cancel_draft()))
+                .child(retry.on_press(|s: &mut State| s.workflow_draft_retry())),
+        );
+    }
+    let (heading, note) = match d.ask.session_title() {
+        Some(session) => (
+            format!("Drafting a workflow from {session}\u{2026}"),
+            "The model is reading the conversation from the cache and writing the steps. It takes up to a minute or two.",
+        ),
+        None => (
+            "Drafting a workflow from your description\u{2026}".to_string(),
+            "The model is writing the steps. It takes up to a minute or two.",
+        ),
+    };
+    c = c
+        .child(files_tab::spinner(t.muted, 20.0))
+        .child(title("workflow-drafting-title", heading))
+        .child(text(note).key("workflow-drafting-note").font(sans(12.5, 400.0, 1.5)).color(t.muted).wrap().align(Align::Center));
+    let cancel = button(t, Variant::Outline, Size::Sm, None, "Cancel").key("workflow-drafting-cancel");
+    c.child(cancel.on_press(|s: &mut State| s.workflows_nav.cancel_draft()))
 }
 
 /// `PageHeader`: the leading icon box, the title and the pill on the left; the actions on the right.

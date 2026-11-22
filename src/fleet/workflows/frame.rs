@@ -12,11 +12,13 @@ pub const NOTICE_SECONDS: f64 = 4.0;
 
 pub const SAVE_FIRST: &str = "Save first: a run uses the file as saved.";
 
-/// Where a guarded move was going; the question's Yes takes it. Piece S adds the drafts' starts.
+/// Where a guarded move was going; the question's Yes takes it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Leave {
     /// Another workflow's row (`setActiveWorkflow`).
     Open(String),
+    /// Asking the model for a draft (`startDraft`).
+    Draft(super::drafting::Ask),
 }
 
 #[derive(Debug, Default)]
@@ -52,7 +54,8 @@ impl State {
     /// `showEditor`: a repository's workflow, unless the run view is on (Try it).
     pub fn workflow_editor_shown(&self) -> bool {
         let nav = &self.workflows_nav;
-        nav.active_id().starts_with("repo:") && !nav.showing_runs
+        // A draft is in the designer once it has come; while it is asked for, the pane says so instead.
+        (nav.active_id().starts_with("repo:") && !nav.showing_runs) || (nav.active_id() == super::nav::DRAFT_ID && nav.drafting.is_none())
     }
 
     /// Runs of the open file that haven't finished: they keep the version they started with.
@@ -118,6 +121,7 @@ impl State {
     pub fn workflow_leave_now(&mut self, to: Leave) {
         match to {
             Leave::Open(id) => self.workflows_nav.move_to(&id),
+            Leave::Draft(ask) => self.workflow_draft_now(ask),
         }
     }
 
@@ -155,6 +159,10 @@ impl State {
                 note.map(|n| format!(" {n}")).unwrap_or_default()
             );
             self.workflow_flash(said, tx);
+            // A drafted workflow is the repository's own now (`draftSaved`).
+            if self.workflows_nav.active_id() == super::nav::DRAFT_ID {
+                self.workflows_nav.draft_saved(&saved.workflow_id);
+            }
             // The library reloads so the list and the Run box see the file as it is now.
             self.workflows_nav.reload_wanted = true;
             changed = true;
