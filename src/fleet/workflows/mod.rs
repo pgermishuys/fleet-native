@@ -7,6 +7,7 @@ use std::collections::BTreeMap;
 
 pub mod card;
 pub mod detail;
+pub mod draft;
 pub mod finish;
 pub mod helpers;
 pub mod nav;
@@ -118,23 +119,23 @@ pub fn path_from_key(key: &str) -> Option<String> {
 
 // ─── The library ────────────────────────────────────────────────────────────────────────────────────────────────
 
-fn text(v: &Value, key: &str) -> Option<String> {
+pub(super) fn text(v: &Value, key: &str) -> Option<String> {
     v.get(key).and_then(Value::as_str).map(str::to_string)
 }
 
-fn string(v: &Value, key: &str) -> String {
+pub(super) fn string(v: &Value, key: &str) -> String {
     text(v, key).unwrap_or_default()
 }
 
-fn flag(v: &Value, key: &str) -> bool {
+pub(super) fn flag(v: &Value, key: &str) -> bool {
     v.get(key).and_then(Value::as_bool).unwrap_or(false)
 }
 
-fn count(v: &Value, key: &str) -> Option<u32> {
+pub(super) fn count(v: &Value, key: &str) -> Option<u32> {
     v.get(key).and_then(Value::as_u64).map(|n| n as u32)
 }
 
-fn list<T>(v: &Value, key: &str, read: impl Fn(&Value) -> T) -> Vec<T> {
+pub(super) fn list<T>(v: &Value, key: &str, read: impl Fn(&Value) -> T) -> Vec<T> {
     v.get(key).and_then(Value::as_array).map(|a| a.iter().map(read).collect()).unwrap_or_default()
 }
 

@@ -2730,6 +2730,12 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 - **A test fake that answers by exact path** needs the query string encoded as the request encodes it; build the expected path with the same `encode_component` the request uses.
 
 
+## Component 18, piece K (the draft model)
+
+Nothing new about Rune: the draft model is plain Rust with no view. One note for the next piece: Fleet's `routes` is an object
+whose order the file keeps, so it is a `Vec<(String, String)>` here, and a rename that lands on an existing key keeps one entry
+(the last value, in the first one's place), as an object would.
+
 ## Component 20, piece K (the sweep)
 
 - A scripted run answers a save dialog with `{"type":"file-dialog","path":…}` (`file-dialog-cancel` cancels), so Export CSV can be walked live and the saved file compared with the server's.

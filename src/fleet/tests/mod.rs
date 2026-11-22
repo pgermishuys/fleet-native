@@ -561,6 +561,7 @@ pub(crate) mod usage_rules;
 mod web_page;
 mod wire;
 mod work;
+mod workflow_draft;
 mod workflows;
 
 #[test]
