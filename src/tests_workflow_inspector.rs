@@ -9,11 +9,11 @@ use crate::mock::workflow_canvas::Case;
 use crate::tests::{FRAME, app_tall, click, press_key};
 use rune::{Key, Mods, Runtime};
 
-struct Rig {
-    rt: Runtime<State>,
+pub(crate) struct Rig {
+    pub(crate) rt: Runtime<State>,
 }
 
-fn mounted(selected: Option<usize>) -> Rig {
+pub(crate) fn mounted(selected: Option<usize>) -> Rig {
     let mut rt = app_tall();
     rt.update(|s, _| s.show_workflow_canvas(true, Case::Picked));
     rt.update(move |s, _| s.workflows_nav.editor.canvas.selected = selected);
@@ -23,26 +23,26 @@ fn mounted(selected: Option<usize>) -> Rig {
 }
 
 impl Rig {
-    fn frames(&mut self) {
+    pub(crate) fn frames(&mut self) {
         for _ in 0..3 {
             self.rt.frame(FRAME);
         }
     }
 
-    fn ed(&self) -> &Editor {
+    pub(crate) fn ed(&self) -> &Editor {
         &self.rt.state.workflows_nav.editor
     }
 
-    fn draft(&self) -> &WorkflowDraft {
+    pub(crate) fn draft(&self) -> &WorkflowDraft {
         self.ed().draft.as_ref().expect("a draft")
     }
 
-    fn has(&self, key: &str) -> bool {
+    pub(crate) fn has(&self, key: &str) -> bool {
         self.rt.find(key).is_some()
     }
 
     /// The text of an element and of everything inside it, joined by a space.
-    fn words(&self, key: &str) -> String {
+    pub(crate) fn words(&self, key: &str) -> String {
         let all = self.rt.elements();
         let Some(root) = all.iter().find(|e| e.key.as_deref() == Some(key)) else { return String::new() };
         let inside = format!("{}/", root.path);
@@ -54,7 +54,7 @@ impl Rig {
     }
 
     /// Clicks a field, selects what is in it and types `words` over it.
-    fn type_in(&mut self, key: &str, words: &str) {
+    pub(crate) fn type_in(&mut self, key: &str, words: &str) {
         click(&mut self.rt, key);
         press_key(&mut self.rt, Key::Command('a'), Mods::default());
         let key = if words.is_empty() { Key::Backspace } else { Key::Text(words.into()) };
@@ -62,12 +62,12 @@ impl Rig {
         self.frames();
     }
 
-    fn enter(&mut self) {
+    pub(crate) fn enter(&mut self) {
         press_key(&mut self.rt, Key::Enter, Mods::default());
         self.frames();
     }
 
-    fn set_draft(&mut self, edit: impl FnOnce(&mut WorkflowDraft)) {
+    pub(crate) fn set_draft(&mut self, edit: impl FnOnce(&mut WorkflowDraft)) {
         self.rt.update(|s, _| edit(s.workflows_nav.editor.draft.as_mut().expect("a draft")));
         self.frames();
     }
