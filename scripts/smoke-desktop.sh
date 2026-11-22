@@ -7,8 +7,9 @@
 #   bash scripts/smoke-desktop.sh <app executable> [app arguments...]
 #
 # FLEET_NATIVE_SERVER_BIN (and FLEET_NATIVE_SERVER_CONTENT_ROOT) name the server when the app has none bundled beside
-# it. Linux needs a display: with none, the app is run under xvfb-run. macOS and Linux only; a Windows run needs a
-# PowerShell twin (no SIGKILL here), which belongs to component 25's package checks.
+# it. Linux needs a display: with none, the app is run under xvfb-run. macOS and Linux only; Windows has its twin,
+# scripts/smoke-desktop.ps1. SMOKE_SHOT=<file.png> grabs the screen once the repository is listed (Linux: ffmpeg's
+# x11grab; macOS: screencapture); a grab that fails only warns.
 #
 # The scratch folder holds the app's own data, a fake home and the Fleet's data; nothing outside it is touched, and
 # the app is told not to start a second instance of itself (a set FLEET_NATIVE_DATA_DIR does that).
@@ -97,6 +98,16 @@ echo "UI served, desktop status $STATUS"
 START=$SECONDS
 curl -fsS --max-time 30 "$URL/api/repositories" | grep -q '"smoke-repo"' || fail "/api/repositories didn't list the smoke repository"
 echo "Listed the smoke repository in $((SECONDS - START)) s."
+if [ -n "${SMOKE_SHOT:-}" ]; then
+    sleep 4 # the sessions page asks its Fleet for the list; let it draw
+    mkdir -p "$(dirname "$SMOKE_SHOT")"
+    if [ "$(uname -s)" = Darwin ]; then
+        screencapture -x "$SMOKE_SHOT" || echo "::warning::screencapture failed"
+    else
+        ffmpeg -loglevel error -y -f x11grab -i "$DISPLAY" -frames:v 1 "$SMOKE_SHOT" || echo "::warning::the screen grab failed"
+    fi
+    [ -f "$SMOKE_SHOT" ] && echo "Saved the screen to $SMOKE_SHOT."
+fi
 
 # The app dying any way at all closes the pipe the Fleet reads, so it stops by itself.
 kill -KILL "$APP_PID"

@@ -90,6 +90,7 @@ jobs:
 
       # The Linux packages (.deb, AppImage) built from this debug build with the pinned server, then proven: the desktop file
       # validates, the .deb's control and contents, the AppImage's listing, the server byte for byte (scripts/check-linux-packages.sh).
+      # Then each package is started and smoke-tested (scripts/smoke-linux-packages.sh: the .deb from `dpkg -x`, the AppImage's AppRun).
       # The package job does not run on pull requests; this is where a change to the packaging is seen before the merge.
       - name: Cache the server archive (Linux)
         if: runner.os == 'Linux'
@@ -107,11 +108,14 @@ jobs:
           bash scripts/make-deb.sh target/debug/fleet-native 1 server-staged dist/fleet-native-linux-x64.deb
           bash scripts/make-appimage.sh target/debug/fleet-native 1 server-staged dist/fleet-native-linux-x64.AppImage
           bash scripts/check-linux-packages.sh dist server-staged target/debug/examples/check-bundled-server
+          bash scripts/smoke-linux-packages.sh dist shots/out-smoke
 
       # The Windows installer (piece C of component 25): a per-user NSIS setup.exe with this debug build and the pinned server
       # inside, built and then proven on the runner (scripts/check-windows-installer.ps1): installed silently into a scratch
       # folder, the files and the server byte for byte, the Start-menu and Apps entries, installed again over itself, refused
-      # while the exe is held, then uninstalled silently. The runner's image may not carry NSIS; then it comes from Chocolatey.
+      # while the exe is held, the installed app smoke-tested (scripts/smoke-desktop.ps1: its own Fleet started, a repository
+      # listed, killed hard, started again on the same data), then uninstalled silently. The runner's image may not carry
+      # NSIS; then it comes from Chocolatey.
       - name: Cache the server archive (Windows)
         if: runner.os == 'Windows'
         uses: actions/cache@v4
@@ -126,7 +130,7 @@ jobs:
           bash scripts/fetch-server.sh win-x64 server-staged "$PWD/server-download"
           if ! command -v makensis >/dev/null && [ ! -f "/c/Program Files (x86)/NSIS/makensis.exe" ]; then choco install nsis -y --no-progress; fi
           pwsh -NoProfile -File scripts/make-installer.ps1 -Exe target/debug/fleet-native.exe -Build 1 -Server server-staged -Out dist/fleet-native-windows-x64-setup.exe
-          pwsh -NoProfile -File scripts/check-windows-installer.ps1 -Setup dist/fleet-native-windows-x64-setup.exe -Exe target/debug/fleet-native.exe -Build 1 -Server server-staged -Checker target/debug/examples/check-bundled-server.exe
+          pwsh -NoProfile -File scripts/check-windows-installer.ps1 -Setup dist/fleet-native-windows-x64-setup.exe -Exe target/debug/fleet-native.exe -Build 1 -Server server-staged -Checker target/debug/examples/check-bundled-server.exe -Smoke -Shot shots/out-smoke/smoke-windows-installed.png
 
       # The macOS bundle (piece D of component 25): "Fleet Native.app" with the pinned server inside, signed inside out, in a
       # .dmg, built from this debug build and proven (scripts/check-mac-app.sh: the plist, every Mach-O passes codesign --verify,
@@ -153,6 +157,38 @@ jobs:
         with:
           name: mac-bundle-checks
           path: shots/out-mac/
+          if-no-files-found: warn
+
+      - name: Upload the smoke runs' pictures
+        if: always() && runner.os != 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-${{ matrix.name }}
+          path: shots/out-smoke/
+          if-no-files-found: warn
+
+      # Row 25.44: a pull request that touches packaging gets its packages (debug builds, build 1) as artifacts to try, kept a
+      # week; never released. The diff is against the pull request's base, fetched alone (the checkout is shallow).
+      - name: Does this change touch packaging
+        id: touches
+        if: always() && github.event_name == 'pull_request'
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git fetch -q --depth=1 origin "$BASE"
+          changed=$(git diff --name-only "$BASE" HEAD)
+          if printf '%s\n' "$changed" | grep -qE '^(packaging/|assets/icon/|build\.rs$|\.github/workflows/(ci|verify-release)\.yml$|scripts/(make-|check-|smoke-|fetch-server))'; then
+            echo "packaging=true" >> "$GITHUB_OUTPUT"; echo "touches packaging: upload the packages"
+          else
+            echo "no packaging change"
+          fi
+      - name: Upload the packages (pull requests that touch packaging)
+        if: always() && steps.touches.outputs.packaging == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-${{ matrix.name }}-debug
+          path: dist/
+          retention-days: 7
           if-no-files-found: warn
 
       # A web view is a native window, so no scene can draw it: the app runs in a real window on an invented page canvas served
@@ -361,6 +397,12 @@ jobs:
       - name: Check the Linux packages (.deb, AppImage)
         if: runner.os == 'Linux'
         run: bash scripts/check-linux-packages.sh dist server-staged target/release/examples/check-bundled-server
+      # Each package started and smoke-tested (row 25.41): the .deb, the AppImage and the tar.
+      - name: Smoke-test the Linux packages
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get -o Acquire::Retries=5 install -y libxkbcommon-x11-0 mesa-vulkan-drivers xvfb ffmpeg
+          bash scripts/smoke-linux-packages.sh dist shots/out-smoke
 
       # Prove the package before it can be published.
       # The app, its signature and the Applications link are proven in scripts/make-mac-app.sh before the .dmg is
@@ -418,7 +460,18 @@ jobs:
             \$c = \$b.GetPixel(\$b.Width / 2, 3)
             'icon ' + \$b.Width + 'x' + \$b.Height + ' top-middle pixel ' + \$c
             if (\$c.R -gt 60 -or \$c.B -gt 70 -or \$c.A -lt 200) { throw 'the Weave icon is not in the exe' }"
-          pwsh -NoProfile -File scripts/check-windows-installer.ps1 -Setup dist/fleet-native-windows-x64-setup.exe -Exe target/release/fleet-native.exe -Build "${{ github.run_number }}" -Server server-staged -Checker target/release/examples/check-bundled-server.exe
+          # Row 25.43: nothing in the zip needs the Visual C++ redistributable (the exe links the C runtime in).
+          pwsh -NoProfile -File scripts/check-windows-runtime.ps1 unpacked
+          # Row 25.41: the zip, unpacked, and the installed app each start their own Fleet and stop with it.
+          pwsh -NoProfile -File scripts/smoke-desktop.ps1 -App unpacked/fleet-native.exe -Shot shots/out-smoke/smoke-windows-zip.png
+          pwsh -NoProfile -File scripts/check-windows-installer.ps1 -Setup dist/fleet-native-windows-x64-setup.exe -Exe target/release/fleet-native.exe -Build "${{ github.run_number }}" -Server server-staged -Checker target/release/examples/check-bundled-server.exe -Smoke -Shot shots/out-smoke/smoke-windows-installed.png
+      - name: Upload the smoke runs' pictures
+        if: runner.os != 'macOS' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-smoke-${{ matrix.name }}
+          path: shots/out-smoke/
+          if-no-files-found: warn
 
       - uses: actions/upload-artifact@v4
         with:
