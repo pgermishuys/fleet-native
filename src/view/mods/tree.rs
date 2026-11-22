@@ -3,7 +3,7 @@
 //! the mod weren't there (the site's own drawing alone) and a `Fleet` node draws that drawing in place. At the inline sites
 //! (a tool row's line, the status bar) the root is one compact row and every row Box in it wraps.
 //!
-//! Pill and Icon are in `leaves`, Button, Input and Select in `controls`, Markdown and Code in `rich`; Page is piece J's and draws nothing yet.
+//! Pill and Icon are in `leaves`, Button, Input and Select in `controls`, Markdown and Code in `rich`; Page is in `leaves`.
 use super::leaves::{self, flag, role_color, space_px, str_prop};
 use super::{controls, rich};
 use crate::State;
@@ -240,7 +240,7 @@ fn node(cx: &mut Ctx, key: &str, value: &Value, lone: bool) -> El {
         Some("Select") => controls::select_control(cx.s, cx.t, key, &props, &handles_of(map)),
         Some("Markdown") => rich::markdown(cx.t, key, &props, cx.look.size),
         Some("Code") => rich::code(cx.s, cx.t, key, &props),
-        // Page is piece J's.
+        Some("Page") => leaves::page(cx.s, cx.t, key, &props, map.get("mod").and_then(Value::as_str).unwrap_or_default()),
         _ => el(),
     }
 }

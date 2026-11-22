@@ -11,6 +11,7 @@ pub mod drafts;
 pub mod failures;
 pub mod input_rate;
 pub mod markdown;
+pub mod page_url;
 pub mod panes;
 pub mod points;
 pub mod renders;

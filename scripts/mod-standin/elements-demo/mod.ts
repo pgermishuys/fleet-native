@@ -788,6 +788,32 @@ const tree = {
      ]
     }
    ]
+  },
+  {
+   "type": "Text",
+   "props": {
+    "dimColor": true,
+    "bold": true
+   },
+   "children": [
+    "Page"
+   ]
+  },
+  {
+   "type": "Page",
+   "props": {
+    "key": "notes-page",
+    "path": "ui/notes.html",
+    "title": "Deploy notes, printable"
+   }
+  },
+  {
+   "type": "Page",
+   "props": {
+    "key": "bad-page",
+    "path": "../x.html",
+    "title": "Broken report"
+   }
   }
  ]
 };

@@ -13,7 +13,7 @@ export const register: Register = (on) => {
   });
   on("ui.render", { component: "Pane" }, async ($, e, next) => {
     if (e.component !== "Pane" || e.requestId !== "notes") return next(e);
-    const { Box, Text, Pill, Icon, Button, Input, Select, Markdown, Code } = $.ui.resolve(e);
+    const { Box, Text, Pill, Icon, Button, Input, Select, Markdown, Code, Page } = $.ui.resolve(e);
     const target = $.state.get<string>("target") ?? "staging";
     return Box({
       flexDirection: "column",
@@ -37,6 +37,7 @@ export const register: Register = (on) => {
         ], onSelect: (v) => $.state.set("target", v) }),
         Input({ key: "note", label: "Note for the team", placeholder: "What changed?", submitLabel: "Add", onSubmit: () => {} }),
         Code({ source: "@@ -12,3 +12,3 @@\n-  timeout: 30\n+  timeout: 60\n   retries: 3", format: "diff", path: "deploy.yaml", startLine: 12 }),
+        Page({ key: "notes-page", path: "ui/notes.html", title: "Deploy notes, printable" }),
         Box({ flexDirection: "row", gap: 2, children: [
           Button({ key: "go", label: "Mark ready", tone: "primary", icon: "check", onPress: () => {} }),
           Button({ key: "stop", label: "Hold", tone: "danger", onPress: () => {} }),

@@ -1,0 +1,21 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Deploy notes</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 14px/1.5 system-ui, sans-serif; margin: 0; padding: 16px 20px; }
+  h1 { font-size: 16px; margin: 0 0 4px; }
+  p { margin: 0 0 12px; opacity: .7; }
+  ol { margin: 0; padding-left: 20px; }
+  li { margin: 4px 0; }
+  .ok::marker { content: "\2713  "; color: #2e9d57; }
+  .wait::marker { content: "\25cb  "; color: #c28a1d; }
+</style>
+<h1>Deploy 1.8 to staging</h1>
+<p>Printable notes for the team. Invented for the fleet-native port's pictures.</p>
+<ol>
+  <li class="ok">Build passed on the release branch</li>
+  <li class="ok">Migrations applied to the staging database</li>
+  <li class="wait">Smoke test: waiting for the queue to drain</li>
+  <li class="wait">Sign-off from the on-call engineer</li>
+</ol>
