@@ -209,6 +209,8 @@ mod tests_mods_panes;
 #[cfg(test)]
 mod tests_mods_renders;
 #[cfg(test)]
+mod tests_mods_review;
+#[cfg(test)]
 mod tests_mods_rows;
 #[cfg(test)]
 mod tests_mods_tree;
@@ -6063,6 +6065,12 @@ pub fn spec() -> AppSpec<State> {
             ("mods-draft-cards-light", |s| s.show_mod_drafts(false, false)),
             ("mods-draft-cards-more", |s| s.show_mod_drafts(true, true)),
             ("mods-draft-cards-more-light", |s| s.show_mod_drafts(false, true)),
+            ("mods-review", |s| s.show_mod_review(true, mock::mods::Review::Asked)),
+            ("mods-review-light", |s| s.show_mod_review(false, mock::mods::Review::Asked)),
+            ("mods-review-blocked", |s| s.show_mod_review(true, mock::mods::Review::Blocked)),
+            ("mods-review-blocked-light", |s| s.show_mod_review(false, mock::mods::Review::Blocked)),
+            ("mods-review-unchecked", |s| s.show_mod_review(true, mock::mods::Review::Unchecked)),
+            ("mods-review-unchecked-light", |s| s.show_mod_review(false, mock::mods::Review::Unchecked)),
             ("mods-controls", |s| s.show_mod_controls(true)),
             ("mods-controls-light", |s| s.show_mod_controls(false)),
             ("panel-tabs", |s| s.show_tabs(mock::canvas_host::Case::Tabs, true)),

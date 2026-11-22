@@ -5,6 +5,7 @@
 //! A tree is kept as `serde_json::Value`, exactly as it arrives on the wire, so Fleet's tests can be read against ours
 //! line by line. Nothing here draws; the views (pieces B onward) read what `resolve` hands them.
 pub mod actions;
+pub mod check_summary;
 pub mod controls;
 pub mod drafts;
 pub mod failures;

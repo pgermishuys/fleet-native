@@ -41,6 +41,8 @@ pub struct Dialog {
     pub width: Option<f32>,
     /// `max-h-[90vh] overflow-y-auto`: the panel is no taller than this and scrolls inside.
     pub max_height: Option<f32>,
+    /// `rounded-panel` on a dialog that has it (a mod's review); the default dialog has none.
+    pub radius: Option<f32>,
 }
 
 /// `DialogContent`: `max-w-lg` (448), `p-6`, `gap-4`, a border and `shadow-lg`, no radius.
@@ -78,6 +80,9 @@ pub fn dialog(t: &Theme, d: Dialog) -> Vec<El> {
     }
     if d.close_button {
         panel = panel.child(close_x(t, d.key, close));
+    }
+    if let Some(r) = d.radius {
+        panel = panel.radius(r).border_layout();
     }
     if let Some(h) = d.max_height {
         panel = panel.max_h(h).scroll(rune::ScrollSpec { stick_bottom: false });

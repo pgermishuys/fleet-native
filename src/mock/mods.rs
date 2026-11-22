@@ -96,3 +96,53 @@ impl crate::State {
         self.mod_drafts.set(&session, drafts(&session).into_iter().filter(|d| pick.contains(&d.name.as_str())).collect());
     }
 }
+
+/// What the static check read from the invented `test-chips` draft (the worked example of `check-summary.test.ts`).
+fn mock_report(problem: bool) -> serde_json::Value {
+    let mut r = serde_json::json!({
+        "ok": !problem, "name": "test-chips", "version": "1", "description": "", "lines": 47, "sha256": "abc",
+        "hooks": [
+            { "event": "ui.render", "matcher": { "component": ["ToolUse", "ToolResult"], "props": { "tool": ["bash", "shell"] } } },
+            { "event": "turn.complete" }
+        ],
+        "calls": ["ui.resolve", "store.set", "ui.toast"], "state": ["counts"], "pages": [], "errors": [], "warnings": []
+    });
+    if problem {
+        // A file that doesn't parse has no hooks to read.
+        r["hooks"] = serde_json::json!([]);
+        r["calls"] = serde_json::json!([]);
+        r["state"] = serde_json::json!([]);
+        r["errors"] = serde_json::json!([{ "line": 12, "column": 3, "code": "register", "message": "Call on() inside register" }]);
+        r["warnings"] = serde_json::json!([{ "code": "state", "message": "Unused state key" }]);
+    }
+    r
+}
+
+/// Which look of the Keep dialog a scene shows.
+#[derive(Clone, Copy)]
+pub enum Review {
+    /// The agent asked: its note in the field, Discard in the footer.
+    Asked,
+    /// A draft with a syntax error: Keep is off.
+    Blocked,
+    /// No checker is running.
+    Unchecked,
+}
+
+impl crate::State {
+    /// The Keep dialog over the open session with its draft cards.
+    pub fn show_mod_review(&mut self, dark: bool, which: Review) {
+        self.show_mod_drafts(dark, false);
+        let session = self.session().id.clone();
+        let (name, report) = match which {
+            Review::Asked => ("test-chips", Some(mock_report(false))),
+            Review::Blocked => ("run-summary", Some(mock_report(true))),
+            Review::Unchecked => ("branch-badge", None),
+        };
+        self.open_draft_review(&session, name);
+        let note = self.mod_drafts.list(&session).iter().find(|d| d.name == name).and_then(|d| d.keep_request.as_ref()?.note.clone());
+        let d = &mut self.mod_drafts.dialog;
+        d.checked = crate::fleet::mods::drafts::Checked::Report(report);
+        d.note = rune::TextEdit::new(note.unwrap_or_default());
+    }
+}

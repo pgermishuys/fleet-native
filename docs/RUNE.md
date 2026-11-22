@@ -2872,3 +2872,11 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 - **A form of many text fields is one poll, not many handlers.** `on_edit` hands back a `TextEdit` and nothing is told what it now says, so `Editor::sync_inspector` keeps a mirror of what each field last agreed with: a field that differs from its mirror is the user's edit (it goes into the draft); a draft that differs from the mirror under an untouched field goes into the field. That also covers a reload, a rename and a step that opens.
 - **"On change" for a field that commits when it is left** (Fleet's `@change`) is `TextEdit::focused` seen going from true to false in that poll, plus Enter in `on_input_key`. A click on another node moves the focus before it selects, so the id is committed for the step it was typed in.
 - **A browser `<select>` is the kit's list**: `select::content_in` anchored to a box keyed per row, opened by a state field (not `ui::Open`) so it can sit in the designer's own overlay beside the + menu.
+
+
+## Component 22, piece I (the Keep dialog)
+
+- **`ui::dialog` scrolls the whole panel when it has a `max_height`**, so its footer scrolls away. A dialog that keeps its footer in view puts a scrolling column
+  (`.max_h(window * 0.88 - chrome).scroll(..)`) in the body and leaves `max_height` off; the chrome (frame, title, footer) is a constant that has to be guessed.
+- **A disabled `ui::button` is only half opacity** in `rt.elements()` (there is no `disabled` field), so a test reads `opacity < 0.9`.
+- **`TextEdit` has no character limit**; a field's limit is applied where its text is used.

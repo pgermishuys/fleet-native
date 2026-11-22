@@ -92,6 +92,7 @@ pub fn dialog(s: &State, t: &Theme) -> Option<Vec<El>> {
             description_el: None,
             dismiss: Some(|s: &mut State| s.update_close()),
             max_height: None,
+            radius: None,
         },
     ))
 }

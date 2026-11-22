@@ -318,6 +318,9 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
     if let Some(update) = crate::view::update::dialog(s, t) {
         layer.extend(update);
     }
+    if let Some(review) = crate::view::mods::review::view(s, t) {
+        layer.extend(review);
+    }
     if let Some(quit) = crate::view::quit_dialog::view(s, t) {
         layer.extend(quit);
     }

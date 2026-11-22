@@ -15,7 +15,7 @@ use std::sync::{Arc, Mutex};
 
 type Rt = Runtime<State>;
 
-fn draft(name: &str, extra: Value) -> Value {
+pub(crate) fn draft(name: &str, extra: Value) -> Value {
     let mut d =
         json!({ "sessionId": "s-1", "name": name, "description": "Test runs as counts", "version": "1", "off": null, "kept": null });
     for (k, v) in extra.as_object().into_iter().flatten() {
@@ -24,18 +24,18 @@ fn draft(name: &str, extra: Value) -> Value {
     d
 }
 
-struct Fake {
-    switch: Value,
+pub(crate) struct Fake {
+    pub(crate) switch: Value,
     /// What `GET …/drafts` answers, and with which status.
-    drafts: Value,
-    drafts_status: &'static str,
+    pub(crate) drafts: Value,
+    pub(crate) drafts_status: &'static str,
     /// What a POST on/off answers (status line and body).
-    toggle: (&'static str, Value),
-    check: Value,
-    keep: (&'static str, Value),
-    dismiss: &'static str,
-    stop: bool,
-    calls: Vec<(String, String, Value, bool)>,
+    pub(crate) toggle: (&'static str, Value),
+    pub(crate) check: Value,
+    pub(crate) keep: (&'static str, Value),
+    pub(crate) dismiss: &'static str,
+    pub(crate) stop: bool,
+    pub(crate) calls: Vec<(String, String, Value, bool)>,
 }
 
 impl Default for Fake {
@@ -97,12 +97,12 @@ fn serve(fake: Shared) -> (String, std::net::SocketAddr) {
     (base, addr)
 }
 
-struct Rig {
-    rt: Rt,
-    queue: Receiver<Job>,
-    fake: Shared,
-    addr: std::net::SocketAddr,
-    base: String,
+pub(crate) struct Rig {
+    pub(crate) rt: Rt,
+    pub(crate) queue: Receiver<Job>,
+    pub(crate) fake: Shared,
+    pub(crate) addr: std::net::SocketAddr,
+    pub(crate) base: String,
 }
 
 impl Drop for Rig {
@@ -113,7 +113,7 @@ impl Drop for Rig {
 }
 
 /// An app on the open session `s-1` of a fake Fleet.
-fn rig(setup: impl FnOnce(&mut Fake)) -> Rig {
+pub(crate) fn rig(setup: impl FnOnce(&mut Fake)) -> Rig {
     let mut f = Fake::default();
     setup(&mut f);
     let fake: Shared = Arc::new(Mutex::new(f));
@@ -138,7 +138,7 @@ fn rig(setup: impl FnOnce(&mut Fake)) -> Rig {
 }
 
 impl Rig {
-    fn settle(&mut self) {
+    pub(crate) fn settle(&mut self) {
         for _ in 0..3 {
             test_wait::drive(&mut self.rt, &self.queue, "every request to be answered", |s| s.mod_drafts.idle(), |_| String::new());
             for _ in 0..4 {
@@ -147,37 +147,37 @@ impl Rig {
         }
     }
 
-    fn words(&self) -> String {
+    pub(crate) fn words(&self) -> String {
         self.rt.elements().iter().filter(|e| !e.exiting).filter_map(|e| e.text.clone()).collect::<Vec<_>>().join("\n")
     }
 
-    fn has(&self, key: &str) -> bool {
+    pub(crate) fn has(&self, key: &str) -> bool {
         self.rt.find(key).is_some()
     }
 
-    fn text_of(&self, key: &str) -> String {
+    pub(crate) fn text_of(&self, key: &str) -> String {
         self.rt.elements().iter().find(|e| e.key.as_deref() == Some(key)).and_then(|e| e.text.clone()).unwrap_or_default()
     }
 
-    fn calls(&self, method: &str, suffix: &str) -> Vec<(String, Value, bool)> {
+    pub(crate) fn calls(&self, method: &str, suffix: &str) -> Vec<(String, Value, bool)> {
         let f = self.fake.lock().unwrap();
         f.calls.iter().filter(|c| c.0 == method && c.1.ends_with(suffix)).map(|c| (c.1.clone(), c.2.clone(), c.3)).collect()
     }
 
-    fn with(&self, change: impl FnOnce(&mut Fake)) {
+    pub(crate) fn with(&self, change: impl FnOnce(&mut Fake)) {
         change(&mut self.fake.lock().unwrap());
     }
 
-    fn press(&mut self, key: &str) {
+    pub(crate) fn press(&mut self, key: &str) {
         crate::tests::click(&mut self.rt, key);
         self.settle();
     }
 
-    fn list(&self, session: &str) -> Vec<ModDraft> {
+    pub(crate) fn list(&self, session: &str) -> Vec<ModDraft> {
         self.rt.state.mod_drafts.list(session).to_vec()
     }
 
-    fn emit(&mut self, payload: Value) {
+    pub(crate) fn emit(&mut self, payload: Value) {
         self.rt.update(move |s, _| s.dispatch(&Topic::Sessions, &[Event::Other(Kind::ModsChanged, payload)]));
         self.settle();
     }
@@ -187,7 +187,7 @@ fn parsed(v: Value) -> ModDraft {
     drafts::parse_draft(&v, "s-1").expect("a draft")
 }
 
-fn card(r: &mut Rig, extra: Value) {
+pub(crate) fn card(r: &mut Rig, extra: Value) {
     let d = parsed(draft("test-chips", extra));
     r.rt.update(move |s, _| s.mod_drafts.set("s-1", vec![d]));
     r.settle();
