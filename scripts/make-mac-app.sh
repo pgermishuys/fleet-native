@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 # Builds "Fleet Native.app" and the .dmg that holds it. Run on macOS (uses codesign, hdiutil, plutil, otool).
-# Usage: make-mac-app.sh <fleet-native binary> <build number> <out .dmg>
+# Usage: make-mac-app.sh <fleet-native binary> <build number> <out .dmg> [server folder]
+# With a server folder (scripts/fetch-server.sh) it goes in Contents/Resources/fleet, where the app looks for it. With
+# CHECK_SERVER_CMD set (the check-bundled-server example) that command proves the signed app still carries it as built.
 set -euo pipefail
-bin="${1:?binary}"; build="${2:?build number}"; out="${3:?output .dmg}"
+bin="${1:?binary}"; build="${2:?build number}"; out="${3:?output .dmg}"; server="${4:-}"
 root="$(cd "$(dirname "$0")/.." && pwd)"
 work="$(mktemp -d)"
 app="$work/stage/Fleet Native.app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$bin" "$app/Contents/MacOS/fleet-native"
+if [ -n "$server" ]; then cp -R "$server" "$app/Contents/Resources/fleet"; fi
 cp "$root/assets/icon/fleet-native.icns" "$app/Contents/Resources/fleet-native.icns"
 
 # The oldest macOS the binary says it runs on.
@@ -39,6 +42,8 @@ plutil -lint "$app/Contents/Info.plist"
 # Ad hoc signature ("-"): no developer identity, but Apple silicon refuses to run unsigned code.
 codesign --force --deep -s - "$app"
 codesign --verify --deep --strict "$app"
+
+if [ -n "$server" ] && [ -n "${CHECK_SERVER_CMD:-}" ]; then "$CHECK_SERVER_CMD" "$server" "$work/stage"; fi
 
 ln -s /Applications "$work/stage/Applications"
 # Prove the staged folder here, before it is packed: checking it needs no disk-image mount, which the CI runners

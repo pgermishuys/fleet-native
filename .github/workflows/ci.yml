@@ -136,9 +136,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: linux-x64, os: ubuntu-latest }
-          - { name: windows-x64, os: windows-latest }
-          - { name: macos-arm64, os: macos-15 }
+          - { name: linux-x64, os: ubuntu-latest, server: linux-x64 }
+          - { name: windows-x64, os: windows-latest, server: win-x64 }
+          - { name: macos-arm64, os: macos-15, server: osx-arm64 }
     steps:
       - uses: actions/checkout@v4
 
@@ -169,22 +169,60 @@ jobs:
           export FLEET_NATIVE_BUILD="${{ github.run_number }}" FLEET_NATIVE_COMMIT="${{ github.sha }}"
           cargo build --release --locked
 
+      # Fleet's server goes inside every package: the pinned release archive (packaging/server-version), its SHA-256
+      # checked before anything is unpacked, staged as `fleet/` beside the exe. The archive is cached by the pin.
+      - name: Cache the server archive
+        uses: actions/cache@v4
+        with:
+          path: server-download
+          key: server-${{ matrix.server }}-${{ hashFiles('packaging/server-version') }}
+      - name: Fetch Fleet's server
+        shell: bash
+        run: bash scripts/fetch-server.sh "${{ matrix.server }}" server-staged "$PWD/server-download"
+      - name: Build the package checker
+        shell: bash
+        run: cargo build --release --locked --example check-bundled-server
+
       # Windows gets the zip it expects (the exe carries its icon and version information, see build.rs).
       # macOS gets a .dmg holding a signed "Fleet Native.app" (scripts/make-mac-app.sh). Linux gets a tar,
       # which keeps the "can run" bit, with a desktop file and icon beside the program.
+      # Each carries the server in `fleet/` beside the exe (macOS: Contents/Resources/fleet).
       # The file names are the release's asset names.
       - name: Collect
+        shell: bash
         run: |
           mkdir dist
           if [ "$RUNNER_OS" = "Windows" ]; then
-            powershell -NoProfile -Command "Compress-Archive -Path target/release/fleet-native.exe,README.md -DestinationPath dist/fleet-native-windows-x64.zip"
+            mkdir package
+            cp target/release/fleet-native.exe README.md package/
+            cp -r server-staged package/fleet
+            # pwsh (7), not Windows PowerShell 5.1: that one writes backslashes into the zip's entry names.
+            pwsh -NoProfile -Command "Compress-Archive -Path package/* -DestinationPath dist/fleet-native-windows-x64.zip"
           elif [ "$RUNNER_OS" = "macOS" ]; then
-            bash scripts/make-mac-app.sh target/release/fleet-native "${{ github.run_number }}" dist/fleet-native-macos-arm64.dmg
+            CHECK_SERVER_CMD=target/release/examples/check-bundled-server \
+              bash scripts/make-mac-app.sh target/release/fleet-native "${{ github.run_number }}" dist/fleet-native-macos-arm64.dmg server-staged
           else
-            cp packaging/fleet-native.desktop packaging/fleet-native.png target/release/
-            tar -czf "dist/fleet-native-${{ matrix.name }}.tar.gz" -C target/release fleet-native fleet-native.desktop fleet-native.png -C "$PWD" README.md
+            mkdir package
+            cp target/release/fleet-native packaging/fleet-native.desktop packaging/fleet-native.png README.md package/
+            cp -r server-staged package/fleet
+            tar -czf "dist/fleet-native-${{ matrix.name }}.tar.gz" -C package .
           fi
           ls -la dist
+
+      # The package carries the server as pinned: every file, byte for byte, and nothing else. (macOS is checked
+      # inside scripts/make-mac-app.sh, on the signed app.)
+      - name: Check the server in the package (Linux, Windows)
+        if: runner.os != 'macOS'
+        shell: bash
+        run: |
+          rm -rf unpacked && mkdir unpacked
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            pwsh -NoProfile -Command "Expand-Archive dist/fleet-native-windows-x64.zip -DestinationPath unpacked"
+          else
+            tar -xzf dist/fleet-native-linux-x64.tar.gz -C unpacked
+          fi
+          target/release/examples/check-bundled-server server-staged unpacked
+          du -sh dist/* server-staged
 
       # Prove the package before it can be published.
       # The app, its signature and the Applications link are proven in scripts/make-mac-app.sh before the .dmg is

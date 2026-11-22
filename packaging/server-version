@@ -1,0 +1,8 @@
+# The weave-fleet release whose CLI archive is the server inside every package (scripts/fetch-server.sh).
+# Bumping the pin is this file only: the tag, then the SHA-256 of each archive from the release's checksums.txt.
+# `sha256sum -c`-style lines: <sha256>  <archive name>. The archive's `app/` folder is the server.
+tag=v0.74.0
+3d3205e9eedf6ba552e21343e60fdf8fd4ddd25bdab4e5468be954687f26e9f3  fleet-v0.74.0-win-x64.zip
+32bc9b51caca6f343469dba8ee0c986b1f42b513aca37203a22d9792a1dbab36  fleet-v0.74.0-win-arm64.zip
+6ba26195b758d867ebeeedfd2d97544fc1d2ce270f12031bd856490b57e32269  fleet-v0.74.0-osx-arm64.tar.gz
+9a94bd36c20460a45f35013a7a93cdba0e12ae4b6c2b025a5a237220ef7d9e2a  fleet-v0.74.0-linux-x64.tar.gz
