@@ -352,7 +352,7 @@ CR `components/layout/core-rails.ts`, AS `components/layout/AppShell.vue`, RPT `
 | 15.5 | Right panel: width 360 (shared drag with Sessions' `rightPanelWidth`), min 280, `min(inlineRoom, width)`; border-left `--border`; narrower than 480+280 it becomes a sheet (see 25.2) | AS 187-239, BRP 50-53, 78-85 | Width rules done (`right_panel.rs`); board panel None (R) |
 | 15.6 | Collapsed (`rightPanelCollapsed`, the last choice anywhere): the panel is not drawn and has **no collapsed rail**; the right gutter still draws (FB8); Ctrl/Cmd+Shift+B (`toggle-right-panel`) or the palette brings it back | BRP 50, AS 412-418, SB 93-100, UC 661-668 | Fold state done; view None (R) |
 | 15.7 | Palette "Go to Board" sets the rail to board (works while off: shows the notice) | UC 141-147, 354-360 | **Done (A)** |
-| 15.8 | The board store is one per app: created (and `loadBoard` run once) when a board view first mounts; returning to Board never reloads (FB9) | BS 314, 803-805 | None (K) |
+| 15.8 | The board store is one per app: created (and `loadBoard` run once) when a board view first mounts; returning to Board never reloads (FB9) | BS 314, 803-805 | **Done (K)**: `BoardStore` on `State` (`fleet/board/store.rs`); `keep_board` starts the one load the first time the Board rail is shown with its switch on; leaving and returning asks nothing (tested) |
 
 ### 16. Board: requests and data (`lib/board-api.ts`, server BE)
 
@@ -372,20 +372,20 @@ CR `components/layout/core-rails.ts`, AS `components/layout/AppShell.vue`, RPT `
 
 | # | Row | Source | Native |
 |---|---|---|---|
-| 17.1 | Load: `isLoading`, `error` null; list boards; keep the current board's id if still listed, else the first; none → board null, lanes/cards empty, `isLoaded`; else lanes and cards together; failure → `error` = message or "Failed to load board."; one load in flight (`loadPromise`) | BS 523-567 | None (K) |
-| 17.2 | `reloadBoard` (Try again): drops the in-flight guard and loads again | BS 569-572 | None (K) |
-| 17.3 | Every mutation counts `pendingMutations` (`isMutating`), clears `error` first, sets it to the message or "Board request failed." on failure | BS 508-521 | None (K) |
+| 17.1 | Load: `isLoading`, `error` null; list boards; keep the current board's id if still listed, else the first; none → board null, lanes/cards empty, `isLoaded`; else lanes and cards together; failure → `error` = message or "Failed to load board."; one load in flight (`loadPromise`) | BS 523-567 | **Done (K)**: `board_load` on a thread: the boards, the current one while listed else the first, its lanes and cards (one after the other, where Fleet asks both at once); none → no board, loaded; a failure says the call's words, else "Failed to load board."; a load in flight is not started again (tested) |
+| 17.2 | `reloadBoard` (Try again): drops the in-flight guard and loads again | BS 569-572 | **Done (K)**: `board_reload` starts a new load even with one in flight; the older one's answer is dropped (Fleet lets both write; tested) |
+| 17.3 | Every mutation counts `pendingMutations` (`isMutating`), clears `error` first, sets it to the message or "Board request failed." on failure | BS 508-521 | **Done (K)**: `board_change` counts `pending` (`is_mutating`), clears the error, says the failure (else "Board request failed."); a change with no board says "Board is not loaded." (tested). Each change hands its answer to a `then` for the views |
 | 17.4 | Sorting: lanes by position then createdAt; cards by laneId, position, createdAt; `cardsByLaneId`/`lanesWithCards` hold active cards only, each lane's by position then createdAt | BS 114-136, 342-372 | **Done (J)**: `fleet/board/order.rs` `sort_lanes`, `sort_cards`, `lanes_with_cards` (active cards only), `inbox_lane`, `patch_lane`, `patch_card`, `reorder_lanes` and `move_card` (the optimistic maths, tested); ids and times compare as text where Fleet uses `localeCompare` |
-| 17.5 | `createLane` / `createCard` call `ensureBoard` ("My Board" created when there is none), then refetch lanes / cards | BS 599-621, 643-650, 700-707 | None (K) |
-| 17.6 | `updateLane` / `updateCard`: refetch when position/isInbox/laneId changed, else patch in place; `renameLane`, `setInboxLane`, `renameCard`, `renameBoard` | BS 623-630, 652-673, 709-726 | None (K) |
-| 17.7 | `deleteLane`, `deleteCard` drop locally after 204; `archiveCard` patches the returned card (it leaves the lane, `archivedAt` set) | BS 675-681, 728-743 | None (K) |
-| 17.8 | `reorderLanes(ids)`: optimistic (positions (i+1)*1024, unlisted lanes after), request, refetch; rollback on failure | BS 170-181, 683-698 | None (K) |
-| 17.9 | `moveCard(id,{laneId,position=index})`: optimistic (remove, insert at clamped index, renumber source and target lanes (i+1)*1024), request, refetch; rollback on failure | BS 183-223, 745-761 | None (K) |
-| 17.10 | `syncBoard`: as a mutation; on success refetch lanes and cards, return the result; on failure the board stays as it was | BS 574-581 | None (K) |
-| 17.11 | Mode: `boardMode` "work" (default) / "manage"; `toggleBoardMode`, `setBoardMode` | BS 326, 795-801 | None (K) |
+| 17.5 | `createLane` / `createCard` call `ensureBoard` ("My Board" created when there is none), then refetch lanes / cards | BS 599-621, 643-650, 700-707 | **Done (K)**: `board_create_lane` / `board_create_card` find or make the board first (`ensure`: the first listed, else "My Board"), then read the lanes / cards again (tested with Fleet's bodies) |
+| 17.6 | `updateLane` / `updateCard`: refetch when position/isInbox/laneId changed, else patch in place; `renameLane`, `setInboxLane`, `renameCard`, `renameBoard` | BS 623-630, 652-673, 709-726 | **Done (K)**: `board_update_lane` / `board_update_card` re-read on a change of place, inbox or lane, else patch; `board_rename_lane`, `board_set_inbox_lane`, `board_rename_card`, `board_rename` |
+| 17.7 | `deleteLane`, `deleteCard` drop locally after 204; `archiveCard` patches the returned card (it leaves the lane, `archivedAt` set) | BS 675-681, 728-743 | **Done (K)**: `board_delete_lane`, `board_delete_card` (dropped once the server says so), `board_archive_card` (the answer replaces the card); also `board_create` and `board_remove` (FB18) |
+| 17.8 | `reorderLanes(ids)`: optimistic (positions (i+1)*1024, unlisted lanes after), request, refetch; rollback on failure | BS 170-181, 683-698 | **Done (K)**: `board_reorder_lanes`: the new order at once, then the request and a re-read; the old order back on a refusal (tested) |
+| 17.9 | `moveCard(id,{laneId,position=index})`: optimistic (remove, insert at clamped index, renumber source and target lanes (i+1)*1024), request, refetch; rollback on failure | BS 183-223, 745-761 | **Done (K)**: `board_move_card` (and `board_reorder_card`, FB18): the card moved at once, then the request and a re-read; the old cards back on a refusal (tested) |
+| 17.10 | `syncBoard`: as a mutation; on success refetch lanes and cards, return the result; on failure the board stays as it was | BS 574-581 | **Done (K)**: `board_sync`: a change; the lanes and cards read again; its counts handed to `then`; a refusal leaves the board as it was (tested) |
+| 17.11 | Mode: `boardMode` "work" (default) / "manage"; `toggleBoardMode`, `setBoardMode` | BS 326, 795-801 | **Done (K)**: `Mode` (Work by default), `toggle_mode`, `set_mode` (tested) |
 | 17.12 | Cards as "sessions" for the side panels: status from the lane (archived → completed; inbox or `inbox|todo|backlog|queued` → idle; `review|approval|approve|qa` → waiting_input; `done|complete|completed|shipped` → completed; `error|failed|blocked` → error; else active); project = board name (else "Board"); agent = `sourceType ?? "manual"`; tokens and cost 0 | BS 225-308 | **Done (J)**: `fleet/board/cards.rs` `status_of` (tested for every pattern and their order) and `as_session` (`CardSession`: only the fields something on `main` reads; the progress and duration fields nothing draws are left out) |
-| 17.13 | Filters: project ("all" or the board's name; reset to "all" when gone), status (all five on), agents (each on; added/removed as agents come and go); `filteredSessions` (all cards, archived included); `sortedSessions`/`groupedSessions` (status in option order, else by label) | BS 323-334, 379-442, 460-488 | None (K) |
-| 17.14 | `quickStats {total, visible, active, completed, projects}`; `filterSummary` "{visible} visible • grouped by {status|project|agent}" | BS 444-458 | None (K) |
+| 17.13 | Filters: project ("all" or the board's name; reset to "all" when gone), status (all five on), agents (each on; added/removed as agents come and go); `filteredSessions` (all cards, archived included); `sortedSessions`/`groupedSessions` (status in option order, else by label) | BS 323-334, 379-442, 460-488 | **Done (K)**: `fleet/board/filters.rs` `Filters` (project, statuses, agents, Group by, Sort; following the agents and the project after every answer), `filtered`, `sorted`, `grouped`; `localeCompare` is a case-folded compare (tested: the counts change, the lanes don't) |
+| 17.14 | `quickStats {total, visible, active, completed, projects}`; `filterSummary` "{visible} visible • grouped by {status|project|agent}" | BS 444-458 | **Done (K)**: `quick_stats`, `filter_summary` (tested) |
 | 17.15 | Status options: Active `--running`, Idle `#71717a`, Waiting `#f59e0b`, Complete `--complete`, Error `--error`; sort options "Newest first", "Oldest first", "Title (A–Z)" | BS 86-98 | **Done (J)**: `cards::Status` (labels, values, `color`: the two literals are `Theme::board_status_idle` / `board_status_waiting`) and `SortBy` |
 
 ### 18. Board: the header and the page states (KanbanBoard)
@@ -800,6 +800,13 @@ machine's address; `mock/board.rs` is test-only until a scene draws it (L).
 - **Size:** about 600 lines.
 
 #### K. The Board's store (no view)
+
+**Done (22 November 2026)**: rows 15.8, 17.1-17.3, 17.5-17.11, 17.13, 17.14; pictures
+`shots/parity/23-labs-views/K-board-store/` (the test output; `board-off` and the Board's shell, both themes, unchanged).
+`board.test.ts`'s seven cases pass under their names against a fake Fleet that keeps a board as the test's mocked API
+does. With no server the store loads `mock/board.rs` (`MockAnswers`: the board, none, never, a failure) for L's scenes, and
+a change sends nothing. Open for L-R: nothing draws the store yet; each change takes a `then` for what a view does after it
+(close a form, the sync toast).
 
 - **Rows:** 15.8, 17.1-17.3, 17.5-17.11, 17.13, 17.14.
 - **Files:** new `src/fleet/board/store.rs` (one load in flight, on a thread; the pending count; the optimistic move and

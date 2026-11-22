@@ -75,6 +75,8 @@ mod tests_automations_when;
 #[cfg(test)]
 mod tests_automations_workflow;
 #[cfg(test)]
+mod tests_board_store;
+#[cfg(test)]
 mod tests_browser;
 #[cfg(test)]
 mod tests_browser_agent;
@@ -651,6 +653,8 @@ pub struct State {
     pub jobs: fleet::jobs::store::Jobs,
     /// The section Analytics shows (`fleet::analytics::nav`).
     pub analytics_nav: fleet::analytics::nav::Nav,
+    /// The Board's store, loaded the first time the Board is shown with its switch on (`fleet::board::store`).
+    pub board: fleet::board::store::BoardStore,
     /// Where Fleet, Jobs and the Board are, and Turn on for each (component 23, piece A).
     pub labs: fleet::labs::Labs,
     /// The Workflows page: its Library, the open workflow, the machine it shows (`fleet::workflows::nav`).
@@ -999,6 +1003,7 @@ impl Default for State {
             mission: Default::default(),
             jobs: Default::default(),
             analytics_nav: Default::default(),
+            board: Default::default(),
             labs: Default::default(),
             automations_nav: Default::default(),
             workflows_nav: Default::default(),
@@ -1844,6 +1849,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_usage_watch(now, tx)
         | s.keep_summary(now, tx)
         | s.keep_analytics(now, tx)
+        | s.keep_board()
         | s.keep_mission(now, tx)
         | s.keep_jobs(now, tx)
         | s.keep_settings_anchor(tx)
