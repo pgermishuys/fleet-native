@@ -2739,3 +2739,8 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 
 - **A store test can call a store's own methods on `rt.state`** (`rt.state.jobs.watch()`): `rt.update` is for what must run on the UI thread with a `Tx`, and a plain method needs neither. The next frame's `keep_*` then does the reading.
 - **Count only the requests you mean.** A connected app asks its fake home for sessions, preferences and more, so a "nothing is asked" test counts the paths under `/api/jobs`, not every request.
+
+## Component 25, piece A (the server inside)
+
+- Nothing in Rune was needed. Two things about this machine's builds: `cargo test` of the whole crate is OOM-killed (silent exit 143) at `MemoryMax=4000M`; it finished at 7000M. A non-test `cargo build` of the app and an example fits in 4000M.
+- A real window on a virtual display starts the bundled server in under 3 s when warm, so a screen grab of the start page needs to be taken at about 1 s, before Rune has drawn anything but black: not worth chasing.
