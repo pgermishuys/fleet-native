@@ -41,6 +41,7 @@ pub mod harnesses;
 pub mod header;
 pub mod images;
 pub mod improve;
+pub mod jobs;
 pub mod links;
 pub mod locations;
 pub mod long;

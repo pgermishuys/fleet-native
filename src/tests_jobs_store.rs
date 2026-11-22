@@ -22,7 +22,7 @@ struct Heard {
 type Routes = Arc<Mutex<HashMap<(String, String), (u16, String)>>>;
 
 /// A fake home Fleet: the answer of each (method, path), 404 `{"error": …}` for the rest.
-struct Fleet {
+pub(crate) struct Fleet {
     base: String,
     heard: Arc<Mutex<Vec<Heard>>>,
     routes: Routes,
@@ -70,11 +70,11 @@ fn fleet() -> Fleet {
 }
 
 impl Fleet {
-    fn route(&self, method: &str, path: &str, status: u16, body: Value) {
+    pub(crate) fn route(&self, method: &str, path: &str, status: u16, body: Value) {
         self.routes.lock().unwrap().insert((method.into(), path.into()), (status, body.to_string()));
     }
 
-    fn count(&self, method: &str, path: &str) -> usize {
+    pub(crate) fn count(&self, method: &str, path: &str) -> usize {
         self.heard.lock().unwrap().iter().filter(|h| h.method == method && h.path == path).count()
     }
 
@@ -93,14 +93,14 @@ impl Fleet {
     }
 }
 
-struct Rig {
-    rt: Runtime<State>,
+pub(crate) struct Rig {
+    pub(crate) rt: Runtime<State>,
     queue: Receiver<Job>,
-    home: Fleet,
+    pub(crate) home: Fleet,
 }
 
 /// The app connected to a fake home, Jobs on, on the Sessions rail: the Jobs page isn't shown.
-fn rig() -> Rig {
+pub(crate) fn rig() -> Rig {
     let home = fleet();
     let (jobs, queue) = channel::<Job>();
     let jobs = Mutex::new(jobs);
@@ -117,7 +117,7 @@ fn rig() -> Rig {
 
 impl Rig {
     /// Applies what the threads hand back and draws frames, without moving the clock, until `done` holds.
-    fn wait(&mut self, what: &str, mut done: impl FnMut(&State) -> bool) {
+    pub(crate) fn wait(&mut self, what: &str, mut done: impl FnMut(&State) -> bool) {
         let queue = &self.queue;
         test_wait::until(
             &mut self.rt,
@@ -133,12 +133,12 @@ impl Rig {
         );
     }
 
-    fn show(&mut self) {
+    pub(crate) fn show(&mut self) {
         self.rt.update(|s, _| s.rail = Rail::Jobs);
         self.rt.frame(FRAME);
     }
 
-    fn later(&mut self, secs: f64) {
+    pub(crate) fn later(&mut self, secs: f64) {
         self.rt.frame(secs);
     }
 }

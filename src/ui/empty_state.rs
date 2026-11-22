@@ -47,7 +47,9 @@ pub fn full(t: &Theme, key: &str, glyph: &'static Icon, title: &str, description
         .padding(rem(1.5))
         .child(icon(glyph, 28.0).color(t.muted).mb(rem(0.5)))
         .child(text(title.to_string()).font(sans(rem(1.0), 600.0, 1.5)).color(t.text).wrap().align(Align::Center))
-        .child(text(description.to_string()).font(sans(rem(0.875), 400.0, 1.43)).color(t.muted).wrap().max_w(513.0).align(Align::Center));
+        .children((!description.is_empty()).then(|| {
+            text(description.to_string()).font(sans(rem(0.875), 400.0, 1.43)).color(t.muted).wrap().max_w(513.0).align(Align::Center)
+        }));
     if let Some(action) = action {
         c = c.child(row().mt(rem(0.75)).center().gap(rem(0.5)).child(action));
     }

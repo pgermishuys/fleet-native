@@ -167,6 +167,8 @@ mod tests_images;
 #[cfg(test)]
 mod tests_improve_skill;
 #[cfg(test)]
+mod tests_jobs_page;
+#[cfg(test)]
 mod tests_jobs_store;
 #[cfg(test)]
 mod tests_labs_frame;
@@ -2704,6 +2706,18 @@ pub fn spec() -> AppSpec<State> {
             ("fleet-machine-empty-light", |s| s.show_machine(mock::mission::MachineCase::Empty, false)),
             ("fleet-machine-gone", |s| s.show_machine(mock::mission::MachineCase::Gone, true)),
             ("fleet-machine-gone-light", |s| s.show_machine(mock::mission::MachineCase::Gone, false)),
+            ("jobs", |s| s.show_jobs(mock::jobs::Case::Mixed, true)),
+            ("jobs-light", |s| s.show_jobs(mock::jobs::Case::Mixed, false)),
+            ("jobs-empty", |s| s.show_jobs(mock::jobs::Case::Empty, true)),
+            ("jobs-empty-light", |s| s.show_jobs(mock::jobs::Case::Empty, false)),
+            ("jobs-pick", |s| s.show_jobs(mock::jobs::Case::Pick, true)),
+            ("jobs-pick-light", |s| s.show_jobs(mock::jobs::Case::Pick, false)),
+            ("jobs-waiting", |s| s.show_jobs(mock::jobs::Case::Waiting, true)),
+            ("jobs-waiting-light", |s| s.show_jobs(mock::jobs::Case::Waiting, false)),
+            ("jobs-running", |s| s.show_jobs(mock::jobs::Case::Running, true)),
+            ("jobs-running-light", |s| s.show_jobs(mock::jobs::Case::Running, false)),
+            ("jobs-error", |s| s.show_jobs(mock::jobs::Case::Error, true)),
+            ("jobs-error-light", |s| s.show_jobs(mock::jobs::Case::Error, false)),
             ("jobs-off", |s| labs_off_scene(s, true, Rail::Jobs)),
             ("jobs-off-light", |s| labs_off_scene(s, false, Rail::Jobs)),
             ("board-off", |s| labs_off_scene(s, true, Rail::Board)),

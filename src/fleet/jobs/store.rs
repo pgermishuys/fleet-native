@@ -195,7 +195,11 @@ impl State {
             let sent = send(&base, "DELETE", &path, None, "Couldn't cancel the job.");
             let loaded = sent.is_ok().then(|| load(&base));
             post.update(move |s, _| {
-                s.jobs.cancel = Op { busy: false, error: sent.err() };
+                s.jobs.cancel = Op { busy: false, error: sent.as_ref().err().cloned() };
+                // A good Cancel goes back to the bare `/jobs`.
+                if sent.is_ok() {
+                    s.labs.job = None;
+                }
                 if let Some(got) = loaded {
                     s.jobs.took(read, got);
                 }
