@@ -39,6 +39,9 @@ pub fn overlay(s: &State, t: &Theme) -> Vec<El> {
     if ed.canvas.add_at.is_some() && ed.view == EditorView::Designer {
         return super::canvas::overlay(s, t);
     }
+    if ed.inspector.menu.is_some() && ed.view == EditorView::Designer {
+        return super::inspector::overlay(t, ed);
+    }
     if ed.asking_to_remove_comments {
         return comments_dialog(t, ed);
     }
@@ -201,7 +204,8 @@ fn plural(n: usize) -> &'static str {
 fn body(s: &State, t: &Theme, ed: &Editor) -> El {
     let main = if ed.view == EditorView::File { file_field(s, t) } else { super::canvas::view(s, t, ed) };
     let main = col().grow(1.0).min_h(0.0).w_full().child(main).child(problems(s, t, ed));
-    row().w_full().grow(1.0).min_h(0.0).child(main.min_w(0.0))
+    let inspector = if ed.view == EditorView::Designer { super::inspector::view(s, t, ed) } else { None };
+    row().w_full().grow(1.0).min_h(0.0).child(main.min_w(0.0)).children(inspector)
 }
 
 /// `WorkflowFileEditor`: the file as it is, in component 11's code editor over a buffer of its own (`fleet::workflows::file_field`).

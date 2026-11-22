@@ -80,6 +80,8 @@ pub struct Editor {
     pub designer_blocked: Option<String>,
     /// Which step is open and which + is asking (piece O).
     pub canvas: super::canvas::Canvas,
+    /// The inspector's fields (piece P).
+    pub inspector: super::inspector::Inspector,
     /// The comments in the file's text as it is now: what a save from the designer would remove.
     pub comments: Vec<WorkflowComment>,
     comments_confirmed: bool,
@@ -394,23 +396,27 @@ impl State {
     /// Called from `poll`: the wait after the last key ends, and the check goes out. True when something changed.
     pub fn keep_workflow_editor(&mut self, now: f64, tx: &mut Tx) -> bool {
         let ed = &mut self.workflows_nav.editor;
-        match ed.timer {
-            Timer::Off => false,
-            Timer::Armed => {
-                ed.timer = Timer::At(now + CHECK_DELAY);
-                tx.wake_after(Duration::from_secs_f64(CHECK_DELAY));
-                false
+        // The inspector's fields and the draft are one: a typed edit goes in before the check is timed.
+        let typed = ed.view == EditorView::Designer && ed.sync_inspector();
+        let ed = &mut self.workflows_nav.editor;
+        typed
+            | match ed.timer {
+                Timer::Off => false,
+                Timer::Armed => {
+                    ed.timer = Timer::At(now + CHECK_DELAY);
+                    tx.wake_after(Duration::from_secs_f64(CHECK_DELAY));
+                    false
+                }
+                Timer::At(due) if now < due => {
+                    tx.wake_after(Duration::from_secs_f64(due - now));
+                    false
+                }
+                Timer::At(_) => {
+                    ed.timer = Timer::Off;
+                    self.workflow_editor_run_check();
+                    true
+                }
             }
-            Timer::At(due) if now < due => {
-                tx.wake_after(Duration::from_secs_f64(due - now));
-                false
-            }
-            Timer::At(_) => {
-                ed.timer = Timer::Off;
-                self.workflow_editor_run_check();
-                true
-            }
-        }
     }
 
     /// `save`: saves what was edited last. A draft from the designer is written in Fleet's layout, so a file with comments

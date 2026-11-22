@@ -427,6 +427,8 @@ mod tests_workflow_finish;
 #[cfg(test)]
 mod tests_workflow_frame;
 #[cfg(test)]
+mod tests_workflow_inspector;
+#[cfg(test)]
 mod tests_workflow_roles;
 #[cfg(test)]
 mod tests_workflow_run_box;
@@ -2838,6 +2840,12 @@ pub fn spec() -> AppSpec<State> {
             ("workflow-canvas-add-light", |s| s.show_workflow_canvas(false, mock::workflow_canvas::Case::Add)),
             ("workflow-canvas-error", |s| s.show_workflow_canvas(true, mock::workflow_canvas::Case::Error)),
             ("workflow-canvas-error-light", |s| s.show_workflow_canvas(false, mock::workflow_canvas::Case::Error)),
+            ("workflow-inspector", |s| s.show_workflow_inspector(true, mock::workflow_inspector::Case::Settings)),
+            ("workflow-inspector-light", |s| s.show_workflow_inspector(false, mock::workflow_inspector::Case::Settings)),
+            ("workflow-inspector-you", |s| s.show_workflow_inspector(true, mock::workflow_inspector::Case::You)),
+            ("workflow-inspector-you-light", |s| s.show_workflow_inspector(false, mock::workflow_inspector::Case::You)),
+            ("workflow-inspector-id-error", |s| s.show_workflow_inspector(true, mock::workflow_inspector::Case::IdError)),
+            ("workflow-inspector-id-error-light", |s| s.show_workflow_inspector(false, mock::workflow_inspector::Case::IdError)),
             ("workflow-stepper", |s| s.show_workflow_stepper(true, mock::workflow_stepper::Case::Stepper)),
             ("workflow-stepper-light", |s| s.show_workflow_stepper(false, mock::workflow_stepper::Case::Stepper)),
             ("workflow-stepper-note", |s| s.show_workflow_stepper(true, mock::workflow_stepper::Case::Note)),

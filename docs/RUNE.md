@@ -2867,3 +2867,8 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
   of the Draft mark was; tests of what a row draws read the words (`rt.elements()` text) or a leaf's key.
 - **`ui::button` pressed in a test runs its handler even with `.disabled(true)`**: the test click doesn't check it, so the handler also refuses (Keep… on a draft still being written).
 - **A POST with no body sends `{}`** (`http::text_with`), so Fleet's "no body for an empty note" is `{}` here; the server reads a missing note as none either way.
+## Component 18, piece P (the inspector)
+
+- **A form of many text fields is one poll, not many handlers.** `on_edit` hands back a `TextEdit` and nothing is told what it now says, so `Editor::sync_inspector` keeps a mirror of what each field last agreed with: a field that differs from its mirror is the user's edit (it goes into the draft); a draft that differs from the mirror under an untouched field goes into the field. That also covers a reload, a rename and a step that opens.
+- **"On change" for a field that commits when it is left** (Fleet's `@change`) is `TextEdit::focused` seen going from true to false in that poll, plus Enter in `on_input_key`. A click on another node moves the focus before it selects, so the id is committed for the step it was typed in.
+- **A browser `<select>` is the kit's list**: `select::content_in` anchored to a box keyed per row, opened by a state field (not `ui::Open`) so it can sit in the designer's own overlay beside the + menu.

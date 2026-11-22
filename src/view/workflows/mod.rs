@@ -12,6 +12,7 @@ pub mod create;
 pub mod detail;
 pub mod editor;
 pub mod finish_bar;
+pub mod inspector;
 pub mod list;
 pub mod project_picker;
 pub mod roles;
