@@ -57,6 +57,40 @@ fn parse_background_notice_reads_a_finished_subagent_and_how_it_ended() {
 }
 
 #[test]
+fn reads_the_background_result_shape_newer_opencode_2_writes_for_a_shell_and_a_subagent() {
+    let shell = "<background-result kind=\"shell\" id=\"sh_1\" state=\"completed\" command=\"sleep 6; echo done\">\ndone\n\nCommand exited with code 0.\n</background-result>";
+    assert_eq!(
+        parse_background_notice(shell),
+        Some(BackgroundNotice {
+            kind: BackgroundKind::Shell,
+            id: "sh_1".into(),
+            state: BackgroundState::Completed,
+            label: "sleep 6; echo done".into(),
+            text: "done\n\nCommand exited with code 0.".into(),
+        })
+    );
+    let subagent = "<background-result kind=\"subagent\" sessionID=\"ses_child\" state=\"error\" description=\"Slow helper\">\nThe child failed.\n</background-result>";
+    assert_eq!(
+        parse_background_notice(subagent),
+        Some(BackgroundNotice {
+            kind: BackgroundKind::Subagent,
+            id: "ses_child".into(),
+            state: BackgroundState::Error,
+            label: "Slow helper".into(),
+            text: "The child failed.".into(),
+        })
+    );
+    assert!(looks_like_background_notice(shell) && looks_like_background_notice(SHELL_NOTICE));
+    assert!(!looks_like_background_notice("<background-resultx>"));
+}
+
+#[test]
+fn leaves_image_video_and_codemode_notices_as_text() {
+    let image = "<background-result kind=\"image\" id=\"img_1\" state=\"completed\">\nDone\n</background-result>";
+    assert_eq!(parse_background_notice(image), None);
+}
+
+#[test]
 fn parse_background_notice_leaves_an_ordinary_prompt_alone() {
     assert_eq!(parse_background_notice("Please run the tests"), None);
     assert_eq!(parse_background_notice("<shell> what does this tag do?"), None);

@@ -75,9 +75,9 @@ fn look(t: &Theme, v: Variant) -> Look {
         Variant::Ghost => Look { hover_fill: t.accent.alpha(0.1), ..base },
         Variant::Link => Look { ink: t.accent, ..base },
         Variant::ToolbarIcon => Look { ink: t.muted, hover_fill: t.wash(6.0), hover_ink: Some(t.text), ..base },
-        Variant::ToolbarIconDanger => Look { ink: t.muted, hover_fill: t.error.alpha(0.1), hover_ink: Some(t.error), ..base },
+        Variant::ToolbarIconDanger => Look { ink: t.muted, hover_fill: t.error.alpha(0.1), hover_ink: Some(t.error_text), ..base },
         Variant::Filter { active } => Look {
-            ink: if active { t.accent } else { t.muted },
+            ink: if active { t.accent_text } else { t.muted },
             fill: if active { t.accent_dim } else { none },
             hover_fill: if active { none } else { t.main_bg },
             hover_ink: if active { None } else { Some(t.text) },

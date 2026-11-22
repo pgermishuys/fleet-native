@@ -195,12 +195,7 @@ pub fn view(s: &State, t: &Theme) -> Vec<El> {
         .border_sides([1.0, 0.0, 0.0, 0.0], t.border)
         .child(hints)
         .child(
-            row()
-                .gap(rem(0.25))
-                .center_y()
-                .opacity(0.5)
-                .child(kbd(t, toggle))
-                .child(text("toggle").font(sans(rem(0.75), 400.0, 1.3)).color(t.muted)),
+            row().gap(rem(0.25)).center_y().child(kbd(t, toggle)).child(text("toggle").font(sans(rem(0.75), 400.0, 1.3)).color(t.muted)),
         );
 
     let mut panel = col()
@@ -264,7 +259,6 @@ fn item(s: &State, t: &Theme, i: usize, r: Row) -> El {
                 .px(rem(0.375))
                 .center()
                 .radius(4.0)
-                .fill(t.secondary())
                 .border(1.0, t.border)
                 .child(text(k).font(mono(10.0, 500.0, 1.0)).color(soft)),
         ),

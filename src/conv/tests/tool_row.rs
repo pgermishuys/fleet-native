@@ -11,11 +11,11 @@ mod format_call_duration_tests {
     #[test]
     fn says_tenths_under_a_second_then_seconds_then_minutes() {
         let said = |ms: f64| format_call_duration(Some(ms));
-        assert_eq!(said(40.0), "0.1s");
-        assert_eq!(said(140.0), "0.1s");
-        assert_eq!(said(900.0), "0.9s");
-        assert_eq!(said(34_000.0), "34s");
-        assert_eq!(said(125_000.0), "2m 5s");
+        assert_eq!(said(40.0), "0.1 s");
+        assert_eq!(said(140.0), "0.1 s");
+        assert_eq!(said(900.0), "0.9 s");
+        assert_eq!(said(34_000.0), "34 s");
+        assert_eq!(said(125_000.0), "2 min 05 s");
     }
 
     #[test]
@@ -39,7 +39,7 @@ mod shell_header_tests {
 
     #[test]
     fn joins_the_command_exit_code_and_time() {
-        assert_eq!(shell_header(&json!({"command": "bun test"}), "x", Some(0), Some(100.0)), "bun test · exit 0 · 0.1s");
+        assert_eq!(shell_header(&json!({"command": "bun test"}), "x", Some(0), Some(100.0)), "bun test · exit 0 · 0.1 s");
     }
 
     #[test]

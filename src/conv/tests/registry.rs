@@ -361,10 +361,7 @@ mod hydrafusion_passes {
     #[test]
     fn reads_as_role_model_and_time_once_the_pass_has_finished() {
         assert_eq!(label("hydrafusion_pass", json!({"role": "solver", "model": "model-a"})), "Solver · model-a");
-        assert_eq!(
-            label("hydrafusion_pass", json!({"role": "draft", "model": "model-a", "durationMs": 18400})),
-            "Draft · model-a · 18.4 s"
-        );
+        assert_eq!(label("hydrafusion_pass", json!({"role": "draft", "model": "model-a", "durationMs": 18400})), "Draft · model-a · 18 s");
         assert_eq!(label("hydrafusion_pass", Value::Null), "hydrafusion_pass");
         assert_eq!(get_tool("hydrafusion_pass").heading, "HydraFusion pass");
     }
@@ -376,7 +373,7 @@ mod hydrafusion_passes {
                 "hydrafusion_pass",
                 json!({"role": "critic", "model": "model-b", "durationMs": 43042, "verdict": "needs repair", "credits": 0.2})
             ),
-            "Critic · model-b · needs repair · 43.0 s · 0.20 credits"
+            "Critic · model-b · needs repair · 43 s · 0.20 credits"
         );
         assert_eq!(
             label("hydrafusion_pass", json!({"role": "judge", "model": "model-b", "verdict": "approved"})),

@@ -159,8 +159,8 @@ pub fn shortcut_chip(t: &Theme, label: &str) -> El {
 
 #[allow(clippy::too_many_arguments)]
 fn row_el(t: &Theme, key: String, it: Item, closes: bool, chevron: bool, top: bool, fit: bool, held: bool) -> El {
-    let ink = if it.destructive { t.destructive } else { t.text };
-    let glyph_ink = if it.destructive { t.destructive } else { t.muted };
+    let ink = if it.destructive { t.error_text } else { t.text };
+    let glyph_ink = if it.destructive { t.error_text } else { t.muted };
     let highlight = if it.destructive { t.destructive.alpha(0.12) } else { t.wash(7.0) };
     let mut e = row()
         .key(key)
@@ -190,7 +190,9 @@ fn row_el(t: &Theme, key: String, it: Item, closes: bool, chevron: bool, top: bo
         Mark::Check(on) | Mark::Radio(on) => {
             let g: &'static Icon = if matches!(it.mark, Mark::Check(_)) { &crate::icons::CHECK } else { &crate::icons::CIRCLE };
             let dot = el().absolute(rem(0.5), 0.0).h_full().w(rem(0.875)).center().child(
-                icon(g, if matches!(it.mark, Mark::Check(_)) { rem(0.875) } else { 6.0 }).color(t.text).opacity(if on { 1.0 } else { 0.0 }),
+                icon(g, if matches!(it.mark, Mark::Check(_)) { rem(0.875) } else { 6.0 })
+                    .color(if matches!(it.mark, Mark::Check(_)) { t.accent_text } else { t.text })
+                    .opacity(if on { 1.0 } else { 0.0 }),
             );
             e = e.pl(rem(2.0)).child(dot);
         }
@@ -198,7 +200,7 @@ fn row_el(t: &Theme, key: String, it: Item, closes: bool, chevron: bool, top: bo
     if it.spinner {
         e = e.child(super::confirm::spinner(glyph_ink));
     } else if let Some(g) = it.icon {
-        e = e.child(icon(g, rem(0.875)).color(glyph_ink).group_color(if it.destructive { t.destructive } else { t.text }));
+        e = e.child(icon(g, rem(0.875)).color(glyph_ink).group_color(if it.destructive { t.error_text } else { t.text }));
     }
     e = match it.name_at {
         Some(at) => e.child(

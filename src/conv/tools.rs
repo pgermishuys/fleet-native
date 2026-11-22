@@ -266,14 +266,14 @@ fn facts(parts: Vec<Option<String>>, fallback: &str) -> String {
     if label.is_empty() { fallback.to_string() } else { capitalize(&label) }
 }
 
-/// A HydraFusion pass: "Critic · model · needs repair · 43.0 s · 0.20 credits".
+/// A HydraFusion pass: "Critic · model · needs repair · 43 s · 0.20 credits".
 fn pass_label(input: &ToolInput, fallback: &str) -> String {
     facts(
         vec![
             text(input, "role"),
             text(input, "model"),
             text(input, "verdict"),
-            number(input, "durationMs").filter(|n| *n > 0.0).map(|n| format!("{:.1} s", n / 1000.0)),
+            number(input, "durationMs").filter(|n| *n > 0.0).map(|n| format_call_duration(Some(n))),
             credits(input),
             text(input, "reason").map(|r| truncate(&r, 60)),
         ],
@@ -638,14 +638,11 @@ impl ToolStatus {
     }
 }
 
-/// A call's run time as a row says it: "0.1s" under a second's tenth, "34s", "2m 5s". Empty when nothing was timed.
+/// A call's run time as a row says it: "0.1 s", "3.4 s", "34 s", "2 min 05 s" (`formatDuration` with tenths). Empty when
+/// nothing was timed.
 pub fn format_call_duration(ms: Option<f64>) -> String {
     let Some(ms) = ms.filter(|m| m.is_finite() && *m >= 0.0) else { return String::new() };
-    if ms < 1000.0 {
-        return format!("{:.1}s", (ms / 100.0).round().max(1.0) / 10.0);
-    }
-    let seconds = (ms / 1000.0).round() as u64;
-    if seconds < 60 { format!("{seconds}s") } else { format!("{}m {}s", seconds / 60, seconds % 60) }
+    super::fold::format_duration_tenths(Some(ms as i64))
 }
 
 /// How long a call ran, from the start and end times the harness kept on its state (ms).
@@ -655,7 +652,7 @@ pub fn tool_duration_ms(state: &Value) -> Option<f64> {
     (end >= start).then_some(end - start)
 }
 
-/// The shell header: "bun test · exit 0 · 0.1s", leaving out what the harness doesn't report.
+/// The shell header: "bun test · exit 0 · 0.1 s", leaving out what the harness doesn't report.
 pub fn shell_header(input: &Value, fallback: &str, exit: Option<i64>, duration_ms: Option<f64>) -> String {
     let command = parse_tool_input(input).command.and_then(|c| c.lines().next().map(|l| l.trim().to_string())).filter(|c| !c.is_empty());
     let mut parts = vec![command.unwrap_or_else(|| fallback.to_string())];

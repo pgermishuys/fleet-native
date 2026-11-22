@@ -67,7 +67,7 @@ mod tool_card_quiet_rows {
         let state = json!({"status": "completed", "input": {"command": "bun test"}, "metadata": {"exit": 0}, "output": "ok\n1 pass",
             "time": {"start": 0, "end": 100}});
         let b = tool_body("bash", "bun test", &state);
-        assert_eq!(b.header.as_deref(), Some("bun test · exit 0 · 0.1s"));
+        assert_eq!(b.header.as_deref(), Some("bun test · exit 0 · 0.1 s"));
         assert!(!b.preview.as_deref().unwrap_or("").is_empty());
     }
 
@@ -129,9 +129,9 @@ mod build_preview_tests {
     }
 
     #[test]
-    fn cuts_to_80_characters_as_77_and_three_dots() {
+    fn cuts_to_80_characters_as_79_and_an_ellipsis() {
         let long = "x".repeat(100);
-        let want = format!("└ {}...", "x".repeat(77));
+        let want = format!("└ {}…", "x".repeat(79));
         assert_eq!(build_preview(Some(&long), None), Some(want));
         assert_eq!(build_preview(Some(&"y".repeat(80)), None), Some(format!("└ {}", "y".repeat(80))));
     }
