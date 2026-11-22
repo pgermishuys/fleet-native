@@ -69,6 +69,30 @@ pub fn job_id_from_path(path: &str) -> Option<String> {
     segment(path, 2).filter(|s| !s.is_empty()).and_then(decode_component)
 }
 
+/// `JobsScreen`'s tabs.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum JobsTab {
+    #[default]
+    Queue,
+    Agents,
+}
+
+impl JobsTab {
+    pub fn title(self) -> &'static str {
+        match self {
+            JobsTab::Queue => "Queue",
+            JobsTab::Agents => "Agents",
+        }
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            JobsTab::Queue => "queue",
+            JobsTab::Agents => "agents",
+        }
+    }
+}
+
 /// A Labs view the frame shows, off or on.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Feature {
@@ -128,6 +152,8 @@ pub struct Labs {
     pub fleet_view: FleetView,
     /// The job the address names (`/jobs/<id>`); none on the bare `/jobs`.
     pub job: Option<String>,
+    /// Which tab of the Jobs page is up; kept while the page stays, not in the address.
+    pub jobs_tab: JobsTab,
     turning_on: [bool; 3],
 }
 

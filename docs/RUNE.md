@@ -2746,6 +2746,13 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 - **A store test can call a store's own methods on `rt.state`** (`rt.state.jobs.watch()`): `rt.update` is for what must run on the UI thread with a `Tx`, and a plain method needs neither. The next frame's `keep_*` then does the reading.
 - **Count only the requests you mean.** A connected app asks its fake home for sessions, preferences and more, so a "nothing is asked" test counts the paths under `/api/jobs`, not every request.
 
+## Component 23, piece G (Jobs' list, page and a job)
+
+- **Tailwind's spacing is rem, so at Fleet's 14 px root `px-3` is 10.5 px, `p-5` 17.5, `max-w-2xl` 588 and `text-sm` 12.25.** A checklist row that says "padding 20" came from reading the class as 4 px steps; take sizes from the class with `rem()`, and check against a picture of Fleet's client.
+- **`--border` is translucent, so `bg-border/60` is `t.border.alpha(t.border.a * 0.6)`**, not `alpha(0.6)` (which is nearly opaque grey on the dark theme).
+- **Rune has no grid:** a two-column `dl` whose first column is `auto` takes the width of its widest name; when that name is always there ("Repository"), a fixed width equals it.
+- **A text element's key belongs on the text to read it in a test** (`e.text`); a keyed row around it has no text of its own.
+
 ## Component 25, piece A (the server inside)
 
 - Nothing in Rune was needed. Two things about this machine's builds: `cargo test` of the whole crate is OOM-killed (silent exit 143) at `MemoryMax=4000M`; it finished at 7000M. A non-test `cargo build` of the app and an example fits in 4000M.

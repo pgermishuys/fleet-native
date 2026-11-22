@@ -260,35 +260,35 @@ Each row: what Fleet does, its source, and the native state (with the piece that
 
 | # | Row | Source | Native |
 |---|---|---|---|
-| 10.1 | `section` "Jobs navigation": padding 0/12/12, scrolls; header "JOBS" (as 2.1) | JNP 9-16, 58-75 | None (G) |
-| 10.2 | The three groups in order, each `role="group"` with its label (Running, Queued, Done): the label row (as 2.2's label, with the count on the right, tabular) and the group's jobs; a group with no jobs still shows its label and 0 | JNP 18-28, 77-98 | None (G) |
-| 10.3 | A job: a button as 2.3 (`justify-content: space-between`); its title cut with an ellipsis; a needs_you job's flag "Needs you" (10 px `--accent-text`), a failed job's "Failed" (10 px muted) | JNP 29-47, 99-149 | None (G) |
-| 10.4 | Pressing a job opens `/jobs/<id>`; the open one does nothing; the one the address names is marked (`aria-current`) | UJM, JNP 34-38 | None (G) |
-| 10.5 | Loaded and every group empty: compact `EmptyState` "No jobs yet" | JNP 50-54 | None (G) |
-| 10.6 | The list watches the queue while it is shown (9.10) | UJM 18-29 | None (F, G) |
+| 10.1 | `section` "Jobs navigation": padding 0/12/12, scrolls; header "JOBS" (as 2.1) | JNP 9-16, 58-75 | **Done (G)**: `view/jobs/list.rs`: the panel is the sidebar's width, padding 0/12/12, scrolls; header JOBS |
+| 10.2 | The three groups in order, each `role="group"` with its label (Running, Queued, Done): the label row (as 2.2's label, with the count on the right, tabular) and the group's jobs; a group with no jobs still shows its label and 0 | JNP 18-28, 77-98 | **Done (G)**: three `group` columns (gap 4, margin-bottom 8), each with its label row and the count at the end; an empty group keeps its label and 0 |
+| 10.3 | A job: a button as 2.3 (`justify-content: space-between`); its title cut with an ellipsis; a needs_you job's flag "Needs you" (10 px `--accent-text`), a failed job's "Failed" (10 px muted) | JNP 29-47, 99-149 | **Done (G)**: an item as the fleet-menu's (36 px, radius button, title cut with an ellipsis); the flags are 10 px, "Needs you" in `--accent-text`, "Failed" muted |
+| 10.4 | Pressing a job opens `/jobs/<id>`; the open one does nothing; the one the address names is marked (`aria-current`) | UJM, JNP 34-38 | **Done (G)**: pressing a job opens `/jobs/<id>` (`open_jobs_address`), the open one does nothing; the open one is told by its accent border and fill (no `aria-current` in Rune, as 2.3) |
+| 10.5 | Loaded and every group empty: compact `EmptyState` "No jobs yet" | JNP 50-54 | **Done (G)**: compact "No jobs yet", only once the queue has loaded |
+| 10.6 | The list watches the queue while it is shown (9.10) | UJM 18-29 | **Done (F, G)**: the page is the list's watcher (`keep_jobs`); the list is only drawn beside it, so one timer |
 
 ### 11. Jobs: the page
 
 | # | Row | Source | Native |
 |---|---|---|---|
-| 11.1 | `PageHeader` `bar` "Jobs"; in its meta slot a tab list (radius btn, 1 px border, padding 2, 14 px): **Queue**, **Agents** (lower-case names drawn capitalised; padding 12/4; the picked `bg-border/60` `--text`, the other muted, `--text` on hover; `role="tab"`, `aria-selected`); Queue first; the tab is kept while the page stays, not in the address | JS 24, 69-92 | None (G) |
-| 11.2 | In the actions slot: a chip per machine with seats above 0 (pill, 1 px border, padding 12/4, mono 12 px `--text`): "<name> <used>/<seats>", at 50% opacity when its status isn't "online"; then **New job** (small, Plus 16) | JS 32, 93-116 | None (G) |
-| 11.3 | The store's error under the header: `ErrorNote` (margin 20/8) | JS 119-124 | None (G) |
-| 11.4 | Queue: a scrolling column: the open job's detail (12.x); else, loaded with no jobs, `EmptyState` ListTodo "No jobs yet", "Post one with New job, and Fleet starts it on a machine with a free seat."; else, loaded, `EmptyState` ListTodo "Pick a job from the list"; before the first load, nothing | JS 127-153 | None (G) |
+| 11.1 | `PageHeader` `bar` "Jobs"; in its meta slot a tab list (radius btn, 1 px border, padding 2, 14 px): **Queue**, **Agents** (lower-case names drawn capitalised; padding 12/4; the picked `bg-border/60` `--text`, the other muted, `--text` on hover; `role="tab"`, `aria-selected`); Queue first; the tab is kept while the page stays, not in the address | JS 24, 69-92 | **Done (G)**: `view/jobs/page.rs`: the bar with the Queue and Agents tabs (radius button, 1 px border, padding 2, text-sm; the picked one `--border` at 60%); the tab lives in `labs.jobs_tab`, not the address. Sizes are Tailwind's rem at 14 px (`px-3` = 10.5), not the 12 px the row says |
+| 11.2 | In the actions slot: a chip per machine with seats above 0 (pill, 1 px border, padding 12/4, mono 12 px `--text`): "<name> <used>/<seats>", at 50% opacity when its status isn't "online"; then **New job** (small, Plus 16) | JS 32, 93-116 | **Done (G)**: a pill per machine with seats, "atlas 1/2" in mono 10.5 px, half faded when not online; New job beside them. New job's press does nothing until H builds the dialog |
+| 11.3 | The store's error under the header: `ErrorNote` (margin 20/8) | JS 119-124 | **Done (G)**: `ErrorNote` under the header with the store's words |
+| 11.4 | Queue: a scrolling column: the open job's detail (12.x); else, loaded with no jobs, `EmptyState` ListTodo "No jobs yet", "Post one with New job, and Fleet starts it on a machine with a free seat."; else, loaded, `EmptyState` ListTodo "Pick a job from the list"; before the first load, nothing | JS 127-153 | **Done (G)**: the open job's detail, else "No jobs yet" with its line, else "Pick a job from the list"; nothing before the first read |
 | 11.5 | Agents: the seats per machine (13.x) | JS 155-160 | None (H) |
-| 11.6 | A failed Cancel's words under the page: `ErrorNote` (margin 20/8); a good Cancel goes back to `/jobs` | JS 53-61, 163-167 | None (G) |
-| 11.7 | The page watches the queue too (9.10; with the list, one timer) | JS 34-38 | None (F, G) |
+| 11.6 | A failed Cancel's words under the page: `ErrorNote` (margin 20/8); a good Cancel goes back to `/jobs` | JS 53-61, 163-167 | **Done (G)**: `jobs.cancel.error` under the page; a good Cancel clears `labs.job` (back to `/jobs`) |
+| 11.7 | The page watches the queue too (9.10; with the list, one timer) | JS 34-38 | **Done (F, G)**: the page is the watcher (`keep_jobs`) |
 
 ### 12. Jobs: a job's detail
 
 | # | Row | Source | Native |
 |---|---|---|---|
-| 12.1 | `aside`, full width up to 672 (`max-w-2xl`), padding 20, gap 16 | JD 10-13 | None (G) |
-| 12.2 | The state line (12 px muted): with a machine, "<Needs you / Done / Failed / Running> on <machine>"; without, "Waiting"; the title under it (18 px 600, margin-top 4) | JD 14-21 | None (G) |
-| 12.3 | The ask as written (keeps its line breaks): radius card, 1 px border, `--main-bg`, padding 12, 14 px | JD 23-25 | None (G) |
-| 12.4 | A two-column list (gap 16/8, 14 px; names muted): **Repository** (mono 12 px, breaks anywhere); **Needs** the labels joined ", " (only with labels); **Run on** the pinned machine's name, else "A machine that is no longer listed" (only when pinned); **Why** the job's `whyWaiting`, else its `error` (only with one) | JD 27-61 | None (G) |
-| 12.5 | Buttons at the bottom (gap 8): **Open session** (small) with a session; **Cancel** (small outline) only while waiting | JD 63-81 | None (G) |
-| 12.6 | Open session: remembers the session on the machine that took the job (home when that machine is this one, else its id), then opens `/sessions/<id>` | JS 44-51 | None (G) |
+| 12.1 | `aside`, full width up to 672 (`max-w-2xl`), padding 20, gap 16 | JD 10-13 | **Done (G)**: `view/jobs/detail.rs`: full width to 42 rem (588 px), padding 17.5, gap 14 (Tailwind rem at 14 px) |
+| 12.2 | The state line (12 px muted): with a machine, "<Needs you / Done / Failed / Running> on <machine>"; without, "Waiting"; the title under it (18 px 600, margin-top 4) | JD 14-21 | **Done (G)**: `state_line` and the title (15.75 px 600) |
+| 12.3 | The ask as written (keeps its line breaks): radius card, 1 px border, `--main-bg`, padding 12, 14 px | JD 23-25 | **Done (G)**: the ask with its line breaks in a card on `--main-bg` |
+| 12.4 | A two-column list (gap 16/8, 14 px; names muted): **Repository** (mono 12 px, breaks anywhere); **Needs** the labels joined ", " (only with labels); **Run on** the pinned machine's name, else "A machine that is no longer listed" (only when pinned); **Why** the job's `whyWaiting`, else its `error` (only with one) | JD 27-61 | **Done (G)**: Repository (mono, breaks anywhere), Needs, Run on (with the unlisted-machine words) and Why, each only when it has something; the name column is a fixed 62 px, the width of "Repository" (Rune has no grid) |
+| 12.5 | Buttons at the bottom (gap 8): **Open session** (small) with a session; **Cancel** (small outline) only while waiting | JD 63-81 | **Done (G)**: Open session with a session, Cancel (outline) only while waiting |
+| 12.6 | Open session: remembers the session on the machine that took the job (home when that machine is this one, else its id), then opens `/sessions/<id>` | JS 44-51 | **Done (G)**: remembers the session on the machine that took the job (home when it is this one), then opens it |
 
 ### 13. Jobs: the Agents tab
 
@@ -735,6 +735,8 @@ test output.
 - **Size:** about 450 lines.
 
 #### G. Jobs: the jobs-list, the page and a job
+
+**Done (22 November 2026)**: rows 10.1-10.6, 11.1-11.4, 11.6, 11.7 and 12.1-12.6; pictures `shots/parity/23-labs-views/G-jobs/` (a waiting and a running job, and the pick state, beside Fleet's own client in both themes; every scene; a live Cancel and a live Open session on a scratch Fleet). Fleet's tests: both of `JobsNavPanel.test.ts` and the four queue tests of `JobsScreen.test.ts` under their names (`src/tests_jobs_page.rs`), and what this app adds: the empty list's words, the tab kept while another job opens, a refused Cancel's words, Open session on another machine. Fleet's pictures can't show Needs you, Failed, a pinned job or an offline machine (the scratch has one machine that answers and no failing job): those come from scenes. Open: New job's dialog (H); the Agents tab (H); no `aria-current`; the name column is a constant 62 px, not a grid.
 
 - **Rows:** 10.1-10.5, 11.1-11.4, 11.6, 12.1-12.6.
 - **Files:** new `src/view/jobs/list.rs` (JobsNavPanel), `page.rs` (JobsScreen: header, tabs, seat chips, New job's
