@@ -230,8 +230,8 @@ impl State {
             Err(why) => why,
         };
         self.composer_error = Some(refused);
-        if self.draft.text.is_empty() && self.draft_owner().as_deref() == Some(session) {
-            self.draft = rune::TextEdit::new(typed);
+        if self.draft_owner().as_deref() == Some(session) {
+            self.draft = rune::TextEdit::new(super::prompts::draft_after_refusal(&typed, &self.draft.text));
         }
     }
 

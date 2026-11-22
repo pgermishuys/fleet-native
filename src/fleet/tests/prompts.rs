@@ -284,3 +284,66 @@ fn a_new_reply_clears_the_prompts_that_were_waiting() {
     prompts.on_messages(SESSION, &reply);
     assert!(prompts.of(SESSION).is_empty());
 }
+
+// ─── prompt-text.test.ts, refused-draft.test.ts ─────────────────────────────
+
+#[test]
+fn tidy_prompt_keeps_the_first_lines_indent_and_drops_blank_lines_before_it_and_the_end() {
+    use super::super::prompts::tidy_prompt;
+    assert_eq!(tidy_prompt("    run-tests"), "    run-tests");
+    assert_eq!(tidy_prompt("\n\n    def total(rows):\n        return 0  \n"), "    def total(rows):\n        return 0");
+    assert_eq!(tidy_prompt("  \t\r\n\r\n  Fix it  \n"), "  Fix it");
+    assert_eq!(tidy_prompt(" \n \n"), "");
+    assert_eq!(tidy_prompt(""), "");
+}
+
+#[test]
+fn a_sent_prompt_shows_with_its_indent() {
+    let mut prompts = Prompts::default();
+    prompts.add(SESSION, "\n    run-tests\n", 1_000, 0.0);
+    assert_eq!(prompts.of(SESSION)[0].body, "    run-tests");
+    // The history's copy matches it by text, indent and all.
+    prompts.reconcile(SESSION, &[user("srv", "    run-tests")]);
+    assert!(prompts.of(SESSION).is_empty());
+}
+
+#[test]
+fn draft_after_refusal_puts_the_refused_text_in_front() {
+    use super::super::prompts::draft_after_refusal as after;
+    assert_eq!(after("fix the login test", ""), "fix the login test");
+    assert_eq!(after("fix the login test", "  \n"), "fix the login test");
+    assert_eq!(after("fix the login test\n", "and the logout one"), "fix the login test\n\nand the logout one");
+    assert_eq!(after("same", "same"), "same");
+}
+
+#[test]
+fn a_refused_prompt_goes_in_front_of_what_was_typed_meanwhile() {
+    let mut rt = app();
+    rt.update(|s, tx| s.on_list(sessions::parse_list(&serde_json::from_str(&fixture("api-sessions.json")).unwrap(), 0), tx));
+    let id = rt.state.open_id().unwrap();
+    rt.update({
+        let id = id.clone();
+        move |s, tx| s.on_snapshot(&id, new_state(), tx)
+    });
+    let correlation = rt.state.prompts.add(&id, "Ship the feature", 1_000, 0.0).unwrap();
+    rt.update(|s, _| s.draft = rune::TextEdit::new("and the docs"));
+    rt.update({
+        let id = id.clone();
+        move |s, tx| s.on_prompt_refused(&id, &correlation, "HTTP 500".into(), tx)
+    });
+    assert_eq!(rt.state.draft.text, "Ship the feature\n\nand the docs");
+}
+
+// ─── use-send-prompt.test.ts ────────────────────────────────────────────────
+
+#[test]
+fn keeps_a_sent_prompt_that_is_not_delivered_yet_when_the_session_already_has_earlier_messages() {
+    let mut prompts = Prompts::default();
+    let history = [user("old", "first question")];
+    prompts.reconcile(SESSION, &history);
+    send(&mut prompts, "second question");
+    prompts.reconcile(SESSION, &history);
+    assert_eq!(prompts.of(SESSION).len(), 1);
+    prompts.reconcile(SESSION, &[user("old", "first question"), user("srv-new", "second question")]);
+    assert!(prompts.of(SESSION).is_empty());
+}

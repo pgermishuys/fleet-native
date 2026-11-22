@@ -116,7 +116,7 @@ fn a_load_asked_for_before_an_item_was_added_or_taken_back_does_not_undo_it() {
 
 // use-session-queue.test.ts: "reports why a message couldn't be queued"
 #[test]
-fn reports_why_a_message_couldnt_be_queued_and_puts_the_text_back_unless_something_new_was_typed() {
+fn reports_why_a_message_couldnt_be_queued_and_puts_the_text_back_in_front_of_something_new() {
     let mut rt = app();
     rt.update(|s, _| {
         let owner = s.draft_owner().unwrap();
@@ -126,7 +126,7 @@ fn reports_why_a_message_couldnt_be_queued_and_puts_the_text_back_unless_somethi
         s.draft = rune::TextEdit::new("something new");
         s.on_enqueued(&owner, "also check the tests".into(), Ok((500, Value::Null)));
         assert_eq!(s.composer_error.as_deref(), Some("The message couldn't be queued (HTTP 500)."));
-        assert_eq!(s.draft.text, "something new", "newer text is not overwritten");
+        assert_eq!(s.draft.text, "also check the tests\n\nsomething new", "the refused text goes in front of newer text");
         s.on_enqueued(&owner, String::new(), Err("connection refused".into()));
         assert_eq!(s.composer_error.as_deref(), Some("connection refused"));
         assert!(s.queued().is_empty());

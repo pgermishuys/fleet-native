@@ -2926,3 +2926,4 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 - Nothing new about Rune: this piece draws nothing. Two build notes: a test build of this crate peaked above 4.8 GB with `CARGO_BUILD_JOBS=3` and was OOM-killed under a 5000M cap (exit 143 on the wrapper); `CARGO_BUILD_JOBS=1` finished in 6 minutes.
 
 - **A scripted tap on a key that a server answer creates exits 2** (key not found) if it comes too soon after the state change: the `+` menu's mod rows exist only once the session's sites have been read. Give such a tap 1.5 s or more after the one before it (22L, live walk).
+- **An IME-confirming Enter never reaches a key handler**: Rune gives Return to a composing field first (`rt.ime(Ime::Preedit(..))` then Return in a headless test), so Fleet's app-wide `ime-enter-guard` has nothing to do here (tested on the composer, piece 26C).

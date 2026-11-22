@@ -453,7 +453,7 @@ fn puts_a_refused_slash_command_back_and_says_why() {
 }
 
 #[test]
-fn a_refused_command_leaves_new_text_alone() {
+fn a_refused_command_goes_in_front_of_new_text() {
     let mut live = Live::start(Seen { commands: commands(), refuse: Some((500, json!({}))), ..Default::default() });
     live.idle();
     let id = live.id.clone();
@@ -462,7 +462,7 @@ fn a_refused_command_leaves_new_text_alone() {
     assert_eq!(live.rt.state.composer_error.as_deref(), Some("HTTP 500"));
     let id = live.id.clone();
     live.rt.update(move |s, _| s.on_command_answer(&id, "/older".into(), Ok((500, json!({})))));
-    assert_eq!(live.rt.state.draft.text, "/old", "typed since: left as it is");
+    assert_eq!(live.rt.state.draft.text, "/older\n\n/old", "typed since: the refused text goes in front");
 }
 
 #[test]

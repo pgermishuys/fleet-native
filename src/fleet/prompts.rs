@@ -7,7 +7,7 @@
 //! A prompt the server refuses is `remove`d and its text goes back to the composer (`State::on_prompt_refused`).
 use super::model::{Msg, PartData};
 use crate::view::conversation::Role;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::hash::{BuildHasher, Hasher};
 
 /// `PROMPT_CONFIRMATION_TIMEOUT_MS`, in seconds of the app's clock.
@@ -49,6 +49,9 @@ pub struct Prompts {
     /// How many assistant messages with something to draw each session had when last looked at
     /// (`lastRenderableAssistantCount`), so only a new reply clears the prompts.
     assistants: HashMap<String, usize>,
+    /// The user messages a session already had while no prompt of it was in flight (`baselineUserMessageIds`): the match by text
+    /// must not take one of them for the delivery of a prompt sent since.
+    baseline: HashMap<String, HashSet<String>>,
 }
 
 /// `crypto.randomUUID()` without a hyphen, from what std has: random enough to tell prompts apart.
@@ -61,6 +64,32 @@ pub(crate) fn uuid() -> String {
     format!("{:016x}{:016x}", hash(0), hash(1))
 }
 
+/// `tidyPrompt` (`lib/prompt-text.ts`): what a prompt is sent as. Blank lines before the first line and spaces after the last
+/// are dropped; the first line's indent is not, so a prompt that starts with an indented code block keeps it.
+pub fn tidy_prompt(text: &str) -> String {
+    let mut rest = text;
+    while let Some(n) = rest.find('\n') {
+        if !rest[..n].trim_end_matches('\r').chars().all(|c| c == ' ' || c == '\t') {
+            break;
+        }
+        rest = &rest[n + 1..];
+    }
+    rest.trim_end().to_string()
+}
+
+/// `draftAfterRefusal` (`lib/refused-draft.ts`): the draft after a refused send. What was sent comes back in front, a blank
+/// line, then whatever was typed while it was pending; nothing typed since (or the same text again) leaves the refused text.
+pub fn draft_after_refusal(refused: &str, current: &str) -> String {
+    if current.trim().is_empty() || current == refused {
+        return refused.to_string();
+    }
+    // Fleet never asks with nothing refused; here a caller might, and a blank line in front would be noise.
+    if refused.trim().is_empty() {
+        return current.to_string();
+    }
+    format!("{}\n\n{}", refused.trim_end(), current)
+}
+
 /// A correlation id for a prompt that has no text to show as pending (pictures only).
 pub fn new_correlation_id() -> String {
     format!("prompt-{}", uuid())
@@ -69,7 +98,7 @@ pub fn new_correlation_id() -> String {
 impl Prompts {
     /// Shows a message as sent. `None` for text that is only space (nothing is sent).
     pub fn add(&mut self, session: &str, body: &str, created_at: i64, now: f64) -> Option<String> {
-        let body = body.trim();
+        let body = tidy_prompt(body);
         if body.is_empty() {
             return None;
         }
@@ -80,7 +109,7 @@ impl Prompts {
             event_id: None,
             server_message_id: None,
             status: PromptStatus::Pending,
-            body: body.to_string(),
+            body: body.clone(),
             created_at,
             sent_at: now,
         });
@@ -90,7 +119,7 @@ impl Prompts {
     /// `showSentPrompt`: a prompt the server has already taken, under the id it stored it with, until the conversation holds
     /// it. A side question goes to a session the app only learns of from the answer.
     pub fn show_sent(&mut self, session: &str, id: &str, correlation_id: &str, body: &str, created_at: i64, now: f64) {
-        let body = body.trim();
+        let body = tidy_prompt(body);
         if body.is_empty() {
             return;
         }
@@ -100,7 +129,7 @@ impl Prompts {
             event_id: None,
             server_message_id: Some(id.to_string()),
             status: PromptStatus::Confirmed,
-            body: body.to_string(),
+            body: body.clone(),
             created_at,
             sent_at: now,
         });
@@ -186,10 +215,17 @@ impl Prompts {
 
     /// `reconcileSentPrompts`: by id, else by body, counting each delivered message once.
     pub fn reconcile(&mut self, session: &str, messages: &[Msg]) {
-        let Some(prompts) = self.by_session.get_mut(session) else { return };
-        let users = || messages.iter().filter(|m| m.role == Role::User);
+        let Some(prompts) = self.by_session.get_mut(session) else {
+            let seen = messages.iter().filter(|m| m.role == Role::User).map(|m| m.id.clone()).collect();
+            self.baseline.insert(session.to_string(), seen);
+            return;
+        };
+        let baseline = self.baseline.get(session);
+        // The id match looks at every message; the text match only at those that weren't there before the send.
+        let all_users = || messages.iter().filter(|m| m.role == Role::User);
+        let users = || all_users().filter(|m| baseline.is_none_or(|b| !b.contains(&m.id)));
         let before = prompts.len();
-        prompts.retain(|p| !users().any(|m| m.id == p.id));
+        prompts.retain(|p| !all_users().any(|m| m.id == p.id));
         if prompts.len() == before {
             let mut counts: HashMap<String, usize> = HashMap::new();
             for m in users() {
@@ -227,7 +263,7 @@ fn has_text(m: &Msg) -> bool {
 fn body_of(m: &Msg) -> String {
     let texts: Vec<&str> =
         m.parts.iter().filter_map(|p| if let PartData::Text { text, .. } = p { Some(text.as_str()) } else { None }).collect();
-    texts.join("\n\n").trim().to_string()
+    tidy_prompt(&texts.join("\n\n"))
 }
 
 /// `hasRenderableAssistantContent`.
