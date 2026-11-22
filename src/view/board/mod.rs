@@ -1,15 +1,18 @@
 //! The Board (component 23): `[board-controls][board]`. Ports `routes/board.tsx` (the off notice or the board) and the
-//! context's layout, with `KanbanBoard.vue`'s page: the header and its states (`header`). The controls (`BoardControlsPanel`),
-//! the lanes and cards and the right panel come with later pieces.
+//! context's layout, with `KanbanBoard.vue`'s page: the header and its states (`header`). The lanes and cards (`lane`, `card`)
+//! in work mode. Manage mode, dragging, the controls (`BoardControlsPanel`) and the right panel come with later pieces.
+mod card;
 mod header;
+mod lane;
 
 use crate::State;
 use crate::fleet::labs::Feature;
 use crate::theme::Theme;
 use crate::ui::empty_state;
 use crate::view::labs_frame;
+use crate::view::session_row::RowClock;
 use crate::view::workflows::sheet;
-use rune::{El, col};
+use rune::{El, col, el, row};
 
 /// The body under the header: the wait on the first load, "No lanes yet" when there are none, else the lanes' row. A first load
 /// that failed is neither (FB17): the banner over an empty row.
@@ -29,7 +32,15 @@ fn body(s: &State, t: &Theme) -> El {
             None,
         ));
     }
-    col().key("board-lanes").w_full().grow(1.0).min_h(0.0)
+    let clock = RowClock::now(s);
+    let lanes = b.lanes_with_cards().into_iter().map(|(l, cards)| lane::view(s, t, &l, &cards, &clock));
+    // `.kanban-board`: 16 24 of padding, 16 between lanes, scrolling sideways only.
+    el().key("board-lanes")
+        .w_full()
+        .grow(1.0)
+        .min_h(0.0)
+        .scroll_x()
+        .child(row().key("board-lanes-row").h_full().items_stretch().gap(16.0).px(24.0).py(16.0).children(lanes))
 }
 
 /// `KanbanBoard`: fills the sheet edge to edge (`margin: -24px` cancels the centre's padding), so only the lanes scroll.

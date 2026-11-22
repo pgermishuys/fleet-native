@@ -181,6 +181,64 @@ impl Theme {
         (c("#fecaca"), c("#f87171").alpha(0.4), c("#7f1d1d").alpha(0.22))
     }
 
+    /// `color-mix(in srgb, <a> P%, <b>)`, premultiplied as CSS does it, for the Board's cards.
+    fn mix_over(a: Color, percent: f32, b: Color) -> Color {
+        let p = percent / 100.0;
+        let alpha = p * a.a + (1.0 - p) * b.a;
+        let m = |x: f32, y: f32| (p * x * a.a + (1.0 - p) * y * b.a) / alpha;
+        Color { r: m(a.r, b.r), g: m(a.g, b.g), b: m(a.b, b.b), a: alpha }
+    }
+
+    /// `.k-card--manual` / `.k-card--synced`: a card's fill, `--card-bg` 92% over `--accent-dim` (manual) or 94% over `--muted`.
+    pub fn board_card_fill(&self, manual: bool) -> Color {
+        if manual { Self::mix_over(self.card_bg, 92.0, self.accent_dim) } else { Self::mix_over(self.card_bg, 94.0, self.muted) }
+    }
+
+    /// The 3 px left edge: `--accent`, or `--muted` 55% over `--border`.
+    pub fn board_card_edge(&self, manual: bool) -> Color {
+        if manual { self.accent } else { Self::mix_over(self.muted, 55.0, self.border) }
+    }
+
+    /// `.k-card__source-pill`: its fill and ink.
+    pub fn board_source_pill(&self, manual: bool) -> (Color, Color) {
+        if manual { (self.accent.alpha(0.18), self.accent_text) } else { (self.muted.alpha(0.30), self.text) }
+    }
+
+    /// `.k-card__sync-pill`: `--card-bg` 76% over `--muted`.
+    pub fn board_sync_pill(&self) -> Color {
+        Self::mix_over(self.card_bg, 76.0, self.muted)
+    }
+
+    /// `.k-card__stale-pill`: literals `#f59e0b` at 18% and `#fbbf24`. Returns (fill, ink).
+    pub fn board_stale_pill(&self) -> (Color, Color) {
+        (c("#f59e0b").alpha(0.18), c("#fbbf24"))
+    }
+
+    /// `.k-card__sync-summary`: its fill (`--card-bg` 90% over `--muted`) and border (`--border` at 84%).
+    pub fn board_github_block(&self) -> (Color, Color) {
+        (Self::mix_over(self.card_bg, 90.0, self.muted), self.border.alpha(self.border.a * 0.84))
+    }
+
+    /// `.k-card__github-link`: fill (`--card-bg` 88% over `--muted`) and border (`--border` 92%).
+    pub fn board_github_link(&self) -> (Color, Color) {
+        (Self::mix_over(self.card_bg, 88.0, self.muted), self.border.alpha(self.border.a * 0.92))
+    }
+
+    /// `.k-card__label`: `--accent-dim` at 55%.
+    pub fn board_label_fill(&self) -> Color {
+        self.accent_dim.alpha(self.accent_dim.a * 0.55)
+    }
+
+    /// `rgba(255,255,255,.03)`, a lane's surface; `.02` is a card's rename field and the empty lane's box. Literals in Fleet,
+    /// the same in both themes.
+    pub fn board_lane_fill(&self) -> Color {
+        Color::WHITE.alpha(0.03)
+    }
+
+    pub fn board_faint_fill(&self) -> Color {
+        Color::WHITE.alpha(0.02)
+    }
+
     /// The Files tree's change badges (`.file-browser-tree-node__badge--green|orange|red`): fixed hex in Fleet, not tokens, so the
     /// same in both themes. Added, modified, deleted.
     pub fn badge_added(&self) -> Color {

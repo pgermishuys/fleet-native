@@ -45,6 +45,10 @@ pub enum Call {
         machine: String,
         id: String,
     },
+    /// The Board: delete a card (`fleet::board::compose`). The dialog closes at once, as `confirmAction` with no `run` does.
+    DeleteCard {
+        id: String,
+    },
     /// Workflows: leave a workflow with unsaved edits (`fleet::workflows::frame`). The dialog closes and the move is made.
     LeaveWorkflow {
         to: crate::fleet::workflows::frame::Leave,
@@ -88,6 +92,7 @@ pub fn run(base: &str, call: &Call) -> Result<(), String> {
         | Call::ReplaceToken
         | Call::Revert { .. }
         | Call::DeleteAutomation { .. }
+        | Call::DeleteCard { .. }
         | Call::LeaveWorkflow { .. } => {
             unreachable!("machine calls are made by machine_actions")
         }
@@ -271,6 +276,7 @@ impl State {
             | Call::ReplaceToken
             | Call::Revert { .. }
             | Call::DeleteAutomation { .. }
+            | Call::DeleteCard { .. }
             | Call::LeaveWorkflow { .. } => return,
         };
         let Some(link) = self.link_for(&session) else {
@@ -303,6 +309,7 @@ impl State {
             | Call::ReplaceToken
             | Call::Revert { .. }
             | Call::DeleteAutomation { .. }
+            | Call::DeleteCard { .. }
             | Call::LeaveWorkflow { .. } => {}
         }
     }

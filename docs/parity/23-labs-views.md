@@ -410,12 +410,12 @@ CR `components/layout/core-rails.ts`, AS `components/layout/AppShell.vue`, RPT `
 
 | # | Row | Source | Native |
 |---|---|---|---|
-| 19.1 | Lanes row: gap 16, padding 16 24, scrolls sideways, not down; each lane 320 wide (min=max), full height | KB 868-876, KC 442-448 | None (M) |
-| 19.2 | Surface: padding 12, gap 12, border, radius-card, fill `rgba(255,255,255,.03)`; `aria-label` "{name} column" | KC 236-240, 450-460 | None (M) |
-| 19.3 | Eyebrow row (gap 6): "Inbox" pill on the inbox lane (`--accent-dim` fill, `--accent-text`) and the count pill "{n} card"/"{n} cards" (1 px border, muted); both min-h 24, padding 0 8, round, 10 px 700 upper case tracking .04em | KC 58, 243-251, 499-521 | None (M) |
-| 19.4 | Title: the lane name, 16 px 700 `--text` | KC 268-273, 478-483 | None (M) |
-| 19.5 | Cards area: grows, min-h 180, scrolls down, padding-right 4; empty: "Inbox is empty." (inbox) / "Drop a card here or add one below." (11 px muted, centred, padding 18 14, dashed border, radius-card, fill `rgba(255,255,255,.02)`) | KC 59, 339-387, 523-559 | None (M) |
-| 19.6 | Composer: "+ Add a card" (outline sm, dashed, disabled while mutating) in both modes; opens the form: input (max 240, placeholder "Add a card title", padding 9 10, `--card-bg`, radius-btn; Esc cancels), "Add card" (default sm, disabled empty/mutating), "Cancel" (outline sm); submit sends the trimmed title and closes at once | KC 70-77, 176-187, 389-436, 561-575 | None (M) |
+| 19.1 | Lanes row: gap 16, padding 16 24, scrolls sideways, not down; each lane 320 wide (min=max), full height | KB 868-876, KC 442-448 | **Done (M)**: `view/board/mod.rs` `body`: a sideways-scrolling row of 320-wide lanes, 16 apart, padding 16 24 |
+| 19.2 | Surface: padding 12, gap 12, border, radius-card, fill `rgba(255,255,255,.03)`; `aria-label` "{name} column" | KC 236-240, 450-460 | **Done (M)**: `view/board/lane.rs`; the lane is a region labelled "{name} column" |
+| 19.3 | Eyebrow row (gap 6): "Inbox" pill on the inbox lane (`--accent-dim` fill, `--accent-text`) and the count pill "{n} card"/"{n} cards" (1 px border, muted); both min-h 24, padding 0 8, round, 10 px 700 upper case tracking .04em | KC 58, 243-251, 499-521 | **Done (M)**: the Inbox and count pills, 24 high, 10 px capitals; tests |
+| 19.4 | Title: the lane name, 16 px 700 `--text` | KC 268-273, 478-483 | **Done (M)**: 16 px 700, line 1.5 as Fleet's body gives it |
+| 19.5 | Cards area: grows, min-h 180, scrolls down, padding-right 4; empty: "Inbox is empty." (inbox) / "Drop a card here or add one below." (11 px muted, centred, padding 18 14, dashed border, radius-card, fill `rgba(255,255,255,.02)`) | KC 59, 339-387, 523-559 | **Done (M)**: scrolls down, at least 180 high; the empty words and dashed box; the slots between cards are laid out (8 high, 4 margin) and keyed for O |
+| 19.6 | Composer: "+ Add a card" (outline sm, dashed, disabled while mutating) in both modes; opens the form: input (max 240, placeholder "Add a card title", padding 9 10, `--card-bg`, radius-btn; Esc cancels), "Add card" (default sm, disabled empty/mutating), "Cancel" (outline sm); submit sends the trimmed title and closes at once | KC 70-77, 176-187, 389-436, 561-575 | **Done (M)**: both modes; Enter or Add card sends the trimmed title and closes at once, Esc cancels, 240 characters; tests. Fleet gives the field no focus when it opens, nor does this |
 | 19.7 | Manage only, actions row (gap 6, wraps) of ghost sm buttons: "←" / "→" (disabled at the ends or mutating; swap with the neighbour, 17.8), "Rename" / "Save", "Make inbox" / "Inbox" (disabled on the inbox lane), "Delete" (destructive sm) | KC 276-336, KB 298-317, 385-387 | None (N) |
 | 19.8 | Rename lane: the title becomes an input (max 120, no placeholder, Esc cancels, Enter or "Save" submits); empty or unchanged closes without a request; leaving manage mode cancels it | KC 62-68, 79-87, 189-201, 253-266 | None (N) |
 | 19.9 | Delete lane asks: "Delete this lane?", subject the name, body "Its cards are removed too, unless the server moves them to another lane." (with cards) / "The lane is empty, so no cards are lost.", "Delete lane", destructive; cancel keeps it | KC 203-220 | `ui::confirm` (N; FB2) |
@@ -427,19 +427,19 @@ CR `components/layout/core-rails.ts`, AS `components/layout/AppShell.vue`, RPT `
 
 | # | Row | Source | Native |
 |---|---|---|---|
-| 20.1 | Card: padding 12, gap 10, border, radius-card, `--card-bg`; manual: 3 px left border `--accent`, fill card-bg 92% + accent-dim 8%; synced: 3 px left border muted 55% over border, fill card-bg 94% + muted 6% | KCa 88-93, 387-412 | None (M) |
-| 20.2 | Hover: lifts 2 px, shadow `0 12px 24px rgba(0,0,0,.18)`, 200 ms; cursor grab | KCa 395-402 | None (M) |
-| 20.3 | Meta row: source pill "Manual" (accent 18%, `--accent-text`) or "{Source} sync" (muted 30%, `--text`; "GitHub" for `github`, else first letter upper: "Github-issue sync" for real synced cards, FB1), 10 px 700 upper case, padding 4 8, round | KCa 76-99, 201-205, 435-456 | None (M) |
-| 20.4 | GitHub only (`sourceType === "github"`): pill (Github 12) "Issue #{n}" / "GitHub issue"; "Stale" pill (TriangleAlert 12, amber 18%, `#fbbf24`, `aria-label` "Sync is stale") when `stale` | KCa 96, 102-120, 206-227, 458-482 | None (M; dead on main, FB1) |
-| 20.5 | "Updated {formatRelative words}" (11 px muted) with `formatDateTime` tooltip | KCa 133, 229-234, 484-490 | None (M) |
-| 20.6 | Title h3 13 px 700 lh 1.4, wraps | KCa 252-257, 492-498 | None (M) |
-| 20.7 | GitHub block (padding 10, gap 10, border 84%, radius-btn, fill card-bg 90% + muted 10%): link (Github 14, "Issue #{n}", ExternalLink 12; `aria-label` "Open Issue #{n} on GitHub"; opens `html_url` in the browser; hover border accent 24%); details State / Assignee / "GitHub updated" (relative, tooltip); label chips (accent-dim 55%, 10 px, padding 4 8) | KCa 259-319, 500-547 | None (M; dead on main) |
-| 20.8 | Details grid (3 columns, gap 8): "Created" (relative words, tooltip), "Source key" (or "No source key"), "Position" (the raw server number, FB13); dt 10 px 700 upper case, dd 11 px `--text` mt 4 | KCa 132, 321-334, 562-584 | None (M) |
-| 20.9 | Metadata that isn't a JSON object shows as text (11 px muted, lh 1.5) | KCa 125-131, 336-341 | None (M) |
-| 20.10 | Actions (ghost sm, both modes, disabled while mutating): "Rename" / "Save", "Archive" (no confirm; the card leaves the board), "Delete" (destructive sm) | KCa 343-382 | None (M) |
-| 20.11 | Rename: title becomes an input (max 240, padding 8 10, Esc cancels, Enter/"Save" submits); empty cancels; unchanged sends nothing | KCa 136-158, 237-250 | None (M) |
-| 20.12 | Delete asks: "Delete this card?", subject the title, "It's removed from the board. Archive it instead to keep it out of the way.", "Delete card", destructive | KCa 160-173 | `ui::confirm` (M) |
-| 20.13 | Long title / long source key / many labels wrap inside the 320 lane | KCa 419-433 | None (M) |
+| 20.1 | Card: padding 12, gap 10, border, radius-card, `--card-bg`; manual: 3 px left border `--accent`, fill card-bg 92% + accent-dim 8%; synced: 3 px left border muted 55% over border, fill card-bg 94% + muted 6% | KCa 88-93, 387-412 | **Done (M)**: a 3 px stripe in the edge colour inside a card whose border is drawn on the other three sides (Rune has one border colour); fills mixed in `theme.rs` (`board_card_fill`) |
+| 20.2 | Hover: lifts 2 px, shadow `0 12px 24px rgba(0,0,0,.18)`, 200 ms; cursor grab | KCa 395-402 | **Done (M)**: lifts 2 px with the 12/24 shadow on a 0.2 s spring while the pointer is over it; the grab cursor |
+| 20.3 | Meta row: source pill "Manual" (accent 18%, `--accent-text`) or "{Source} sync" (muted 30%, `--text`; "GitHub" for `github`, else first letter upper: "Github-issue sync" for real synced cards, FB1), 10 px 700 upper case, padding 4 8, round | KCa 76-99, 201-205, 435-456 | **Done (M)**: tests ("Manual", "GitHub sync", "Github-issue sync") |
+| 20.4 | GitHub only (`sourceType === "github"`): pill (Github 12) "Issue #{n}" / "GitHub issue"; "Stale" pill (TriangleAlert 12, amber 18%, `#fbbf24`, `aria-label` "Sync is stale") when `stale` | KCa 96, 102-120, 206-227, 458-482 | **Done (M)**: Issue #n pill and the Stale pill (`role=status`, label "Sync is stale"); tests |
+| 20.5 | "Updated {formatRelative words}" (11 px muted) with `formatDateTime` tooltip | KCa 133, 229-234, 484-490 | **Done (M)**: relative words; the exact time is the tooltip |
+| 20.6 | Title h3 13 px 700 lh 1.4, wraps | KCa 252-257, 492-498 | **Done (M)**: wraps anywhere |
+| 20.7 | GitHub block (padding 10, gap 10, border 84%, radius-btn, fill card-bg 90% + muted 10%): link (Github 14, "Issue #{n}", ExternalLink 12; `aria-label` "Open Issue #{n} on GitHub"; opens `html_url` in the browser; hover border accent 24%); details State / Assignee / "GitHub updated" (relative, tooltip); label chips (accent-dim 55%, 10 px, padding 4 8) | KCa 259-319, 500-547 | **Done (M)**: link opens `html_url` in the browser; Fleet's hover border and fill on the link are not drawn (Rune has no hover border: `docs/RUNE.md`) |
+| 20.8 | Details grid (3 columns, gap 8): "Created" (relative words, tooltip), "Source key" (or "No source key"), "Position" (the raw server number, FB13); dt 10 px 700 upper case, dd 11 px `--text` mt 4 | KCa 132, 321-334, 562-584 | **Done (M)**: three equal columns; Created has the tooltip |
+| 20.9 | Metadata that isn't a JSON object shows as text (11 px muted, lh 1.5) | KCa 125-131, 336-341 | **Done (M)**: a note that isn't a JSON object, as text |
+| 20.10 | Actions (ghost sm, both modes, disabled while mutating): "Rename" / "Save", "Archive" (no confirm; the card leaves the board), "Delete" (destructive sm) | KCa 343-382 | **Done (M)**: disabled while a change runs; Archive asks nothing; tests |
+| 20.11 | Rename: title becomes an input (max 240, padding 8 10, Esc cancels, Enter/"Save" submits); empty cancels; unchanged sends nothing | KCa 136-158, 237-250 | **Done (M)**: Enter or Save sends a changed trimmed title; empty or unchanged closes; Esc cancels; tests |
+| 20.12 | Delete asks: "Delete this card?", subject the title, "It's removed from the board. Archive it instead to keep it out of the way.", "Delete card", destructive | KCa 160-173 | **Done (M)**: `ui::confirm` `Confirm::delete_card`, closing at once as `confirmAction` with no `run` does; tests |
+| 20.13 | Long title / long source key / many labels wrap inside the 320 lane | KCa 419-433 | **Done (M)**: long titles, keys and labels wrap anywhere inside the lane (scene `board-cards`) |
 
 ### 21. Board: dragging cards
 
@@ -861,6 +861,14 @@ a change sends nothing. Open for L-R: nothing draws the store yet; each change t
 - **Size:** about 650 lines.
 
 #### M. The Board: lanes and cards (work mode)
+
+**Done (22 November 2026)**: rows 19.1-19.6 and 20.1-20.13; pictures `shots/parity/23-labs-views/M-board-cards/` (the board, every
+kind of card and a card being renamed, beside Fleet's own client in both themes). `KanbanCard.test.ts`'s five,
+`KanbanColumn.test.ts`'s one and `KanbanBoard.test.ts`'s composer case pass under their names (`src/tests_board_cards.rs`),
+and what this app adds: Enter sends the trimmed title and an empty one doesn't, Esc cancels, a rename sends only a changed
+title, Archive asks nothing, the empty lane's words. Open: "applies drag and manual styling" and the drag styling are O's;
+Fleet's hover border and fill on the GitHub link aren't drawn (Rune has no hover border); the cards' sizes were compared
+with Fleet's own client, whose left and right panels (Q, R) this app doesn't draw yet.
 
 - **Rows:** 19.1-19.6, 20.1-20.13.
 - **Files:** new `src/view/board/lane.rs` (KanbanColumn), `card.rs` (KanbanCard); `src/ui/confirm.rs` (delete a card).

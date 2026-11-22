@@ -86,6 +86,39 @@ pub fn cards() -> Vec<Card> {
     ]
 }
 
+/// The cards' scene (`board-cards`): one card with a long title, a long source key and many labels at the top of the inbox, and
+/// in the next lane a card with a note that isn't JSON, the stale card and the GitHub fixture, so each treatment is drawn.
+pub fn showcase_cards() -> Vec<Card> {
+    let mut all = cards();
+    for c in &mut all {
+        if c.id == "card-stale" {
+            c.lane_id = "lane-doing".into();
+            c.position = 1536.0;
+        }
+    }
+    let long = Card {
+        source_type: Some("github".into()),
+        source_key: Some("github:acme-labs/kite-ground-crew-checklists#1307-with-a-very-long-unbroken-source-key".into()),
+        metadata: Some(
+            r#"{"number":1307,"state":"open","labels":["bug","priority:high","needs-triage","good first issue","kite-line","windy-day","ground-crew"],"assignee":"kite-dev","html_url":"https://github.example/acme-labs/kite/issues/1307","updated_at":"2026-11-04T08:00:00Z"}"#
+                .into(),
+        ),
+        ..card(
+            "card-long",
+            "lane-inbox",
+            "Replace the rewinding spool's friction brake so the line stops snagging when a gust of wind arrives during launch",
+            512.0,
+        )
+    };
+    let note = Card {
+        source_key: Some("manual-field-notes".into()),
+        metadata: Some("Remember to test the new brake on the grassy field behind the workshop before the weekend.".into()),
+        ..card("card-note", "lane-doing", "Field notes", 512.0)
+    };
+    all.extend([long, note]);
+    all
+}
+
 /// Only the tests read them until the sources' scenes do (piece P).
 #[cfg(test)]
 pub fn sources() -> Vec<crate::fleet::board::Source> {
@@ -115,6 +148,12 @@ pub enum Case {
     Failed,
     /// Loaded, and Sync now has just answered: the toast.
     Synced,
+    /// Loaded: the lanes and cards, as a person first sees them.
+    Board,
+    /// Loaded, with every kind of card in the first lane (`showcase_cards`).
+    Cards,
+    /// Loaded, with the first card being renamed.
+    Rename,
 }
 
 impl crate::State {
@@ -128,12 +167,16 @@ impl crate::State {
             Case::Loading => MockAnswers::Silent,
             Case::Empty => MockAnswers::Empty,
             Case::Failed => MockAnswers::Failed,
-            Case::Synced => MockAnswers::Data,
+            Case::Synced | Case::Board | Case::Rename => MockAnswers::Data,
+            Case::Cards => MockAnswers::Showcase,
         };
         if case == Case::Synced {
             let result =
                 crate::fleet::board::SyncResult { cards_created: 2, cards_updated: 1, cards_marked_stale: 0, ..Default::default() };
             self.board.page.feedback = Some((Feedback::of(&result), f64::MAX));
+        }
+        if case == Case::Rename {
+            self.board.compose.renames.insert("card-sketch".into(), rune::TextEdit::new("Sketch the frame and the tail"));
         }
         self.enter_labs(crate::Rail::Board);
     }

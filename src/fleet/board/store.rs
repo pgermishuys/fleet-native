@@ -43,6 +43,8 @@ pub enum MockAnswers {
     Data,
     /// A Fleet with no board yet.
     Empty,
+    /// The board with every kind of card (`mock::board::showcase_cards`).
+    Showcase,
     /// Never answers: the first load's wait.
     Silent,
     /// The load fails.
@@ -68,6 +70,8 @@ pub struct BoardStore {
     pub filters: Filters,
     /// The page's own state: Sync now and its toast.
     pub page: super::page::BoardPage,
+    /// The lanes' composers and the cards' renames (`compose`).
+    pub compose: super::compose::Compose,
     /// See `MockAnswers`; used only with no server.
     pub mock_answers: MockAnswers,
     /// The Board has been shown once with its switch on, so the one load has started (15.8).
@@ -280,6 +284,7 @@ impl State {
                 MockAnswers::Failed => Err(api::list_boards().fallback.to_string()),
                 MockAnswers::Empty => Ok(None),
                 MockAnswers::Data => Ok(Some((mock::board::board(), mock::board::lanes(), mock::board::cards()))),
+                MockAnswers::Showcase => Ok(Some((mock::board::board(), mock::board::lanes(), mock::board::showcase_cards()))),
             };
             return self.board_loaded(id, answer);
         };
