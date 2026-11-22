@@ -197,6 +197,8 @@ mod tests_mods_controls;
 #[cfg(test)]
 mod tests_mods_renders;
 #[cfg(test)]
+mod tests_mods_rows;
+#[cfg(test)]
 mod tests_mods_tree;
 #[cfg(test)]
 mod tests_new_project;
@@ -608,6 +610,10 @@ pub struct State {
     pub mods_ui: fleet::mods::controls::ModControls,
     /// What a session's mods drew on its tool rows (component 22, piece D).
     pub mod_renders: fleet::mods::renders::Renders,
+    /// Checks each row's tree once (component 22, piece E).
+    pub mod_resolver: fleet::mods::resolve::Resolver,
+    /// The width of the last tool row a mod drew on, as laid out: the line's 60% cap and the title's floor are shares of it (Rune has no percent).
+    pub mod_line_w: f32,
     /// When the open session's turn started, on `clock`.
     pub working_since: f64,
     /// A canned reply on its way: (project, session, due).
@@ -965,6 +971,8 @@ impl Default for State {
             mod_scene: None,
             mods_ui: Default::default(),
             mod_renders: Default::default(),
+            mod_resolver: fleet::mods::resolve::Resolver::new(Default::default()),
+            mod_line_w: 0.0,
             working_since: -18.0,
             reply: None,
             script: None,
@@ -1833,6 +1841,8 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_mods_runtime(tx)
         | s.mods_ui.keep(now, tx)
         | s.keep_mod_renders()
+        | s.sync_row_controls()
+        | s.deliver_mod_actions()
         | s.keep_skills(tx)
         | s.keep_built_in(tx)
         | s.keep_harnesses_page(tx)
@@ -5924,6 +5934,23 @@ pub fn spec() -> AppSpec<State> {
             // Component 22, piece B: a mod's tree drawn in the pane, every Box, Text, Pill and Icon variant.
             ("mods-elements", |s| s.show_mod_elements(true)),
             ("mods-elements-light", |s| s.show_mod_elements(false)),
+            // Component 22, piece E: a mod's trees on a tool row's line and in its opened body.
+            ("mods-tool-row", |s| {
+                s.dark = Some(true);
+                s.show_mod_rows(mock::mod_rows::Case::Rows)
+            }),
+            ("mods-tool-row-light", |s| {
+                s.dark = Some(false);
+                s.show_mod_rows(mock::mod_rows::Case::Rows)
+            }),
+            ("mods-tool-body", |s| {
+                s.dark = Some(true);
+                s.show_mod_rows(mock::mod_rows::Case::Body)
+            }),
+            ("mods-tool-body-light", |s| {
+                s.dark = Some(false);
+                s.show_mod_rows(mock::mod_rows::Case::Body)
+            }),
             ("mods-controls", |s| s.show_mod_controls(true)),
             ("mods-controls-light", |s| s.show_mod_controls(false)),
             ("panel-tabs", |s| s.show_tabs(mock::canvas_host::Case::Tabs, true)),

@@ -35,6 +35,11 @@ pub struct ModControls {
     pub sent: Vec<Action>,
     /// Where an action goes: the site's `on_action`, which posts it to the server off the UI thread. None draws and logs only.
     pub sink: Option<OnAction>,
+    /// Actions sent and not yet routed: a tool row's controls (`fleet::mods::rows`) are found by their handle in the row views and
+    /// posted with their session's machine on the next frame. A pane's would be routed the same way.
+    pub pending: Vec<Action>,
+    /// The checked tree each tool row's body was last synced with, by its tree key (held, so a replaced tree is never taken for it).
+    pub row_seen: BTreeMap<String, std::sync::Arc<Value>>,
 }
 
 /// A Select's list while it is open: whose it is, where a pick goes and what it offers.
@@ -177,7 +182,24 @@ impl ModControls {
         if let Some(sink) = &self.sink {
             sink(&action, Surface::Desktop);
         }
+        self.pending.push(action.clone());
         self.sent.push(action);
+    }
+
+    /// A number that moves when what the controls under `key` show moves (the text of a field, a pick, an open list): part of a
+    /// row's memo key, since the row is built once and reused.
+    pub fn stamp(&self, key: &str) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let prefix = format!("{key}.");
+        let mut hash = std::collections::hash_map::DefaultHasher::new();
+        for (k, f) in self.fields.range(prefix.clone()..).take_while(|(k, _)| k.starts_with(&prefix)) {
+            (k, &f.edit.text).hash(&mut hash);
+        }
+        for (k, v) in self.chosen.range(prefix.clone()..).take_while(|(k, _)| k.starts_with(&prefix)) {
+            (k, v).hash(&mut hash);
+        }
+        self.open_select.as_ref().filter(|o| o.key.starts_with(&prefix)).map(|o| &o.key).hash(&mut hash);
+        hash.finish()
     }
 
     /// The Input's text changed (`onInput`): the first change goes now, later ones at most four a second.

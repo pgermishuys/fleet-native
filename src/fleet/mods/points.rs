@@ -212,6 +212,12 @@ impl<T: Keyed> Views<T> {
         self.entries.iter().find(|(i, _)| i == id).map(|(_, e)| e.view.clone())
     }
 
+    /// Which contribution this id's view came from: it moves whenever the view is replaced and is never reused, so a row can
+    /// tell "my view changed" with one number (0 when there is none). A pointer would do until a freed view's address came back.
+    pub fn stamp(&self, id: &str) -> u64 {
+        self.entries.iter().find(|(i, _)| i == id).map_or(0, |(_, e)| e.token)
+    }
+
     pub fn owner_of(&self, id: &str) -> Option<&str> {
         self.entries.iter().find(|(i, _)| i == id).map(|(_, e)| e.owner.as_str())
     }
