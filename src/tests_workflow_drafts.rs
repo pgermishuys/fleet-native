@@ -533,6 +533,8 @@ fn a_draft_over_unsaved_edits_asks_first_and_a_no_sends_nothing() {
     r.mount(false);
     r.rt.update(|s, _| s.workflow_draft_from_session("session-1", "Fix the login bug"));
     assert!(r.rt.state.ui.confirm.is_none(), "nothing unsaved, nothing asked");
+    let heard = r.fleet.heard_handle();
+    r.wait("the first ask to be heard", |_| heard("POST", FROM_SESSION) == 1);
     r.rt.update(|s, _| s.workflows_nav.draft_saved("repo:build-it-our-way"));
     r.rt.update(|s, _| s.workflows_nav.editor.edit_text("name: Edited\n"));
     r.rt.update(|s, _| s.workflow_draft_from_session("session-2", "Another session"));
