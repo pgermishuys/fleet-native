@@ -286,6 +286,16 @@ impl Kept {
 struct Fake {
     base: String,
     kept: Arc<Mutex<Kept>>,
+    /// Set when the test is done, so the listener's thread ends: a macOS runner ran out of threads (EAGAIN) across the suite.
+    done: Arc<std::sync::atomic::AtomicBool>,
+}
+
+impl Drop for Fake {
+    fn drop(&mut self) {
+        self.done.store(true, std::sync::atomic::Ordering::SeqCst);
+        // One more connection wakes the accept that is waiting.
+        drop(std::net::TcpStream::connect(self.base.trim_start_matches("http://")));
+    }
 }
 
 fn fake(kept: Kept) -> Fake {
@@ -293,8 +303,13 @@ fn fake(kept: Kept) -> Fake {
     let base = format!("http://{}", listener.local_addr().expect("an address"));
     let kept = Arc::new(Mutex::new(kept));
     let shared = kept.clone();
+    let done = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let stop = done.clone();
     std::thread::spawn(move || {
         for mut stream in listener.incoming().flatten() {
+            if stop.load(std::sync::atomic::Ordering::SeqCst) {
+                break;
+            }
             let kept = shared.clone();
             std::thread::spawn(move || {
                 let req = crate::test_http::read(&mut stream);
@@ -315,7 +330,7 @@ fn fake(kept: Kept) -> Fake {
             });
         }
     });
-    Fake { base, kept }
+    Fake { base, kept, done }
 }
 
 pub(crate) struct Rig {
