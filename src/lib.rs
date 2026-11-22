@@ -205,6 +205,8 @@ mod tests_mods_controls;
 #[cfg(test)]
 mod tests_mods_drafts;
 #[cfg(test)]
+mod tests_mods_page;
+#[cfg(test)]
 mod tests_mods_pane_body;
 #[cfg(test)]
 mod tests_mods_panes;
@@ -6076,6 +6078,9 @@ pub fn spec() -> AppSpec<State> {
             ("mods-palette-light", |s| s.show_mod_sites(mock::mod_sites::Case::Palette, false)),
             ("mods-palette-safe", |s| s.show_mod_sites(mock::mod_sites::Case::PaletteSafe, true)),
             ("mods-palette-safe-light", |s| s.show_mod_sites(mock::mod_sites::Case::PaletteSafe, false)),
+            // Component 22, piece J: a mod's Page, as a card.
+            ("mods-page", |s| s.show_mod_pages(true)),
+            ("mods-page-light", |s| s.show_mod_pages(false)),
             // Component 22, piece E: a mod's trees on a tool row's line and in its opened body.
             ("mods-tool-row", |s| {
                 s.dark = Some(true);

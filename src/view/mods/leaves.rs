@@ -1,5 +1,8 @@
 //! A mod's leaves and the tables every element reads: `components/mods/ModPill.vue`, `ModIcon.vue`, `mod-style.ts` and
 //! `mod-icons.ts` (component 22, piece B). A view here never holds a colour: a role or a tone is looked up in the theme.
+use crate::State;
+use crate::conv::message_list::ToolPage;
+use crate::fleet::mods::page_url::mod_page_url;
 use crate::icons::*;
 use crate::theme::{Theme, sans};
 use rune::{Color, El, Icon, el, icon, row, text};
@@ -123,4 +126,30 @@ pub fn icon_el(t: &Theme, key: &str, props: &Map<String, Value>, inherited: Colo
 /// A box that takes no room, for what a mod drew and Fleet can't (a tree whose `Fleet` node has no drawing).
 pub fn nothing() -> El {
     el()
+}
+
+/// `ModPage`: a page the mod ships. Fleet draws it in the conversation's sandboxed frame; a web view can't scroll or clip inside
+/// a Rune list (decision 1), so it is the conversation's page card, `contained` (no new tab), whose "Open full size" shows the
+/// page from the session's machine. The address comes from the node's owner (`owner`, the host's `mod`), never from the props. One
+/// that can't be built is a quiet line.
+pub fn page(s: &State, t: &Theme, key: &str, props: &Map<String, Value>, owner: &str) -> El {
+    let path = str_prop(props, "path").unwrap_or_default();
+    let title = str_prop(props, "title").unwrap_or(path);
+    // The address on the machine's own API; the card puts the machine's base before it, as every page's address.
+    let address = crate::web::wanted::page_base(s)
+        .and_then(|_| mod_page_url(str::to_string, &s.canvas_session(), owner, path, props.get("query").and_then(Value::as_object)));
+    match address {
+        Some(address) => {
+            let page = ToolPage { path: address.clone(), id: format!("mod:{address}"), source: path.to_string() };
+            crate::view::page_card::card(s, t, key, title, &page, true)
+        }
+        None => text(format!("{title}: Page unavailable"))
+            .key(key.to_string())
+            .font(sans(12.0, 400.0, 1.4))
+            .color(t.muted)
+            .wrap()
+            .wrap_anywhere()
+            .shrink()
+            .min_w(0.0),
+    }
 }

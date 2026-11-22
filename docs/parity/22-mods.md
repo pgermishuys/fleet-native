@@ -157,10 +157,10 @@ a real Fleet. 1280×760, both themes. Fleet's client by Playwright, the native a
 
 | # | Element / behaviour | Source | Native |
 |---|---|---|---|
-| 4.1 | The address: `/api/sessions/{session}/mods/{mod id}/pages/{path}` on the session's machine, every segment encoded, a query from the string values of `query` (others ignored, no `?` when empty) | PU 39-58 | None |
-| 4.2 | Refused (no address): a session id outside `^[A-Za-z0-9_-]{1,128}$`, a bad mod id, a path not ending `.html`, with a control character, `\`, `:`, an empty, `.` or `..` segment, or an address that isn't on the machine's own origin | PU 25-38, 54-57 | None |
-| 4.3 | A Page draws the conversation's page, contained (no new tab, no pop-ups), titled `title` (else the path), with Open full size; the owner comes from the node's `mod`, never from props. Here, decision 1: 14's page card with `contained` set, opening the page tab at that address | MPG, `docs/parity/14-web-content.md` 14.96 | Partial (the card's `contained` flag, 14F) |
-| 4.4 | No address (no session, a bad owner, a bad path): "{title}: Page unavailable", 12 px `--muted`, wraps anywhere | MPG 37-44 | None |
+| 4.1 | The address: `/api/sessions/{session}/mods/{mod id}/pages/{path}` on the session's machine, every segment encoded, a query from the string values of `query` (others ignored, no `?` when empty) | PU 39-58 | Done (J): `fleet::mods::page_url::mod_page_url` (`encodeURIComponent` for segments, `URLSearchParams`' form encoding for the query, order as the object holds it). The card is given the address on the machine's own API and `page_url_of` puts the session's machine before it. Live: Fleet's iframe and the native dialog ask for the same address (`/api/sessions/<id>/mods/deploy-notes@draft:<id>/pages/ui/notes.html`) |
+| 4.2 | Refused (no address): a session id outside `^[A-Za-z0-9_-]{1,128}$`, a bad mod id, a path not ending `.html`, with a control character, `\`, `:`, an empty, `.` or `..` segment, or an address that isn't on the machine's own origin | PU 25-38, 54-57 | Done (J): all 10 of `page-url.test.ts` ported under their names (`src/fleet/mods/page_url.rs`); the origin check compares `scheme://authority` of the answer with the one of `api_url("/")` where Fleet builds `new URL`, so a base that isn't a URL is refused the same way |
+| 4.3 | A Page draws the conversation's page, contained (no new tab, no pop-ups), titled `title` (else the path), with Open full size; the owner comes from the node's `mod`, never from props. Here, decision 1: 14's page card with `contained` set, opening the page tab at that address | MPG, `docs/parity/14-web-content.md` 14.96 | Done (J): `view::mods::leaves::page` → `view::page_card::card` with `contained` (no Open in a new tab; Open full size opens 14's dialog, whose web view loads the address from the session's machine). Open (J, owner to decide): the brief for 4.3 says the card opens the page tab; it opens 14's full-size dialog instead (the card is `contained`, so it has no new-tab button and the page tab has no mod-page kind). Gaps: a card, not a live frame in the pane (decision 1, row 14.5); the dialog is 14's, so the "no pop-ups" sandbox of 14.96 is the web view's own, not checked per page; a server answers no page yet (Fleet's own client shows the server's 404 in its frame, v0.72.0 and main), so the page picture is served by a stand-in in front of the scratch Fleet |
+| 4.4 | No address (no session, a bad owner, a bad path): "{title}: Page unavailable", 12 px `--muted`, wraps anywhere | MPG 37-44 | Done (J): `leaves::page` draws the line at 12 px `--muted`, wrapping anywhere; no machine to serve it counts as no address |
 
 ### 5. Tool rows: asking (R, A)
 
@@ -306,8 +306,8 @@ preferences or local keys besides the `Mods` preference (16's).
 | `components/mods/__tests__/ModTree.test.ts` | "ModTree root", Box, Text, Pill, Icon, "inline sites wrap" | B |
 | `components/mods/__tests__/ModTree.test.ts` | Button, Input, onInput, Select, Markdown, Code | C |
 | `components/mods/__tests__/mod-markdown.test.ts` | all 9 | C |
-| `components/mods/__tests__/ModTree.test.ts` | Page (5) | J |
-| `lib/mods/__tests__/page-url.test.ts` | all 10 | J |
+| `components/mods/__tests__/ModTree.test.ts` | Page (5) | J (done: `src/tests_mods_page.rs`) |
+| `lib/mods/__tests__/page-url.test.ts` | all 10 | J (done: `src/fleet/mods/page_url.rs`) |
 | `lib/mods/__tests__/renders.test.ts` | all 23 (the phone case as "shares the call" between two rows) | D |
 | `components/session/__tests__/ToolCard.mods.test.ts` | all 22 (names in `docs/parity/03-conversation-parts-tests.md`) | E |
 | `lib/mods/__tests__/panes.test.ts` | "mod panes" (9) | F |

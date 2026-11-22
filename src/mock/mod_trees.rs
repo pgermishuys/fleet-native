@@ -17,6 +17,22 @@ pub fn controls() -> Value {
     serde_json::from_str(include_str!("../../scripts/mod-standin/controls-demo/tree.json")).expect("the standin's tree is JSON")
 }
 
+/// The tree of the `mods-page` scene: the Page cases at the top of a pane, where the `mods-elements` scene's scroll hides them. A
+/// good page, a title too long for the card and one whose path can't make an address (Fleet's own client draws the same through
+/// `scripts/mod-standin/deploy-notes`).
+pub fn pages() -> Value {
+    let page = |key: &str, path: &str, title: &str| serde_json::json!({"type": "Page", "props": {"key": key, "path": path, "title": title}, "mod": "deploy-notes@v1"});
+    serde_json::json!({
+        "type": "Box", "props": {"flexDirection": "column", "gap": 2}, "children": [
+            {"type": "Text", "props": {"dimColor": true, "bold": true}, "children": ["Page"]},
+            page("notes-page", "ui/notes.html", "Deploy notes, printable"),
+            page("long-page", "ui/notes.html", "A title far too long to fit on one line of this card, so it is cut with an ellipsis"),
+            {"type": "Text", "props": {"dimColor": true, "bold": true}, "children": ["A path that can't make an address"]},
+            page("bad-page", "../x.html", "Broken report"),
+        ]
+    })
+}
+
 /// What a Mod tab draws in a scene or a test: the tree, the site it is drawn for, and whether the site has a drawing of its own
 /// for a `Fleet` node (and an invalid tree) to show.
 pub struct ModScene {
@@ -39,7 +55,15 @@ impl State {
 
     /// A Mod tab drawing `tree()`, the right panel widened over the session list so the pane has Fleet's room.
     pub fn show_mod_elements(&mut self, dark: bool) {
+        // The Page in the tree is a card for a page on the machine the session is on: the invented address the page scenes use.
+        self.web.mock_base.get_or_insert_with(|| "http://127.0.0.1:6411".into());
         self.show_mod_pane(dark, "elements", "Elements", elements());
+    }
+
+    /// The same Mod tab with the Page cases.
+    pub fn show_mod_pages(&mut self, dark: bool) {
+        self.web.mock_base.get_or_insert_with(|| "http://127.0.0.1:6411".into());
+        self.show_mod_pane(dark, "pages", "Pages", pages());
     }
 
     /// The same Mod tab with the controls' tree.

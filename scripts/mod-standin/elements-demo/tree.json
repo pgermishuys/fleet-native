@@ -783,6 +783,34 @@
      ]
     }
    ]
+  },
+  {
+   "type": "Text",
+   "props": {
+    "dimColor": true,
+    "bold": true
+   },
+   "children": [
+    "Page"
+   ]
+  },
+  {
+   "type": "Page",
+   "props": {
+    "key": "notes-page",
+    "path": "ui/notes.html",
+    "title": "Deploy notes, printable"
+   },
+   "mod": "elements-demo@v1"
+  },
+  {
+   "type": "Page",
+   "props": {
+    "key": "bad-page",
+    "path": "../x.html",
+    "title": "Broken report"
+   },
+   "mod": "elements-demo@v1"
   }
  ]
 }

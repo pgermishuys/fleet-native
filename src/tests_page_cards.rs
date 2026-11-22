@@ -125,7 +125,7 @@ fn full_size_is_the_one_web_view_wanted_in_the_place_conversation_and_goes_with_
 }
 
 // ConversationPage.test.ts "offers to open the page in a new tab, and does not when it is contained": the page's own card
-// has the button; the contained half belongs to component 22 (mod pages), which is the first caller that passes `contained`.
+// has the button; the contained half is in `tests_mods_page.rs` (a mod's page is the first caller that passes `contained`).
 #[test]
 fn offers_to_open_the_page_in_a_new_tab() {
     let rt = cards();
