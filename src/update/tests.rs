@@ -52,6 +52,7 @@ pub(super) fn asset_for(name: &str, bytes: &[u8]) -> Asset {
     Asset { name: name.into(), size: bytes.len() as u64, sha256: manifest::sha256_of(bytes).unwrap().0 }
 }
 
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 pub(super) fn tar_gz(path: &Path, member: &str, content: &[u8]) {
     tar_gz_of(path, &[(member, content)]);
 }

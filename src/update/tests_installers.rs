@@ -3,6 +3,8 @@
 //! the off switch. Fleet's `updates.test.ts` (13 cases) is accounted for here, case by case, under native names.
 use super::install;
 use super::manifest::{self, Kind};
+// Most of the folder tests run on Linux only (they make Unix programs), so the helpers they use are unused elsewhere.
+#[cfg_attr(not(target_os = "linux"), allow(unused_imports))]
 use super::tests::{Scratch, asset_for, serve, tar_gz_of, zip_files};
 use super::{Mode, Phase, mode};
 use crate::State;
@@ -196,6 +198,7 @@ fn a_deb_install_cant_be_applied_even_when_asked() {
 
 // ─── The whole app folder, server included ─────────────────────────────────────
 
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 fn old_install(dir: &Path) -> std::path::PathBuf {
     let exe = dir.join("fleet-native");
     std::fs::write(&exe, b"\x7fELF old").unwrap();
