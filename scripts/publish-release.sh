@@ -8,9 +8,10 @@ tag=latest
 assets=(fleet-native-windows-x64.zip fleet-native-macos-arm64.dmg fleet-native-linux-x64.tar.gz)
 for a in "${assets[@]}"; do [ -f "$dist/$a" ] || { echo "missing $a" >&2; exit 1; }; done
 # Also released when the build made them, but not in latest.json (one key per system: the updater reads those): the Linux
-# .deb and AppImage and a .sha256 for each Linux file. They are downloads, not update assets (component 25, piece B).
+# .deb and AppImage and a .sha256 for each Linux file (component 25, piece B), and the Windows installer with its .sha256
+# (piece C). They are downloads, not update assets.
 extras=()
-for e in fleet-native-linux-x64.deb fleet-native-linux-x64.AppImage fleet-native-linux-x64.tar.gz.sha256 fleet-native-linux-x64.deb.sha256 fleet-native-linux-x64.AppImage.sha256; do
+for e in fleet-native-linux-x64.deb fleet-native-linux-x64.AppImage fleet-native-linux-x64.tar.gz.sha256 fleet-native-linux-x64.deb.sha256 fleet-native-linux-x64.AppImage.sha256 fleet-native-windows-x64-setup.exe fleet-native-windows-x64-setup.exe.sha256; do
   [ -f "$dist/$e" ] && extras+=("$e")
 done
 
