@@ -109,6 +109,9 @@ impl State {
                 self.mod_action(&row.session_id, &row.call_id, action, Surface::Desktop);
             } else if let Some(pane) = self.mod_pane_of_handle(&action.handle) {
                 self.mod_pane_action(&pane, action);
+            } else {
+                // A band or a chip (piece K): its view's own `on_action`, as `desktop`.
+                self.deliver_site_action(&action);
             }
         }
         true

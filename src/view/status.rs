@@ -192,6 +192,10 @@ fn end(s: &State, t: &Theme, session: El) -> El {
     if let Some(chips) = super::notice_chips::chips(s, t) {
         end = end.child(chips);
     }
+    // A mod's chip (component 22, piece K), for the session on screen: after the notice chips, before the session's own part.
+    if let Some(chip) = super::mods::chip::chip(s, t) {
+        end = end.child(chip);
+    }
     end.child(session)
 }
 

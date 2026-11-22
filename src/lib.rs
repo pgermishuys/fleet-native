@@ -213,6 +213,8 @@ mod tests_mods_review;
 #[cfg(test)]
 mod tests_mods_rows;
 #[cfg(test)]
+mod tests_mods_sites;
+#[cfg(test)]
 mod tests_mods_tree;
 #[cfg(test)]
 mod tests_new_project;
@@ -641,6 +643,8 @@ pub struct State {
     pub mod_drafts: fleet::mods::drafts::ModDrafts,
     /// Checks each row's tree once (component 22, piece E).
     pub mod_resolver: fleet::mods::resolve::Resolver,
+    /// The Mods switch and safe mode for the banner and the command, and the composer band and status chip views (piece K).
+    pub mod_sites: fleet::mods::sites::ModSites,
     /// The width of the last tool row a mod drew on, as laid out: the line's 60% cap and the title's floor are shares of it (Rune has no percent).
     pub mod_line_w: f32,
     /// When the open session's turn started, on `clock`.
@@ -1005,6 +1009,7 @@ impl Default for State {
             mod_panes: Default::default(),
             mod_drafts: Default::default(),
             mod_resolver: fleet::mods::resolve::Resolver::new(Default::default()),
+            mod_sites: Default::default(),
             mod_line_w: 0.0,
             working_since: -18.0,
             reply: None,
@@ -1877,6 +1882,8 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.mods_ui.keep(now, tx)
         | s.keep_mod_renders()
         | s.sync_row_controls()
+        | s.sync_site_controls()
+        | s.keep_mods_sites()
         | s.deliver_mod_actions()
         | s.watch_open_mod_session()
         | s.keep_mod_pane_kept()
@@ -6037,6 +6044,17 @@ pub fn spec() -> AppSpec<State> {
             // Component 22, piece B: a mod's tree drawn in the pane, every Box, Text, Pill and Icon variant.
             ("mods-elements", |s| s.show_mod_elements(true)),
             ("mods-elements-light", |s| s.show_mod_elements(false)),
+            // Component 22, piece K: safe mode's banner, a draft mod's band and chip, and the palette's command.
+            ("mods-safe-mode", |s| s.show_mod_sites(mock::mod_sites::Case::SafeMode, true)),
+            ("mods-safe-mode-light", |s| s.show_mod_sites(mock::mod_sites::Case::SafeMode, false)),
+            ("mods-band", |s| s.show_mod_sites(mock::mod_sites::Case::Band, true)),
+            ("mods-band-light", |s| s.show_mod_sites(mock::mod_sites::Case::Band, false)),
+            ("mods-chip", |s| s.show_mod_sites(mock::mod_sites::Case::Chip, true)),
+            ("mods-chip-light", |s| s.show_mod_sites(mock::mod_sites::Case::Chip, false)),
+            ("mods-palette", |s| s.show_mod_sites(mock::mod_sites::Case::Palette, true)),
+            ("mods-palette-light", |s| s.show_mod_sites(mock::mod_sites::Case::Palette, false)),
+            ("mods-palette-safe", |s| s.show_mod_sites(mock::mod_sites::Case::PaletteSafe, true)),
+            ("mods-palette-safe-light", |s| s.show_mod_sites(mock::mod_sites::Case::PaletteSafe, false)),
             // Component 22, piece E: a mod's trees on a tool row's line and in its opened body.
             ("mods-tool-row", |s| {
                 s.dark = Some(true);

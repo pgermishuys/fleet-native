@@ -58,6 +58,7 @@ impl State {
             self.on_memory_event(topic, event);
             self.on_dream_event(topic, event);
             self.on_mods_event(topic, event);
+            self.on_mods_sites_event(topic, event);
             self.on_mod_renders_event(topic, event);
             self.on_mod_panes_event(topic, event);
             self.on_mod_drafts_event(topic, event);

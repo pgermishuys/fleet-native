@@ -247,11 +247,14 @@ pub fn root(s: &State, cx: &mut Cx<State>) -> El {
         },
     };
     // The window's size, for the selector menu's width and height caps (`100vw - 16px`, `60vh`).
-    let frame = col().w_full().h_full().fill(t.main_bg).child(main).child(status::bar(s, &t)).on_layout(|s: &mut State, [_, _, w, h]| {
-        if (s.ui.sel.window.0 - w).abs() > 0.5 || (s.ui.sel.window.1 - h).abs() > 0.5 {
-            s.ui.sel.window = (w, h);
-        }
-    });
+    let frame =
+        col().w_full().h_full().fill(t.main_bg).children(mods::safe_mode::banner(s, &t)).child(main).child(status::bar(s, &t)).on_layout(
+            |s: &mut State, [_, _, w, h]| {
+                if (s.ui.sel.window.0 - w).abs() > 0.5 || (s.ui.sel.window.1 - h).abs() > 0.5 {
+                    s.ui.sel.window = (w, h);
+                }
+            },
+        );
     rune_kit::root(frame, crate::ui::overlays(s, &t))
 }
 
