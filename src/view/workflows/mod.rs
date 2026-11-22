@@ -7,8 +7,8 @@ use crate::ui::rem;
 use crate::view::feature_off;
 use rune::{ScrollSpec, col, row, text};
 
-pub mod create;
 pub mod canvas;
+pub mod create;
 pub mod detail;
 pub mod editor;
 pub mod finish_bar;
