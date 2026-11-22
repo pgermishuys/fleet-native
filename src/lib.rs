@@ -1558,6 +1558,14 @@ impl State {
         self.set_open((0, 5));
     }
 
+    /// Claude Code sessions from a terminal: the In terminal chip and the From terminal marker (component 26, rows 1.31, 1.33).
+    fn show_terminal_rows(&mut self, dark: bool) {
+        self.dark = Some(dark);
+        self.now_ms = Some(mock::rows::NOW);
+        self.projects = vec![mock::rows::terminal()];
+        self.set_open((0, 6));
+    }
+
     /// A list of rows with a running chip, progress and a pull request badge (piece D, rows 3.49-3.54).
     fn show_row_chips(&mut self, dark: bool) {
         self.dark = Some(dark);
@@ -2351,7 +2359,7 @@ fn labs_scene(s: &mut State, dark: bool, machines: bool, all_on: bool) {
         s.show_machines_only(mock::machines::Case::Several);
     }
     if all_on {
-        for key in ["Jobs", "features.mission-control.enabled", "Workflows", "Memory", "MemorySearch", "LiveMachines"] {
+        for key in ["TerminalSessions", "Jobs", "features.mission-control.enabled", "Workflows", "Memory", "MemorySearch", "LiveMachines"] {
             s.pickers.prefs.set(key, "true");
         }
     }
@@ -4372,6 +4380,8 @@ pub fn spec() -> AppSpec<State> {
             // Piece C of the session list: a row for every status, in both themes.
             ("row-statuses", |s| s.show_row_statuses(true)),
             ("row-statuses-light", |s| s.show_row_statuses(false)),
+            ("terminal-rows", |s| s.show_terminal_rows(true)),
+            ("terminal-rows-light", |s| s.show_terminal_rows(false)),
             ("pr-badges-links", |s| s.show_pr_badges_from_links(true)),
             ("pr-badges-links-light", |s| s.show_pr_badges_from_links(false)),
             ("gh-parts", |s| {
@@ -4843,6 +4853,9 @@ pub fn spec() -> AppSpec<State> {
                 s.dark = Some(false);
                 s.show_question(mock::questions::Case::AnsweredLong)
             }),
+            // Words made from coloured output show without their terminal codes (component 26, rows 1.30, 1.31).
+            ("question-coloured", |s| s.show_question(mock::questions::Case::Coloured)),
+            ("question-coloured-answered", |s| s.show_question(mock::questions::Case::ColouredAnswered)),
             ("question-skipped", |s| s.show_question(mock::questions::Case::Skipped)),
             ("question-skipped-light", |s| {
                 s.dark = Some(false);
@@ -4905,6 +4918,8 @@ pub fn spec() -> AppSpec<State> {
                 s.dark = Some(false);
                 s.show_ask(mock::asks::Case::HandoffFolder)
             }),
+            ("ask-coloured", |s| s.show_ask(mock::asks::Case::Coloured)),
+            ("ask-coloured-edit", |s| s.show_ask(mock::asks::Case::ColouredEdit)),
             ("ask-long", |s| s.show_ask(mock::asks::Case::Long)),
             ("ask-long-light", |s| {
                 s.dark = Some(false);

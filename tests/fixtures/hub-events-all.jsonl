@@ -62,3 +62,4 @@
 {"type":1,"target":"Event","arguments":["session:00000000-0000-4000-8000-000000000001",-62,{"type":"mods.runtime","eventId":-62,"properties":{"state":"ready"}}]}
 {"type":1,"target":"Event","arguments":["session:00000000-0000-4000-8000-000000000001",-63,{"type":"mod.ui","eventId":-63,"properties":{"sessionId":"00000000-0000-4000-8000-000000000001","modId":"mod_1"}}]}
 {"type":1,"target":"Event","arguments":["session:00000000-0000-4000-8000-000000000001",-64,{"type":"mod.pane","eventId":-64,"properties":{"sessionId":"00000000-0000-4000-8000-000000000001","modId":"mod_1","id":"pane_1","title":"Notes","open":true}}]}
+{"type":1,"target":"Event","arguments":["sessions",-65,{"type":"session_terminal","eventId":-65,"properties":{"sessionId":"00000000-0000-4000-8000-000000000001","inTerminal":true}}]}

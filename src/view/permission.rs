@@ -6,6 +6,7 @@ use super::ask_card;
 use crate::State;
 use crate::asks::permission::PermissionAsk;
 use crate::asks::wording::{DiffLine, LineKind, counts, diff_lines, dont_ask_again_wording, handoff_rows, level_name, permission_heading};
+use crate::conv::output::plain_terminal_text;
 use crate::conv::tools::PermissionKind;
 use crate::fleet::asks::Reply;
 use crate::icons::*;
@@ -20,6 +21,18 @@ const CHAR_W: f32 = 7.2;
 
 /// `.pcard` and what is in it, for one waiting ask.
 pub fn card(t: &Theme, s: &State, ask: &PermissionAsk, first: bool) -> El {
+    // A command or a file made from coloured output shows without its terminal codes (`askTitle`, `askDirectory`, #1041).
+    let plain;
+    let ask = if [&ask.title, &ask.directory].iter().any(|t| t.as_deref().is_some_and(|t| t.contains('\u{1b}'))) {
+        plain = PermissionAsk {
+            title: ask.title.as_deref().map(plain_terminal_text),
+            directory: ask.directory.as_deref().map(plain_terminal_text),
+            ..ask.clone()
+        };
+        &plain
+    } else {
+        ask
+    };
     let heading = permission_heading(ask);
     // Cards after the first are keyed by their ask, so two waiting at once don't share a key. Their buttons still do:
     // the keys act on the first card (docs/parity/04, row 3.14).

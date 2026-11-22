@@ -250,10 +250,7 @@ impl CanvasInstance {
     }
 }
 
-/// The text without terminal colour codes (`plainTerminalText`).
-pub fn plain_terminal_text(raw: &str) -> String {
-    if raw.contains('\u{1b}') { crate::conv::export::strip_ansi(raw) } else { raw.to_string() }
-}
+pub use crate::conv::output::plain_terminal_text;
 
 /// The file name: what follows the last `/`, or the whole path when nothing does (`fileName`).
 pub fn file_name(path: &str) -> &str {

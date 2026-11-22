@@ -1,11 +1,13 @@
 //! The card a question the agent asks shows while it waits (amber, under its message). Ports the "waiting on you" half
 //! of `components/session/QuestionCard.vue` (rows 1.1-1.17, 1.20 and 1.24 of `docs/parity/04-questions-and-permissions.md`).
 //! `asks::question` holds the rules and `fleet::questions` the picks and the requests; this file draws them, draws the
-//! answered and skipped rows (rows 2.1, 2.2 and 2.4) and takes the card's keys (`on_key`, rows 1.18 and 1.19).
+//! answered and skipped rows (rows 2.1, 2.2 and 2.4) and takes the card's keys (`on_key`, rows 1.18 and 1.19). What the agent wrote
+//! shows without terminal codes (#1036); the labels it picks and sends stay as written.
 use super::ask_card;
 use crate::State;
 use crate::asks::focus;
 use crate::asks::question::{Digit, QuestionInfo, QuestionPart, answer_text, digit_choice, key_hint, link_ranges};
+use crate::conv::output::plain_terminal_text as plain;
 use crate::fleet::questions::QuestionCard;
 use crate::icons::*;
 use crate::theme::{RADIUS_BTN, RADIUS_CARD, Theme, sans};
@@ -73,7 +75,7 @@ fn answered(t: &Theme, call: &str, input: &crate::asks::question::QuestionInput,
         // The answer is what the row is for: the question gives way first, and the answer stops at half the row.
         let answer = answer_text(answers.get(qi));
         out = out.child(
-            qrow(t, &q.question)
+            qrow(t, &plain(&q.question))
                 .key(format!("question-row-{call}-{qi}"))
                 .child(text("\u{2192}").font(sans(13.0, 400.0, 1.3)).color(t.muted))
                 .child(
@@ -94,14 +96,14 @@ fn answered(t: &Theme, call: &str, input: &crate::asks::question::QuestionInput,
 
 /// Skipped: one row with the first question and "Skipped".
 fn skipped(t: &Theme, call: &str, input: &crate::asks::question::QuestionInput) -> El {
-    let question = input.questions.first().map_or("Question", |q| q.question.as_str());
+    let question = input.questions.first().map_or("Question".to_string(), |q| plain(&q.question));
     group(t, format!("question-skipped-{call}"))
-        .child(qrow(t, question).key(format!("question-row-{call}-0")).child(text("Skipped").font(sans(12.0, 400.0, 1.3)).color(t.muted)))
+        .child(qrow(t, &question).key(format!("question-row-{call}-0")).child(text("Skipped").font(sans(12.0, 400.0, 1.3)).color(t.muted)))
 }
 
 /// `.qcard` and what is in it, for one waiting question.
 pub fn card(t: &Theme, card: &QuestionCard, first: bool) -> El {
-    let title = card.input.questions.first().map(|q| q.header.as_str()).filter(|h| !h.is_empty()).unwrap_or("Question").to_string();
+    let title = card.input.questions.first().map(|q| q.header.as_str()).filter(|h| !h.is_empty()).map_or("Question".to_string(), plain);
     let key = if first { "question-card".to_string() } else { format!("question-card-{}", card.id) };
     // `tabindex="-1"`: the card itself can hold the keyboard when it has no choice to give it to.
     let mut out = ask_card::frame(t, key)
@@ -135,16 +137,16 @@ fn head(t: &Theme, title: &str) -> El {
 fn section(t: &Theme, card: &QuestionCard, qi: usize, q: &QuestionInfo) -> El {
     let mut out = col().key(format!("question-{qi}")).w_full().gap(8.0);
     if qi > 0 && !q.header.is_empty() {
-        out = out.child(text(q.header.clone()).key(format!("question-subhead-{qi}")).font(sans(12.0, 600.0, 1.3)).color(t.muted).mt(4.0));
+        out = out.child(text(plain(&q.header)).key(format!("question-subhead-{qi}")).font(sans(12.0, 600.0, 1.3)).color(t.muted).mt(4.0));
     }
-    out = out.child(question_text(t, qi, &q.question));
+    out = out.child(question_text(t, qi, &plain(&q.question)));
     if q.multiple {
         out =
             out.child(text("Pick any that apply.").key(format!("question-hint-{qi}")).font(sans(12.0, 400.0, 1.3)).color(t.muted).mt(-4.0));
     }
     let mut group = col()
         .key(format!("question-choices-{qi}"))
-        .label(if q.header.is_empty() { q.question.clone() } else { q.header.clone() })
+        .label(plain(if q.header.is_empty() { &q.question } else { &q.header }))
         .w_full()
         .gap(4.0);
     for (oi, o) in q.options.iter().enumerate() {
@@ -205,9 +207,9 @@ fn key_chip(t: &Theme, number: usize, picked: bool, check: bool) -> El {
 
 fn choice(t: &Theme, card: &QuestionCard, qi: usize, oi: usize, q: &QuestionInfo, label: String, description: &str) -> El {
     let picked = card.sel.is_picked(qi, &label);
-    let mut copy = col().gap(1.0).grow(1.0).min_w(0.0).child(text(label.clone()).font(sans(13.0, 500.0, 1.5)).color(t.text).wrap());
+    let mut copy = col().gap(1.0).grow(1.0).min_w(0.0).child(text(plain(&label)).font(sans(13.0, 500.0, 1.5)).color(t.text).wrap());
     if !description.is_empty() {
-        copy = copy.child(text(description.to_string()).font(sans(12.0, 400.0, 1.45)).color(t.muted).wrap());
+        copy = copy.child(text(plain(description)).font(sans(12.0, 400.0, 1.45)).color(t.muted).wrap());
     }
     let (id, pick) = (card.id.clone(), label.clone());
     box_of(t, picked)

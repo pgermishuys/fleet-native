@@ -23,13 +23,13 @@ fn catalogue() -> Vec<(String, Option<i64>, Value)> {
 }
 
 #[test]
-fn the_union_has_64_event_types_and_the_fixture_has_one_frame_for_each() {
-    // 64 `type` strings in domain-events.ts's `DomainEvent` (the file also has seven part types).
-    assert_eq!(Kind::ALL.len(), 64);
+fn the_union_has_65_event_types_and_the_fixture_has_one_frame_for_each() {
+    // 65 `type` strings in domain-events.ts's `DomainEvent` (the file also has seven part types); `session_terminal` came in #1099.
+    assert_eq!(Kind::ALL.len(), 65);
     let wire: HashSet<&str> = Kind::ALL.iter().map(|k| k.wire()).collect();
-    assert_eq!(wire.len(), 64, "no two kinds share a name");
+    assert_eq!(wire.len(), 65, "no two kinds share a name");
     let in_fixture: Vec<String> = catalogue().iter().map(|(_, _, d)| d["type"].as_str().unwrap().to_string()).collect();
-    assert_eq!(in_fixture.len(), 64);
+    assert_eq!(in_fixture.len(), 65);
     assert_eq!(in_fixture.iter().map(String::as_str).collect::<HashSet<_>>(), wire);
 }
 
@@ -112,7 +112,7 @@ fn subscribers_get_what_the_reducer_leaves_alone_and_only_what_they_asked_for() 
     state.dispatch(&Topic::Sessions, &[Event::Cursor(1), Event::from_wire(&json!({"type": "session_tokens", "properties": {}})).unwrap()]);
 
     let all = all.lock().unwrap();
-    assert_eq!(all.len(), 65, "all 64, then the sessions event; the cursor mark isn't an event");
-    assert_eq!(all[64], (Topic::Sessions, Some(Kind::SessionTokens)));
+    assert_eq!(all.len(), 66, "all 65, then the sessions event; the cursor mark isn't an event");
+    assert_eq!(all[65], (Topic::Sessions, Some(Kind::SessionTokens)));
     assert_eq!(*only.lock().unwrap(), [Some(Kind::PermissionAsked)]);
 }

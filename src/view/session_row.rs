@@ -1,5 +1,6 @@
 //! A session's row in the list (`SessionItem.vue`, `StatusGlyph.vue`): the caret's place, the status glyph, the title and
-//! the word on the right, the running chip, the pull request badge and the progress ring (`ProgressRing.vue`, `PrBadge.vue`).
+//! the word on the right, the running chip, the pull request badge, the progress ring (`ProgressRing.vue`, `PrBadge.vue`) and
+//! the In terminal chip and From terminal marker of a Claude Code session started in a terminal (#1099).
 //! Hover buttons, rename, the menu and lineage come after (docs/parity/06-session-list.md, rows 3.x).
 use super::parts::{cut_dot, status_glyph};
 use super::progress_ring::progress_ring;
@@ -7,7 +8,9 @@ use super::row_actions::{Buttons, actions};
 use crate::fleet::actions::RENAME_FIELD;
 use crate::fleet::row_chips::{self, Checks, PrBadge, PrState};
 use crate::fleet::row_status::{self, Dim, Glyph, RowItem, RowStatus, Tone};
-use crate::icons::{CHECK, CHEVRON_RIGHT, GIT_MERGE, GIT_PULL_REQUEST, GIT_PULL_REQUEST_CLOSED, GIT_PULL_REQUEST_DRAFT, LOADER_CIRCLE};
+use crate::icons::{
+    CHECK, CHEVRON_RIGHT, GIT_MERGE, GIT_PULL_REQUEST, GIT_PULL_REQUEST_CLOSED, GIT_PULL_REQUEST_DRAFT, LOADER_CIRCLE, SQUARE_TERMINAL,
+};
 use crate::mock::Session;
 use crate::theme::{RADIUS_BTN, Theme, mono, sans};
 use crate::ui::text_menu::text_input;
@@ -344,13 +347,21 @@ pub fn tail(
                 .font(sans(12.0, 400.0, 1.3).features("'tnum' 1"))
                 .color(t.text_mix(t.accent, t.row_accent)),
         );
+    } else if session.row.in_terminal {
+        let chip = terminal_chip(t, &key);
+        line = line.child(if buttons.any() { chip.group_opacity(1.0, 0.0) } else { chip });
     } else if let Some(kind) = slots.kind_label {
         // Lineage stays muted in every state (decision of 17 October 2026): the row's meta colour, set on the label itself.
         // Hidden while the row's buttons show (Fleet #1048), so pin and archive never cover it.
-        let label = text(kind.to_uppercase())
-            .key(format!("session-kind-{key}"))
-            .font(sans(10.5, 600.0, 1.2).tracking(0.04 * 10.5))
-            .color(t.row_meta_ink());
+        let label = kind_text(t, kind).key(format!("session-kind-{key}"));
+        line = line.child(if buttons.any() { label.group_opacity(1.0, 0.0) } else { label });
+    } else if session.listing.spawn_kind.as_deref() == Some("terminal") && (status.label.is_empty() || status.tone == Tone::Quiet) {
+        // Started in a terminal that has let go of it: the marker takes the age's place, and the age moves to its tooltip.
+        let help = match &status.title {
+            Some(at) => format!("Started in a terminal. Updated {at}"),
+            None => "Started in a terminal".to_string(),
+        };
+        let label = kind_text(t, "From terminal").key(format!("session-from-terminal-{key}")).help(help);
         line = line.child(if buttons.any() { label.group_opacity(1.0, 0.0) } else { label });
     } else if !progress.is_some_and(|v| v.count)
         && let Some(word) = word(t, &key, status, dim)
@@ -358,6 +369,27 @@ pub fn tail(
         line = line.child(if buttons.any() { word.group_opacity(1.0, 0.0) } else { word });
     }
     line
+}
+
+/// `.session-kind`: lineage's label and the From terminal marker, uppercase in the row's meta colour.
+fn kind_text(t: &Theme, words: &str) -> El {
+    text(words.to_uppercase()).font(sans(10.5, 600.0, 1.2).tracking(0.04 * 10.5)).color(t.row_meta_ink())
+}
+
+/// `.session-terminal-chip`: a terminal has the session open. Quiet, in the row's meta colour on an 8% wash.
+fn terminal_chip(t: &Theme, key: &str) -> El {
+    let ink = t.row_meta_ink();
+    row()
+        .key(format!("session-terminal-chip-{key}"))
+        .h(18.0)
+        .px(6.0)
+        .gap(4.0)
+        .center_y()
+        .radius(RADIUS_BTN)
+        .fill(t.wash(8.0))
+        .help("A terminal has this session open")
+        .child(icon(&SQUARE_TERMINAL, 11.0).color(ink))
+        .child(text("In terminal").font(sans(11.0, 600.0, 1.3)).color(ink))
 }
 
 /// `.session-item--editing`: the row with the title as a field, no hover, no pick, nothing on the right; the field has

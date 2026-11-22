@@ -1,7 +1,7 @@
 //! What a session's row in the list knows beyond its glyph, and how the `sessions` topic changes it
 //! (`use-session-activity-updates.ts`, `use-session-token-updates.ts`, `use-session-branch-updates.ts`,
-//! `use-session-checkout-updates.ts`, `lib/session-status.ts`). Pure: no Rune, no I/O. How a row looks is
-//! component 6; this keeps the data it will draw.
+//! `use-session-checkout-updates.ts`, `use-session-terminal-updates.ts`, `lib/session-status.ts`). Pure: no Rune, no
+//! I/O. How a row looks is component 6; this keeps the data it will draw.
 use super::row_chips::{self, PrBadge, Progress};
 use crate::mock::{Project, Session, Status};
 use serde_json::Value;
@@ -146,6 +146,9 @@ pub struct Row {
     pub capabilities: Capabilities,
     /// `harnessProfileName`: the profile the session started with. Only the detail carries it.
     pub harness_profile_name: Option<String>,
+    /// `inTerminal`: a terminal has this Claude Code session open now (the In terminal chip, #1099). Where it started
+    /// (`spawnKind: "terminal"`) is the listing's `spawn_kind`.
+    pub in_terminal: bool,
     /// The pull request the session opened. Only mock data fills it until the header component reads the smart links.
     pub pr: Option<PrBadge>,
 }
@@ -291,6 +294,7 @@ impl Row {
                 .unwrap_or(0)
                 .min(u32::MAX as u64) as u32,
             progress: item.get("progress").and_then(row_chips::parse_row_progress),
+            in_terminal: item.get("inTerminal") == Some(&Value::Bool(true)),
             pr: None,
         }
     }
@@ -299,15 +303,51 @@ impl Row {
 /// One `sessions` event that changes rows.
 #[derive(Clone, Debug, PartialEq)]
 pub enum RowPatch {
-    Activity { session: String, activity: String, retrying: Retrying },
-    ScheduledRetry { session: String, retry: Option<ScheduledRetry> },
-    Pages { session: String, count: u32, last_shown_at: Option<String> },
-    Interrupted { session: String, interruption: Option<Interruption> },
-    Failure { session: String, failure: Option<Failure> },
-    Tokens { session: String, tokens: u32, cost: f64 },
-    Progress { session: String, progress: Progress },
-    Branch { workspace: String, branch: String },
-    Checkout { workspace: String, state: String, removed_at: Option<String> },
+    Activity {
+        session: String,
+        activity: String,
+        retrying: Retrying,
+    },
+    ScheduledRetry {
+        session: String,
+        retry: Option<ScheduledRetry>,
+    },
+    Pages {
+        session: String,
+        count: u32,
+        last_shown_at: Option<String>,
+    },
+    Interrupted {
+        session: String,
+        interruption: Option<Interruption>,
+    },
+    Failure {
+        session: String,
+        failure: Option<Failure>,
+    },
+    Tokens {
+        session: String,
+        tokens: u32,
+        cost: f64,
+    },
+    Progress {
+        session: String,
+        progress: Progress,
+    },
+    Branch {
+        workspace: String,
+        branch: String,
+    },
+    Checkout {
+        workspace: String,
+        state: String,
+        removed_at: Option<String>,
+    },
+    /// `session_terminal`: a terminal opened the session or let go of it (`use-session-terminal-updates.ts`).
+    Terminal {
+        session: String,
+        in_terminal: bool,
+    },
 }
 
 impl RowPatch {
@@ -353,6 +393,7 @@ impl RowPatch {
                 RowPatch::Progress { session, progress }
             }
             "session_branch" => RowPatch::Branch { workspace: text(props, "workspaceId")?, branch: text(props, "branch")? },
+            "session_terminal" => RowPatch::Terminal { session: id()?, in_terminal: props.get("inTerminal")?.as_bool()? },
             "session_checkout" => RowPatch::Checkout {
                 workspace: text(props, "workspaceId")?,
                 state: text(props, "state")?,
@@ -397,6 +438,7 @@ impl RowPatch {
             RowPatch::Progress { session, progress } => {
                 rows.filter(|s| &s.id == session).for_each(|s| s.row.progress = Some(progress.clone()))
             }
+            RowPatch::Terminal { session, in_terminal } => rows.filter(|s| &s.id == session).for_each(|s| s.row.in_terminal = *in_terminal),
             RowPatch::Branch { workspace, branch } => rows.filter(|s| in_workspace(s, workspace)).for_each(|s| s.branch = branch.clone()),
             RowPatch::Checkout { workspace, state, removed_at } => {
                 rows.filter(|s| in_workspace(s, workspace)).for_each(|s| match state.as_str() {

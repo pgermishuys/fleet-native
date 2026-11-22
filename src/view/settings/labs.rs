@@ -18,6 +18,18 @@ struct Spec {
     adds: &'static str,
 }
 
+const TERMINAL_SESSIONS: Spec = Spec {
+    id: "terminal-sessions",
+    title: "Claude Code sessions from a terminal",
+    summary: "A session you start with claude in a terminal shows here, with its turns.",
+    more: "Claude Code starts Fleet's MCP server, fleet mcp, with each session. It tells Fleet the session's ID and folder, and Fleet \
+           reads the turns from the session's transcript. Only a folder in a repository Fleet knows shows. Add the server by hand for \
+           now: claude mcp add --scope user fleet -- fleet mcp.",
+    key: "terminal-sessions-switch",
+    label: "Show Claude Code sessions from a terminal",
+    switch: switches::TERMINAL_SESSIONS,
+    adds: "Terminal sessions in the session list",
+};
 const JOBS: Spec = Spec {
     id: "jobs",
     title: "Jobs",
@@ -123,6 +135,8 @@ pub fn content(s: &State, t: &Theme) -> El {
                 .build(s, t),
         );
     }
+    // Open goes to `/`, the sessions.
+    rows.push(labs_row(s, t, &TERMINAL_SESSIONS, TERMINAL_SESSIONS.summary, on(TERMINAL_SESSIONS.switch), false, go(Rail::Sessions)));
     rows.push(labs_row(s, t, &JOBS, JOBS.summary, on(JOBS.switch), false, go(Rail::Jobs)));
     rows.push(labs_row(s, t, &MISSION_CONTROL, MISSION_CONTROL.summary, on(MISSION_CONTROL.switch), false, go(Rail::Fleet)));
     let search_summary = if memory_on { MEMORY_SEARCH.summary.to_string() } else { format!("Needs Memory on. {}", MEMORY_SEARCH.summary) };

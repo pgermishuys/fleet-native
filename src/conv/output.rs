@@ -288,6 +288,12 @@ pub fn parse_tool_output(raw: &str) -> ParsedOutput {
     ParsedOutput { lines, plain }
 }
 
+/// `plainTerminalText`: words the agent wrote with terminal codes in them (a title, a question, a command), as the plain
+/// text they show. Text with no `ESC` is returned as it is, so blank lines and trailing spaces stay.
+pub fn plain_terminal_text(raw: &str) -> String {
+    if raw.contains('\u{1b}') { parse_tool_output(raw).plain } else { raw.to_string() }
+}
+
 const CACHE_SIZE: usize = 32;
 
 thread_local! {

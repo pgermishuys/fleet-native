@@ -333,7 +333,7 @@ the retry line in `view/conversation.rs`). Gaps, with reasons:
   later:** subscribing to *another* session's topic (4.2's last sentence) is not built; it needs the topic set of piece E
   (row 5.2). The `eventId` argument is read as Vue reads it (any number moves the cursor), but the captured frames carry `0`
   where the payload's own `eventId` is `null`, so a live cursor can read 0: `last_event_id` has no reader yet; piece E decides.
-  Fixture: `tests/fixtures/hub-events-all.jsonl` (64 frames, invented content, shapes from `domain-events.ts` payloads, not
+  Fixture: `tests/fixtures/hub-events-all.jsonl` (64 frames, 65 since `session_terminal` joined in 26 D; invented content, shapes from `domain-events.ts` payloads, not
   captured: the fields beyond the ones the reducer reads are placeholders).
 - Tests to port: none exist in Fleet for the dispatch itself. New tests here: every type in the union parses; an
   unknown type is kept as `Unknown`; a malformed frame between two good ones leaves both applied.

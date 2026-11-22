@@ -39,6 +39,10 @@ pub enum Case {
     Sending,
     /// Finished with no recorded answers, and not an error: nothing draws but the message.
     Bare,
+    /// Words made from coloured shell output, terminal codes and all (Fleet #1036): waiting, answered and skipped.
+    Coloured,
+    ColouredAnswered,
+    ColouredSkipped,
 }
 
 fn questions(case: Case) -> Vec<Value> {
@@ -61,6 +65,9 @@ fn questions(case: Case) -> Vec<Value> {
             vec![db(json!({}))]
         }
         Case::NoCustom => vec![db(json!({"custom": false}))],
+        Case::Coloured | Case::ColouredAnswered | Case::ColouredSkipped => vec![json!({"header": "\u{1b}[1mBuild\u{1b}[0m",
+            "question": "\u{1b}[31mTests failed\u{1b}[0m: retry?",
+            "options": [{"label": "\u{1b}[32mRetry\u{1b}[0m", "description": "\u{1b}[2mRuns again\u{1b}[0m"}]})],
         Case::Multiple => vec![json!({"header": "Checks", "question": "Which checks should run before each merge?", "multiple": true,
             "options": [
                 {"label": "Unit tests", "description": "Fast, run on every push"},
@@ -92,7 +99,8 @@ fn state(case: Case) -> (&'static str, Value) {
             "completed",
             json!({"metadata": {"answers": [["Dedicated runner for preview builds, kept warm so nothing waits, billed by the minute"]]}}),
         ),
-        Case::Skipped => ("error", json!({})),
+        Case::ColouredAnswered => ("completed", json!({"metadata": {"answers": [["Retry"]]}})),
+        Case::Skipped | Case::ColouredSkipped => ("error", json!({})),
         Case::Bare => ("completed", json!({})),
         _ => ("pending", json!({})),
     };

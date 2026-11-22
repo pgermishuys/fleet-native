@@ -30,6 +30,9 @@ pub const BOARD: Switch = Switch { key: "features.board.enabled", default_on: fa
 
 /// Off unless turned on (Labs): other machines' sessions update as they change.
 pub const LIVE_MACHINES: Switch = Switch { key: "LiveMachines", default_on: false };
+/// Off unless turned on (Labs): Claude Code sessions started in a terminal show in the session list. The server keeps them;
+/// this app only lists what it sends (`lib/terminal-sessions.ts`).
+pub const TERMINAL_SESSIONS: Switch = Switch { key: "TerminalSessions", default_on: false };
 /// Off unless turned on (Labs).
 pub const JOBS: Switch = Switch { key: "Jobs", default_on: false };
 /// Off unless turned on (Labs): the Fleet screen in the rail, and the first screen.
