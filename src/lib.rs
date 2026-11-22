@@ -75,6 +75,8 @@ mod tests_automations_when;
 #[cfg(test)]
 mod tests_automations_workflow;
 #[cfg(test)]
+mod tests_board_page;
+#[cfg(test)]
 mod tests_board_store;
 #[cfg(test)]
 mod tests_browser;
@@ -1873,6 +1875,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_summary(now, tx)
         | s.keep_analytics(now, tx)
         | s.keep_board()
+        | s.keep_board_toast(now, tx)
         | s.keep_mission(now, tx)
         | s.keep_jobs(now, tx)
         | s.keep_settings_anchor(tx)
@@ -2055,7 +2058,9 @@ fn on_key(s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool {
     {
         return true;
     }
-    if ev.is_command('j') && !ev.mods.shift {
+    if s.board_key(ev, tx) {
+        // Cmd/Ctrl+Shift+E on the Board: Edit Board / Save.
+    } else if ev.is_command('j') && !ev.mods.shift {
         s.toggle_terminal(tx);
     } else if ev.is_command('k') {
         ui::palette::toggle(s, tx);
@@ -2774,6 +2779,15 @@ pub fn spec() -> AppSpec<State> {
             ("jobs-new-no-repos-light", |s| s.show_new_job(mock::jobs::NewCase::NoRepositories, false)),
             ("settings-machines-job-seats", |s| s.show_machine_job_seats(true)),
             ("settings-machines-job-seats-light", |s| s.show_machine_job_seats(false)),
+            // Component 23, piece L: the Board's page and its states.
+            ("board-loading", |s| s.show_board(mock::board::Case::Loading, true)),
+            ("board-loading-light", |s| s.show_board(mock::board::Case::Loading, false)),
+            ("board-empty", |s| s.show_board(mock::board::Case::Empty, true)),
+            ("board-empty-light", |s| s.show_board(mock::board::Case::Empty, false)),
+            ("board-error", |s| s.show_board(mock::board::Case::Failed, true)),
+            ("board-error-light", |s| s.show_board(mock::board::Case::Failed, false)),
+            ("board-synced", |s| s.show_board(mock::board::Case::Synced, true)),
+            ("board-synced-light", |s| s.show_board(mock::board::Case::Synced, false)),
             ("jobs-off", |s| labs_off_scene(s, true, Rail::Jobs)),
             ("jobs-off-light", |s| labs_off_scene(s, false, Rail::Jobs)),
             ("board-off", |s| labs_off_scene(s, true, Rail::Board)),

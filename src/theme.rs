@@ -171,6 +171,16 @@ impl Theme {
         c("#f59e0b")
     }
 
+    /// The Board's sync toast and error banner (`.kanban-toast`, `.kanban-banner`): literals in Fleet, the same in both themes.
+    /// Each is (ink, border, fill): `#dbeafe` on blue, `#fecaca` on red.
+    pub fn board_toast(&self) -> (Color, Color, Color) {
+        (c("#dbeafe"), c("#60a5fa").alpha(0.4), c("#1e40af").alpha(0.2))
+    }
+
+    pub fn board_banner(&self) -> (Color, Color, Color) {
+        (c("#fecaca"), c("#f87171").alpha(0.4), c("#7f1d1d").alpha(0.22))
+    }
+
     /// The Files tree's change badges (`.file-browser-tree-node__badge--green|orange|red`): fixed hex in Fleet, not tokens, so the
     /// same in both themes. Added, modified, deleted.
     pub fn badge_added(&self) -> Color {

@@ -122,3 +122,20 @@ pub fn bar_lead(t: &Theme, key: &str, lead: Vec<El>, actions: Vec<El>) -> El {
         .child(col().grow(1.0).shrink().min_w(224.0).children(lead))
         .child(row().ml(0.0).gap(8.0).center_y().flex_wrap().justify_end().children(actions))
 }
+
+/// `bar` with its eyebrow (`.page-header__eyebrow`: 10.5 px, 600, upper case, 0.05em apart, muted, 6 below), the title (it
+/// wraps anywhere, as a board's long name does) and the line under it (`description`), the `actions` at the end.
+pub fn bar_eyebrow(t: &Theme, key: &str, eyebrow: &str, title: &str, description: &str, actions: Vec<El>) -> El {
+    let eyebrow = text(eyebrow.to_uppercase())
+        .key(format!("{key}-eyebrow"))
+        .font(sans(rem(0.75), 600.0, 1.5).tracking(0.05 * rem(0.75)))
+        .color(t.muted)
+        .mb(6.0);
+    let heading = text(title.to_string())
+        .key(format!("{key}-title"))
+        .font(sans(rem(1.5), 600.0, 1.25).tracking(-0.525))
+        .color(t.text)
+        .wrap_anywhere();
+    let line = text(description.to_string()).key(format!("{key}-description")).font(sans(rem(0.875), 400.0, 1.5)).color(t.muted).wrap();
+    bar_lead(t, key, vec![row().child(eyebrow), heading, row().mt(4.0).child(line)], actions)
+}

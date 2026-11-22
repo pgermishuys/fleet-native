@@ -66,6 +66,8 @@ pub struct BoardStore {
     pub pending: usize,
     pub mode: Mode,
     pub filters: Filters,
+    /// The page's own state: Sync now and its toast.
+    pub page: super::page::BoardPage,
     /// See `MockAnswers`; used only with no server.
     pub mock_answers: MockAnswers,
     /// The Board has been shown once with its switch on, so the one load has started (15.8).
