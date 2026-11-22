@@ -2733,3 +2733,4 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 ## Component 20, piece K (the sweep)
 
 - A scripted run answers a save dialog with `{"type":"file-dialog","path":…}` (`file-dialog-cancel` cancels), so Export CSV can be walked live and the saved file compared with the server's.
+- **Walking a live Fleet headlessly:** `--script` taps by key (`rail-github`, `github-bookmark-<owner>/<repo>`, `github-row-<owner>/<repo>#<n>`) and a final `{"type":"move","key":…}` onto a neutral element keeps the rail tooltip and a row's hover tooltip out of the picture; a menu left open (the Label popover) is shot by not moving the pointer away. Run it with `LD_LIBRARY_PATH` from `env.sh` or the binary does not start.
