@@ -80,6 +80,11 @@ impl State {
     /// Reads who can reach the desktop app (`useMachineReach.load`). Without an answer the page behaves as for a Fleet that can't
     /// change it.
     pub fn load_reach(&mut self, _tx: &mut Tx) {
+        self.read_reach();
+    }
+
+    /// `load_reach` for a caller with no `Tx` (the page's visit, run from `poll`).
+    pub fn read_reach(&mut self) {
         let Some(link) = self.link.clone() else { return };
         link.off_thread(reach::load, |s, _, result| s.machine_data.reach = result.ok().flatten());
     }

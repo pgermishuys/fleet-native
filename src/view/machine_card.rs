@@ -6,6 +6,7 @@ use crate::fleet::machine_actions::{RENAME_FIELD, TOKEN_FIELD, parse_agent_work}
 use crate::fleet::machine_card::{Card, Tone};
 use crate::fleet::machine_diagnosis::{Diagnosis, StepState};
 use crate::fleet::machines::AgentWork;
+use crate::fleet::machines::reach::Tone as ReachTone;
 use crate::icons::{CHECK, CHEVRON_DOWN, CHEVRON_RIGHT, CIRCLE, CIRCLE_ALERT, X};
 use crate::theme::{RADIUS_BTN, Theme, mono, sans};
 use crate::ui::rem;
@@ -284,6 +285,10 @@ pub fn card(s: &State, t: &Theme, c: &Card) -> El {
     if let Some(list) = super::machine_addresses::list(s, t, c) {
         names = names.child(list);
     }
+    if let Some(line) = &c.reach {
+        let ink = if line.tone == ReachTone::Out { t.error_text } else { t.muted };
+        names = names.child(text(line.text.clone()).key(format!("machine-reach-line-{}", c.key)).font(small).color(ink).wrap().w_full());
+    }
     if let Some(line) = &c.capabilities {
         let mut e = text(line.clone()).key(format!("machine-capabilities-{}", c.key)).font(small).color(t.muted).wrap().w_full();
         if let Some(versions) = &c.versions {
@@ -314,6 +319,12 @@ pub fn card(s: &State, t: &Theme, c: &Card) -> El {
             actions = actions
                 .child(plain_button(t, format!("machine-open-{}", c.key), "Work here").on_press(move |s: &mut State| s.work_here(&open)));
         }
+        let manage = c.key.clone();
+        actions = actions.child(
+            plain_button(t, format!("machine-manage-{}", c.key), "Manage")
+                .label(format!("{}'s page", c.name))
+                .on_press(move |s: &mut State| s.manage_machine(&manage)),
+        );
         actions = actions.child(
             plain_button(t, format!("machine-rename-{}", c.key), "Rename")
                 .on_press_tx(move |s: &mut State, tx: &mut Tx| s.start_card_rename(&rename, tx)),

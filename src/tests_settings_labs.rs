@@ -30,6 +30,14 @@ fn doesn_t_offer_to_keep_machines_live_with_only_this_one() {
 }
 
 #[test]
+fn has_no_your_fleet_switch_it_is_always_on() {
+    let r = rig(&[]);
+    assert!(r.info("labs-section").is_some());
+    assert!(r.info("your-fleet-switch").is_none());
+    assert!(!r.words().contains("Your Fleet"));
+}
+
+#[test]
 fn offers_it_off_once_there_s_another_machine_and_saves_the_choice() {
     let mut r = rig_with_machines(&[]);
     assert_eq!(r.info("live-machines-switch").unwrap().label.as_deref(), Some("Keep every machine live"));

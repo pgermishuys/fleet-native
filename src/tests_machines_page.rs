@@ -140,7 +140,10 @@ fn asks_before_forgetting_a_machine_and_keeps_it_when_cancelled() {
     let mut rt = page();
     click(&mut rt, "machine-forget-m-falcon");
     let c = rt.state.ui.confirm.as_ref().expect("asked");
-    assert_eq!((c.title.as_str(), c.confirm_label.as_str(), c.destructive), ("Forget falcon?", "Forget machine", true));
+    assert_eq!(
+        (c.title.as_str(), c.confirm_label.as_str(), c.destructive),
+        ("Forget falcon on every machine in your Fleet?", "Forget falcon", true)
+    );
     click(&mut rt, "confirm-cancel");
     assert!(rt.state.ui.confirm.is_none());
     assert!(exists(&rt, "machine-card-m-falcon"), "cancelled: the machine stays");
@@ -356,4 +359,94 @@ fn the_access_is_read_once_per_visit_and_a_missing_one_is_said() {
     rig.rt.frame(FRAME);
     rig.wait("the access answer", |s| s.machine_page.access == AccessState::Unavailable);
     assert!(words(&rig.rt, "machine-access-note").contains("doesn't hand out access tokens"));
+}
+
+// ── the list (26 F) ────────────────────────────────────────────────────────────
+
+fn address(url: &str, kind: crate::fleet::machine::Kind) -> crate::fleet::machine::Address {
+    crate::fleet::machine::Address { url: url.into(), kind, learned: true, last_result: None, last_tried_at: None }
+}
+
+fn reach_state(mode: crate::fleet::machines::reach::ReachMode) -> crate::fleet::machines::reach::ReachState {
+    crate::fleet::machines::reach::ReachState {
+        available: true,
+        mode,
+        own_address: None,
+        own_port: 6262,
+        listening: vec![],
+        found: vec![],
+        tailscale: None,
+    }
+}
+
+#[test]
+fn gives_every_machine_a_line_on_how_a_phone_reaches_it_and_takes_out_let_other_devices_reach() {
+    use crate::fleet::machine::Kind;
+    use crate::fleet::machines::reach::ReachMode;
+    let mut rt = page();
+    rt.update(|s, _| {
+        if let Some(m) = s.machines.list.iter_mut().find(|m| m.id == "m-falcon") {
+            m.addresses = vec![address("http://falcon.tail4f2a.ts.net:6262", Kind::Tailnet)];
+        }
+        s.machine_data.reach = Some(reach_state(ReachMode::Home));
+    });
+    rt.frame(FRAME);
+    assert_eq!(words(&rt, "machine-reach-line-m-falcon"), "Only on Tailscale");
+    assert_eq!(
+        words(&rt, &format!("machine-reach-line-{}", crate::fleet::settings::HOME_MACHINE_KEY)),
+        "Reaches your phone on the home network"
+    );
+    let all: String = rt.elements().iter().filter_map(|e| e.text.clone()).collect();
+    assert!(all.contains(
+        "A machine is anywhere Fleet runs: the desktop app, or a server running fleet node. Your phone and browsers look at them."
+    ));
+    assert!(all.contains("Your machines"), "the group is named for what it lists");
+    assert!(!all.contains("Let other devices reach"), "the token card is Who can reach it, on home's own page");
+}
+
+#[test]
+fn a_machine_that_stopped_answering_says_so_in_the_error_colour() {
+    let mut rt = page();
+    rt.update(|s, _| {
+        s.machines.others.entry("m-falcon".into()).or_default().error = Some("down".into());
+    });
+    rt.frame(FRAME);
+    let line = card_of(&rt, "m-falcon").reach.unwrap();
+    assert!(line.text.starts_with("Off since "), "the last read's time, as Fleet says it: {}", line.text);
+    rt.update(|s, _| s.machines.others.entry("m-falcon".into()).or_default().loaded_at = None);
+    let line = card_of(&rt, "m-falcon").reach.unwrap();
+    assert_eq!(line.text, "Not reachable");
+    assert_eq!(line.tone, crate::fleet::machines::reach::Tone::Out);
+}
+
+#[test]
+fn forgetting_a_machine_saying_it_reaches_every_machine() {
+    let mut rt = page();
+    click(&mut rt, "machine-forget-m-falcon");
+    let c = rt.state.ui.confirm.as_ref().expect("asked");
+    assert_eq!(c.title, "Forget falcon on every machine in your Fleet?");
+    assert_eq!(c.confirm_label, "Forget falcon");
+    assert!(c.destructive);
+    assert!(c.body.starts_with("Every machine drops it from its list and its keys stop working, even on machines that are off now"));
+    click(&mut rt, "confirm-cancel");
+    // An SSH machine keeps the old words: only this device lists it.
+    rt.update(|s, _| {
+        if let Some(m) = s.machines.list.iter_mut().find(|m| m.id == "m-falcon") {
+            m.ssh_destination = Some("maya@falcon.example".into());
+        }
+    });
+    rt.frame(FRAME);
+    click(&mut rt, "machine-forget-m-falcon");
+    let c = rt.state.ui.confirm.as_ref().expect("asked");
+    assert_eq!((c.title.as_str(), c.confirm_label.as_str()), ("Forget falcon?", "Forget machine"));
+}
+
+#[test]
+fn manage_opens_the_machines_own_page_and_work_here_is_not_on_the_live_machine() {
+    let mut rt = page();
+    let home = crate::fleet::settings::HOME_MACHINE_KEY;
+    assert!(!exists(&rt, &format!("machine-open-{home}")), "the live machine has no Work here");
+    assert!(exists(&rt, "machine-open-m-falcon"));
+    click(&mut rt, "machine-manage-m-falcon");
+    assert_eq!(rt.state.machine_page.managing.as_deref(), Some("m-falcon"));
 }
