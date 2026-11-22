@@ -407,6 +407,8 @@ mod tests_workflow_detail;
 #[cfg(test)]
 mod tests_workflow_editor;
 #[cfg(test)]
+mod tests_workflow_file;
+#[cfg(test)]
 mod tests_workflow_finish;
 #[cfg(test)]
 mod tests_workflow_frame;
@@ -1866,6 +1868,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_terminal(tx)
         | s.keep_browser(tx)
         | s.keep_workflows(tx)
+        | s.keep_workflow_field()
         | s.keep_workflow_editor(now, tx)
         | s.keep_workflow_frame(now, tx)
         | s.keep_automations(tx);
@@ -2781,6 +2784,10 @@ pub fn spec() -> AppSpec<State> {
             ("workflow-editor-blocked-light", |s| s.show_workflow_editor(false, mock::workflow_editor::Case::Blocked)),
             ("workflow-editor-saved", |s| s.show_workflow_editor(true, mock::workflow_editor::Case::Saved)),
             ("workflow-editor-saved-light", |s| s.show_workflow_editor(false, mock::workflow_editor::Case::Saved)),
+            ("workflow-file", |s| s.show_workflow_editor(true, mock::workflow_editor::Case::File)),
+            ("workflow-file-light", |s| s.show_workflow_editor(false, mock::workflow_editor::Case::File)),
+            ("workflow-file-errors", |s| s.show_workflow_editor(true, mock::workflow_editor::Case::FileErrors)),
+            ("workflow-file-errors-light", |s| s.show_workflow_editor(false, mock::workflow_editor::Case::FileErrors)),
             ("workflow-stepper", |s| s.show_workflow_stepper(true, mock::workflow_stepper::Case::Stepper)),
             ("workflow-stepper-light", |s| s.show_workflow_stepper(false, mock::workflow_stepper::Case::Stepper)),
             ("workflow-stepper-note", |s| s.show_workflow_stepper(true, mock::workflow_stepper::Case::Note)),

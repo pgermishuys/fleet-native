@@ -28,6 +28,8 @@ pub struct Frame {
     asked: Option<(String, String, String)>,
     /// The page was open at the last frame, so leaving it is seen once.
     on_page: bool,
+    /// The File view's field (`file_field`).
+    pub field: super::file_field::Field,
 }
 
 impl Frame {

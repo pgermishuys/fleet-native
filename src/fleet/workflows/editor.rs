@@ -102,6 +102,11 @@ pub struct Editor {
 }
 
 impl Editor {
+    /// The machine the open file is on.
+    pub fn machine(&self) -> &str {
+        &self.machine
+    }
+
     pub fn errors(&self) -> &[super::draft::WorkflowProblem] {
         self.check.as_ref().map(|c| c.errors.as_slice()).unwrap_or(&[])
     }

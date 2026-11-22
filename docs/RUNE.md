@@ -2797,3 +2797,14 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 - **`border_sides` is CSS order** (top, right, bottom, left) and takes no layout room unless `.border_layout()` follows.
 - **A toast over a column**: a row with `pin(Some(l), None, Some(r), Some(bottom))` and `justify_center` centres a pill without a wrapper (seen in the scene).
 - **An alert dialog Escape can't close** (Fleet's `:open`-only dialogs): give `Dialog::dismiss` a function that does nothing.
+
+## Component 18, piece N (the File view)
+
+- **Component 11's editor works on a buffer that is no session's file by giving it a session of its own.** `file_buffers` keys a buffer by (machine, session, path), so the workflow file lives under the session name `FIELD_SESSION`, which no
+  session has: the code view, its keys, the caret, the history and the colours then work unchanged (`FileBuffers::load_text` makes it, `take_text` reads it back and marks it clean, so it is never "unsaved" to the app's own guards).
+  What it took: `code_edit_target` and `edit_surface` answer for the field first (`workflow_field_target`), Ctrl/Cmd+S in `code_edit_key` goes to the workflow's Save, and `Marks::error_line` tints the parser's lines. The field has no file tab, so
+  nothing else of component 11 (Find, the changes lists, the pick bar) sees it.
+- **Typing goes to the workflow editor's text by a once-a-frame diff** (`keep_workflow_field` in `poll`): the buffer's text against the last text both sides agreed on. A change on the buffer's side is `edit_text`; a change of the editor's text under it (a reload, a save) replaces the document, as `watch(content)` does in Fleet, and the caret and history go with it.
+- **A virtual row list's `version` has to carry whatever a row reads besides its text**: the error lines are in it, or a check answering would not redraw the tinted rows.
+- **A buffer made again must not restart its revision at 1**: the code view caches colours and the stripe by (machine, session, path, revision), so a field opened a second time (or a second scene) with another text under the same number drew with the first one's colours, and indexed past its lines. `FileBuffers::load_text` gives each load a range of its own.
+- **Known gap (component 11's colours):** Rune's YAML grammar tags plain scalars as strings (green), where Fleet's legacy YAML mode leaves them in the text colour; the keys, comments and brackets match.

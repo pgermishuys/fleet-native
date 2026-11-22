@@ -306,9 +306,9 @@ ones with the theme toggled by the script (Cmd+Shift+L) in a scratch data folder
 
 | # | Fleet | Source | Native |
 |---|---|---|---|
-| 13.1 | The file's text in CodeMirror: line numbers, history, indent on input, close brackets, the active line, Fleet's editor theme, YAML highlighting (`workflow.yaml`), Tab indents, `aria-label` "Workflow file" | WFE | None (N; component 11's editor) |
-| 13.2 | Lines with a parser error are marked (`wf-file__error-line`) | WFE `errorField` | None (N) |
-| 13.3 | Mod-S saves; text set from outside (a reload, a save) replaces the document | WFE | None (N) |
+| 13.1 | The file's text in CodeMirror: line numbers, history, indent on input, close brackets, the active line, Fleet's editor theme, YAML highlighting (`workflow.yaml`), Tab indents, `aria-label` "Workflow file" | WFE | Done (N): component 11's editor over a buffer of its own (`file_field.rs`): line numbers, history, indent, close brackets, the active line (also while the field has no keyboard), YAML colours by the file's name, Tab. **Gaps:** plain YAML scalars draw green (Rune's grammar calls them strings; Fleet's mode leaves them in the text colour); no `aria-label` on the text itself (the wrapper says "Workflow file"); the 10 px above and below the lines are outside the scroll, not inside it |
+| 13.2 | Lines with a parser error are marked (`wf-file__error-line`) | WFE `errorField` | Done (N): `Marks::error_line` tints the line at 16 % of `--error`, once per line however many errors |
+| 13.3 | Mod-S saves; text set from outside (a reload, a save) replaces the document | WFE | Done (N): Ctrl/Cmd+S in the field is the Save button; a text set from outside replaces the document (`keep_workflow_field`) |
 | 13.4 | Typing edits the text; the server checks 300 ms after the last key (`CHECK_DELAY_MS`), a newer check cancels an older one; a check failure shows as a save error | UWE `editText`, `scheduleCheck`, `runCheck` | Done (L): `Editor::edit_text`, `keep_workflow_editor` (the 300 ms from `poll`'s clock), a run number so an overtaken check is dropped; a failure is `save_error` |
 | 13.5 | Switching views checks what's waiting first; to File takes the check's text when the designer was edited last; to Designer takes the check's draft, or refuses with the blocked banner when there's none | UWE `setView`, `flush` | Done (L): `workflow_editor_set_view` checks what's waiting first (the held switch runs when the answer lands); the blocked words are `DESIGNER_BLOCKED_MESSAGE` |
 | 13.6 | Opens in the File view when the designer can't show the file (`check.draft` null) | UWE `open` | Done (L): `workflow_editor_open` and `Editor::adopt` pick File when `check.draft` is none |
@@ -732,6 +732,8 @@ mark after Move on, beside Fleet's own client, both themes. **Left open, with re
   live, both themes.
 
 #### N. The File view
+
+**Done (22 November 2026).** Rows 13.1-13.3 are marked above. State: `src/fleet/workflows/file_field.rs`; view: the File body in `src/view/workflows/editor.rs`; the buffer, key and mark hooks are in `fleet::code_editing`, `fleet::file_buffers` and `view::code_view` (what it took is in `docs/RUNE.md`). Tests: `src/tests_workflow_file.rs` (six native). Scenes: `workflow-file`, `workflow-file-errors`, each with a `-light` twin. Pictures: `shots/parity/18-workflows/n-file-view/`.
 
 - **Rows:** 13.1-13.3.
 - **Files:** `src/view/workflows/editor.rs` (the File body) on component 11's `fleet::code_edit` and `view::code_edit`

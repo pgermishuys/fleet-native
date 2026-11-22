@@ -476,6 +476,27 @@ impl FileBuffers {
         self.buffers.entry(key(machine, session, path)).or_default()
     }
 
+    /// A buffer that is not a file of a session: the text is its content, read at once, and it is never "unsaved" for the app's own
+    /// guards (its owner keeps the text, as the workflow editor keeps its file's). Replaces what the buffer held, history and all.
+    pub fn load_text(&mut self, machine: &str, session: &str, path: &str, text: &str) {
+        let buffer = self.buffers.entry(key(machine, session, path)).or_default();
+        buffer.load(&DiskFile::new(Some(text), "held-elsewhere"));
+        // The colours and the stripe are cached by revision, which a buffer made again would count from the start: another text
+        // under the same number. Each load takes a range of its own, as many edits wide as a file will see.
+        static EPOCH: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+        buffer.rev = EPOCH.fetch_add(1, std::sync::atomic::Ordering::Relaxed) << 24;
+        buffer.info.status = Status::Ready;
+        buffer.info.message = None;
+        buffer.info.dirty = false;
+    }
+
+    /// The text of a buffer made by [`FileBuffers::load_text`] as it is now, edits and all; and marks it clean again.
+    pub fn take_text(&mut self, machine: &str, session: &str, path: &str) -> Option<String> {
+        let buffer = self.buffers.get_mut(&key(machine, session, path))?;
+        buffer.mark_saved("held-elsewhere", None);
+        Some(buffer.disk_text())
+    }
+
     /// Changes what is set; `false` when nothing was different, so the info stays as it was (`patch`).
     pub fn patch(&mut self, machine: &str, session: &str, path: &str, next: Patch) -> bool {
         let Some(buffer) = self.buffers.get_mut(&key(machine, session, path)) else { return false };

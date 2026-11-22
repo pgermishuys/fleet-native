@@ -18,6 +18,10 @@ pub enum Case {
     Blocked,
     /// A save just done: the toast.
     Saved,
+    /// The File view of the file as it is (piece N).
+    File,
+    /// The File view with a typing mistake: two lines the parser marks, and the problems under them.
+    FileErrors,
 }
 
 const TEXT: &str = "name: Tidy up a flaky test\ndescription: Finds why a test passes and fails on the same code.\nsteps:\n  - id: find\n    title: Find the cause\n    model: strong\n    skill: fleet-debug\n  - id: steady\n    title: Make it steady\n    model: standard\n  - id: check\n    title: Run it many times\n    model: fast\n    optional: true\n";
@@ -103,6 +107,31 @@ impl State {
                     "Saved .weave/workflows/tidy-up-a-flaky-test.yaml. Commit it with your other changes to share it. 2 runs in progress keep the version they started with.".into(),
                     3600.0,
                 ));
+            }
+            Case::File => ed.view = EditorView::File,
+            Case::FileErrors => {
+                ed.view = EditorView::File;
+                ed.text = TEXT
+                    .replace("    model: standard\n", "    modle: standard\n")
+                    .replace("    skill: fleet-debug\n", "    skill fleet-debug\n");
+                ed.source = Some(Source::Text);
+                ed.check = Some(WorkflowCheck {
+                    text: ed.text.clone(),
+                    errors: vec![
+                        WorkflowProblem {
+                            line: 7,
+                            message: "This line isn't a key and a value: add the colon after skill.".into(),
+                            step: None,
+                        },
+                        WorkflowProblem {
+                            line: 10,
+                            message: "Unknown field \"modle\" on a step. Did you mean model?".into(),
+                            step: Some(1),
+                        },
+                    ],
+                    draft: None,
+                    comments: Vec::new(),
+                });
             }
             Case::Edited => {}
         }
