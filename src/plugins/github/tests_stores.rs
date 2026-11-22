@@ -20,6 +20,8 @@ pub(super) struct Fake {
     pub(super) log: Vec<(String, String, Value)>,
     /// The next request to one of these paths waits for a message first.
     gates: HashMap<String, Arc<Mutex<Receiver<()>>>>,
+    /// The paths answered so far, in order: a gated one is here only once its answer has been written.
+    pub(super) answered: Vec<String>,
 }
 
 pub(super) type Shared = Arc<Mutex<Fake>>;
@@ -50,6 +52,7 @@ fn fleet(fake: Shared) -> String {
                     let _ = gate.lock().unwrap().recv_timeout(test_wait::BOUND);
                 }
                 test_http::respond_json(&mut stream, format!("{status} X"), &body);
+                fake.lock().unwrap().answered.push(req.path.clone());
             });
         }
     });

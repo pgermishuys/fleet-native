@@ -135,16 +135,19 @@ fn a_new_number_loads_again_and_a_stale_answer_is_dropped() {
     r.answer("GET", ISSUE, 200, mock::issue_detail());
     let go = r.gate(PULL);
     r.set(|s| at(s, Kind::Pull, 218));
-    r.wait("the first ask", |s| state_ref(&s.places).item.loading);
+    // The app saying it's loading doesn't mean the request has reached Fleet yet: on a slow runner it hadn't, and the count
+    // below read 0. Wait for Fleet to hold it.
+    let fake = r.fake.clone();
+    r.wait("the first ask to reach Fleet", move |_| fake.lock().unwrap().log.iter().any(|(m, p, _)| m == "GET" && p == PULL));
     r.set(|s| at(s, Kind::Issue, 7));
     r.wait("the issue", |s| state_ref(&s.places).item.detail.as_ref().is_some_and(|d| d.summary.number == 7));
     let _ = go.send(());
-    // Wait for the first request to be the one that was answered late, then look again: still the issue.
-    r.wait("both asked", |_| true);
+    // The late answer is written, then the app takes it on a later turn of its queue: drive the queue a while after.
+    let fake = r.fake.clone();
+    r.wait("the late answer", move |_| fake.lock().unwrap().answered.iter().any(|p| p == PULL));
+    let until = std::time::Instant::now() + std::time::Duration::from_millis(300);
+    r.wait("the late answer to be taken", move |_| std::time::Instant::now() >= until);
     assert_eq!(r.asked("GET", PULL), 1);
-    for _ in 0..30 {
-        r.rt.frame(0.05);
-    }
     let shown = state_ref(&r.rt.state.places).item.detail.as_ref().map(|d| d.summary.number);
     assert_eq!(shown, Some(7), "the answer for the old item doesn't replace the new one");
 }
