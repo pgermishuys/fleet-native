@@ -494,7 +494,8 @@ jobs:
           spctl --assess --type open --context context:primary-signature --verbose=2 dist/fleet-native-macos-arm64.dmg
       - name: Not signed (macOS)
         if: runner.os == 'macOS' && env.HAS_APPLE_CERTIFICATE != 'true'
-        run: echo "not signed: APPLE_CERTIFICATE is not set (the app is signed ad hoc and not notarised)"
+        run: |
+          echo "not signed: APPLE_CERTIFICATE is not set (the app is signed ad hoc and not notarised)"
       - name: Mount the package and run the app (macOS)
         if: runner.os == 'macOS'
         run: bash scripts/check-mac-dmg.sh dist/fleet-native-macos-arm64.dmg server-staged target/release/examples/check-bundled-server shots/out-mac
