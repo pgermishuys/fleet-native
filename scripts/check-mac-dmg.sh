@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Mounts the .dmg (best effort: the runners' disk-image service is flaky, so a mount that never works warns and passes,
 # the staged app was already proven by make-mac-app.sh), checks the volume's title, the Applications link and the app
-# inside (scripts/check-mac-app.sh), then runs the app from the image on scratch data and grabs the screen.
+# inside (scripts/check-mac-app.sh), then runs the app from the image on scratch data and grabs the screen, and runs the
+# smoke test (scripts/smoke-desktop.sh) on it.
 #   scripts/check-mac-dmg.sh <.dmg> <staged server> <check-bundled-server binary> <picture folder>
 set -uo pipefail
 dmg="${1:?dmg}"; server="${2:?server}"; checker="${3:?checker}"; shots="${4:?picture folder}"
@@ -50,3 +51,8 @@ screencapture -x "$shots/app-window.png" 2>&1 || echo "::warning::screencapture 
 kill "$pid" 2> /dev/null; wait "$pid" 2> /dev/null
 rm -rf "$data"
 [ "$up" = 1 ] || fail "the app run from the image never started its Fleet"
+
+# The package's smoke run (row 25.41): the app from the image starts its own Fleet, lists a repository, is killed hard, its
+# Fleet stops, and it starts again on the same data (scripts/smoke-desktop.sh).
+echo "== smoke test of the app in the image"
+SMOKE_SHOT="$shots/smoke-window.png" bash "$root/scripts/smoke-desktop.sh" "$app/Contents/MacOS/fleet-native" || fail "the smoke test of the app in the image"

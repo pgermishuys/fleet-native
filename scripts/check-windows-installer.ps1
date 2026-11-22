@@ -3,13 +3,19 @@
 # gone and what stays. Writes to the current user's Start menu and HKCU while it runs, and removes both.
 #
 #   scripts/check-windows-installer.ps1 -Setup <setup.exe> -Exe <the fleet-native.exe it carries> -Build <n>
-#       -Server <staged server folder> -Checker <check-bundled-server.exe>
+#       -Server <staged server folder> [-Checker <check-bundled-server.exe>] [-Smoke [-Shot <picture.png>]]
+#
+# With no -Checker (verify-release.yml has no Rust build), the server is compared file by file by hash: on Windows nothing
+# re-signs it, so that is check-bundled-server's rule there.
+# -Smoke also runs scripts/smoke-desktop.ps1 on the installed app (row 25.41), and -Shot pictures its window.
 param(
     [Parameter(Mandatory)] [string] $Setup,
     [Parameter(Mandatory)] [string] $Exe,
     [Parameter(Mandatory)] [int] $Build,
     [Parameter(Mandatory)] [string] $Server,
-    [Parameter(Mandatory)] [string] $Checker
+    [string] $Checker = '',
+    [switch] $Smoke,
+    [string] $Shot = ''
 )
 $ErrorActionPreference = 'Stop'
 $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\FleetNative'
@@ -29,8 +35,16 @@ function Check-Installed {
     "installed: $top"
     if ($top -ne "fleet, fleet-native.exe, README.md, $uninstaller") { throw "unexpected files in the install folder: $top" }
     if ((Get-FileHash (Join-Path $dir 'fleet-native.exe')).Hash -ne (Get-FileHash $Exe).Hash) { throw 'the installed exe is not the one packed' }
-    & $Checker $Server $dir
-    if ($LASTEXITCODE -ne 0) { throw 'the installed server is not the pinned one' }
+    if ($Checker) {
+        & $Checker $Server $dir
+        if ($LASTEXITCODE -ne 0) { throw 'the installed server is not the pinned one' }
+    } else {
+        $want = Get-ChildItem $Server -Recurse -File | ForEach-Object { $_.FullName.Substring((Resolve-Path $Server).Path.Length) + ' ' + (Get-FileHash $_.FullName).Hash } | Sort-Object
+        $fleet = Join-Path $dir 'fleet'
+        $got = Get-ChildItem $fleet -Recurse -File | ForEach-Object { $_.FullName.Substring($fleet.Length) + ' ' + (Get-FileHash $_.FullName).Hash } | Sort-Object
+        if (($want -join "`n") -ne ($got -join "`n")) { throw 'the installed server is not the one in the package' }
+        "the installed server matches, $($want.Count) files by hash"
+    }
 }
 
 try {
@@ -49,6 +63,14 @@ try {
     $v = (Get-Item $Setup).VersionInfo
     "setup: $($v.ProductName), $($v.FileDescription), $($v.ProductVersion), $($v.CompanyName)"
     if ($v.ProductVersion -ne "0.0.$Build.0") { throw 'the setup does not carry the version' }
+
+    if ($Smoke) {
+        # The installed app as the Start-menu entry starts it: its own Fleet from the fleet folder beside it.
+        $a = @{ App = (Join-Path $dir 'fleet-native.exe') }
+        if ($Shot) { $a.Shot = $Shot }
+        & (Join-Path $PSScriptRoot 'smoke-desktop.ps1') @a
+        if ($LASTEXITCODE -ne 0) { throw 'the installed app failed the smoke test' }
+    }
 
     # Again over it: a file only an older server had goes, the rest is as before.
     Set-Content (Join-Path $dir 'fleet\left-by-an-older-server.txt') 'old'
