@@ -23,14 +23,15 @@ defaults:
 
 jobs:
   check:
-    name: Check (${{ matrix.name }})
+    # Linux's job is not the required "Check (Linux)": that name is the `linux` job below, which also waits for the scenes.
+    name: ${{ matrix.job || format('Check ({0})', matrix.name) }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { name: Linux, os: ubuntu-latest }
+          - { name: Linux, os: ubuntu-latest, job: 'Linux (fmt, lint, test, packages)' }
           - { name: Windows, os: windows-latest }
           - { name: macOS, os: macos-15 }
     steps:
@@ -69,13 +70,12 @@ jobs:
         id: test
         run: cargo test --locked
 
-      # Pull requests draw on Linux only: on Windows and macOS the software renderer already uses every
-      # core for one picture, and Rune draws one scene per start, so this step took 500 s on Windows.
-      # Pushes to main draw on all three systems, but Windows draws every 8th scene (both themes of each):
-      # at ~3.7 s a scene, all ~700 took 41 min and hit the job's timeout, which skipped Publish latest.
-      # Linux draws every scene on pull requests and main; macOS (about 7 min) draws every scene.
+      # Pull requests draw on Linux only, in the "Scenes (Linux)" jobs below (on Windows and macOS the software
+      # renderer already uses every core for one picture, and Rune draws one scene per start, so this step took 500 s
+      # on Windows). Pushes to main draw on Windows and macOS here, but Windows draws every 8th scene (both themes of
+      # each): at ~3.7 s a scene, all ~2100 took 41 min and hit the job's timeout, which skipped Publish latest.
       - name: Draw every scene
-        if: runner.os == 'Linux' || github.event_name != 'pull_request'
+        if: runner.os != 'Linux' && github.event_name != 'pull_request'
         env:
           SNAP_EVERY: ${{ runner.os == 'Windows' && '8' || '1' }}
         run: bash scripts/snap-scenes.sh
@@ -155,7 +155,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload the pictures
-        if: always()
+        if: always() && runner.os != 'Linux'
         uses: actions/upload-artifact@v4
         with:
           name: scenes-${{ matrix.name }}
@@ -172,6 +172,66 @@ jobs:
             ~/.cargo/git/db
             target
           key: check-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+
+  # Linux draws every scene in 4 jobs at once: the picture step was 805 s for 2113 scenes on one 4-core runner that was
+  # already full (one process per scene, 4 at a time), so more workers in one job gained nothing. Each job builds the
+  # debug binary from the same cache as the Linux checks (main saves it) and draws every 4th scene.
+  scenes:
+    name: Scenes (Linux, ${{ matrix.shard }}/4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Linux packages
+        run: |
+          sudo apt-get -o Acquire::Retries=5 update
+          sudo apt-get -o Acquire::Retries=5 install -y libxkbcommon-dev libwayland-dev libwebkit2gtk-4.1-dev libxkbcommon-x11-0 mesa-vulkan-drivers
+      - name: Rust (rust-toolchain.toml)
+        run: rustup show
+      - name: Restore the build cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: check-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+      - name: Draw this share of the scenes
+        env:
+          SNAP_SHARDS: 4
+          SNAP_SHARD: ${{ matrix.shard }}
+        run: bash scripts/snap-scenes.sh
+      - name: Upload the pictures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scenes-Linux-${{ matrix.shard }}
+          path: shots/out/
+          if-no-files-found: warn
+
+  # The required check "Check (Linux)": green only when the Linux job and every share of the scenes succeeded.
+  # `always()` so a failed or cancelled job fails this one instead of skipping it (a skipped required check
+  # counts as passing). `needs.check` is the whole matrix, so a Windows or macOS failure turns this red too; that
+  # run was red anyway, and those two have their own required checks.
+  linux:
+    name: Check (Linux)
+    if: always()
+    needs: [check, scenes]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every job succeeded
+        env:
+          CHECK: ${{ needs.check.result }}
+          SCENES: ${{ needs.scenes.result }}
+        run: |
+          echo "check: $CHECK, scenes: $SCENES"
+          [ "$CHECK" = success ] && [ "$SCENES" = success ]
 
   # A release build of each system's app, to download and try. Not on pull requests.
   package:
@@ -357,7 +417,7 @@ jobs:
   publish:
     name: Publish latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [check, package]
+    needs: [check, scenes, linux, package]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
