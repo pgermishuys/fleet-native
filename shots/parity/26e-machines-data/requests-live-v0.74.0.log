@@ -1,0 +1,8 @@
+# Scratch Fleet v0.74.0 (invented machine 'workbench'), answers read by src/fleet/machines/*
+GET    /api/machines/found          -> []
+GET    /api/machine/screens         -> Ok(Screens { screens: [], not_answering: [] })
+GET    /api/machine/devices         -> Screens { screens: [], not_answering: [] }
+DELETE /api/machine/screens/screen:none -> Ok(())
+POST   /api/machines/join-code      -> Err("workbench only listens on this machine, so a new server can't reach it. Let others reach it first (Settings → Machines), then make a join code.")
+GET    /api/machine/reach           -> Ok(Some(ReachState { available: false, mode: Off, own_address: None, own_port: 6592, listening: [], found: [], tailscale: None }))
+PUT    /api/machine/reach (home)    -> Err("Only the desktop app can change who reaches it. A machine started from a terminal uses --host.")

@@ -4,6 +4,11 @@
 //!
 //! The list is never kept by the app: home keeps it (`GET /api/machines`) and this is a copy of the last answer.
 //! Home is `home` here; another machine's key is its id.
+pub mod data;
+pub mod found;
+pub mod reach;
+pub mod screens;
+
 use super::auth;
 use super::groups::{ProjectInfo, parse_projects};
 use super::machine::Machine;

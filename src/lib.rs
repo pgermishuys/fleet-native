@@ -193,6 +193,8 @@ mod tests_machine_switch;
 #[cfg(test)]
 mod tests_machines;
 #[cfg(test)]
+mod tests_machines_data;
+#[cfg(test)]
 mod tests_machines_page;
 #[cfg(test)]
 mod tests_memory_notice;
@@ -753,6 +755,7 @@ pub struct State {
     pub add_machine_asked: bool,
     /// Settings → Machines: the rename and token fields, what is busy, the access of this machine (`fleet::machine_actions`).
     pub machine_page: fleet::machine_actions::Page,
+    pub machine_data: fleet::machines::data::Data,
     /// The sign-in page, open while the home Fleet is asking for a token (`fleet::sign_in`).
     pub sign_in: fleet::sign_in::SignIn,
     /// The `machine-switch` scene's choice (the views that own a real one are components 16 and 18-23).
@@ -1071,6 +1074,7 @@ impl Default for State {
             terminal_loads: Default::default(),
             add_machine_asked: false,
             machine_page: Default::default(),
+            machine_data: Default::default(),
             sign_in: Default::default(),
             machine_switch_scene: None,
             machine_dir: None,
