@@ -272,8 +272,13 @@ pub fn stream(t: &Theme, which: Which, session: &Session, plan: &FoldPlan, parti
     // The side conversation has no restart card: that is its session's own, not the panel's.
     let working = session.status != Status::Idle;
     let interrupted = session.row.interrupted.is_some() && !side;
+    // The drafts the agent wrote sit after the last reply and before that card (`ModDraftCards` in `ActivityStream.vue`); a side
+    // conversation has none of its own.
+    let drafts = scroll.drafts.clone().filter(|_| !side);
+    let (draft_key, draft_row) = (drafts.clone(), drafts.clone());
+    let with_drafts = usize::from(drafts.is_some());
     let shown = plan.count(session.messages.len());
-    let count = shown + usize::from(interrupted) + usize::from(working);
+    let count = shown + usize::from(drafts.is_some()) + usize::from(interrupted) + usize::from(working);
     let rows =
         col().key(if side { "side-timeline" } else { "timeline" }).w_full().max_w(COLUMN).growth(GrowthSpec::default()).virtual_rows(
             count,
@@ -283,7 +288,8 @@ pub fn stream(t: &Theme, which: Which, session: &Session, plan: &FoldPlan, parti
                 match plan.index(i, session.messages.len()).and_then(|m| session.messages.get(m)) {
                     Some(m) if side => Cow::Owned(format!("side-{}", m.id)),
                     Some(m) => Cow::Borrowed(m.id.as_str()),
-                    None if session.row.interrupted.is_some() && !side && i == plan.count(session.messages.len()) => {
+                    None if draft_key.is_some() && i == plan.count(session.messages.len()) => Cow::Borrowed("mod-drafts"),
+                    None if session.row.interrupted.is_some() && !side && i == plan.count(session.messages.len()) + with_drafts => {
                         Cow::Borrowed("interrupted")
                     }
                     None => Cow::Borrowed(if side { "side-working" } else { "working" }),
@@ -293,8 +299,13 @@ pub fn stream(t: &Theme, which: Which, session: &Session, plan: &FoldPlan, parti
                 let (session, plan) = conv(s, which);
                 let len = session.messages.len();
                 let Some(at) = plan.index(i, len) else {
+                    if let Some(id) = draft_row.as_ref().filter(|_| i == plan.count(len)) {
+                        return super::mods::draft_card::cards(s, &theme, id);
+                    }
                     return match session.row.interrupted.as_ref() {
-                        Some(card) if i == plan.count(len) && !side => col().w_full().child(interrupted::card(&theme, s, card)),
+                        Some(card) if i == plan.count(len) + with_drafts && !side => {
+                            col().w_full().child(interrupted::card(&theme, s, card))
+                        }
                         _ if side => working::side_line(&theme, s),
                         _ => working::line(&theme, s),
                     };
@@ -391,6 +402,8 @@ pub struct Scroll {
     pub find: Option<El>,
     /// The cards of what the agent waits on, after the messages (component 4).
     pub asks: Vec<El>,
+    /// The open session when it has draft mods to show: their cards are the row after the last reply.
+    pub drafts: Option<String>,
     /// Where the box was laid out, with `layout` beside it.
     pub probe: std::rc::Rc<std::cell::Cell<Option<(rune::ScrollPos, u64)>>>,
     /// `State::scroll_layout` when this view was built.
