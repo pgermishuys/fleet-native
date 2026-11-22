@@ -2808,3 +2808,15 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 - **A virtual row list's `version` has to carry whatever a row reads besides its text**: the error lines are in it, or a check answering would not redraw the tinted rows.
 - **A buffer made again must not restart its revision at 1**: the code view caches colours and the stripe by (machine, session, path, revision), so a field opened a second time (or a second scene) with another text under the same number drew with the first one's colours, and indexed past its lines. `FileBuffers::load_text` gives each load a range of its own.
 - **Known gap (component 11's colours):** Rune's YAML grammar tags plain scalars as strings (green), where Fleet's legacy YAML mode leaves them in the text colour; the keys, comments and brackets match.
+
+## Component 22, piece F (panes: the tab, the events, the `+` menu)
+
+- **No scroll padding.** `scroll-padding-inline: 24px` has no Rune equivalent (`scroll_into_view_in` is CSS's `nearest`). While a Draft mark is on a tab, each tab sits in a
+  keyed box 24 px wider on each side, pulled back with a negative margin so layout doesn't change, and the strip reveals that box instead of the tab. With no Draft tab
+  the strip is as before.
+- **No `margin-left: auto`.** The hint at a menu row's end is a `spacer()` with `ml(-8.0)` (it takes back one of the row's two gaps), so it costs no width. A plain
+  `spacer()` between the title and the hint cost 8 px and made a 252 px row truncate its title.
+- **A new tab slides in for 240 ms**, so a test that measures where it lies has to run the clock first (a rect read straight after was 3 px off).
+- **The test build needs about 4 GB** and a build next to another session's was OOM-killed (exit 143 from the scope, `oom-kill` in the journal). Wait for the other
+  `rustc --crate-name fleet_native` to end, or give the scope more (7000M finished).
+

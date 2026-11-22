@@ -21,7 +21,7 @@ pub fn tree_key(site: ToolRowSite, session: &str, call: &str) -> String {
 }
 
 /// Whether `handle` is one of the callbacks a tree holds.
-fn holds(node: &Value, handle: &str) -> bool {
+pub(super) fn holds(node: &Value, handle: &str) -> bool {
     let Some(map) = node.as_object() else { return false };
     map.get("handles").and_then(Value::as_object).is_some_and(|h| h.values().any(|v| v.as_str() == Some(handle)))
         || map.get("children").and_then(Value::as_array).is_some_and(|kids| kids.iter().any(|k| holds(k, handle)))
@@ -107,6 +107,8 @@ impl State {
         for action in std::mem::take(&mut self.mods_ui.pending) {
             if let Some(row) = self.mod_row_of_handle(&action.handle) {
                 self.mod_action(&row.session_id, &row.call_id, action, Surface::Desktop);
+            } else if let Some(pane) = self.mod_pane_of_handle(&action.handle) {
+                self.mod_pane_action(&pane, action);
             }
         }
         true

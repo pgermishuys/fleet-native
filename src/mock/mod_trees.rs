@@ -61,9 +61,65 @@ impl State {
             title: Some(title.into()),
             file: None,
             server: None,
+            mod_pane: None,
         });
         tabs.active_id = format!("mod:{id}-demo@v1:{id}");
         self.canvases.replace(&session, tabs);
         self.set_mod_scene(Some(ModScene { tree, site: Site::Pane, slot: true }));
+    }
+}
+
+/// What the pane scenes show.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum PaneCase {
+    /// The `+` menu open, with "From mods": a pane of a kept mod and a draft's pane.
+    Menu,
+    /// The draft's pane open: its tab carries the compact Draft mark, beside the kept mod's open one.
+    Tab,
+}
+
+impl State {
+    /// A session whose mods declare two panes (invented: `release-board` kept, `deploy-notes` a draft), the `+` menu open or the
+    /// draft's pane open.
+    pub fn show_mod_panes(&mut self, case: PaneCase, dark: bool) {
+        use crate::fleet::mods::points::ModTreeView;
+        use crate::fleet::mods::renders::DeclaredPane;
+        use crate::fleet::mods::types::Author;
+        self.show_chips(super::context::Case::Chips, dark);
+        self.content_open = true;
+        let session = self.canvas_session();
+        self.canvases.replace(&session, Default::default());
+        let pane = |m: &str, id: &str, title: &str, icon: &str, draft: bool| DeclaredPane {
+            mod_name: m.into(),
+            id: id.into(),
+            title: title.into(),
+            icon: Some(icon.into()),
+            draft,
+            off: false,
+        };
+        self.mod_renders.set_declared_panes(
+            &session,
+            vec![
+                pane("release-board", "board", "Release board", "gauge", false),
+                pane("deploy-notes", "notes", "Deploy notes", "file", true),
+            ],
+        );
+        match case {
+            PaneCase::Menu => self.ui.open = Some(crate::ui::Open::Menu("canvas")),
+            PaneCase::Tab => {
+                self.sidebar_open = false;
+                self.right.widened = true;
+                let view = |m: &str, id: &str, title: &str, draft: bool, tree: Value| crate::fleet::mods::points::ModPaneView {
+                    session_id: session.clone(),
+                    pane_id: id.into(),
+                    title: title.into(),
+                    mod_id: m.into(),
+                    view: ModTreeView::new(tree, vec![Author { name: m.into(), draft }]),
+                };
+                let words = |w: &str| serde_json::json!({ "type": "Text", "props": {}, "children": [w] });
+                self.open_mod_pane(view("release-board", "board", "Release board", false, words("Release 2.4 is ready to ship")));
+                self.open_mod_pane(view("deploy-notes", "notes", "Deploy notes", true, elements()));
+            }
+        }
     }
 }

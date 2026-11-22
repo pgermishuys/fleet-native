@@ -1,10 +1,15 @@
 //! Ports `components/canvas/CanvasHost.vue` (the header: the tab strip, the `+` button and its menu, Widen, the slot for the
 //! collapse button; the body: the active tab's component) and the frame of `SessionsV2RightPanel.vue`. A tab whose body is
 //! another component's draws a stand-in that names that component, until it is built.
+use super::mods::tree::Look;
 use super::right_rail;
 use crate::State;
-use crate::fleet::canvas_host::{Badge, STRIP, close_key, pin_key, tab_key};
+use crate::fleet::canvas_host::{Badge, STRIP, STRIP_ROOM, close_key, pin_key, reach_key, tab_key};
 use crate::fleet::canvases::{CanvasInstance, CanvasKind, VisualType};
+use crate::fleet::mods::panes::pane_key;
+use crate::fleet::mods::renders::DeclaredPane;
+use crate::fleet::mods::resolve::Resolved;
+use crate::fleet::mods::types::Site;
 use crate::fleet::tab_motion::{PULSE_ICON_SHARE, bezier, ease_out};
 use crate::icons::*;
 use crate::theme::{RADIUS_BTN, RADIUS_PANEL, Theme, mono, sans};
@@ -42,8 +47,13 @@ pub fn host(s: &State, t: &Theme, over: bool) -> El {
 fn header(s: &State, t: &Theme, over: bool) -> El {
     let tabs = s.open_canvases();
     let mut inner = row().gap(2.0).center_y().on_key(|s: &mut State, ev: &KeyEvent, tx| strip_key(s, ev, tx));
+    // While a Draft mark widens a tab the strip leaves 24 px of room when it scrolls a tab into view (`.canvas-tabs--draft`). Rune
+    // has no scroll padding, so each tab sits in a box 24 px wider on each side, which it pulls back with a negative margin: the
+    // strip reveals that box. With no Draft tab the strip is main's.
+    let roomy = s.strip_has_draft_tab();
     for canvas in &tabs.canvases {
-        inner = inner.child(tab(s, t, canvas, canvas.id == tabs.active_id));
+        let one = tab(s, t, canvas, canvas.id == tabs.active_id);
+        inner = inner.child(if roomy { el().key(reach_key(&canvas.id)).px(STRIP_ROOM).mx(-STRIP_ROOM).child(one) } else { one });
     }
     // `useDragScroll`: the strip follows a drag; the offset it starts from is read off the scroll box as it moves.
     let strip = el()
@@ -136,6 +146,9 @@ fn tab(s: &State, t: &Theme, canvas: &CanvasInstance, active: bool) -> El {
     tab = tab
         .child(icon(canvas.icon(), 14.0).color(icon_ink).group_color(t.text))
         .child(text(title).font(font).color(ink).group_color(t.text).truncate().min_w(0.0));
+    if s.is_draft_pane_tab(canvas) {
+        tab = tab.child(super::mods::draft_mark::draft_mark(t, true));
+    }
     if let Some(badge) = badge(s, t, canvas) {
         tab = tab.child(badge);
     }
@@ -278,7 +291,22 @@ fn body(s: &State, t: &Theme) -> El {
             Some(payload) => super::document_tab::document_tab(s, t, payload),
             None => stand_in(t, CanvasKind::Visual),
         },
-        // A scene's tree; the pane's own drawing is piece F of component 22.
+        // A pane a mod drew: its tree, until piece G gives the pane its own states (waiting, nothing yet, off).
+        Some(CanvasKind::Mod) if tabs.active().and_then(|c| pane_tree(s, c)).is_some() => {
+            let (key, tree) = tabs.active().and_then(|c| pane_tree(s, c)).expect("checked");
+            let drawn = super::mods::tree::tree_keyed(s, t, &key, &tree, Site::Pane, Look::of(Site::Pane), false, None);
+            col()
+                .key("mod-pane")
+                .w_full()
+                .grow(1.0)
+                .min_h(0.0)
+                .px(12.0)
+                .py(12.0)
+                .gap(12.0)
+                .child(drawn)
+                .scroll(rune::ScrollSpec { stick_bottom: false })
+        }
+        // A scene's tree.
         Some(CanvasKind::Mod) if s.mod_scene.is_some() => {
             let scene = s.mod_scene.as_ref().expect("checked");
             // Stands for the site's own drawing, which a `Fleet` node and an invalid tree draw.
@@ -301,6 +329,17 @@ fn body(s: &State, t: &Theme) -> El {
         None => el(),
     };
     col().key("canvas-body").role("tabpanel").w_full().grow(1.0).min_h(0.0).child(inner)
+}
+
+/// The tree a pane's tab draws, with the key it is drawn under: what its mod last drew, checked for the Pane site.
+fn pane_tree(s: &State, canvas: &CanvasInstance) -> Option<(String, std::sync::Arc<serde_json::Value>)> {
+    let pane = canvas.mod_pane.as_ref()?;
+    let session = s.canvas_session();
+    let view = s.mod_panes.get(&session, &pane.mod_name, &pane.pane_id)?;
+    match s.mod_resolver.resolve(Some(&view), Site::Pane) {
+        Resolved::Draws { tree, .. } => Some((pane_key(&session, &pane.mod_name, &pane.pane_id), tree)),
+        Resolved::NothingDrawn => None,
+    }
 }
 
 /// What a tab that isn't built yet says, in the muted 13 px, centred; Fleet has no such state.
@@ -336,6 +375,13 @@ pub fn picker(s: &State, t: &Theme) -> Vec<El> {
     list = list.child(picker_row(t, "canvas-picker-browser".into(), &GLOBE, "Browser\u{2026}", Some("Run or open a page"), |s, tx| {
         s.open_browser_dialog(tx)
     }));
+    let panes = s.mod_menu_panes();
+    if !panes.is_empty() {
+        list = list.child(crate::ui::controls::separator(t).my(4.0).mx(2.0)).child(group_label(t, "From mods"));
+        for (pane, open) in panes {
+            list = list.child(mod_pane_row(t, pane, open));
+        }
+    }
     let visuals = s.conversation_visuals();
     if !visuals.is_empty() {
         list = list.child(crate::ui::controls::separator(t).my(4.0).mx(2.0)).child(group_label(t, "From this conversation"));
@@ -364,6 +410,45 @@ pub fn picker(s: &State, t: &Theme) -> Vec<El> {
         crate::ui::overlay::scrim("canvas-picker-scrim", |s: &mut State| s.ui.open = None),
         crate::ui::overlay::anchored(panel, ADD, rune::Side::Bottom, rune::Align::End, 4.0),
     ]
+}
+
+/// A declared pane's row (`canvas-picker-mod-<mod>-<pane>`): its icon by name or Puzzle, the title, a Draft mark for a draft's pane,
+/// then the hint: "Off" for a mod that is off, "Open" while its tab is, else the mod's name, which gives way first (the title
+/// keeps what it can; the name keeps 3 characters).
+fn mod_pane_row(t: &Theme, pane: DeclaredPane, open: bool) -> El {
+    let glyph = pane.icon.as_deref().and_then(super::mods::leaves::mod_icon).unwrap_or(&PUZZLE);
+    let mut r = row()
+        .key(format!("canvas-picker-mod-{}-{}", pane.mod_name, pane.id))
+        .role("menuitem")
+        .label(pane.title.clone())
+        .h(34.0)
+        .px(8.0)
+        .gap(8.0)
+        .center_y()
+        .radius(RADIUS_BTN)
+        .cursor(Cursor::Default)
+        .hover_group()
+        .focusable(true)
+        .focus_highlight(t.wash(7.0))
+        .hover(t.wash(7.0))
+        .child(icon(glyph, 14.0).color(t.muted).group_color(t.text))
+        .child(text(pane.title.clone()).font(sans(13.0, 400.0, 1.3)).color(t.text).truncate().min_w(0.0));
+    if pane.draft {
+        r = r.child(super::mods::draft_mark::draft_mark(t, false));
+    }
+    // The hint sits at the far end (`margin-left: auto`); the spacer takes back one of its two gaps, so it costs no width.
+    r = r.child(spacer().ml(-8.0));
+    let hint = |words: String| text(words).font(sans(11.5, 400.0, 1.3)).color(t.muted).pl(12.0);
+    r = if pane.off || open {
+        r.child(hint(if pane.off { "Off" } else { "Open" }.to_string()))
+    } else {
+        // The name gives way before the title does, but keeps three characters and its 12 px of padding.
+        r.child(hint(pane.mod_name.clone()).key("canvas-picker-mod-name").truncate().min_w(3.0 * 6.5 + 12.0))
+    };
+    r.on_press_tx(move |s: &mut State, tx| {
+        s.ui.open = None;
+        s.open_mod_pane_from_menu(&pane, tx);
+    })
 }
 
 /// `canvas-picker__group` on the menu's label (`menuLabelClass`: 11 px, 600, uppercase, tracked).

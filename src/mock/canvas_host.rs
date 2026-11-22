@@ -68,6 +68,7 @@ impl State {
                     title: Some("Release notes for the image cache, second draft".into()),
                     file: None,
                     server: None,
+                    mod_pane: None,
                 });
                 self.canvases.replace(&id, tabs);
             }

@@ -9,6 +9,7 @@ pub mod controls;
 pub mod failures;
 pub mod input_rate;
 pub mod markdown;
+pub mod panes;
 pub mod points;
 pub mod renders;
 pub mod renders_state;

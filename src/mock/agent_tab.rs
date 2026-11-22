@@ -54,6 +54,7 @@ impl State {
             title: Some("Shop".into()),
             file: None,
             server: None,
+            mod_pane: None,
         });
         tabs.active_id = "canvas:cv_shop".into();
         self.canvases.replace(&session, tabs);
