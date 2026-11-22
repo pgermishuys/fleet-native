@@ -46,18 +46,6 @@ fn adds_an_agent_step_and_a_you_decide_step_with_plus_and_greys_out_what_arrives
 }
 
 #[test]
-fn the_new_step_is_what_a_save_would_write() {
-    let mut r = mounted();
-    click(&mut r.rt, "workflow-add-0");
-    click(&mut r.rt, "workflow-add-agent");
-    let step = &r.ed().draft.as_ref().unwrap().steps[0];
-    assert_eq!((step.id.as_str(), step.title.as_str(), step.model.as_deref()), ("step", "New step", Some("standard")));
-    assert_eq!(step.prompt.as_deref(), Some("The request: {{request}}\n\n{{previous.summary}}"));
-    assert_eq!(r.ed().canvas.selected, Some(0));
-    assert!(r.rt.state.workflows_nav.editor.is_dirty());
-}
-
-#[test]
 fn shows_the_parser_s_error_on_the_step() {
     let mut r = mounted();
     assert!(!r.has("workflow-node-error-0"), "nothing wrong yet");
@@ -77,56 +65,73 @@ fn shows_the_parser_s_error_on_the_step() {
 }
 
 #[test]
-fn a_click_on_a_node_opens_the_step_and_the_settings_box_opens_the_workflow() {
+fn the_canvas_selects_loops_and_closes_its_menu_natively() {
     let mut r = mounted();
-    assert_eq!(r.ed().canvas.selected, None, "the workflow's own settings are open first");
-    click(&mut r.rt, "workflow-node-implement");
-    assert_eq!(r.ed().canvas.selected, Some(2));
-    click(&mut r.rt, "workflow-node-plan");
-    assert_eq!(r.ed().canvas.selected, Some(0));
-    click(&mut r.rt, "workflow-canvas-settings");
-    assert_eq!(r.ed().canvas.selected, None);
-}
-
-#[test]
-fn escape_closes_the_menu_and_a_second_click_on_the_plus_does_too() {
-    let mut r = mounted();
-    click(&mut r.rt, "workflow-add-2");
-    assert!(r.has("workflow-add-menu"));
-    press_key(&mut r.rt, Key::Escape, Mods::default());
+    // the new step is what a save would write
+    {
+        click(&mut r.rt, "workflow-add-0");
+        click(&mut r.rt, "workflow-add-agent");
+        let step = &r.ed().draft.as_ref().unwrap().steps[0];
+        assert_eq!((step.id.as_str(), step.title.as_str(), step.model.as_deref()), ("step", "New step", Some("standard")));
+        assert_eq!(step.prompt.as_deref(), Some("The request: {{request}}\n\n{{previous.summary}}"));
+        assert_eq!(r.ed().canvas.selected, Some(0));
+        assert!(r.rt.state.workflows_nav.editor.is_dirty());
+    }
+    r.adopt(false);
     r.frames();
-    assert!(!r.has("workflow-add-menu"));
-    assert_eq!(r.ed().canvas.add_at, None);
-    assert_eq!(r.ids().len(), 4, "nothing was added");
-
-    click(&mut r.rt, "workflow-add-2");
-    assert_eq!(r.ed().canvas.add_at, Some(2));
-    r.rt.update(|s, _| s.workflows_nav.editor.canvas.toggle_add(2));
-    assert_eq!(r.ed().canvas.add_at, None);
-}
-
-#[test]
-fn a_loop_is_drawn_from_where_the_nodes_are_and_says_how_often() {
-    let mut r = mounted();
+    // a click on a node opens the step and the settings box opens the workflow
+    {
+        assert_eq!(r.ed().canvas.selected, None, "the workflow's own settings are open first");
+        click(&mut r.rt, "workflow-node-implement");
+        assert_eq!(r.ed().canvas.selected, Some(2));
+        click(&mut r.rt, "workflow-node-plan");
+        assert_eq!(r.ed().canvas.selected, Some(0));
+        click(&mut r.rt, "workflow-canvas-settings");
+        assert_eq!(r.ed().canvas.selected, None);
+    }
+    r.adopt(false);
     r.frames();
-    assert_eq!(r.words("workflow-loop-label"), "changes \u{b7} at most 2\u{d7}");
-    assert!(r.words("workflow-node-review").contains("changes \u{2192} Implement \u{2264}2"));
+    // escape closes the menu and a second click on the plus does too
+    {
+        click(&mut r.rt, "workflow-add-2");
+        assert!(r.has("workflow-add-menu"));
+        press_key(&mut r.rt, Key::Escape, Mods::default());
+        r.frames();
+        assert!(!r.has("workflow-add-menu"));
+        assert_eq!(r.ed().canvas.add_at, None);
+        assert_eq!(r.ids().len(), 4, "nothing was added");
 
-    r.edit_draft(|d| d.steps[3].max_loops = None);
+        click(&mut r.rt, "workflow-add-2");
+        assert_eq!(r.ed().canvas.add_at, Some(2));
+        r.rt.update(|s, _| s.workflows_nav.editor.canvas.toggle_add(2));
+        assert_eq!(r.ed().canvas.add_at, None);
+    }
+    r.adopt(false);
     r.frames();
-    assert_eq!(r.words("workflow-loop-label"), "changes \u{b7} needs a max");
-}
+    // a loop is drawn from where the nodes are and says how often
+    {
+        r.frames();
+        assert_eq!(r.words("workflow-loop-label"), "changes \u{b7} at most 2\u{d7}");
+        assert!(r.words("workflow-node-review").contains("changes \u{2192} Implement \u{2264}2"));
 
-#[test]
-fn a_step_that_is_gone_leaves_the_settings_open() {
-    let mut r = mounted();
-    click(&mut r.rt, "workflow-node-review");
-    assert_eq!(r.ed().canvas.selected, Some(3));
-    r.rt.update(|s, _| {
-        let e = &mut s.workflows_nav.editor;
-        let next = crate::fleet::workflows::draft::remove_step(e.draft.as_ref().unwrap(), 3);
-        e.edit_draft(next);
-    });
+        r.edit_draft(|d| d.steps[3].max_loops = None);
+        r.frames();
+        assert_eq!(r.words("workflow-loop-label"), "changes \u{b7} needs a max");
+    }
+    r.adopt(false);
     r.frames();
-    assert_eq!(r.ed().canvas.selected, None);
+    // a step that is gone leaves the settings open
+    {
+        click(&mut r.rt, "workflow-node-review");
+        assert_eq!(r.ed().canvas.selected, Some(3));
+        r.rt.update(|s, _| {
+            let e = &mut s.workflows_nav.editor;
+            let next = crate::fleet::workflows::draft::remove_step(e.draft.as_ref().unwrap(), 3);
+            e.edit_draft(next);
+        });
+        r.frames();
+        assert_eq!(r.ed().canvas.selected, None);
+    }
+    r.adopt(false);
+    r.frames();
 }

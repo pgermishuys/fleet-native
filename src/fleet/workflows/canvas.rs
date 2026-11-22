@@ -72,6 +72,12 @@ impl Canvas {
         self.nodes.truncate(steps);
     }
 
+    /// Another file opened: nothing is picked. What was measured stays, since Rune reports a node's place only when it moves.
+    pub fn reopen(&mut self) {
+        self.selected = None;
+        self.add_at = None;
+    }
+
     /// `toggleAdd`.
     pub fn toggle_add(&mut self, slot: usize) {
         self.add_at = if self.add_at == Some(slot) { None } else { Some(slot) };

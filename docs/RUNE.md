@@ -2849,3 +2849,4 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 - **A pattern background (CSS `radial-gradient` tiled) has no equivalent**: the dots are one `Shape` of small squares on the viewport element, which stays still while its scroll child moves. About 2,700 fills at 1280x760.
 - **A box-shadow ring is `outline(3.0, 0.0, colour)`** (Fleet's `0 0 0 3px`).
 - **A menu that must sit over the next sibling is an overlay**: a child of the connector would be drawn under the node after it. `anchored(..)` with `.modal(true, close)` gives Escape and click-outside.
+- **`on_layout` fires only when the element moves**, so measured places kept in `State` must not be cleared while the same elements stay on screen (opening another file with the same layout): the arcs would vanish for good. `Canvas::reopen` clears the picks and keeps the places.

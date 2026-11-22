@@ -180,7 +180,7 @@ impl Editor {
         self.comments_confirmed = false;
         self.asking_to_remove_comments = false;
         self.conflict = None;
-        self.canvas = Default::default();
+        self.canvas.reopen();
     }
 
     /// `cancelCheck` (and `dispose`): nothing waits, and an answer on its way will be ignored.
