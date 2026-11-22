@@ -161,6 +161,16 @@ impl Theme {
         self.idle
     }
 
+    /// The Board's Idle and Waiting status colours (`boardStatusOptions` in `stores/board.ts`): literals `#71717a` and
+    /// `#f59e0b` in Fleet, not tokens, so the same in both themes.
+    pub fn board_status_idle(&self) -> Color {
+        c("#71717a")
+    }
+
+    pub fn board_status_waiting(&self) -> Color {
+        c("#f59e0b")
+    }
+
     /// The Files tree's change badges (`.file-browser-tree-node__badge--green|orange|red`): fixed hex in Fleet, not tokens, so the
     /// same in both themes. Added, modified, deleted.
     pub fn badge_added(&self) -> Color {
