@@ -9,10 +9,11 @@ use super::types::{Action, Author, Site, Surface};
 use crate::fleet::canvases::{ModPaneRef, mod_pane_canvas_id};
 use crate::fleet::events::{Event, Kind};
 use crate::fleet::http;
+use crate::fleet::settings::mods_kept::{self as kept, KeptMod, Refused};
 use crate::fleet::state::Topic;
 use crate::{State, Tx};
 use serde_json::{Value, json};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 /// The panes' views (`modPanes`), and which ask for each is the newest.
@@ -20,8 +21,14 @@ use std::sync::Arc;
 pub struct ModPanes {
     pub views: Views<ModPaneView>,
     newest: HashMap<String, u64>,
-    /// Draws on their way.
+    /// Draws and calls on their way.
     asking: usize,
+    /// The kept mods by machine, read when a pane that needs them is shown (`mods.kept`): absent until asked, none when the
+    /// read failed (a pane then judges its mod as on, and asks again the next time it is shown).
+    kept: HashMap<String, Option<Vec<KeptMod>>>,
+    /// Turn on, by pane view id: running, and refused.
+    turning: HashSet<String>,
+    failed: HashSet<String>,
 }
 
 impl ModPanes {
@@ -32,6 +39,16 @@ impl ModPanes {
 
     pub fn get(&self, session: &str, mod_name: &str, pane: &str) -> Option<Arc<ModPaneView>> {
         self.views.get(&mod_pane_view_id(session, mod_name, pane))
+    }
+
+    /// A Turn on is running for the pane.
+    pub fn is_turning(&self, session: &str, mod_name: &str, pane: &str) -> bool {
+        self.turning.contains(&mod_pane_view_id(session, mod_name, pane))
+    }
+
+    /// The last Turn on for the pane was refused.
+    pub fn turn_failed(&self, session: &str, mod_name: &str, pane: &str) -> bool {
+        self.failed.contains(&mod_pane_view_id(session, mod_name, pane))
     }
 
     /// Whether the view is a draft's (`isDraftModPane`).
@@ -186,12 +203,121 @@ impl State {
                 }
             }
             (Kind::ModsChanged, Topic::Sessions) => {
+                if payload.get("reason").and_then(Value::as_str).is_none_or(kept::is_kept_reason) {
+                    self.reload_pane_kept();
+                }
                 if let Some(open) = self.open_id() {
                     self.redraw_mod_panes(&open, None);
                 }
             }
             _ => {}
         }
+    }
+
+    /// `isModOff`: a pane's mod is off when the server lists one of its declared panes `off`; with none declared (the mod opened
+    /// the pane itself) when the kept mods say so, once they are read.
+    pub fn is_mod_off(&self, session: &str, mod_name: &str) -> bool {
+        let declared: Vec<_> = self.mod_renders.declared_panes(session).iter().filter(|p| p.mod_name == mod_name).collect();
+        if !declared.is_empty() {
+            return declared.iter().any(|p| p.off);
+        }
+        let machine = self.machine_key_of(session);
+        self.mod_panes
+            .kept
+            .get(machine)
+            .and_then(Option::as_ref)
+            .is_some_and(|mods| mods.iter().any(|m| m.name == mod_name && m.off.is_some()))
+    }
+
+    /// The pane in front, with its session: the one whose body is drawn.
+    fn front_mod_pane(&self) -> Option<(String, ModPaneRef)> {
+        let session = self.canvas_session();
+        let tabs = self.canvases.session(&session);
+        let pane = tabs.canvases.iter().find(|c| c.id == tabs.active_id)?.mod_pane.clone()?;
+        Some((session, pane))
+    }
+
+    /// A pane that is shown reads the kept mods once for its machine, as `ModPaneCanvas` does when it mounts. True when it asked.
+    pub fn keep_mod_pane_kept(&mut self) -> bool {
+        let Some((session, _)) = self.front_mod_pane().filter(|_| self.content_open) else { return false };
+        self.load_pane_kept(&session)
+    }
+
+    /// The kept list moved: the machines read before are read again; what is shown stays until the answer.
+    fn reload_pane_kept(&mut self) {
+        let Some(session) = self.open_id() else { return };
+        let machine = self.machine_key_of(&session).to_string();
+        if self.mod_panes.kept.contains_key(&machine) {
+            self.read_pane_kept(&session, machine);
+        }
+    }
+
+    fn load_pane_kept(&mut self, session: &str) -> bool {
+        let machine = self.machine_key_of(session).to_string();
+        if self.mod_panes.kept.contains_key(&machine) {
+            return false;
+        }
+        // Marked as asked at once, so a frame doesn't ask twice; a failure leaves it none.
+        self.mod_panes.kept.insert(machine.clone(), None);
+        self.read_pane_kept(session, machine)
+    }
+
+    fn read_pane_kept(&mut self, session: &str, machine: String) -> bool {
+        let Some(link) = self.link_for(session) else { return false };
+        self.mod_panes.asking += 1;
+        link.off_thread(
+            |base| kept::read_view(base).ok().map(|v| v.mods),
+            move |s: &mut State, _tx: &mut Tx, mods: Option<Vec<KeptMod>>| {
+                s.mod_panes.asking = s.mod_panes.asking.saturating_sub(1);
+                // A read that failed after one that worked leaves what was shown.
+                if mods.is_some() || s.mod_panes.kept.get(&machine).is_none_or(Option::is_none) {
+                    s.mod_panes.kept.insert(machine, mods);
+                }
+            },
+        );
+        true
+    }
+
+    /// `turnModOn`: a draft's pane turns the draft on in its session, a kept mod's turns the mod on, both on the session's
+    /// machine (Fleet sends the kept one home). The server then says `mods.changed` and the pane draws.
+    pub fn turn_mod_on(&mut self, session: &str, mod_name: &str, pane: &str) {
+        let id = mod_pane_view_id(session, mod_name, pane);
+        if self.mod_panes.turning.contains(&id) {
+            return;
+        }
+        let Some(link) = self.link_for(session) else { return };
+        let draft = self.mod_renders.declared_panes(session).iter().any(|p| p.mod_name == mod_name && p.draft);
+        let path = if draft {
+            format!("/api/sessions/{}/mods/drafts/{}/on", http::escape(session), crate::conv::export_history::encode_component(mod_name))
+        } else {
+            kept::mod_path(mod_name, "/on")
+        };
+        self.mod_panes.turning.insert(id.clone());
+        self.mod_panes.failed.remove(&id);
+        self.mod_panes.asking += 1;
+        let machine = self.machine_key_of(session).to_string();
+        link.off_thread(
+            move |base| kept::call(base, "POST", &path, None),
+            move |s: &mut State, _tx: &mut Tx, got: Result<Value, Refused>| {
+                s.mod_panes.asking = s.mod_panes.asking.saturating_sub(1);
+                s.mod_panes.turning.remove(&id);
+                match got {
+                    // A kept mod's own answer is the mod as it is now.
+                    Ok(v) if !draft => {
+                        if let (Some(m), Some(Some(list))) = (kept::parse_mod(&v), s.mod_panes.kept.get_mut(&machine)) {
+                            match list.iter_mut().find(|k| k.name == m.name) {
+                                Some(slot) => *slot = m,
+                                None => list.push(m),
+                            }
+                        }
+                    }
+                    Ok(_) => {}
+                    Err(_) => {
+                        s.mod_panes.failed.insert(id);
+                    }
+                }
+            },
+        );
     }
 
     /// The panel is open on a session: its mods' hooks and declared panes are read once (`watchModSession` in `CanvasHost`'s setup).

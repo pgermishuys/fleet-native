@@ -201,6 +201,8 @@ mod tests_mission_needs_you;
 #[cfg(test)]
 mod tests_mods_controls;
 #[cfg(test)]
+mod tests_mods_pane_body;
+#[cfg(test)]
 mod tests_mods_panes;
 #[cfg(test)]
 mod tests_mods_renders;
@@ -1863,6 +1865,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.sync_row_controls()
         | s.deliver_mod_actions()
         | s.watch_open_mod_session()
+        | s.keep_mod_pane_kept()
         | s.keep_skills(tx)
         | s.keep_built_in(tx)
         | s.keep_harnesses_page(tx)
@@ -6015,6 +6018,13 @@ pub fn spec() -> AppSpec<State> {
             ("mods-pane-menu-light", |s| s.show_mod_panes(mock::mod_trees::PaneCase::Menu, false)),
             ("mods-pane-tab", |s| s.show_mod_panes(mock::mod_trees::PaneCase::Tab, true)),
             ("mods-pane-tab-light", |s| s.show_mod_panes(mock::mod_trees::PaneCase::Tab, false)),
+            // Piece G: a pane's body drawing its tree, waiting for its mod, and off with Turn on.
+            ("mods-pane", |s| s.show_mod_panes(mock::mod_trees::PaneCase::Board, true)),
+            ("mods-pane-light", |s| s.show_mod_panes(mock::mod_trees::PaneCase::Board, false)),
+            ("mods-pane-waiting", |s| s.show_mod_panes(mock::mod_trees::PaneCase::Waiting, true)),
+            ("mods-pane-waiting-light", |s| s.show_mod_panes(mock::mod_trees::PaneCase::Waiting, false)),
+            ("mods-pane-off", |s| s.show_mod_panes(mock::mod_trees::PaneCase::Off, true)),
+            ("mods-pane-off-light", |s| s.show_mod_panes(mock::mod_trees::PaneCase::Off, false)),
             ("mods-controls", |s| s.show_mod_controls(true)),
             ("mods-controls-light", |s| s.show_mod_controls(false)),
             ("panel-tabs", |s| s.show_tabs(mock::canvas_host::Case::Tabs, true)),

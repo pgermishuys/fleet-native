@@ -2827,3 +2827,10 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 - **The test build needs about 4 GB** and a build next to another session's was OOM-killed (exit 143 from the scope, `oom-kill` in the journal). Wait for the other
   `rustc --crate-name fleet_native` to end, or give the scope more (7000M finished).
 
+
+## Component 22, piece G (the pane's body)
+
+- **`rt.elements()` still lists an element that is leaving** (`exiting: true`) for a few frames after a tab switch: a test that reads the words of the front pane has to skip those, or it
+  sees both panes' text.
+- **A button that works on its own** takes `.disabled(true)` and an `opacity`; there is no `disabled` look in `ui::button`, so the pane's busy Turn on dims to 0.5 like Fleet's.
+- **Text with a different line height needs the line in the font spec** (`sans(13.0, 400.0, 1.5)`): 1.4 made the off state's button 3 px higher than Fleet's, after two wrapped lines.
