@@ -203,6 +203,9 @@ fn turns_mods_back_on_from_the_button_disabled_while_it_waits() {
     r.hold.store(true, Ordering::SeqCst);
     click(&mut r.rt, "mods-safe-mode-turn-on");
     r.wait("the request to be sent", |s| s.mod_sites.pending);
+    // `pending` is set when the button is pressed; the fake hears the request a moment later.
+    let fake = r.fake.clone();
+    r.wait("the server to hear it", move |_| fake.lock().unwrap().calls.iter().any(|c| c.0 == "PUT"));
     assert_eq!(r.calls("PUT", "/api/mods/safe-mode"), [json!({ "on": false })]);
     let button = info(&r.rt, "mods-safe-mode-turn-on");
     assert_eq!(button.label.as_deref(), Some("Turning on\u{2026}"));
