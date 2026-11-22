@@ -140,6 +140,8 @@ pub struct AppRow {
     pub checking: bool,
     /// "Update and restart": opens the dialog.
     pub can_update: bool,
+    /// The button's words: "Update and restart", or "Download the new .deb" where the install can only link.
+    pub update_label: &'static str,
 }
 
 pub fn app_row(u: &Update, now_ms: i64, offset_secs: i64) -> AppRow {
@@ -154,8 +156,9 @@ pub fn app_row(u: &Update, now_ms: i64, offset_secs: i64) -> AppRow {
         can_check: false,
         checking: false,
         can_update: false,
+        update_label: if u.notify_only() { "Download the new .deb" } else { "Update and restart" },
     };
-    let Some(_) = u.running else {
+    let Some(_) = u.running.filter(|_| !u.off) else {
         row.label = "This build doesn't update itself".into();
         return row;
     };
@@ -194,7 +197,17 @@ pub fn app_row(u: &Update, now_ms: i64, offset_secs: i64) -> AppRow {
     if let Some(a) = &u.available {
         row.label = format!("Build {} is available", a.build);
         row.tone = Tone::Info;
-        row.note = Some("Fleet Native downloads it, checks it, replaces itself and starts again. Your drafts are kept.".into());
+        row.note = Some(if a.link.is_some() {
+            format!(
+                "This copy came from a .deb, which can't replace itself. Download the new package ({}) and install it.",
+                about_size(a.asset.size)
+            )
+        } else {
+            format!(
+                "Fleet Native downloads it ({}), checks it, replaces itself and its server, and starts again. Your drafts are kept.",
+                about_size(a.asset.size)
+            )
+        });
         row.can_update = true;
         return row;
     }
@@ -217,4 +230,12 @@ pub fn app_row(u: &Update, now_ms: i64, offset_secs: i64) -> AppRow {
         row.busy = true;
     }
     row
+}
+
+/// "about 130 MB": the size a download will be, in whole megabytes, said before it starts.
+pub fn about_size(bytes: u64) -> String {
+    match (bytes as f64 / 1_000_000.0).round() as u64 {
+        0 => "under 1 MB".to_string(),
+        mb => format!("about {mb} MB"),
+    }
 }

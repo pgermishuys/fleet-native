@@ -7,13 +7,27 @@ repo="${GITHUB_REPOSITORY:-pgermishuys/fleet-native}"
 tag=latest
 assets=(fleet-native-windows-x64.zip fleet-native-macos-arm64.dmg fleet-native-linux-x64.tar.gz)
 for a in "${assets[@]}"; do [ -f "$dist/$a" ] || { echo "missing $a" >&2; exit 1; }; done
-# Also released when the build made them, but not in latest.json (one key per system: the updater reads those): the Linux
-# .deb and AppImage and a .sha256 for each Linux file (component 25, piece B), and the Windows installer with its .sha256
-# (piece C). They are downloads, not update assets.
+# Also released when the build made them: the Linux .deb and AppImage and a .sha256 for each Linux file (component 25, piece
+# B), and the Windows installer with its .sha256 (piece C). The packages are in latest.json too (piece F), under their own
+# keys: the three above keep the keys builds already installed read; `linux-x64-appimage` is what an AppImage replaces itself
+# with, `linux-x64-deb` is the link a .deb install shows, `windows-x64-setup` is for fresh installs. The .sha256 files are
+# downloads only.
 extras=()
+listed=("${assets[@]}")
 for e in fleet-native-linux-x64.deb fleet-native-linux-x64.AppImage fleet-native-linux-x64.tar.gz.sha256 fleet-native-linux-x64.deb.sha256 fleet-native-linux-x64.AppImage.sha256 fleet-native-windows-x64-setup.exe fleet-native-windows-x64-setup.exe.sha256; do
-  [ -f "$dist/$e" ] && extras+=("$e")
+  [ -f "$dist/$e" ] || continue
+  extras+=("$e")
+  case "$e" in *.sha256) ;; *) listed+=("$e") ;; esac
 done
+# The key in latest.json for a file name.
+key_of() {
+  case "$1" in
+    fleet-native-linux-x64.AppImage) echo linux-x64-appimage ;;
+    fleet-native-linux-x64.deb) echo linux-x64-deb ;;
+    fleet-native-windows-x64-setup.exe) echo windows-x64-setup ;;
+    *) local k="${1#fleet-native-}"; echo "${k%%.*}" ;;
+  esac
+}
 
 # A slower, older run must not replace a newer release.
 prev=""
@@ -28,11 +42,11 @@ if gh release download "$tag" -R "$repo" -p latest.json -O "$dist/previous.json"
 fi
 
 jq -n --arg commit "$COMMIT" --arg time "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --argjson build "$BUILD" '{commit:$commit, built_at:$time, build:$build, assets:{}}' > "$dist/latest.json"
-for a in "${assets[@]}"; do
+for a in "${listed[@]}"; do
   size=$(wc -c < "$dist/$a" | tr -d ' ')
   sum=$(sha256sum "$dist/$a" | cut -d' ' -f1)
-  jq --arg k "${a#fleet-native-}" --arg n "$a" --argjson s "$size" --arg h "$sum" \
-    '.assets[$k | sub("\\..*$";"")] = {name:$n, size:$s, sha256:$h}' "$dist/latest.json" > "$dist/l.tmp"
+  jq --arg k "$(key_of "$a")" --arg n "$a" --argjson s "$size" --arg h "$sum" \
+    '.assets[$k] = {name:$n, size:$s, sha256:$h}' "$dist/latest.json" > "$dist/l.tmp"
   mv "$dist/l.tmp" "$dist/latest.json"
 done
 

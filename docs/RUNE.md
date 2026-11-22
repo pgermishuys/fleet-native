@@ -2895,3 +2895,4 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 - **A bar's end holds its children in one row, so a chip is inserted into `view::status::end`**, not laid beside it; a chip that clips takes `max_w` and `clip_rounded(0.0)`.
 - **A test reads "is this button dimmed" from `opacity < 0.9`** (`ui::button::disabled` sets 0.5); there is no disabled flag in `ElementInfo`.
 - **The test build was OOM-killed at 4.8 GB** under a 5000M scope while another session built (exit 143, `oom-kill` in the journal); 7000M with `CARGO_BUILD_JOBS=2` finished.
+- **Opening a link from a button** (updater, piece 25F): a handler that needs the `Tx` (`tx.open_url`) goes on `on_press_tx(|s, tx| …)`; `on_press` closures take only the state and a two-argument closure fails to compile with "expected closure that takes 1 argument".

@@ -13,7 +13,7 @@ pub fn view(s: &State, t: &Theme) -> El {
     let r = app_row(&s.update, now, crate::conv::time::local_offset_secs());
     let mut buttons = rune::row().center_y().gap(7.0);
     if r.can_update {
-        buttons = buttons.child(pill(t, "app-update-go", "Update and restart", None, true).on_press(|s: &mut State| s.update_open()));
+        buttons = buttons.child(pill(t, "app-update-go", r.update_label, None, true).on_press(|s: &mut State| s.update_open()));
     }
     if r.can_check {
         buttons = buttons.child(check_button(t, "app-update-check", r.checking, |s: &mut State| s.update_check_now()));
