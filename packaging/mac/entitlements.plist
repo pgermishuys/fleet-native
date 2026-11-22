@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- What the hardened runtime must allow for "Fleet Native.app" and Fleet's server inside it (row 25.20; Fleet's own
+     desktop/build/entitlements.mac.plist allows the same). Applied by scripts/sign-mac.sh to every executable it signs.
+     - JIT and unsigned executable memory: the .NET server generates code at run time (and WebKit's JavaScript does).
+     - Library validation off: the server loads its own native libraries, which are signed by this identity, not Apple's,
+       and a mod's or a user's tool may bring more.
+     - Network client and server: the app talks to Fleet over loopback and Fleet listens; only enforced in an App Sandbox,
+       which this app does not use, but stated so the signature says what the app does. -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>com.apple.security.cs.allow-jit</key>
+  <true/>
+  <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+  <true/>
+  <key>com.apple.security.cs.disable-library-validation</key>
+  <true/>
+  <key>com.apple.security.network.client</key>
+  <true/>
+  <key>com.apple.security.network.server</key>
+  <true/>
+</dict>
+</plist>

@@ -1,5 +1,5 @@
 # Builds the Windows installer (component 25, piece C): fleet-native.exe, the README and Fleet's server (`fleet\`) in one
-# per-user NSIS setup.exe (packaging/windows/installer.nsi). Unsigned: signing is piece E's.
+# per-user NSIS setup.exe (packaging/windows/installer.nsi), signed by scripts/sign-windows.ps1 when the owner's certificate is set.
 #
 #   scripts/make-installer.ps1 -Exe <fleet-native.exe> -Build <build number> -Server <staged server folder> -Out <setup.exe>
 #
@@ -38,6 +38,10 @@ try {
 } finally {
     Remove-Item -Recurse -Force $stage -ErrorAction SilentlyContinue
 }
+
+# Signed before it is hashed, so the .sha256 is the signed file's; without WINDOWS_CERTIFICATE this says "not signed" (piece E).
+& (Join-Path $PSScriptRoot 'sign-windows.ps1') $outFull
+if ($LASTEXITCODE -ne 0) { throw 'signing the installer failed' }
 
 $hash = (Get-FileHash $outFull -Algorithm SHA256).Hash.ToLower()
 # `sha256sum -c` form, like the Linux files' .sha256.

@@ -65,23 +65,52 @@ restart**. It downloads the file for your system, checks its SHA-256 against `la
 your drafts are kept. If anything fails, the app you have keeps running, unchanged, and says why. On macOS, if the folder the app
 is in can't be written, the `.dmg` is opened for the usual drag instead. `fleet-native --update-now` does the same with no window.
 
-These builds are **unsigned**:
+These builds are **unsigned** until the owner adds signing certificates: see "Installing" below for what each system asks
+the first time, and how to get past it.
 
-- **Windows:** unzip and run `fleet-native.exe`. SmartScreen says "Windows protected your PC": click **More info**,
-  then **Run anyway**.
-- **macOS:** open the `.dmg` and drag **Fleet Native** onto Applications. The first time, right-click it in
-  Applications and choose **Open** (then **Open** again), or run
-  `xattr -dr com.apple.quarantine "/Applications/Fleet Native.app"` once. The app is ad hoc signed so Apple
-  silicon runs it, but not notarised.
-- **Linux:** unpack and run `./fleet-native`; it needs `libxkbcommon-x11-0` on X11 and WebKitGTK
-  (`libwebkit2gtk-4.1-0`). For a launcher entry with an
-  icon, copy the two files beside the program:
+### Installing
 
-  ```sh
-  install -Dm755 fleet-native ~/.local/bin/fleet-native
-  install -Dm644 fleet-native.png ~/.local/share/icons/hicolor/512x512/apps/fleet-native.png
-  install -Dm644 fleet-native.desktop ~/.local/share/applications/fleet-native.desktop
-  ```
+Every package carries Fleet's server (the release pinned in `packaging/server-version`), so the app starts its own Fleet
+when none is running. Pick one:
+
+| System | Download | What it does |
+|---|---|---|
+| Windows (x64) | [`fleet-native-windows-x64-setup.exe`](https://github.com/pgermishuys/fleet-native/releases/download/latest/fleet-native-windows-x64-setup.exe) | Installs for you alone (no admin) in `%LOCALAPPDATA%\Programs\Fleet-Native`, with a Start-menu entry and an entry in Settings → Apps to uninstall it. Running it again updates in place. Silent: `/S`, another folder: `/D=<folder>` |
+| | [`fleet-native-windows-x64.zip`](https://github.com/pgermishuys/fleet-native/releases/download/latest/fleet-native-windows-x64.zip) | No install: unzip anywhere and run `fleet-native.exe` |
+| macOS (Apple silicon) | [`fleet-native-macos-arm64.dmg`](https://github.com/pgermishuys/fleet-native/releases/download/latest/fleet-native-macos-arm64.dmg) | Open it and drag **Fleet Native** onto Applications |
+| Linux (x64) | [`fleet-native-linux-x64.AppImage`](https://github.com/pgermishuys/fleet-native/releases/download/latest/fleet-native-linux-x64.AppImage) | No install: `chmod +x` it and run it; it updates itself |
+| | [`fleet-native-linux-x64.deb`](https://github.com/pgermishuys/fleet-native/releases/download/latest/fleet-native-linux-x64.deb) | `sudo apt install ./fleet-native-linux-x64.deb`: `/opt/Fleet-Native`, `fleet-native` on the path, a launcher entry; `apt remove fleet-native` removes it |
+| | [`fleet-native-linux-x64.tar.gz`](https://github.com/pgermishuys/fleet-native/releases/download/latest/fleet-native-linux-x64.tar.gz) | Unpack and run `./fleet-native` (see below for a launcher entry) |
+
+Each Linux file and the Windows installer has a `.sha256` beside it (`sha256sum -c fleet-native-linux-x64.deb.sha256`), and
+`latest.json` lists every file's SHA-256.
+
+**Signing.** The release notes say which systems a build is signed for. Until the owner adds signing certificates, none is,
+and each system asks once before the first run:
+
+- **Windows** (not Authenticode-signed): SmartScreen says "Windows protected your PC". Click **More info**, then **Run
+  anyway**. It asks once: for the installer, or for `fleet-native.exe` from the zip.
+- **macOS** (signed ad hoc, which Apple silicon needs to run it at all, but not with a Developer ID and not notarised): macOS
+  says it "cannot verify" Fleet Native, or that it comes from an unidentified developer. Close that, then open **System
+  Settings → Privacy & Security**, find "Fleet Native was blocked" and click **Open Anyway** (on older macOS: right-click
+  the app in Applications, choose **Open**, then **Open** again). Or run
+  `xattr -dr com.apple.quarantine "/Applications/Fleet Native.app"` once.
+- **Linux**: nothing asks. If the owner adds a GPG key, a `.asc` signature appears beside each Linux file
+  (`gpg --verify fleet-native-linux-x64.AppImage.asc`).
+
+A signed build changes none of the steps above except that the warnings go away. On macOS it carries a Developer ID
+signature with the hardened runtime and a stapled notarisation ticket. On Windows the exe, the server's own files and the
+installer are signed and timestamped. (`scripts/sign-mac.sh`, `scripts/sign-windows.ps1` and `scripts/sign-linux.sh` do it in
+CI when the secrets they name are set.)
+
+The Linux tar and the AppImage need `libxkbcommon-x11-0` on X11 and WebKitGTK (`libwebkit2gtk-4.1-0`); the `.deb` asks for
+them itself. For a launcher entry with an icon from the tar, copy the two files beside the program:
+
+```sh
+install -Dm755 fleet-native ~/.local/bin/fleet-native
+install -Dm644 fleet-native.png ~/.local/share/icons/hicolor/512x512/apps/fleet-native.png
+install -Dm644 fleet-native.desktop ~/.local/share/applications/fleet-native.desktop
+```
 
 ### Against a Fleet server
 

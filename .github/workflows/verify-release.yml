@@ -97,6 +97,14 @@ jobs:
           plutil -p "$app/Contents/Info.plist"
           codesign --verify --deep --strict --verbose=2 "$app"
           codesign -dv "$app" 2>&1 | head
+          # Row 25.27: a Developer ID build must pass Gatekeeper and carry its stapled tickets; an ad hoc one says so.
+          if codesign -dv --verbose=2 "$app" 2>&1 | grep -q '^Authority=Developer ID Application'; then
+            spctl --assess --type execute --verbose=2 "$app"
+            xcrun stapler validate "$app"
+            xcrun stapler validate "dl/fleet-native-macos-arm64.dmg"
+          else
+            echo "not signed: the published app is signed ad hoc and not notarised (APPLE_CERTIFICATE was not set when it was built)"
+          fi
           "$app/Contents/MacOS/fleet-native" --version
           test -d "$app/Contents/Resources/fleet"
           # The app from the image, smoke-tested (row 25.41).
@@ -124,6 +132,14 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           pwsh -NoProfile -File scripts/check-windows-runtime.ps1 x
+          # Row 25.27: signed files must be valid and timestamped; with none signed it says so and goes on.
+          pwsh -NoProfile -Command "
+            \$sigs = foreach (\$f in 'x/fleet-native.exe', 'x/fleet/WeaveFleet.Api.exe', 'dl/fleet-native-windows-x64-setup.exe') { ,@(\$f, (Get-AuthenticodeSignature \$f)) }
+            if (-not (\$sigs | Where-Object { \$_[1].Status -ne 'NotSigned' })) { 'not signed: the published Windows files carry no Authenticode signature (WINDOWS_CERTIFICATE was not set when they were built)'; exit 0 }
+            foreach (\$s in \$sigs) {
+              '{0}: {1}, {2}' -f \$s[0], \$s[1].Status, \$s[1].SignerCertificate.Subject
+              if (\$s[1].Status -ne 'Valid' -or -not \$s[1].TimeStamperCertificate) { throw \"\$(\$s[0]) is not validly signed and timestamped\" }
+            }"
           pwsh -NoProfile -File scripts/smoke-desktop.ps1 -App x/fleet-native.exe -Shot shots/verify-smoke/smoke-windows-zip.png
           build=$(python -c "import json;print(json.load(open('dl/latest.json'))['build'])")
           pwsh -NoProfile -File scripts/check-windows-installer.ps1 -Setup dl/fleet-native-windows-x64-setup.exe -Exe x/fleet-native.exe -Build "$build" -Server x/fleet -Smoke -Shot shots/verify-smoke/smoke-windows-installed.png
