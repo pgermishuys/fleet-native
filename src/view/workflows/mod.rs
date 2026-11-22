@@ -13,6 +13,7 @@ pub mod detail;
 pub mod editor;
 pub mod finish_bar;
 pub mod inspector;
+pub mod inspector_agent;
 pub mod list;
 pub mod project_picker;
 pub mod roles;

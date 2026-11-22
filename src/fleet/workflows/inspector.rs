@@ -46,6 +46,8 @@ pub struct Inspector {
     pub id_error: Option<String>,
     /// The choice whose "Leads to" list is open.
     pub menu: Option<usize>,
+    /// An agent step's fields (piece Q).
+    pub agent: super::inspector_agent::AgentFields,
     mirror: Mirror,
     /// What the fields were loaded for: the open step and its id.
     scope: Option<(Option<usize>, String)>,
@@ -94,12 +96,13 @@ impl Inspector {
         }
         set(&mut self.id, step.map_or("", |s| s.id.as_str()));
         self.labels = m.labels.iter().map(|l| TextEdit::new(l.clone())).collect();
+        self.agent.load(step);
     }
 }
 
 impl Editor {
     /// Once a frame: what the user typed goes into the draft, what the draft changed goes into the fields. True when the draft
-    /// changed.
+    /// changed, or a step's fields were just loaded (the view must draw again).
     pub fn sync_inspector(&mut self) -> bool {
         let Some(draft) = self.draft.clone() else { return false };
         let selected = self.canvas.selected.filter(|i| *i < draft.steps.len());
@@ -119,7 +122,8 @@ impl Editor {
             insp.id_error = None;
             insp.menu = None;
             self.inspector = insp;
-            return false;
+            // The fields changed under the view: say so, or nothing draws them until the next input.
+            return true;
         }
         let mut next = draft.clone();
         let m = &mut insp.mirror;
@@ -141,6 +145,9 @@ impl Editor {
                 next = update_step(&next, i, &StepPatch { ask: Some(Some(words)), ..StepPatch::default() });
             }
             let now: Vec<String> = step.choices.iter().map(|c| c.label.clone()).collect();
+            if step.kind == StepKind::Agent {
+                insp.agent.sync(&draft, i, &mut next);
+            }
             if insp.labels.len() != now.len() {
                 // A choice came or went: every label is read again.
                 insp.labels = now.iter().map(|l| TextEdit::new(l.clone())).collect();

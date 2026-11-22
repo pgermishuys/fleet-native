@@ -1,6 +1,6 @@
 //! `WorkflowInspector.vue`: the designer's inspector, 360 px on the right of the canvas. With no step open it is the workflow's
 //! own settings; with one open, the step's head (kind, id tag, Title, Step id) and, for a You decide step, its Question and
-//! Choices, then Remove. An agent step's form is piece Q's. State: `fleet::workflows::inspector`.
+//! Choices, then Remove. An agent step's form is `inspector_agent` (piece Q). State: `fleet::workflows::inspector`.
 use crate::State;
 use crate::fleet::workflows::draft::{END, WorkflowDraft};
 use crate::fleet::workflows::editor::Editor;
@@ -17,12 +17,12 @@ use std::rc::Rc;
 pub const WIDTH: f32 = 360.0;
 
 /// `--wf-raise`: the fill of every field.
-fn raise(t: &Theme) -> rune::Color {
+pub(super) fn raise(t: &Theme) -> rune::Color {
     t.mix(t.text, t.card_bg, 0.03)
 }
 
 /// `--wf-border-strong`.
-fn strong(t: &Theme) -> rune::Color {
+pub(super) fn strong(t: &Theme) -> rune::Color {
     t.text.alpha(0.16)
 }
 
@@ -31,9 +31,8 @@ pub fn view(s: &State, t: &Theme, ed: &Editor) -> Option<El> {
     let step = ed.canvas.selected.and_then(|i| draft.steps.get(i));
     let body = match step {
         None => workflow(t, ed, draft),
-        Some(step) => step_form(t, ed, draft, step, ed.canvas.selected.unwrap_or_default()),
+        Some(step) => step_form(s, t, ed, draft, step, ed.canvas.selected.unwrap_or_default()),
     };
-    let _ = s;
     Some(
         col()
             .key("workflow-inspector")
@@ -55,7 +54,10 @@ pub fn view(s: &State, t: &Theme, ed: &Editor) -> Option<El> {
 }
 
 /// The overlay of the open "Leads to" list.
-pub fn overlay(t: &Theme, ed: &Editor) -> Vec<El> {
+pub fn overlay(s: &State, t: &Theme, ed: &Editor) -> Vec<El> {
+    if ed.inspector.agent.menu.is_some() {
+        return super::inspector_agent::overlay(s, t, ed);
+    }
     let (Some(draft), Some(i), Some(at)) = (ed.draft.as_ref(), ed.canvas.selected, ed.inspector.menu) else { return Vec::new() };
     let Some(step) = draft.steps.get(i) else { return Vec::new() };
     let Some(choice) = step.choices.get(at) else { return Vec::new() };
@@ -77,7 +79,7 @@ pub fn overlay(t: &Theme, ed: &Editor) -> Vec<El> {
 }
 
 /// Where a choice can lead from step `from`: every step (not itself, for a You decide step), then the end.
-fn targets(draft: &WorkflowDraft, from: usize, kind: StepKind) -> Vec<(String, String)> {
+pub(super) fn targets(draft: &WorkflowDraft, from: usize, kind: StepKind) -> Vec<(String, String)> {
     let mut all: Vec<(String, String)> = draft
         .steps
         .iter()
@@ -108,18 +110,18 @@ fn head(t: &Theme, glyph: &'static Icon, you: bool, words: &str, tag: &str) -> E
 }
 
 /// `.wf-field label` and `.wf-field__label`: 11 px at 500, 4 px above the field.
-fn label(t: &Theme, words: &str) -> El {
+pub(super) fn label(t: &Theme, words: &str) -> El {
     text(words.to_string()).font(sans(11.0, 500.0, 1.5)).color(t.muted).mb(4.0)
 }
 
 /// `.wf-help`.
-fn help(t: &Theme, key: &str, words: String, error: bool) -> El {
+pub(super) fn help(t: &Theme, key: &str, words: String, error: bool) -> El {
     let ink = if error { t.error_text } else { t.muted };
     text(words).key(key.to_string()).font(sans(11.0, 400.0, 1.5)).color(ink).wrap().w_full().mt(4.0)
 }
 
 /// `.wf-field > input`: padding 6/8, a 1 px border, the button radius, the raised fill, 12.5 px.
-fn field(t: &Theme, edit: &rune::TextEdit, placeholder: &str, mono_face: bool, bad: bool) -> El {
+pub(super) fn field(t: &Theme, edit: &rune::TextEdit, placeholder: &str, mono_face: bool, bad: bool) -> El {
     let font = if mono_face { mono(12.5, 400.0, 1.4) } else { sans(12.5, 400.0, 1.4) };
     text_input(edit, font)
         .single_line()
@@ -138,8 +140,17 @@ fn field(t: &Theme, edit: &rune::TextEdit, placeholder: &str, mono_face: bool, b
 }
 
 /// `.wf-mini`: padding 4/8, radius 6, 12 px.
-fn mini(t: &Theme, edit: &rune::TextEdit, name: &str) -> El {
-    text_input(edit, sans(12.0, 400.0, 1.4))
+pub(super) fn mini(t: &Theme, edit: &rune::TextEdit, name: &str) -> El {
+    mini_in(t, edit, name, sans(12.0, 400.0, 1.4))
+}
+
+/// `.wf-mini.wf-mono`: 11.5 px in the mono face.
+pub(super) fn mono_mini(t: &Theme, edit: &rune::TextEdit, name: &str) -> El {
+    mini_in(t, edit, name, mono(11.5, 400.0, 1.4))
+}
+
+fn mini_in(t: &Theme, edit: &rune::TextEdit, name: &str, font: rune::TextStyle) -> El {
+    text_input(edit, font)
         .single_line()
         .label(name.to_string())
         .color(t.text)
@@ -153,13 +164,13 @@ fn mini(t: &Theme, edit: &rune::TextEdit, name: &str) -> El {
         .focus_ring(2.0, 0.0, t.accent)
 }
 
-fn labelled(t: &Theme, name: &str, input: El) -> El {
+pub(super) fn labelled(t: &Theme, name: &str, input: El) -> El {
     col().w_full().child(label(t, name)).child(input)
 }
 
 /// `.wf-radio__option`: the dot, the words and the line under them; the one that is on is ringed in the accent, the ones that
 /// arrive later are dimmed.
-fn option(t: &Theme, key: &str, on: bool, words: &str, detail: &str) -> El {
+pub(super) fn option(t: &Theme, key: &str, on: bool, words: &str, detail: &str) -> El {
     let dot = if on {
         el().size(12.0, 12.0).radius(999.0).border(4.0, t.accent).border_layout()
     } else {
@@ -181,7 +192,7 @@ fn option(t: &Theme, key: &str, on: bool, words: &str, detail: &str) -> El {
                 .shrink()
                 .min_w(0.0)
                 .child(text(words.to_string()).font(sans(12.0, 400.0, 1.5)).color(t.text).wrap())
-                .child(text(detail.to_string()).font(sans(11.0, 400.0, 1.5)).color(t.muted).wrap()),
+                .children((!detail.is_empty()).then(|| text(detail.to_string()).font(sans(11.0, 400.0, 1.5)).color(t.muted).wrap())),
         );
     if on {
         o = o.fill(t.accent_dim);
@@ -191,7 +202,7 @@ fn option(t: &Theme, key: &str, on: bool, words: &str, detail: &str) -> El {
     o
 }
 
-fn plural(n: usize) -> &'static str {
+pub(super) fn plural(n: usize) -> &'static str {
     if n == 1 { "" } else { "s" }
 }
 
@@ -292,7 +303,7 @@ fn file_name(ed: &Editor) -> String {
 
 // ---- a step -------------------------------------------------------------------------------------------------------------
 
-fn step_form(t: &Theme, ed: &Editor, draft: &WorkflowDraft, step: &Step, index: usize) -> Vec<El> {
+fn step_form(s: &State, t: &Theme, ed: &Editor, draft: &WorkflowDraft, step: &Step, index: usize) -> Vec<El> {
     let insp = &ed.inspector;
     let you = step.kind == StepKind::You;
     let kind = if you { "You decide" } else { "Agent step" };
@@ -335,6 +346,8 @@ fn step_form(t: &Theme, ed: &Editor, draft: &WorkflowDraft, step: &Step, index: 
     ];
     if you {
         out.extend(you_form(t, insp, draft, step, index));
+    } else {
+        out.extend(super::inspector_agent::form(s, t, ed, draft, step, index));
     }
     out.push(remove(t, step));
     out
@@ -356,6 +369,7 @@ fn you_form(t: &Theme, insp: &Inspector, draft: &WorkflowDraft, step: &Step, ind
             .on_edit(move |s: &mut State| &mut s.workflows_nav.editor.inspector.labels[at]);
         let leads = select_box(t, &choice_target_label(draft, index, &choice.to), insp.menu == Some(at))
             .key(format!("workflow-choice-to-{at}"))
+            .w(131.0)
             .label("Leads to")
             .on_press(move |s: &mut State| {
                 let open = s.workflows_nav.editor.inspector.menu == Some(at);
@@ -411,10 +425,9 @@ fn choice_target_label(draft: &WorkflowDraft, from: usize, to: &str) -> String {
 }
 
 /// `.wf-mini--select`: a box with the words and a chevron.
-fn select_box(t: &Theme, words: &str, open: bool) -> El {
+pub(super) fn select_box(t: &Theme, words: &str, open: bool) -> El {
     row()
         .role("combobox")
-        .w(131.0)
         .gap(4.0)
         .center_y()
         .px(8.0)
@@ -430,7 +443,7 @@ fn select_box(t: &Theme, words: &str, open: bool) -> El {
 }
 
 /// `.wf-check`: a checkbox with "note".
-fn check_box(t: &Theme, on: bool) -> El {
+pub(super) fn check_box(t: &Theme, on: bool) -> El {
     let boxed = row()
         .size(13.0, 13.0)
         .center()

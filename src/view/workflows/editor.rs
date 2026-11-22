@@ -39,8 +39,8 @@ pub fn overlay(s: &State, t: &Theme) -> Vec<El> {
     if ed.canvas.add_at.is_some() && ed.view == EditorView::Designer {
         return super::canvas::overlay(s, t);
     }
-    if ed.inspector.menu.is_some() && ed.view == EditorView::Designer {
-        return super::inspector::overlay(t, ed);
+    if (ed.inspector.menu.is_some() || ed.inspector.agent.menu.is_some()) && ed.view == EditorView::Designer {
+        return super::inspector::overlay(s, t, ed);
     }
     if ed.asking_to_remove_comments {
         return comments_dialog(t, ed);

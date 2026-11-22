@@ -2880,3 +2880,11 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
   (`.max_h(window * 0.88 - chrome).scroll(..)`) in the body and leaves `max_height` off; the chrome (frame, title, footer) is a constant that has to be guessed.
 - **A disabled `ui::button` is only half opacity** in `rt.elements()` (there is no `disabled` field), so a test reads `opacity < 0.9`.
 - **`TextEdit` has no character limit**; a field's limit is applied where its text is used.
+
+## Component 18, piece Q (the inspector: an agent step)
+
+- **A chip that inserts at the caret is `TextEdit::insert` plus `tx.focus(key, false)`.** Pressing a button doesn't clear the field's selection, so `insert` takes the caret or the selected text; `tx.focus` gives the box the keys back without selecting all.
+- **Several boxes that show one value** (a max on each loop) need one `TextEdit` each: the poll takes the first box that differs from the mirror as the user's edit and writes it into the others.
+- **A `<datalist>` has no counterpart.** Agent, Skill and Effort are plain boxes; the kit's list can't take typed text.
+- **The test build now needs more than 5000M** (`cargo test` was OOM-killed at 5000M, finished at 7000M, 22 November 2026).
+- **A field loaded in `poll` draws only if `poll` says it changed.** `sync_inspector` loaded a newly picked step's fields and returned false, so a live click showed empty boxes until the next input (tests and scenes run frames, so they never saw it). Return true whenever a field was set under the view.
