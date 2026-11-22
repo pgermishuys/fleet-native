@@ -513,6 +513,7 @@ mod groups;
 mod header;
 mod history;
 mod instance;
+mod jobs;
 mod lineage;
 mod list_work;
 mod live;

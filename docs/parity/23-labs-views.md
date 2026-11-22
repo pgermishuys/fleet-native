@@ -241,20 +241,20 @@ Each row: what Fleet does, its source, and the native state (with the piece that
 
 | # | Row | Source | Native |
 |---|---|---|---|
-| 9.1 | A job: `id`, `title`, `ask`, `repository`, `labels`, `pinnedMachineId`, `state` (waiting, running, needs_you, done, failed), `machineId`, `machineName`, `sessionId`, `whyWaiting` (the server's words, e.g. "It starts on the next check.", "No machine has a free seat.", "No machine has \`gpu\`.", "It's pinned to a machine that isn't in the list."), `error`, `createdAt` | LJ 6-23 | None (F) |
-| 9.2 | A job machine: `id`, `name`, `isLocal`, `seats`, `used`, `labels`, `status` ("online" or not); a repository for New job: `name`, `repository` (the origin remote, else the folder name), `machines` (names) | LJ 25-46 | None (F) |
-| 9.3 | `jobGroups`: Running (running and needs_you), Queued (waiting), Done (done and failed), each in the server's order | LJ 79-87 | None (F) |
+| 9.1 | A job: `id`, `title`, `ask`, `repository`, `labels`, `pinnedMachineId`, `state` (waiting, running, needs_you, done, failed), `machineId`, `machineName`, `sessionId`, `whyWaiting` (the server's words, e.g. "It starts on the next check.", "No machine has a free seat.", "No machine has \`gpu\`.", "It's pinned to a machine that isn't in the list."), `error`, `createdAt` | LJ 6-23 | **Done (F)**: `Job`, `JobState` (a state this app doesn't know is `Other`, which no group lists), parsed from the server's JSON |
+| 9.2 | A job machine: `id`, `name`, `isLocal`, `seats`, `used`, `labels`, `status` ("online" or not); a repository for New job: `name`, `repository` (the origin remote, else the folder name), `machines` (names) | LJ 25-46 | **Done (F)**: `JobMachine`, `JobRepository` |
+| 9.3 | `jobGroups`: Running (running and needs_you), Queued (waiting), Done (done and failed), each in the server's order | LJ 79-87 | **Done (F)**: `job_groups` |
 | 9.4 | `jobPath` (`/jobs/<encoded id>`) and `jobIdFromPath` (none on `/jobs` or `/jobs/`) | LJ 89-98 | **Done (A)** (moved from F): `job_path`, `job_id_from_path`; a bad escape names no job (Fleet's throws) |
-| 9.5 | `parseLabels("mac, gpu")`: split on commas, trimmed, no blanks, no repeats (case-insensitive, the first spelling kept) | LJ 100-109 | None (F) |
-| 9.6 | `MAX_JOB_SEATS` 16 | LJ 4 | None (F) |
+| 9.5 | `parseLabels("mac, gpu")`: split on commas, trimmed, no blanks, no repeats (case-insensitive, the first spelling kept) | LJ 100-109 | **Done (F)**: `parse_labels` |
+| 9.6 | `MAX_JOB_SEATS` 16 | LJ 4 | **Done (F)**: `MAX_JOB_SEATS` |
 | 9.7 | `jobColumns` (Waiting, Running, Needs you, Done with failed): exported and nothing on `main` uses it (a board of jobs that was taken out) | LJ 56-71 | Not ported: dead on `main` |
-| 9.8 | The store asks the **home** Fleet, whichever machine is live, and nothing until something loads it (only the Jobs page and Settings → Machines, only with Jobs on) | SJ 128-133 | None (F) |
-| 9.9 | `load`: `GET /api/jobs` → jobs and machines, `isLoaded`, the error cleared; refused → the server's error (`extractApiError`) else "Couldn't load the jobs."; no answer → "Couldn't reach Fleet." (the last list stays) | SJ 141-157 | None (F) |
-| 9.10 | `watch`: load now and every 3 s (`JOBS_POLL_MS`) while anything watches; several watchers share one timer; the last one to stop stops it | SJ 116-117, 159-175 | None (F: while the Jobs view is shown) |
-| 9.11 | `post`: `POST /api/jobs` `{title, ask, repository, labels, pinnedMachineId}`, then load; refused → the server's error, else "Couldn't post the job." | SJ 187-190 | None (F) |
-| 9.12 | `cancel` (a waiting job only): `DELETE /api/jobs/{id}`, then load; refused → "Couldn't cancel the job." | SJ 192-196 | None (F) |
-| 9.13 | `saveMachine`: `PUT /api/jobs/machines/{id}` `{seats?, labels?}` (a field left out stays), the answer replaces that machine; refused → "Couldn't save the seats." | SJ 198-203 | None (F) |
-| 9.14 | `loadRepositories`: `GET /api/jobs/repositories`; refused → "Couldn't list the repositories." | SJ 205-209 | None (F) |
+| 9.8 | The store asks the **home** Fleet, whichever machine is live, and nothing until something loads it (only the Jobs page and Settings → Machines, only with Jobs on) | SJ 128-133 | **Done (F)**: `Jobs` on `State` asks `link.base`, the home Fleet, and nothing until something watches |
+| 9.9 | `load`: `GET /api/jobs` → jobs and machines, `isLoaded`, the error cleared; refused → the server's error (`extractApiError`) else "Couldn't load the jobs."; no answer → "Couldn't reach Fleet." (the last list stays) | SJ 141-157 | **Done (F)**: `Jobs::took`; the refusal words, "Couldn't reach Fleet.", the last list stays |
+| 9.10 | `watch`: load now and every 3 s (`JOBS_POLL_MS`) while anything watches; several watchers share one timer; the last one to stop stops it | SJ 116-117, 159-175 | **Done (F)**: `Jobs::watch`/`unwatch` (a handle; stopping twice is harmless) and `keep_jobs`, which watches while the Jobs rail is shown with Jobs on; one timer, 3 s |
+| 9.11 | `post`: `POST /api/jobs` `{title, ask, repository, labels, pinnedMachineId}`, then load; refused → the server's error, else "Couldn't post the job." | SJ 187-190 | **Done (F)**: `jobs_post`, then the read; the outcome in `jobs.post` |
+| 9.12 | `cancel` (a waiting job only): `DELETE /api/jobs/{id}`, then load; refused → "Couldn't cancel the job." | SJ 192-196 | **Done (F)**: `jobs_cancel` (the view lets only a waiting job reach it), `jobs.cancel`, `jobs.cancelling` |
+| 9.13 | `saveMachine`: `PUT /api/jobs/machines/{id}` `{seats?, labels?}` (a field left out stays), the answer replaces that machine; refused → "Couldn't save the seats." | SJ 198-203 | **Done (F)**: `jobs_save_machine`, a field left out stays out of the body; `jobs.save` |
+| 9.14 | `loadRepositories`: `GET /api/jobs/repositories`; refused → "Couldn't list the repositories." | SJ 205-209 | **Done (F)**: `jobs_load_repositories`, `jobs.repositories` |
 
 ### 10. Jobs: the jobs-list
 
@@ -721,6 +721,8 @@ test output.
 - **Size:** about 750 lines.
 
 #### F. Jobs' data and store (no view)
+
+**Done (21 November 2026)**: rows 9.1-9.3, 9.5, 9.6, 9.8-9.14 and the store half of 10.6 and 11.7 (the watch: `keep_jobs` holds one while the Jobs rail is shown with Jobs on; a seats row in Settings takes its own with `Jobs::watch` in H); pictures `shots/parity/23-labs-views/F-jobs-data/` (the test output, and a scene that shows nothing moved). Fleet's tests: `jobs.test.ts` "groups every state exactly once" and all 6 of `stores/jobs.test.ts` under their names (`src/fleet/tests/jobs.rs`, `src/tests_jobs_store.rs`, against a fake home Fleet), and what this app adds: nothing is asked with Jobs off, a refusal of a post reads no queue, a refused save changes nothing, an unreachable Fleet keeps the last list. With no server nothing is read, so no scene shows jobs until G's invented ones. Open: none; New job's and Cancel's busy flags are plain `Op`s for G and H to draw.
 
 - **Rows:** 9.1-9.3, 9.5-9.14, 10.6, 11.7.
 - **Files:** new `src/fleet/jobs/mod.rs` (`Job`, `JobState`, `JobMachine`, `JobRepository`, `NewJob`, `job_groups`,

@@ -2734,3 +2734,8 @@ whole-file work that piece R can make incremental (colour from the edited line, 
 
 - A scripted run answers a save dialog with `{"type":"file-dialog","path":…}` (`file-dialog-cancel` cancels), so Export CSV can be walked live and the saved file compared with the server's.
 - **Walking a live Fleet headlessly:** `--script` taps by key (`rail-github`, `github-bookmark-<owner>/<repo>`, `github-row-<owner>/<repo>#<n>`) and a final `{"type":"move","key":…}` onto a neutral element keeps the rail tooltip and a row's hover tooltip out of the picture; a menu left open (the Label popover) is shot by not moving the pointer away. Run it with `LD_LIBRARY_PATH` from `env.sh` or the binary does not start.
+
+## Component 23, piece F (jobs' data and store)
+
+- **A store test can call a store's own methods on `rt.state`** (`rt.state.jobs.watch()`): `rt.update` is for what must run on the UI thread with a `Tx`, and a plain method needs neither. The next frame's `keep_*` then does the reading.
+- **Count only the requests you mean.** A connected app asks its fake home for sessions, preferences and more, so a "nothing is asked" test counts the paths under `/api/jobs`, not every request.
