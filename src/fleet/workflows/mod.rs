@@ -15,6 +15,7 @@ pub mod file_field;
 pub mod finish;
 pub mod frame;
 pub mod helpers;
+pub mod inspector;
 pub mod nav;
 pub mod roles;
 pub mod run_box;
