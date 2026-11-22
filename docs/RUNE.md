@@ -2920,3 +2920,7 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 - **A label that must wrap in a narrow grid column needs `.wrap()`**; a bare `text` runs past its column ("GITHUB UPDATED").
 - **Fleet's body line height is 1.5**, not the 1.6 an `h-` guess suggests: measure `getBoundingClientRect` in Playwright (the card was 160.7 px tall with `dt` 15, `dd` 16.5, pill 23).
 - **`TextEdit::insert` returns the old value**: a test's `rt.update(|s, _| map.insert(..))` needs `drop(..)` to return `()`.
+
+## Component 26, piece E (Machines: the data)
+
+- Nothing new about Rune: this piece draws nothing. Two build notes: a test build of this crate peaked above 4.8 GB with `CARGO_BUILD_JOBS=3` and was OOM-killed under a 5000M cap (exit 143 on the wrapper); `CARGO_BUILD_JOBS=1` finished in 6 minutes.
