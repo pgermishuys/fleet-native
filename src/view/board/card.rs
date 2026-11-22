@@ -27,10 +27,15 @@ fn detail(t: &Theme, key: String, label: &str, value: &str, tip: Option<String>)
         Some(tip) => value.help(tip),
         None => value,
     };
-    col().w(0.0).grow(1.0).min_w(0.0).child(text(label.to_uppercase()).font(sans(10.0, 700.0, 1.5).tracking(0.4)).color(t.muted).wrap()).child(
-        // `dd { margin-top: 4px }`
-        value.mt(4.0),
-    )
+    col()
+        .w(0.0)
+        .grow(1.0)
+        .min_w(0.0)
+        .child(text(label.to_uppercase()).font(sans(10.0, 700.0, 1.5).tracking(0.4)).color(t.muted).wrap())
+        .child(
+            // `dd { margin-top: 4px }`
+            value.mt(4.0),
+        )
 }
 
 /// A grid of three equal columns: a short row is padded so its cells keep a third each.
