@@ -75,15 +75,15 @@ wording or keys. Test-timing and phone-only changes are left out (#1006, #1008, 
 
 | # | Fleet | Source | Native |
 |---|---|---|---|
-| 1.1 | Per-theme status text tokens; light `--running` #16A149, `--idle` #D27306 | #1010 `assets/main.css` | Partial: text tokens done; light running and idle still #16a34a / #d97706 (`src/theme.rs`; 02 5.5) |
-| 1.2 | Light `--muted` #6E6A65 → #67645F (muted words at 4.5:1 on tinted panels) | #1022, #1012 `main.css` | None |
-| 1.3 | Active filter button and a checked menu item's check use `--accent-text` | #1013 `button/index.ts`, `*CheckboxItem.vue` | None (`src/ui/button.rs:80`, `menu.rs:230`; also 21 J(3)) |
-| 1.4 | Palette shortcut chip loses its fill; footer "toggle" full strength; destructive menu rows, a danger toolbar button's hover and the picker's error use `--error-text` | #1016 `CommandPalette.vue`, `menu-classes.ts`, `button/index.ts`, `DirectoryPickerPopover.vue` | None (`src/ui/palette.rs:201, 267`, `menu.rs:162`, `button.rs:78`) |
-| 1.5 | Code colours lifted to 4.5:1 under every theme, each only as far as it needs | #1018 `main.css` (syntax tokens) | Check: compare `Theme::syntax()` with `main.css` at `0f832ca` |
-| 1.6 | A failed call's preview cut at 79 characters plus "…" (was 77 plus "...") | #1032 `lib/activity-stream-tool-card.ts` | None (`src/conv/card.rs:49`) |
-| 1.7 | A tool row's shell time: "0.1 s", "34 s", "2 min 05 s" (`formatCallDuration`) | #1026 `lib/tool-row.ts` | None: "34s", "2m 5s" (03 piece G) |
-| 1.8 | HydraFusion pass time through `formatDuration` | #1029 `tools/registry.ts` | None (`src/conv/tools.rs:276` writes `{:.1} s`) |
-| 1.9 | OpenCode 2's `<background-result kind="shell\|subagent" …>` notices read like `<shell>` / `<subagent>` (`looksLikeBackgroundNotice`) | #1102 `lib/background-work.ts`, `use-activity-messages.ts` (+ test) | None (`src/conv/background.rs`) |
+| 1.1 | Per-theme status text tokens; light `--running` #16A149, `--idle` #D27306 | #1010 `assets/main.css` | Done (piece B, 22 Nov 2026): light `--running` #16A149, `--idle` #D27306 in `src/theme.rs`; the other tokens of the `592ade13`..`0f832ca` diff were already there. Only the default dark and light themes exist here, so the other six themes' new values (Nord, Dracula, Solarized, Monokai, GitHub) have no home yet (component 16, Appearance) |
+| 1.2 | Light `--muted` #6E6A65 → #67645F (muted words at 4.5:1 on tinted panels) | #1022, #1012 `main.css` | Done (piece B): `muted` #67645F |
+| 1.3 | Active filter button and a checked menu item's check use `--accent-text` | #1013 `button/index.ts`, `*CheckboxItem.vue` | Done (piece B): `Variant::Filter` active ink and a checkbox row's check use `accent_text` (`src/ui/button.rs`, `menu.rs`). The retention filter's end check is a different row and stays `--text` |
+| 1.4 | Palette shortcut chip loses its fill; footer "toggle" full strength; destructive menu rows, a danger toolbar button's hover and the picker's error use `--error-text` | #1016 `CommandPalette.vue`, `menu-classes.ts`, `button/index.ts`, `DirectoryPickerPopover.vue` | Done (piece B): palette shortcut chip without its fill, the footer "toggle" at full strength, destructive menu rows and the danger toolbar button's hover in `error_text`. Open: the picker's error line has no state in `src/ui/directory_picker.rs` (a fixed tree of invented folders), so `--error-text` has nothing to colour there; Settings' Folders browse already uses `error_text` |
+| 1.5 | Code colours lifted to 4.5:1 under every theme, each only as far as it needs | #1018 `main.css` (syntax tokens) | Done (piece B, checked): `main.css` has no syntax token in `592ade13`..`0f832ca`; the lift is `readablePalette` (`code-themes.ts`), which `src/fleet/settings/code_themes.rs` already ports (`reads` at 4.5:1 on the surfaces and the 4% tint). `markdown.css`'s link colour is now `--accent-text` (not drawn here: links in running text, see 03) |
+| 1.6 | A failed call's preview cut at 79 characters plus "…" (was 77 plus "...") | #1032 `lib/activity-stream-tool-card.ts` | Done (piece B): `build_preview` cuts at 79 characters plus "…". Open: no view draws the preview line under a failed row yet (`build_preview` is only called by `ToolBody`); Fleet shows "└ File … not fo…" there (picture `rows-and-failed-call-*`) |
+| 1.7 | A tool row's shell time: "0.1 s", "34 s", "2 min 05 s" (`formatCallDuration`) | #1026 `lib/tool-row.ts` | Done (piece B): `format_call_duration` is `format_duration_tenths`: "0.1 s", "3.4 s", "34 s", "2 min 05 s" |
+| 1.8 | HydraFusion pass time through `formatDuration` | #1029 `tools/registry.ts` | Done (piece B): a pass's time goes through the same function: "18 s", "43 s" |
+| 1.9 | OpenCode 2's `<background-result kind="shell\|subagent" …>` notices read like `<shell>` / `<subagent>` (`looksLikeBackgroundNotice`) | #1102 `lib/background-work.ts`, `use-activity-messages.ts` (+ test) | Done (piece B): `parse_background_notice` reads `<background-result kind="shell|subagent" …>` closed by `</background-result>`; image, video and codemode stay text; `looks_like_background_notice` is the cheap test |
 
 #### 1b. Sending a prompt (components 2, 5, 7, 8)
 
@@ -466,6 +466,7 @@ then the walks (AE to AI), then the report.
 
 ### B. Catch-up: colours and words
 
+- **Built** (22 November 2026): rows 1.1-1.9, with the two gaps named in rows 1.4 and 1.6 and the other themes' new tokens in 1.1.
 - **Rows:** 1.1-1.9.
 - **Files:** `src/theme.rs` (diff `client/src/assets/main.css` from `592ade13` to `0f832ca`, token by token, both
   themes), `src/ui/button.rs`, `src/ui/menu.rs`, `src/ui/palette.rs`, `src/conv/card.rs`, `src/conv/tools.rs`,

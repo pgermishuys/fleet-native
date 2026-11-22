@@ -46,7 +46,7 @@ pub fn build_preview(output: Option<&str>, summary: Option<&str>) -> Option<Stri
     // The first line with text once its terminal codes are gone; only that far is parsed.
     let first = lines.iter().filter(|l| !l.trim().is_empty()).map(|l| parse_tool_output(l).plain).find(|plain| !plain.trim().is_empty());
     let Some(first) = first else { return from_summary() };
-    let shown = if first.chars().count() > 80 { format!("{}...", first.chars().take(77).collect::<String>()) } else { first };
+    let shown = if first.chars().count() > 80 { format!("{}…", first.chars().take(79).collect::<String>()) } else { first };
     Some(if lines.len() > 1 { format!("└ {shown} ({} lines)", lines.len()) } else { format!("└ {shown}") })
 }
 
@@ -56,7 +56,7 @@ pub struct ToolBody {
     /// `state.summary`: a short paragraph above the output.
     pub summary: String,
     pub output: String,
-    /// A shell call's one header, "bun test · exit 0 · 0.1s"; `None` for other kinds.
+    /// A shell call's one header, "bun test · exit 0 · 0.1 s"; `None` for other kinds.
     pub header: Option<String>,
     /// The line under a failed call's row.
     pub preview: Option<String>,

@@ -70,31 +70,42 @@ pub struct BackgroundNotice {
 /// How each piece of background work ended, by handle; work still running isn't in it.
 pub type Finished = HashMap<String, BackgroundState>;
 
-/// `^<tag id="…" state="…" label="…">\n…\n</tag>\s*$`, as the two regexes of `background-work.ts` read it. The label is
-/// matched lazily (the first `">\n` after which the notice closes), the text greedily.
-fn parse_tag(body: &str, tag: &str, id_attr: &str, label_attr: &str) -> Option<(String, BackgroundState, String, String)> {
-    let rest = body.strip_prefix(&format!("<{tag} {id_attr}=\""))?;
+/// `^<open …>\n…\n</close>\s*$`, as the regexes of `background-work.ts` read a notice: `open` is what the tag starts with
+/// up to the id's quote, then ` state="…"` and ` label_attr="…"` follow. The label is matched lazily (the first `">\n`
+/// after which the notice closes), the text greedily.
+fn parse_tag(body: &str, open: &str, close: &str, id_attr: &str, label_attr: &str) -> Option<(String, BackgroundState, String, String)> {
+    let rest = body.strip_prefix(&format!("<{open}{id_attr}=\""))?;
     let (id, rest) = rest.split_once('"')?;
     let rest = rest.strip_prefix(" state=\"")?;
     let (state, rest) = rest.split_once('"')?;
     let rest = rest.strip_prefix(&format!(" {label_attr}=\""))?;
     // The closing tag sits on its own line, after the text.
-    let inside = rest.trim_end().strip_suffix(&format!("</{tag}>"))?.strip_suffix('\n')?;
+    let inside = rest.trim_end().strip_suffix(&format!("</{close}>"))?.strip_suffix('\n')?;
     // The label ends at the first `">\n`: the text follows, and `">\n</tag>` (no text line) is no notice.
     let at = inside.find("\">\n")?;
     Some((id.to_string(), BackgroundState::of(state), inside[..at].to_string(), inside[at + 3..].to_string()))
 }
 
-/// `parseBackgroundNotice`: the background work a message says finished, or `None` for anything else.
+/// `looksLikeBackgroundNotice`: whether a message body may be a notice, before parsing it.
+pub fn looks_like_background_notice(body: &str) -> bool {
+    body.starts_with("<shell ") || body.starts_with("<subagent ") || body.starts_with("<background-result ")
+}
+
+/// `parseBackgroundNotice`: the background work a message says finished, or `None` for anything else. Newer OpenCode 2
+/// writes `<background-result kind="shell|subagent" …>` closed by `</background-result>`; both shapes are read. Image,
+/// video and codemode notices stay text.
 pub fn parse_background_notice(body: &str) -> Option<BackgroundNotice> {
     // Nearly every message is neither: leave at the first byte.
-    if !body.starts_with("<shell id=\"") && !body.starts_with("<subagent sessionID=\"") {
+    if !looks_like_background_notice(body) {
         return None;
     }
-    if let Some((id, state, label, text)) = parse_tag(body, "shell", "id", "command") {
+    let shell = parse_tag(body, "shell ", "shell", "id", "command")
+        .or_else(|| parse_tag(body, "background-result kind=\"shell\" ", "background-result", "id", "command"));
+    if let Some((id, state, label, text)) = shell {
         return Some(BackgroundNotice { kind: BackgroundKind::Shell, id, state, label, text });
     }
-    let (id, state, label, text) = parse_tag(body, "subagent", "sessionID", "description")?;
+    let (id, state, label, text) = parse_tag(body, "subagent ", "subagent", "sessionID", "description")
+        .or_else(|| parse_tag(body, "background-result kind=\"subagent\" ", "background-result", "sessionID", "description"))?;
     Some(BackgroundNotice { kind: BackgroundKind::Subagent, id, state, label, text })
 }
 
