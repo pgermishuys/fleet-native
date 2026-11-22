@@ -1,7 +1,7 @@
 //! An invented board for the Board's tests and, later, its scenes: four lanes (the first the inbox), manual cards, a card
 //! with GitHub's fixture look (`sourceType` "github", as Fleet's own tests have it), a card a real sync wrote
 //! (`github-issue`, FB1), a stale one, an archived one, and two sources. No real repository, person or project.
-use crate::fleet::board::{Board, Card, Lane, Source};
+use crate::fleet::board::{Board, Card, Lane};
 
 pub const BOARD_ID: &str = "board-kite";
 
@@ -86,8 +86,10 @@ pub fn cards() -> Vec<Card> {
     ]
 }
 
-pub fn sources() -> Vec<Source> {
-    let source = |id: &str, config: &str, last_sync_at: Option<&str>| Source {
+/// Only the tests read them until the sources' scenes do (piece P).
+#[cfg(test)]
+pub fn sources() -> Vec<crate::fleet::board::Source> {
+    let source = |id: &str, config: &str, last_sync_at: Option<&str>| crate::fleet::board::Source {
         id: id.into(),
         board_id: BOARD_ID.into(),
         provider_type: "github".into(),
