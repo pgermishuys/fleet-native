@@ -88,6 +88,26 @@ jobs:
           cargo build --locked
           bash scripts/update-check.sh target/debug/fleet-native
 
+      # The Linux packages (.deb, AppImage) built from this debug build with the pinned server, then proven: the desktop file
+      # validates, the .deb's control and contents, the AppImage's listing, the server byte for byte (scripts/check-linux-packages.sh).
+      # The package job does not run on pull requests; this is where a change to the packaging is seen before the merge.
+      - name: Cache the server archive (Linux)
+        if: runner.os == 'Linux'
+        uses: actions/cache@v4
+        with:
+          path: server-download
+          key: server-linux-x64-${{ hashFiles('packaging/server-version') }}
+      - name: Linux packages (.deb, AppImage)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get -o Acquire::Retries=5 install -y desktop-file-utils
+          cargo build --locked --example check-bundled-server
+          bash scripts/fetch-server.sh linux-x64 server-staged "$PWD/server-download"
+          mkdir dist
+          bash scripts/make-deb.sh target/debug/fleet-native 1 server-staged dist/fleet-native-linux-x64.deb
+          bash scripts/make-appimage.sh target/debug/fleet-native 1 server-staged dist/fleet-native-linux-x64.AppImage
+          bash scripts/check-linux-packages.sh dist server-staged target/debug/examples/check-bundled-server
+
       # A web view is a native window, so no scene can draw it: the app runs in a real window on an invented page canvas served
       # from tests/fixtures/web, with real OS input, and grabs the whole screen after each step (scripts/web-walk.sh).
       # macOS clicks and types with cliclick, if the runner lets a process send input.
@@ -146,7 +166,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get -o Acquire::Retries=5 update
-          sudo apt-get -o Acquire::Retries=5 install -y libxkbcommon-dev libwayland-dev libwebkit2gtk-4.1-dev
+          sudo apt-get -o Acquire::Retries=5 install -y libxkbcommon-dev libwayland-dev libwebkit2gtk-4.1-dev desktop-file-utils
 
       - name: Rust (rust-toolchain.toml)
         run: rustup show
@@ -206,6 +226,10 @@ jobs:
             cp target/release/fleet-native packaging/fleet-native.desktop packaging/fleet-native.png README.md package/
             cp -r server-staged package/fleet
             tar -czf "dist/fleet-native-${{ matrix.name }}.tar.gz" -C package .
+            # The AppImage and the .deb carry the same program and server; a .sha256 beside each Linux file.
+            bash scripts/make-deb.sh target/release/fleet-native "${{ github.run_number }}" server-staged dist/fleet-native-linux-x64.deb
+            bash scripts/make-appimage.sh target/release/fleet-native "${{ github.run_number }}" server-staged dist/fleet-native-linux-x64.AppImage
+            (cd dist && sha256sum fleet-native-linux-x64.tar.gz > fleet-native-linux-x64.tar.gz.sha256)
           fi
           ls -la dist
 
@@ -223,6 +247,10 @@ jobs:
           fi
           target/release/examples/check-bundled-server server-staged unpacked
           du -sh dist/* server-staged
+
+      - name: Check the Linux packages (.deb, AppImage)
+        if: runner.os == 'Linux'
+        run: bash scripts/check-linux-packages.sh dist server-staged target/release/examples/check-bundled-server
 
       # Prove the package before it can be published.
       # The app, its signature and the Applications link are proven in scripts/make-mac-app.sh before the .dmg is

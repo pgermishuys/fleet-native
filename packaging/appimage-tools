@@ -1,0 +1,4 @@
+# The two files scripts/make-appimage.sh downloads to build an AppImage, each checked by its SHA-256 before it is used.
+# Bumping either is this file only. <name>  <sha256>  <url>
+appimagetool  ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0  https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
+runtime       2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d  https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64

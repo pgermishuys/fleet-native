@@ -1,8 +1,12 @@
 [Desktop Entry]
 Type=Application
 Name=Fleet Native
-Comment=Weave Fleet as a native desktop app (experiment)
+GenericName=AI coding agents
+Comment=Run and watch many AI coding agents at once (native experiment)
 Exec=fleet-native
 Icon=fleet-native
 Terminal=false
 Categories=Development;
+Keywords=agents;ai;coding;fleet;
+# The window's class (src/lib.rs sets the same id): the taskbar groups the window under this entry and shows its icon.
+StartupWMClass=fleet-native
