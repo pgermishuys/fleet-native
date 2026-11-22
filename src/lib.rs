@@ -77,6 +77,8 @@ mod tests_automations_workflow;
 #[cfg(test)]
 mod tests_board_cards;
 #[cfg(test)]
+mod tests_board_manage;
+#[cfg(test)]
 mod tests_board_page;
 #[cfg(test)]
 mod tests_board_store;
@@ -2830,6 +2832,12 @@ pub fn spec() -> AppSpec<State> {
             ("board-cards-light", |s| s.show_board(mock::board::Case::Cards, false)),
             ("board-card-rename", |s| s.show_board(mock::board::Case::Rename, true)),
             ("board-card-rename-light", |s| s.show_board(mock::board::Case::Rename, false)),
+            ("board-manage", |s| s.show_board(mock::board::Case::Manage, true)),
+            ("board-manage-light", |s| s.show_board(mock::board::Case::Manage, false)),
+            ("board-lane-new", |s| s.show_board(mock::board::Case::LaneNew, true)),
+            ("board-lane-new-light", |s| s.show_board(mock::board::Case::LaneNew, false)),
+            ("board-rename", |s| s.show_board(mock::board::Case::BoardRename, true)),
+            ("board-rename-light", |s| s.show_board(mock::board::Case::BoardRename, false)),
             ("board-off", |s| labs_off_scene(s, true, Rail::Board)),
             ("board-off-light", |s| labs_off_scene(s, false, Rail::Board)),
             // Piece T: Labs with everything off, with another machine listed, and with everything on.

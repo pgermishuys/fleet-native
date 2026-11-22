@@ -1,7 +1,7 @@
 //! One lane of the Board (`KanbanColumn.vue`), as work mode shows it: the "Inbox" and count pills over the name, the cards (or
-//! "Inbox is empty." / "Drop a card here or add one below."), and the composer. The manage-only actions, renaming and deleting
-//! come with piece N, dropping a card with piece O; the slots between cards are laid out now, keyed for it.
-use super::card;
+//! "Inbox is empty." / "Drop a card here or add one below."), and the composer; in manage mode the actions row and the rename
+//! field (`manage`). Dropping a card comes with piece O; the slots between cards are laid out now, keyed for it.
+use super::{card, manage};
 use crate::State;
 use crate::fleet::board::{Card, Lane};
 use crate::theme::{RADIUS_BTN, RADIUS_CARD, Theme, sans};
@@ -134,16 +134,24 @@ fn cards_area(s: &State, t: &Theme, lane: &Lane, cards: &[Card], clock: &RowCloc
     area
 }
 
-pub fn view(s: &State, t: &Theme, lane: &Lane, cards: &[Card], clock: &RowClock) -> El {
+pub fn view(s: &State, t: &Theme, lane: &Lane, cards: &[Card], clock: &RowClock, ends: (bool, bool)) -> El {
     let count = format!("{} card{}", cards.len(), if cards.len() == 1 { "" } else { "s" });
     let mut eyebrow = row().flex_wrap().center_y().gap(6.0);
     if lane.is_inbox {
         eyebrow = eyebrow.child(pill(t, format!("board-lane-{}-inbox-pill", lane.id), "Inbox", false));
     }
     eyebrow = eyebrow.child(pill(t, format!("board-lane-{}-count", lane.id), &count, true));
-    let header = col().w_full().gap(8.0).child(eyebrow).child(
-        text(lane.name.clone()).key(format!("board-lane-{}-title", lane.id)).font(sans(16.0, 700.0, 1.5)).color(t.text).wrap_anywhere(),
-    );
+    // Renaming swaps the title for a field; a rename form outlives nothing but manage mode (`Compose::leave_manage`).
+    let title = match s.board.compose.lane_renames.get(&lane.id) {
+        Some(edit) => manage::lane_rename_field(s, t, lane, edit),
+        None => {
+            text(lane.name.clone()).key(format!("board-lane-{}-title", lane.id)).font(sans(16.0, 700.0, 1.5)).color(t.text).wrap_anywhere()
+        }
+    };
+    let mut header = col().w_full().gap(8.0).child(col().w_full().gap(8.0).child(eyebrow).child(title));
+    if s.board.is_manage_mode() {
+        header = header.child(manage::lane_actions(s, t, lane, ends.0, ends.1));
+    }
     let surface = col()
         .w_full()
         .grow(1.0)

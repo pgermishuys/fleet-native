@@ -20,10 +20,25 @@ pub struct Compose {
     pub renames: BTreeMap<String, TextEdit>,
     /// The card under the pointer, which lifts.
     pub hover: Option<String>,
+    /// Lanes being renamed (`isEditingLane`), by lane id, and the draft in each (manage mode only, `fleet::board::manage`).
+    pub lane_renames: BTreeMap<String, TextEdit>,
+    /// The lane creator (`isAddingLane`), open with its draft.
+    pub creator: Option<TextEdit>,
+    /// The board's rename form (`isEditingBoard`), open with its draft.
+    pub board_rename: Option<TextEdit>,
+}
+
+impl Compose {
+    /// Leaving manage mode: its forms are cancelled and their drafts dropped, so they open fresh next time.
+    pub fn leave_manage(&mut self) {
+        self.lane_renames.clear();
+        self.creator = None;
+        self.board_rename = None;
+    }
 }
 
 /// An input's `maxlength`: a longer text is cut, as the browser would not have let it in.
-fn limit(edit: &mut TextEdit, max: usize) {
+pub(super) fn limit(edit: &mut TextEdit, max: usize) {
     if edit.text.chars().count() > max {
         *edit = TextEdit::new(edit.text.chars().take(max).collect::<String>());
     }

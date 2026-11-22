@@ -49,6 +49,10 @@ pub enum Call {
     DeleteCard {
         id: String,
     },
+    /// The Board: delete a lane (`fleet::board::manage`). The dialog closes at once.
+    DeleteLane {
+        id: String,
+    },
     /// Workflows: leave a workflow with unsaved edits (`fleet::workflows::frame`). The dialog closes and the move is made.
     LeaveWorkflow {
         to: crate::fleet::workflows::frame::Leave,
@@ -93,6 +97,7 @@ pub fn run(base: &str, call: &Call) -> Result<(), String> {
         | Call::Revert { .. }
         | Call::DeleteAutomation { .. }
         | Call::DeleteCard { .. }
+        | Call::DeleteLane { .. }
         | Call::LeaveWorkflow { .. } => {
             unreachable!("machine calls are made by machine_actions")
         }
@@ -277,6 +282,7 @@ impl State {
             | Call::Revert { .. }
             | Call::DeleteAutomation { .. }
             | Call::DeleteCard { .. }
+            | Call::DeleteLane { .. }
             | Call::LeaveWorkflow { .. } => return,
         };
         let Some(link) = self.link_for(&session) else {
@@ -310,6 +316,7 @@ impl State {
             | Call::Revert { .. }
             | Call::DeleteAutomation { .. }
             | Call::DeleteCard { .. }
+            | Call::DeleteLane { .. }
             | Call::LeaveWorkflow { .. } => {}
         }
     }

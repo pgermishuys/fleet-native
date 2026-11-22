@@ -78,6 +78,28 @@ impl Confirm {
         }
     }
 
+    /// `handleDeleteLane` of `KanbanColumn`: Fleet's words. They are wrong for a lane with cards (the server refuses it, 409, FB2);
+    /// the refusal shows in the board's banner.
+    pub fn delete_lane(subject: String, has_cards: bool, call: Call) -> Confirm {
+        let body = if has_cards {
+            "Its cards are removed too, unless the server moves them to another lane."
+        } else {
+            "The lane is empty, so no cards are lost."
+        };
+        Confirm {
+            title: "Delete this lane?".into(),
+            subject,
+            body: body.into(),
+            confirm_label: "Delete lane".into(),
+            busy_label: "Deleting…".into(),
+            error_message: "Couldn't delete the lane.".into(),
+            destructive: true,
+            busy: false,
+            error: None,
+            call,
+        }
+    }
+
     /// `handleDelete`.
     pub fn delete_session(subject: String, call: Call) -> Confirm {
         Confirm {
@@ -141,6 +163,10 @@ impl State {
             Call::DeleteCard { id } => {
                 self.ui.confirm = None;
                 self.board_delete_confirmed(&id);
+            }
+            Call::DeleteLane { id } => {
+                self.ui.confirm = None;
+                self.board_delete_lane_confirmed(&id);
             }
             call => self.send_session_call(call, None, tx),
         }

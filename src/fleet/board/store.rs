@@ -96,12 +96,16 @@ impl BoardStore {
 
     /// `toggleBoardMode`.
     pub fn toggle_mode(&mut self) {
-        self.mode = if self.is_manage_mode() { Mode::Work } else { Mode::Manage };
+        let mode = if self.is_manage_mode() { Mode::Work } else { Mode::Manage };
+        self.set_mode(mode);
     }
 
     /// `setBoardMode`.
     pub fn set_mode(&mut self, mode: Mode) {
         self.mode = mode;
+        if mode == Mode::Work {
+            self.compose.leave_manage();
+        }
     }
 
     /// `clearError` (the banner's Dismiss).

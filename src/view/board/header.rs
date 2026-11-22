@@ -42,7 +42,18 @@ pub fn bar(s: &State, t: &Theme) -> El {
         let busy = (b.is_loading && !b.is_loaded) || b.is_mutating();
         actions.push(if busy { disabled(sync) } else { sync.on_press(|s: &mut State| s.board_sync_pressed()) });
     }
-    page_header::bar_eyebrow(t, "board-header", "Persistent board", title, &subtitle(s), actions)
+    // Order as Fleet's: mode, Sync now, then manage mode's Rename board and Add lane.
+    actions.extend(super::manage::header_buttons(s, t));
+    let form = b.compose.board_rename.as_ref().filter(|_| manage).map(|edit| super::manage::board_rename_form(s, t, edit));
+    page_header::bar_eyebrow(
+        t,
+        "board-header",
+        "Persistent board",
+        title,
+        &subtitle(s),
+        page_header::Slots { form, tinted: manage },
+        actions,
+    )
 }
 
 /// One tile of the summary: the value over its label.

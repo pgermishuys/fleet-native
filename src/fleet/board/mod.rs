@@ -6,6 +6,7 @@ pub mod api;
 pub mod cards;
 pub mod compose;
 pub mod filters;
+pub mod manage;
 pub mod order;
 pub mod page;
 pub mod sources;

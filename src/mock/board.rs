@@ -154,6 +154,12 @@ pub enum Case {
     Cards,
     /// Loaded, with the first card being renamed.
     Rename,
+    /// Loaded, in manage mode (piece N): the actions row on every lane, "+ Add another lane".
+    Manage,
+    /// Manage mode with the lane creator open and a name typed in it.
+    LaneNew,
+    /// Manage mode with the board's rename form open.
+    BoardRename,
 }
 
 impl crate::State {
@@ -167,7 +173,7 @@ impl crate::State {
             Case::Loading => MockAnswers::Silent,
             Case::Empty => MockAnswers::Empty,
             Case::Failed => MockAnswers::Failed,
-            Case::Synced | Case::Board | Case::Rename => MockAnswers::Data,
+            Case::Synced | Case::Board | Case::Rename | Case::Manage | Case::LaneNew | Case::BoardRename => MockAnswers::Data,
             Case::Cards => MockAnswers::Showcase,
         };
         if case == Case::Synced {
@@ -177,6 +183,15 @@ impl crate::State {
         }
         if case == Case::Rename {
             self.board.compose.renames.insert("card-sketch".into(), rune::TextEdit::new("Sketch the frame and the tail"));
+        }
+        if matches!(case, Case::Manage | Case::LaneNew | Case::BoardRename) {
+            self.board.set_mode(crate::fleet::board::store::Mode::Manage);
+        }
+        if case == Case::LaneNew {
+            self.board.compose.creator = Some(rune::TextEdit::new("Ready for QA"));
+        }
+        if case == Case::BoardRename {
+            self.board.compose.board_rename = Some(rune::TextEdit::new("Kite launch, spring"));
         }
         self.enter_labs(crate::Rail::Board);
     }
