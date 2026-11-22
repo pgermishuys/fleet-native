@@ -2,12 +2,14 @@
 //! `lib/mods/kept-api.ts` (`fetchDrafts`, `setDraftOn`, `checkDraft`, `keepDraft`, `dismissKeepRequest`) and of `stores/mods.ts`
 //! (the per-session list, one load at a time, the reload on `mods.changed`). The requests are plain functions a thread runs; what
 //! touches the app is the `State` half below.
+use super::check_summary;
 use crate::conv::export_history::encode_component;
 use crate::fleet::events::{Event, Kind};
 use crate::fleet::settings::mods_kept::{self as kept, Off, Refused, Switch, switched_on};
 use crate::fleet::settings::skills::MODS_PREFERENCE_KEY;
 use crate::fleet::state::Topic;
 use crate::{State, Tx};
+use rune::TextEdit;
 use serde_json::{Value, json};
 use std::collections::{HashMap, HashSet};
 
@@ -148,10 +150,58 @@ pub struct ModDrafts {
     /// Turn off / Turn on again running, by `session/name`, and the refusal shown under a card.
     toggling: HashSet<String>,
     errors: HashMap<String, String>,
-    /// The draft whose Keep dialog is open (session, name): set by Keep… and Review…; the dialog is piece I's.
+    /// The draft whose Keep dialog is open (session, name): set by Keep… and Review….
     pub review: Option<(String, String)>,
+    /// The open dialog's own state (`ModReviewDialog.vue`): the check, the note, what it is doing.
+    pub dialog: ReviewDialog,
     /// Requests on their way.
     asking: usize,
+}
+
+/// What the Keep dialog knows of the draft's check.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub enum Checked {
+    /// "Checking the mod…".
+    #[default]
+    Loading,
+    /// The server's report, or none when it has no checker.
+    Report(Option<Value>),
+    /// The words the check request failed with.
+    Failed(String),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Busy {
+    Keep,
+    Decline,
+}
+
+/// The Keep dialog's state: reset each time it opens.
+#[derive(Default)]
+pub struct ReviewDialog {
+    pub checked: Checked,
+    pub note: TextEdit,
+    pub busy: Option<Busy>,
+    pub refused: Option<String>,
+    /// Counts the openings, so an answer to an earlier one is dropped (`loadId`).
+    serial: u64,
+}
+
+/// "Why keep it?" takes this many characters at most.
+pub const NOTE_LIMIT: usize = 2000;
+
+impl ReviewDialog {
+    pub fn problems(&self) -> check_summary::Problems {
+        match &self.checked {
+            Checked::Report(r) => check_summary::check_problems(r.as_ref()),
+            _ => Default::default(),
+        }
+    }
+
+    /// `canKeep`: not while checking or busy, and not with an error in the report.
+    pub fn can_keep(&self) -> bool {
+        self.checked != Checked::Loading && self.busy.is_none() && self.problems().error.is_none()
+    }
 }
 
 fn card_key(session: &str, name: &str) -> String {
@@ -301,13 +351,104 @@ impl State {
         );
     }
 
-    /// Keep… and Review…: the Keep dialog (piece I) for this draft. Until it exists the flag is all that happens.
+    /// Keep… and Review…: the Keep dialog for this draft. It checks the draft now, and only now.
     pub fn open_draft_review(&mut self, session: &str, name: &str) {
         // Keep… is disabled while the manifest is missing; a press that gets through anyway opens nothing.
         if self.mod_drafts.list(session).iter().any(|d| d.name == name && d.still_writing() && d.keep_request.is_none()) {
             return;
         }
         self.mod_drafts.review = Some((session.to_string(), name.to_string()));
+        let note = self.mod_drafts.list(session).iter().find(|d| d.name == name).and_then(|d| d.keep_request.as_ref()?.note.clone());
+        let serial = self.mod_drafts.dialog.serial + 1;
+        let mut note = TextEdit::new(note.unwrap_or_default());
+        note.focused = true;
+        self.mod_drafts.dialog = ReviewDialog { note, serial, ..Default::default() };
+        let Some(link) = self.link_for(session) else {
+            self.mod_drafts.dialog.checked = Checked::Report(None);
+            return;
+        };
+        self.mod_drafts.asking += 1;
+        let (id, draft) = (session.to_string(), name.to_string());
+        link.off_thread(
+            move |base| check_draft(base, &id, &draft),
+            move |s: &mut State, _tx: &mut Tx, got: Result<Option<Value>, Refused>| {
+                s.mod_drafts.asking = s.mod_drafts.asking.saturating_sub(1);
+                if s.mod_drafts.dialog.serial != serial || s.mod_drafts.review.is_none() {
+                    return;
+                }
+                s.mod_drafts.dialog.checked = match got {
+                    Ok(report) => Checked::Report(report),
+                    Err(r) if r.message.is_empty() => Checked::Failed("Fleet couldn't check this mod.".into()),
+                    Err(r) => Checked::Failed(r.message),
+                };
+            },
+        );
+    }
+
+    /// Closes the dialog; whatever is still on its way is dropped when it lands.
+    pub fn close_draft_review(&mut self) {
+        self.mod_drafts.review = None;
+        self.mod_drafts.dialog.serial += 1;
+    }
+
+    /// "Keep for all my sessions": the note trimmed and cut at its limit; closes on success, shows the server's words otherwise.
+    pub fn keep_reviewed_draft(&mut self) {
+        let Some((session, name)) = self.mod_drafts.review.clone() else { return };
+        if !self.mod_drafts.dialog.can_keep() {
+            return;
+        }
+        let d = &mut self.mod_drafts.dialog;
+        d.busy = Some(Busy::Keep);
+        d.refused = None;
+        let (serial, note) = (d.serial, d.note.text.chars().take(NOTE_LIMIT).collect::<String>());
+        self.keep_mod_draft(&session, &name, &note, move |s, _tx, got| {
+            if s.mod_drafts.dialog.serial != serial {
+                return;
+            }
+            s.mod_drafts.dialog.busy = None;
+            match got {
+                Ok(_) => s.close_draft_review(),
+                Err(r) => {
+                    s.mod_drafts.dialog.refused = Some(if r.message.is_empty() { "Couldn't keep this mod.".into() } else { r.message })
+                }
+            }
+        });
+        if self.link_for(&session).is_none() {
+            self.mod_drafts.dialog.busy = None;
+            self.mod_drafts.dialog.refused = Some("Couldn't keep this mod.".into());
+        }
+    }
+
+    /// Cancel closes; with the agent's request, Discard tells it first (`decline`).
+    pub fn decline_reviewed_draft(&mut self) {
+        let Some((session, name)) = self.mod_drafts.review.clone() else { return };
+        if self.mod_drafts.dialog.busy.is_some() {
+            return;
+        }
+        if !self.mod_drafts.list(&session).iter().any(|d| d.name == name && d.keep_request.is_some()) {
+            self.close_draft_review();
+            return;
+        }
+        let d = &mut self.mod_drafts.dialog;
+        d.busy = Some(Busy::Decline);
+        d.refused = None;
+        let serial = d.serial;
+        self.dismiss_mod_keep_request(&session, &name, move |s, _tx, got| {
+            if s.mod_drafts.dialog.serial != serial {
+                return;
+            }
+            s.mod_drafts.dialog.busy = None;
+            match got {
+                Ok(()) => s.close_draft_review(),
+                Err(r) => {
+                    s.mod_drafts.dialog.refused = Some(if r.message.is_empty() { "Couldn't tell the agent.".into() } else { r.message })
+                }
+            }
+        });
+        if self.link_for(&session).is_none() {
+            self.mod_drafts.dialog.busy = None;
+            self.mod_drafts.dialog.refused = Some("Couldn't tell the agent.".into());
+        }
     }
 
     /// `keep` of the store: keeps the draft, drops its request and reads the list again; `done` hears the refusal, which leaves the

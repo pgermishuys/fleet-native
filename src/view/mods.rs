@@ -4,6 +4,7 @@ pub mod draft_card;
 pub mod draft_mark;
 pub mod leaves;
 pub mod pane;
+pub mod review;
 pub mod rich;
 pub mod row;
 pub mod tree;
