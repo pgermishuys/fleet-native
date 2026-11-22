@@ -2834,3 +2834,10 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
   sees both panes' text.
 - **A button that works on its own** takes `.disabled(true)` and an `opacity`; there is no `disabled` look in `ui::button`, so the pane's busy Turn on dims to 0.5 like Fleet's.
 - **Text with a different line height needs the line in the font spec** (`sans(13.0, 400.0, 1.5)`): 1.4 made the off state's button 3 px higher than Fleet's, after two wrapped lines.
+
+## Component 18, piece R (New workflow and Duplicate)
+
+- **A dialog's `<code>` run is a `rich` text with a mono `Span`**, found by `str::find` on the sentence (`ui::dialog::Dialog::description_el`); nothing else is needed to wrap it with the rest.
+- **The scripted theme toggle flips the saved theme on every start**: with `FLEET_NATIVE_DATA_DIR` kept between runs, only the first run of a theme may carry the Cmd+Shift+L key, or the next run comes out the other theme.
+- **A script's `type` is slow (`every`, 0.03 s a letter by default)**: a later `tap` placed too soon cuts the typing short, so a picture of a submitted name needs the tap after the last letter.
+- **Rune has no select-all on focus** for a `TextEdit` (a browser input selects its text when autofocused, which Fleet's Duplicate name does); the caret sits at the end.

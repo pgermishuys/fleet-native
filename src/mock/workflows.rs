@@ -393,7 +393,39 @@ pub fn role_models() -> Vec<crate::composer::choice::ModelOption> {
     ]
 }
 
+/// The create dialog's scenes (piece R).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum CreateScene {
+    /// New workflow, a name typed.
+    New,
+    /// New workflow, the Describe it tab picked.
+    Describe,
+    /// Duplicate of the open built-in.
+    Duplicate,
+    /// A name the server refused as taken.
+    Taken,
+}
+
 impl crate::State {
+    /// The dialog over the Library of the invented repository. The scene is the state: nothing is asked of a server.
+    pub fn show_workflow_create(&mut self, dark: bool, which: CreateScene) {
+        use crate::fleet::workflows::create::{Create, Mode, Source};
+        self.show_workflows(dark, Scene::Library);
+        let source =
+            (which == CreateScene::Duplicate).then(|| Source { id: "builtin:build-a-feature".into(), name: "Build a feature".into() });
+        let mut c = Create::new(source);
+        match which {
+            CreateScene::New => c.name = rune::TextEdit::new("Check the release notes"),
+            CreateScene::Describe => c.mode = Mode::Describe,
+            CreateScene::Taken => {
+                c.name = rune::TextEdit::new("Tidy up a flaky test");
+                c.error = Some("There's already a workflow called Tidy up a flaky test. Pick another name.".into());
+            }
+            CreateScene::Duplicate => {}
+        }
+        self.workflows_nav.create = Some(c);
+    }
+
     /// The dialog and the popover for the pictures and tests: the invented repository's library, its harness's models and two
     /// roles mapped. The scene is the state: nothing is read from a server.
     pub fn show_roles(&mut self, dark: bool, which: RolesScene) {

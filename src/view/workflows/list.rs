@@ -25,9 +25,12 @@ pub fn panel(s: &State, t: &Theme) -> El {
         .child(row().px(16.0).pt(14.0).pb(10.0).child(text("WORKFLOWS").font(sans(rem(0.71429), 600.0, 1.5).tracking(0.5)).color(t.muted)));
     let machine = machine_switch::chip(s, t, SWITCH, &nav.choice).map(|chip| row().px(12.0).pb(6.0).child(chip));
     let can_create = nav.library.as_ref().is_some_and(|l| l.repository.is_some());
-    // Piece R opens the create dialog; until then the press does nothing.
     let create = dashed(t, "workflow-new", &PLUS, "New workflow", !can_create);
-    let create = if can_create { create.on_press(|_: &mut State| {}) } else { create.help("Pick a repository in the Run box first") };
+    let create = if can_create {
+        create.on_press_tx(|s: &mut State, tx: &mut rune::Tx| s.workflow_create_open(None, tx))
+    } else {
+        create.help("Pick a repository in the Run box first")
+    };
     let roles = dashed(t, "workflow-model-roles", &SLIDERS_HORIZONTAL, "Model roles", false)
         .on_press(|s: &mut State| s.workflows_nav.roles_open = true);
     let body = if nav.library.is_some() {

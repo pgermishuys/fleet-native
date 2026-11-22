@@ -411,6 +411,8 @@ mod tests_window;
 #[cfg(test)]
 mod tests_workflow_card;
 #[cfg(test)]
+mod tests_workflow_create;
+#[cfg(test)]
 mod tests_workflow_detail;
 #[cfg(test)]
 mod tests_workflow_editor;
@@ -2809,6 +2811,14 @@ pub fn spec() -> AppSpec<State> {
             ("workflow-editor-blocked-light", |s| s.show_workflow_editor(false, mock::workflow_editor::Case::Blocked)),
             ("workflow-editor-saved", |s| s.show_workflow_editor(true, mock::workflow_editor::Case::Saved)),
             ("workflow-editor-saved-light", |s| s.show_workflow_editor(false, mock::workflow_editor::Case::Saved)),
+            ("workflow-create", |s| s.show_workflow_create(true, mock::workflows::CreateScene::New)),
+            ("workflow-create-light", |s| s.show_workflow_create(false, mock::workflows::CreateScene::New)),
+            ("workflow-create-describe", |s| s.show_workflow_create(true, mock::workflows::CreateScene::Describe)),
+            ("workflow-create-describe-light", |s| s.show_workflow_create(false, mock::workflows::CreateScene::Describe)),
+            ("workflow-duplicate", |s| s.show_workflow_create(true, mock::workflows::CreateScene::Duplicate)),
+            ("workflow-duplicate-light", |s| s.show_workflow_create(false, mock::workflows::CreateScene::Duplicate)),
+            ("workflow-create-taken", |s| s.show_workflow_create(true, mock::workflows::CreateScene::Taken)),
+            ("workflow-create-taken-light", |s| s.show_workflow_create(false, mock::workflows::CreateScene::Taken)),
             ("workflow-file", |s| s.show_workflow_editor(true, mock::workflow_editor::Case::File)),
             ("workflow-file-light", |s| s.show_workflow_editor(false, mock::workflow_editor::Case::File)),
             ("workflow-file-errors", |s| s.show_workflow_editor(true, mock::workflow_editor::Case::FileErrors)),
