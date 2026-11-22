@@ -134,6 +134,20 @@ pub struct CanvasInstance {
     pub file: Option<FileTab>,
     /// A browser or page tab's canvas on the server: what 14's body reads.
     pub server: Option<ServerTab>,
+    /// A mod pane tab's mod and pane (`CanvasInstance.modPane`); its title is in `title`.
+    pub mod_pane: Option<ModPaneRef>,
+}
+
+/// Which pane of which mod a `mod` tab draws.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ModPaneRef {
+    pub mod_name: String,
+    pub pane_id: String,
+}
+
+/// A pane id belongs to its mod: two mods may use the same one (`modPaneCanvasId`).
+pub fn mod_pane_canvas_id(mod_name: &str, pane_id: &str) -> String {
+    format!("mod:{mod_name}:{pane_id}")
 }
 
 /// How a file tab shows its file (`FileView`). Markdown and HTML also have Rendered, and their Edit is called Source.
@@ -204,6 +218,7 @@ impl ServerCanvas {
             title: Some(plain_terminal_text(&self.title)),
             file: None,
             server: Some(ServerTab { canvas_id: self.id.clone(), version: self.version, state: self.state.clone() }),
+            mod_pane: None,
         }
     }
 }
@@ -218,7 +233,7 @@ pub enum CanvasEvent {
 
 impl CanvasInstance {
     pub fn built_in(kind: CanvasKind) -> Self {
-        Self { id: kind.slug().to_string(), kind, payload: None, title: None, file: None, server: None }
+        Self { id: kind.slug().to_string(), kind, payload: None, title: None, file: None, server: None, mod_pane: None }
     }
 
     /// Changes is the one tab that can't be closed (`FIXED_CANVAS_IDS`).
@@ -493,6 +508,41 @@ impl Canvases {
             }
             s.mark_introduced(kind);
         });
+    }
+
+    /// Opens (or brings forward) the tab of a mod's pane. A pane id has one tab per mod: opening it again replaces the title, adds
+    /// no tab and makes it active (`openModPane`).
+    pub fn open_mod_pane(&mut self, session: &str, pane: ModPaneRef, title: &str) -> String {
+        let id = mod_pane_canvas_id(&pane.mod_name, &pane.pane_id);
+        let tab = CanvasInstance {
+            title: Some(plain_terminal_text(title)),
+            mod_pane: Some(pane),
+            ..CanvasInstance { id: id.clone(), ..CanvasInstance::built_in(CanvasKind::Mod) }
+        };
+        self.edit(session, |s| {
+            match s.canvases.iter_mut().find(|c| c.id == id) {
+                Some(open) => *open = tab,
+                None => s.canvases.push(tab),
+            }
+            s.review = false;
+            s.active_id = id.clone();
+        });
+        id
+    }
+
+    /// Replaces an open pane's title without opening it or changing the active tab; a pane that isn't open is left alone
+    /// (`updateModPane`). True when the tab was there.
+    pub fn update_mod_pane(&mut self, session: &str, pane: &ModPaneRef, title: &str) -> bool {
+        let id = mod_pane_canvas_id(&pane.mod_name, &pane.pane_id);
+        if !self.session(session).canvases.iter().any(|c| c.id == id) {
+            return false;
+        }
+        self.edit(session, |s| {
+            if let Some(tab) = s.canvases.iter_mut().find(|c| c.id == id) {
+                tab.title = Some(plain_terminal_text(title));
+            }
+        });
+        true
     }
 
     /// Opens a document as a tab; one with the same title is replaced in place, so a revised diagram takes the old one's

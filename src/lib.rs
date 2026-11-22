@@ -197,6 +197,8 @@ mod tests_mission_needs_you;
 #[cfg(test)]
 mod tests_mods_controls;
 #[cfg(test)]
+mod tests_mods_panes;
+#[cfg(test)]
 mod tests_mods_renders;
 #[cfg(test)]
 mod tests_mods_rows;
@@ -616,6 +618,8 @@ pub struct State {
     pub mods_ui: fleet::mods::controls::ModControls,
     /// What a session's mods drew on its tool rows (component 22, piece D).
     pub mod_renders: fleet::mods::renders::Renders,
+    /// The panes the mods drew in the session's tabs (component 22, piece F).
+    pub mod_panes: fleet::mods::panes::ModPanes,
     /// Checks each row's tree once (component 22, piece E).
     pub mod_resolver: fleet::mods::resolve::Resolver,
     /// The width of the last tool row a mod drew on, as laid out: the line's 60% cap and the title's floor are shares of it (Rune has no percent).
@@ -977,6 +981,7 @@ impl Default for State {
             mod_scene: None,
             mods_ui: Default::default(),
             mod_renders: Default::default(),
+            mod_panes: Default::default(),
             mod_resolver: fleet::mods::resolve::Resolver::new(Default::default()),
             mod_line_w: 0.0,
             working_since: -18.0,
@@ -1849,6 +1854,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_mod_renders()
         | s.sync_row_controls()
         | s.deliver_mod_actions()
+        | s.watch_open_mod_session()
         | s.keep_skills(tx)
         | s.keep_built_in(tx)
         | s.keep_harnesses_page(tx)
@@ -5988,6 +5994,11 @@ pub fn spec() -> AppSpec<State> {
                 s.dark = Some(false);
                 s.show_mod_rows(mock::mod_rows::Case::Body)
             }),
+            // Component 22, piece F: the + menu's "From mods" group, and a pane's tab with its Draft mark.
+            ("mods-pane-menu", |s| s.show_mod_panes(mock::mod_trees::PaneCase::Menu, true)),
+            ("mods-pane-menu-light", |s| s.show_mod_panes(mock::mod_trees::PaneCase::Menu, false)),
+            ("mods-pane-tab", |s| s.show_mod_panes(mock::mod_trees::PaneCase::Tab, true)),
+            ("mods-pane-tab-light", |s| s.show_mod_panes(mock::mod_trees::PaneCase::Tab, false)),
             ("mods-controls", |s| s.show_mod_controls(true)),
             ("mods-controls-light", |s| s.show_mod_controls(false)),
             ("panel-tabs", |s| s.show_tabs(mock::canvas_host::Case::Tabs, true)),

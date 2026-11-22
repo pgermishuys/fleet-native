@@ -14,7 +14,7 @@ use crate::fleet::state::Topic;
 use crate::{State, Tx};
 use serde_json::Value;
 
-fn session_path(session: &str, tail: &str) -> String {
+pub(super) fn session_path(session: &str, tail: &str) -> String {
     format!("/api/sessions/{}/mods/{tail}", crate::conv::image_sniff::encode_component(session))
 }
 

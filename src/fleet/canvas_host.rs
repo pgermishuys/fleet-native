@@ -1,7 +1,8 @@
 //! What the panel's tab strip needs from the model (`CanvasHost.vue`, `SessionsV2RightPanel.vue`): the badges on the tabs,
 //! the tab that is showing, and the handlers behind a tab, its close button and the `+` menu. Plain logic; `view::canvas_host`
 //! draws it.
-use super::canvases::{CanvasKind, PICKABLE, VisualPayload, visual_id, visual_title};
+use super::canvases::{CanvasInstance, CanvasKind, PICKABLE, VisualPayload, mod_pane_canvas_id, visual_id, visual_title};
+use super::mods::renders::DeclaredPane;
 use super::smart_links::needs_attention;
 use crate::{State, Tx};
 
@@ -28,6 +29,14 @@ pub fn close_key(id: &str) -> String {
 pub fn pin_key(id: &str) -> String {
     format!("canvas-tab-pin-{id}")
 }
+
+/// The key of the box a tab sits in while the strip leaves room for a Draft mark (`.canvas-tabs--draft`).
+pub fn reach_key(id: &str) -> String {
+    format!("canvas-tab-reach-{id}")
+}
+
+/// What the strip leaves free when it scrolls a tab into view while a Draft mark is on a tab (`scroll-padding-inline`).
+pub const STRIP_ROOM: f32 = 24.0;
 
 /// The strip's scroll box, which the active tab is brought into.
 pub const STRIP: &str = "canvas-tabs";
@@ -88,6 +97,11 @@ impl State {
             Some(server) => self.close_server_canvas(&server.canvas_id),
             None => {
                 let closed = self.edit_canvases(|c, session| c.close(session, &id)).flatten();
+                // A mod pane's view leaves with its tab, wherever it was closed from (`close`).
+                if let Some(pane) = closed.as_ref().and_then(|c| c.mod_pane.clone()) {
+                    let session = self.canvas_session();
+                    self.drop_pane_view(&session, &pane.mod_name, &pane.pane_id);
+                }
                 // A file tab's buffer leaves with it (`close`).
                 if let Some(file) = closed.and_then(|c| c.file) {
                     let session = self.canvas_session();
@@ -131,7 +145,8 @@ impl State {
 
     /// Scrolls the strip to the active tab (`scrollIntoView({inline: "nearest"})`), after the tabs are drawn.
     pub fn reveal_active(&self, tx: &mut Tx) {
-        tx.scroll_into_view_in(STRIP, tab_key(&self.active_canvas()));
+        let active = self.active_canvas();
+        tx.scroll_into_view_in(STRIP, if self.strip_has_draft_tab() { reach_key(&active) } else { tab_key(&active) });
     }
 
     /// The tab `step` places from the active one, wrapping (`onTabKeydown`).
@@ -153,6 +168,35 @@ impl State {
     pub fn picker_rows(&self) -> Vec<(CanvasKind, bool)> {
         let open = self.open_canvases();
         PICKABLE.iter().map(|k| (*k, open.canvases.iter().any(|c| c.id == k.slug()))).collect()
+    }
+
+    /// The panes the session's mods declare, for the menu's "From mods" group, each with whether its tab is open. Off mods' are
+    /// listed too (`modMenuPanes`).
+    pub fn mod_menu_panes(&self) -> Vec<(DeclaredPane, bool)> {
+        let session = self.canvas_session();
+        let open = self.open_canvases();
+        self.mod_renders
+            .declared_panes(&session)
+            .iter()
+            .map(|p| (p.clone(), open.canvases.iter().any(|c| c.id == mod_pane_canvas_id(&p.mod_name, &p.id))))
+            .collect()
+    }
+
+    /// A declared pane picked in the `+` menu: its tab opens and its mod is asked to draw it (`openModPaneFromMenu`).
+    pub fn open_mod_pane_from_menu(&mut self, pane: &DeclaredPane, tx: &mut Tx) {
+        let session = self.canvas_session();
+        self.open_and_draw_mod_pane(&session, &pane.mod_name, &pane.id, &pane.title);
+        self.reveal_active(tx);
+    }
+
+    /// A pane's tab carries the Draft mark while its view is a draft's (`isDraftModPane`).
+    pub fn is_draft_pane_tab(&self, canvas: &CanvasInstance) -> bool {
+        canvas.mod_pane.as_ref().is_some_and(|p| self.mod_panes.is_draft(&self.canvas_session(), &p.mod_name, &p.pane_id))
+    }
+
+    /// The strip leaves 24 px for the fade only while a Draft mark widens a tab (`hasDraftTab`).
+    pub fn strip_has_draft_tab(&self) -> bool {
+        self.open_canvases().canvases.iter().any(|c| self.is_draft_pane_tab(c))
     }
 
     /// The conversation's visuals for the menu's "From this conversation" group: newest first, one for each canvas title,

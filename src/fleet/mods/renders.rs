@@ -284,6 +284,11 @@ impl Renders {
         self.panes.get(session).map_or(&[], Vec::as_slice)
     }
 
+    /// Holds the panes a session's mods declare, as if `/mods/sites` had said them (a scene).
+    pub fn set_declared_panes(&mut self, session: &str, panes: Vec<DeclaredPane>) {
+        self.panes.insert(session.to_string(), panes);
+    }
+
     pub fn hooks_of(&self, session: &str) -> Option<&Vec<SiteHook>> {
         self.hooks.get(session).and_then(Option::as_ref)
     }
