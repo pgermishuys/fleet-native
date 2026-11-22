@@ -109,77 +109,78 @@ fn shows_the_parser_s_error_on_the_step() {
 }
 
 #[test]
-fn the_new_step_is_what_a_save_would_write() {
+fn a_click_opens_the_step_escape_closes_the_menu_and_the_loops_follow_the_nodes() {
+    // One runtime for all of it: each one leaves threads behind, and the macOS runner is near its limit.
     let mut r = mounted();
-    click(&mut r.rt, "workflow-add-0");
-    click(&mut r.rt, "workflow-add-agent");
-    let step = &r.ed().draft.as_ref().unwrap().steps[0];
-    assert_eq!((step.id.as_str(), step.title.as_str(), step.model.as_deref()), ("step", "New step", Some("standard")));
-    assert_eq!(step.prompt.as_deref(), Some("The request: {{request}}\n\n{{previous.summary}}"));
-    assert_eq!(r.ed().canvas.selected, Some(0));
-    assert!(r.ed().is_dirty());
-}
-
-#[test]
-fn a_click_on_a_node_opens_the_step_and_the_settings_box_opens_the_workflow() {
-    let mut r = mounted();
-    assert_eq!(r.ed().canvas.selected, None, "the workflow's own settings are open first");
-    click(&mut r.rt, "workflow-node-fix");
-    assert_eq!(r.ed().canvas.selected, Some(2));
-    click(&mut r.rt, "workflow-node-investigate");
-    assert_eq!(r.ed().canvas.selected, Some(0));
-    click(&mut r.rt, "workflow-canvas-settings");
-    assert_eq!(r.ed().canvas.selected, None);
-}
-
-#[test]
-fn escape_closes_the_menu_and_a_second_click_on_the_plus_does_too() {
-    let mut r = mounted();
-    let before = r.ids().len();
-    click(&mut r.rt, "workflow-add-2");
-    assert!(r.has("workflow-add-menu"));
-    press_key(&mut r.rt, Key::Escape, Mods::default());
-    r.frames();
-    assert!(!r.has("workflow-add-menu"));
-    assert_eq!(r.ed().canvas.add_at, None);
-    assert_eq!(r.ids().len(), before, "nothing was added");
-
-    click(&mut r.rt, "workflow-add-2");
-    assert_eq!(r.ed().canvas.add_at, Some(2));
-    r.rt.update(|s, _| s.workflows_nav.editor.canvas.toggle_add(2));
-    assert_eq!(r.ed().canvas.add_at, None);
-}
-
-#[test]
-fn a_loop_is_drawn_from_where_the_nodes_are_and_says_how_often() {
-    let mut r = mounted();
-    assert_eq!(r.words("workflow-loop-label"), "changes \u{b7} at most 2\u{d7}");
-    assert!(r.words("workflow-node-review").contains("changes \u{2192} Fix \u{2264}2"));
-
-    r.rt.update(|s, _| {
-        let e = &mut s.workflows_nav.editor;
-        let mut next = e.draft.clone().unwrap();
-        next.steps[3].max_loops = None;
-        e.edit_draft(next);
-    });
-    r.frames();
-    assert_eq!(r.words("workflow-loop-label"), "changes \u{b7} needs a max");
-
-    // Another file opens with the same layout: Rune reports no move, so the places must have been kept.
+    // the new step is what a save would write
+    {
+        click(&mut r.rt, "workflow-add-0");
+        click(&mut r.rt, "workflow-add-agent");
+        let step = &r.ed().draft.as_ref().unwrap().steps[0];
+        assert_eq!((step.id.as_str(), step.title.as_str(), step.model.as_deref()), ("step", "New step", Some("standard")));
+        assert_eq!(step.prompt.as_deref(), Some("The request: {{request}}\n\n{{previous.summary}}"));
+        assert_eq!(r.ed().canvas.selected, Some(0));
+        assert!(r.ed().is_dirty());
+    }
     r.adopt();
-    assert_eq!(r.words("workflow-loop-label"), "changes \u{b7} at most 2\u{d7}");
-}
+    // a click on a node opens the step and the settings box opens the workflow
+    {
+        assert_eq!(r.ed().canvas.selected, None, "the workflow's own settings are open first");
+        click(&mut r.rt, "workflow-node-fix");
+        assert_eq!(r.ed().canvas.selected, Some(2));
+        click(&mut r.rt, "workflow-node-investigate");
+        assert_eq!(r.ed().canvas.selected, Some(0));
+        click(&mut r.rt, "workflow-canvas-settings");
+        assert_eq!(r.ed().canvas.selected, None);
+    }
+    r.adopt();
+    // escape closes the menu and a second click on the plus does too
+    {
+        let before = r.ids().len();
+        click(&mut r.rt, "workflow-add-2");
+        assert!(r.has("workflow-add-menu"));
+        press_key(&mut r.rt, Key::Escape, Mods::default());
+        r.frames();
+        assert!(!r.has("workflow-add-menu"));
+        assert_eq!(r.ed().canvas.add_at, None);
+        assert_eq!(r.ids().len(), before, "nothing was added");
 
-#[test]
-fn a_step_that_is_gone_leaves_the_settings_open() {
-    let mut r = mounted();
-    click(&mut r.rt, "workflow-node-open-pr");
-    assert_eq!(r.ed().canvas.selected, Some(6));
-    r.rt.update(|s, _| {
-        let e = &mut s.workflows_nav.editor;
-        let next = remove_step(e.draft.as_ref().unwrap(), 6);
-        e.edit_draft(next);
-    });
-    r.frames();
-    assert_eq!(r.ed().canvas.selected, None);
+        click(&mut r.rt, "workflow-add-2");
+        assert_eq!(r.ed().canvas.add_at, Some(2));
+        r.rt.update(|s, _| s.workflows_nav.editor.canvas.toggle_add(2));
+        assert_eq!(r.ed().canvas.add_at, None);
+    }
+    r.adopt();
+    // a loop is drawn from where the nodes are and says how often
+    {
+        assert_eq!(r.words("workflow-loop-label"), "changes \u{b7} at most 2\u{d7}");
+        assert!(r.words("workflow-node-review").contains("changes \u{2192} Fix \u{2264}2"));
+
+        r.rt.update(|s, _| {
+            let e = &mut s.workflows_nav.editor;
+            let mut next = e.draft.clone().unwrap();
+            next.steps[3].max_loops = None;
+            e.edit_draft(next);
+        });
+        r.frames();
+        assert_eq!(r.words("workflow-loop-label"), "changes \u{b7} needs a max");
+
+        // Another file opens with the same layout: Rune reports no move, so the places must have been kept.
+        r.adopt();
+        assert_eq!(r.words("workflow-loop-label"), "changes \u{b7} at most 2\u{d7}");
+    }
+    r.adopt();
+    // a step that is gone leaves the settings open
+    {
+        click(&mut r.rt, "workflow-node-open-pr");
+        assert_eq!(r.ed().canvas.selected, Some(6));
+        r.rt.update(|s, _| {
+            let e = &mut s.workflows_nav.editor;
+            let next = remove_step(e.draft.as_ref().unwrap(), 6);
+            e.edit_draft(next);
+        });
+        r.frames();
+        assert_eq!(r.ed().canvas.selected, None);
+    }
+    r.adopt();
 }
