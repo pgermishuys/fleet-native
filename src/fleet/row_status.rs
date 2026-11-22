@@ -291,9 +291,11 @@ pub fn row_status(item: &RowItem, now: i64, offset_secs: i64, machine_answering:
     }
 }
 
-/// `label || session.title?.trim() || "Untitled session"` (`displayTitle`): a workflow step's name wins over the title.
+/// `label || plainTerminalText(session.title).trim() || "Untitled session"` (`displayTitle`): a workflow step's name wins
+/// over the title, and a title made from coloured output shows without its terminal codes (#1041).
 pub fn display_title(label: Option<&str>, title: &str) -> String {
     label.filter(|l| !l.is_empty()).map(str::to_string).unwrap_or_else(|| {
+        let title = crate::conv::output::plain_terminal_text(title);
         let title = title.trim();
         if title.is_empty() { "Untitled session".into() } else { title.to_string() }
     })

@@ -65,6 +65,17 @@ fn has_no_dreaming_row_dreaming_lives_in_memory() {
 }
 
 #[test]
+fn offers_claude_code_sessions_from_a_terminal_off_and_saves_the_choice() {
+    let mut r = rig(&[]);
+    let switch = r.info("terminal-sessions-switch").unwrap();
+    assert_eq!(switch.label.as_deref(), Some("Show Claude Code sessions from a terminal"));
+    assert!(!r.on(sw::TERMINAL_SESSIONS), "off by default");
+    click(&mut r.rt, "terminal-sessions-switch");
+    r.wait_put("TerminalSessions", "true");
+    assert!(r.on(sw::TERMINAL_SESSIONS));
+}
+
+#[test]
 fn holds_the_workflows_switch_which_saves_the_workflows_preference() {
     let mut r = rig(&[]);
     assert_eq!(r.info("workflows-switch").unwrap().label.as_deref(), Some("Enable workflows"));
@@ -108,13 +119,20 @@ fn a_search_switch_that_is_on_can_still_be_turned_off_while_memory_is_off() {
 #[test]
 fn every_row_has_its_words_its_switch_name_and_its_own_key() {
     let mut r = rig_with_machines(&[]);
-    let rows: [(&str, &str, &str, &str, &str); 5] = [
+    let rows: [(&str, &str, &str, &str, &str); 6] = [
         (
             "live-machines",
             "Other machines update as they change, not every 15 seconds.",
             "Other machines' sessions update as they change, instead of every 15 seconds, and open here.",
             "live-machines-switch",
             "Keep every machine live",
+        ),
+        (
+            "terminal-sessions",
+            "A session you start with claude in a terminal shows here, with its turns.",
+            "Claude Code starts Fleet's MCP server, fleet mcp, with each session. It tells Fleet the session's ID and folder, and Fleet reads the turns from the session's transcript. Only a folder in a repository Fleet knows shows. Add the server by hand for now: claude mcp add --scope user fleet -- fleet mcp.",
+            "terminal-sessions-switch",
+            "Show Claude Code sessions from a terminal",
         ),
         (
             "jobs",
@@ -155,7 +173,7 @@ fn every_row_has_its_words_its_switch_name_and_its_own_key() {
     }
     // The live row says this app keeps no feeds yet; it has no adds line, and nothing has one while everything is off.
     assert!(r.info("live-machines-later").is_some());
-    for id in ["jobs", "mission-control", "memory-search", "workflows", "live-machines"] {
+    for id in ["terminal-sessions", "jobs", "mission-control", "memory-search", "workflows", "live-machines"] {
         assert!(r.info(&format!("setting-adds-line-{id}")).is_none(), "{id} adds nothing while off");
     }
 }
@@ -163,6 +181,7 @@ fn every_row_has_its_words_its_switch_name_and_its_own_key() {
 #[test]
 fn a_row_says_what_it_adds_only_while_its_switch_is_on() {
     let r = rig(&[
+        ("TerminalSessions", "true"),
         ("Jobs", "true"),
         ("features.mission-control.enabled", "true"),
         ("Workflows", "true"),
@@ -170,6 +189,7 @@ fn a_row_says_what_it_adds_only_while_its_switch_is_on() {
         ("MemorySearch", "true"),
     ]);
     let adds = |id: &str| r.text(&format!("setting-adds-{id}"));
+    assert!(adds("terminal-sessions").contains("Terminal sessions in the session list"));
     assert!(adds("jobs").contains("Jobs in the rail, seats on each machine"));
     assert!(adds("mission-control").contains("Fleet in the rail, the first screen"));
     assert!(adds("memory-search").contains("Two groups in Memory"));
@@ -185,6 +205,7 @@ fn open_goes_to_the_place_a_switch_adds_and_leaves_the_switch_alone() {
         ("jobs", "Jobs", Rail::Jobs),
         ("mission-control", "features.mission-control.enabled", Rail::Fleet),
         ("workflows", "Workflows", Rail::Workflows),
+        ("terminal-sessions", "TerminalSessions", Rail::Sessions),
     ];
     for (id, key, rail) in cases {
         let mut r = rig(&[(key, "true")]);

@@ -1,5 +1,5 @@
 //! Every event the hub sends, read (`client/src/lib/domain-events.ts`, the `DomainEvent` union of
-//! 64 `type` strings). The reducer applies fourteen of them (`Event` variants with fields); the rest
+//! 65 `type` strings). The reducer applies fourteen of them (`Event` variants with fields); the rest
 //! are kept whole as `Event::Other(kind, properties)` for the component that owns them, and a
 //! type this build has never heard of (a newer Fleet) is `Event::Unknown`. Nothing is dropped.
 use super::delegations::DelegationEvent;
@@ -80,7 +80,7 @@ pub struct Lifecycle {
 macro_rules! kinds {
     ($($variant:ident = $wire:literal,)*) => {
         /// A type of the union. The fourteen the reducer applies have their own `Event` variants and
-        /// appear here too, so one table lists all 64.
+        /// appear here too, so one table lists all 65.
         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
         pub enum Kind { $($variant,)* }
 
@@ -151,6 +151,7 @@ kinds! {
     SessionBranch = "session_branch",
     ProgressUpdated = "progress.updated",
     SessionTokens = "session_tokens",
+    SessionTerminal = "session_terminal",
     SmartLinkUpdated = "smart_link.updated",
     UpdateRollout = "update.rollout",
     MemorySaved = "memory.saved",

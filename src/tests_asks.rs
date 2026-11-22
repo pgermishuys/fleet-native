@@ -138,3 +138,24 @@ fn typing_while_a_card_waits_is_the_composers() {
     assert_eq!(rt.state.draft.text, "hello");
     assert!(has(&rt, "permission-card"), "the card is still waiting");
 }
+
+// ─── PermissionCard terminal codes ──────────────────────────────────────────────
+
+/// Every word the frame draws, and every name and tooltip it gives.
+fn drawn(rt: &rune::Runtime<crate::State>) -> String {
+    rt.elements().iter().flat_map(|e| [e.text.clone(), e.label.clone(), e.help.clone()]).flatten().collect::<Vec<_>>().join("\n")
+}
+
+#[test]
+fn shows_a_command_made_from_coloured_output_without_the_codes() {
+    let words = drawn(&shown(Case::Coloured));
+    assert!(words.contains("echo failed") && words.contains("/repo"), "{words}");
+    assert!(!words.contains("[31m") && !words.contains('\u{1b}'), "{words}");
+}
+
+#[test]
+fn shows_the_file_of_an_edit_ask_without_the_codes() {
+    let words = drawn(&shown(Case::ColouredEdit));
+    assert!(words.contains("src/app.ts"), "{words}");
+    assert!(!words.contains("[1m") && !words.contains('\u{1b}'), "{words}");
+}

@@ -25,6 +25,10 @@ pub enum Case {
     HandoffFolder,
     /// A very long command, a very long diff and a very long pattern.
     Long,
+    /// A command and its folder made from coloured output, terminal codes and all (Fleet #1041).
+    Coloured,
+    /// An edit whose file name came with terminal codes.
+    ColouredEdit,
 }
 
 const DIFF: &str = "Index: src/paginate.py\n===================================================================\n--- src/paginate.py\n+++ src/paginate.py\n@@ -10,7 +10,9 @@ def page(items, size):\n     start = 0\n     out = []\n-    while start < len(items):\n-        out.append(items[start:start + size])\n+    while start < len(items):\n+        chunk = items[start:start + size]\n+        out.append(chunk)\n+        # the last page may be short\n         start += size\n     return out\n \n";
@@ -53,6 +57,11 @@ fn ask(case: Case) -> Value {
             "kind": "other", "tool": "fleet_session_message", "always": [], "subagent": "explorer", "handoff":
             {"machine": "harbor", "os": "macos", "session": "Cursor paging", "folder": "/work/shop", "task": "Rebase on main, then rerun the order tests."}
         }),
+        Case::Coloured => json!({"kind": "shell", "tool": "bash", "title": "echo \u{1b}[31mfailed\u{1b}[0m",
+            "directory": "\u{1b}[2m/repo\u{1b}[0m", "always": ["echo *"]}),
+        Case::ColouredEdit => {
+            json!({"kind": "edit", "tool": "edit", "title": "\u{1b}[1msrc/app.ts\u{1b}[0m", "detail": "+a\n-b", "always": ["*"]})
+        }
         Case::Long => json!({
             "kind": "shell", "tool": "bash", "title": "find /work/shop/services/orders -name '*.py' -newer /work/shop/.last-build -not -path '*/node_modules/*' -print0 | xargs -0 grep -n 'page_size' | sort | uniq -c | sort -rn | head -n 40",
             "directory": "/work/shop/services/orders/internal/pagination/cursors",

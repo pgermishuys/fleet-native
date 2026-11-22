@@ -209,3 +209,67 @@ fn sessionitem_shows_the_pull_request_badge_only_when_the_session_has_one() {
     assert!(has(&rt, "session-pr-0-9".into()));
     assert!(!has(&rt, "session-pr-0-0".into()));
 }
+
+// ─── A session from a terminal (#1099) ──────────────────────────────────────────
+
+/// The first row of the invented list, changed by `change`.
+fn first_row(change: impl FnOnce(&mut crate::mock::Session)) -> rune::Runtime<crate::State> {
+    let mut rt = app();
+    rt.update(|s, _| change(&mut s.projects[0].sessions[0]));
+    rt.frame(crate::tests::FRAME);
+    rt.frame(crate::tests::FRAME);
+    rt
+}
+
+fn info(rt: &rune::Runtime<crate::State>, key: &str) -> Option<rune::ElementInfo> {
+    rt.elements().into_iter().find(|e| e.key.as_deref() == Some(key))
+}
+
+/// The words drawn inside the element `key`.
+fn words_of(rt: &rune::Runtime<crate::State>, key: &str) -> Option<String> {
+    let [x, y, w, h] = info(rt, key)?.rect;
+    let inside = |r: [f32; 4]| r[0] >= x && r[1] >= y && r[0] + r[2] <= x + w + 0.5 && r[1] + r[3] <= y + h + 0.5;
+    Some(rt.elements().into_iter().filter(|c| inside(c.rect)).filter_map(|c| c.text).collect::<Vec<_>>().join(" "))
+}
+
+#[test]
+fn shows_the_quiet_in_terminal_chip_while_a_terminal_has_it_open() {
+    let rt = first_row(|s| {
+        s.row.harness_type = Some("claude-code".into());
+        s.listing.spawn_kind = Some("terminal".into());
+        s.row.in_terminal = true;
+    });
+    assert_eq!(words_of(&rt, "session-terminal-chip-0-0").as_deref(), Some("In terminal"));
+    assert_eq!(info(&rt, "session-terminal-chip-0-0").unwrap().help.as_deref(), Some("A terminal has this session open"));
+    assert!(info(&rt, "session-from-terminal-0-0").is_none());
+}
+
+#[test]
+fn keeps_a_muted_from_terminal_marker_once_the_terminal_has_closed() {
+    let rt = first_row(|s| {
+        s.row.harness_type = Some("claude-code".into());
+        s.listing.spawn_kind = Some("terminal".into());
+        s.row.in_terminal = false;
+        s.row.activity = "idle".into();
+        s.row.lifecycle = "stopped".into();
+        s.status = crate::mock::Status::Idle;
+    });
+    assert!(info(&rt, "session-terminal-chip-0-0").is_none());
+    let marker = info(&rt, "session-from-terminal-0-0").expect("the marker");
+    assert_eq!(marker.text.as_deref(), Some("FROM TERMINAL"), "`.session-kind` is uppercase");
+    assert!(marker.help.as_deref().is_some_and(|h| h.starts_with("Started in a terminal")));
+}
+
+#[test]
+fn shows_neither_on_a_session_started_in_fleet() {
+    let rt = first_row(|s| s.row.harness_type = Some("claude-code".into()));
+    assert!(info(&rt, "session-terminal-chip-0-0").is_none());
+    assert!(info(&rt, "session-from-terminal-0-0").is_none());
+}
+
+// SessionsPanel.test.ts
+#[test]
+fn lists_a_session_whose_title_has_terminal_codes_without_them() {
+    let rt = first_row(|s| s.title = "\u{1b}[31mFix\u{1b}[0m the build".into());
+    assert_eq!(info(&rt, "session-title-0-0").unwrap().text.as_deref(), Some("Fix the build"));
+}

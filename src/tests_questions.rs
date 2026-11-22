@@ -116,3 +116,28 @@ fn a_card_is_only_built_when_there_is_a_question() {
     rt.frame(FRAME);
     assert!(!has(&rt, "question-card"));
 }
+
+/// Every word the frame draws, and every name and tooltip it gives.
+fn drawn(rt: &rune::Runtime<crate::State>) -> String {
+    rt.elements().iter().flat_map(|e| [e.text.clone(), e.label.clone(), e.help.clone()]).flatten().collect::<Vec<_>>().join("\n")
+}
+
+#[test]
+fn shows_a_question_built_from_coloured_shell_output_as_words_without_the_codes() {
+    let rt = shown(Case::Coloured);
+    let words = drawn(&rt);
+    assert!(words.contains("Tests failed: retry?"), "{words}");
+    assert!(words.contains("Runs again") && words.contains("Retry") && words.contains("Build"), "{words}");
+    assert!(!words.contains("[31m") && !words.contains("[0m") && !words.contains('\u{1b}'), "{words}");
+    // What a pick sends is the label as the agent wrote it.
+    assert!(has(&rt, "question-pill-\u{1b}[32mRetry\u{1b}[0m"));
+}
+
+#[test]
+fn the_answered_and_skipped_rows_show_the_question_without_the_codes() {
+    for case in [Case::ColouredAnswered, Case::ColouredSkipped] {
+        let words = drawn(&shown(case));
+        assert!(words.contains("Tests failed: retry?"), "{words}");
+        assert!(!words.contains('\u{1b}') && !words.contains("[31m"), "{words}");
+    }
+}

@@ -33,6 +33,7 @@ pub fn trim_session(s: &Session) -> Value {
         // Only whether the user moved it out of its parent is drawn; the time isn't.
         "lineageDetachedAt": l.detached.then_some("detached"),
         "runningWorkCount": s.row.running_work,
+        "inTerminal": s.row.in_terminal,
         "workflowRunId": l.workflow_run_id,
     })
 }

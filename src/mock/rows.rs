@@ -140,6 +140,33 @@ pub fn chips() -> Project {
     finish("mock-chips", "Chips", rows)
 }
 
+/// Claude Code sessions started in a terminal (Fleet #1099): two a terminal holds now, two it has let go of, one waiting
+/// on the user, a title made from coloured output, and a session started in Fleet to compare with.
+pub fn terminal() -> Project {
+    let min = 60;
+    let hour = 3600;
+    let from_terminal = |s: &mut Session| {
+        s.row.harness_type = Some("claude-code".into());
+        s.listing.spawn_kind = Some("terminal".into());
+    };
+    let rows = vec![
+        row("Tidy the payment retries", Status::Working, "active", "busy", 5, |s| {
+            from_terminal(s);
+            s.row.in_terminal = true;
+        }),
+        row("Read the flaky upload test", Status::Idle, "idle", "idle", 12 * min, |s| {
+            from_terminal(s);
+            s.row.in_terminal = true;
+        }),
+        row("Which format should the export use?", Status::NeedsInput, "waiting_input", "waiting_input", 5, from_terminal),
+        row("Sketch the export format", Status::Idle, "stopped", "idle", 3 * hour, from_terminal),
+        row("Rename the cache flags", Status::Idle, "idle", "idle", 40 * min, from_terminal),
+        row("\u{1b}[31mFix\u{1b}[0m the build", Status::Idle, "idle", "idle", 50 * min, |_| {}),
+        row("Fix the checkout total", Status::Idle, "idle", "idle", 2 * hour, |s| s.row.harness_type = Some("claude-code".into())),
+    ];
+    finish("mock-terminal", "Terminal", rows)
+}
+
 fn finish(id: &str, name: &str, rows: Vec<Session>) -> Project {
     let mut project = Project {
         id: id.into(),

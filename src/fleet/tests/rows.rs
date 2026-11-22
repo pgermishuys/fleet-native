@@ -208,3 +208,50 @@ fn a_patch_reaches_the_open_row_and_starts_its_clock() {
     assert_eq!(rt.state.session().status, Status::Working);
     assert!(rt.state.working_since >= 0.0);
 }
+
+// ─── session_terminal (#1099, `use-session-terminal-updates.ts`) ────────────────
+
+#[test]
+fn a_terminal_opening_or_letting_go_of_a_session_reaches_its_row() {
+    let mut item = row("a", "w", "idle", "idle");
+    item["spawnKind"] = json!("terminal");
+    let mut list = rows_of(vec![item, row("b", "w", "idle", "idle")]);
+    assert!(!find(&list, "a").row.in_terminal, "a row without inTerminal isn't in one");
+    assert_eq!(find(&list, "a").listing.spawn_kind.as_deref(), Some("terminal"));
+    apply(&mut list, patch("session_terminal", json!({"sessionId": "a", "inTerminal": true})));
+    assert!(find(&list, "a").row.in_terminal);
+    assert!(!find(&list, "b").row.in_terminal, "only the session it names");
+    apply(&mut list, patch("session_terminal", json!({"sessionId": "a", "inTerminal": false})));
+    assert!(!find(&list, "a").row.in_terminal);
+    // A session the list doesn't hold is left alone; a frame without its fields isn't a row event.
+    apply(&mut list, patch("session_terminal", json!({"sessionId": "zzz", "inTerminal": true})));
+    assert!(RowPatch::from_wire(&json!({"type": "session_terminal", "properties": {"sessionId": "a"}})).is_none());
+}
+
+#[test]
+fn a_listed_session_says_whether_a_terminal_holds_it() {
+    let mut item = row("a", "w", "active", "busy");
+    item["inTerminal"] = json!(true);
+    assert!(find(&rows_of(vec![item]), "a").row.in_terminal);
+}
+
+#[test]
+fn another_machines_cache_keeps_in_terminal_and_where_the_session_started() {
+    let mut item = row("a", "w", "idle", "idle");
+    item["inTerminal"] = json!(true);
+    item["spawnKind"] = json!("terminal");
+    let list = rows_of(vec![item]);
+    let kept = crate::fleet::machine_cache::trim_session(find(&list, "a"));
+    assert_eq!((kept["inTerminal"].clone(), kept["spawnKind"].clone()), (json!(true), json!("terminal")));
+    let back = sessions::parse_sessions(&Value::Array(vec![kept]), 1_000);
+    assert!(back[0].row.in_terminal);
+    assert_eq!(back[0].listing.spawn_kind.as_deref(), Some("terminal"));
+}
+
+#[test]
+fn a_title_with_terminal_codes_is_listed_without_them() {
+    let mut item = row("a", "w", "idle", "idle");
+    item["session"]["title"] = json!("\u{1b}[31mFix\u{1b}[0m the build");
+    assert_eq!(find(&rows_of(vec![item]), "a").title, "Fix the build");
+    assert_eq!(crate::fleet::row_status::display_title(None, "\u{1b}[1m  \u{1b}[0m"), "Untitled session");
+}
