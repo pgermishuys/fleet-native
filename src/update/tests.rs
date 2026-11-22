@@ -1,7 +1,9 @@
 //! The updater against a fake release served from this machine: no test reaches GitHub.
 use super::install::{self, Progress};
 use super::manifest::{self, Asset};
-use super::{Phase, Update};
+use super::{Mode, Phase, Update};
+
+const BASE: &str = "http://127.0.0.1:1";
 use crate::State;
 use crate::tests::{FRAME, app, click};
 use std::io::Write;
@@ -9,9 +11,9 @@ use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 
 /// A folder that is gone when the test ends.
-struct Scratch(PathBuf);
+pub(super) struct Scratch(pub(super) PathBuf);
 impl Scratch {
-    fn new(name: &str) -> Scratch {
+    pub(super) fn new(name: &str) -> Scratch {
         let dir = std::env::temp_dir().join(format!("fleet-native-update-test-{}-{name}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
@@ -25,7 +27,7 @@ impl Drop for Scratch {
 }
 
 /// Serves `files` (path → bytes) on a loopback port until the test ends; unknown paths are 404.
-fn serve(files: Vec<(&'static str, Vec<u8>)>) -> String {
+pub(super) fn serve(files: Vec<(&'static str, Vec<u8>)>) -> String {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     std::thread::spawn(move || {
@@ -46,25 +48,34 @@ fn serve(files: Vec<(&'static str, Vec<u8>)>) -> String {
     base
 }
 
-fn asset_for(name: &str, bytes: &[u8]) -> Asset {
+pub(super) fn asset_for(name: &str, bytes: &[u8]) -> Asset {
     Asset { name: name.into(), size: bytes.len() as u64, sha256: manifest::sha256_of(bytes).unwrap().0 }
 }
 
-fn tar_gz(path: &Path, member: &str, content: &[u8]) {
+pub(super) fn tar_gz(path: &Path, member: &str, content: &[u8]) {
+    tar_gz_of(path, &[(member, content)]);
+}
+
+/// A package with several files, named as CI's `tar -czf … -C package .` names them (`./fleet-native`, `./fleet/…`).
+pub(super) fn tar_gz_of(path: &Path, files: &[(&str, &[u8])]) {
     let gz = flate2::write::GzEncoder::new(std::fs::File::create(path).unwrap(), flate2::Compression::fast());
     let mut tar = tar::Builder::new(gz);
-    let mut header = tar::Header::new_gnu();
-    header.set_size(content.len() as u64);
-    header.set_mode(0o644);
-    header.set_cksum();
-    tar.append_data(&mut header, member, content).unwrap();
+    for (member, content) in files {
+        let mut header = tar::Header::new_gnu();
+        header.set_size(content.len() as u64);
+        header.set_mode(0o644);
+        header.set_cksum();
+        tar.append_data(&mut header, member, *content).unwrap();
+    }
     tar.into_inner().unwrap().finish().unwrap();
 }
 
-fn zip_of(path: &Path, member: &str, content: &[u8]) {
+pub(super) fn zip_files(path: &Path, files: &[(&str, &[u8])]) {
     let mut zip = zip::ZipWriter::new(std::fs::File::create(path).unwrap());
-    zip.start_file(member, zip::write::SimpleFileOptions::default()).unwrap();
-    zip.write_all(content).unwrap();
+    for (member, content) in files {
+        zip.start_file(*member, zip::write::SimpleFileOptions::default()).unwrap();
+        zip.write_all(content).unwrap();
+    }
     zip.finish().unwrap();
 }
 
@@ -127,17 +138,20 @@ fn a_missing_file_is_a_failure_with_a_reason() {
 }
 
 #[test]
-fn unpacks_the_program_from_either_archive() {
+fn unpacks_a_package_from_either_archive() {
     let dir = Scratch::new("archives");
-    tar_gz(&dir.0.join("a.tar.gz"), "fleet-native", b"program");
-    install::extract_tar_gz(&dir.0.join("a.tar.gz"), "fleet-native", &dir.0.join("out1")).unwrap();
-    assert_eq!(std::fs::read(dir.0.join("out1")).unwrap(), b"program");
-    assert!(install::extract_tar_gz(&dir.0.join("a.tar.gz"), "other", &dir.0.join("out2")).is_err());
+    let files: [(&str, &[u8]); 2] = [("./fleet-native", b"program"), ("./fleet/Fleet", b"server")];
+    tar_gz_of(&dir.0.join("a.tar.gz"), &files);
+    install::unpack(&dir.0.join("a.tar.gz"), &dir.0.join("out1")).unwrap();
+    assert_eq!(std::fs::read(dir.0.join("out1/fleet-native")).unwrap(), b"program");
+    assert_eq!(std::fs::read(dir.0.join("out1/fleet/Fleet")).unwrap(), b"server");
 
-    zip_of(&dir.0.join("a.zip"), "fleet-native.exe", b"program");
-    install::extract_zip(&dir.0.join("a.zip"), "fleet-native.exe", &dir.0.join("out3")).unwrap();
-    assert_eq!(std::fs::read(dir.0.join("out3")).unwrap(), b"program");
-    assert!(install::extract_zip(&dir.0.join("a.zip"), "nope.exe", &dir.0.join("out4")).is_err());
+    zip_files(&dir.0.join("a.zip"), &[("fleet-native.exe", b"program"), ("fleet/Fleet.exe", b"server")]);
+    install::unpack(&dir.0.join("a.zip"), &dir.0.join("out2")).unwrap();
+    assert_eq!(std::fs::read(dir.0.join("out2/fleet-native.exe")).unwrap(), b"program");
+    assert_eq!(std::fs::read(dir.0.join("out2/fleet/Fleet.exe")).unwrap(), b"server");
+    std::fs::write(dir.0.join("junk.tar.gz"), b"not an archive").unwrap();
+    assert!(install::unpack(&dir.0.join("junk.tar.gz"), &dir.0.join("out3")).is_err());
 }
 
 #[cfg(target_os = "linux")]
@@ -149,7 +163,7 @@ fn linux_replaces_the_program_in_place_and_keeps_its_permissions() {
     std::fs::write(&exe, b"\x7fELF old").unwrap();
     std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o750)).unwrap();
     tar_gz(&dir.0.join("new.tar.gz"), "fleet-native", b"\x7fELF new");
-    install::replace_unix(&dir.0.join("new.tar.gz"), &exe).unwrap();
+    install::replace_folder(&dir.0.join("new.tar.gz"), &exe, &mut || {}).unwrap();
     assert_eq!(std::fs::read(&exe).unwrap(), b"\x7fELF new");
     assert_eq!(std::fs::metadata(&exe).unwrap().permissions().mode() & 0o777, 0o750);
     let left: Vec<_> = std::fs::read_dir(&dir.0).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().to_string()).collect();
@@ -163,9 +177,9 @@ fn linux_leaves_the_old_program_alone_when_the_archive_is_wrong() {
     let exe = dir.0.join("fleet-native");
     std::fs::write(&exe, b"\x7fELF old").unwrap();
     tar_gz(&dir.0.join("empty.tar.gz"), "README.md", b"hello");
-    assert!(install::replace_unix(&dir.0.join("empty.tar.gz"), &exe).is_err());
+    assert!(install::replace_folder(&dir.0.join("empty.tar.gz"), &exe, &mut || {}).is_err());
     tar_gz(&dir.0.join("text.tar.gz"), "fleet-native", b"#!/bin/sh");
-    let err = install::replace_unix(&dir.0.join("text.tar.gz"), &exe).unwrap_err();
+    let err = install::replace_folder(&dir.0.join("text.tar.gz"), &exe, &mut || {}).unwrap_err();
     assert!(err.contains("isn't a program"), "{err}");
     assert_eq!(std::fs::read(&exe).unwrap(), b"\x7fELF old");
     assert_eq!(std::fs::read_dir(&dir.0).unwrap().count(), 3, "only the old program and the two archives");
@@ -182,7 +196,7 @@ fn the_whole_apply_over_http_replaces_the_program() {
     let exe = dir.0.join("fleet-native");
     std::fs::write(&exe, b"\x7fELF old build").unwrap();
     let work = dir.0.join("work");
-    let done = install::apply(&base, &asset, &exe, &work, &mut |_| {}).unwrap();
+    let done = install::apply(&base, &asset, &manifest::Kind::Folder, &exe, &work, &mut || {}, &mut |_| {}).unwrap();
     assert!(matches!(done, install::Done::Relaunch(install::Relaunch::Exe(p)) if p == exe));
     assert_eq!(std::fs::read(&exe).unwrap(), b"\x7fELF new build");
     assert!(!work.exists(), "the download is cleaned up");
@@ -199,7 +213,7 @@ fn a_bad_checksum_over_http_leaves_the_program_untouched() {
     let base = serve(vec![("/fleet-native-linux-x64.tar.gz", bytes)]);
     let exe = dir.0.join("fleet-native");
     std::fs::write(&exe, b"\x7fELF old build").unwrap();
-    assert!(install::apply(&base, &asset, &exe, &dir.0.join("work"), &mut |_| {}).is_err());
+    assert!(install::apply(&base, &asset, &manifest::Kind::Folder, &exe, &dir.0.join("work"), &mut || {}, &mut |_| {}).is_err());
     assert_eq!(std::fs::read(&exe).unwrap(), b"\x7fELF old build");
 }
 
@@ -221,6 +235,10 @@ fn macos_swaps_the_app_bundle_from_a_disk_image() {
         let macos = root.join("Fleet Native.app/Contents/MacOS");
         std::fs::create_dir_all(&macos).unwrap();
         std::fs::write(macos.join("fleet-native"), marker).unwrap();
+        // Fleet's server lives in the bundle, so it is replaced with the app.
+        let server = root.join("Fleet Native.app/Contents/Resources/fleet");
+        std::fs::create_dir_all(&server).unwrap();
+        std::fs::write(server.join("version"), marker).unwrap();
     };
     let installed = dir.0.join("Applications");
     make_app(&installed, "old");
@@ -235,9 +253,10 @@ fn macos_swaps_the_app_bundle_from_a_disk_image() {
         .unwrap();
     assert!(made.success());
     let bundle = installed.join("Fleet Native.app");
-    let result = install::replace_bundle(&dmg, &bundle, &dir.0.join("work")).unwrap();
+    let result = install::replace_bundle(&dmg, &bundle, &dir.0.join("work"), &mut || {}).unwrap();
     assert!(matches!(result, install::MacResult::Replaced));
     assert_eq!(std::fs::read(bundle.join("Contents/MacOS/fleet-native")).unwrap(), b"new");
+    assert_eq!(std::fs::read(bundle.join("Contents/Resources/fleet/version")).unwrap(), b"new", "the server came with it");
     let left: Vec<_> = std::fs::read_dir(&installed).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().to_string()).collect();
     assert_eq!(left, ["Fleet Native.app"], "no staged or old copy stays");
 }
@@ -247,13 +266,14 @@ fn only_a_newer_build_for_this_platform_makes_an_offer() {
     let json = r#"{"commit":"abc","built_at":"2026-11-15T14:19:00Z","build":200,"assets":{"linux-x64":{"name":"a.tar.gz","size":3,"sha256":"aa00000000000000000000000000000000000000000000000000000000000000"}}}"#;
     let found = manifest::parse(json).unwrap();
     let mut s = State::default();
-    s.update_found_for(Some(200), Some("linux-x64"), &found);
+    let install = Some(("linux-x64", Mode::Install));
+    s.update_found_for(Some(200), install, BASE, &found);
     assert!(s.update.available.is_none(), "the same build");
-    s.update_found_for(None, Some("linux-x64"), &found);
+    s.update_found_for(None, install, BASE, &found);
     assert!(s.update.available.is_none(), "a dev build");
-    s.update_found_for(Some(100), Some("macos-arm64"), &found);
+    s.update_found_for(Some(100), Some(("macos-arm64", Mode::Install)), BASE, &found);
     assert!(s.update.available.is_none(), "no asset for this platform");
-    s.update_found_for(Some(100), Some("linux-x64"), &found);
+    s.update_found_for(Some(100), install, BASE, &found);
     let offer = s.update.available.clone().unwrap();
     assert_eq!((offer.build, offer.date.as_str()), (200, "15 November 2026"));
 }

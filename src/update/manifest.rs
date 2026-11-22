@@ -4,6 +4,7 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use std::io::Read;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Asset {
@@ -21,16 +22,51 @@ pub struct Manifest {
     pub assets: BTreeMap<String, Asset>,
 }
 
-/// The key of this platform's asset in `latest.json`; `None` where no build is published (a 32-bit or exotic target).
-pub fn platform_key() -> Option<&'static str> {
-    key_for(std::env::consts::OS, std::env::consts::ARCH)
+/// How this copy of the app was installed, which decides the package an update comes in and whether it can replace itself.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Kind {
+    /// A folder the app can rewrite: the Linux tar, the Windows zip or setup, the macOS bundle.
+    Folder,
+    /// Linux: running from an AppImage; an update replaces that one file (the server is inside it).
+    AppImage(PathBuf),
+    /// Linux: installed by the `.deb` into `/opt`, which only the package manager may write.
+    Deb,
 }
 
-pub fn key_for(os: &str, arch: &str) -> Option<&'static str> {
-    match (os, arch) {
-        ("windows", "x86_64") => Some("windows-x64"),
-        ("macos", "aarch64") => Some("macos-arm64"),
-        ("linux", "x86_64") => Some("linux-x64"),
+/// Where `scripts/make-deb.sh` puts the program.
+pub const DEB_EXE: &str = "/opt/Fleet-Native/fleet-native";
+
+pub fn kind_of(os: &str, exe: Option<&Path>, appimage: Option<&str>) -> Kind {
+    if os == "linux" {
+        if let Some(file) = appimage.filter(|a| !a.is_empty()) {
+            return Kind::AppImage(PathBuf::from(file));
+        }
+        if exe == Some(Path::new(DEB_EXE)) {
+            return Kind::Deb;
+        }
+    }
+    Kind::Folder
+}
+
+/// How this process was installed (the AppImage runtime sets `APPIMAGE`).
+pub fn install_kind() -> Kind {
+    kind_of(std::env::consts::OS, std::env::current_exe().ok().as_deref(), std::env::var("APPIMAGE").ok().as_deref())
+}
+
+/// The key of this install's asset in `latest.json`; `None` where no build is published (a 32-bit or exotic target).
+pub fn platform_key() -> Option<&'static str> {
+    key_for(std::env::consts::OS, std::env::consts::ARCH, &install_kind())
+}
+
+/// The old keys (`linux-x64`, `windows-x64`, `macos-arm64`) stay what builds already installed read; the Linux packages that
+/// replace a file or only link have their own.
+pub fn key_for(os: &str, arch: &str, kind: &Kind) -> Option<&'static str> {
+    match (os, arch, kind) {
+        ("windows", "x86_64", _) => Some("windows-x64"),
+        ("macos", "aarch64", _) => Some("macos-arm64"),
+        ("linux", "x86_64", Kind::AppImage(_)) => Some("linux-x64-appimage"),
+        ("linux", "x86_64", Kind::Deb) => Some("linux-x64-deb"),
+        ("linux", "x86_64", Kind::Folder) => Some("linux-x64"),
         _ => None,
     }
 }
@@ -144,13 +180,27 @@ mod tests {
 
     #[test]
     fn picks_the_asset_for_the_platform() {
-        assert_eq!(key_for("windows", "x86_64"), Some("windows-x64"));
-        assert_eq!(key_for("macos", "aarch64"), Some("macos-arm64"));
-        assert_eq!(key_for("linux", "x86_64"), Some("linux-x64"));
-        assert_eq!(key_for("linux", "aarch64"), None);
-        assert_eq!(key_for("macos", "x86_64"), None);
+        let f = Kind::Folder;
+        assert_eq!(key_for("windows", "x86_64", &f), Some("windows-x64"));
+        assert_eq!(key_for("macos", "aarch64", &f), Some("macos-arm64"));
+        assert_eq!(key_for("linux", "x86_64", &f), Some("linux-x64"));
+        assert_eq!(key_for("linux", "aarch64", &f), None);
+        assert_eq!(key_for("macos", "x86_64", &f), None);
         let m = parse(SAMPLE).unwrap();
-        assert_eq!(m.assets[key_for("linux", "x86_64").unwrap()].name, "fleet-native-linux-x64.tar.gz");
+        assert_eq!(m.assets[key_for("linux", "x86_64", &f).unwrap()].name, "fleet-native-linux-x64.tar.gz");
+    }
+
+    #[test]
+    fn each_package_kind_has_its_own_asset() {
+        let image = kind_of("linux", Some(Path::new("/tmp/.mount_x/usr/bin/fleet-native")), Some("/home/u/Fleet-Native.AppImage"));
+        assert_eq!(image, Kind::AppImage(PathBuf::from("/home/u/Fleet-Native.AppImage")));
+        assert_eq!(key_for("linux", "x86_64", &image), Some("linux-x64-appimage"));
+        let deb = kind_of("linux", Some(Path::new(DEB_EXE)), None);
+        assert_eq!(deb, Kind::Deb);
+        assert_eq!(key_for("linux", "x86_64", &deb), Some("linux-x64-deb"));
+        assert_eq!(kind_of("linux", Some(Path::new("/home/u/fleet-native/fleet-native")), None), Kind::Folder, "an unpacked tar");
+        assert_eq!(kind_of("linux", Some(Path::new(DEB_EXE)), Some("")), Kind::Deb, "an empty APPIMAGE is not an AppImage");
+        assert_eq!(kind_of("windows", Some(Path::new(DEB_EXE)), Some("x")), Kind::Folder, "only Linux has these kinds");
     }
 
     #[test]

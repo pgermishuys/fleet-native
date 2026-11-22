@@ -3,8 +3,9 @@
 //!
 //! The rule for every platform: the old app is only touched by the last step, one rename (Windows: `self-replace`'s
 //! swap), and anything that fails before it leaves the old app exactly as it was.
-use super::manifest::{Asset, Manifest, parse, sha256_of};
+use super::manifest::{Asset, Kind, Manifest, parse, sha256_of};
 use sha2::{Digest, Sha256};
+use std::ffi::OsStr;
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -79,34 +80,16 @@ pub fn checksum_matches(file: &Path, want: &str) -> bool {
     File::open(file).and_then(sha256_of).is_ok_and(|(sum, _)| sum == want)
 }
 
-/// The file called `member` (at any depth) from a `.tar.gz`, written to `to`.
-pub fn extract_tar_gz(archive: &Path, member: &str, to: &Path) -> Result<(), String> {
+/// Unpacks a `.tar.gz` or a `.zip` into the empty folder `to`: the exe, the README and Fleet's server in `fleet/`. Both crates
+/// refuse an entry whose path climbs out of the folder.
+pub fn unpack(archive: &Path, to: &Path) -> Result<(), String> {
     let file = File::open(archive).map_err(|e| e.to_string())?;
-    let mut tar = tar::Archive::new(flate2::read::GzDecoder::new(file));
-    for entry in tar.entries().map_err(|e| format!("The archive can't be read: {e}"))? {
-        let mut entry = entry.map_err(|e| e.to_string())?;
-        if entry.header().entry_type().is_file() && entry.path().ok().and_then(|p| p.file_name().map(|n| n == member)).unwrap_or(false) {
-            let mut out = File::create(to).map_err(|e| e.to_string())?;
-            std::io::copy(&mut entry, &mut out).map_err(|e| format!("Couldn't unpack {member}: {e}"))?;
-            return Ok(());
-        }
+    if archive.extension().is_some_and(|e| e == "zip") {
+        let mut zip = zip::ZipArchive::new(file).map_err(|e| format!("The archive can't be read: {e}"))?;
+        zip.extract(to).map_err(|e| format!("Couldn't unpack the download: {e}"))
+    } else {
+        tar::Archive::new(flate2::read::GzDecoder::new(file)).unpack(to).map_err(|e| format!("Couldn't unpack the download: {e}"))
     }
-    Err(format!("The download has no {member} in it."))
-}
-
-/// The file called `member` from a `.zip`, written to `to`.
-pub fn extract_zip(archive: &Path, member: &str, to: &Path) -> Result<(), String> {
-    let mut zip =
-        zip::ZipArchive::new(File::open(archive).map_err(|e| e.to_string())?).map_err(|e| format!("The archive can't be read: {e}"))?;
-    for i in 0..zip.len() {
-        let mut entry = zip.by_index(i).map_err(|e| e.to_string())?;
-        if entry.is_file() && Path::new(entry.name()).file_name().is_some_and(|n| n == member) {
-            let mut out = File::create(to).map_err(|e| e.to_string())?;
-            std::io::copy(&mut entry, &mut out).map_err(|e| format!("Couldn't unpack {member}: {e}"))?;
-            return Ok(());
-        }
-    }
-    Err(format!("The download has no {member} in it."))
 }
 
 /// What a program of this system starts with, so an archive with something else in it is refused before it replaces the app.
@@ -124,21 +107,111 @@ fn looks_like_program(file: &Path) -> bool {
     }
 }
 
-/// Linux: the new program replaces the running one with a rename, which the system allows for a program that is running (the
-/// old file lives on until the process ends). It is written next to it first, so the rename never crosses a disk, and
-/// given the old one's permissions. Any failure removes the half-made file and leaves the old program alone.
-pub fn replace_unix(archive: &Path, exe: &Path) -> Result<(), String> {
+/// Replaces the whole app folder from `archive`: the exe and everything beside it that the package holds, Fleet's server in
+/// `fleet/` included, so the server is never older than the app. The package is unpacked next to the exe first (the same disk,
+/// so the moves are renames); `before_swap` runs once it is known to be good, and is where a Fleet the app started is stopped.
+/// Each old entry is moved aside and put back if anything after it fails, so an update that fails leaves the old app as it was.
+/// The running exe goes last: Linux renames over it (the old file lives until the process ends), Windows lets `self-replace`
+/// swap it. Files the user added to the folder stay.
+pub fn replace_folder(archive: &Path, exe: &Path, before_swap: &mut dyn FnMut()) -> Result<(), String> {
     let dir = exe.parent().ok_or("The app's folder is unknown.")?;
+    let name = exe.file_name().ok_or("The app has no name.")?;
+    let stage = dir.join(format!(".fleet-native.update-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&stage);
+    let result = (|| {
+        fs::create_dir(&stage).map_err(|e| format!("The folder {} isn't writable ({e}).", dir.display()))?;
+        unpack(archive, &stage)?;
+        let new_exe = stage.join(name);
+        if !new_exe.is_file() {
+            return Err(format!("The download has no {} in it.", name.to_string_lossy()));
+        }
+        if !looks_like_program(&new_exe) {
+            return Err("The download isn't a program for this system.".to_string());
+        }
+        before_swap();
+        swap_entries(&stage, dir, exe, name)
+    })();
+    let _ = fs::remove_dir_all(&stage);
+    result
+}
+
+fn swap_entries(stage: &Path, dir: &Path, exe: &Path, name: &OsStr) -> Result<(), String> {
+    let mut moved: Vec<(PathBuf, Option<PathBuf>)> = Vec::new();
+    let undo = |moved: &[(PathBuf, Option<PathBuf>)]| {
+        for (now, old) in moved.iter().rev() {
+            let _ = fs::remove_dir_all(now).or_else(|_| fs::remove_file(now));
+            if let Some(old) = old {
+                let _ = fs::rename(old, now);
+            }
+        }
+    };
+    let entries = fs::read_dir(stage).map_err(|e| e.to_string())?;
+    for entry in entries {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let entry_name = entry.file_name();
+        if entry_name == name {
+            continue;
+        }
+        let target = dir.join(&entry_name);
+        let aside = (target.symlink_metadata().is_ok()).then(|| dir.join(format!(".{}.old", entry_name.to_string_lossy())));
+        let step = (|| {
+            if let Some(aside) = &aside {
+                let _ = fs::remove_dir_all(aside).or_else(|_| fs::remove_file(aside));
+                while_locked(|| fs::rename(&target, aside), SWAP_TRIES, SWAP_PAUSE)?;
+            }
+            fs::rename(entry.path(), &target).inspect_err(|_| {
+                if let Some(aside) = &aside {
+                    let _ = fs::rename(aside, &target);
+                }
+            })
+        })();
+        if let Err(e) = step {
+            undo(&moved);
+            return Err(format!("Couldn't put {} in place, the old app was kept: {e}", entry_name.to_string_lossy()));
+        }
+        moved.push((target, aside));
+    }
+    if let Err(e) = put_exe(&stage.join(name), exe) {
+        undo(&moved);
+        return Err(e);
+    }
+    for (_, old) in &moved {
+        if let Some(old) = old {
+            // Best effort: on Windows a file of the old server may be held a moment longer; the next update clears it.
+            let _ = fs::remove_dir_all(old).or_else(|_| fs::remove_file(old));
+        }
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+fn put_exe(new: &Path, exe: &Path) -> Result<(), String> {
+    let permissions = fs::metadata(exe).map_err(|e| e.to_string())?.permissions();
+    fs::set_permissions(new, permissions).map_err(|e| e.to_string())?;
+    fs::rename(new, exe).map_err(|e| format!("Couldn't put the new app in place: {e}"))
+}
+
+/// `self-replace` renames the running exe aside, puts the new one in its place, and a helper deletes the old file once this
+/// process ends.
+#[cfg(windows)]
+fn put_exe(new: &Path, _exe: &Path) -> Result<(), String> {
+    while_locked(|| self_replace::self_replace(new), SWAP_TRIES, SWAP_PAUSE).map_err(|e| format!("Couldn't swap the app: {e}"))
+}
+
+/// Linux, AppImage: the new image is copied beside the old one (the same disk), made executable and renamed over it. The image
+/// holds the server, so it is replaced with the app. A failure removes the half-made copy and leaves the old image alone.
+pub fn replace_appimage(download: &Path, target: &Path, before_swap: &mut dyn FnMut()) -> Result<(), String> {
+    let dir = target.parent().ok_or("The AppImage's folder is unknown.")?;
     let staged = dir.join(format!(".fleet-native.update-{}", std::process::id()));
     let result = (|| {
-        extract_tar_gz(archive, "fleet-native", &staged)
-            .map_err(|e| if e.contains("denied") { format!("The folder {} isn't writable ({e}).", dir.display()) } else { e })?;
+        fs::copy(download, &staged).map_err(|e| format!("The folder {} isn't writable ({e}).", dir.display()))?;
         if !looks_like_program(&staged) {
             return Err("The download isn't a program for this system.".to_string());
         }
-        let permissions = fs::metadata(exe).map_err(|e| e.to_string())?.permissions();
+        let permissions = fs::metadata(target).map_err(|e| format!("The AppImage {} can't be found: {e}", target.display()))?.permissions();
         fs::set_permissions(&staged, permissions).map_err(|e| e.to_string())?;
-        fs::rename(&staged, exe).map_err(|e| format!("Couldn't put the new app in place: {e}"))
+        before_swap();
+        fs::rename(&staged, target).map_err(|e| format!("Couldn't put the new app in place: {e}"))
     })();
     if result.is_err() {
         let _ = fs::remove_file(&staged);
@@ -146,34 +219,13 @@ pub fn replace_unix(archive: &Path, exe: &Path) -> Result<(), String> {
     result
 }
 
-/// Windows: unpack the exe and let `self-replace` swap it for the running one (it renames the running exe aside, puts the new
-/// one in its place, and a helper deletes the old file after this process ends).
-pub fn replace_windows(archive: &Path, work: &Path) -> Result<(), String> {
-    let staged = work.join("fleet-native-new.exe");
-    extract_zip(archive, "fleet-native.exe", &staged)?;
-    if !looks_like_program(&staged) {
-        let _ = fs::remove_file(&staged);
-        return Err("The download isn't a program for this system.".to_string());
-    }
-    #[cfg(windows)]
-    let result =
-        while_locked(|| self_replace::self_replace(&staged), SWAP_TRIES, SWAP_PAUSE).map_err(|e| format!("Couldn't swap the app: {e}"));
-    #[cfg(not(windows))]
-    let result: Result<(), String> = Err("This is not Windows.".to_string());
-    let _ = fs::remove_file(&staged);
-    result
-}
-
 /// How long a swap Windows refuses because a file is in use is tried again: about five seconds in all.
-#[cfg_attr(not(windows), allow(dead_code))]
 const SWAP_TRIES: u32 = 20;
-#[cfg_attr(not(windows), allow(dead_code))]
 const SWAP_PAUSE: Duration = Duration::from_millis(250);
 
 /// Runs `attempt` until it succeeds, fails for another reason, or `tries` run out. On Windows a file just written or just run
 /// is often held for a moment (a virus scanner reading the new exe, the process that just exited), and the swap is then
 /// refused as in use (os error 32) or denied (5), though a second later it goes through; CI's updater check failed that way.
-#[cfg_attr(not(windows), allow(dead_code))]
 pub(crate) fn while_locked<T>(mut attempt: impl FnMut() -> std::io::Result<T>, tries: u32, pause: Duration) -> std::io::Result<T> {
     let mut left = tries.max(1);
     loop {
@@ -188,7 +240,6 @@ pub(crate) fn while_locked<T>(mut attempt: impl FnMut() -> std::io::Result<T>, t
 }
 
 /// Windows' "access denied", "in use by another process" and "locked": what a file held for a moment says.
-#[cfg_attr(not(windows), allow(dead_code))]
 fn held(e: &std::io::Error) -> bool {
     matches!(e.raw_os_error(), Some(5 | 32 | 33))
 }
@@ -208,7 +259,9 @@ pub enum MacResult {
 
 /// macOS: mount the `.dmg`, copy its `Fleet Native.app` next to the running one, clear the quarantine mark, then swap the two
 /// by rename. If the folder can't be written the app says so and opens the `.dmg` for a drag instead.
-pub fn replace_bundle(dmg: &Path, bundle: &Path, work: &Path) -> Result<MacResult, String> {
+///
+/// The bundle holds Fleet's server (`Contents/Resources/fleet`), so the swap replaces the server with the app.
+pub fn replace_bundle(dmg: &Path, bundle: &Path, work: &Path, before_swap: &mut dyn FnMut()) -> Result<MacResult, String> {
     let parent = bundle.parent().ok_or("The app's folder is unknown.")?;
     let name = bundle.file_name().ok_or("The app has no name.")?.to_string_lossy().to_string();
     let staged = parent.join(format!(".{name}.new"));
@@ -238,6 +291,7 @@ pub fn replace_bundle(dmg: &Path, bundle: &Path, work: &Path) -> Result<MacResul
     }
     // A download the app made itself carries no quarantine mark, but a disk image opened by hand might; the new bundle must not.
     let _ = Command::new("xattr").args(["-dr", "com.apple.quarantine"]).arg(&staged).stdout(Stdio::null()).stderr(Stdio::null()).status();
+    before_swap();
     let _ = fs::remove_dir_all(&old);
     fs::rename(bundle, &old).map_err(|e| {
         let _ = fs::remove_dir_all(&staged);
@@ -291,24 +345,37 @@ pub enum Done {
     },
 }
 
-/// Downloads, checks and installs `asset`; the whole update for this platform. `exe` is the running program.
-pub fn apply(base: &str, asset: &Asset, exe: &Path, work: &Path, progress: &mut dyn FnMut(Progress)) -> Result<Done, String> {
+/// Downloads, checks and installs `asset`; the whole update for this install. `exe` is the running program. `before_swap` runs
+/// once the download is checked and unpacked, right before the old app is touched (the caller stops its own Fleet there).
+/// A `.deb` can't be installed from here (`Kind::Deb` only links, see `update::Mode`).
+pub fn apply(
+    base: &str,
+    asset: &Asset,
+    kind: &Kind,
+    exe: &Path,
+    work: &Path,
+    before_swap: &mut dyn FnMut(),
+    progress: &mut dyn FnMut(Progress),
+) -> Result<Done, String> {
+    if *kind == Kind::Deb {
+        return Err("A .deb can't replace itself: download the new package and install it.".to_string());
+    }
     let file = download(base, asset, work, progress)?;
     progress(Progress::Installing);
-    let done = if cfg!(windows) {
-        replace_windows(&file, work)?;
-        Done::Relaunch(Relaunch::Exe(exe.to_path_buf()))
+    let done = if let Kind::AppImage(image) = kind {
+        replace_appimage(&file, image, before_swap)?;
+        Done::Relaunch(Relaunch::Exe(image.clone()))
     } else if cfg!(target_os = "macos") {
         let Some(bundle) = bundle_of(exe) else {
             let why = "This copy isn't running from a Fleet Native.app, so it can't replace itself.".to_string();
             return keep_for_drag(file, why);
         };
-        match replace_bundle(&file, &bundle, work)? {
+        match replace_bundle(&file, &bundle, work, before_swap)? {
             MacResult::Replaced => Done::Relaunch(Relaunch::App(bundle)),
             MacResult::Manual(why) => return keep_for_drag(file, why),
         }
     } else {
-        replace_unix(&file, exe)?;
+        replace_folder(&file, exe, before_swap)?;
         Done::Relaunch(Relaunch::Exe(exe.to_path_buf()))
     };
     let _ = fs::remove_dir_all(work);

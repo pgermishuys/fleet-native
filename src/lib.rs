@@ -3281,6 +3281,8 @@ pub fn spec() -> AppSpec<State> {
             ("settings-updates-uptodate-light", |s| s.show_updates(false, mock::updates_page::Case::UpToDate)),
             ("settings-updates-available", |s| s.show_updates(true, mock::updates_page::Case::Available)),
             ("settings-updates-available-light", |s| s.show_updates(false, mock::updates_page::Case::Available)),
+            ("settings-updates-deb", |s| s.show_updates(true, mock::updates_page::Case::Deb)),
+            ("settings-updates-deb-light", |s| s.show_updates(false, mock::updates_page::Case::Deb)),
             ("settings-updates-downloading", |s| s.show_updates(true, mock::updates_page::Case::Downloading)),
             ("settings-updates-downloading-light", |s| s.show_updates(false, mock::updates_page::Case::Downloading)),
             ("settings-updates-staged", |s| s.show_updates(true, mock::updates_page::Case::Staged)),
@@ -5795,6 +5797,11 @@ pub fn spec() -> AppSpec<State> {
             ("update-downloading-light", |s| {
                 s.dark = Some(false);
                 mock::update::show(s, mock::update::Case::Downloading)
+            }),
+            ("update-deb", |s| mock::update::show(s, mock::update::Case::Deb)),
+            ("update-deb-light", |s| {
+                s.dark = Some(false);
+                mock::update::show(s, mock::update::Case::Deb)
             }),
             ("update-failed", |s| mock::update::show(s, mock::update::Case::Failed)),
             ("update-failed-light", |s| {

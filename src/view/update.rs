@@ -2,6 +2,7 @@
 //! and restart", progress). Fleet's desktop app updates through Electron's own dialog, so there is no Vue component to port:
 //! the item is styled as the status bar's other items are (`view::status`) and the dialog is the kit's (`ui::dialog`).
 use crate::State;
+use crate::fleet::settings::updates_page::about_size;
 use crate::theme::{Theme, sans};
 use crate::ui::button::{Size, Variant, button, disabled};
 use crate::ui::controls::progress;
@@ -44,12 +45,20 @@ pub fn dialog(s: &State, t: &Theme) -> Option<Vec<El>> {
     let busy = s.update.busy();
     let mut body = Vec::new();
     match &s.update.phase {
-        Phase::Idle => body.push(
-            text("Fleet Native downloads the new build, checks it, replaces itself and starts again. Your drafts are kept.")
-                .font(small)
-                .color(t.text)
-                .wrap(),
-        ),
+        Phase::Idle => {
+            let size = about_size(offer.asset.size);
+            let words = if offer.link.is_some() {
+                "This copy was installed from a .deb package, which can't replace itself. Download the new package and install it; your drafts are kept."
+            } else {
+                "Fleet Native downloads the new build, checks it, replaces itself and its server, and starts again. Your drafts are kept."
+            };
+            body.push(
+                col()
+                    .gap(rem(0.5))
+                    .child(text(words).font(small).color(t.text).wrap())
+                    .child(text(format!("Download: {size}.")).key("update-size").font(small).color(t.muted)),
+            )
+        }
         Phase::Downloading(done, total) => body.push(
             col()
                 .key("update-progress")
@@ -68,9 +77,22 @@ pub fn dialog(s: &State, t: &Theme) -> Option<Vec<El>> {
         Phase::Manual { why } => body.push(text(why.clone()).font(small).color(t.text).wrap().key("update-manual")),
     }
     let retry = matches!(s.update.phase, Phase::Failed(_));
-    let go = button(t, Variant::Default, Size::Default, None, if retry { "Try again" } else { "Update and restart" }).key("update-go");
-    let go =
-        if busy || matches!(s.update.phase, Phase::Manual { .. }) { disabled(go) } else { go.on_press(|s: &mut State| s.update_start()) };
+    let notify = offer.link.is_some();
+    let go_words = if notify {
+        "Download the new .deb"
+    } else if retry {
+        "Try again"
+    } else {
+        "Update and restart"
+    };
+    let go = button(t, Variant::Default, Size::Default, None, go_words).key("update-go");
+    let go = if busy || matches!(s.update.phase, Phase::Manual { .. }) {
+        disabled(go)
+    } else if notify {
+        go.on_press_tx(|s: &mut State, tx: &mut rune::Tx| s.update_download_link(tx))
+    } else {
+        go.on_press(|s: &mut State| s.update_start())
+    };
     let later =
         button(t, Variant::Outline, Size::Default, None, if matches!(s.update.phase, Phase::Manual { .. }) { "Close" } else { "Not now" })
             .key("update-later");

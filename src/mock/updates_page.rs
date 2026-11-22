@@ -20,6 +20,8 @@ pub enum Case {
     Failed,
     /// The Fleet is the app's own (no server row) and this build can't update itself.
     Managed,
+    /// Installed from a `.deb`: the app's row can only link to the new package.
+    Deb,
 }
 
 fn status(kind: Status, latest: Option<&str>) -> UpdateStatus {
@@ -53,11 +55,12 @@ impl State {
             build: 214,
             date: "15 November 2026".into(),
             asset: Asset { name: "fleet-native-linux-x64.tar.gz".into(), size: 31_400_000, sha256: "0".repeat(64) },
+            link: None,
         };
         self.update.running = Some(210);
         self.update.checked_ms = Some(now - 3 * 60_000);
         let mut server = match case {
-            Case::UpToDate => status(Status::UpToDate, None),
+            Case::UpToDate | Case::Deb => status(Status::UpToDate, None),
             Case::Available => status(Status::Available, Some("0.73.0")),
             Case::Downloading => {
                 let mut s = status(Status::Downloading, Some("0.73.0"));
@@ -77,6 +80,12 @@ impl State {
         self.updates.status.entry("home".into()).or_default().status = Some(server);
         match case {
             Case::UpToDate => {}
+            Case::Deb => {
+                let mut o = offer();
+                o.link = Some("https://example.invalid/latest/fleet-native-linux-x64.deb".into());
+                o.asset.size = 131_400_000;
+                self.update.available = Some(o);
+            }
             Case::Available => self.update.available = Some(offer()),
             Case::Downloading => {
                 self.update.available = Some(offer());

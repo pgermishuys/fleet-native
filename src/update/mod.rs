@@ -6,11 +6,13 @@ pub mod install;
 pub mod manifest;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_installers;
 
 use crate::State;
 use crate::fleet::link::Post;
 use install::{Done, Progress, Relaunch};
-use manifest::{Asset, Manifest};
+use manifest::{Asset, Kind, Manifest};
 use rune::{AppHandle, Tx};
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
@@ -20,12 +22,47 @@ const EVERY: Duration = Duration::from_secs(4 * 60 * 60);
 /// How long after a failed one. A network failure is silent; this is only when it tries again.
 const RETRY: Duration = Duration::from_secs(20 * 60);
 
+/// What this install does with a newer build (`updateMode` in Fleet's `updates.ts`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Mode {
+    /// Downloads it, checks it and replaces the app folder, server included.
+    Install,
+    /// Says it is out and links to the download: a `.deb` can't replace itself (`/opt` is the package manager's).
+    Notify,
+    /// Never looks: a `dev` build, a platform with no download, or `FLEET_NATIVE_UPDATES=off`.
+    Off,
+}
+
+/// `build` is the running build (`None`: a `dev` one), `off` the value of `FLEET_NATIVE_UPDATES`, `key` this install's asset
+/// key. Unlike Fleet's, macOS installs: the app replaces its own signed-ad-hoc bundle when it can write the folder.
+pub fn mode(build: Option<u64>, off: Option<&str>, key: Option<&str>, kind: &Kind) -> Mode {
+    if build.is_none() || key.is_none() || off.is_some_and(|v| v.trim().eq_ignore_ascii_case("off")) {
+        Mode::Off
+    } else if *kind == Kind::Deb {
+        Mode::Notify
+    } else {
+        Mode::Install
+    }
+}
+
+/// The mode of the running app.
+pub fn current_mode() -> Mode {
+    mode(
+        manifest::running_build(),
+        std::env::var("FLEET_NATIVE_UPDATES").ok().as_deref(),
+        manifest::platform_key(),
+        &manifest::install_kind(),
+    )
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Available {
     pub build: u64,
     /// "15 November 2026".
     pub date: String,
     pub asset: Asset,
+    /// Notify mode: where to download the package by hand.
+    pub link: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -54,6 +91,8 @@ pub struct Update {
     post: Option<Post>,
     /// The build this app is, once the checker runs (`None`: a `dev` build or a platform with no download, which never checks).
     pub running: Option<u64>,
+    /// `FLEET_NATIVE_UPDATES=off`: the build is known but nothing is checked.
+    pub off: bool,
     /// A look at `latest.json` is under way.
     pub checking: bool,
     /// Why the last look failed, until one works.
@@ -68,20 +107,30 @@ impl Update {
     pub fn busy(&self) -> bool {
         matches!(self.phase, Phase::Downloading(..) | Phase::Installing)
     }
+
+    /// The newer build can only be downloaded by hand (a `.deb` install).
+    pub fn notify_only(&self) -> bool {
+        self.available.as_ref().is_some_and(|a| a.link.is_some())
+    }
 }
 
 impl State {
-    /// A fetched `latest.json`: this platform's asset of a newer build becomes the offer.
+    /// A fetched `latest.json`: this install's asset of a newer build becomes the offer.
     pub fn update_found(&mut self, found: &Manifest) {
-        self.update_found_for(manifest::running_build(), manifest::platform_key(), found);
+        let key = manifest::platform_key();
+        let base = install::release_url(|k| std::env::var(k).ok());
+        self.update_found_for(manifest::running_build(), key.map(|k| (k, current_mode())), &base, found);
     }
 
-    fn update_found_for(&mut self, running: Option<u64>, platform: Option<&str>, found: &Manifest) {
-        let Some(asset) = platform.and_then(|k| found.assets.get(k)) else { return };
+    fn update_found_for(&mut self, running: Option<u64>, platform: Option<(&str, Mode)>, base: &str, found: &Manifest) {
+        let Some((key, mode)) = platform.filter(|(_, m)| *m != Mode::Off) else { return };
+        let Some(asset) = found.assets.get(key) else { return };
         if !manifest::is_newer(running, found.build) || self.update.busy() {
             return;
         }
-        self.update.available = Some(Available { build: found.build, date: manifest::date_words(&found.built_at), asset: asset.clone() });
+        let link = (mode == Mode::Notify).then(|| format!("{base}/{}", asset.name));
+        self.update.available =
+            Some(Available { build: found.build, date: manifest::date_words(&found.built_at), asset: asset.clone(), link });
     }
 
     /// A look at `latest.json` ended: a newer build becomes the offer, a failure is remembered for the Updates page.
@@ -124,10 +173,26 @@ impl State {
         }
     }
 
+    /// A step of the download, from the thread. Ignored when nothing is downloading (a late one after a failure).
+    pub fn update_progress(&mut self, p: Progress) {
+        self.update.phase = match (p, &self.update.phase) {
+            (Progress::Downloading(d, t), Phase::Downloading(..)) => Phase::Downloading(d, t),
+            (Progress::Installing, Phase::Downloading(..)) => Phase::Installing,
+            _ => return,
+        };
+    }
+
+    /// Notify mode's button: opens the package's download in the browser.
+    pub fn update_download_link(&mut self, tx: &mut Tx) {
+        if let Some(link) = self.update.available.as_ref().and_then(|a| a.link.as_deref()) {
+            let _ = tx.open_url(link);
+        }
+    }
+
     /// "Update and restart": downloads, checks and installs on a thread.
     pub fn update_start(&mut self) {
         let (Some(offer), Some(post)) = (self.update.available.clone(), self.update.post.clone()) else { return };
-        if self.update.busy() {
+        if self.update.busy() || offer.link.is_some() {
             return;
         }
         self.update.phase = Phase::Downloading(0, offer.asset.size);
@@ -195,19 +260,13 @@ fn run_update(post: Post, asset: Asset) {
             return;
         }
         last = Instant::now();
-        post.update(move |s, _| {
-            s.update.phase = match p {
-                Progress::Downloading(d, t) => Phase::Downloading(d, t),
-                Progress::Installing => Phase::Installing,
-            }
-        });
+        post.update(move |s, _| s.update_progress(p));
     };
-    match install::apply(&base, &asset, &exe, &work_dir(), &mut progress) {
-        Ok(Done::Relaunch(how)) => {
-            // The new process must not find a Fleet that is still stopping (`installUpdate`: `await server?.stop()`).
-            stop_owned_fleet(&post, STOP_GRACE);
-            post.update(move |s, tx| s.update_restart(tx, how))
-        }
+    // The new process must not find a Fleet that is still stopping (`installUpdate`: `await server?.stop()`), and the folder
+    // swap moves the server's files, so the Fleet this app started stops right before the old app is touched.
+    let mut stop = || stop_owned_fleet(&post, STOP_GRACE);
+    match install::apply(&base, &asset, &manifest::install_kind(), &exe, &work_dir(), &mut stop, &mut progress) {
+        Ok(Done::Relaunch(how)) => post.update(move |s, tx| s.update_restart(tx, how)),
         Ok(Done::Manual { why, .. }) => post.update(move |s, _| s.update.phase = Phase::Manual { why }),
         Err(e) => {
             let _ = std::fs::remove_dir_all(work_dir());
@@ -218,8 +277,17 @@ fn run_update(post: Post, asset: Asset) {
 
 /// Starts the checker thread. Only a CI build has a build number; a `dev` build never checks.
 pub fn start_checker(handle: &AppHandle<State>) {
-    if manifest::running_build().is_none() || manifest::platform_key().is_none() {
-        return;
+    match current_mode() {
+        Mode::Off => {
+            // The build is still shown on the Updates page, with "This build doesn't update itself".
+            let off = std::env::var("FLEET_NATIVE_UPDATES").is_ok_and(|v| v.trim().eq_ignore_ascii_case("off"));
+            handle.update(move |s, _| {
+                s.update.running = manifest::running_build();
+                s.update.off = off;
+            });
+            return;
+        }
+        Mode::Install | Mode::Notify => {}
     }
     let post = Post::from_handle(handle.clone());
     let (wake, woken) = std::sync::mpsc::channel::<()>();
@@ -253,9 +321,18 @@ pub fn update_now(restart: bool) -> i32 {
         Ok(m) => m,
         Err(e) => return say_err(&e),
     };
+    let mode = current_mode();
+    if mode == Mode::Off {
+        println!("updates are off for this build");
+        return 0;
+    }
     let Some(asset) = manifest::platform_key().and_then(|k| found.assets.get(k)) else { return say_err("no build for this platform") };
     if !manifest::is_newer(manifest::running_build(), found.build) {
         println!("up to date (build {})", manifest::running_build().map_or("dev".to_string(), |b| b.to_string()));
+        return 0;
+    }
+    if mode == Mode::Notify {
+        println!("build {} is out; this install can't replace itself. Download {base}/{}", found.build, asset.name);
         return 0;
     }
     let exe = match std::env::current_exe() {
@@ -263,7 +340,7 @@ pub fn update_now(restart: bool) -> i32 {
         Err(e) => return say_err(&e.to_string()),
     };
     let work = std::env::temp_dir().join(format!("fleet-native-update-{}", std::process::id()));
-    match install::apply(&base, asset, &exe, &work, &mut |_| {}) {
+    match install::apply(&base, asset, &manifest::install_kind(), &exe, &work, &mut || {}, &mut |_| {}) {
         Ok(Done::Relaunch(how)) => {
             println!("updated to build {}", found.build);
             if restart {

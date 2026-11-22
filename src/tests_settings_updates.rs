@@ -173,6 +173,7 @@ fn offer(build: u64) -> Available {
         build,
         date: "15 November 2026".into(),
         asset: Asset { name: "app.tar.gz".into(), size: 31_400_000, sha256: "0".repeat(64) },
+        link: None,
     }
 }
 
