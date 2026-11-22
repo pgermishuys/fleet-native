@@ -63,6 +63,14 @@ jobs:
         if: runner.os == 'Linux'
         run: cargo fmt --check
 
+      # Component 25, piece E: the signing steps on a runner with no secrets. Each signing script must say "not signed: …
+      # is not set" and succeed, then, as a dry run with invented values, print every signing call inside out with no
+      # password in it (scripts/check-signing-skipped.sh). The real calls run only in `package`, when the owner adds secrets.
+      - name: Signing with no secrets is skipped
+        run: |
+          cargo build --locked
+          bash scripts/check-signing-skipped.sh "target/debug/fleet-native$([ "$RUNNER_OS" = Windows ] && echo .exe)"
+
       - name: Lint
         run: cargo clippy --all-targets --locked -- -D warnings
 
@@ -302,6 +310,12 @@ jobs:
           - { name: linux-x64, os: ubuntu-latest, server: linux-x64 }
           - { name: windows-x64, os: windows-latest, server: win-x64 }
           - { name: macos-arm64, os: macos-15, server: osx-arm64 }
+    # Signing (component 25, piece E) runs only when the owner has added the secrets (rows 25.20 to 25.25 name them). Only
+    # whether each is set is visible job-wide; the values go to the steps that sign, never to the build.
+    env:
+      HAS_APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE != '' }}
+      HAS_WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE != '' }}
+      HAS_GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -346,13 +360,36 @@ jobs:
         shell: bash
         run: cargo build --release --locked --example check-bundled-server
 
+      # Authenticode (row 25.23): the exe and the server's own exe and dlls are signed before anything is packed, so the zip
+      # and the installer carry the same signed files (the installer itself is signed in scripts/make-installer.ps1).
+      - name: Sign the program and the server (Windows)
+        if: runner.os == 'Windows' && env.HAS_WINDOWS_CERTIFICATE == 'true'
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: pwsh -NoProfile -File scripts/sign-windows.ps1 target/release/fleet-native.exe server-staged
+      - name: Not signed (Windows)
+        if: runner.os == 'Windows' && env.HAS_WINDOWS_CERTIFICATE != 'true'
+        run: pwsh -NoProfile -File scripts/sign-windows.ps1 target/release/fleet-native.exe
+
       # Windows gets the zip it expects (the exe carries its icon and version information, see build.rs).
       # macOS gets a .dmg holding a signed "Fleet Native.app" (scripts/make-mac-app.sh). Linux gets a tar,
       # which keeps the "can run" bit, with a desktop file and icon beside the program.
       # Each carries the server in `fleet/` beside the exe (macOS: Contents/Resources/fleet).
       # The file names are the release's asset names.
+      # make-mac-app.sh signs with the Developer ID and notarises, and make-installer.ps1 signs the setup.exe, when these are
+      # set (scripts/sign-mac.sh, scripts/sign-windows.ps1); unset, each says "not signed: … is not set" and goes on.
       - name: Collect
         shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         run: |
           mkdir dist
           if [ "$RUNNER_OS" = "Windows" ]; then
@@ -378,6 +415,18 @@ jobs:
             (cd dist && sha256sum fleet-native-linux-x64.tar.gz > fleet-native-linux-x64.tar.gz.sha256)
           fi
           ls -la dist
+
+      # Optional detached GPG signatures of the Linux files (row 25.25), `<file>.asc` beside each; the .sha256 files stand
+      # either way.
+      - name: Sign the Linux packages (GPG)
+        if: runner.os == 'Linux' && env.HAS_GPG_PRIVATE_KEY == 'true'
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: bash scripts/sign-linux.sh dist/fleet-native-linux-x64.tar.gz dist/fleet-native-linux-x64.deb dist/fleet-native-linux-x64.AppImage
+      - name: Not signed (Linux)
+        if: runner.os == 'Linux' && env.HAS_GPG_PRIVATE_KEY != 'true'
+        run: bash scripts/sign-linux.sh dist/fleet-native-linux-x64.AppImage
 
       # The package carries the server as pinned: every file, byte for byte, and nothing else. (macOS is checked
       # inside scripts/make-mac-app.sh, on the signed app.)
@@ -435,6 +484,18 @@ jobs:
           check_dmg
       # Best effort: mounting is nice to prove, but a flaky mount must not fail the package. Checks the volume's title and
       # the app inside, runs the app from the image and grabs the screen (scripts/check-mac-dmg.sh).
+      # With the Apple secrets the app and image carry a Developer ID signature and a stapled notarisation ticket, which
+      # Gatekeeper accepts (rows 25.21, 25.27); without them this says what the package has instead.
+      - name: Check the Developer ID signature (macOS)
+        if: runner.os == 'macOS' && env.HAS_APPLE_CERTIFICATE == 'true'
+        run: |
+          codesign -dv --verbose=2 dist/fleet-native-macos-arm64.dmg 2>&1 | grep -E '^(Authority|TeamIdentifier|Timestamp)='
+          xcrun stapler validate dist/fleet-native-macos-arm64.dmg
+          spctl --assess --type open --context context:primary-signature --verbose=2 dist/fleet-native-macos-arm64.dmg
+      - name: Not signed (macOS)
+        if: runner.os == 'macOS' && env.HAS_APPLE_CERTIFICATE != 'true'
+        run: |
+          echo "not signed: APPLE_CERTIFICATE is not set (the app is signed ad hoc and not notarised)"
       - name: Mount the package and run the app (macOS)
         if: runner.os == 'macOS'
         run: bash scripts/check-mac-dmg.sh dist/fleet-native-macos-arm64.dmg server-staged target/release/examples/check-bundled-server shots/out-mac
@@ -465,6 +526,15 @@ jobs:
           # Row 25.41: the zip, unpacked, and the installed app each start their own Fleet and stop with it.
           pwsh -NoProfile -File scripts/smoke-desktop.ps1 -App unpacked/fleet-native.exe -Shot shots/out-smoke/smoke-windows-zip.png
           pwsh -NoProfile -File scripts/check-windows-installer.ps1 -Setup dist/fleet-native-windows-x64-setup.exe -Exe target/release/fleet-native.exe -Build "${{ github.run_number }}" -Server server-staged -Checker target/release/examples/check-bundled-server.exe -Smoke -Shot shots/out-smoke/smoke-windows-installed.png
+      - name: Check the Authenticode signatures (Windows)
+        if: runner.os == 'Windows' && env.HAS_WINDOWS_CERTIFICATE == 'true'
+        run: |
+          pwsh -NoProfile -Command "
+            foreach (\$f in 'target/release/fleet-native.exe', 'server-staged/WeaveFleet.Api.exe', 'dist/fleet-native-windows-x64-setup.exe') {
+              \$s = Get-AuthenticodeSignature \$f
+              '{0}: {1}, {2}, timestamped by {3}' -f \$f, \$s.Status, \$s.SignerCertificate.Subject, \$s.TimeStamperCertificate.Subject
+              if (\$s.Status -ne 'Valid' -or -not \$s.TimeStamperCertificate) { throw \"\$f is not validly signed and timestamped\" }
+            }"
       - name: Upload the smoke runs' pictures
         if: runner.os != 'macOS' && always()
         uses: actions/upload-artifact@v4
@@ -518,4 +588,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           BUILD: ${{ github.run_number }}
           COMMIT: ${{ github.sha }}
+          # Only whether each is set, for the notes' line on signing.
+          HAS_APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE != '' }}
+          HAS_WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE != '' }}
         run: bash scripts/publish-release.sh dist

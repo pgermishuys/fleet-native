@@ -45,8 +45,7 @@ volname="Fleet Native 0.0.${build}"
 
 # Ad hoc signature ("-"): no developer identity, but Apple silicon refuses to run unsigned code. Signed inside out: every
 # Mach-O file of the server first (deepest first), then the program, then the bundle, which seals the rest as resources.
-# No --deep: it signs in an order of its own and hides which file failed. (Piece E adds the identity, hardened runtime and
-# a timestamp; they would change only the flags here.)
+# No --deep: it signs in an order of its own and hides which file failed.
 macho_files() { # every Mach-O file under $1, deepest first
   find "$1" -type f -print | while IFS= read -r f; do
     if file -b "$f" | grep -q 'Mach-O'; then printf '%s\n' "$f"; fi
@@ -55,6 +54,9 @@ macho_files() { # every Mach-O file under $1, deepest first
 macho_files "$app/Contents/Resources" | while IFS= read -r f; do codesign --force -s - "$f"; done
 codesign --force -s - "$app/Contents/MacOS/fleet-native"
 codesign --force -s - "$app"
+# Developer ID, hardened runtime, notarised, when the owner's secrets are set (scripts/sign-mac.sh); otherwise it says
+# "not signed: APPLE_CERTIFICATE is not set" and the ad hoc signature stays.
+bash "$root/scripts/sign-mac.sh" app "$app"
 
 # The plist is right, every Mach-O passes codesign --verify, and the server is the pinned one (scripts/check-mac-app.sh).
 bash "$root/scripts/check-mac-app.sh" "$app" "$server" "${CHECK_SERVER_CMD:-}"
@@ -70,4 +72,5 @@ for i in 1 2 3 4; do
   [ "$i" = 4 ] && exit 1
   sleep $((i * 3))
 done
+bash "$root/scripts/sign-mac.sh" dmg "$out"
 rm -rf "$work"

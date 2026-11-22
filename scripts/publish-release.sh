@@ -10,14 +10,15 @@ for a in "${assets[@]}"; do [ -f "$dist/$a" ] || { echo "missing $a" >&2; exit 1
 # Also released when the build made them: the Linux .deb and AppImage and a .sha256 for each Linux file (component 25, piece
 # B), and the Windows installer with its .sha256 (piece C). The packages are in latest.json too (piece F), under their own
 # keys: the three above keep the keys builds already installed read; `linux-x64-appimage` is what an AppImage replaces itself
-# with, `linux-x64-deb` is the link a .deb install shows, `windows-x64-setup` is for fresh installs. The .sha256 files are
+# with, `linux-x64-deb` is the link a .deb install shows, `windows-x64-setup` is for fresh installs. The .sha256 files, and the
+# .asc GPG signatures when the owner's key is set (piece E), are
 # downloads only.
 extras=()
 listed=("${assets[@]}")
-for e in fleet-native-linux-x64.deb fleet-native-linux-x64.AppImage fleet-native-linux-x64.tar.gz.sha256 fleet-native-linux-x64.deb.sha256 fleet-native-linux-x64.AppImage.sha256 fleet-native-windows-x64-setup.exe fleet-native-windows-x64-setup.exe.sha256; do
+for e in fleet-native-linux-x64.deb fleet-native-linux-x64.AppImage fleet-native-linux-x64.tar.gz.sha256 fleet-native-linux-x64.deb.sha256 fleet-native-linux-x64.AppImage.sha256 fleet-native-windows-x64-setup.exe fleet-native-windows-x64-setup.exe.sha256 fleet-native-linux-x64.tar.gz.asc fleet-native-linux-x64.deb.asc fleet-native-linux-x64.AppImage.asc; do
   [ -f "$dist/$e" ] || continue
   extras+=("$e")
-  case "$e" in *.sha256) ;; *) listed+=("$e") ;; esac
+  case "$e" in *.sha256 | *.asc) ;; *) listed+=("$e") ;; esac
 done
 # The key in latest.json for a file name.
 key_of() {
@@ -53,9 +54,20 @@ done
 # Merged pull requests since the previous release: squash-merge titles end in (#n).
 if [ -n "$prev" ] && git cat-file -e "$prev^{commit}" 2>/dev/null; then range="$prev..$COMMIT"; else range="-20 $COMMIT"; fi
 prs=$(git log $range --format='%s' | grep -E '\(#[0-9]+\)$' | sed 's/^/- /' || true)
+# What the notes say about signing (row 25.22): CI tells this script whether each certificate was set (HAS_*_CERTIFICATE).
+signed=()
+[ "${HAS_APPLE_CERTIFICATE:-}" = true ] && signed+=("macOS (Developer ID, notarised)")
+[ "${HAS_WINDOWS_CERTIFICATE:-}" = true ] && signed+=("Windows (Authenticode)")
+if [ "${#signed[@]}" = 0 ]; then
+  signing="**An unsigned development build** of fleet-native, made from \`${COMMIT:0:7}\` (build $BUILD). It is not signed or notarised, so
+Windows and macOS warn before it runs (see the README's \"Installing\")."
+else
+  joined=$(printf '%s, ' "${signed[@]}")
+  signing="**A development build** of fleet-native, made from \`${COMMIT:0:7}\` (build $BUILD), signed for ${joined%, }. Anything else
+is unsigned and warns before it runs (see the README's \"Installing\")."
+fi
 cat > "$dist/notes.md" <<N
-**An unsigned development build** of fleet-native, made from \`${COMMIT:0:7}\` (build $BUILD). It is not signed or notarised, so
-Windows and macOS warn before it runs (see the README's "Try it"). It is an experiment and will change daily.
+$signing It is an experiment and will change daily.
 
 Merged since the previous build:
 
