@@ -3,9 +3,10 @@
 //! problems strip; the toast; and the two alert dialogs (remove comments, changed on disk). The body is a stand-in until
 //! pieces N (the File view) and O (the canvas). State and requests: `fleet::workflows::{editor, frame}`.
 use crate::State;
+use crate::fleet::workflows::draft::{draft_cost, drafted_from};
 use crate::fleet::workflows::editor::{Editor, EditorView, Source};
 use crate::fleet::workflows::helpers::file_name;
-use crate::icons::{CIRCLE_ALERT, CIRCLE_CHECK, CODE_XML, PLAY, SAVE, TRIANGLE_ALERT, WORKFLOW};
+use crate::icons::{CIRCLE_ALERT, CIRCLE_CHECK, CODE_XML, PLAY, SAVE, SPARKLES, TRIANGLE_ALERT, WORKFLOW};
 use crate::theme::{RADIUS_BTN, Theme, mono, sans};
 use crate::ui::button::{Size, Variant, button, button_lead, disabled};
 use crate::ui::dialog::{Dialog, dialog};
@@ -17,6 +18,9 @@ pub fn view(s: &State, t: &Theme) -> El {
     let ed = &s.workflows_nav.editor;
     let mut c =
         col().key("workflow-editor").label("Workflow designer").grow(1.0).min_w(0.0).min_h(0.0).w_full().h_full().child(header(s, t, ed));
+    if ed.drafted.is_some() {
+        c = c.child(drafted_banner(t, ed));
+    }
     if !ed.comments.is_empty() && ed.view == EditorView::Designer {
         c = c.child(comments_banner(t, ed));
     }
@@ -166,6 +170,34 @@ fn banner(
         b = b.child(a);
     }
     b
+}
+
+/// `.wf-editor__banner--drafted`: where the draft came from in bold, that nothing is saved yet, what asking cost (muted), and
+/// that it still has errors. One paragraph: the cost and the errors are spans of it.
+fn drafted_banner(t: &Theme, ed: &Editor) -> El {
+    let Some(d) = ed.drafted.as_ref() else { return col() };
+    let lead = drafted_from(d);
+    let mut words = format!("{lead} Nothing is saved until you press Save. ");
+    let cost_at = words.len();
+    words.push_str(&draft_cost(d));
+    let cost_end = words.len();
+    if !ed.errors().is_empty() {
+        words.push_str(" It still has errors: fix them in the File view, then save.");
+    }
+    let spans = vec![Span::new(0, lead.len()).weight(700.0), Span::new(cost_at, cost_end).color(t.muted)];
+    row()
+        .key("workflow-drafted-banner")
+        .role("note")
+        .w_full()
+        .gap(10.0)
+        .items_start()
+        .px(16.0)
+        .py(10.0)
+        .fill(t.accent.alpha(0.08))
+        .border_sides([0.0, 0.0, 1.0, 0.0], t.border)
+        .border_layout()
+        .child(icon(&SPARKLES, 14.0).color(t.accent).mt(2.0))
+        .child(rich(words, spans).font(sans(12.5, 400.0, 1.5)).color(t.text).wrap().grow(1.0).shrink().min_w(0.0))
 }
 
 /// "**This file has N comments.** Saving from the designer…" and the button that goes to the text with them.

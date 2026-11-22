@@ -416,7 +416,25 @@ impl crate::State {
         let mut c = Create::new(source);
         match which {
             CreateScene::New => c.name = rune::TextEdit::new("Check the release notes"),
-            CreateScene::Describe => c.mode = Mode::Describe,
+            CreateScene::Describe => {
+                c.mode = Mode::Describe;
+                // The harnesses Fleet lists that workflows run on and that can be asked off the record, and the model Standard maps to.
+                use crate::fleet::new_session::harness_choice::{HarnessEntry, Harnesses, Load};
+                let one = |kind: &str, name: &str| HarnessEntry {
+                    display_name: name.into(),
+                    supports_workflow_steps: true,
+                    supports_off_the_record: true,
+                    ..HarnessEntry::ready(kind)
+                };
+                self.feeds.harnesses.entry(crate::fleet::settings::HOME_MACHINE_KEY.into()).or_default().harnesses =
+                    Harnesses { all: vec![one("opencode", "OpenCode"), one("opencode2", "OpenCode 2")], load: Load::Done, preferred: None };
+                self.pickers.prefs.set(
+                    crate::fleet::workflows::MODEL_ROLES_PREFERENCE_KEY,
+                    r#"{"opencode":{"standard":{"model":"openai/gpt-5.4","effort":null}}}"#,
+                );
+                c.description =
+                    rune::TextEdit::new("Triage a bug report: reproduce it, find the cause, and fix it after I approve the plan.");
+            }
             CreateScene::Taken => {
                 c.name = rune::TextEdit::new("Tidy up a flaky test");
                 c.error = Some("There's already a workflow called Tidy up a flaky test. Pick another name.".into());

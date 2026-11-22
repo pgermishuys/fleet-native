@@ -3,7 +3,7 @@
 use crate::State;
 use crate::fleet::workflows::Workflow;
 use crate::fleet::workflows::nav::{MetaTone, latest_run, row_meta};
-use crate::icons::{CIRCLE_ALERT, GIT_PULL_REQUEST, MESSAGE_SQUARE_TEXT, PLUS, SLIDERS_HORIZONTAL, TRIANGLE_ALERT};
+use crate::icons::{CIRCLE_ALERT, GIT_PULL_REQUEST, MESSAGE_SQUARE_TEXT, PLUS, SLIDERS_HORIZONTAL, SPARKLES, TRIANGLE_ALERT};
 use crate::theme::{RADIUS_BTN, Theme, sans};
 use crate::ui::{empty_state, rem};
 use crate::view::{files_tab, machine_switch, parts};
@@ -137,7 +137,7 @@ fn library(s: &State, t: &Theme) -> El {
         );
     } else {
         list = list.children(files.iter().map(|w| row_of(w)));
-        if files.is_empty() {
+        if files.is_empty() && nav.drafting.is_none() && nav.drafted.is_none() {
             let words = if lib.repository.is_some() {
                 "No workflow files in this repo yet"
             } else {
@@ -146,7 +146,7 @@ fn library(s: &State, t: &Theme) -> El {
             list = list.child(empty_state::compact_bare(t, "workflows-empty", words));
         }
     }
-    list
+    list.children(draft_row(s, t))
 }
 
 /// `.workflow-row`: 32 high, a glyph, the title and a word at the end.
@@ -218,4 +218,45 @@ fn error_note(t: &Theme, message: &str) -> El {
         .fill(t.error.alpha(0.1))
         .child(icon(&CIRCLE_ALERT, 16.0).color(t.error_text).mt(1.0))
         .child(text(message.to_string()).font(sans(rem(0.875), 400.0, 1.43)).color(t.error_text).wrap().shrink().min_w(0.0))
+}
+
+/// `draftRow`: the draft being asked for or open unsaved has a row until it is saved or dropped. "New workflow" with Drafting… or
+/// Failed, or the drafted name with Unsaved. It does nothing when pressed: it is where you already are.
+fn draft_row(s: &State, t: &Theme) -> Option<El> {
+    let nav = &s.workflows_nav;
+    let (title, label) = match (&nav.drafting, &nav.drafted) {
+        (Some(d), _) => ("New workflow".to_string(), if d.error.is_some() { "Failed" } else { "Drafting\u{2026}" }),
+        (None, Some(d)) => {
+            (d.check.draft.as_ref().map(|d| d.name.clone()).filter(|n| !n.is_empty()).unwrap_or_else(|| "New workflow".into()), "Unsaved")
+        }
+        (None, None) => return None,
+    };
+    let active = nav.active_id() == crate::fleet::workflows::nav::DRAFT_ID;
+    let mut e = row()
+        .key("workflow-draft-row")
+        .role("button")
+        .label(title.clone())
+        .w_full()
+        .min_w(0.0)
+        .min_h(32.0)
+        .gap(9.0)
+        .center_y()
+        .px(10.0)
+        .radius(RADIUS_BTN)
+        .hover(t.wash(5.0))
+        .child(icon(&SPARKLES, 13.0).color(t.muted))
+        .child(
+            text(title)
+                .font(sans(rem(0.92857), if active { 500.0 } else { 400.0 }, 1.3))
+                .color(if active { t.text } else { t.text.alpha(0.86) })
+                .grow(1.0)
+                .shrink()
+                .min_w(0.0)
+                .truncate(),
+        )
+        .child(text(label.to_string()).font(sans(rem(0.85714), 400.0, 1.4)).color(t.idle_text));
+    if active {
+        e = e.fill(t.wash(9.0));
+    }
+    Some(e)
 }

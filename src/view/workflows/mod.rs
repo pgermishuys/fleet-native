@@ -76,6 +76,10 @@ fn detail(s: &State, t: &Theme) -> rune::El {
                 .child(rune::icon(&crate::icons::CIRCLE_ALERT, 16.0).color(t.error_text).mt(1.0))
                 .child(text(error.clone()).font(sans(rem(0.875), 400.0, 1.43)).color(t.error_text).wrap().shrink().min_w(0.0)),
         )
+    } else if let Some(d) = nav.drafting.as_ref().filter(|_| nav.active_id() == crate::fleet::workflows::nav::DRAFT_ID) {
+        // Fleet's status sits at the start of the pane's padding, centred up and down (`align-self: center` in a row), its text centred
+        // in its 420 px: the picture of v0.72.0 has it left of the pane's middle.
+        row().w_full().h_full().items_center().px(24.0).child(detail::drafting(t, d))
     } else if s.workflow_editor_shown() && nav.editor.file.is_some() {
         // The editor is a column of its own, not a scrolled page: it fills the sheet inside `center__body`'s 24 px.
         return sheet(t, "workflows-detail").child(col().w_full().grow(1.0).min_h(0.0).padding(24.0).child(editor::view(s, t)));

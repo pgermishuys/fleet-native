@@ -8,6 +8,8 @@ use crate::fleet::machine_choice::MachineChoice;
 use crate::fleet::new_session::request::Folder;
 use crate::fleet::settings::HOME_MACHINE_KEY;
 
+pub use super::drafting::DRAFT_ID;
+
 /// The workflow the page opens on.
 pub const BUILD_A_FEATURE: &str = "builtin:build-a-feature";
 
@@ -54,7 +56,7 @@ pub fn latest_run<'a>(runs: &'a WorkflowRuns, workflow: &Workflow) -> Option<&'a
 pub struct Nav {
     /// The machine the list and the pane show; the machine you're on until the view's switch picks another.
     pub choice: MachineChoice,
-    active: Option<String>,
+    pub(super) active: Option<String>,
     /// The repository the Run box runs in; its `.weave/workflows` are listed under "This repo".
     pub(crate) folder: Option<Folder>,
     pub has_chosen_folder: bool,
@@ -88,6 +90,14 @@ pub struct Nav {
     pub finish: super::finish::Finish,
     /// The New workflow / Duplicate dialog, while it is open (piece R).
     pub create: Option<super::create::Create>,
+    /// The model is being asked for a draft, or failed to give one (piece S; `useWorkflowsNav` `drafting`).
+    pub drafting: Option<super::drafting::Drafting>,
+    /// The draft the model gave, for the list's row until it is saved or dropped (`drafted`); the editor holds the working copy.
+    pub drafted: Option<super::draft::DraftedWorkflow>,
+    /// The number of the newest ask: an answer with an older one is dropped, which is how an ask is cancelled or replaced.
+    pub(super) draft_run: u64,
+    /// How many answers to an ask have come, those that were dropped too (a test waits on it to see a late one arrive).
+    pub draft_answers: u64,
     /// Turn on is saving.
     pub turning_on: bool,
     /// Something asked for the library to be read again: the folder changed, or Turn on saved.
@@ -148,6 +158,9 @@ impl Nav {
         if id == self.active_id() {
             return;
         }
+        if self.active_id() == DRAFT_ID {
+            self.forget_draft();
+        }
         self.active = Some(id.to_string());
         self.showing_runs = false;
         self.run_box.workflow_changed();
@@ -170,7 +183,7 @@ impl Nav {
         self.loading_library = false;
         match result {
             Ok(library) => {
-                if !library.workflows.iter().any(|w| w.id == self.active_id()) {
+                if self.active_id() != DRAFT_ID && !library.workflows.iter().any(|w| w.id == self.active_id()) {
                     self.active = Some(library.workflows.first().map_or(BUILD_A_FEATURE, |w| w.id.as_str()).to_string());
                 }
                 self.library = Some(library);
@@ -191,6 +204,7 @@ impl Nav {
         self.loading_library = false;
         self.folder = None;
         self.has_chosen_folder = false;
+        self.forget_draft();
         self.active = None;
         self.showing_runs = false;
         self.unsaved = None;

@@ -177,13 +177,14 @@ fn duplicate_has_no_describe_it() {
 // ─── What the native dialog adds ───────────────────────────────────────────────────────────────────────────────
 
 #[test]
-fn describe_it_is_a_tab_of_new_and_its_form_is_the_next_piece() {
+fn describe_it_is_a_tab_of_new_with_a_form_of_its_own() {
     let mut rt = app();
     show_page(&mut rt);
     click(&mut rt, "workflow-new");
     click(&mut rt, "workflow-create-describe");
     assert!(words_in(&rt, "workflow-create-dialog").contains("Say what it should do."));
     assert!(rt.find("workflow-create-submit").is_none(), "no Create on this tab");
+    assert!(rt.find("workflow-describe-submit").is_some(), "Draft it is on this one");
     click(&mut rt, "workflow-create-blank");
     assert!(rt.find("workflow-create-submit").is_some());
     assert!(words_in(&rt, "workflow-create-dialog").contains("one agent step"));

@@ -2905,3 +2905,8 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 - **`wrap_anywhere` is `overflow-wrap: anywhere`** (a long unbroken board name wraps); a bare `wrap` overflows.
 - **Opacity eases**: a button that was just enabled still reads below 1 for a few frames, so a test of "not disabled" runs about 30 frames first.
 
+## Component 18, piece S (drafting)
+
+- **A sentence with parts that are their own elements** (Fleet's drafted banner: bold lead, a muted cost `<span data-testid>`, an errors span) is one `rich` text with coloured `Span`s here; a span can't be keyed, so a test reads the whole paragraph's text.
+- **A request can't be cancelled from the UI thread's side**: `Link::off_thread` has no abort, so Cancel and "a newer ask" bump a run number and the answer that comes late is dropped (`Nav::draft_answers` counts answers so a test can wait for the dropped one).
+- **Fleet's `<select>` is the browser's own**; the kit's `select::trigger` and `content_in` stand in for it (the list is the kit's, not the OS's).

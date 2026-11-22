@@ -427,6 +427,8 @@ mod tests_workflow_create;
 #[cfg(test)]
 mod tests_workflow_detail;
 #[cfg(test)]
+mod tests_workflow_drafts;
+#[cfg(test)]
 mod tests_workflow_editor;
 #[cfg(test)]
 mod tests_workflow_file;
@@ -2877,6 +2879,14 @@ pub fn spec() -> AppSpec<State> {
             ("workflow-inspector-agent-light", |s| s.show_workflow_inspector(false, mock::workflow_inspector::Case::Agent)),
             ("workflow-inspector-loops", |s| s.show_workflow_inspector(true, mock::workflow_inspector::Case::Loops)),
             ("workflow-inspector-loops-light", |s| s.show_workflow_inspector(false, mock::workflow_inspector::Case::Loops)),
+            ("workflow-drafting", |s| s.show_workflow_draft(true, mock::workflow_drafts::Case::Drafting)),
+            ("workflow-drafting-light", |s| s.show_workflow_draft(false, mock::workflow_drafts::Case::Drafting)),
+            ("workflow-drafting-failed", |s| s.show_workflow_draft(true, mock::workflow_drafts::Case::Failed)),
+            ("workflow-drafting-failed-light", |s| s.show_workflow_draft(false, mock::workflow_drafts::Case::Failed)),
+            ("workflow-drafted", |s| s.show_workflow_draft(true, mock::workflow_drafts::Case::Drafted)),
+            ("workflow-drafted-light", |s| s.show_workflow_draft(false, mock::workflow_drafts::Case::Drafted)),
+            ("workflow-drafted-errors", |s| s.show_workflow_draft(true, mock::workflow_drafts::Case::DraftedErrors)),
+            ("workflow-drafted-errors-light", |s| s.show_workflow_draft(false, mock::workflow_drafts::Case::DraftedErrors)),
             ("workflow-stepper", |s| s.show_workflow_stepper(true, mock::workflow_stepper::Case::Stepper)),
             ("workflow-stepper-light", |s| s.show_workflow_stepper(false, mock::workflow_stepper::Case::Stepper)),
             ("workflow-stepper-note", |s| s.show_workflow_stepper(true, mock::workflow_stepper::Case::Note)),
@@ -4451,6 +4461,8 @@ pub fn spec() -> AppSpec<State> {
             ("row-menu-hint-light", |s| s.show_row_menu(fleet::row_menu::Scene::Hint, false)),
             ("row-menu-archived", |s| s.show_row_menu(fleet::row_menu::Scene::Archived, true)),
             ("row-menu-archived-light", |s| s.show_row_menu(fleet::row_menu::Scene::Archived, false)),
+            ("row-menu-save-as-workflow", |s| s.show_row_menu(fleet::row_menu::Scene::SaveAsWorkflow, true)),
+            ("row-menu-save-as-workflow-light", |s| s.show_row_menu(fleet::row_menu::Scene::SaveAsWorkflow, false)),
             ("row-menu-fork", |s| s.show_row_menu(fleet::row_menu::Scene::Fork, true)),
             ("row-menu-fork-light", |s| s.show_row_menu(fleet::row_menu::Scene::Fork, false)),
             ("row-menu-fork-off", |s| s.show_row_menu(fleet::row_menu::Scene::ForkOff, true)),

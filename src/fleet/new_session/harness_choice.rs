@@ -25,6 +25,9 @@ pub struct HarnessEntry {
     pub supports_fleet_tools: bool,
     /// `capabilities.supportsWorkflowSteps`: the harness can give a workflow step's session the step tool.
     pub supports_workflow_steps: bool,
+    /// `capabilities.supportsOffTheRecordPrompt`: the harness can be asked a question that isn't kept in a session (Describe it,
+    /// Save as workflow…).
+    pub supports_off_the_record: bool,
     /// `ready | not-installed | sign-in-required | not-working | update-needed`: what the setup wizard counts (`harnessState`).
     pub state: String,
     pub version: Option<String>,
@@ -150,6 +153,7 @@ pub fn parse_harness_entries(body: &Value) -> Vec<HarnessEntry> {
                 supports_images: h.pointer("/capabilities/supportsImageAttachments").and_then(Value::as_bool) == Some(true),
                 supports_fleet_tools: h.pointer("/capabilities/supportsFleetTools").and_then(Value::as_bool) == Some(true),
                 supports_workflow_steps: h.pointer("/capabilities/supportsWorkflowSteps").and_then(Value::as_bool) == Some(true),
+                supports_off_the_record: h.pointer("/capabilities/supportsOffTheRecordPrompt").and_then(Value::as_bool) == Some(true),
                 state: text("state").unwrap_or_default(),
                 version: text("version"),
                 executable_path: text("executablePath"),

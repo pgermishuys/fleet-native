@@ -43,6 +43,18 @@ pub fn project_targets(s: &State, machine: &str) -> Vec<(Option<String>, String)
     out
 }
 
+/// `canSaveAsWorkflow`: Workflows on, this machine's session, not archived, and a harness that can be asked off the record. It is
+/// the harness's capability that decides, not its name.
+fn can_save_as_workflow(s: &State, session: &Session, elsewhere: bool) -> bool {
+    !elsewhere
+        && !session.row.archived
+        && s.workflows_feature() == Some(true)
+        && s.harness_choice(HOME_KEY)
+            .all
+            .iter()
+            .any(|h| Some(h.kind.as_str()) == session.row.harness_type.as_deref() && h.supports_off_the_record)
+}
+
 /// `<project> · <branch> · <harness>`, what is missing dropped.
 fn footer_of(s: &State, session: &Session) -> Option<String> {
     let l = &session.listing;
@@ -176,6 +188,21 @@ pub fn build(s: &State, session: &Session, machine: Option<&str>) -> RowMenu {
                 .on(move |s: &mut State, tx: &mut Tx| s.repeat_session_on_schedule(&id3, invented.clone(), tx)),
         ));
     }
+    if can_save_as_workflow(s, session, elsewhere) {
+        let (id4, title) = (id.clone(), session.title.clone());
+        entries.push(Entry::Item(
+            Item::new("Save as workflow\u{2026}")
+                .icon(&SPARKLES)
+                .id("session-save-as-workflow")
+                .hint(crate::fleet::workflows::draft::DRAFT_COST_NOTE)
+                .disabled(busy)
+                .on(move |s: &mut State, _: &mut Tx| {
+                    // The page opens first, then the ask: a draft's pane and row are the page's.
+                    s.enter_workflows();
+                    s.workflow_draft_from_session(&id4, &title);
+                }),
+        ));
+    }
     entries.push(Entry::Separator);
     if elsewhere {
         let dir = session.listing.workspace_directory.clone();
@@ -294,6 +321,8 @@ pub enum Scene {
     Hint,
     /// An archived session: Restore, no Fork.
     Archived,
+    /// Workflows on and a harness that can be asked off the record: Save as workflow… after Repeat on a schedule….
+    SaveAsWorkflow,
     /// A fork of the first session: Move out of it.
     Fork,
     /// A harness that can't fork: Fork off with its reason.
@@ -318,6 +347,7 @@ impl State {
         let row = &mut self.projects[0].sessions[1];
         match scene {
             Scene::Plain
+            | Scene::SaveAsWorkflow
             | Scene::Hint
             | Scene::Submenu
             | Scene::OpenIn
@@ -338,6 +368,19 @@ impl State {
             }
         }
         row.branch = "main".into();
+        if matches!(scene, Scene::SaveAsWorkflow) {
+            row.row.harness_type = Some("opencode2".into());
+            self.pickers.prefs.set("Workflows", "true");
+            let mut opencode = super::new_session::harness_choice::HarnessEntry::ready("opencode2");
+            opencode.display_name = "OpenCode 2".into();
+            opencode.supports_workflow_steps = true;
+            opencode.supports_off_the_record = true;
+            self.feeds.harnesses.entry(HOME_KEY.into()).or_default().harnesses = super::new_session::harness_choice::Harnesses {
+                all: vec![opencode],
+                load: super::new_session::harness_choice::Load::Done,
+                preferred: None,
+            };
+        }
         if matches!(scene, Scene::Archived) {
             self.store.retention = super::store::Retention::Archived;
         }

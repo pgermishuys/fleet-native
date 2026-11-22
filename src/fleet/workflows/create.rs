@@ -11,6 +11,7 @@ use rune::TextEdit;
 use serde_json::{Value, json};
 
 pub const NAME_FIELD: &str = "workflow-create-name";
+pub const DESCRIBE_FIELD: &str = "workflow-describe-text";
 const FALLBACK: &str = "Couldn't create the workflow file.";
 
 /// A built-in being copied.
@@ -25,7 +26,7 @@ pub struct Source {
 pub enum Mode {
     #[default]
     Blank,
-    /// Piece S fills this tab's form.
+    /// The model drafts the workflow from a sentence (`workflow-describe-form`).
     Describe,
 }
 
@@ -37,13 +38,26 @@ pub struct Create {
     pub mode: Mode,
     pub error: Option<String>,
     pub creating: bool,
+    /// Describe it: what the workflow should do, the harness picked (none: the default), and its list open.
+    pub description: TextEdit,
+    pub harness_choice: Option<String>,
+    pub picking_harness: bool,
 }
 
 impl Create {
     /// A Duplicate starts as "<name>, our way" (the `watch(open)`).
     pub fn new(source: Option<Source>) -> Create {
         let name = source.as_ref().map(|s| format!("{}, our way", s.name)).unwrap_or_default();
-        Create { source, name: TextEdit::new(name), mode: Mode::Blank, error: None, creating: false }
+        Create {
+            source,
+            name: TextEdit::new(name),
+            mode: Mode::Blank,
+            error: None,
+            creating: false,
+            description: TextEdit::default(),
+            harness_choice: None,
+            picking_harness: false,
+        }
     }
 
     pub fn trimmed_name(&self) -> &str {
@@ -102,7 +116,10 @@ impl State {
 
     /// Cancel, the X, Escape and the scrim (`endCreate`). Not while the file is being made.
     pub fn workflow_create_close(&mut self) {
-        if self.workflows_nav.create.as_ref().is_some_and(|c| !c.creating) {
+        // An open select closes alone, as a browser's list does on Escape.
+        if let Some(c) = self.workflows_nav.create.as_mut().filter(|c| c.picking_harness) {
+            c.picking_harness = false;
+        } else if self.workflows_nav.create.as_ref().is_some_and(|c| !c.creating) {
             self.workflows_nav.create = None;
         }
     }
@@ -114,10 +131,58 @@ impl State {
         }
     }
 
-    pub fn workflow_create_set_mode(&mut self, mode: Mode) {
+    pub fn workflow_create_set_mode(&mut self, mode: Mode, tx: &mut Tx) {
         if let Some(c) = self.workflows_nav.create.as_mut().filter(|c| c.source.is_none()) {
             c.mode = mode;
+            c.picking_harness = false;
+            tx.focus(if mode == Mode::Describe { DESCRIBE_FIELD } else { NAME_FIELD }, false);
         }
+    }
+
+    /// The harnesses Describe it can ask: those workflows run on that can be asked off the record, as (type, name).
+    pub fn workflow_describe_harnesses(&self) -> Vec<(String, String)> {
+        let all = self.run_box_harnesses();
+        all.enabled()
+            .into_iter()
+            .filter(|h| h.supports_workflow_steps && h.supports_off_the_record)
+            .map(|h| (h.kind.clone(), h.display_name.clone()))
+            .collect()
+    }
+
+    /// `harnessType`: the one picked; else the default when it is one of them, else the first. None with no harness to ask.
+    pub fn workflow_describe_harness(&self) -> Option<String> {
+        let list = self.workflow_describe_harnesses();
+        if let Some(picked) = self.workflows_nav.create.as_ref().and_then(|c| c.harness_choice.clone()) {
+            return Some(picked);
+        }
+        let default = self.run_box_harnesses().default_type();
+        if list.iter().any(|(kind, _)| *kind == default) { Some(default) } else { list.into_iter().next().map(|(kind, _)| kind) }
+    }
+
+    /// `standardModel`: "On your Standard model: …" says this one.
+    pub fn workflow_describe_model(&self, harness: &str) -> String {
+        super::helpers::model_short_name(self.role_choice(harness, super::Role::Standard).model.as_deref())
+    }
+
+    /// `canDescribe`.
+    pub fn workflow_can_describe(&self) -> bool {
+        let words = self.workflows_nav.create.as_ref().is_some_and(|c| !c.description.text.trim().is_empty());
+        words && self.workflows_nav.repository_path().is_some() && self.workflow_describe_harness().is_some()
+    }
+
+    /// `describe`: the dialog closes and the model is asked. Nothing is created: the draft opens unsaved.
+    pub fn workflow_describe_submit(&mut self) {
+        if !self.workflow_can_describe() {
+            return;
+        }
+        let harness_type = self.workflow_describe_harness();
+        let Some(directory) = self.workflows_nav.repository_path().map(str::to_string) else { return };
+        let Some(c) = self.workflows_nav.create.take() else { return };
+        self.workflow_start_draft(super::drafting::Ask::Description {
+            directory,
+            description: c.description.text.trim().to_string(),
+            harness_type,
+        });
     }
 
     /// `canCreate`.
