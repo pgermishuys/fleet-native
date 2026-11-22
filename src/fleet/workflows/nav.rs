@@ -66,9 +66,9 @@ pub struct Nav {
     generation: u64,
     /// A repository's workflow shows the run view instead of the designer (Try it).
     pub showing_runs: bool,
-    /// The workflow open in the designer with unsaved edits, so its row says Edited (piece M sets it).
+    /// The workflow open in the designer with unsaved edits, so its row says Edited (`keep_workflow_frame` sets it).
     pub unsaved: Option<String>,
-    /// Asked before another workflow opens, so unsaved edits aren't dropped without a word (piece M fills it).
+    /// A test's say before another workflow opens; the real guard is the editor's own question (`workflow_leave`).
     pub leave_guard: Option<fn(&State) -> bool>,
     /// The Run box under the open workflow (piece D).
     pub run_box: super::run_box::RunBox,
@@ -82,6 +82,8 @@ pub struct Nav {
     pub card: super::card::Card,
     /// The open workflow file: its draft and text, the checks and the saves (piece L; piece M draws it).
     pub editor: super::editor::Editor,
+    /// The editor's frame: its toast and the file the page asked for (piece M).
+    pub frame: super::frame::Frame,
     /// The finish bar above the composer: its note, the press on its way and the words of a refusal (piece H).
     pub finish: super::finish::Finish,
     /// Turn on is saving.
@@ -241,7 +243,8 @@ impl State {
         if self.workflows_nav.leave_guard.is_some_and(|guard| !guard(self)) {
             return;
         }
-        self.workflows_nav.move_to(id);
+        // Unsaved edits ask first (`setLeaveGuard`); the question's Yes moves.
+        self.workflow_leave(super::frame::Leave::Open(id.to_string()));
     }
 
     /// The link `/workflows?workflow=<id>&folder=<path>` (the Fix a bug starter): the Run box's folder, and the workflow open.

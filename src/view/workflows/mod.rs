@@ -8,6 +8,7 @@ use crate::view::feature_off;
 use rune::{ScrollSpec, col, row, text};
 
 pub mod detail;
+pub mod editor;
 pub mod finish_bar;
 pub mod list;
 pub mod project_picker;
@@ -70,6 +71,14 @@ fn detail(s: &State, t: &Theme) -> rune::El {
                 .fill(t.error.alpha(0.1))
                 .child(rune::icon(&crate::icons::CIRCLE_ALERT, 16.0).color(t.error_text).mt(1.0))
                 .child(text(error.clone()).font(sans(rem(0.875), 400.0, 1.43)).color(t.error_text).wrap().shrink().min_w(0.0)),
+        )
+    } else if s.workflow_editor_shown() && nav.editor.file.is_some() {
+        // The editor is a column of its own, not a scrolled page: it fills the sheet inside `center__body`'s 24 px.
+        return sheet(t, "workflows-detail").child(col().w_full().grow(1.0).min_h(0.0).padding(24.0).child(editor::view(s, t)));
+    } else if s.workflow_editor_shown() && nav.editor.load_error.is_some() {
+        col().w_full().h_full().center().child(
+            crate::ui::confirm::error_note(t, "workflow-editor-error", nav.editor.load_error.as_deref().unwrap_or_default(), None)
+                .max_w(rem(28.0)),
         )
     } else if let Some(w) = nav.active_workflow() {
         // `center__body` has 24 px of padding all round; the column inside it is the one at most 760 wide.

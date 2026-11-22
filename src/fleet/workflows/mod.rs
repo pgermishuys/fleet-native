@@ -10,6 +10,7 @@ pub mod detail;
 pub mod draft;
 pub mod editor;
 pub mod finish;
+pub mod frame;
 pub mod helpers;
 pub mod nav;
 pub mod roles;

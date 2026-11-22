@@ -114,6 +114,10 @@ impl State {
                 self.ui.confirm = None;
                 self.start_revert(&path, range);
             }
+            Call::LeaveWorkflow { to } => {
+                self.ui.confirm = None;
+                self.workflow_leave_now(to);
+            }
             Call::DeleteAutomation { machine, id } => {
                 self.ui.confirm = None;
                 self.automation_delete_now(&machine, &id, tx);

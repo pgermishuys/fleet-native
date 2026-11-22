@@ -2790,3 +2790,10 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 - **Rune has `rune::set_app_id(id)`** (call before `run`): it sets X11's `WM_CLASS` (class and instance) and Wayland's `app_id`, which is what a desktop entry's `StartupWMClass` has to match. Without it the window's class is the title. Checked on X11 only (`xdotool search --class`).
 - A Rune binary links libxkbcommon, Wayland and WebKitGTK directly, so a `.deb`'s `Depends` must list them: the app does not start without them.
 
+## Component 18, piece M (the editor's frame)
+
+- **A keyed row has no text of its own in `Runtime::elements()`**: the text is on the child. A test that wants "what this banner says" joins the text of the element and of every element whose `path` starts with its path plus `/`.
+- **`ElementInfo` has no `disabled`**; a disabled control is `focusable == false`.
+- **`border_sides` is CSS order** (top, right, bottom, left) and takes no layout room unless `.border_layout()` follows.
+- **A toast over a column**: a row with `pin(Some(l), None, Some(r), Some(bottom))` and `justify_center` centres a pill without a wrapper (seen in the scene).
+- **An alert dialog Escape can't close** (Fleet's `:open`-only dialogs): give `Dialog::dismiss` a function that does nothing.
