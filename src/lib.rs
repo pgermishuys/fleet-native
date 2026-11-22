@@ -1440,6 +1440,12 @@ impl State {
                 self.show_draft("Run the cache tests again.");
                 self.composer_error = Some("HTTP 500".into());
             }
+            // A refused send with something typed meanwhile: the refused text is in front, a blank line, then the new text.
+            "refused" => {
+                self.set_open((0, 2));
+                self.show_draft(&fleet::prompts::draft_after_refusal("Run the cache tests again.", "And check the docs build."));
+                self.composer_error = Some("HTTP 500".into());
+            }
             "files" | "file-error" | "uploading" | "paste-offer" | "pasted-file" | "terminal-lines" => self.show_files(state),
             "images" | "images-many" | "image-error" | "image-queue" | "image-drag" | "image-lightbox" => self.show_images_held(state),
             "long" => {
@@ -1722,7 +1728,7 @@ pub fn submit(s: &mut State, tx: &mut Tx, modifier: bool) {
 /// refuses it and nothing new was typed. The pick (agent, model, effort) goes with it.
 fn queue_draft(s: &mut State, tx: &mut Tx, kind: fleet::queue::ItemKind, command: Option<(String, String)>) {
     let typed = s.draft.text.clone();
-    let mut text = typed.trim().to_string();
+    let mut text = fleet::prompts::tidy_prompt(&typed);
     let Some(owner) = s.draft_owner() else { return };
     let lines = kind == fleet::queue::ItemKind::Prompt && !s.terminal_lines().is_empty();
     if text.is_empty() && !lines {
@@ -1755,7 +1761,7 @@ pub fn send(s: &mut State, tx: &mut Tx) {
 
 /// Send, into the running turn when `steer`.
 pub fn send_as(s: &mut State, tx: &mut Tx, steer: bool) {
-    let typed = s.draft.text.trim().to_string();
+    let typed = fleet::prompts::tidy_prompt(&s.draft.text);
     let images = !s.held_images().is_empty();
     if typed.is_empty() && !images && s.terminal_lines().is_empty() {
         return;
@@ -5335,6 +5341,11 @@ pub fn spec() -> AppSpec<State> {
                 s.show_composer("disabled")
             }),
             ("composer-error", |s| s.show_composer("error")),
+            ("composer-refused", |s| s.show_composer("refused")),
+            ("composer-refused-light", |s| {
+                s.dark = Some(false);
+                s.show_composer("refused")
+            }),
             ("composer-error-light", |s| {
                 s.dark = Some(false);
                 s.show_composer("error")

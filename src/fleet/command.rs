@@ -58,8 +58,6 @@ impl State {
         // Nothing started, so no status event will come to undo the working it was shown as.
         self.optimistic = None;
         self.composer_error = Some(why);
-        if self.draft.text.is_empty() {
-            self.draft = rune::TextEdit::new(typed);
-        }
+        self.draft = rune::TextEdit::new(super::prompts::draft_after_refusal(&typed, &self.draft.text));
     }
 }

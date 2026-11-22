@@ -545,11 +545,12 @@ impl State {
         self.put_back_images(correlation_id, tx);
         let lines = self.held.refused(correlation_id);
         if let Some(prompt) = self.prompts.remove(session, correlation_id)
-            && self.draft.text.trim().is_empty()
             && self.open_id().as_deref() == Some(session)
         {
-            // What came back is what was typed: the terminal lines are chips again, not blocks in the text.
-            self.draft = rune::TextEdit::new(lines.map_or(prompt.body, |(_, typed)| typed));
+            // What came back is what was typed: the terminal lines are chips again, not blocks in the text. It goes in front of
+            // whatever was typed meanwhile.
+            let refused = lines.map_or(prompt.body, |(_, typed)| typed);
+            self.draft = rune::TextEdit::new(super::prompts::draft_after_refusal(&refused, &self.draft.text));
         }
         // The error box above the composer (row 1.10), not the status bar.
         self.composer_error = Some(why);
@@ -589,7 +590,7 @@ impl State {
         self.note_pick_on_row(&pick);
         self.record_recent_model(&pick);
         if let Some(link) = self.link_for(session) {
-            link.send_prompt(session, &correlation_id, text.trim(), pick);
+            link.send_prompt(session, &correlation_id, &super::prompts::tidy_prompt(text), pick);
         }
         self.sync_open();
     }

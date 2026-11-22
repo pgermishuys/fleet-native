@@ -245,16 +245,16 @@ fn puts_a_refused_command_back_and_says_why() {
     assert_eq!(live.rt.state.composer_error.as_deref(), Some("The agent is working. Run the command when its turn ends."));
 }
 
-// new: "a command refused doesn't overwrite what was typed since"
+// refused-draft.test.ts (Fleet 0.74): a refused command goes in front of what was typed since
 #[test]
-fn a_refused_command_doesnt_overwrite_what_was_typed_since() {
+fn a_refused_command_goes_in_front_of_what_was_typed_since() {
     let mut rt = mock_app(false, "opencode", false, false);
     rt.update(|s, _| {
         let id = s.draft_owner().unwrap();
         s.draft = rune::TextEdit::new("something new");
         s.on_shell_answer(&id, "!ls".into(), Ok((409, json!({"error": "no"}))));
     });
-    assert_eq!(rt.state.draft.text, "something new");
+    assert_eq!(rt.state.draft.text, "!ls\n\nsomething new");
     assert_eq!(rt.state.composer_error.as_deref(), Some("no"));
 }
 

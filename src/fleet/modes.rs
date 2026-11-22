@@ -156,9 +156,7 @@ impl State {
             return;
         }
         self.composer_error = Some(why);
-        if self.draft.text.is_empty() {
-            self.draft = rune::TextEdit::new(typed);
-        }
+        self.draft = rune::TextEdit::new(super::prompts::draft_after_refusal(&typed, &self.draft.text));
     }
 
     /// A `/btw` question, or anything typed while the side conversation is open (`handleSideSend`). It never waits for the
@@ -180,8 +178,8 @@ impl State {
         let with_terminals = crate::composer::attached::format_terminal_context(self.terminal_lines(), &question);
         let session = owner.clone();
         let asked = self.ask_side(&owner, &with_terminals, pick, tx, move |s, ok| {
-            if !ok && s.draft_owner().as_deref() == Some(session.as_str()) && s.draft.text.is_empty() {
-                s.draft = rune::TextEdit::new(typed);
+            if !ok && s.draft_owner().as_deref() == Some(session.as_str()) {
+                s.draft = rune::TextEdit::new(super::prompts::draft_after_refusal(&typed, &s.draft.text));
             }
         });
         if asked {

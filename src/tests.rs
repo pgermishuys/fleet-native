@@ -129,7 +129,7 @@ fn a_sent_message_gets_its_canned_reply() {
     let session = &rt.state.projects[0].sessions[1];
     let last = session.messages.last().unwrap();
     assert_eq!(last.role, Role::User);
-    assert!(matches!(&last.parts[..], [Part::Text { text, .. }] if text == "Ship it"));
+    assert!(matches!(&last.parts[..], [Part::Text { text, .. }] if text == "  Ship it"));
     assert!(session.status == Status::Working);
     assert!(rt.state.draft.text.is_empty());
 
@@ -1768,4 +1768,36 @@ fn markdown_markers_take_the_accent_tint_and_code_takes_fleets_syntax_colours() 
     let keyword = crate::theme::Theme::of(true).syntax()[0];
     assert_eq!(keyword, rune::color::hex("#c678dd").unwrap(), "One Dark's keyword colour, Fleet's default");
     assert_eq!(crate::theme::Theme::of(false).syntax()[0], rune::color::hex("#a626a4").unwrap());
+}
+
+// ime-enter-guard.test.ts: the Enter that confirms an input method's composition is the composition's, never "send".
+#[test]
+fn an_enter_that_confirms_an_input_method_composition_does_not_send() {
+    let mut rt = app();
+    rt.update(|s, _| s.set_open((0, 2)));
+    rt.frame(FRAME);
+    let before = user_messages(&rt);
+    click(&mut rt, "composer");
+    rt.ime(rune::Ime::Preedit("かん".into(), Some((0, 6)), Vec::new()));
+    rt.frame(FRAME);
+    assert!(rt.state.draft.is_composing());
+    press_key(&mut rt, Key::Enter, Mods::default());
+    assert_eq!(user_messages(&rt), before, "the Enter went to the composition");
+    // A plain Enter afterwards still sends.
+    typed(&mut rt, "Ship it");
+    press_key(&mut rt, Key::Enter, Mods::default());
+    assert_eq!(user_messages(&rt), before + 1);
+}
+
+// prompt-text.test.ts: a prompt that starts with an indented line is sent with that indent.
+#[test]
+fn the_composers_enter_sends_the_first_lines_indent() {
+    let mut rt = app();
+    rt.update(|s, _| s.set_open((0, 2)));
+    rt.frame(FRAME);
+    typed(&mut rt, "\n    run-tests  \n");
+    press_key(&mut rt, Key::Enter, Mods::default());
+    let sent = rt.state.session().messages.iter().rfind(|m| m.role == Role::User).unwrap();
+    let text = sent.parts.iter().find_map(|p| if let Part::Text { text, .. } = p { Some(text.clone()) } else { None });
+    assert_eq!(text.as_deref(), Some("    run-tests"));
 }

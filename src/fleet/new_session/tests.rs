@@ -380,8 +380,8 @@ fn build_create_session_request_options_leaves_out_what_wasnt_chosen() {
 }
 
 #[test]
-fn build_create_session_request_options_trims_the_message() {
-    assert_eq!(build(&state("\n  Fix it  \n")).options.initial_prompt.as_deref(), Some("Fix it"));
+fn build_create_session_request_options_drops_blank_lines_around_the_message_and_trailing_spaces_not_the_first_lines_indent() {
+    assert_eq!(build(&state("\n  Fix it  \n")).options.initial_prompt.as_deref(), Some("  Fix it"));
 }
 
 #[test]
@@ -969,4 +969,11 @@ fn live_create_session_against_a_scratch_fleet() {
     let why = crate::fleet::http::create_session(&base, &build(&bad).body()).expect_err("the server refuses a bad branch");
     println!("REFUSED {why}");
     assert!(!why.is_empty() && !why.starts_with("HTTP"));
+}
+
+#[test]
+fn build_create_session_request_sends_the_first_message_with_the_indent_of_its_first_line() {
+    let request = build(&state("\n\n    def total(rows):\n        return 0  \n"));
+    assert_eq!(request.options.initial_prompt.as_deref(), Some("    def total(rows):\n        return 0"));
+    assert_eq!(request.options.title.as_deref(), Some("def total(rows):"));
 }

@@ -384,7 +384,8 @@ fn github_source(
 /// Turns the page's choices into the arguments for `createSession` (`buildCreateSessionRequest`). `Err` is the words
 /// for the red box.
 pub fn build_create_session_request(state: &NewSessionState) -> BuildResult {
-    let message = state.message.trim();
+    let message = super::super::prompts::tidy_prompt(&state.message);
+    let message = message.as_str();
     let preset = state.github_preset.as_ref();
 
     if let Some(p) = preset
