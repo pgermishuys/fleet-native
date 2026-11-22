@@ -266,7 +266,7 @@ ones with the theme toggled by the script (Cmd+Shift+L) in a scratch data folder
 | 11.3 | `ensureLoaded`: listen to `workflow_run` on the sessions topic (upsert), and `GET /api/workflows/runs?limit=100` once (a failure leaves the list to fill from events); `isLoading` until it answers, `isLoaded` after | SW | Done (A): `workflow_runs_ensure_loaded` (listen, read `?limit=100` once, a failure leaves it to events and the next call asks again), `loading` / `loaded`. Events reach the store through `State::dispatch` (`on_workflow_event`), because a `subscribe` listener cannot change `State`. Only the live machine's events arrive (see gaps) |
 | 11.4 | Requests go to the machine the store is for (the view's machine, or the session's for a card): library, runs and every change; never the live one by mistake | SW; `stores/__tests__/workflows-machine.test.ts` | Done (A): every call goes through `link_for_machine(key)`; `tests_workflow_runs.rs` asks harbor and hears nothing on the live machine |
 | 11.5 | Routes (slice 1): `GET /api/workflows[?directory=]`; `GET /api/workflows/runs?limit=100`; `POST /api/workflows/runs`; `POST /api/workflows/runs/{id}/answer`; `POST …/move-on`; `PUT …/check-with-me`; `POST …/end`. Each returns the run, which is upserted at once. Errors read `{error}` through `extractApiError` with Fleet's fallbacks | SW | Done (A): `workflow_library`, `workflow_start`, `workflow_answer`, `workflow_move_on`, `workflow_set_check_with_me`, `workflow_end`; the run that comes back is kept before the caller hears; errors read as `extractApiError` does with Fleet's fallbacks |
-| 11.6 | Routes (slice 2): `POST /api/workflows/check` (`{text}` or `{draft}`); `POST /api/workflows/files/open`; `PUT /api/workflows/files` (409 = changed on disk); `POST /api/workflows/files` (new, duplicate, or a drafted file); `POST /api/workflows/drafts/from-session`; `POST /api/workflows/drafts/from-description` | SW | None (L, S) |
+| 11.6 | Routes (slice 2): `POST /api/workflows/check` (`{text}` or `{draft}`); `POST /api/workflows/files/open`; `PUT /api/workflows/files` (409 = changed on disk); `POST /api/workflows/files` (new, duplicate, or a drafted file); `POST /api/workflows/drafts/from-session`; `POST /api/workflows/drafts/from-description` | SW | Done in part (L): `check`, `files/open`, `PUT files` (a 409 is the conflict, anything else the save error) and `POST files` (a drafted file) are called from `State::workflow_editor_*` on threads, to the editor's machine. `drafts/from-session` and `drafts/from-description` are open for S; New and Duplicate's `POST files {name}` for R |
 | 11.7 | The helpers: `runStatusLabel`, `stepLabel`, `ordinal`, `stepPosition`, `modelShortName`, `skillsInUse`, `loopNotes`, `isStepPrompt`, `workflowMessageLabel`, `workflowMessageKey`, `fileName`, `listFiles`, `moveLabel`, `moveBlockedReason`, `runningStep`, `nextStepTitle`, `checkWithMeNote` | LW | Done (A): every helper, in `src/fleet/workflows/helpers.rs` |
 
 **Piece A's gaps, written down:**
@@ -298,7 +298,7 @@ ones with the theme toggled by the script (Cmd+Shift+L) in a scratch data folder
 | 12.8 | The problems strip under the canvas or file (padding 8/16, 12 px): each error "line N · message" (AlertCircle); or the OK line: File view "No problems. This is exactly what Save writes." (or "No problems. The File view saves your text as it is, comments included." with comments and text edits), designer "No problems. Checked by the same parser runs use."; the runs note while dirty; the save error | WE `.wf-problems` | None (M) |
 | 12.9 | The comments confirmation (alert dialog): "Save and remove N comment(s)?", "The designer writes the whole file in Fleet's layout. These comments would be removed:", the list "# text", "To keep them, make this change in the File view instead.", Cancel / **Edit in File view** / **Save and remove them**; asked once per open file | WE; UWE `save`, `confirmRemoveComments`, `keepComments` | None (M) |
 | 12.10 | The conflict dialog: "<file> changed on disk", "Someone or something changed the file since you opened it, for example an edit in another editor or a git checkout. Reload to see their version and lose your edits, or keep yours and save over theirs.", Cancel / **Reload** / **Keep mine** (saves with `force`) | WE; UWE `reload`, `keepMine` | None (M) |
-| 12.11 | Edit in File view goes back to the text as it was before the designer's edits (comments and all), dropping those edits | UWE `keepComments` | None (L logic, M view) |
+| 12.11 | Edit in File view goes back to the text as it was before the designer's edits (comments and all), dropping those edits | UWE `keepComments` | Done (L logic): `workflow_editor_keep_comments`; M draws the buttons |
 | 12.12 | Leaving a dirty workflow (another row, a draft, another machine) asks "Discard your unsaved changes?" (subject the name or file; "Your edits to this workflow are lost."; **Discard changes**, destructive) or, for a draft, "Discard the drafted workflow?" ("It hasn't been saved."; **Discard draft**); with nothing unsaved it moves at once | WDP `setLeaveGuard`; UWN | None (M) |
 | 12.13 | The list row says "Edited" while the open workflow is dirty | WDP watch; WNP | None (M) |
 
@@ -309,9 +309,9 @@ ones with the theme toggled by the script (Cmd+Shift+L) in a scratch data folder
 | 13.1 | The file's text in CodeMirror: line numbers, history, indent on input, close brackets, the active line, Fleet's editor theme, YAML highlighting (`workflow.yaml`), Tab indents, `aria-label` "Workflow file" | WFE | None (N; component 11's editor) |
 | 13.2 | Lines with a parser error are marked (`wf-file__error-line`) | WFE `errorField` | None (N) |
 | 13.3 | Mod-S saves; text set from outside (a reload, a save) replaces the document | WFE | None (N) |
-| 13.4 | Typing edits the text; the server checks 300 ms after the last key (`CHECK_DELAY_MS`), a newer check cancels an older one; a check failure shows as a save error | UWE `editText`, `scheduleCheck`, `runCheck` | None (L) |
-| 13.5 | Switching views checks what's waiting first; to File takes the check's text when the designer was edited last; to Designer takes the check's draft, or refuses with the blocked banner when there's none | UWE `setView`, `flush` | None (L) |
-| 13.6 | Opens in the File view when the designer can't show the file (`check.draft` null) | UWE `open` | None (L) |
+| 13.4 | Typing edits the text; the server checks 300 ms after the last key (`CHECK_DELAY_MS`), a newer check cancels an older one; a check failure shows as a save error | UWE `editText`, `scheduleCheck`, `runCheck` | Done (L): `Editor::edit_text`, `keep_workflow_editor` (the 300 ms from `poll`'s clock), a run number so an overtaken check is dropped; a failure is `save_error` |
+| 13.5 | Switching views checks what's waiting first; to File takes the check's text when the designer was edited last; to Designer takes the check's draft, or refuses with the blocked banner when there's none | UWE `setView`, `flush` | Done (L): `workflow_editor_set_view` checks what's waiting first (the held switch runs when the answer lands); the blocked words are `DESIGNER_BLOCKED_MESSAGE` |
+| 13.6 | Opens in the File view when the designer can't show the file (`check.draft` null) | UWE `open` | Done (L): `workflow_editor_open` and `Editor::adopt` pick File when `check.draft` is none |
 
 ### 14. The canvas
 
@@ -359,9 +359,9 @@ ones with the theme toggled by the script (Cmd+Shift+L) in a scratch data folder
 | 17.2 | Asking: one at a time (another ask cancels the first), through the leave guard; the draft row appears; the pane shows a centred status (max 420): spinner, "Drafting a workflow from <session>…" / "Drafting a workflow from your description…", "The model is reading the conversation from the cache and writing the steps. It takes up to a minute or two." / "The model is writing the steps. It takes up to a minute or two.", Cancel (testids `workflow-drafting`, `workflow-drafting-cancel`) | UWN `startDraft`; WDP | None (S) |
 | 17.3 | A failure: Sparkles (error), the message (alert; testid `workflow-drafting-error`), Close / **Try again** (`workflow-drafting-retry`) | WDP | None (S) |
 | 17.4 | Cancel aborts the request and opens the first workflow (or Build a feature) | UWN `cancelDraft` | None (S) |
-| 17.5 | The draft comes: its repository becomes the Run box's folder; it opens unsaved, in the designer when it has no errors, else in the File view with them; the file it would make follows the name as it's edited | UWN; UWE `adoptDraft`, `fileName` | None (L, S) |
+| 17.5 | The draft comes: its repository becomes the Run box's folder; it opens unsaved, in the designer when it has no errors, else in the File view with them; the file it would make follows the name as it's edited | UWN; UWE `adoptDraft`, `fileName` | Done in part (L): `Editor::adopt_draft` (designer when no errors, else File) and `Editor::file_name`; the Run box's folder and the banner are S's |
 | 17.6 | The drafted banner: "**Drafted from <session>. Review it before saving.**" (or "…from your description…") "Nothing is saved until you press Save." and the cost "Asked the model once · 3,412 tokens, 3,100 from the cache." (twice: "Asked the model twice: its first answer had errors"; no count when the harness gives none), "It still has errors: fix them in the File view, then save." (testids `workflow-drafted-banner`, `-cost`, `-errors`) | WE; LWD `draftedFrom`, `draftCost` | Words done (K): `drafted_from`, `draft_cost`, `DRAFT_COST_NOTE`; the banner is S |
-| 17.7 | Saving a draft creates the file (`POST /api/workflows/files {directory, text|draft}`) under New's rules (a taken name refused with the server's words, the draft stays); after that it is the repository's workflow | UWE `saveDrafted`; UWN `draftSaved` | None (L logic, S flow) |
+| 17.7 | Saving a draft creates the file (`POST /api/workflows/files {directory, text|draft}`) under New's rules (a taken name refused with the server's words, the draft stays); after that it is the repository's workflow | UWE `saveDrafted`; UWN `draftSaved` | Done in part (L): saving a draft `POST`s `{directory, text|draft}`, a refusal is the `save_error` (never the conflict) and the draft stays, a save makes it the repository's file and `take_saved` says so; S has the flow |
 | 17.8 | Save as workflow… in a session row's menu (Sparkles, right after Repeat on a schedule…, hint the cost note; testid `session-save-as-workflow`): only with Workflows on, on the live machine, not archived, and a harness that reports `supportsOffTheRecordPrompt`; opens Workflows and drafts from the session (`POST /api/workflows/drafts/from-session {sessionId}`) | SI; UWN `draftFromSession` | None (S) |
 
 ### 18. Out of reach, and why
@@ -468,7 +468,7 @@ scripted model never calls `fleet_step_done`), Started by (needs an automation, 
   File view keeps the comments: the File view saves the text as it is", "Edit in File view from the confirmation goes
   back to the text with its comments, not the designer's edits", "stays in the File view when the designer can't show the
   text", "offers Reload or Keep mine when the file changed on disk", "Reload takes the file as it is on disk and drops the
-  edits", "Try it asks to save first while there are unsaved edits": L (state) and **M**; "adds an agent step and a You
+  edits", "Try it asks to save first while there are unsaved edits": **L done** (state halves, same names, `tests_workflow_editor.rs`) and **M**; "adds an agent step and a You
   decide step with +, and greys out what arrives later": **O.**
 - `components/workflows/__tests__/WorkflowEditor.test.ts`, "a drafted workflow" (9): their state halves **L**, the rest
   **S**.
@@ -695,6 +695,25 @@ mark after Move on, beside Fleet's own client, both themes. **Left open, with re
 - **Depends on:** K.
 - **Tests:** the state halves of `WorkflowEditor`'s "WorkflowEditor" and "a drafted workflow" tests (by their names).
 - **Pictures:** no view changes: the app draws the same, and the test output against a fake server.
+
+**Piece L, done 22 November 2026** (`src/fleet/workflows/editor.rs`, `src/tests_workflow_editor.rs`, 23 tests; the state is
+`State::workflows_nav.editor`, the calls are `State::workflow_editor_*`). What M, N, O and S find there:
+
+- *State:* `Editor { file, view, draft, text, source, check, comments, conflict, drafted, designer_blocked, save_error, load_error,
+  is_checking, is_saving, asking_to_remove_comments }`, with `is_dirty`, `can_save`, `errors`, `file_name`, `is_busy`.
+- *Calls:* `workflow_editor_open` (12.1 state), `Editor::adopt`, `Editor::adopt_draft`, `Editor::edit_draft`, `Editor::edit_text`,
+  `workflow_editor_set_view`, `workflow_editor_save` (12.5 state), `workflow_editor_confirm_remove_comments` (12.9 state),
+  `workflow_editor_keep_comments`, `workflow_editor_reload` and `workflow_editor_keep_mine` (12.10 state), `Editor::cancel_check`
+  (`dispose`). `keep_workflow_editor` is in `poll`.
+- *No promises:* Fleet's `await flush()` is a list of steps (a view switch, a save) held until the newest check's answer lands.
+  A save returns nothing: the frame reads `take_saved()` (the file and the workflow id, once) for its toast and to reload the library.
+- *The 300 ms:* an edit arms the wait and the next `poll` gives it its time, so a check goes out 300 ms after the poll that saw
+  the last key. A test therefore draws one frame, then 0.31 s (`Rig::settle`).
+- *Gaps, written down:* a check can't be cancelled on the wire here (no `AbortController`): the number makes a late answer
+  harmless, but the server still does the work. `cancel_check` (an open, an adopt, Edit in File view) drops the steps held for the
+  check, where Fleet's still run when the old promise ends. The runs note's count ("2 runs in progress…") and the toast's words are M's: its
+  test's state half is only that a save names its workflow. "Try it asks to save first" and "adds an agent step and a You
+  decide step with +" have no state half (M, O). The `WorkflowEditor` component tests' mount-time checks of the banners are M's.
 
 #### M. The editor frame, the run view and the leave guard
 
