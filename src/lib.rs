@@ -195,6 +195,8 @@ mod tests_mission_needs_you;
 #[cfg(test)]
 mod tests_mods_controls;
 #[cfg(test)]
+mod tests_mods_renders;
+#[cfg(test)]
 mod tests_mods_tree;
 #[cfg(test)]
 mod tests_new_project;
@@ -602,6 +604,8 @@ pub struct State {
     pub mod_scene: Option<mock::mod_trees::ModScene>,
     /// What a mod's controls remember (component 22, piece C): the text of each Input, the open Select, the actions sent.
     pub mods_ui: fleet::mods::controls::ModControls,
+    /// What a session's mods drew on its tool rows (component 22, piece D).
+    pub mod_renders: fleet::mods::renders::Renders,
     /// When the open session's turn started, on `clock`.
     pub working_since: f64,
     /// A canned reply on its way: (project, session, due).
@@ -958,6 +962,7 @@ impl Default for State {
             clock: 0.0,
             mod_scene: None,
             mods_ui: Default::default(),
+            mod_renders: Default::default(),
             working_since: -18.0,
             reply: None,
             script: None,
@@ -1825,6 +1830,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_credentials(tx)
         | s.keep_mods_runtime(tx)
         | s.mods_ui.keep(now, tx)
+        | s.keep_mod_renders()
         | s.keep_skills(tx)
         | s.keep_built_in(tx)
         | s.keep_harnesses_page(tx)
