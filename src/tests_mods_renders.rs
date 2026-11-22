@@ -585,6 +585,7 @@ fn does_not_ask_for_the_sites_of_an_empty_session_id() {
     let mut r = rig();
     r.rt.update(|s, _| s.watch_mod_session(""));
     r.settle();
-    // The link's own reads (the list, the plugins) are not Mods': only what is about mods is counted.
-    assert!(r.fake.0.lock().unwrap().calls.iter().all(|c| !c.1.contains("/mods")));
+    // The link's own reads (the list, the plugins) are not Mods', and neither is the banner's read of the switch (piece K): only what is
+    // about a session's mods is counted.
+    assert!(r.fake.0.lock().unwrap().calls.iter().all(|c| !c.1.contains("/mods") || c.1 == "/api/features/mods"));
 }

@@ -418,17 +418,25 @@ pub fn all(s: &State) -> Vec<Command> {
                 s.report_open(crate::fleet::report::Source::Palette, None, "");
             }),
         ),
-        c(
+    ]);
+    // Only with the Mods switch on: it flips between stopping the user's mods and starting them again (`useStartWithoutMods`).
+    if s.home_mods_on() {
+        let (label, description) = if s.mods_safe_mode() {
+            ("Turn mods back on", "Start your mods again.")
+        } else {
+            ("Start without mods", "Stop your mods until Fleet restarts or you turn them back on.")
+        };
+        list.push(c(
             "start-without-mods",
-            "Start without mods",
-            "Stop your mods until Fleet restarts or you turn them back on.",
+            label,
+            description,
             &POWER_OFF,
             Fleet,
             None,
             &["mods", "safe mode", "disable", "stop", "extensions"],
-            Run::Waiting(22),
-        ),
-    ]);
+            now(|s, _| s.toggle_start_without_mods()),
+        ));
+    }
     // Fleet's menu bar has these; Rune draws one on macOS only, so the palette carries them (24 H, decision 9).
     for (item, id, label, description) in menu::palette() {
         let icon = match item {

@@ -14,8 +14,7 @@ use crate::{State, interrupt, submit};
 use rune::{Color, Cursor, El, Key, Shadow, TextHighlight, auto_grow, col, el, icon, row, spacer, text};
 
 /// Fleet puts the composer's pieces in this order above the frame: the error box, the background strip
-/// (component 3, piece K, `view::work`), the mod band (component 22), the queue (piece I) and the paste offer (piece O).
-/// The mod band is drawn empty until component 22.
+/// (component 3, piece K, `view::work`), the mod band (component 22, `view::mods::band`), the queue (piece I) and the paste offer (piece O).
 pub fn composer(s: &State, t: &Theme, _session: &Session) -> El {
     let disabled = s.composer_disabled();
     let mode = mode_of(&s.draft.text, &s.caps(), s.side_open);
@@ -26,6 +25,9 @@ pub fn composer(s: &State, t: &Theme, _session: &Session) -> El {
     }
     if let Some(strip) = super::work::strip(s, t) {
         outer = outer.child(strip);
+    }
+    if let Some(band) = super::mods::band::band(s, t) {
+        outer = outer.child(band);
     }
     if let Some(queue) = super::queued::list(s, t) {
         outer = outer.child(queue);
