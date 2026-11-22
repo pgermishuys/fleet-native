@@ -65,6 +65,8 @@ mod tests_automations_page;
 #[cfg(test)]
 mod tests_automations_runs;
 #[cfg(test)]
+mod tests_automations_seed;
+#[cfg(test)]
 mod tests_automations_store;
 #[cfg(test)]
 mod tests_automations_strip;
@@ -5463,6 +5465,10 @@ pub fn spec() -> AppSpec<State> {
             ("automation-workflows-off-light", |s| {
                 s.show_automations(false, mock::automations::Scene::Workflow(fleet::automations::workflow::Scene::WorkflowsOff))
             }),
+            ("automation-from-session", |s| s.show_automations(true, mock::automations::Scene::FromSession)),
+            ("automation-from-session-light", |s| s.show_automations(false, mock::automations::Scene::FromSession)),
+            ("automation-from-session-error", |s| s.show_automations(true, mock::automations::Scene::FromSessionError)),
+            ("automation-from-session-error-light", |s| s.show_automations(false, mock::automations::Scene::FromSessionError)),
             ("automation-strip-folder", |s| s.show_automations(true, mock::automations::Scene::StripFolder)),
             ("automation-strip-folder-light", |s| s.show_automations(false, mock::automations::Scene::StripFolder)),
             ("automation-open", |s| s.show_automations(true, mock::automations::Scene::Open)),

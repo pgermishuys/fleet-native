@@ -7,7 +7,7 @@
 //! Fleet's component derives `when`, `prompt`, `request` and `isDirty` as computed values and keeps "Just once" honest with a
 //! watch on the schedule phrase. Here they are methods, and the watch is [`ComposerState::set_text`]: every change to the
 //! text goes through it.
-use super::model::{Automation, AutomationRequest};
+use super::model::{Automation, AutomationDraft, AutomationRequest};
 use super::schedule::{ScheduleHit, Tz, When, auto_name, from_trigger, parse_schedule, prompt_from, to_trigger};
 use super::words::{Plan, PlanInput, browser_time_zone, describe_automation_plan};
 use crate::composer::choice::{key_for_model, model_from_key, model_from_path, model_to_path};
@@ -162,6 +162,20 @@ impl ComposerState {
     /// `freshComposerState`.
     pub fn fresh() -> ComposerState {
         ComposerState::default()
+    }
+
+    /// A new automation from a session's seed (the `seedSessionId` watch, row 13.2): its first message, its folder chosen (a
+    /// repository when it ran in a worktree), a new worktree unless it ran in the folder as it was. The When is still to add.
+    pub fn from_session_draft(seed: &AutomationDraft, repositories: &[String]) -> ComposerState {
+        let worktree = seed.isolation == "worktree";
+        let mut c = ComposerState {
+            folder: Some(folder_for(seed.folder.as_deref(), worktree, repositories)),
+            has_chosen_folder: true,
+            workspace: if worktree || seed.folder.is_none() { Workspace::New } else { Workspace::Current },
+            ..ComposerState::default()
+        };
+        c.set_text(seed.prompt.clone());
+        c
     }
 
     /// The composer's state for an automation as it's saved (`stateFor`, row 7.13). `repositories` are the paths the
