@@ -4,7 +4,7 @@
 # same, and both carry the server exactly as pinned (check-bundled-server). Unpacks into a scratch folder, removed after.
 #   scripts/check-linux-packages.sh <dir holding the .deb and .AppImage> <staged server> <check-bundled-server binary>
 set -euo pipefail
-dist="${1:?dir}"; server="${2:?staged server}"; checker="${3:?check-bundled-server}"
+dist="$(cd "${1:?dir}" && pwd)"; server="${2:?staged server}"; checker="${3:?check-bundled-server}"
 root="$(cd "$(dirname "$0")/.." && pwd)"
 deb="$dist/fleet-native-linux-x64.deb"; img="$dist/fleet-native-linux-x64.AppImage"
 work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
