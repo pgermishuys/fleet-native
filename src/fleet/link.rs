@@ -94,6 +94,8 @@ pub struct Link {
     post: Post,
     /// What the hub thread was last told about `Cmd::ReportFocus`; a hub starts out reporting.
     focus_wanted: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    /// What the hub thread listens to, for the problem report's connection facts.
+    facts: super::topics::SharedFacts,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -111,7 +113,9 @@ impl Link {
     pub fn start(base: String, post: Post) -> Link {
         let (cmds, rx) = channel();
         let (b, p) = (base.clone(), post.clone());
-        std::thread::spawn(move || run(super::settings::HOME_MACHINE_KEY.to_string(), b, rx, p));
+        let facts = super::topics::SharedFacts::default();
+        let shared = facts.clone();
+        std::thread::spawn(move || run(super::settings::HOME_MACHINE_KEY.to_string(), b, rx, p, shared));
         let machines = super::machine_poll::start(base.clone(), post.clone());
         let plugins = super::plugin_poll::start(base.clone(), post.clone(), super::plugin_poll::EVERY);
         Link {
@@ -122,6 +126,7 @@ impl Link {
             _plugins: Some(plugins),
             post,
             focus_wanted: Default::default(),
+            facts,
         }
     }
 
@@ -131,10 +136,12 @@ impl Link {
     pub fn start_machine(key: String, base: String, post: Post) -> Link {
         let (cmds, rx) = channel();
         let (k, b, p) = (key.clone(), base.clone(), post.clone());
-        std::thread::spawn(move || run(k, b, rx, p));
+        let facts = super::topics::SharedFacts::default();
+        let shared = facts.clone();
+        std::thread::spawn(move || run(k, b, rx, p, shared));
         // Nothing reads the other end: a machine link has no machine poll, and its sends are dropped.
         let (machines, _) = channel();
-        Link { base, key, machines, cmds, _plugins: None, post, focus_wanted: Default::default() }
+        Link { base, key, machines, cmds, _plugins: None, post, focus_wanted: Default::default(), facts }
     }
 
     pub fn is_home(&self) -> bool {
@@ -193,6 +200,11 @@ impl Link {
         if self.focus_wanted.swap(wanted, std::sync::atomic::Ordering::Relaxed) != wanted {
             let _ = self.cmds.send(Cmd::ReportFocus(wanted));
         }
+    }
+
+    /// What this connection listens to right now.
+    pub fn socket_facts(&self) -> super::topics::SocketFacts {
+        self.facts.lock().map(|f| f.clone()).unwrap_or_default()
     }
 
     /// The window went off screen or came back (Rune's `on_visibility`).
@@ -314,9 +326,9 @@ fn connection(post: &Post, key: &str, c: Connection) {
 const DROPPED: &str = "the link was dropped";
 
 /// The hub thread: connect, serve, and on loss wait and connect again.
-fn run(key: String, base: String, rx: Receiver<Cmd>, post: Post) {
+fn run(key: String, base: String, rx: Receiver<Cmd>, post: Post, facts: super::topics::SharedFacts) {
     let home = key == super::settings::HOME_MACHINE_KEY;
-    let mut topics = Topics::default();
+    let mut topics = Topics::reporting(home, facts);
     let mut pending = Pending::default();
     let mut presence = Presence::default();
     let mut attempt = 0;

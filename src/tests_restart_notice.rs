@@ -83,6 +83,11 @@ fn names_the_version_when_the_restart_was_an_update() {
     let mut rt = app();
     set(&mut rt, vec![cut("a", "Fix login", false, true, false)]);
     assert_eq!(notice(&rt).unwrap().body.as_deref(), Some("1 session was cut off."));
+    // The title the card really draws follows the version this run updated to.
+    assert_eq!(notice(&rt).unwrap().title, "Fleet restarted");
+    rt.state.after_update.updated_to = Some("0.66.0".into());
+    rt.state.keep_restart_notice();
+    assert_eq!(notice(&rt).unwrap().title, "Fleet updated to v0.66.0");
 }
 
 // use-restart-notice.test.ts: "Continue all continues every cut-off session and removes the notice"

@@ -558,29 +558,47 @@ impl State {
         );
     }
 
-    /// `saveFile`: the zip is fetched and written to the downloads folder, both off the UI thread.
+    /// `saveFile`: the zip is fetched off the UI thread, then the system's save dialog asks where it goes (the Downloads
+    /// folder is where it starts; Fleet's browser downloads there without asking). With `report.downloads` set (a test)
+    /// it is written there at once, under the server's name and never over a file.
     pub fn report_save(&mut self, request: SendRequest, tx: &mut Tx) {
         let Some(link) = self.link.clone() else { return };
-        let Some(dir) = self.report.downloads.clone().or_else(downloads_dir) else {
-            self.report.error = Some(SAVE_FAILED.to_string());
-            return;
-        };
+        let fixed = self.report.downloads.clone();
         let Some(generation) = self.report.begin(Busy::Save) else { return };
         let body = request.body();
+        let write_link = link.clone();
         link.off_thread(
             move |base| {
                 let (disposition, bytes) = super::http::report_file(base, &body)?;
-                write_zip(&dir, &disposition, &bytes).map_err(|_| SAVE_FAILED.to_string())
+                match fixed {
+                    Some(dir) => write_zip(&dir, &disposition, &bytes).map(Saving::Written).map_err(|_| SAVE_FAILED.to_string()),
+                    None => Ok(Saving::Ask(file_name(&disposition), bytes)),
+                }
             },
             move |s, tx, result| {
                 if !s.report.finished(generation) {
                     return;
                 }
                 match result {
-                    Ok(path) => {
-                        let name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-                        s.report.saved = Some(path);
-                        s.toast(format!("Saved {name}"), None, 3.0, tx);
+                    Ok(Saving::Written(path)) => s.report_saved(path, tx),
+                    Ok(Saving::Ask(name, bytes)) => {
+                        let options = rune::FileDialogOptions {
+                            title: "Save the report".into(),
+                            file_name: Some(name),
+                            directory: downloads_dir(),
+                            ..Default::default()
+                        }
+                        .filter("Zip", &["zip"]);
+                        tx.save_file(options, move |_: &mut State, answer, _| {
+                            let Ok(Some(path)) = answer else { return };
+                            write_link.off_thread(
+                                move |_| std::fs::write(&path, bytes).map(|()| path).map_err(|_| SAVE_FAILED.to_string()),
+                                |s, tx, result| match result {
+                                    Ok(path) => s.report_saved(path, tx),
+                                    Err(why) => s.report.error = Some(why),
+                                },
+                            );
+                        });
                     }
                     Err(why) => s.report.error = Some(why),
                 }
@@ -588,4 +606,16 @@ impl State {
         );
         tx.wake_after(std::time::Duration::from_millis(50));
     }
+
+    fn report_saved(&mut self, path: PathBuf, tx: &mut Tx) {
+        let name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+        self.report.saved = Some(path);
+        self.toast(format!("Saved {name}"), None, 3.0, tx);
+    }
+}
+
+/// What the fetch hands back: the file already written, or the bytes and the name to offer the save dialog.
+enum Saving {
+    Written(PathBuf),
+    Ask(String, Vec<u8>),
 }

@@ -153,6 +153,14 @@ pub struct AfterUpdate {
     /// The running version has been noted this run.
     noted: bool,
     pending: Option<Pending>,
+    /// The version this run updated to, kept for the run: the restart card's title says it (`updatedToVersion`).
+    pub(crate) updated_to: Option<String>,
+}
+
+impl AfterUpdate {
+    pub fn updated_to(&self) -> Option<&str> {
+        self.updated_to.as_deref()
+    }
 }
 
 impl State {
@@ -194,6 +202,8 @@ impl State {
             self.save_settings();
         }
         if let Some(previous) = previous {
+            self.after_update.updated_to = Some(version.to_string());
+            self.keep_restart_notice();
             self.after_update.pending = Some(Pending { previous, version: version.to_string(), reread: false });
         }
     }

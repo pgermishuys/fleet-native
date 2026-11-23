@@ -437,3 +437,22 @@ fn live_report() {
     });
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+// `maxlength` stops typing at the limit; here what is typed past it is cut on the next poll.
+#[test]
+fn the_fields_are_cut_to_their_limits_as_they_are_typed() {
+    use crate::fleet::text_limit::limit;
+    let mut e = rune::TextEdit::new("abcdéf");
+    assert!(!limit(&mut e, 6));
+    assert!(limit(&mut e, 4));
+    assert_eq!(e.text, "abcd");
+    let mut rt = app();
+    rt.update(|s, _| {
+        s.report.open = true;
+        s.report_form.contact.replace_text("x".repeat(250));
+        s.report_form.description.replace_text("y".repeat(10_001));
+    });
+    assert!(rt.state.keep_text_limits());
+    assert_eq!((rt.state.report_form.contact.text.len(), rt.state.report_form.description.text.len()), (200, 10_000));
+    assert!(!rt.state.keep_text_limits());
+}

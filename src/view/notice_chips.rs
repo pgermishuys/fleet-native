@@ -90,5 +90,11 @@ fn chip(s: &State, t: &Theme, n: &Notice) -> El {
 /// Where the open card's chip will be: laid out and unseen, so the card can fold into it.
 fn ghost_chip(t: &Theme, n: &Notice) -> El {
     let (ink, dot) = if n.quiet { (t.muted, t.running) } else { (t.accent_text, t.accent) };
-    body(t, n, ink, dot).key("notice-chip-ghost").opacity(0.0).on_layout(|s: &mut State, rect| s.place.chip = Some(rect))
+    // A zero-width slot with the chip hanging out of it: its place is known and the status bar's text doesn't move for it.
+    let ghost = body(t, n, ink, dot)
+        .key("notice-chip-ghost")
+        .absolute(0.0, 0.0)
+        .opacity(0.0)
+        .on_layout(|s: &mut State, rect| s.place.chip = Some(rect));
+    el().w(0.0).h(18.0).child(ghost)
 }

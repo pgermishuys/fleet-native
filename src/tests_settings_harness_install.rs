@@ -196,6 +196,33 @@ fn shows_how_opencode_2_is_installed_in_place_of_no_settings_yet() {
     assert!(r.info("harness-install").is_none());
 }
 
+// HarnessesSection.test.ts: "offers no sign-in from Fleet when the server doesn't (Fleet runs with sign-in)": the card then
+// says the terminal is the only way, not that it is the fallback.
+#[test]
+fn offers_no_sign_in_from_fleet_when_the_server_doesn_t() {
+    let setup = json!({"installCommand": SEPARATE, "signInCommand": "opencode2 auth login", "mode": "In its own folder"});
+    let r = rig(json!([opencode2(
+        "ready",
+        setup,
+        json!({"version": "2.0.9", "executablePath": "/home/you/bin/opencode2", "capabilities": {}})
+    )]));
+    let words = r.words();
+    assert!(words.contains("Sign in to a provider in a terminal:") && !words.contains("Or sign in to a provider in a terminal:"));
+    assert!(r.info("harness-sign-in-refresh").is_none() && r.info("harness-sign-in-show").is_none());
+}
+
+// HarnessesSection.test.ts: "still lists a harness's sign-ins while it waits for one, so GitHub Copilot can be signed in to from
+// its card": a harness that is waiting for a sign-in is offered the providers, though it isn't available yet.
+#[test]
+fn still_lists_a_harness_s_sign_ins_while_it_waits_for_one() {
+    use crate::fleet::settings::harness_install::offers_sign_in;
+    let body = json!([harness("copilot", "GitHub Copilot", "sign-in-required", json!({"capabilities": {"supportsProviderSignIn": true}}))]);
+    let mut entry = crate::fleet::new_session::harness_choice::parse_harness_entries(&body).remove(0);
+    assert!(!entry.available && offers_sign_in(&entry));
+    entry.state = "not-installed".into();
+    assert!(!offers_sign_in(&entry));
+}
+
 #[test]
 fn offers_no_sign_in_before_opencode_2_is_installed_and_shows_its_installer() {
     let setup = json!({"installCommand": SEPARATE, "signInCommand": "opencode2 auth login", "mode": "In its own folder"});

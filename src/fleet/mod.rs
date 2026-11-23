@@ -180,6 +180,7 @@ pub mod terminal_select;
 pub mod terminal_slot;
 pub mod terminal_socket;
 pub mod terminals;
+pub mod text_limit;
 pub mod tls;
 pub mod toolbar;
 pub mod topics;

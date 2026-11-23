@@ -4,6 +4,7 @@
 use super::model::StreamState;
 use serde_json::Value;
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 /// How many left conversations are kept (`KEPT_SESSIONS`).
 pub const KEPT_SESSIONS: usize = 8;
@@ -22,6 +23,10 @@ pub fn reconnect_delay(attempt: usize) -> std::time::Duration {
 /// after a reconnect, so each gets a fresh snapshot.
 #[derive(Default, Debug)]
 pub struct Topics {
+    /// What the report's connection facts read: the hub thread keeps it current, the UI thread only reads it.
+    shared: Option<Arc<Mutex<SocketFacts>>>,
+    /// This is home's hub: it always listens to the `sessions` topic.
+    home: bool,
     open: Option<String>,
     watched: Vec<String>,
     /// The watched ones that are side conversations (`/btw`): their snapshots and events go to the panel, not the subscribers.
@@ -34,14 +39,47 @@ pub struct Topics {
     runs: bool,
 }
 
+/// The connection as a problem report says it (`describeSocketForReport`): how many topics are listened to, how many of
+/// those have a snapshot, and the open session's own state.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct SocketFacts {
+    pub topics: usize,
+    pub with_snapshot: usize,
+    /// The open session's topic: subscribed (always true while open) and whether its snapshot is in.
+    pub open: Option<bool>,
+}
+
+pub type SharedFacts = Arc<Mutex<SocketFacts>>;
+
 impl Topics {
+    /// A set of topics that tells `shared` what it holds whenever that changes.
+    pub fn reporting(home: bool, shared: SharedFacts) -> Topics {
+        Topics { home, shared: Some(shared), ..Topics::default() }
+    }
+
+    fn publish(&self) {
+        let Some(shared) = &self.shared else { return };
+        let sessions = self.home || self.feed || self.runs;
+        let held = self.all();
+        let facts = SocketFacts {
+            topics: held.len() + usize::from(sessions),
+            with_snapshot: held.iter().filter(|t| self.last.contains_key(*t)).count() + usize::from(sessions),
+            open: self.open.as_ref().map(|o| self.last.contains_key(o)),
+        };
+        if let Ok(mut g) = shared.lock() {
+            *g = facts;
+        }
+    }
+
     pub fn feed(&self) -> bool {
         self.feed
     }
 
     /// Sets whether the feed is open; true when that changed.
     pub fn set_feed(&mut self, on: bool) -> bool {
-        std::mem::replace(&mut self.feed, on) != on
+        let changed = std::mem::replace(&mut self.feed, on) != on;
+        self.publish();
+        changed
     }
 
     pub fn runs(&self) -> bool {
@@ -50,7 +88,9 @@ impl Topics {
 
     /// Sets whether the runs are followed; true when that changed.
     pub fn set_runs(&mut self, on: bool) -> bool {
-        std::mem::replace(&mut self.runs, on) != on
+        let changed = std::mem::replace(&mut self.runs, on) != on;
+        self.publish();
+        changed
     }
 
     pub fn open(&self) -> Option<&str> {
@@ -60,9 +100,11 @@ impl Topics {
     /// Makes `id` the open session; returns the one it replaced when nobody else needs it.
     pub fn set_open(&mut self, id: Option<String>) -> Option<String> {
         let old = std::mem::replace(&mut self.open, id);
-        old.filter(|old| !self.holds(old)).inspect(|old| {
+        let gone = old.filter(|old| !self.holds(old)).inspect(|old| {
             self.last.remove(old);
-        })
+        });
+        self.publish();
+        gone
     }
 
     /// Whether anyone listens to `id`.
@@ -76,6 +118,7 @@ impl Topics {
         if !self.watched.iter().any(|w| w == id) {
             self.watched.push(id.to_string());
         }
+        self.publish();
         new
     }
 
@@ -86,6 +129,7 @@ impl Topics {
         if gone {
             self.last.remove(id);
         }
+        self.publish();
         gone
     }
 
@@ -113,6 +157,7 @@ impl Topics {
     /// A snapshot arrived for `id`.
     pub fn record_snapshot(&mut self, id: &str, snapshot: &Value) {
         self.last.insert(id.to_string(), (snapshot.clone(), 0));
+        self.publish();
     }
 
     /// An event arrived on `id`: the snapshot is older than the topic now.
@@ -131,6 +176,7 @@ impl Topics {
     /// The connection dropped: nothing known is current.
     pub fn forget_snapshots(&mut self) {
         self.last.clear();
+        self.publish();
     }
 }
 

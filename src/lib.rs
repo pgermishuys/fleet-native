@@ -1910,6 +1910,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_new_message(tx)
         | s.keep_new_mentions(now, tx);
     s.keep_focus_report();
+    let limited = s.keep_text_limits();
     let scrolled = s.keep_scroll(tx)
         | s.keep_review_near()
         | s.keep_review_focus(tx)
@@ -1985,7 +1986,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         None => false,
     };
     let web = s.keep_web(tx);
-    poll_rest(s, now, tx) || composer_changed || copied || scrolled || pictures || found || exported || renamed || web
+    poll_rest(s, now, tx) || limited || composer_changed || copied || scrolled || pictures || found || exported || renamed || web
 }
 
 impl State {
@@ -5300,6 +5301,15 @@ pub fn spec() -> AppSpec<State> {
             ("notice-restart", |s| mock::notices::restarted(s, false)),
             ("notice-restart-light", |s| {
                 s.dark = Some(false);
+                mock::notices::restarted(s, false)
+            }),
+            ("notice-restart-updated", |s| {
+                s.after_update.updated_to = Some("0.75.0".into());
+                mock::notices::restarted(s, false)
+            }),
+            ("notice-restart-updated-light", |s| {
+                s.dark = Some(false);
+                s.after_update.updated_to = Some("0.75.0".into());
                 mock::notices::restarted(s, false)
             }),
             ("notice-restart-auto", |s| mock::notices::restarted(s, true)),
