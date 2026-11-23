@@ -143,6 +143,10 @@ impl State {
                 self.ui.confirm = None;
                 self.forget_machine(&key);
             }
+            Call::RemoveScreen { id } => {
+                self.ui.confirm = None;
+                self.remove_screen(&id, tx);
+            }
             Call::ReplaceToken => {
                 self.ui.confirm = None;
                 self.replace_home_token();
@@ -241,10 +245,13 @@ pub fn view(s: &State, t: &Theme) -> Option<Vec<El>> {
     let c = s.ui.confirm.as_ref()?;
     // `monoSubject`: a path is set in the code face.
     let subject_font = if matches!(c.call, Call::Revert { .. }) { mono(rem(0.875), 400.0, 1.4) } else { sans(rem(0.875), 500.0, 1.4) };
-    let description = col()
-        .gap(rem(0.25))
-        .child(text(c.subject.clone()).key("confirm-subject").font(subject_font).color(t.text).wrap().w_full())
-        .child(text(c.body.clone()).key("confirm-body").font(sans(rem(0.875), 400.0, 1.4)).color(t.muted).wrap().w_full());
+    let mut description = col().gap(rem(0.25));
+    // `v-if="shown.subject"`: an ask with no subject goes straight to its body.
+    if !c.subject.is_empty() {
+        description = description.child(text(c.subject.clone()).key("confirm-subject").font(subject_font).color(t.text).wrap().w_full());
+    }
+    let description =
+        description.child(text(c.body.clone()).key("confirm-body").font(sans(rem(0.875), 400.0, 1.4)).color(t.muted).wrap().w_full());
     let body = c.error.iter().map(|why| error_note(t, "confirm-error", &c.error_message, Some(why))).collect();
     // The dialog opens with focus on Cancel when the action is destructive (`onOpenAutoFocus`).
     let start = |e: El, first: bool| if first { e.autofocus() } else { e };

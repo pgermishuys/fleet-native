@@ -52,6 +52,48 @@ impl State {
                 AccessAddress { url: "http://192.168.1.20:2113".into(), kind: "lan".into() },
             ],
         });
+        self.show_screens();
+    }
+
+    /// "Phones and browsers" in view: home and falcon only, as Fleet's page shows with one other machine. `address`: the "Use my own
+    /// address" card open with what a Fleet that listens only on this machine says.
+    pub fn show_machines_phones(&mut self, dark: bool, address: bool) {
+        self.show_machines_page(dark, false);
+        self.machines.list.retain(|m| m.id == "m-falcon");
+        if address {
+            if let AccessState::Loaded(a) = &mut self.machine_page.access {
+                a.addresses.clear();
+            }
+            let phone = &mut self.machine_data.phone;
+            phone.editing_url = true;
+            phone.error = Some("Fleet only listens on this machine, so no phone can reach it.".into());
+        }
+    }
+
+    /// "Phones and browsers": a browser that connected through atlas and a phone through falcon, harbor not answering; the page's
+    /// clock fixed so "last seen" reads the same every time.
+    pub fn show_screens(&mut self) {
+        use crate::fleet::machines::screens::{NotAnswering, Screen, Screens};
+        self.now_ms = crate::fleet::work::parse_iso_ms("2026-11-22T12:00:00Z");
+        let screen = |id: &str, name: &str, platform: &str, through: &str, added: &str, seen: &str| Screen {
+            id: id.into(),
+            name: name.into(),
+            platform: Some(platform.into()),
+            created_at: added.into(),
+            last_used_at: seen.into(),
+            paired_via: Some(format!("m-{through}")),
+            is_machine: false,
+            through_name: Some(through.into()),
+            fleet_wide: true,
+        };
+        self.machine_data.screens = Screens {
+            screens: vec![
+                screen("screen:b1", "Edge on Windows", "web", "atlas", "2026-11-20T09:00:00Z", "2026-11-22T11:58:30Z"),
+                screen("screen:p1", "Pixel 8", "android", "falcon", "2026-11-03T18:20:00Z", "2026-11-21T21:10:00Z"),
+            ],
+            not_answering: vec![NotAnswering { id: "m-harbor".into(), name: "harbor".into() }],
+        };
+        self.machine_data.screens_loaded = true;
     }
 
     /// The cards' ways of being reached: falcon on its local address with Tailscale not answering and four addresses to order, harbor

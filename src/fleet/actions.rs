@@ -31,6 +31,10 @@ pub enum Call {
     ForgetMachine {
         key: String,
     },
+    /// Settings → Machines → Phones and browsers: remove a phone or browser (`machines::data`).
+    RemoveScreen {
+        id: String,
+    },
     /// Settings → Machines: replace this machine's access token.
     ReplaceToken,
     /// Changes: revert a file, or the hunk with these first and last lines (`fleet::revert`). Its dialog closes at once and the
@@ -93,6 +97,7 @@ pub fn run(base: &str, call: &Call) -> Result<(), String> {
         Call::ClearAttachments { id } => ("DELETE", attachments_path(id), None),
         Call::Delete { id } => ("DELETE", session_path(id), None),
         Call::ForgetMachine { .. }
+        | Call::RemoveScreen { .. }
         | Call::ReplaceToken
         | Call::Revert { .. }
         | Call::DeleteAutomation { .. }
@@ -278,6 +283,7 @@ impl State {
         let session = match &call {
             Call::Rename { id, .. } | Call::ClearAttachments { id } | Call::Delete { id } => id.clone(),
             Call::ForgetMachine { .. }
+            | Call::RemoveScreen { .. }
             | Call::ReplaceToken
             | Call::Revert { .. }
             | Call::DeleteAutomation { .. }
@@ -312,6 +318,7 @@ impl State {
             }
             Call::ClearAttachments { .. } | Call::Delete { .. } => self.confirm_done(result, tx),
             Call::ForgetMachine { .. }
+            | Call::RemoveScreen { .. }
             | Call::ReplaceToken
             | Call::Revert { .. }
             | Call::DeleteAutomation { .. }

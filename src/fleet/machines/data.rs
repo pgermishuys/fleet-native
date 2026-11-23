@@ -21,6 +21,10 @@ pub struct Data {
     pub reach_error: Option<String>,
     /// What the last Remove said when the server refused it.
     pub screen_error: Option<String>,
+    /// The phone or browser being removed: its Remove waits.
+    pub removing: Option<String>,
+    /// Add your phone (`AddPhonePanel.vue`, before the code).
+    pub phone: super::phone::Phone,
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -56,6 +60,11 @@ impl State {
 
     /// Reads the phones and browsers that have keys (`refreshDevices`).
     pub fn load_screens(&mut self, _tx: &mut Tx) {
+        self.read_screens();
+    }
+
+    /// `load_screens` for a caller with no `Tx` (the page's visit, run from `poll`).
+    pub fn read_screens(&mut self) {
         let Some(link) = self.link.clone() else { return };
         link.off_thread(screens::load, |s, _, list| {
             s.machine_data.screens = list;
@@ -63,18 +72,47 @@ impl State {
         });
     }
 
-    /// Removes a phone or browser on every machine, then reads the list again.
+    /// Removes a phone or browser, then reads the list again: from every machine by its Fleet-wide id, or from this machine's
+    /// own list when that is where it came from (an older Fleet).
     pub fn remove_screen(&mut self, id: &str, _tx: &mut Tx) {
         let Some(link) = self.link.clone() else { return };
+        let fleet_wide = self.machine_data.screens.screens.iter().find(|d| d.id == id).is_none_or(|d| d.fleet_wide);
         self.machine_data.screen_error = None;
+        self.machine_data.removing = Some(id.to_string());
         let id = id.to_string();
         link.off_thread(
-            move |base| screens::remove(base, &id).map(|()| screens::load(base)),
-            |s, _, result| match result {
-                Ok(list) => s.machine_data.screens = list,
-                Err(why) => s.machine_data.screen_error = Some(why),
+            move |base| {
+                let removed = if fleet_wide { screens::remove(base, &id) } else { screens::remove_own(base, &id) };
+                removed.map(|()| screens::load(base))
+            },
+            |s, _, result| {
+                s.machine_data.removing = None;
+                match result {
+                    Ok(list) => s.machine_data.screens = list,
+                    Err(why) => s.machine_data.screen_error = Some(why),
+                }
             },
         );
+    }
+
+    /// Remove on a row: asks first, saying what the device loses (`confirmAction`).
+    pub fn ask_remove_screen(&mut self, id: &str, tx: &mut Tx) {
+        let Some(screen) = self.machine_data.screens.screens.iter().find(|d| d.id == id) else { return };
+        let (title, body, confirm_label) = screens::remove_words(screen);
+        let confirm = crate::ui::confirm::Confirm {
+            title,
+            // Fleet asks this one with no subject: the title names it.
+            subject: String::new(),
+            body,
+            confirm_label,
+            busy_label: "Removing…".into(),
+            error_message: "Couldn't remove it.".into(),
+            destructive: true,
+            busy: false,
+            error: None,
+            call: crate::fleet::actions::Call::RemoveScreen { id: id.to_string() },
+        };
+        self.ask(confirm, tx);
     }
 
     /// Reads who can reach the desktop app (`useMachineReach.load`). Without an answer the page behaves as for a Fleet that can't

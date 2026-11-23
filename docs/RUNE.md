@@ -2997,3 +2997,9 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 - **`ElementInfo.opacity` follows the element's opacity transition**: a button that goes from `faded` (0.6) to plain reads below 1.0 for a few frames, so a test that checks "off" by opacity draws a few frames (three of 0.2 s) first. `.disabled(true)` itself isn't in `ElementInfo`, and `focusable` is no help (a plain `button` isn't focusable either).
 - **`.grow(1.0)` already sets flex-basis 0**: equal tabs (`flex-1`) need nothing more; there is no `.basis(..)`.
 - **Commands inside a line** (`.machine-code`): `rich(..)` with `Span::new(a, b).mono().size(s * 0.85).bg(t.accent_dim, 2.0)`.
+
+## Component 26, piece I (Machines: Phones and browsers)
+
+- **A second `.key(..)` replaces the first**: keying a `kit::group` (already keyed `settings-group-<id>`) for a test id took its anchor
+  away and failed the anchor test. Wrap it in a keyed column instead.
+- **No `.p(..)`**: padding on all sides is `.px(n).py(n)`.

@@ -263,6 +263,8 @@ mod tests_palette_last_five;
 #[cfg(test)]
 mod tests_panel;
 #[cfg(test)]
+mod tests_phones;
+#[cfg(test)]
 mod tests_pr_popover;
 #[cfg(test)]
 mod tests_progress;
@@ -4367,6 +4369,10 @@ pub fn spec() -> AppSpec<State> {
             // Piece J: Settings → Machines.
             ("machines-page", |s| s.show_machines_page(true, false)),
             ("machines-page-light", |s| s.show_machines_page(false, false)),
+            ("machines-phones", |s| s.show_machines_phones(true, false)),
+            ("machines-phones-light", |s| s.show_machines_phones(false, false)),
+            ("machines-phones-address", |s| s.show_machines_phones(true, true)),
+            ("machines-phones-address-light", |s| s.show_machines_phones(false, true)),
             ("machines-page-token", |s| s.show_machines_page(true, true)),
             ("machines-page-token-light", |s| s.show_machines_page(false, true)),
             ("machines-page-rename", |s| s.show_machines_page_rename(true)),
