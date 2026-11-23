@@ -6,7 +6,7 @@
 //! does; the link asks for the snapshot again after a reconnect (`Link::watch_side`).
 use super::events::Event;
 use super::model::{Msg, StreamState};
-use super::prompts::{Confirm, PromptStatus};
+use super::prompts::Confirm;
 use super::reducer;
 use super::side::{Progress, messages_after};
 use super::state::Topic;
@@ -172,15 +172,8 @@ impl State {
         let shown: Vec<Msg> = kept.into_iter().filter(|m| !folded.hidden.contains(&m.id)).cloned().collect();
         let finished = Finished::new();
         let sent = self.prompts.of(id);
-        let optimistic: Vec<Message> = sent
-            .iter()
-            .filter(|prompt| !shown.iter().any(|m| m.id == prompt.id))
-            .map(|prompt| {
-                let mut m = Message::user(format!("optimistic-{}", prompt.correlation_id), prompt.body.clone());
-                m.needs_retry = prompt.status == PromptStatus::NeedsRetry;
-                m
-            })
-            .collect();
+        let optimistic: Vec<Message> =
+            sent.iter().filter(|prompt| !shown.iter().any(|m| m.id == prompt.id)).map(super::prompts::optimistic_view).collect();
         let messages = super::prompts::merge_by_timestamp(
             shown.iter().map(|m| view::message(m, folded.summaries.get(&m.id).map(String::as_str), &finished)).collect(),
             optimistic,

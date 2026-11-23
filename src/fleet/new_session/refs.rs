@@ -116,7 +116,7 @@ impl State {
         lists.harness_names = self.harnesses_here().all.iter().map(|h| (h.kind.clone(), h.display_name.clone())).collect();
         lists.files_loading = self.finder.files.loading;
         lists.files_error = self.finder.files.error.clone();
-        lists.sessions = self.mentionable_sessions();
+        lists.sessions = self.mentionable_sessions(&self.target_key());
         if let (Some(q), Some(_)) = (query, self.new_files_directory()) {
             lists.files = if self.link_for_machine(&self.target_key()).is_some() {
                 self.finder.files.files(q)
@@ -367,15 +367,13 @@ impl State {
                 }
             }
         }
-        if link.is_some() && self.finder.sessions.should_fetch(mention_open, now) {
-            if let Some(link) = link {
-                link.off_thread(
-                    |base| http::sessions_for_mentions(base).map(|body| parse_sessions(&body)),
-                    move |s, _, result| s.finder.sessions.arrived(result, s.clock.max(now)),
-                );
-            }
-        } else if self.link.is_none() {
-            let _ = self.finder.sessions.should_fetch(mention_open, now);
+        let machine = self.target_key();
+        let fetch = self.finder.sessions.entry(machine.clone()).or_default().should_fetch(mention_open, now);
+        if let (true, Some(link)) = (fetch, link) {
+            link.off_thread(
+                |base| http::sessions_for_mentions(base).map(|body| parse_sessions(&body)),
+                move |s, _, result| s.finder.sessions.entry(machine).or_default().arrived(result, s.clock.max(now)),
+            );
         }
     }
 

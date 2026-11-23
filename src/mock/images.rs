@@ -8,6 +8,8 @@ use serde_json::{Value, json};
 
 /// The invented page both the scene and Fleet's own client are shown.
 pub const PAGE: &[u8] = include_bytes!("../../assets/mock_page.png");
+/// The invented picture a first message carries (`assets/login_error.png`: a window with an error line).
+pub const FIRST_PICTURE: &[u8] = include_bytes!("../../assets/login_error.png");
 /// The path the scene's screenshot is kept under (`/api/sessions/{id}/screenshots/{id}`).
 pub const SHOT_PATH: &str = "/api/sessions/scene/screenshots/shot_1";
 
@@ -21,6 +23,8 @@ pub enum Case {
     Lost,
     /// A user's message with two images, and one with images only.
     Attachments,
+    /// The first message of a new session, shown as sent with its picture before the server's copy arrives (A9.7).
+    FirstMessage,
 }
 
 fn base64(bytes: &[u8]) -> String {
@@ -43,7 +47,9 @@ impl State {
     pub fn show_images(&mut self, case: Case) {
         self.set_open((0, 0));
         let text = |id: &str, body: &str| json!({"type": "text", "id": id, "text": body});
-        let messages = if case == Case::Attachments {
+        let messages = if case == Case::FirstMessage {
+            Vec::new()
+        } else if case == Case::Attachments {
             vec![
                 message(
                     "u1",
@@ -88,8 +94,26 @@ impl State {
         }
         self.now_ms = Some(NOW);
         self.stream_of = None;
+        if case == Case::FirstMessage {
+            let image = crate::fleet::prompts::SentImage {
+                mime: "image/png".into(),
+                filename: Some("login-error.png".into()),
+                data: base64(FIRST_PICTURE).into(),
+            };
+            let body =
+                "Pick up where @fix-pagination left off: the retry in @src/billing/retry-policy.py still fails, as the picture shows.";
+            let id = self.session().id.clone();
+            let references = vec![("@fix-pagination".to_string(), "ses-pagination".to_string())];
+            self.prompts.add_with(&id, body, NOW - 5_000, 0.0, vec![image], references);
+        }
         self.sync_open();
         match case {
+            Case::FirstMessage => {
+                let id = self.session().id.clone();
+                if let Some(prompt) = self.prompts.of(&id).first() {
+                    self.supply_image(&format!("img-optimistic-{}-img-0", prompt.correlation_id), FIRST_PICTURE);
+                }
+            }
             Case::Shot | Case::Lightbox => self.supply_image(SHOT_PATH, PAGE),
             Case::Lost => self.on_image_bytes(SHOT_PATH, Err("HTTP 404".into())),
             Case::Attachments => {

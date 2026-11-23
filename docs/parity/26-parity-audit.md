@@ -195,16 +195,16 @@ Rune's limits are in Part 8.
 
 | # | What | Source | Native |
 |---|---|---|---|
-| 2.30 | `@` sessions come from the session's own machine (`link_for`, not `self.link`); `Composer.other-machine.test.ts` (3) | 05 tests | Open |
+| 2.30 | `@` sessions come from the session's own machine (`link_for`, not `self.link`); `Composer.other-machine.test.ts` (3) | 05 tests | **Done (piece O)**: the `@` list of an open session reads and offers the sessions of the machine the session is on (`Finder.sessions` is kept per machine, `fetchedOn`), the list's own sessions only for this machine's. Tests `asks_the_sessions_machine_for_its_sessions_and_offers_them_not_the_live_machines`, `sends_a_picked_sessions_id_to_the_sessions_machine`, `offers_the_live_machines_sessions_for_a_session_on_the_live_machine_as_before` (`src/tests_composer_other_machine.rs`). The New session page keeps its own machine's cache the same way |
 | 2.31 | The new-session composer's `plainTokens` | 05 7.2 | Open |
-| 2.32 | Tabular figures for the context size and the ring's text (`.features("'tnum' 1")` exists now) | 05 3.8, 13.3 | Open |
+| 2.32 | Tabular figures for the context size and the ring's text (`.features("'tnum' 1")` exists now) | 05 3.8, 13.3 | **Done (piece O)**: the ring's percent has `tnum` (the popover's numbers had it already) |
 | 2.33 | The offer pill overhangs the frame by 14 px each side | 05 11.8 | Open |
 | 2.34 | Pickers shift left against a dialog's clip (`shift_left`) | 05 3.4 | Open |
 | 2.35 | The composer's `disabled` from the row's lifecycle | 05 1.9 | Partial (`can_prompt` fallback) |
 | 2.36 | Ring popover: meter transitions, `max-width: 100vw - 16`, the foot's 2 px drift | 05 piece H | Open |
-| 2.37 | `@` references and pictures in the first sent bubble of a new session (`SentPrompt` has no refs or images) | 07 A8.12, A9.7 | Open |
-| 2.38 | The setup rows show the update strip and sign-in panel in place, not a hand-off to Settings; the Copilot strip too | 07 C13.46, 48, 83, 84; 16 K | Partial |
-| 2.39 | Fix (another machine) picks that machine first (`machines.setCurrent`); test "sends a harness that isn't set up there to that machine's Harnesses" | 07 A14.7, A21.105 | Open |
+| 2.37 | `@` references and pictures in the first sent bubble of a new session (`SentPrompt` has no refs or images) | 07 A8.12, A9.7 | **Partly done (piece O)**: `SentPrompt` carries the pictures and the session references; the first bubble shows the pictures under its words (`prompts::optimistic_view`, scene `first-message`, test `the_first_bubble_of_the_new_session_carries_its_pictures_and_session_references_a8_12_a9_7`). Not drawn: the `@` session as a chip in the words (Rune's Markdown has no inline-chip hook), so the bubble shows the token as text |
+| 2.38 | The setup rows show the update strip and sign-in panel in place, not a hand-off to Settings; the Copilot strip too | 07 C13.46, 48, 83, 84; 16 K | **Done (piece O)**: Copilot's Providers panel shows in the setup row, in place (`harness_sign_in::body`), asks its providers when the row shows (`keep_setup_sign_in`, always the live machine's) and its Sign in, Use this one and Sign out work there; the update strip was in place already. Scene `harness-setup-sign-in`, test `shows_the_providers_panel_in_the_row_of_a_fleet_installed_harness_that_needs_a_sign_in_and_asks_its_providers_there` |
+| 2.39 | Fix (another machine) picks that machine first (`machines.setCurrent`); test "sends a harness that isn't set up there to that machine's Harnesses" | 07 A14.7, A21.105 | **Done (piece O)**: Fix on another machine makes it the current one, then opens Harnesses (`fix_no_harness`). Test `sends_a_harness_that_isnt_set_up_there_to_that_machines_harnesses` (A21.105) |
 | 2.40 | A folded group unfolds when a draft lands in it; a new-in-folder row shows at once (upsert) | 07 A3.10, A2.6 | Open |
 | 2.41 | Harness list and catalogs kept across restarts (`weave:saved:harnesses`) | 07 piece C | Open |
 | 2.42 | Option rows 48 px (line-height 1.5); menu heights `min(…, 50vh / 36vh)`; the path view's small differences (`//`, separators, spinner row, location hint); Repositories empty-state icon size | 07 piece I, B2.84, B2.121, B2.116-136, piece P | Open |

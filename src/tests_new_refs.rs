@@ -111,6 +111,27 @@ fn keyboard_a_pasted_image_goes_with_the_first_prompt() {
 }
 
 #[test]
+fn the_first_bubble_of_the_new_session_carries_its_pictures_and_session_references_a8_12_a9_7() {
+    let mut r = listing(true);
+    r.type_and_wait("Pick up where @bill", "session:ses-billing");
+    r.press(Key::Tab, Mods::default());
+    r.text(" what is wrong here?");
+    let path = r.picture();
+    r.rt.update(move |s, tx| s.add_files(&[path], tx));
+    r.wait("the picture to be read", |s| s.held_images().len() == 1);
+    r.send_and_wait();
+    let sent = r.rt.state.prompts.of("ses-new").first().cloned().expect("the first message is shown as sent");
+    assert_eq!(sent.images.len(), 1);
+    assert_eq!(sent.images[0].filename.as_deref(), Some("login-error.png"));
+    assert!(sent.images[0].data_url().starts_with("data:image/png;base64,"));
+    assert_eq!(sent.session_references, vec![("@billing-retries-spike".to_string(), "ses-billing".to_string())]);
+    // The bubble is drawn from the message list's own copy of it.
+    let bubble = crate::conv::message_list::optimistic_message(&sent);
+    assert_eq!(bubble.images.len(), 1);
+    assert_eq!(bubble.images[0].filename, "login-error.png");
+}
+
+#[test]
 fn keyboard_says_so_when_the_harness_cant_take_images() {
     let mut r = listing(false);
     let path = r.picture();

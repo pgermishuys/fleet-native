@@ -10,7 +10,7 @@ use crate::{State, test_wait};
 use rune::{Key, KeyEvent, Mods, Runtime};
 use serde_json::{Value, json};
 use std::io::Write;
-use std::net::TcpListener;
+use std::net::{TcpListener, TcpStream};
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
@@ -27,8 +27,11 @@ pub(crate) struct Fake {
     /// What `GET /api/directories/find` lists by folder, and the (folder, query) pairs it was asked.
     pub(crate) folder_files: std::collections::HashMap<String, Vec<String>>,
     pub(crate) finds: Vec<(String, String)>,
-    /// What `GET /api/sessions` answers.
+    /// What `GET /api/sessions` answers, and the paths it was asked (the `@` list reads `retentionStatus=all`).
     pub(crate) sessions: Vec<Value>,
+    pub(crate) session_reads: Vec<String>,
+    /// The (session, body) pairs `POST /api/sessions/{id}/prompt` got.
+    pub(crate) prompts: Vec<(String, Value)>,
     /// The (key, value) pairs `PUT /api/preferences/{key}` got.
     pub(crate) preferences: Vec<(String, String)>,
     /// What `GET /api/machines` lists.
@@ -43,16 +46,35 @@ pub(crate) struct Fake {
 
 pub(crate) type Shared = Arc<Mutex<Fake>>;
 
-fn serve(fake: Shared) -> String {
+/// Ends the listener's thread when the test is done: a macOS runner ran out of threads (EAGAIN) across the suite.
+pub(crate) struct Stop {
+    base: String,
+    done: Arc<std::sync::atomic::AtomicBool>,
+}
+
+impl Drop for Stop {
+    fn drop(&mut self) {
+        self.done.store(true, std::sync::atomic::Ordering::SeqCst);
+        // One more connection wakes the accept that is waiting.
+        drop(TcpStream::connect(self.base.trim_start_matches("http://")));
+    }
+}
+
+fn serve(fake: Shared) -> (String, Stop) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("a port");
     let base = format!("http://{}", listener.local_addr().expect("an address"));
+    let done = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let stop = done.clone();
     std::thread::spawn(move || {
         for stream in listener.incoming().flatten() {
+            if stop.load(std::sync::atomic::Ordering::SeqCst) {
+                break;
+            }
             let fake = fake.clone();
             std::thread::spawn(move || answer(stream, fake));
         }
     });
-    base
+    (base.clone(), Stop { base, done })
 }
 
 fn answer(mut stream: std::net::TcpStream, fake: Shared) {
@@ -118,8 +140,15 @@ fn answer(mut stream: std::net::TcpStream, fake: Shared) {
         let value = sent["value"].as_str().unwrap_or("").to_string();
         fake.lock().unwrap().preferences.push((path.trim_start_matches("/api/preferences/").to_string(), value));
         (200, json!({}))
+    } else if method == "POST" && path.starts_with("/api/sessions/") && path.ends_with("/prompt") {
+        let sent: Value = serde_json::from_slice(&body).unwrap_or(Value::Null);
+        let id = path.trim_start_matches("/api/sessions/").trim_end_matches("/prompt").to_string();
+        fake.lock().unwrap().prompts.push((id, sent));
+        (202, json!({}))
     } else if method == "GET" && path.starts_with("/api/sessions") {
-        (200, Value::Array(fake.lock().unwrap().sessions.clone()))
+        let mut f = fake.lock().unwrap();
+        f.session_reads.push(path.to_string());
+        (200, Value::Array(f.sessions.clone()))
     } else {
         (404, json!({}))
     };
@@ -135,6 +164,8 @@ pub(crate) struct Rig {
     pub(crate) rt: Runtime<State>,
     pub(crate) queue: Receiver<Job>,
     pub(crate) fake: Shared,
+    /// The fakes' listeners end with the rig.
+    stops: Vec<Stop>,
 }
 
 pub(crate) fn rig() -> Rig {
@@ -142,7 +173,7 @@ pub(crate) fn rig() -> Rig {
 }
 
 pub(crate) fn rig_with(fake: Shared) -> Rig {
-    let base = serve(fake.clone());
+    let (base, stop) = serve(fake.clone());
     let (jobs, queue) = channel::<Job>();
     let jobs = Mutex::new(jobs);
     let post = Post::new(move |job| {
@@ -155,7 +186,7 @@ pub(crate) fn rig_with(fake: Shared) -> Rig {
     rt.frame(FRAME);
     rt.update(|s, _| s.set_folder(Folder::Repository(ROCKET.into()), true));
     rt.frame(FRAME);
-    Rig { rt, queue, fake }
+    Rig { rt, queue, fake, stops: vec![stop] }
 }
 
 impl Rig {
@@ -430,9 +461,9 @@ fn a_starter_fills_the_box_with_its_ellipsis_selected_and_sends_nothing() {
 // ─── another machine (A21.101, A21.104) ─────────────────────────────────────────
 
 /// The rig, plus a second Fleet that home lists as a machine, and the page moved onto it.
-fn rig_on_another_machine() -> (Rig, Shared) {
+pub(crate) fn rig_on_another_machine() -> (Rig, Shared) {
     let elsewhere: Shared = Default::default();
-    let base = serve(elsewhere.clone());
+    let (base, stop) = serve(elsewhere.clone());
     let falcon = json!({ "id": "m-falcon", "name": "falcon", "baseUrl": base, "os": "linux", "status": "online",
         "addedAt": "2026-09-26T00:00:00Z", "token": "falcon-token", "addresses": [{ "url": base, "kind": "lan", "learned": false }] });
     // Home lists it from its first answer on, as it does while the page is open.
@@ -448,6 +479,7 @@ fn rig_on_another_machine() -> (Rig, Shared) {
     });
     r.rt.frame(FRAME);
     r.rt.frame(FRAME);
+    r.stops.push(stop);
     (r, elsewhere)
 }
 

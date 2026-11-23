@@ -237,10 +237,16 @@ pub struct Finder {
     pub commands: HashMap<String, Loaded<Command>>,
     pub agents: HashMap<String, Loaded<Agent>>,
     pub files: FileSearch,
-    pub sessions: Fetched,
+    /// What each machine's `@` list fetched, by its key (`fetchedOn`): a session's list is the one of the machine it is on.
+    pub sessions: HashMap<String, Fetched>,
 }
 
 impl Finder {
+    /// The sessions fetched from one machine, none yet if it was never asked.
+    pub fn sessions_on(&self, machine: &str) -> &[SessionItem] {
+        self.sessions.get(machine).map_or(&[], |f| f.sessions.as_slice())
+    }
+
     /// The session's commands arrived (or failed: the old list stays up, with the reason).
     pub fn on_commands(&mut self, session: &str, result: Result<(u16, Value), String>) {
         let entry = self.commands.entry(session.to_string()).or_default();

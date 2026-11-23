@@ -225,7 +225,8 @@ fn search(s: &State, t: &Theme, edit: &rune::TextEdit) -> El {
         )
 }
 
-fn body(s: &State, t: &Theme, kind: &str, name: &str) -> El {
+/// The panel itself: the Providers group's box, and the setup rows' own (`HarnessSignInPanel`).
+pub fn body(s: &State, t: &Theme, kind: &str, name: &str) -> El {
     let panel = s.sign_in_panel(kind);
     let listed = s.sign_ins(kind);
     let loading = panel.is_some_and(|p| p.loading);

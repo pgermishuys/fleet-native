@@ -3002,3 +3002,8 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 
 - **Two cards, one key name:** a key press goes to the element holding the focus, and `tx.focus(key)` finds the first element with that key, so two cards that both call a button `permission-allow-once` can never be told apart. Every element a key can land on gets its card's id in its key after the first card (`view::permission::ck`, `view::question::suffix`); the key handler reads the card back from the focused key.
 - **A column that is wider than the message column** (Fleet's interrupted card is as wide as the stream, 772, not 760) can't sit inside `virtual_rows` under `max_w`: it is a sibling after the rows (`Scroll::interrupted`).
+
+## Component 26, piece O (composer and new session)
+
+- Nothing new that Rune can't do. One test trap: a session started from the New session page is busy (its first turn), so Enter in its composer queues the draft instead of sending. A test that wants the prompt on the wire sets the row idle first (`optimistic = None`, status `Idle`).
+- The `@` session in a sent bubble stays plain text for the same reason as before: `Markdown` has no inline-chip hook (row 2.37).

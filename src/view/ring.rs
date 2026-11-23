@@ -145,7 +145,7 @@ pub fn button(s: &State, t: &Theme) -> Option<El> {
     }
     if let Some(p) = percent {
         b = b.pl(6.0).pr(7.0);
-        let label = text(format!("{p}%")).font(sans(11.5, 500.0, 1.2));
+        let label = text(format!("{p}%")).font(sans(11.5, 500.0, 1.2).features("'tnum' 1"));
         b = b.child(match ink {
             Some((_, ink)) => label.color(ink),
             None if open => label.color(t.text),

@@ -203,6 +203,10 @@ impl State {
     /// preferences are read, and so is the agent browser's switch. The machine under the Settings switch changing asks again.
     pub fn keep_harnesses_page(&mut self, tx: &mut Tx) -> bool {
         let here = self.rail == crate::Rail::Settings && self.settings.page == crate::fleet::settings_nav::Page::Harnesses;
+        if !here && self.harness_setup.is_open {
+            // The setup dialog's own sign-in panel stays; Settings' page has nothing to ask.
+            return self.keep_setup_sign_in();
+        }
         if !here {
             // Leaving the page ends a sign-in that was open: a browser attempt is cancelled and a key is wiped.
             self.end_flow();
