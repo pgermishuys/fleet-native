@@ -235,15 +235,15 @@ Rune's limits are in Part 8.
 
 | # | What | Source | Native |
 |---|---|---|---|
-| 2.70 | When a machine comes back, its open sessions reconnect at once | 17.17 | Open |
-| 2.71 | An open hub follows a new address pick; the address pick kept between runs | 17 H(2), H(3) | Open |
-| 2.72 | Another machine's tree: lineage lines, sub-agent rows, drag | 17 C, 06 M, 06 S | Open |
-| 2.73 | `fleet node pair` and `fleet node up` drawn as code chips | 17 K(3) | Open |
-| 2.74 | Started-by pill and Back to parent open a parent on another machine | 08 1.11, 4.6 | Open |
-| 2.75 | Another machine's `workflow_run` events update live; its runs load without opening Workflows first | 18 A, F/I gaps | Open |
+| 2.70 | When a machine comes back, its open sessions reconnect at once | 17.17 | **Done (Q, 23 November 2026):** a read that finds the machine back (`apply_read` true) sends its link `Cmd::RetryNow`, so a hub waiting out its 5-30 s delay connects now (`retryConnection`). Test `when_a_machine_comes_back_its_hub_connects_at_once` |
+| 2.71 | An open hub follows a new address pick; the address pick kept between runs | 17 H(2), H(3) | **Done (Q):** after every good read `State::follow_address` gives a machine whose pick moved a new link and opens its session again there (`onAddressChange`); the picks are kept in `machine-sessions.json` (`addressPicks`) and adopted at start, the token following them. Tests `an_open_hub_follows_a_new_address_pick`, `the_address_pick_is_kept_between_runs` |
+| 2.72 | Another machine's tree: lineage lines, sub-agent rows, drag | 17 C, 06 M, 06 S | **Done (Q), with one part closed:** a fork or started session now hangs in a `session-children` group with Fleet's elbow lines and 28 px rows, the same drawing as home's (`view::family::lines`). Drag already worked (`row_drag`: Pinned, a project, out of a parent). **Sub-agent rows: closed, Fleet draws none there** (`MachineSessionsGroup.vue` filters `parentSessionId` rows and passes `ProjectGroup` no `running-subagents`; only the running-count chip shows). Test `another_machines_fork_hangs_under_its_parent_with_lines_beside_it` |
+| 2.73 | `fleet node pair` and `fleet node up` drawn as code chips | 17 K(3) | **Done for the one place native has** (Add a machine's help line: mono at 0.85em on the accent wash). Fleet also has them in the Found card and in "Fleet can't set up … from here"; native draws neither card (17 L), so those chips come with them |
+| 2.74 | Started-by pill and Back to parent open a parent on another machine | 08 1.11, 4.6 | **Done (Q):** `open_parent` looks in the machine's own list and in the kept sessions as well as home's; the pill's and banner's titles read the machine's list too. Test `back_to_parent_opens_a_parent_that_lives_on_another_machine` |
+| 2.75 | Another machine's `workflow_run` events update live; its runs load without opening Workflows first | 18 A, F/I gaps | **Done (Q):** `ensure_loaded` on another machine tells its hub `Cmd::RunsFeed(true)`, which subscribes to `sessions` and posts `workflow_run` events to that machine's store (`on_workflow_event_on`); `workflows_settle` loads every machine that has answered while the Workflows switch is on. Not done: runs missed while its hub was down aren't read again on reconnect (Fleet doesn't either: it reads on `ensureLoaded` only). Tests `another_machines_workflow_runs_follow_its_own_hub`, `a_run_event_of_another_machine_is_kept_only_once_its_runs_are_followed` |
 | 2.76 | Token fields masked (secure `TextEdit`) | 17 J(2), K(2); 16 12.22 | **Done (26 G)**: the New token field and the Add a machine form's access token are secure `TextEdit`s (`machine_actions::masked`); tests "masks the new token field", "masks the access token field of the add a machine form" |
-| 2.77 | Another machine's Session recap and Memory preferences read | 16 AQ | Open |
-| 2.78 | The "can't list machines" message for an old home: close it (Fleet doesn't hide the row either) | 17.67 | Close |
+| 2.77 | Another machine's Session recap and Memory preferences read | 16 AQ | **Done for Session recap (Q):** each machine's preferences are read once after its first good read, and its hub's focus report follows its own Session recap switch (or the app's Desktop notifications). Memory has no per-session reading: its page and Dreaming already read `settings_target()`'s machine (16C) |
+| 2.78 | The "can't list machines" message for an old home: close it (Fleet doesn't hide the row either) | 17.67 | **Closed (Q)**, as the audit decided: nothing to draw |
 | 2.79 | Private CAs and the system's certificate store trusted | 17 I | Owner's call |
 
 #### 2f. Content panel, files, changes, web, terminal, side (10 to 15)

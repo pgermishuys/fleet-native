@@ -190,6 +190,8 @@ impl State {
         form.open = true;
         form.error = None;
         form.added = None;
+        // The token is a secret: bullets only, from the first time the form opens (a fresh form's field isn't made secure).
+        form.token.set_secure(true);
         tx.focus(LINK_FIELD, true);
     }
 

@@ -59,7 +59,8 @@ pub fn to_json(machines: &Machines) -> String {
             ))
         })
         .collect();
-    json!({ "machines": others, "sessionMachines": machines.session_machines }).to_string()
+    json!({ "machines": others, "sessionMachines": machines.session_machines, "addressPicks": super::machine_routes::all_picks() })
+        .to_string()
 }
 
 /// What the file held.
@@ -67,6 +68,8 @@ pub fn to_json(machines: &Machines) -> String {
 pub struct Cached {
     pub others: HashMap<String, MachineSessions>,
     pub session_machines: HashMap<String, String>,
+    /// The address each machine was last reached at (`machine_routes`).
+    pub picks: HashMap<String, String>,
 }
 
 /// Reads the file's text. A corrupt file, or any part that isn't the shape written, reads as empty (`loadCachedSessions`).
@@ -97,7 +100,14 @@ pub fn parse(text: &str) -> Cached {
         .flatten()
         .filter_map(|(id, key)| Some((id.clone(), key.as_str()?.to_string())))
         .collect();
-    Cached { others, session_machines }
+    let picks = root
+        .get("addressPicks")
+        .and_then(Value::as_object)
+        .into_iter()
+        .flatten()
+        .filter_map(|(id, url)| Some((id.clone(), url.as_str()?.to_string())))
+        .collect();
+    Cached { others, session_machines, picks }
 }
 
 /// Reads the file in `dir`; none, or one that can't be read, is empty. Blocking.

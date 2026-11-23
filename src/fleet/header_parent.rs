@@ -8,12 +8,21 @@ impl State {
     /// The parent's title: from the list, else the one read for it, else nothing yet.
     pub fn parent_title(&self, id: &str) -> Option<String> {
         let listed = self.store.session_by_id(&self.projects, id).map(|s| s.title.trim().to_string());
-        listed.filter(|t| !t.is_empty()).or_else(|| self.parent_titles.get(id).cloned())
+        listed
+            .filter(|t| !t.is_empty())
+            .or_else(|| self.listed_on_machine(id).map(|s| s.title.trim().to_string()).filter(|t| !t.is_empty()))
+            .or_else(|| self.parent_titles.get(id).cloned())
     }
 
     /// Whether the list (or a kept session of another machine) holds the parent.
     pub fn parent_listed(&self, id: &str) -> bool {
-        self.store.session_by_id(&self.projects, id).is_some()
+        self.store.session_by_id(&self.projects, id).is_some() || self.listed_on_machine(id).is_some()
+    }
+
+    /// The row of `id` in the last list of the machine it is on, when that machine isn't home.
+    fn listed_on_machine(&self, id: &str) -> Option<&crate::mock::Session> {
+        let key = self.machine_key_of(id);
+        self.machines.others.get(key)?.sessions.iter().find(|s| s.id == id)
     }
 
     /// Reads the title of a parent the list doesn't hold, once, off the UI thread. The session's own machine answers.
@@ -41,6 +50,16 @@ impl State {
         let at = self.projects.iter().enumerate().find_map(|(p, project)| project.sessions.iter().position(|s| s.id == id).map(|i| (p, i)));
         if let Some((p, i)) = at {
             self.open_session(p, i, tx);
+            return;
+        }
+        // A parent on another machine opens in place on that machine, as a click on its row does (`handleBackToParent`: the
+        // route names the session and its machine is the one remembered for it).
+        let key = self.machine_key_of(id).to_string();
+        if self.listed_on_machine(id).is_some() {
+            self.open_machine_session(&key, id, tx);
+        } else if let (Some(machine), Some(row)) = (self.store.machine_of(id).map(str::to_string), self.store.session_by_id(&[], id)) {
+            let row = row.row_copy();
+            self.open_machine_row(&machine, row, tx);
         }
     }
 }

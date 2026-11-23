@@ -199,6 +199,8 @@ mod tests_machines;
 #[cfg(test)]
 mod tests_machines_data;
 #[cfg(test)]
+mod tests_machines_other;
+#[cfg(test)]
 mod tests_machines_page;
 #[cfg(test)]
 mod tests_memory_notice;

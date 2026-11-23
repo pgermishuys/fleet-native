@@ -228,6 +228,12 @@ impl State {
     /// fill from events, and is tried again by the next call. With no server (scenes, tests) there is nothing to read.
     pub fn workflow_runs_ensure_loaded(&mut self, machine: &str) {
         let link = self.link_for_machine(machine);
+        // Another machine's hub listens to `sessions` for its runs only from here on.
+        if machine != HOME_MACHINE_KEY
+            && let Some(link) = &link
+        {
+            link.runs_feed(true);
+        }
         let store = self.workflows.of_mut(machine);
         store.listening = true;
         if store.loaded || store.loading {
@@ -255,13 +261,29 @@ impl State {
     pub fn workflows_settle(&mut self) {
         if crate::fleet::rails::Features::from_prefs(&self.pickers.prefs).workflows {
             self.workflow_runs_ensure_loaded(HOME_MACHINE_KEY);
+            // Another machine's runs are read without opening Workflows there first, once it answers.
+            let others: Vec<String> = self
+                .machines
+                .list
+                .iter()
+                .map(|m| m.id.clone())
+                .filter(|k| self.machines.others.get(k).is_some_and(|o| o.error.is_none() && o.loaded_at.is_some()))
+                .collect();
+            for key in others {
+                self.workflow_runs_ensure_loaded(&key);
+            }
         }
     }
 
     /// A `workflow_run` event on the sessions topic of the live machine. Kept once the store is listening.
     pub fn on_workflow_event(&mut self, event: &Event) {
+        self.on_workflow_event_on(HOME_MACHINE_KEY, event);
+    }
+
+    /// The same for an event heard on `machine`'s own hub.
+    pub fn on_workflow_event_on(&mut self, machine: &str, event: &Event) {
         let Event::Other(Kind::WorkflowRun, props) = event else { return };
-        let Some(store) = self.workflows.by_machine.get_mut(HOME_MACHINE_KEY).filter(|s| s.listening) else { return };
+        let Some(store) = self.workflows.by_machine.get_mut(machine).filter(|s| s.listening) else { return };
         if let Some(run) = Run::from_json(props) {
             store.upsert(run);
         }

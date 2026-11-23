@@ -3,12 +3,14 @@
 //! listed them. Pressing a row opens it; while the machine answers a row also renames (double-click, F2), has the
 //! right-click menu and its project renames from its header; while it doesn't, rows only open.
 use super::drop_zones;
+use super::family::lines as family_lines;
 use super::machine_header::{Heading, machine_header};
 use super::project_header::{Header, editing as project_editing, project_header};
 use super::row_actions::{Buttons, actions};
 use super::session_row::{RowClock, Slots, check_box, editing, glyph_el, move_pin_key, tail, title_ink};
 use crate::State;
 use crate::fleet::groups::{LineageKind, Listed};
+use crate::fleet::lineage::{indent, layout_lineage};
 use crate::fleet::machine_tree::{self, TreeGroup, TreeRow};
 use crate::fleet::machines::{Entry, MachineSessions};
 use crate::fleet::row_drag::{Over, machine_pinned_key, machine_project_key};
@@ -159,6 +161,8 @@ fn group_of(
         rows = rows.child(drop_zones::pinned_empty(t, matches!(&over, Over::MPinned(m, _) if m == key)));
     }
     let mut hide_below: Option<usize> = None;
+    // What shows, in order: a top-level row, then the family that hangs under it (the rows a closed caret hides are left out).
+    let mut shown_rows: Vec<(usize, Option<bool>)> = Vec::new();
     for (n, r) in g.rows.iter().enumerate() {
         if let Some(depth) = hide_below {
             if r.depth > depth {
@@ -166,13 +170,35 @@ fn group_of(
             }
             hide_below = None;
         }
-        let kids = children_of(g, n);
+        // Only a top-level row has a caret: what hangs under it opens and closes together (`.session-children`).
+        let kids = if r.depth == 0 { children_of(g, n) } else { Vec::new() };
         let shown = kids.is_empty() || children_open(s, sessions, &sessions[r.index], &kids);
         if !kids.is_empty() && !shown {
             hide_below = Some(r.depth);
         }
-        let caret = (!kids.is_empty()).then_some(shown);
-        rows = rows.child(read_only_row(s, t, clock, machine, &sessions[r.index], r, caret, answering));
+        shown_rows.push((n, (!kids.is_empty()).then_some(shown)));
+    }
+    let row_of = |&(n, caret): &(usize, Option<bool>)| {
+        let r = &g.rows[n];
+        read_only_row(s, t, clock, machine, &sessions[r.index], r, caret, answering)
+    };
+    let mut at = 0;
+    while at < shown_rows.len() {
+        rows = rows.child(row_of(&shown_rows[at]));
+        // The family under a top-level row sits in one group, a level in, with the lines beside it (`.session-children`).
+        let family: Vec<&(usize, Option<bool>)> = shown_rows[at + 1..].iter().take_while(|(n, _)| g.rows[*n].depth > 0).collect();
+        at += 1 + family.len();
+        if family.is_empty() {
+            continue;
+        }
+        let lines = layout_lineage(&family.iter().map(|(n, _)| g.rows[*n].depth).collect::<Vec<_>>());
+        let mut kids =
+            col().key(format!("machine-children-{}-{}", machine.key, sessions[g.rows[family[0].0].index].id)).role("group").w_full();
+        for (entry, line) in family.into_iter().zip(&lines) {
+            let r = &g.rows[entry.0];
+            kids = kids.child(family_lines(t, &format!("{}-{}", machine.key, sessions[r.index].id), line, row_of(entry)));
+        }
+        rows = rows.child(kids.mb(2.0));
     }
     if g.pinned && !g.rows.is_empty() && matches!(&over, Over::MPinned(m, None) if m == key) {
         rows = rows.child(drop_zones::pin_end_line(t, s.sidebar_w - 36.0));
@@ -246,12 +272,13 @@ fn read_only_row(
         None => el().size(14.0, 14.0).mr(-4.0),
     };
     // A child sits one level in from its parent (`--lineage-indent`).
-    let indent = if at.depth == 0 { 6.0 } else { 25.0 + (at.depth as f32 - 1.0) * 16.0 };
+    let child = at.depth > 0;
+    let indent = if child { indent(at.depth) } else { 6.0 };
     let (machine_key, session_id) = (machine.key.clone(), session.id.clone());
     let mut line = row()
         .key(format!("machine-session-{key}"))
         .w_full()
-        .min_h(32.0)
+        .min_h(if child { 28.0 } else { 32.0 })
         .center_y()
         .gap(9.0)
         .pl(indent)
@@ -280,7 +307,7 @@ fn read_only_row(
             let open = move |s: &mut State, tx: &mut Tx| s.open_machine_session(&open_key, &open_id, tx);
             if answering { s.press_row(&session_id, Some(&machine_key), open, tx) } else { open(s, tx) }
         })
-        .child(slot)
+        .children((!child).then_some(slot))
         .child(glyph)
         .child(
             text(row_status::display_title(None, &session.title))
@@ -330,7 +357,7 @@ fn read_only_row(
         Some(_) => Some("started"),
         None => None,
     };
-    let slots = Slots { kind_label: label, ..Slots::default() };
+    let slots = Slots { kind_label: label, child: child.then_some(indent), ..Slots::default() };
     // A machine that isn't answering can't be asked: no buttons.
     let buttons = if selecting { Buttons::default() } else { Buttons::of(session, !answering) };
     let line = tail(s, t, &key, session, &status, if answering { dim } else { Dim::None }, slots, buttons, line);
