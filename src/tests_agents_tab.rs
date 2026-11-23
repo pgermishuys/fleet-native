@@ -127,3 +127,16 @@ fn pressing_the_parent_opens_it() {
     assert_ne!(rt.state.open_at(), (0, 0), "{before:?}");
     assert_eq!(rt.state.session().id, parent);
 }
+
+// Row 5.12: a press on a parent the list doesn't hold still opens it, by its id (`/sessions/{parentId}`, no instance).
+#[test]
+fn pressing_a_parent_the_list_does_not_hold_opens_it_by_its_id() {
+    let mut rt = shown(Case::Main);
+    rt.update(|s, tx| {
+        let target = crate::fleet::agents::OpenTarget::Own { session: "parent-the-list-lacks".into(), instance_id: None };
+        s.open_agent(&target, "Parent session", tx);
+    });
+    rt.frame(FRAME);
+    assert_eq!(rt.state.route, crate::fleet::store::Route::Session("parent-the-list-lacks".into()));
+    assert!(rt.state.opening.holds(&crate::fleet::store::Route::Session("parent-the-list-lacks".into())), "it is read by its id");
+}

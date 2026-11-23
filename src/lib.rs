@@ -437,6 +437,8 @@ mod tests_usage_popover;
 #[cfg(test)]
 mod tests_web;
 #[cfg(test)]
+mod tests_web_focus;
+#[cfg(test)]
 mod tests_web_host;
 #[cfg(test)]
 mod tests_window;
@@ -6495,16 +6497,7 @@ pub fn start_desktop() {
     let app_args = rest.clone();
     let app = menu_bar::install(terminal_hooks(App::new(spec())))
         .args(rest)
-        .on_focus(|s, focused, tx| {
-            s.each_link(|link| link.window_focus(focused));
-            s.quiet.focused = focused;
-            if focused {
-                s.file_window_focus();
-            }
-            // Back in Fleet: a waiting card opens now, not at the next look.
-            s.clear_notification_for_open();
-            s.keep_notices(s.clock, tx);
-        })
+        .on_focus(|s, focused, tx| s.window_focus_changed(false, focused, tx))
         .on_visibility(|s, visible, tx| {
             s.each_link(|link| link.window_visible(visible));
             s.quiet.visible = visible;

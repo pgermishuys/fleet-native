@@ -322,8 +322,14 @@ fn heard(tab: &str, body: &str) {
             if s.web.can_show() {
                 s.web.page_has_keys = true;
                 tx.blur();
+                s.window_focus_changed(true, true, tx);
             }
         });
+    }
+    if kind.as_deref() == Some("blur")
+        && let Some(app) = APP.get()
+    {
+        app.update(|s: &mut State, tx| s.window_focus_changed(true, false, tx));
     }
 }
 

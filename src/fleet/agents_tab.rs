@@ -195,6 +195,11 @@ impl State {
                     self.projects.iter().enumerate().find_map(|(p, pr)| pr.sessions.iter().position(|s| s.id == *session).map(|i| (p, i)));
                 if let Some((p, i)) = found {
                     self.open_session(p, i, tx);
+                } else {
+                    // A parent the list doesn't hold (another machine's, or one the list leaves out) is read by its id and opened
+                    // in place, as Back to parent does (row 5.12: `/sessions/{parentId}` with no instance).
+                    let machine = self.machine_key_of(session).to_string();
+                    self.open_session_by_id(&machine, session, tx);
                 }
             }
         }

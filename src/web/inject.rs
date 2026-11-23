@@ -27,6 +27,8 @@ const SCRIPT: &str = r#"(function () {
   };
   window.__fleetDeliver = function (message) { original(message, "*"); };
   window.addEventListener("focus", function () { host("focus"); }, true);
+  // The window itself (not an element) lost the keyboard: to another app, or to Rune's own half of the window.
+  window.addEventListener("blur", function () { host("blur"); });
   window.addEventListener("DOMContentLoaded", function () { host("loaded"); });
 })();"#;
 
@@ -157,6 +159,7 @@ const PREVIEW_SCRIPT: &str = r#"(function () {
   // Back to a page the engine kept whole (its page cache) runs no script again, so only this says where it is.
   addEventListener("pageshow", function (e) { if (e.persisted) reportLocation(); });
   addEventListener("focus", function () { try { window.ipc.postMessage(JSON.stringify({ host: "focus" })); } catch (e) {} }, true);
+  addEventListener("blur", function () { try { window.ipc.postMessage(JSON.stringify({ host: "blur" })); } catch (e) {} });
   function hello() { send("hello", { hmr: hmrOfPage(), href: location.href, title: document.title }); watchStyles(); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", hello); else hello();
 })();"#;

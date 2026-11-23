@@ -10,6 +10,17 @@ use std::rc::Rc;
 
 pub type Action = Rc<dyn Fn(&mut State, &mut Tx)>;
 
+thread_local! {
+    /// The keys of the menu panels built since the overlay layer last asked (`take_panels`): where a native web view must not draw.
+    static PANELS: std::cell::RefCell<Vec<String>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// The panels built so far (a menu, its submenus), and forget them. The overlay layer calls it before it builds, to drop what other
+/// views made, and after, to learn which panels an open menu put on screen (row 2.88).
+pub fn take_panels() -> Vec<String> {
+    PANELS.with_borrow_mut(std::mem::take)
+}
+
 pub enum Entry {
     Item(Item),
     Separator,
@@ -387,6 +398,7 @@ fn panel_level(
     for s in t.menu_shadows() {
         p = p.box_shadow(s);
     }
+    PANELS.with_borrow_mut(|all| all.push(format!("{key}-menu")));
     (p, subs)
 }
 
