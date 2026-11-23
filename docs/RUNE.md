@@ -2985,3 +2985,9 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 - **Inline code chips in a running line**: `text(words).spans([Span::new(a, b).mono().size(..).bg(color, pad)]).span_radius(4.0)` draws Fleet's `<code class="machine-code">` (mono, a wash behind it, rounded corners) without splitting the line into elements.
 - **A `TextEdit` made with `Default` isn't secure**: `.secure()` is a property of the edit, not of the field drawn from it, so a state struct that derives `Default` shows its first field in plain text until something resets it with `TextEdit::new(..).secure()`. Call `set_secure(true)` where the field's form opens.
 - **A hub test needs no real socket library beyond `tungstenite::accept`**: a loopback listener that drops every connection counts reconnect attempts, which is how to tell "tried at once" from "waited out its delay" without timing a sleep.
+
+## Component 26, piece R (panel, files and changes)
+
+- **A clipped line with no ellipsis and no fade** is `.truncate_fade_width(0.0)` on a text: one line, cut at the element's edge, the way a browser cuts a `pre` line. `.truncate()` always draws "…".
+- **`rune::text::advance` measures a mono line in the font's own width**, so a cell that must hold its longest line can ask the font instead of counting characters at 0.6 em. A plain ASCII line is as wide as its length, so measure only the longest of those and each line with anything else in it.
+- **The Document tab annotates by the same recipe as the file tab's Rendered view** (above): a `selection_group(true)` column inside the scroll, `on_selection_change` into `read_rendered_selection`, and an `on_pointer_move_local` on the scroll for where the popover goes.

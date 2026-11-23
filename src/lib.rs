@@ -6109,6 +6109,8 @@ pub fn spec() -> AppSpec<State> {
                 s.show_file(mock::file_tab::Case::Code, true);
                 s.show_file_find("Page", conv::file_find::Options { case: true, word: true, ..Default::default() }, 0)
             }),
+            ("file-selected", |s| s.show_file(mock::file_tab::Case::Selected, true)),
+            ("file-selected-light", |s| s.show_file(mock::file_tab::Case::Selected, false)),
             ("file-complete", |s| s.show_file(mock::file_tab::Case::Complete, true)),
             ("file-complete-light", |s| s.show_file(mock::file_tab::Case::Complete, false)),
             ("file-replace", |s| {
@@ -6292,6 +6294,8 @@ pub fn spec() -> AppSpec<State> {
             ("document-markdown-light", |s| {
                 s.show_document(mock::visuals::payload(fleet::canvases::VisualType::Markdown, Some("Cache eviction")), false)
             }),
+            ("document-markdown-ask", |s| s.show_document_ask(true)),
+            ("document-markdown-ask-light", |s| s.show_document_ask(false)),
             ("document-html", |s| s.show_document(mock::visuals::payload(fleet::canvases::VisualType::Html, Some("Order totals")), true)),
             ("document-html-light", |s| {
                 s.show_document(mock::visuals::payload(fleet::canvases::VisualType::Html, Some("Order totals")), false)

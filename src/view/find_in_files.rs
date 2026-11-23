@@ -95,7 +95,16 @@ fn hit(s: &State, t: &Theme, file: &TextFile, m: &crate::fleet::find_text::TextM
         .focusable(true)
         .focus_ring(2.0, -2.0, t.accent)
         .child(text(m.line.to_string()).font(font).color(t.muted).min_w(3.2 * 0.6 * 12.0).align(rune::Align::End))
-        .child(text(words).font(font).color(t.text.alpha(0.82)).spans(spans).truncate().min_w(0.0).grow(1.0));
+        .child(
+            text(words)
+                .font(font)
+                .color(t.text.alpha(0.82))
+                .spans(spans)
+                // One `pre` line the browser cuts at the edge (FIFR): clipped there, with no ellipsis and no fade.
+                .truncate_fade_width(0.0)
+                .min_w(0.0)
+                .grow(1.0),
+        );
     if active {
         r = r.fill(t.wash(7.0)).border(1.0, t.accent.alpha(0.5));
     }

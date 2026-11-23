@@ -30,6 +30,37 @@ pub struct LineEdit {
     pub blink_off: bool,
     /// The bytes of the line that are a matched bracket (`.cm-matchingBracket`).
     pub brackets: Vec<usize>,
+    /// The other places in the line where the selected word is (`.cm-selectionMatch`).
+    pub others: Vec<Range<usize>>,
+}
+
+/// `highlightSelectionMatches()` at its defaults: a selection of 1 to 200 characters that isn't only blanks, on one line, is looked for
+/// again, case-sensitively, anywhere in the lines drawn; the match that is the selection itself isn't marked.
+pub const MATCH_MAX: usize = 200;
+
+/// The places in line `i` where the selected text is again.
+pub fn other_matches(editor: &Editor, lines: &[String], i: usize) -> Vec<Range<usize>> {
+    let (a, b) = editor.range();
+    if a == b || a.line != b.line {
+        return Vec::new();
+    }
+    let Some(line) = lines.get(i) else { return Vec::new() };
+    let Some(word) = lines.get(a.line).and_then(|l| l.get(a.byte..b.byte)) else { return Vec::new() };
+    if word.trim().is_empty() || word.chars().count() > MATCH_MAX {
+        return Vec::new();
+    }
+    line.match_indices(word).map(|(at, m)| at..at + m.len()).filter(|r| !(i == a.line && r.start == a.byte)).collect()
+}
+
+/// The other occurrences over the drawn text (`.cm-selectionMatch`: `--accent` at 14 %).
+pub fn match_highlights(t: &Theme, line: &str, others: &[Range<usize>], from: usize) -> Vec<TextHighlight> {
+    others
+        .iter()
+        .filter_map(|o| {
+            let r = shown_range(line, o.clone());
+            (r.end > from && r.start >= from).then(|| TextHighlight::new(r.start - from..r.end - from, t.accent.alpha(0.14)).pad(0.0))
+        })
+        .collect()
 }
 
 /// What `editor` marks on line `i`; `pair` is the matched brackets and `blink_off` the caret's blink.
@@ -42,6 +73,7 @@ pub fn line_edit(editor: &Editor, lines: &[String], i: usize, pair: Option<(Pos,
         selected: selection.map(|(r, _)| r),
         preedit: if on { editor.preedit.clone() } else { None },
         blink_off,
+        others: other_matches(editor, lines, i),
         brackets: pair.map(|(a, b)| [a, b].into_iter().filter(|p| p.line == i).map(|p| p.byte).collect()).unwrap_or_default(),
     }
 }
@@ -293,5 +325,20 @@ mod tests {
         assert_eq!(caret, 3 + "にほ".len());
         assert!(spans.iter().any(|s| s.underline.is_some() && s.start == 3));
         assert!(spans.iter().any(|s| s.color.is_some() && s.start == 9));
+    }
+
+    #[test]
+    fn the_selected_word_is_marked_wherever_else_it_is() {
+        let lines: Vec<String> = ["let page = page_size;", "page += 1;"].map(String::from).to_vec();
+        let mut e = Editor::default();
+        e.anchor = Pos::new(0, 4);
+        e.caret = Pos::new(0, 8);
+        assert_eq!(other_matches(&e, &lines, 0), vec![11..15], "the selection itself isn't one");
+        assert_eq!(other_matches(&e, &lines, 1), vec![0..4]);
+        e.caret = e.anchor;
+        assert!(other_matches(&e, &lines, 1).is_empty(), "no selection, nothing marked");
+        e.anchor = Pos::new(0, 8);
+        e.caret = Pos::new(0, 9);
+        assert!(other_matches(&e, &lines, 0).is_empty(), "blanks are not looked for");
     }
 }

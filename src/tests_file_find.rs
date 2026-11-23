@@ -119,6 +119,27 @@ fn enter_and_shift_enter_step_and_wrap() {
     assert_eq!(line(&rt), Some(1), "Enter from the last wraps to the first");
 }
 
+// Row 12.1's gap: with a caret in the code, the first Enter goes to the first match after it, as CodeMirror's `findNext` does.
+#[test]
+fn the_first_enter_goes_to_the_first_match_after_the_caret() {
+    use crate::fleet::code_edit::Pos;
+    let mut rt = open();
+    rt.update(|s, _| {
+        let id = s.canvas_session();
+        let machine = s.machine_key_of(&id).to_string();
+        let b = s.file_buffers.buffers_for_test(&machine, &id, crate::mock::file_tab::PATH);
+        b.editor.anchor = Pos::new(10, 0);
+        b.editor.caret = Pos::new(10, 0);
+    });
+    find(&mut rt, "page");
+    let all: Vec<usize> = rt.state.file_find.matches().iter().map(|m| m.line).collect();
+    let want = all.iter().copied().find(|l| *l >= 10).expect("a match after the caret");
+    press(&mut rt, Key::Enter, Mods::default());
+    let at = rt.state.file_find.current().map(|i| rt.state.file_find.matches()[i].clone()).unwrap();
+    assert_eq!(at.line, want, "not the first match of the file");
+    assert_ne!(at.line, all[0]);
+}
+
 #[test]
 fn f3_and_ctrl_g_step_too_while_the_keyboard_is_in_the_code() {
     let mut rt = open();

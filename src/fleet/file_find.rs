@@ -9,7 +9,7 @@ use super::canvases::FileView;
 use super::file_buffers::Status;
 use crate::State;
 use crate::conv::changes_find::step_shortcut;
-use crate::conv::file_find::{Match, Options, find_matches, replacement, step};
+use crate::conv::file_find::{Match, Options, find_matches, replacement, step, step_from};
 use crate::fleet::code_edit::Pos;
 use crate::view::code_view::CODE;
 use rune::{Key, KeyEvent, Tx};
@@ -72,8 +72,12 @@ impl FileFind {
         self.current = before.and_then(|m| self.matches.iter().position(|n| *n == m));
     }
 
-    fn step(&mut self, direction: i32) -> Option<&Match> {
-        self.current = step(self.matches.len(), self.current, direction);
+    /// `caret` is the selection's start and end in the file: the first step from no match begins there (row 12.1).
+    fn step(&mut self, direction: i32, caret: Option<((usize, usize), (usize, usize))>) -> Option<&Match> {
+        self.current = match (self.current, caret) {
+            (None, Some((from, to))) => step_from(&self.matches, from, to, direction),
+            _ => step(self.matches.len(), self.current, direction),
+        };
         self.scroll_due = self.current.map(|_| 0.0);
         self.current.and_then(|i| self.matches.get(i))
     }
@@ -86,7 +90,7 @@ impl State {
         self.file_find = FileFind { open: true, session, path, field: rune::TextEdit::new(query), options, ..Default::default() };
         self.file_find_lines();
         for _ in 0..steps {
-            self.file_find.step(1);
+            self.file_find.step(1, None);
         }
     }
 
@@ -150,9 +154,19 @@ impl State {
         self.file_find_lines();
     }
 
+    /// The selection of the file being searched, as (line, byte) places, once the code has been clicked into or typed in.
+    fn file_find_caret(&self) -> Option<((usize, usize), (usize, usize))> {
+        let (session, path) = self.file_find.target();
+        let machine = self.machine_key_of(session);
+        let editor = &self.file_buffers.buffer(machine, session, path)?.editor;
+        let (a, b) = editor.range();
+        Some(((a.line, a.byte), (b.line, b.byte)))
+    }
+
     /// Enter, Shift+Enter, F3, Ctrl/Cmd+G and the buttons: the next or previous match becomes current, wrapping, and scrolls into view.
     pub fn file_find_step(&mut self, direction: i32, tx: &mut Tx) {
-        let Some(line) = self.file_find.step(direction).map(|m| m.line + 1) else { return };
+        let caret = self.file_find_caret();
+        let Some(line) = self.file_find.step(direction, caret).map(|m| m.line + 1) else { return };
         let wrapped = self.sidebar.file_wrap(&self.file_find.path);
         tx.scroll_center_in_instant(CODE, format!("code-line-{line}{}", if wrapped { "w" } else { "" }));
         tx.wake_after(Duration::from_millis(16));

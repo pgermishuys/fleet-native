@@ -336,3 +336,51 @@ fn a_quit_the_app_starts_asks_in_the_window_while_a_file_is_unsaved_and_quits_ot
     click(&mut rt, "unsaved-quit-confirm");
     assert!(rt.shell_request.take() == Some(Shell::Quit));
 }
+
+fn wait_for_quit_saves(rt: &mut Runtime<State>, jobs: &Receiver<Job>, seen: &Arc<Mutex<Seen>>) {
+    let (looked, described) = (seen.clone(), seen.clone());
+    crate::test_wait::drive(
+        rt,
+        jobs,
+        "the save to be sent and answered",
+        move |s| !looked.lock().unwrap().puts.is_empty() && s.unsaved.quit_saving.is_none(),
+        move |s| {
+            format!(
+                "{}; puts {:?}; quit_saving {:?}",
+                crate::test_wait::app_state(s),
+                described.lock().unwrap().puts,
+                s.unsaved.quit_saving
+            )
+        },
+    );
+    rt.frame(FRAME);
+}
+
+// Row 13.10's gap (ours: Fleet's browser asks, and has no such button).
+#[test]
+fn save_all_and_quit_saves_every_unsaved_file_and_then_quits() {
+    let (mut rt, jobs, seen) = typed(false);
+    rt.update(|s, _| {
+        s.ask_before_quitting();
+    });
+    rt.frame(FRAME);
+    click(&mut rt, "unsaved-quit-save");
+    assert!(all_text(&rt).contains("Saving\u{2026}"), "the button says so while it saves");
+    wait_for_quit_saves(&mut rt, &jobs, &seen);
+    assert_eq!(seen.lock().unwrap().puts.len(), 1);
+    assert!(rt.shell_request.take() == Some(Shell::Quit), "saved, so the app quits");
+}
+
+#[test]
+fn save_all_and_quit_stays_when_a_file_could_not_be_saved() {
+    let (mut rt, jobs, seen) = typed(true);
+    rt.update(|s, _| {
+        s.ask_before_quitting();
+    });
+    rt.frame(FRAME);
+    click(&mut rt, "unsaved-quit-save");
+    wait_for_quit_saves(&mut rt, &jobs, &seen);
+    assert!(rt.shell_request.take() != Some(Shell::Quit), "a conflict keeps the app open, the file unsaved");
+    assert!(rt.state.unsaved.quitting.is_none());
+    assert!(!rt.state.unsaved_files().is_empty());
+}

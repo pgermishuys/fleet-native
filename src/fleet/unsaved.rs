@@ -19,6 +19,8 @@ pub struct Unsaved {
     pub closing: Option<Closing>,
     /// The app was asked to quit while these files (paths, in the order of the buffers) had unsaved changes.
     pub quitting: Option<Vec<String>>,
+    /// "Save all and quit" is under way: how many saves have not answered, and whether one of those that did was not saved.
+    pub quit_saving: Option<(usize, bool)>,
 }
 
 /// The dialog's words (`UnsavedFileDialog.vue`).
@@ -33,6 +35,7 @@ pub const SAVING: &str = "Saving\u{2026}";
 /// app has no such prompt, so it asks in the same words as the close: what is lost, and Cancel.
 pub const QUIT_TITLE: &str = "Quit with unsaved changes?";
 pub const QUIT_BUTTON: &str = "Quit without saving";
+pub const QUIT_SAVE: &str = "Save all and quit";
 
 /// The sentence under the quit question: one file or several.
 pub fn quit_detail(n: usize) -> String {
@@ -145,14 +148,50 @@ impl State {
         }
     }
 
-    /// Cancel on the quit question.
+    /// Cancel on the quit question (not while the saves are on their way).
     pub fn quit_unsaved_cancel(&mut self) {
+        if self.unsaved.quit_saving.is_none() {
+            self.unsaved.quitting = None;
+        }
+    }
+
+    /// Save all and quit: every unsaved file is saved; once each has answered the app quits when all were saved. If one wasn't (a
+    /// conflict, a refusal, nothing sent) the question closes and the file stays unsaved, so it can be seen and dealt with.
+    pub fn quit_unsaved_save_all(&mut self, tx: &mut Tx) {
+        if self.unsaved.quitting.is_none() || self.unsaved.quit_saving.is_some() {
+            return;
+        }
+        let files = self.file_buffers.unsaved();
+        self.unsaved.quit_saving = Some((files.len(), false));
+        for (machine, session, path) in files {
+            self.save_file_then(&session, &path, false, |s, tx, outcome| s.quit_save_answered(outcome == Some(SaveOutcome::Saved), tx));
+            // Nothing was sent: there will be no answer to wait for.
+            if !self.file_buffers.info(&machine, &session, &path).is_some_and(|i| i.saving) && self.unsaved.quit_saving.is_some() {
+                // The save may already have answered (a fake link answers inline); count only a file still dirty and not on its way.
+                if self.file_buffers.is_dirty(&machine, &session, &path) {
+                    self.quit_save_answered(false, tx);
+                }
+            }
+        }
+    }
+
+    fn quit_save_answered(&mut self, saved: bool, tx: &mut Tx) {
+        let Some((left, failed)) = self.unsaved.quit_saving else { return };
+        let (left, failed) = (left.saturating_sub(1), failed || !saved);
+        if left > 0 {
+            self.unsaved.quit_saving = Some((left, failed));
+            return;
+        }
+        self.unsaved.quit_saving = None;
         self.unsaved.quitting = None;
+        if !failed {
+            tx.quit();
+        }
     }
 
     /// Quit without saving: the question is answered and the app quits.
     pub fn quit_unsaved_confirm(&mut self, tx: &mut Tx) {
-        if self.unsaved.quitting.take().is_some() {
+        if self.unsaved.quit_saving.is_none() && self.unsaved.quitting.take().is_some() {
             tx.quit();
         }
     }

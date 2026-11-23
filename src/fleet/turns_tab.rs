@@ -129,6 +129,13 @@ impl State {
         directory.hash(&mut hasher);
         if let Some(stream) = self.stream.as_ref().filter(|_| self.stream_of.as_deref().is_none_or(|of| of == session)) {
             stream.messages.len().hash(&mut hasher);
+            // A reply can stream into an older message than the last two (a delegated task's answer, a resumed turn): the event that
+            // carried it moved `last_event_id`, and what each message holds is a cheap sum (row 4.62, which Fleet's `computed` gets
+            // from its deep watch).
+            stream.last_event_id.hash(&mut hasher);
+            for m in &stream.messages {
+                (m.parts.len(), m.completed_at).hash(&mut hasher);
+            }
             for m in stream.messages.iter().rev().take(2) {
                 format!("{:?}", (&m.id, &m.parts, m.completed_at, m.cost, m.tokens, &m.model_id)).hash(&mut hasher);
             }

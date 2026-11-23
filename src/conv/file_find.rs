@@ -80,6 +80,21 @@ pub fn step(count: usize, current: Option<usize>, direction: i32) -> Option<usiz
     })
 }
 
+/// The first Enter from no current match, with the caret in the text (CodeMirror's `findNext` starts at the selection's end and
+/// `findPrevious` at its start): the next match starting at or after `to`, or the last one starting before `from`; either wraps round.
+/// `(line, byte)` places.
+pub fn step_from(matches: &[Match], from: (usize, usize), to: (usize, usize), direction: i32) -> Option<usize> {
+    let at = |m: &Match| (m.line, m.range.start);
+    if matches.is_empty() {
+        return None;
+    }
+    if direction >= 0 {
+        Some(matches.iter().position(|m| at(m) >= to).unwrap_or(0))
+    } else {
+        Some(matches.iter().rposition(|m| at(m) < from).unwrap_or(matches.len() - 1))
+    }
+}
+
 /// `\n`, `\r`, `\t` and `\\` in the replace field mean what they say (CodeMirror's `SearchQuery.unquote`, which Fleet leaves on).
 fn unquote(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
@@ -192,6 +207,18 @@ mod tests {
         assert!(find_matches(&l, "(", Options { regexp: true, ..Options::default() }).is_empty());
         assert_eq!(find_matches(&l, "(", Options::default()).len(), 1);
         assert!(find_matches(&l, "x*", Options { regexp: true, ..Options::default() }).is_empty());
+    }
+
+    #[test]
+    fn the_first_step_starts_from_the_caret() {
+        let m = |line, start| Match { line, range: start..start + 1 };
+        let all = [m(0, 2), m(3, 0), m(3, 5), m(9, 1)];
+        assert_eq!(step_from(&all, (3, 1), (3, 1), 1), Some(2), "the next one after the caret");
+        assert_eq!(step_from(&all, (3, 1), (3, 1), -1), Some(1), "the previous one before it");
+        assert_eq!(step_from(&all, (3, 0), (3, 0), 1), Some(1), "a match at the caret counts going forward");
+        assert_eq!(step_from(&all, (10, 0), (10, 0), 1), Some(0), "past the last: round to the first");
+        assert_eq!(step_from(&all, (0, 0), (0, 0), -1), Some(3), "before the first: round to the last");
+        assert_eq!(step_from(&[], (0, 0), (0, 0), 1), None);
     }
 
     #[test]
