@@ -199,3 +199,38 @@ fn a_visual_that_arrives_live_opens_once_and_history_never_does() {
     rt.update(move |s, _| s.watch_visuals(base + 500));
     assert_eq!(ids(&rt.state).iter().filter(|i| i.starts_with("visual:")).count(), 2, "once per call");
 }
+
+// `VisualCanvas.vue` `:annotatable="isMarkdown"` (row 14.85): letting go of a drag over a Markdown document asks the agent about it.
+#[test]
+fn a_markdown_document_can_be_annotated() {
+    use rune::{Key, KeyEvent, Mods};
+    let mut rt = app();
+    let mut p = payload(VisualType::Markdown, Some("Cache eviction"));
+    p.source_path = Some("notes/cache-eviction.md".into());
+    tab(&mut rt, p);
+    assert!(rt.state.annotation.open.is_none());
+    let r = rt.elements().into_iter().find(|e| e.key.as_deref() == Some("document-markdown") && !e.exiting).expect("the text").rect;
+    let (y, x0, x1) = (r[1] + 10.0, r[0] + 2.0, r[0] + r[2] * 0.6);
+    rt.pointer_move(x0, y);
+    rt.pointer_down(x0, y);
+    rt.frame(FRAME);
+    rt.pointer_move(x1, y);
+    rt.frame(FRAME);
+    rt.pointer_up(x1, y);
+    for _ in 0..6 {
+        rt.frame(FRAME);
+    }
+    let open = rt.state.annotation.open.clone().expect("letting go opens the popover");
+    assert_eq!(open.path, "notes/cache-eviction.md", "the source file, as Fleet's `sourceFilePath ?? title`");
+    assert!(!open.anchor_text.trim().is_empty());
+    rt.key(KeyEvent { key: Key::Escape, mods: Mods::default() });
+    rt.frame(FRAME);
+    assert!(rt.state.annotation.open.is_none());
+}
+
+#[test]
+fn an_html_document_is_not_annotatable() {
+    let mut rt = app();
+    tab(&mut rt, payload(VisualType::Html, Some("Order totals")));
+    assert!(rt.find("document-markdown").is_none());
+}

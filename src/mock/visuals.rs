@@ -66,4 +66,15 @@ impl State {
         self.right.widened = true;
         self.expand_visual(payload);
     }
+
+    /// The Markdown Document tab with the popover that asks the agent about the text picked in it (component 26, piece R, row 14.85).
+    pub fn show_document_ask(&mut self, dark: bool) {
+        self.show_document(payload(VisualType::Markdown, Some("Cache eviction")), dark);
+        self.annotation.open = Some(crate::fleet::annotation::Open {
+            anchor_text: "The image cache keeps the last 200 entries and drops the rest when a new one arrives.".to_string(),
+            path: "Cache eviction".to_string(),
+            at: (700.0, 200.0),
+        });
+        self.annotation.field = rune::TextEdit::new("Why 200 and not 500?");
+    }
 }

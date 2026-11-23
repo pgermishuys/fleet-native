@@ -352,6 +352,7 @@ pub fn code_line(t: &Theme, keys: LineKeys, gutter: f32, shown: String, spans: V
         if let (Some(e), Some(m)) = (d.edit.as_ref(), marks) {
             out.extend(m.selected.as_ref().and_then(|r| super::code_edit::selection_highlight(t, &e.raw, r, from, past)));
             out.extend(super::code_edit::bracket_highlights(t, &e.raw, &m.brackets, from));
+            out.extend(super::code_edit::match_highlights(t, &e.raw, &m.others, from));
         }
         out
     };
@@ -575,6 +576,7 @@ fn line_row(
         let past = edit.is_some_and(|e| e.past_end);
         let selected = edit.and_then(|e| e.selected.as_ref()).and_then(|r| super::code_edit::selection_highlight(t, line, r, from, past));
         let brackets = edit.map(|e| super::code_edit::bracket_highlights(t, line, &e.brackets, from)).unwrap_or_default();
+        let others = edit.map(|e| super::code_edit::match_highlights(t, line, &e.others, from)).unwrap_or_default();
         // A selected line break is a space's width past the line's text.
         let shown = if past { format!("{shown} ") } else { shown };
         text(shown)
@@ -584,7 +586,7 @@ fn line_row(
             .font(font)
             .color(t.text)
             .spans(spans)
-            .text_highlights(selected.into_iter().chain(brackets).chain(found))
+            .text_highlights(selected.into_iter().chain(brackets).chain(others).chain(found))
     };
     // `.cm-activeLine`: the line a file was opened at, 3 % of `--text` over the code (the number's own fill stays opaque); a picked
     // line takes the pick's fill instead.

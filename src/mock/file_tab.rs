@@ -58,6 +58,8 @@ pub enum Case {
     Compare,
     /// An import path being typed in a TypeScript file, with the popup open (piece U).
     Complete,
+    /// The word `size` selected in the first function: its other occurrences are marked (component 26, piece R).
+    Selected,
 }
 
 /// The invented project's logo (`assets/logo.svg`), 96 by 96 as its own size.
@@ -118,6 +120,7 @@ impl State {
                 | Case::Conflict
                 | Case::ConflictGone
                 | Case::Complete
+                | Case::Selected
         ) {
             self.sidebar.save_file_wrap(path, false);
         }
@@ -159,6 +162,16 @@ impl State {
                 }
             }
             Case::LinesAdded => self.append_draft_reference(&id, "@src/paginate.py:17-21"),
+            Case::Selected => {
+                self.file_buffers.edit(&machine, &id, path, |e, _| {
+                    e.set_caret(crate::fleet::code_edit::Pos::new(5, 17), false);
+                    e.set_caret(crate::fleet::code_edit::Pos::new(5, 21), true);
+                    ((), false)
+                });
+                self.code_edit.for_file(&(machine.clone(), id.clone(), path.to_string()));
+                self.code_edit.focused = true;
+                self.code_edit.take_focus = Some(crate::view::code_view::CODE);
+            }
             Case::Complete => {
                 self.file_buffers.edit(&machine, &id, path, |e, _| {
                     e.set_caret(crate::fleet::code_edit::Pos::new(1, 27), false);
@@ -213,6 +226,7 @@ impl State {
             | Case::Saving
             | Case::Conflict
             | Case::ConflictGone
+            | Case::Selected
             | Case::Compare => Ok(answer(SOURCE)),
             Case::Diff | Case::Stripe => Ok(answer(EDITED)),
             Case::Deleted => Err("Failed to read file: 404 Not Found".to_string()),

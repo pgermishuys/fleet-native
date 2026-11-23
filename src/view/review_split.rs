@@ -15,8 +15,23 @@ use rune::{Color, El, TextHighlight, col, row, text};
 const NO_W: f32 = 34.0;
 const MARK_W: f32 = 20.0;
 const TEXT_PAD: f32 = 16.0;
-/// A 12 px mono character is 0.6 em wide: how far a cell must reach so its longest line fits before the region scrolls.
-const CHAR_W: f32 = 7.2;
+/// How far a cell must reach so its longest line fits before the region scrolls: the font's own measure (row 7.7), not a guess of 0.6 em
+/// a character, which a wide character or a font with another width overran. Plain ASCII lines are all as wide as their length, so
+/// only the longest of those is measured; a line with anything else in it is measured itself.
+fn text_w(lines: impl Iterator<Item = String>) -> f32 {
+    let style = mono(12.0, 400.0, LINE_H / 12.0);
+    let (mut longest, mut widest) = (String::new(), 0.0f32);
+    for line in lines {
+        if line.is_ascii() {
+            if line.len() > longest.len() {
+                longest = line;
+            }
+        } else {
+            widest = widest.max(rune::text::advance(&line, style));
+        }
+    }
+    widest.max(rune::text::advance(&longest, style))
+}
 
 /// One side of a row: its number, marker and text on the line's tint, or the padding cell.
 #[allow(clippy::too_many_arguments)]
@@ -70,10 +85,8 @@ pub fn split_lines(t: &Theme, k: &Tints, path: &str, lines: &[ReviewLine], wrap:
         if wrap {
             return 0.0;
         }
-        let longest =
-            rows.iter().filter_map(|r| if old { r.left } else { r.right }).map(|l| l.line.content.chars().count()).max().unwrap_or(0)
-                as f32;
-        NO_W + MARK_W + TEXT_PAD + longest * CHAR_W
+        let lines = rows.iter().filter_map(|r| if old { r.left } else { r.right }).map(|l| l.line.content.clone());
+        NO_W + MARK_W + TEXT_PAD + text_w(lines)
     };
     let (old_w, new_w) = (need(true), need(false));
     let mut c = col().w_full();

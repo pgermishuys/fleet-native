@@ -127,3 +127,18 @@ fn derives_again_only_when_what_it_reads_changed() {
     assert!(calls > 0, "the edit and write calls are kept");
     assert!(!rt.state.keep_turns_tab(), "nothing changed, nothing derived");
 }
+
+// Row 4.62: Fleet's deep watch sees a reply stream into an older message; the check here read only the last two.
+#[test]
+fn derives_again_when_an_older_message_changes() {
+    let mut rt = shown(Case::Main);
+    rt.update(|s, _| {
+        let stream = s.stream.as_mut().expect("the case holds a stream");
+        assert!(stream.messages.len() > 3);
+        stream.messages[0].completed_at = Some(1);
+    });
+    assert!(rt.state.keep_turns_tab(), "a change in the first message is seen");
+    assert!(!rt.state.keep_turns_tab());
+    rt.update(|s, _| s.stream.as_mut().unwrap().last_event_id = Some(99));
+    assert!(rt.state.keep_turns_tab(), "so is any event");
+}

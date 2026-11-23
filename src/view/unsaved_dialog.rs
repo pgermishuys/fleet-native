@@ -3,7 +3,7 @@
 //! The same dialog family asks before the app quits with unsaved files (`use-unsaved-files-guard.ts`; Fleet's browser asks, the native
 //! app draws the question itself).
 use crate::State;
-use crate::fleet::unsaved::{CANCEL, Closing, DETAIL, DISCARD, QUIT_BUTTON, QUIT_TITLE, SAVE, SAVING, TITLE, quit_detail};
+use crate::fleet::unsaved::{CANCEL, Closing, DETAIL, DISCARD, QUIT_BUTTON, QUIT_SAVE, QUIT_TITLE, SAVE, SAVING, TITLE, quit_detail};
 use crate::theme::{Theme, sans};
 use crate::ui::button::{Size, Variant, button, disabled};
 use crate::ui::dialog::{Dialog, dialog};
@@ -17,20 +17,26 @@ pub fn view(s: &State, t: &Theme) -> Option<Vec<El>> {
     }
     let files = s.unsaved.quitting.as_ref()?;
     // The quit question is an alert too: Cancel is the way out, Escape is Cancel.
-    let cancel = button(t, Variant::Outline, Size::Default, None, CANCEL)
-        .key("unsaved-quit-cancel")
-        .autofocus()
-        .on_press(|s: &mut State| s.quit_unsaved_cancel());
-    let quit = button(t, Variant::Destructive, Size::Default, None, QUIT_BUTTON)
-        .key("unsaved-quit-confirm")
-        .on_press_tx(|s: &mut State, tx: &mut crate::Tx| s.quit_unsaved_confirm(tx));
+    let saving = s.unsaved.quit_saving.is_some();
+    let cancel = button(t, Variant::Outline, Size::Default, None, CANCEL).key("unsaved-quit-cancel").autofocus();
+    let quit = button(t, Variant::Destructive, Size::Default, None, QUIT_BUTTON).key("unsaved-quit-confirm");
+    let save = button(t, Variant::Default, Size::Default, None, if saving { SAVING } else { QUIT_SAVE }).key("unsaved-quit-save");
+    let (cancel, quit, save) = if saving {
+        (disabled(cancel), disabled(quit), disabled(save))
+    } else {
+        (
+            cancel.on_press(|s: &mut State| s.quit_unsaved_cancel()),
+            quit.on_press_tx(|s: &mut State, tx: &mut crate::Tx| s.quit_unsaved_confirm(tx)),
+            save.on_press_tx(|s: &mut State, tx: &mut crate::Tx| s.quit_unsaved_save_all(tx)),
+        )
+    };
     Some(dialog(
         t,
         Dialog {
             key: "unsaved-quit",
             title: QUIT_TITLE.into(),
             description: Some(quit_detail(files.len())),
-            footer: vec![cancel, quit],
+            footer: vec![cancel, quit, save],
             close_button: false,
             click_outside: false,
             dismiss: Some(|s: &mut State| s.quit_unsaved_cancel()),
