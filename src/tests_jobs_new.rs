@@ -105,7 +105,7 @@ fn new_job_posts_only_with_a_title_an_ask_and_a_repository_and_sends_them_trimme
     click(&mut r.rt, "new-job-post");
     r.wait("the post", |s| s.jobs.new.is_none());
     assert_eq!(
-        r.home.last("POST").body,
+        r.home.last("POST", "/api/jobs").body,
         json!({"title": "Add rate limits", "ask": "Limit the public endpoints.", "repository": "https://example.com/acme/ledger-api",
             "labels": ["mac", "gpu"], "pinnedMachineId": "m2"})
     );
@@ -119,7 +119,7 @@ fn new_job_pins_nothing_for_any_machine_that_fits_and_enter_in_a_field_posts() {
     type_into(&mut r.rt, "new-job-title", "Fix it");
     press_key(&mut r.rt, Key::Enter, Mods::default());
     r.wait("the post", |s| s.jobs.new.is_none());
-    let body = r.home.last("POST").body;
+    let body = r.home.last("POST", "/api/jobs").body;
     assert_eq!((body["pinnedMachineId"].clone(), body["labels"].clone()), (Value::Null, json!([])));
 }
 
@@ -222,8 +222,7 @@ fn shows_this_machines_seats_on_its_own_page_and_saves_a_change() {
     );
     set(&mut r, &seats_key("m1"), |f| &mut f.seats, "m1", "3");
     r.wait("the save", |s| !s.jobs.save.busy && s.jobs.machines[0].seats == 3);
-    let put = r.home.last("PUT");
-    assert_eq!((put.path.as_str(), put.body), ("/api/jobs/machines/m1", json!({"seats": 3})));
+    assert_eq!(r.home.last("PUT", "/api/jobs/machines/m1").body, json!({"seats": 3}));
 }
 
 #[test]
@@ -239,8 +238,7 @@ fn gives_another_machine_labels_trimmed_and_without_repeats() {
     );
     set(&mut r, &labels_key("m-falcon"), |f| &mut f.labels, "m-falcon", " mac, ios ,mac");
     r.wait("the save", |s| !s.jobs.save.busy && !s.jobs.machines[1].labels.is_empty());
-    let put = r.home.last("PUT");
-    assert_eq!((put.path.as_str(), put.body), ("/api/jobs/machines/m-falcon", json!({"labels": ["mac", "ios"]})));
+    assert_eq!(r.home.last("PUT", "/api/jobs/machines/m-falcon").body, json!({"labels": ["mac", "ios"]}));
 }
 
 #[test]
@@ -261,7 +259,7 @@ fn a_refused_save_says_why_and_clamps_the_seats_it_sent() {
     set(&mut r, &seats_key("m1"), |f| &mut f.seats, "m1", "99.7");
     r.wait("the refusal", |s| s.jobs.save.error.is_some());
     r.rt.frame(FRAME);
-    assert_eq!(r.home.last("PUT").body, json!({"seats": 16}), "truncated and clamped to 0..16");
+    assert_eq!(r.home.last("PUT", "/api/jobs/machines/m1").body, json!({"seats": 16}), "truncated and clamped to 0..16");
     assert_eq!(text_of(&r.rt, "machine-job-seats-error-m1-text").as_deref(), Some("Seats are 0 to 16."));
 }
 
