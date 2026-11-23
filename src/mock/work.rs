@@ -110,7 +110,7 @@ impl State {
             session.row.activity = "idle".into();
         }
         self.now_ms = Some(NOW);
-        self.work.collapsed = matches!(case, Case::Collapsed);
+        self.sidebar.set_strip_collapsed(matches!(case, Case::Collapsed));
         self.work.outputs.clear();
         self.work.details.clear();
         self.work.stop_errors.clear();

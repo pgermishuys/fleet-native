@@ -84,6 +84,8 @@ pub struct Sidebar {
     /// Only folded groups are kept: an open group has no entry.
     collapsed_groups: BTreeSet<String>,
     left_collapsed: bool,
+    /// `weave:background-strip-collapsed`: the work strip above the composer is folded to its header line.
+    strip_collapsed: bool,
     /// The last open/close choice of the right panel anywhere; `None` until one is made (Fleet reads that as open).
     last_right: Option<bool>,
     /// Each session's own choice, oldest first.
@@ -147,6 +149,7 @@ impl Sidebar {
             s.collapsed_groups = groups.iter().filter(|(_, v)| **v == Value::Bool(true)).map(|(k, _)| k.clone()).collect();
         }
         s.left_collapsed = root.get("leftCollapsed") == Some(&Value::Bool(true));
+        s.strip_collapsed = root.get("backgroundStripCollapsed") == Some(&Value::Bool(true));
         s.last_right = root.get("rightCollapsed").and_then(Value::as_bool);
         if let Some(Value::Array(pairs)) = root.get("rightCollapsedBySession") {
             for pair in pairs {
@@ -207,6 +210,9 @@ impl Sidebar {
         let groups: serde_json::Map<String, Value> = self.collapsed_groups.iter().map(|k| (k.clone(), Value::Bool(true))).collect();
         let by_session: Vec<Value> = self.right_by_session.iter().map(|(id, c)| json!([id, c])).collect();
         let mut root = json!({ "collapsedGroups": groups, "leftCollapsed": self.left_collapsed, "rightCollapsedBySession": by_session });
+        if self.strip_collapsed {
+            root["backgroundStripCollapsed"] = Value::Bool(true);
+        }
         if let Some(c) = self.last_right {
             root["rightCollapsed"] = Value::Bool(c);
         }
@@ -291,6 +297,18 @@ impl Sidebar {
 
     pub fn panel_collapsed(&self) -> bool {
         self.left_collapsed
+    }
+
+    /// Whether the background strip is folded: kept across restarts, and the same for every session.
+    pub fn strip_collapsed(&self) -> bool {
+        self.strip_collapsed
+    }
+
+    pub fn set_strip_collapsed(&mut self, collapsed: bool) {
+        if self.strip_collapsed != collapsed {
+            self.strip_collapsed = collapsed;
+            self.dirty = true;
+        }
     }
 
     pub fn set_panel_collapsed(&mut self, collapsed: bool) {

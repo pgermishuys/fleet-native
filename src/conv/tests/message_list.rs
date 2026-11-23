@@ -36,7 +36,7 @@ fn models() -> Vec<ModelOption> {
 }
 fn context<'a>(models: &'a [ModelOption], delegations: &'a [Delegation], thinking: Thinking) -> ListContext<'a> {
     static NONE: std::sync::LazyLock<crate::conv::background::Finished> = std::sync::LazyLock::new(Default::default);
-    ListContext { delegations, finished: &NONE, models, thinking }
+    ListContext { delegations, finished: &NONE, running: &[], older: &[], models, thinking }
 }
 fn list(messages: &[Msg], sent: &[SentPrompt], thinking: Thinking) -> Vec<ListMessage> {
     build_list(messages, sent, &context(&models(), &[], thinking))

@@ -91,6 +91,8 @@ pub struct SessionStore {
     loaded_once: bool,
     /// Sessions on other machines opened here, oldest first, with their machine's key. The live list never holds them.
     elsewhere: Vec<(String, Session)>,
+    /// The home list's sub-agent sessions: not in the list, but reachable by id (Open on a sub-agent's row).
+    pub subagents: Vec<Session>,
 }
 
 impl SessionStore {
@@ -178,6 +180,7 @@ impl SessionStore {
             .iter()
             .flat_map(|p| &p.sessions)
             .find(|s| s.id == id)
+            .or_else(|| self.subagents.iter().find(|s| s.id == id))
             .or_else(|| self.elsewhere.iter().map(|(_, s)| s).find(|s| s.id == id))
     }
 

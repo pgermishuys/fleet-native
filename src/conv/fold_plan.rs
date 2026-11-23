@@ -32,9 +32,23 @@ pub struct FoldPlan {
     pub turns: HashMap<String, String>,
     /// The calls whose page a later show of the same file in the turn replaced (`withoutRedrawnPages`).
     pub pages_hidden: HashSet<String>,
+    /// Each message's place in its run of one sender (`ListMessage::cluster`), the neighbours the view spaces by.
+    pub cluster: HashMap<String, super::message_list::ClusterPosition>,
 }
 
 impl FoldPlan {
+    /// Whether the message above and the one below are the same sender's, as the list clustered them; `None` for a message
+    /// the plan doesn't hold (a side conversation's), which the view reads by its neighbours' roles.
+    pub fn grouped(&self, id: &str) -> Option<(bool, bool)> {
+        use super::message_list::ClusterPosition::{First, Last, Middle, Single};
+        Some(match self.cluster.get(id)? {
+            Single => (false, false),
+            First => (false, true),
+            Middle => (true, true),
+            Last => (true, false),
+        })
+    }
+
     /// How many of `len` messages draw.
     pub fn count(&self, len: usize) -> usize {
         self.visible.as_ref().map_or(len, Vec::len)
@@ -62,7 +76,12 @@ impl FoldPlan {
         let pages_hidden = without_redrawn_pages(&mut list);
         let folded = fold_turns(&list, options);
         let shown: HashSet<&str> = folded.iter().map(|m| m.id.as_str()).collect();
-        let mut plan = FoldPlan { turns: turn_ids_of(&list), pages_hidden, ..FoldPlan::default() };
+        let mut plan = FoldPlan {
+            turns: turn_ids_of(&list),
+            pages_hidden,
+            cluster: list.iter().map(|m| (m.id.clone(), m.cluster)).collect(),
+            ..FoldPlan::default()
+        };
         for before in &list {
             if !shown.contains(before.id.as_str()) {
                 plan.hidden.insert(before.id.clone());

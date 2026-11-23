@@ -1136,8 +1136,8 @@ fn the_header_collapses_the_list_and_keeps_the_summary() {
     click(&mut rt, "background-strip-toggle");
     assert!(rt.find("work-row-s1").is_none());
     assert!(rt.find("background-strip-summary").is_some());
-    // The flag is the app's, not the session's: it is kept for the run (row 4.4).
-    assert!(rt.state.work.collapsed);
+    // The flag is the app's, not the session's, and the settings file keeps it (row 4.4).
+    assert!(rt.state.sidebar.strip_collapsed());
     click(&mut rt, "background-strip-toggle");
     assert!(rt.find("work-row-s1").is_some());
 }

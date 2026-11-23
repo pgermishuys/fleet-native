@@ -395,6 +395,8 @@ mod tests_starters;
 #[cfg(test)]
 mod tests_status_bar;
 #[cfg(test)]
+mod tests_subagents;
+#[cfg(test)]
 mod tests_summary_bar;
 #[cfg(test)]
 mod tests_terminal;
@@ -4043,6 +4045,8 @@ pub fn spec() -> AppSpec<State> {
             ("header-long-text-light", |s| s.show_header(mock::header::Case::LongText, false, true)),
             ("header-subagent", |s| s.show_header(mock::header::Case::Subagent, true, true)),
             ("header-subagent-light", |s| s.show_header(mock::header::Case::Subagent, false, true)),
+            ("subagent-prompt-line", |s| s.show_subagent_prompt_line(true)),
+            ("subagent-prompt-line-light", |s| s.show_subagent_prompt_line(false)),
             // Component 8, piece D: the toolbar, the ⋯ menu and the delete question.
             ("toolbar-abort", |s| s.show_toolbar(mock::header::Case::Retry, true, fleet::toolbar::Scene::Plain)),
             ("toolbar-abort-light", |s| s.show_toolbar(mock::header::Case::Retry, false, fleet::toolbar::Scene::Plain)),

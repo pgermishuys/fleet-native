@@ -5,7 +5,7 @@
 //!
 //! Not ported on purpose: the WeakMap caches that keep a message's view the same object from one update to the next
 //! (the native stream memoises rows instead), and `message-diagnostics.ts`, a localStorage log nobody sees.
-use super::background::{Finished, background_status, delegation_of, parse_background_notice};
+use super::background::{Finished, background_status, delegation_of, parse_background_notice, work_of_call, work_status};
 use super::gist::Thinking;
 use super::tools::{Category, ToolRowItem, ToolStatus, get_tool};
 use crate::composer::choice::ModelOption;
@@ -14,6 +14,7 @@ use crate::fleet::delegations::Delegation;
 use crate::fleet::model::{ModMark, Msg, PartData, SlashCommand};
 use crate::fleet::prompts::{PromptStatus, SentPrompt, merge_by_timestamp};
 use crate::fleet::reducer::compare_message_ids;
+use crate::fleet::work::RunningWorkItem;
 use crate::view::conversation::Role;
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
@@ -385,6 +386,9 @@ pub struct ListContext<'a> {
     pub delegations: &'a [Delegation],
     /// How the background work in the conversation ended (`finishedBackgroundWork`).
     pub finished: &'a Finished,
+    /// The session's running-work items and the older ones asked for (`workByCall`): a call shows the state of the work it started.
+    pub running: &'a [RunningWorkItem],
+    pub older: &'a [RunningWorkItem],
     pub models: &'a [ModelOption],
     pub thinking: Thinking,
 }
@@ -398,8 +402,10 @@ fn text_at(value: &Value, key: &str) -> Option<String> {
 }
 
 fn list_tool(id: &str, kind: &str, call_id: &str, state: &Value, context: &ListContext) -> ListTool {
-    let status =
-        background_status(state, context.finished).unwrap_or_else(|| ToolStatus::from_word(state.get("status").and_then(Value::as_str)));
+    let work = work_of_call(context.running, context.older, call_id);
+    let status = work_status(work)
+        .or_else(|| background_status(state, context.finished))
+        .unwrap_or_else(|| ToolStatus::from_word(state.get("status").and_then(Value::as_str)));
     let mut tool = ListTool::new(id, kind, status);
     // A sub-agent call points at its session once there is one (`withDelegation`).
     tool.delegation = get_tool(kind).category == Category::Subagent && delegation_of(context.delegations, call_id, id).is_some();
