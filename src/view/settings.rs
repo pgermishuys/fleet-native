@@ -65,6 +65,7 @@ pub mod updates_strip;
 pub mod updates_version;
 pub mod updates_whats_new;
 
+use super::machine_page;
 use super::machines_page;
 use crate::State;
 use crate::fleet::settings_nav::Page;
@@ -279,7 +280,10 @@ pub fn detail(s: &State, t: &Theme) -> El {
     } else if *page == Page::Folders {
         folders::content(s, t)
     } else if *page == Page::Machines {
-        machines_page::content(s, t)
+        match s.managed_card() {
+            Some(card) => machine_page::content(s, t, &card),
+            None => machines_page::content(s, t),
+        }
     } else if *page == Page::Plugins {
         plugins::content(s, t)
     } else if let Page::Plugin(id) = page {

@@ -75,6 +75,7 @@ pub mod machine_card;
 pub mod machine_group;
 pub mod machine_header;
 pub mod machine_job_seats;
+pub mod machine_page;
 pub mod machine_picker;
 pub mod machine_switch;
 pub mod machines_page;

@@ -4368,6 +4368,12 @@ pub fn spec() -> AppSpec<State> {
             ("machines-page-rename", |s| s.show_machines_page_rename(true)),
             ("machines-page-details", |s| s.show_machines_page_details(true)),
             ("machines-page-details-light", |s| s.show_machines_page_details(false)),
+            // Component 26, piece G: a machine's own page.
+            ("machines-page-token-form", |s| s.show_machines_page_token_form(true)),
+            ("machine-page-home", |s| s.show_machine_page(true, "home")),
+            ("machine-page-home-light", |s| s.show_machine_page(false, "home")),
+            ("machine-page-falcon", |s| s.show_machine_page(true, "m-falcon")),
+            ("machine-page-falcon-light", |s| s.show_machine_page(false, "m-falcon")),
             ("machines-page-error", |s| s.show_machines_page_errors(true)),
             // Piece M: how a machine is reached.
             ("machines-page-addresses", |s| s.show_machines_page_addresses(true)),

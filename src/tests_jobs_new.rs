@@ -194,6 +194,8 @@ fn seats_rig() -> Rig {
         s.show_machines_page(true, false);
         s.rail = Rail::Settings;
         s.machines.list.retain(|m| m.id == "m-falcon");
+        // The seats are on the machine's own page (`MachinePage.vue`), home's first.
+        s.manage_machine("home");
     });
     r.rt.frame(FRAME);
     r.wait("the queue", |s| s.jobs.is_loaded && s.jobs.seat_fields.contains_key("m1"));
@@ -208,7 +210,7 @@ fn set(r: &mut Rig, key: &str, which: fn(&mut crate::fleet::jobs::new_job::SeatF
 }
 
 #[test]
-fn shows_this_machines_seats_on_the_home_card_and_saves_a_change() {
+fn shows_this_machines_seats_on_its_own_page_and_saves_a_change() {
     let mut r = seats_rig();
     assert_eq!(r.rt.state.jobs.seat_fields["m1"].seats.text, "2");
     assert!(shown(&r.rt, &seats_key("m1")));
@@ -227,6 +229,8 @@ fn shows_this_machines_seats_on_the_home_card_and_saves_a_change() {
 #[test]
 fn gives_another_machine_labels_trimmed_and_without_repeats() {
     let mut r = seats_rig();
+    r.rt.update(|s, _| s.manage_machine("m-falcon"));
+    r.rt.frame(FRAME);
     r.home.route(
         "PUT",
         "/api/jobs/machines/m-falcon",
@@ -245,6 +249,8 @@ fn draws_nothing_for_a_machine_the_home_fleet_doesnt_list() {
     r.rt.update(|s, _| s.jobs.machines.retain(|m| m.id == "m1"));
     r.rt.frame(FRAME);
     assert!(shown(&r.rt, "machine-job-seats-m1"));
+    r.rt.update(|s, _| s.manage_machine("m-falcon"));
+    r.rt.frame(FRAME);
     assert!(!shown(&r.rt, "machine-job-seats-m-falcon") && !shown(&r.rt, &seats_key("m-falcon")));
 }
 

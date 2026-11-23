@@ -1,6 +1,7 @@
-//! One machine's card on Settings → Machines (`MachinesSection.vue`, the `<li class="machine-card">` and its scoped CSS) and the
-//! Details panel under it (`MachineDiagnosisPanel.vue`). Home's card has Rename only; another machine's also has Work here, New
-//! token and Forget, and the "Agents here can send it work" setting. Every word comes from `fleet::machine_card`.
+//! One machine's card (`MachinesSection.vue`, the `<li class="machine-card">` and its scoped CSS) and the Details panel
+//! (`MachineDiagnosisPanel.vue`). On the list (`card`) it is the state lines with Work here and Manage; on the machine's own page
+//! (`page_card`, `MachinePage.vue`'s "About this machine") it adds the route line, agent work, job seats and Details, with Work
+//! here, Rename and Forget. Every word comes from `fleet::machine_card`.
 use super::settings::kit;
 use crate::fleet::machine_actions::{RENAME_FIELD, TOKEN_FIELD, parse_agent_work};
 use crate::fleet::machine_card::{Card, Tone};
@@ -41,7 +42,7 @@ pub fn faded(e: El) -> El {
 }
 
 /// `inputClass` at `py-1`: a 1px border, the page's colour, 12.25px text, an accent border while focused.
-fn field(t: &Theme, edit: &rune::TextEdit, key: &str, label: &str, placeholder: &str, width: f32) -> El {
+pub(super) fn field(t: &Theme, edit: &rune::TextEdit, key: &str, label: &str, placeholder: &str, width: f32) -> El {
     text_input(edit, sans(rem(0.875), 400.0, 1.4))
         .key(key.to_string())
         .label(label.to_string())
@@ -214,8 +215,8 @@ fn renaming(s: &State, t: &Theme) -> El {
     row().flex_wrap().center_y().gap(8.0).child(input).child(save).child(cancel)
 }
 
-/// The new-token field, saved with Enter or Save.
-fn token_form(s: &State, t: &Theme, name: &str) -> El {
+/// The new-token field, masked, saved with Enter or Save.
+pub fn token_form(s: &State, t: &Theme, name: &str) -> El {
     let page = &s.machine_page;
     let busy = page.token_for.as_deref().is_some_and(|k| page.busy.as_deref() == Some(k));
     let input = field(t, &page.token, TOKEN_FIELD, &format!("New token for {name}"), "Paste the new token", 320.0)
@@ -235,11 +236,11 @@ fn token_form(s: &State, t: &Theme, name: &str) -> El {
     let save = plain_button(t, "machine-token-save".into(), "Save");
     let save = if busy || empty { faded(save) } else { save.on_press(|s: &mut State| s.save_machine_token()) };
     let cancel = plain_button(t, "machine-token-cancel".into(), "Cancel").on_press(|s: &mut State| s.cancel_machine_token());
-    row().mt(8.0).flex_wrap().center_y().gap(8.0).child(input).child(save).child(cancel)
+    row().flex_wrap().center_y().gap(8.0).child(input).child(save).child(cancel)
 }
 
 /// `ErrorNote` (`compact`): one line under the card's fields.
-fn error_line(t: &Theme, key: String, why: &str) -> El {
+pub(super) fn error_line(t: &Theme, key: String, why: &str) -> El {
     row()
         .key(key)
         .role("alert")
@@ -250,14 +251,24 @@ fn error_line(t: &Theme, key: String, why: &str) -> El {
         .child(text(why.to_string()).font(sans(rem(0.75), 400.0, 1.33)).color(t.error_text).wrap().shrink().min_w(0.0))
 }
 
+/// A machine on the list: its lines, Work here and Manage.
 pub fn card(s: &State, t: &Theme, c: &Card) -> El {
+    build(s, t, c, false)
+}
+
+/// "About this machine" on the machine's own page.
+pub fn page_card(s: &State, t: &Theme, c: &Card) -> El {
+    build(s, t, c, true)
+}
+
+fn build(s: &State, t: &Theme, c: &Card, on_page: bool) -> El {
     let page = &s.machine_page;
     let dot = el().key(format!("machine-dot-{}", c.key)).size(8.0, 8.0).mt(6.0).radius(4.0).fill(match c.tone {
         Tone::Ok => t.running,
         Tone::Bad => t.error,
         Tone::Muted => t.muted,
     });
-    let is_renaming = page.renaming.as_deref() == Some(c.key.as_str());
+    let is_renaming = on_page && page.renaming.as_deref() == Some(c.key.as_str());
     let mut names = col().grow(1.0).shrink().min_w(0.0).gap(2.0);
     names = if is_renaming {
         names.child(renaming(s, t))
@@ -279,15 +290,12 @@ pub fn card(s: &State, t: &Theme, c: &Card) -> El {
     names = names
         .child(text(c.location.clone()).key(format!("machine-location-{}", c.key)).font(small).color(t.muted).wrap().w_full())
         .child(text(c.state.clone()).key(format!("machine-state-{}", c.key)).font(small).color(tone_ink(t, c.tone)).wrap().w_full());
-    if let Some(r) = &c.route {
-        names = names.child(super::machine_addresses::route(t, &c.key, r));
-    }
-    if let Some(list) = super::machine_addresses::list(s, t, c) {
-        names = names.child(list);
-    }
     if let Some(line) = &c.reach {
         let ink = if line.tone == ReachTone::Out { t.error_text } else { t.muted };
         names = names.child(text(line.text.clone()).key(format!("machine-reach-line-{}", c.key)).font(small).color(ink).wrap().w_full());
+    }
+    if let Some(r) = c.route.as_ref().filter(|_| on_page) {
+        names = names.child(super::machine_addresses::route(t, &c.key, r));
     }
     if let Some(line) = &c.capabilities {
         let mut e = text(line.clone()).key(format!("machine-capabilities-{}", c.key)).font(small).color(t.muted).wrap().w_full();
@@ -296,53 +304,51 @@ pub fn card(s: &State, t: &Theme, c: &Card) -> El {
         }
         names = names.child(e);
     }
-    if let Some((work, level)) = &c.agent_work {
-        names = names.child(agent_work(s, t, c, *work, level));
-    }
-    if let Some(seats) = super::machine_job_seats::view(s, t, &c.key) {
-        names = names.child(seats);
-    }
-    if page.token_for.as_deref() == Some(c.key.as_str()) {
-        names = names.child(token_form(s, t, &c.name));
-    }
-    if let Some(why) = &c.diagnosis {
-        names = names.child(details(s, t, c, why));
-    }
-    if let Some(why) = page.errors.get(&c.key) {
-        names = names.child(error_line(t, format!("machine-error-{}", c.key), why));
+    if on_page {
+        if let Some((work, level)) = &c.agent_work {
+            names = names.child(agent_work(s, t, c, *work, level));
+        }
+        if let Some(seats) = super::machine_job_seats::view(s, t, &c.key) {
+            names = names.child(seats);
+        }
+        if let Some(why) = &c.diagnosis {
+            names = names.child(details(s, t, c, why));
+        }
+        if let Some(why) = page.errors.get(&c.key) {
+            names = names.child(error_line(t, format!("machine-error-{}", c.key), why));
+        }
     }
 
     let mut actions = row().flex_wrap().gap(6.0).items_start().justify_end();
     if !is_renaming {
-        let (open, rename, token, forget) = (c.key.clone(), c.key.clone(), c.key.clone(), c.key.clone());
+        let open = c.key.clone();
         if !c.live {
             actions = actions
                 .child(plain_button(t, format!("machine-open-{}", c.key), "Work here").on_press(move |s: &mut State| s.work_here(&open)));
         }
-        let manage = c.key.clone();
-        actions = actions.child(
-            plain_button(t, format!("machine-manage-{}", c.key), "Manage")
-                .label(format!("{}'s page", c.name))
-                .on_press(move |s: &mut State| s.manage_machine(&manage)),
-        );
-        actions = actions.child(
-            plain_button(t, format!("machine-rename-{}", c.key), "Rename")
-                .on_press_tx(move |s: &mut State, tx: &mut Tx| s.start_card_rename(&rename, tx)),
-        );
-        if !c.is_home {
-            actions = actions
-                .child(
-                    plain_button(t, format!("machine-token-{}", c.key), "New token")
-                        .on_press_tx(move |s: &mut State, tx: &mut Tx| s.start_machine_token(&token, tx)),
-                )
-                .child(
+        if !on_page {
+            let manage = c.key.clone();
+            actions = actions.child(
+                plain_button(t, format!("machine-manage-{}", c.key), "Manage")
+                    .label(format!("{}'s page", c.name))
+                    .on_press(move |s: &mut State| s.manage_machine(&manage)),
+            );
+        } else {
+            let (rename, forget) = (c.key.clone(), c.key.clone());
+            actions = actions.child(
+                plain_button(t, format!("machine-rename-{}", c.key), "Rename")
+                    .on_press_tx(move |s: &mut State, tx: &mut Tx| s.start_card_rename(&rename, tx)),
+            );
+            if !c.is_home {
+                actions = actions.child(
                     plain_button(t, format!("machine-forget-{}", c.key), "Forget")
                         .on_press_tx(move |s: &mut State, tx: &mut Tx| s.ask_forget_machine(&forget, tx)),
                 );
+            }
         }
     }
     row()
-        .key(format!("machine-card-{}", c.key))
+        .key(format!("machine-{}-{}", if on_page { "about" } else { "card" }, c.key))
         .w_full()
         .flex_wrap()
         .items_start()

@@ -2969,3 +2969,12 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 - **A focused text field takes Esc before the window's `on_key`** (`edit/input.rs`: `Key::Escape => out.blur = true`), so a window-level Esc handler never sees it while a field has the focus. A field that must clear itself on Esc, as a `type=search` box does, uses `.on_input_key` on the `text_input` and returns true (the list's filter, piece 26P).
 - **A pinned row that moves is a new element in the Pinned group**, so the focus it had is lost (it falls to the group's `pinned` element). After a pin move, ask for the focus again by the row's key once the list is drawn (`tx.focus("session-<p>-<i>", true)` from the poll, piece 26P).
 - **No right-aligned absolute position**: `absolute(left, top)` is all Rune has; a button laid over the right end of a field is a row with the button given `.ml(-width)` over the field, which grows (the filter's clear button).
+
+## Component 26, piece G (a machine's own page)
+
+- **A secure field kept in a `Default` struct**: `TextEdit::default()` is not secure, and `.secure()` has to be called on the value you
+  bind. Where the edit lives in a struct that derives `Default` (the Add a machine form), pass the accessor given to `on_edit` through
+  a helper that calls `set_secure(true)` first (`machine_actions::masked`): the field is masked from the first key, and the empty
+  field before it has nothing to hide. A secure field's typed text is not in `rt.elements()`, so a test asserts `is_secure()` and
+  reads the text from the state.
+- **A trail with one link is a chevron-left and the link**, not `trail`'s chevron-right between steps: one step holds both.

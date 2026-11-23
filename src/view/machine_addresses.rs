@@ -1,4 +1,4 @@
-//! A card's "how it is reached" lines and its address list (`MachinesSection.vue` `routeLine`, `MachineAddressList.vue`): the
+//! A machine's page: its "how it is reached" line and its address list (`MachinesSection.vue` `routeLine`, `MachineAddressList.vue`): the
 //! address in use and the others in the order Fleet tries them. Drag a row by its handle, or focus the handle and press
 //! Alt+Up / Alt+Down (plain Up / Down work too); with one address there is nothing to order, so it is shown plainly.
 use crate::fleet::machine_addresses::{handle_key, row_key};
@@ -110,7 +110,7 @@ pub fn list(s: &State, t: &Theme, c: &Card) -> Option<El> {
         return None;
     }
     let small = sans(11.5, 400.0, 1.4);
-    let mut e = col().key(format!("machine-addresses-{}", c.key)).w_full().gap(6.0).mt(6.0);
+    let mut e = col().key(format!("machine-addresses-{}", c.key)).w_full().gap(6.0);
     if let [only] = c.addresses.as_slice() {
         return Some(
             e.child(text("Address").font(small).color(t.muted)).child(

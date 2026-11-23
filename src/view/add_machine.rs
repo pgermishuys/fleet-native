@@ -233,7 +233,7 @@ pub fn form(s: &State, t: &Theme) -> El {
                     t,
                     "Access token",
                     input(t, &f.token, TOKEN_FIELD, "Access token", "Paste the machine's token", sans(rem(0.875), 400.0, 1.4), f.adding)
-                        .on_edit(|s: &mut State| &mut s.machine_page.add.token),
+                        .on_edit(|s: &mut State| crate::fleet::machine_actions::masked(&mut s.machine_page.add.token)),
                     Some("This is the machine's full-access token. A pairing link is safer."),
                 ));
             } else {
