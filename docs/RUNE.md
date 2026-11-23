@@ -2997,3 +2997,8 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 - **`ElementInfo.opacity` follows the element's opacity transition**: a button that goes from `faded` (0.6) to plain reads below 1.0 for a few frames, so a test that checks "off" by opacity draws a few frames (three of 0.2 s) first. `.disabled(true)` itself isn't in `ElementInfo`, and `focusable` is no help (a plain `button` isn't focusable either).
 - **`.grow(1.0)` already sets flex-basis 0**: equal tabs (`flex-1`) need nothing more; there is no `.basis(..)`.
 - **Commands inside a line** (`.machine-code`): `rich(..)` with `Span::new(a, b).mono().size(s * 0.85).bg(t.accent_dim, 2.0)`.
+
+## Component 26, piece N (the conversation, the rest)
+
+- **Two cards, one key name:** a key press goes to the element holding the focus, and `tx.focus(key)` finds the first element with that key, so two cards that both call a button `permission-allow-once` can never be told apart. Every element a key can land on gets its card's id in its key after the first card (`view::permission::ck`, `view::question::suffix`); the key handler reads the card back from the focused key.
+- **A column that is wider than the message column** (Fleet's interrupted card is as wide as the stream, 772, not 760) can't sit inside `virtual_rows` under `max_w`: it is a sibling after the rows (`Scroll::interrupted`).

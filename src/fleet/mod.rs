@@ -183,6 +183,7 @@ pub mod terminals;
 pub mod tls;
 pub mod toolbar;
 pub mod topics;
+pub mod turn_stats;
 pub mod turns;
 pub mod turns_tab;
 pub mod unsaved;

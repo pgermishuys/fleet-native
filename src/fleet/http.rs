@@ -480,6 +480,11 @@ pub fn progress(base: &str, session: &str) -> Result<(u16, Value), String> {
     status_of("GET", base, &format!("/api/sessions/{session}/progress"))
 }
 
+/// `GET /api/sessions/{id}/turn-stats`: the session's files as each turn ended (`useTurnStats`).
+pub fn turn_stats(base: &str, session: &str) -> Result<(u16, Value), String> {
+    status_of("GET", base, &format!("/api/sessions/{session}/turn-stats"))
+}
+
 /// `GET /api/sessions/{id}/diffs`: the session's changed files, without their contents (`use-diffs.ts`).
 pub fn diffs(base: &str, session: &str) -> Result<(u16, Value), String> {
     status_of("GET", base, &format!("/api/sessions/{session}/diffs"))

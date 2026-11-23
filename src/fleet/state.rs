@@ -777,10 +777,16 @@ impl State {
             models: &[],
             thinking: self.thinking,
         };
-        let options = FoldOptions { running, keep_last: self.watched.watched(), directory: None, open: &self.turns_open };
-        let mut plan = FoldPlan::build(&stream.messages, sent, &context, &options);
+        let directory = self.session().row.directory.clone();
+        let directory = (!directory.is_empty()).then_some(directory);
+        let options = FoldOptions { running, keep_last: self.watched.watched(), directory: directory.as_deref(), open: &self.turns_open };
+        let stats = self.conversation_file_stats();
+        let snapshots = self.turn_stats.snapshots_of(&self.stream_of.clone().unwrap_or_default());
+        let mut plan = FoldPlan::build_with_stats(&stream.messages, sent, &context, &options, stats.as_ref(), Some(snapshots));
         plan.place(self.session().messages.iter().map(|m| m.id.as_str()));
+        let whole_file = plan.whole_file_write;
         self.fold_plan = plan;
+        self.keep_turn_stats(whole_file, running);
     }
 
     /// The fold row's click.

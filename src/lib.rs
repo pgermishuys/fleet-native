@@ -263,6 +263,8 @@ mod tests_palette_last_five;
 #[cfg(test)]
 mod tests_panel;
 #[cfg(test)]
+mod tests_peer;
+#[cfg(test)]
 mod tests_pr_popover;
 #[cfg(test)]
 mod tests_progress;
@@ -759,6 +761,8 @@ pub struct State {
     /// The open session's machine stopped answering: its name (`quietMachine`). The machines list is another
     /// component's, so nothing sets it yet but a scene.
     pub quiet_machine: Option<String>,
+    /// The files as each turn ended, for a folded turn's counts (`fleet::turn_stats`).
+    pub turn_stats: fleet::turn_stats::TurnStats,
     /// The other machines home lists and what is known of each (`fleet::machines`).
     pub machines: fleet::machines::Machines,
     /// A parent session's children shown or hidden by its caret, by session id; the rest follow `opens_by_itself`.
@@ -1089,6 +1093,7 @@ impl Default for State {
             auto: Default::default(),
             interrupt_acts: Default::default(),
             quiet_machine: None,
+            turn_stats: Default::default(),
             machines: Default::default(),
             machine_children: Default::default(),
             machine_menu: None,
@@ -5356,6 +5361,11 @@ pub fn spec() -> AppSpec<State> {
                 s.show_working(mock::working::Case::Retry)
             }),
             ("working-quiet", |s| s.show_working(mock::working::Case::Quiet)),
+            ("peer-messages", |s| s.show_peer_messages()),
+            ("peer-messages-light", |s| {
+                s.dark = Some(false);
+                s.show_peer_messages()
+            }),
             ("interrupted", |s| s.show_interrupted(mock::working::Cut::Working)),
             ("interrupted-light", |s| {
                 s.dark = Some(false);

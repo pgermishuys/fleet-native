@@ -1,7 +1,7 @@
 //! What the stream draws of its messages once finished turns fold, as plain data the view reads: which messages are gone,
 //! which one hosts each fold row, which tool calls and thinking blocks stay. It is `foldTurns` over `buildList` of the
 //! reducer's messages, kept beside the view's own messages by id (the view's `Message` is drawn from the same ones).
-use super::fold::{FoldOptions, fold_turns, turn_ids_of};
+use super::fold::{FileStats, FoldOptions, TurnStatsSnapshot, fold_turns, turn_ids_of, with_file_stats};
 use super::message_list::{ListContext, ListMessage, build_list, without_redrawn_pages};
 use crate::fleet::model::Msg;
 use crate::fleet::prompts::SentPrompt;
@@ -32,6 +32,11 @@ pub struct FoldPlan {
     pub turns: HashMap<String, String>,
     /// The calls whose page a later show of the same file in the turn replaced (`withoutRedrawnPages`).
     pub pages_hidden: HashSet<String>,
+    /// A call wrote a whole file, so its counts come from the session's diff and the server's turn snapshots.
+    pub whole_file_write: bool,
+    /// What the session's diff says each whole-file write changed, by the call's part id: `None` while that isn't known (no
+    /// counts are drawn then, never the lines of the file's new contents).
+    pub whole_file_stats: HashMap<String, Option<(u32, u32)>>,
     /// Each message's place in its run of one sender (`ListMessage::cluster`), the neighbours the view spaces by.
     pub cluster: HashMap<String, super::message_list::ClusterPosition>,
 }
@@ -72,13 +77,36 @@ impl FoldPlan {
     }
 
     pub fn build(messages: &[Msg], sent: &[SentPrompt], context: &ListContext, options: &FoldOptions) -> FoldPlan {
+        Self::build_with_stats(messages, sent, context, options, None, None)
+    }
+
+    /// `build`, with the file counts a call that wrote a whole file gets (`withFileStats`): the session diff's, and the
+    /// server's snapshots of each turn's end.
+    pub fn build_with_stats(
+        messages: &[Msg],
+        sent: &[SentPrompt],
+        context: &ListContext,
+        options: &FoldOptions,
+        stats: Option<&FileStats>,
+        snapshots: Option<&[TurnStatsSnapshot]>,
+    ) -> FoldPlan {
         let mut list = build_list(messages, sent, context);
         let pages_hidden = without_redrawn_pages(&mut list);
+        let whole_file_write = list.iter().any(|m| m.tools.iter().any(|t| t.diff_from_content));
+        let list = with_file_stats(&list, stats, options.directory, snapshots);
+        let whole_file_stats = list
+            .iter()
+            .flat_map(|m| &m.tools)
+            .filter(|t| t.diff_from_content)
+            .map(|t| (t.id.clone(), t.diff_stat.map(|stat| (stat.additions, stat.deletions))))
+            .collect();
         let folded = fold_turns(&list, options);
         let shown: HashSet<&str> = folded.iter().map(|m| m.id.as_str()).collect();
         let mut plan = FoldPlan {
             turns: turn_ids_of(&list),
             pages_hidden,
+            whole_file_write,
+            whole_file_stats,
             cluster: list.iter().map(|m| (m.id.clone(), m.cluster)).collect(),
             ..FoldPlan::default()
         };

@@ -111,14 +111,15 @@ pub fn card(t: &Theme, card: &QuestionCard, first: bool) -> El {
         .focusable(true)
         .focus_ring(2.0, 2.0, t.accent)
         .child(head(t, &title));
+    let sfx = suffix(card, first);
     for (qi, q) in card.input.questions.iter().enumerate() {
-        out = out.child(section(t, card, qi, q));
+        out = out.child(section(t, card, qi, q, &sfx));
     }
     if let Some(error) = &card.error {
         // `.qcard__error`, role alert: Fleet's own words for why it didn't go.
         out = out.child(text(error.clone()).key("question-error").label("alert").font(sans(12.0, 400.0, 1.4)).color(t.error_text).wrap());
     }
-    out.child(foot(t, card))
+    out.child(foot(t, card, &sfx))
 }
 
 /// `.qcard__head`: the icon, the first question's header, and "Needs you" at the far end.
@@ -134,7 +135,7 @@ fn head(t: &Theme, title: &str) -> El {
 }
 
 /// One question: its sub-heading, its text, "Pick any that apply." and the choices (`.qcard__question`).
-fn section(t: &Theme, card: &QuestionCard, qi: usize, q: &QuestionInfo) -> El {
+fn section(t: &Theme, card: &QuestionCard, qi: usize, q: &QuestionInfo, sfx: &str) -> El {
     let mut out = col().key(format!("question-{qi}")).w_full().gap(8.0);
     if qi > 0 && !q.header.is_empty() {
         out = out.child(text(plain(&q.header)).key(format!("question-subhead-{qi}")).font(sans(12.0, 600.0, 1.3)).color(t.muted).mt(4.0));
@@ -150,10 +151,10 @@ fn section(t: &Theme, card: &QuestionCard, qi: usize, q: &QuestionInfo) -> El {
         .w_full()
         .gap(4.0);
     for (oi, o) in q.options.iter().enumerate() {
-        group = group.child(choice(t, card, qi, oi, q, o.label.clone(), &o.description));
+        group = group.child(choice(t, card, qi, oi, q, o.label.clone(), &o.description, sfx));
     }
     if q.custom {
-        group = group.child(other(t, card, qi, q));
+        group = group.child(other(t, card, qi, q, sfx));
     }
     out.child(group)
 }
@@ -205,7 +206,8 @@ fn key_chip(t: &Theme, number: usize, picked: bool, check: bool) -> El {
     }
 }
 
-fn choice(t: &Theme, card: &QuestionCard, qi: usize, oi: usize, q: &QuestionInfo, label: String, description: &str) -> El {
+#[allow(clippy::too_many_arguments)]
+fn choice(t: &Theme, card: &QuestionCard, qi: usize, oi: usize, q: &QuestionInfo, label: String, description: &str, sfx: &str) -> El {
     let picked = card.sel.is_picked(qi, &label);
     let mut copy = col().gap(1.0).grow(1.0).min_w(0.0).child(text(plain(&label)).font(sans(13.0, 500.0, 1.5)).color(t.text).wrap());
     if !description.is_empty() {
@@ -213,7 +215,7 @@ fn choice(t: &Theme, card: &QuestionCard, qi: usize, oi: usize, q: &QuestionInfo
     }
     let (id, pick) = (card.id.clone(), label.clone());
     box_of(t, picked)
-        .key(format!("question-pill-{label}"))
+        .key(format!("question-pill-{label}{sfx}"))
         .role(if q.multiple { "checkbox" } else { "radio" })
         .checked(picked)
         .focusable(!card.busy)
@@ -230,9 +232,9 @@ fn choice(t: &Theme, card: &QuestionCard, qi: usize, oi: usize, q: &QuestionInfo
 }
 
 /// `.qcard__choice--other`: a borderless field with its number; typed words give it the picked look.
-fn other(t: &Theme, card: &QuestionCard, qi: usize, q: &QuestionInfo) -> El {
+fn other(t: &Theme, card: &QuestionCard, qi: usize, q: &QuestionInfo, sfx: &str) -> El {
     let typed = !card.typed[qi].text.trim().is_empty();
-    let (input, id) = (format!("question-other-input-{qi}"), card.id.clone());
+    let (input, id) = (format!("question-other-input-{qi}{sfx}"), card.id.clone());
     let field = text_input(&card.typed[qi], sans(13.0, 400.0, 1.7))
         .key(input.clone())
         .label("Type your own answer")
@@ -270,11 +272,11 @@ fn other(t: &Theme, card: &QuestionCard, qi: usize, q: &QuestionInfo) -> El {
 }
 
 /// `.qcard__foot`: Send answer, Skip (Dismiss once the question is known gone) and the key hint.
-fn foot(t: &Theme, card: &QuestionCard) -> El {
+fn foot(t: &Theme, card: &QuestionCard, sfx: &str) -> El {
     let ready = card.has_any_answer() && !card.busy;
     let (sent, skipped) = (card.id.clone(), card.id.clone());
     let send = row()
-        .key("question-submit-button")
+        .key(format!("question-submit-button{sfx}"))
         .label("Send answer")
         .h(28.0)
         .px(14.0)
@@ -288,7 +290,7 @@ fn foot(t: &Theme, card: &QuestionCard) -> El {
         .on_press(move |s: &mut State| s.submit_question(&sent))
         .child(text(if card.busy { "Sending\u{2026}" } else { "Send answer" }).font(sans(12.0, 600.0, 1.3)).color(t.primary_fg));
     let skip = row()
-        .key("question-dismiss-button")
+        .key(format!("question-dismiss-button{sfx}"))
         .h(28.0)
         .px(14.0)
         .center()
@@ -315,13 +317,38 @@ fn foot(t: &Theme, card: &QuestionCard) -> El {
 /// The key of a choice button: `question-pill-` and the label.
 const PILL: &str = "question-pill-";
 const OTHER: &str = "question-other-input-";
+/// Between a waiting card's element key and its call, for a card that waits behind the first.
+const SEP: char = '\u{1f}';
+
+/// What a card's element keys end with: nothing for the first (the keys the tests and the first card use), the call for
+/// one waiting behind it, so two cards never share a key and a key press goes to the card that holds the focus.
+fn suffix(card: &QuestionCard, first: bool) -> String {
+    if first { String::new() } else { format!("{SEP}{}", card.id) }
+}
+
+/// The waiting card whose element has the focus, and that element's key as the first card would call it.
+fn card_of_focus(s: &State, focused: &str) -> Option<(String, String)> {
+    let cards: Vec<&QuestionCard> = s.questions.cards.iter().filter(|c| s.drawn_question(c)).collect();
+    cards.iter().enumerate().find_map(|(i, card)| {
+        if i == 0 {
+            return (!focused.contains(SEP)).then(|| (card.id.clone(), focused.to_string()));
+        }
+        let own = format!("question-card-{}", card.id);
+        if focused == own {
+            return Some((card.id.clone(), "question-card".to_string()));
+        }
+        focused.strip_suffix(suffix(card, false).as_str()).map(|base| (card.id.clone(), base.to_string()))
+    })
+}
 
 /// The window's key handler, for a key while the waiting card holds the keyboard (rows 1.19). True when it took it.
 /// `handleCardKeydown` is on the card, so only keys from inside it count: a choice, a button, the card itself. The
 /// "Something else\u{2026}" field is left to itself, except Enter (its own `on_input_key`).
 pub fn on_key(s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool {
-    let Some(card) = s.active_question() else { return false };
     let Some(focused) = tx.focused().map(str::to_string) else { return false };
+    let Some((card_id, focused)) = card_of_focus(s, &focused) else { return false };
+    let Some(card) = s.questions.card(&card_id) else { return false };
+    let sfx = suffix(card, s.active_question().is_none_or(|first| first.id == card.id));
     let on_pill = focused.starts_with(PILL);
     let inside = on_pill || focused == "question-submit-button" || focused == "question-dismiss-button" || focused == "question-card";
     if !inside || card.busy || ev.mods.cmd || ev.mods.alt || ev.mods.ctrl || ev.mods.logo {
@@ -334,7 +361,7 @@ pub fn on_key(s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool {
         let from = focused.strip_prefix(PILL).unwrap_or_default();
         return match focus::next_choice(&labels, from, step) {
             Some(next) => {
-                tx.focus(format!("{PILL}{next}"), true);
+                tx.focus(format!("{PILL}{next}{sfx}"), true);
                 true
             }
             None => false,
@@ -350,7 +377,7 @@ pub fn on_key(s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool {
                 .unwrap_or(0);
             match digit_choice(&input, qi, digit) {
                 Some(Digit::Pick(label)) => s.pick_choice(&id, qi, &label),
-                Some(Digit::Custom) => tx.focus(format!("{OTHER}{qi}"), false),
+                Some(Digit::Custom) => tx.focus(format!("{OTHER}{qi}{sfx}"), false),
                 None => {}
             }
             // Fleet consumes a digit whenever the question exists.

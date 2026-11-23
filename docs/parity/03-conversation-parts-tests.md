@@ -42,7 +42,7 @@ Kinds: `belongs to component N` = another component owns it; `DOM only` = a brow
 | shows a shell command the user ran as its own block, on the user's side | src/conv/tests/message_list.rs::shows_a_shell_command_the_user_ran_as_its_own_block_on_the_users_side |
 | puts a prompt that was sent but not echoed yet after the messages, and drops it once the stream has it | src/conv/tests/message_list.rs::puts_a_prompt_that_was_sent_but_not_echoed_yet_after_the_messages_and_drops_it_once_the_stream_has_it |
 | points a sub-agent call at the session it started, once there is one | src/tests.rs::a_sub_agent_call_with_a_session_is_one_row_of_its_own_and_one_without_stays_a_tool_row + src/conv/tests/message_list.rs::a_sub_agent_call_that_has_a_session_stays_visible_and_one_without_does_not |
-| offers Improve on a call that loaded a built-in skill only | belongs to component 9: skills dialogs (Improve a built-in skill) |
+| offers Improve on a call that loaded a built-in skill only | src/tests_skills.rs::leaves_improve_off_a_skill_that_isn_t_fleet_s_or_hasn_t_finished_loading (the finished built-in call has the button; a running one and the user's own have none) |
 | keeps tool calls and questions apart, in order | src/conv/tests/message_list.rs::keeps_tool_calls_and_questions_apart_in_order |
 | draws a background notice with how the work ended and no bubble text of its own | src/conv/tests/message_list.rs::draws_a_background_notice_with_how_the_work_ended_and_no_bubble_text_of_its_own |
 | hides an assistant message with nothing to show, and keeps an empty user one | src/conv/tests/message_list.rs::hides_an_assistant_message_with_nothing_to_show_and_keeps_an_empty_user_one |
@@ -56,8 +56,8 @@ Kinds: `belongs to component N` = another component owns it; `DOM only` = a brow
 
 | Fleet case | Rust test or owner |
 |---|---|
-| opens a sender on another machine in place | belongs to component 17: machines (opening a peer-machine sender in place) |
-| finds a sender with no machine of its own on this session's machine, opened in place | belongs to component 17: machines (opening a peer-machine sender in place) |
+| opens a sender on another machine in place | src/tests_peer.rs::opens_a_sender_on_another_machine_in_place |
+| finds a sender with no machine of its own on this session's machine, opened in place | src/tests_peer.rs::finds_a_sender_with_no_machine_of_its_own_on_this_sessions_machine_opened_in_place |
 
 ## components/session/__tests__/ActivityStream.rerender.test.ts
 
@@ -333,9 +333,9 @@ Kinds: `belongs to component N` = another component owns it; `DOM only` = a brow
 
 | Fleet case | Rust test or owner |
 |---|---|
-| offers Improve on a finished call that loaded a built-in skill, without opening the row | belongs to component 9: skills dialogs (Improve a built-in skill) |
+| offers Improve on a finished call that loaded a built-in skill, without opening the row | src/tests_skills.rs::offers_improve_on_a_finished_call_that_loaded_a_built_in_skill_without_opening_the_row |
 | lets a HydraFusion pass row wrap its facts and keeps a path row to one clipped line | DOM only: CSS wrapping of a pass row's facts; the facts are src/conv/tests/registry.rs::reads_as_role_model_and_time_once_the_pass_has_finished |
-| leaves Improve off a skill that isn't Fleet's or hasn't finished loading | belongs to component 9: skills dialogs (Improve a built-in skill) |
+| leaves Improve off a skill that isn't Fleet's or hasn't finished loading | src/tests_skills.rs::leaves_improve_off_a_skill_that_isn_t_fleet_s_or_hasn_t_finished_loading |
 | renders_stable_test_ids_for_summary_output_and_empty_state | src/tests.rs::a_summary_shows_above_the_output + src/tests.rs::a_call_that_printed_nothing_says_so |
 | renders_empty_state_with_stable_selector_when_tool_has_no_content | src/tests.rs::a_call_that_printed_nothing_says_so |
 | shows_diff_rows_with_stable_selectors_when_inline_diffs_are_enabled | src/tests.rs::a_row_that_is_not_a_write_shows_a_diff_only_with_inline_diffs_on |
@@ -576,6 +576,22 @@ Kinds: `belongs to component N` = another component owns it; `DOM only` = a brow
 | is null without a usable time or an object | src/conv/tests/sweep.rs::session_interruption::to_session_interruption_is_null_without_a_usable_time_or_an_object |
 | names the row by what was lost | belongs to component 6: session list (`interruptionRowLabel`, "Cut off by a restart") |
 | counts files | src/conv/tests/sweep.rs::session_interruption::wording_counts_files + src/conv/tests/working.rs::interrupted_card::says_what_was_working_the_last_call_and_the_changed_files |
+
+
+## lib/__tests__/session-messages.test.ts
+
+| Fleet case | Rust test or owner |
+|---|---|
+| returns the sender and the text of a message another session sent | src/conv/tests/peer.rs::parse_peer_message_cases::returns_the_sender_and_the_text_of_a_message_another_session_sent |
+| keeps the text's own lines and decodes the title Fleet encoded | src/conv/tests/peer.rs::parse_peer_message_cases::keeps_the_texts_own_lines_and_decodes_the_title_fleet_encoded |
+| names the sender's machine when it's on another one | src/conv/tests/peer.rs::parse_peer_message_cases::names_the_senders_machine_when_its_on_another_one |
+| ignores a prompt that only mentions the tag | src/conv/tests/peer.rs::parse_peer_message_cases::ignores_a_prompt_that_only_mentions_the_tag |
+| returns the session, how its turn ended and its reply | src/conv/tests/peer.rs::parse_peer_update_cases::returns_the_session_how_its_turn_ended_and_its_reply |
+| names the machine of a session on another one | src/conv/tests/peer.rs::parse_peer_update_cases::names_the_machine_of_a_session_on_another_one |
+| reads a failure and decodes the title | src/conv/tests/peer.rs::parse_peer_update_cases::reads_a_failure_and_decodes_the_title |
+| is not a message, and a message is not an update | src/conv/tests/peer.rs::parse_peer_update_cases::is_not_a_message_and_a_message_is_not_an_update |
+| drops them from the sender's title and the text | src/conv/tests/peer.rs::terminal_codes_in_a_message_from_another_session::drops_them_from_the_senders_title_and_the_text |
+| drops them from an update's title and text | src/conv/tests/peer.rs::terminal_codes_in_a_message_from_another_session::drops_them_from_an_updates_title_and_text |
 
 ## lib/__tests__/shell-commands.test.ts
 

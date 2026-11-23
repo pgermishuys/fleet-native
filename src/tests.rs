@@ -294,6 +294,9 @@ fn clicking_the_reads_row_opens_and_closes_the_folded_reads() {
     assert!(rt.find("tool-r1").is_none(), "reads are folded until asked");
     click(&mut rt, "reads-reads-r1");
     assert!(rt.find("tool-r1").is_some());
+    // The rows measure themselves one frame after they appear; the second press is aimed at where the header settled.
+    rt.frame(FRAME);
+    rt.frame(FRAME);
     click(&mut rt, "reads-reads-r1");
     assert!(rt.find("tool-r1").is_none());
 }
@@ -319,10 +322,10 @@ fn a_closed_card_draws_no_body_and_a_click_on_its_row_opens_and_closes_it() {
 }
 
 #[test]
-fn a_call_that_failed_starts_open_with_what_it_printed_and_closes_to_a_preview_line() {
+fn a_call_that_failed_starts_open_with_what_it_printed_and_keeps_its_preview_line_closed_or_open() {
     let mut rt = output_app(&["t2"]);
     assert!(rt.find("tool-t2-body").is_some(), "errors start open");
-    assert!(rt.find("tool-t2-preview").is_none(), "an open card has no preview line");
+    assert!(rt.find("tool-t2-preview").is_some(), "Fleet's `v-if=\"preview && status === 'Error'\"` shows it open too");
     click(&mut rt, "tool-t2");
     assert!(rt.find("tool-t2-body").is_none());
     assert!(rt.find("tool-t2-preview").is_some(), "a closed failed card keeps a line");

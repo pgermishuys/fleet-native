@@ -8,7 +8,7 @@ use super::browser_steps;
 use super::conversation::{Part, ToolState};
 use super::image;
 use super::mods::row as mod_row;
-use super::parts::{pulse, triangle};
+use super::parts::{diamond, pulse, triangle};
 use super::toolcard;
 use crate::State;
 use crate::conv::background::{AgentRow, delegation_of};
@@ -67,6 +67,13 @@ pub fn tool_entry(t: &Theme, s: &State, part: &Part) -> El {
     {
         return agent_row::agent_row(t, id, &row);
     }
+    // A call that wrote a whole file knows only the new contents: the counts are the file's change in the session's diff
+    // (`diffStat`), nothing while that isn't known (`:diff-stat="diffFromContent ? (diffStat ?? null) : undefined"`).
+    let state = &match s.fold_plan.whole_file_stats.get(id.as_str()) {
+        Some(Some((added, removed))) => ToolState::Diff(*added, *removed),
+        Some(None) if matches!(state, ToolState::Diff(..)) => ToolState::Plain,
+        _ => *state,
+    };
     let open = is_open(tool, body, s.inline_diffs, s.tool_open.get(id.as_str()).copied());
     let under = body.initially_collapsed;
     let key = id.clone();
@@ -83,8 +90,9 @@ pub fn tool_entry(t: &Theme, s: &State, part: &Part) -> El {
                 s.tool_open.insert(key.clone(), Toggle { open: !open, under });
             });
     let mut card = rune::col().w_full().child(header);
-    // A failed call keeps what it printed, one line, under its closed row; a mod drawing the line says what the call did instead.
-    if let (false, ToolStatus::Error, Some(line), None) = (open, *status, body.preview.as_deref(), &line_tree) {
+    // A failed call keeps what it printed, one line, under its row, open or closed (`v-if="preview && status === 'Error'"`);
+    // a mod drawing the line says what the call did instead.
+    if let (ToolStatus::Error, Some(line), None) = (*status, body.preview.as_deref(), &line_tree) {
         card = card.child(toolcard::preview(t, id, line));
     }
     if open {
@@ -216,6 +224,7 @@ pub fn tool_row(
     }
     let status_key = format!("tool-{id}-status");
     match status {
+        _ if state == ToolState::Waiting => line.child(diamond(t.status_waiting()).key(status_key)),
         ToolStatus::Running => line.child(pulse(t.running).key(status_key)),
         ToolStatus::Background => {
             line.child(row().key(status_key).gap(6.0).center_y().child(status_word("BACKGROUND", t.running)).child(pulse(t.running)))

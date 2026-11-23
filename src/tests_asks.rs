@@ -159,3 +159,25 @@ fn shows_the_file_of_an_edit_ask_without_the_codes() {
     assert!(words.contains("src/app.ts"), "{words}");
     assert!(!words.contains("[1m") && !words.contains('\u{1b}'), "{words}");
 }
+
+// Row 2.27 of the parity audit: with two cards waiting, the number keys act on the card that holds the focus
+// (`handleCardKeydown` is on each card).
+#[test]
+fn with_two_cards_waiting_number_keys_answer_the_focused_one() {
+    use crate::tests::{app, press_key};
+    use rune::{Key, Mods};
+    let mut rt = app();
+    rt.update(|s, _| s.show_two_asks());
+    rt.frame(FRAME);
+    assert!(has(&rt, "permission-allow-once") && has(&rt, "permission-allow-once-per_2"), "each card has keys of its own");
+    rt.update(|_, tx| tx.focus("permission-allow-once-per_2", true));
+    rt.frame(FRAME);
+    press_key(&mut rt, Key::Text("1".into()), Mods::default());
+    let left: Vec<String> = rt.state.open_asks().iter().map(|a| a.id.clone()).collect();
+    assert_eq!(left, ["per_1"], "the second card was answered, the first still waits");
+    // And the first card's own key still answers the first.
+    rt.update(|_, tx| tx.focus("permission-allow-once", true));
+    rt.frame(FRAME);
+    press_key(&mut rt, Key::Text("1".into()), Mods::default());
+    assert!(rt.state.open_asks().is_empty());
+}

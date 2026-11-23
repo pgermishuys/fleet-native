@@ -96,6 +96,42 @@ fn parent_of(items: &[At], index: usize) -> String {
 }
 
 impl State {
+    /// The machine a peer message's sender is on, as this app knows it: a listed machine (or home) for one that named its
+    /// machine, else the open session's own; `None` for a machine that isn't listed (the chip names it and doesn't open it).
+    pub fn peer_machine_key(&self, peer: &crate::conv::peer::PeerSender) -> Option<String> {
+        match &peer.machine_id {
+            Some(id) => self.machines.key_of_machine(id),
+            None => Some(self.machine_key_of(&self.open_id()?).to_string()),
+        }
+    }
+
+    /// The chip's click: opens the sender's session in place, on its machine (`handlePeerLinkClick`). One the list holds
+    /// opens as a row does; any other is kept as a session of that machine, as an opened one is.
+    pub fn open_peer(&mut self, peer: &crate::conv::peer::PeerSender, tx: &mut rune::Tx) {
+        let Some(key) = self.peer_machine_key(peer) else { return };
+        let id = peer.session_id.clone();
+        self.machines.remember_sessions(&key, std::slice::from_ref(&id));
+        let known = self.projects.iter().enumerate().find_map(|(p, pr)| pr.sessions.iter().position(|s| s.id == id).map(|i| (p, i)));
+        if let (Some((p, i)), super::settings::HOME_MACHINE_KEY) = (known, key.as_str()) {
+            self.open_session(p, i, tx);
+            return;
+        }
+        let session = Session {
+            id: id.clone(),
+            title: peer.title.clone(),
+            status: Status::Idle,
+            ago_secs: None,
+            branch: String::new(),
+            messages: Vec::new(),
+            tokens: 0,
+            row: super::rows::Row { lifecycle: "active".into(), activity: "idle".into(), ..Default::default() },
+            listing: Default::default(),
+        };
+        self.store.upsert_elsewhere(&key, session);
+        self.go(super::store::Route::Session(id));
+        self.after_open(tx);
+    }
+
     /// A running sub-agent's row: opens its own session under its parent (`SubagentSessionRow.open`). The server keeps these
     /// sessions out of the list, so one the list doesn't hold is kept as a session of this machine, as an opened one is.
     pub fn open_subagent_session(&mut self, parent: &str, child: &str, title: &str, tx: &mut rune::Tx) {

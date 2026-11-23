@@ -114,3 +114,15 @@ impl State {
         self.ask_acts.insert("per_1".into(), crate::fleet::retry::Act { busy, error });
     }
 }
+
+impl State {
+    /// Two asks waiting at once, the command first and an edit behind it, each its own card.
+    pub fn show_two_asks(&mut self) {
+        self.show_ask(Case::Command);
+        let mut second = read(Case::Edit);
+        second.id = "per_2".into();
+        let first = read(Case::Command);
+        self.asks.set("mock.0.0", vec![first, second]);
+        self.sync_open();
+    }
+}

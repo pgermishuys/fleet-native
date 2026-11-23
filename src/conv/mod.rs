@@ -28,6 +28,7 @@ pub mod merge_reads;
 pub mod message_list;
 pub mod minimal_change;
 pub mod output;
+pub mod peer;
 pub mod pin;
 pub mod references;
 pub mod retry;
