@@ -2991,3 +2991,9 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 - **A clipped line with no ellipsis and no fade** is `.truncate_fade_width(0.0)` on a text: one line, cut at the element's edge, the way a browser cuts a `pre` line. `.truncate()` always draws "…".
 - **`rune::text::advance` measures a mono line in the font's own width**, so a cell that must hold its longest line can ask the font instead of counting characters at 0.6 em. A plain ASCII line is as wide as its length, so measure only the longest of those and each line with anything else in it.
 - **The Document tab annotates by the same recipe as the file tab's Rendered view** (above): a `selection_group(true)` column inside the scroll, `on_selection_change` into `read_rendered_selection`, and an `on_pointer_move_local` on the scroll for where the popover goes.
+
+## Component 26, piece H (Machines: Add a machine)
+
+- **`ElementInfo.opacity` follows the element's opacity transition**: a button that goes from `faded` (0.6) to plain reads below 1.0 for a few frames, so a test that checks "off" by opacity draws a few frames (three of 0.2 s) first. `.disabled(true)` itself isn't in `ElementInfo`, and `focusable` is no help (a plain `button` isn't focusable either).
+- **`.grow(1.0)` already sets flex-basis 0**: equal tabs (`flex-1`) need nothing more; there is no `.basis(..)`.
+- **Commands inside a line** (`.machine-code`): `rich(..)` with `Span::new(a, b).mono().size(s * 0.85).bg(t.accent_dim, 2.0)`.

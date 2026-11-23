@@ -52,7 +52,7 @@ fn an_address_is_normalized_like_a_browser_would() {
     ok("HTTP://falcon.example.test:80", "http://falcon.example.test");
     ok("[fd12:3456::1]:2113", "http://[fd12:3456::1]:2113");
     for bad in ["http://", "not a link at all", "", "http://host:99999", "http://host:abc"] {
-        assert_eq!(normalize_base_url(bad).unwrap_err(), "That isn't an address. Try something like http://100.64.90.72:2113.", "{bad}");
+        assert_eq!(normalize_base_url(bad).unwrap_err(), "That isn't an address. Try something like http://100.64.90.72:6262.", "{bad}");
     }
 }
 

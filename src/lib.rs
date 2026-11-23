@@ -23,6 +23,8 @@ mod tests;
 #[cfg(test)]
 mod tests_add_machine;
 #[cfg(test)]
+mod tests_add_machine_tabs;
+#[cfg(test)]
 mod tests_agent_tab;
 #[cfg(test)]
 mod tests_agents_session;
@@ -481,7 +483,7 @@ use conv::tools::ToolStatus;
 use fleet::link::{Connection, Link, Post};
 use fleet::model::StreamState;
 use fleet::settings::code_themes::{CodeThemeId, CodeThemeSelection as Sel};
-use mock::machines_page::AddCase;
+use mock::machines_page::{AddCase, TabCase};
 use mock::{Project, Session, Status};
 use rune::{App, AppSpec, Image, ImageCache, Key, KeyEvent, TextEdit, Tx};
 use view::conversation::{Message, Older, Part};
@@ -4399,6 +4401,21 @@ pub fn spec() -> AppSpec<State> {
             ("add-machine-address", |s| s.show_add_machine(true, AddCase::Address)),
             ("add-machine-token", |s| s.show_add_machine(true, AddCase::Token)),
             ("add-machine-added", |s| s.show_add_machine(true, AddCase::Added)),
+            // Component 26, piece H: Add a machine's tabs.
+            ("add-machine-tab-found", |s| s.show_add_machine_tab(true, TabCase::FoundEmpty)),
+            ("add-machine-tab-found-light", |s| s.show_add_machine_tab(false, TabCase::FoundEmpty)),
+            ("add-machine-tab-found-waiting", |s| s.show_add_machine_tab(true, TabCase::FoundWaiting)),
+            ("add-machine-tab-found-waiting-light", |s| s.show_add_machine_tab(false, TabCase::FoundWaiting)),
+            ("add-machine-tab-found-refused", |s| s.show_add_machine_tab(true, TabCase::FoundRefused)),
+            ("add-machine-tab-server", |s| s.show_add_machine_tab(true, TabCase::Server)),
+            ("add-machine-tab-server-light", |s| s.show_add_machine_tab(false, TabCase::Server)),
+            ("add-machine-tab-server-copied", |s| s.show_add_machine_tab(true, TabCase::ServerCopied)),
+            ("add-machine-tab-server-expired", |s| s.show_add_machine_tab(true, TabCase::ServerExpired)),
+            ("add-machine-tab-server-expired-light", |s| s.show_add_machine_tab(false, TabCase::ServerExpired)),
+            ("add-machine-tab-server-refused", |s| s.show_add_machine_tab(true, TabCase::ServerRefused)),
+            ("add-machine-tab-server-refused-light", |s| s.show_add_machine_tab(false, TabCase::ServerRefused)),
+            ("add-machine-tab-link-hint", |s| s.show_add_machine_tab(true, TabCase::LinkHint)),
+            ("add-machine-tab-link-hint-light", |s| s.show_add_machine_tab(false, TabCase::LinkHint)),
             // Piece F: another machine's rows renamed and the row menu.
             ("machine-row-rename", |s| s.show_machine_row_rename(true)),
             ("machine-row-rename-light", |s| s.show_machine_row_rename(false)),

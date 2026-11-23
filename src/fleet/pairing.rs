@@ -82,6 +82,14 @@ pub struct AddForm {
     pub preview_error: Option<Failure>,
     pub adding: bool,
     pub error: Option<Failure>,
+    /// The tab shown; the form opens on Found.
+    pub mode: super::machines::add::AddMode,
+    /// Set when a machine can't be set up from here: the link tab says which machine and what to run on it (`linkHint`).
+    pub link_hint: Option<String>,
+    /// Counts each time a tab's card starts afresh (picked, or the form opened or closed), so a late answer is dropped.
+    pub tab: u64,
+    pub waiting: super::machines::add::FoundTab,
+    pub server: super::machines::add::ServerTab,
     /// The name of the machine that was just added, for the line the page says it with.
     pub added: Option<String>,
     /// The address and code the last look was for, and which look it was, so an old answer can't replace a newer one.
@@ -185,14 +193,18 @@ fn name_of(answer: &Value, fallback: &str) -> Result<String, Failure> {
 
 impl State {
     /// The Add a machine button, the list's row or the palette (`openAddForm`).
-    pub fn open_add_form(&mut self, tx: &mut Tx) {
+    pub fn open_add_form(&mut self, _tx: &mut Tx) {
         let form = &mut self.machine_page.add;
         form.open = true;
         form.error = None;
         form.added = None;
         // The token is a secret: bullets only, from the first time the form opens (a fresh form's field isn't made secure).
         form.token.set_secure(true);
-        tx.focus(LINK_FIELD, true);
+        form.link_hint = None;
+        form.mode = super::machines::add::AddMode::Found;
+        form.tab += 1;
+        form.waiting = Default::default();
+        form.server = Default::default();
     }
 
     /// Cancel, Escape or a machine added: the form goes away and is emptied (`clearAddForm`).
@@ -211,6 +223,10 @@ impl State {
         form.looking = false;
         form.found = None;
         form.preview_error = None;
+        // Found and On a new server stop looking.
+        form.tab += 1;
+        form.waiting = Default::default();
+        form.server = Default::default();
     }
 
     pub fn show_add_advanced(&mut self, tx: &mut Tx) {
@@ -226,6 +242,7 @@ impl State {
             self.open_add_form(tx);
             changed = true;
         }
+        changed |= self.keep_add_tabs(tx);
         let form = &mut self.machine_page.add;
         if !form.open {
             return changed;

@@ -279,7 +279,7 @@ pub fn normalize_base_url(url: &str) -> Result<String, String> {
         if lower.starts_with("http://") || lower.starts_with("https://") { trimmed.to_string() } else { format!("http://{trimmed}") };
     match split_url(&full) {
         Some((scheme, host, port, path)) => Ok(format!("{scheme}://{host}{}{path}", port.map(|p| format!(":{p}")).unwrap_or_default())),
-        None => Err("That isn't an address. Try something like http://100.64.90.72:2113.".to_string()),
+        None => Err("That isn't an address. Try something like http://100.64.90.72:6262.".to_string()),
     }
 }
 
@@ -352,7 +352,7 @@ pub fn parse_pairing_input(typed: &str) -> Option<PairingInput> {
     let address = without_slash.strip_suffix("/add-machine").unwrap_or(address);
     let Ok(base_url) = normalize_base_url(address) else {
         return Some(PairingInput::Invalid(
-            "That isn't a pairing link or an address. A link looks like http://100.64.90.72:2113/add-machine#ABCD-EFGH.".to_string(),
+            "That isn't a pairing link or an address. A link looks like http://100.64.90.72:6262/add-machine#ABCD-EFGH.".to_string(),
         ));
     };
     let Some(fragment) = fragment else { return Some(PairingInput::Address { base_url }) };

@@ -613,6 +613,8 @@ fn masks_the_access_token_field_of_the_add_a_machine_form() {
     let mut rt = page();
     assert!(!rt.state.machine_page.add.token.is_secure());
     click(&mut rt, "machines-add");
+    // Add a machine opens on Found; the token is under the pasted link's tab.
+    click(&mut rt, "machines-add-mode-link");
     click(&mut rt, crate::fleet::pairing::LINK_FIELD);
     press(&mut rt, Key::Text("100.64.90.72:2113".into()));
     click(&mut rt, "machines-add-advanced");
