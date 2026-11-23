@@ -174,9 +174,10 @@ impl State {
         self.show_machines_page(dark, false);
         let form = &mut self.machine_page.add;
         form.open = true;
-        let link = "http://100.64.90.72:2113/add-machine#K7QM-R2XD";
+        form.mode = crate::fleet::machines::add::AddMode::Link;
+        let link = "http://100.64.90.72:6262/add-machine#K7QM-R2XD";
         let found =
-            Preview { name: "kestrel".into(), os: "linux".into(), version: "0.72.0".into(), base_url: "http://100.64.90.72:2113".into() };
+            Preview { name: "kestrel".into(), os: "linux".into(), version: "0.72.0".into(), base_url: "http://100.64.90.72:6262".into() };
         match case {
             AddCase::Empty => form.link.focused = true,
             AddCase::Found => {
@@ -200,12 +201,12 @@ impl State {
                 });
             }
             AddCase::Address => {
-                form.link = TextEdit::new("100.64.90.72:2113".to_string());
+                form.link = TextEdit::new("100.64.90.72:6262".to_string());
                 form.code.focused = true;
                 form.looking = true;
             }
             AddCase::Token => {
-                form.link = TextEdit::new("100.64.90.72:2113".to_string());
+                form.link = TextEdit::new("100.64.90.72:6262".to_string());
                 form.advanced = true;
             }
             AddCase::Added => form.added = Some("kestrel".into()),
@@ -221,4 +222,92 @@ impl State {
 #[cfg(test)]
 pub fn info_for_tests(id: &str, name: &str) -> Info {
     info(id, name, "ask", 0, 0)
+}
+
+/// Which state of Add a machine's Found and On a new server tabs a scene shows.
+#[derive(Clone, Copy)]
+pub enum TabCase {
+    FoundEmpty,
+    FoundWaiting,
+    FoundRefused,
+    Server,
+    ServerCopied,
+    ServerExpired,
+    ServerRefused,
+    LinkHint,
+}
+
+impl State {
+    /// Add a machine open on a tab. The waiting machines, addresses and codes are invented; the wall clock is fixed so the
+    /// countdown reads the same every time.
+    pub fn show_add_machine_tab(&mut self, dark: bool, case: TabCase) {
+        use crate::fleet::machines::add::AddMode;
+        use crate::fleet::machines::found::{FoundMachine, JoinCode};
+        use crate::fleet::pairing::Failure;
+        self.show_machines_page(dark, false);
+        // 2026-11-19T10:00:00Z.
+        self.now_ms = Some(1_795_082_400_000);
+        let waiting = |id: &str, name: &str, os: &str, hint: &str, source: &str| FoundMachine {
+            machine_id: id.into(),
+            name: name.into(),
+            os: Some(os.into()),
+            base_url: "http://192.168.1.40:6262".into(),
+            hint: hint.into(),
+            source: source.into(),
+            expires_at: "2026-11-19T10:10:00.000Z".into(),
+        };
+        let code = |expires: &str| JoinCode {
+            code: "J8RT-4WXN".into(),
+            expires_at: expires.into(),
+            addresses: vec!["http://100.64.0.2:6262".into(), "http://192.168.1.20:6262".into()],
+            target: "http://100.64.0.2:6262,http://192.168.1.20:6262#J8RT-4WXN".into(),
+            machine_name: "studio".into(),
+        };
+        let form = &mut self.machine_page.add;
+        form.open = true;
+        form.mode = match case {
+            TabCase::FoundEmpty | TabCase::FoundWaiting | TabCase::FoundRefused => AddMode::Found,
+            TabCase::LinkHint => AddMode::Link,
+            _ => AddMode::Server,
+        };
+        let server = &mut form.server;
+        match case {
+            TabCase::FoundEmpty => self.machine_data.found = Some(Vec::new()),
+            TabCase::FoundWaiting | TabCase::FoundRefused => {
+                self.machine_data.found = Some(vec![
+                    waiting("m-atlas", "atlas", "linux", "7K3M", "Tailscale"),
+                    waiting("m-quarry", "quarry", "macos", "P4WT", "Home network"),
+                ]);
+                let mut typed = rune::TextEdit::new("Q9ZD".to_string());
+                typed.focused = true;
+                form.waiting.rest.insert("m-atlas".into(), typed);
+                if matches!(case, TabCase::FoundRefused) {
+                    form.waiting.failure.insert(
+                        "m-atlas".into(),
+                        Failure::said("That code has expired or was already used. Run fleet node up on atlas again."),
+                    );
+                }
+            }
+            TabCase::Server | TabCase::ServerCopied => {
+                server.code = Some(code("2026-11-19T10:30:00.000Z"));
+                server.countdown = "in 30 min".into();
+                if matches!(case, TabCase::ServerCopied) {
+                    server.copied_until = Some(f64::MAX);
+                }
+            }
+            TabCase::ServerExpired => {
+                server.code = Some(code("2026-11-19T09:59:00.000Z"));
+                server.expired = true;
+                server.countdown = "now".into();
+            }
+            TabCase::ServerRefused => {
+                server.failure = Some(
+                    "studio only listens on this machine, so a new server can't reach it. Let others reach it first (Settings → \
+                     Machines), then make a join code."
+                        .into(),
+                )
+            }
+            TabCase::LinkHint => form.link_hint = Some("quarry".into()),
+        }
+    }
 }

@@ -1,8 +1,10 @@
-//! The Add a machine form on Settings → Machines (`MachinesSection.vue`'s `machines-add-form`, `MachineAddNote.vue`): the pairing
-//! link, an address with its code, or under Advanced the machine's token; the machine found behind it; the button. The other
-//! card, "Set it up from here", is piece L's.
+//! The Add a machine form on Settings → Machines (`MachinesSection.vue`'s `machines-add-form`, `MachineAddNote.vue`): the tab strip
+//! "How to add the machine" and the Paste a pairing link tab (the pairing link, an address with its code, or under Advanced the
+//! machine's token; the machine found behind it; the button). Found is `found_machines.rs`, On a new server `new_server.rs`; the
+//! "Set it up from here" tab (SSH) is not built (owner decision 5).
 use super::machine_card::{faded, plain_button};
 use crate::fleet::machine_diagnosis::{Diagnosis, StepState};
+use crate::fleet::machines::add::AddMode;
 use crate::fleet::pairing::{CODE_FIELD, Failure, LINK_FIELD, TOKEN_FIELD};
 use crate::icons::{CHECK, CIRCLE, CIRCLE_ALERT, LOADER_CIRCLE, X};
 use crate::theme::{RADIUS_BTN, RADIUS_CARD, Theme, mono, sans};
@@ -13,7 +15,7 @@ use crate::{State, Tx};
 use rune::{Cursor, Cycle, El, Key, KeyEvent, Span, TextEdit, col, icon, row, text};
 
 /// `inputClass`: full width, 1px border, the page's colour, `text-sm`, an accent border while focused.
-fn input(t: &Theme, edit: &TextEdit, key: &str, label: &str, placeholder: &str, font: rune::TextStyle, locked: bool) -> El {
+pub(super) fn input(t: &Theme, edit: &TextEdit, key: &str, label: &str, placeholder: &str, font: rune::TextStyle, locked: bool) -> El {
     let e = text_input(edit, font)
         .key(key.to_string())
         .label(label.to_string())
@@ -56,31 +58,17 @@ fn labelled(t: &Theme, words: &str, field: El, hint: Option<&str>) -> El {
     e
 }
 
-/// `small` with some words as `<code class="machine-code">`: mono at 0.85em on the accent wash, 1px 5px padding, 4px corners.
-/// `parts` alternate plain and code, starting with plain.
-fn small_with_code(t: &Theme, key: &str, parts: &[&str]) -> El {
-    let (mut words, mut spans) = (String::new(), Vec::new());
-    for (n, part) in parts.iter().enumerate() {
-        let at = words.len();
-        words.push_str(part);
-        if n % 2 == 1 {
-            spans.push(Span::new(at, words.len()).mono().size(rem(0.75) * 0.85).color(t.text).bg(t.accent_dim, 5.0));
-        }
-    }
-    text(words).key(key.to_string()).font(sans(rem(0.75), 400.0, 1.33)).color(t.muted).wrap().w_full().spans(spans).span_radius(4.0)
-}
-
-fn copied(s: &State, what: &str) -> bool {
+pub(super) fn copied(s: &State, what: &str) -> bool {
     s.machine_page.copied.as_ref().is_some_and(|(w, _)| w == what)
 }
 
-fn spinner(ink: rune::Color, size: f32) -> El {
+pub(super) fn spinner(ink: rune::Color, size: f32) -> El {
     static FADE: [(f32, f32); 3] = [(0.0, 1.0), (0.5, 0.35), (1.0, 1.0)];
     icon(&LOADER_CIRCLE, size).color(ink).cycle(Cycle { period: 1.2, phase: 0.0, stops: &FADE, still: 1.0, fps: 30.0 })
 }
 
 /// `ErrorNote`: the red box. With a diagnosis its headline is the message and the steps follow it (`addError`).
-fn error_note(t: &Theme, key: &str, why: &Failure, compact: bool, copied: bool) -> El {
+pub(super) fn error_note(t: &Theme, key: &str, why: &Failure, compact: bool, copied: bool) -> El {
     let shown = why.diagnosis.as_ref().map_or(why.message.as_str(), |d| d.headline.as_str());
     let mut body =
         col().shrink().min_w(0.0).gap(4.0).child(
@@ -141,7 +129,7 @@ fn diagnosis(t: &Theme, key: &str, d: &Diagnosis, copied: bool) -> El {
 }
 
 /// `MachineAddNote`: what adding a machine means, in three points.
-fn add_note(t: &Theme, name: &str) -> El {
+pub(super) fn add_note(t: &Theme, name: &str) -> El {
     let points = [
         format!("Sessions you start on {name} run there, with {name}'s sign-ins, folders and agents."),
         format!("This Fleet can run agents, change files and open terminals on {name}."),
@@ -192,22 +180,118 @@ fn found_card(s: &State, t: &Theme) -> Option<El> {
             .child(add_note(t, &found.name)),
     )
 }
+/// Words with commands in them: each `` `…` `` is drawn as `.machine-code` (mono at 0.85em on `--accent-dim`, 1px 5px padding, 4px corners).
+/// Words with commands in them: each `` `…` `` is drawn as `.machine-code` (mono at 0.85em on `--accent-dim`).
+pub(super) fn with_code(t: &Theme, key: &str, words: &str, size: f32, ink: rune::Color) -> El {
+    let (mut content, mut spans) = (String::new(), Vec::new());
+    for (i, part) in words.split('`').enumerate() {
+        if i % 2 == 1 {
+            spans.push(Span::new(content.len(), content.len() + part.len()).mono().size(size * 0.85).color(t.text).bg(t.accent_dim, 5.0));
+        }
+        content.push_str(part);
+    }
+    text(content).key(key.to_string()).font(sans(size, 400.0, 1.33)).color(ink).wrap().w_full().spans(spans).span_radius(4.0)
+}
 
-/// The form, under the "Add a machine" row.
+/// The tab strip, "How to add the machine": `flex gap-1 rounded-btn border p-1`, each tab `flex-1 px-3 py-1.5 font-medium`, the
+/// picked one on `bg-accent/15`.
+fn strip(s: &State, t: &Theme) -> El {
+    let picked = s.machine_page.add.mode;
+    let tabs = AddMode::ALL.iter().map(|&mode| {
+        let on = mode == picked;
+        row()
+            .key(format!("machines-add-mode-{}", mode.id()))
+            .role("tab")
+            .label(mode.label().to_string())
+            .grow(1.0)
+            .min_w(0.0)
+            .px(rem(0.75))
+            .py(rem(0.375))
+            .center()
+            .radius(RADIUS_BTN)
+            .fill(if on { t.accent.alpha(0.15) } else { rune::Color::TRANSPARENT })
+            .cursor(Cursor::Pointer)
+            .focusable(true)
+            .focus_ring(3.0, 0.0, t.accent.alpha(0.5))
+            .hover_group()
+            .on_press_tx(move |s: &mut State, tx: &mut Tx| s.pick_add_mode(mode, tx))
+            .child(
+                text(mode.label().to_string())
+                    .font(sans(rem(0.875), 500.0, 1.43))
+                    .color(if on { t.text } else { t.muted })
+                    .group_color(t.text),
+            )
+    });
+    row()
+        .key("machines-add-modes")
+        .role("tablist")
+        .label("How to add the machine")
+        .w_full()
+        .gap(4.0)
+        .padding(4.0)
+        .radius(RADIUS_BTN)
+        .border(1.0, t.border)
+        .border_layout()
+        .fill(t.main_bg)
+        .children(tabs.collect::<Vec<_>>())
+}
+
+/// The form, under the "Add a machine" row: the strip, the picked tab's card, the buttons.
 pub fn form(s: &State, t: &Theme) -> El {
     let f = &s.machine_page.add;
-    let pasted = f.pasted();
-    let mut e = col()
+    let e = col()
         .key("machines-add-form")
         .w_full()
         .gap(12.0)
         .padding(16.0)
         .fill(t.main_bg)
         .child(text("Add a machine").font(sans(rem(0.875), 600.0, 1.43)).color(t.text))
-        .child(small_with_code(
+        .child(strip(s, t));
+    let mut e = match f.mode {
+        AddMode::Found => e.child(super::found_machines::card(s, t)),
+        AddMode::Server => e.child(super::new_server::card(s, t)),
+        AddMode::Link => link_tab(s, t, e),
+    };
+    if let Some(why) = &f.error {
+        e = e.child(error_note(t, "machines-add-error", why, false, copied(s, "machines-add-error")));
+    }
+    let cancel = plain_button(t, "machines-add-cancel".into(), "Cancel");
+    let cancel = if f.adding { faded(cancel) } else { cancel.on_press(|s: &mut State| s.close_add_form()) };
+    let mut buttons = row().flex_wrap().gap(8.0);
+    if f.mode == AddMode::Link {
+        let submit = if f.adding {
+            faded(button_lead(t, Variant::Default, Size::Default, Some(spinner(t.primary_fg, 16.0)), "Checking…"))
+        } else if f.can_add() {
+            button(t, Variant::Default, Size::Default, None, &f.label()).on_press(|s: &mut State| s.submit_add())
+        } else {
+            faded(button(t, Variant::Default, Size::Default, None, &f.label()))
+        };
+        buttons = buttons.child(submit.key("machines-add-submit"));
+    }
+    e.child(buttons.child(cancel))
+}
+
+/// Paste a pairing link: the hint when a machine can't be set up from here, the help, the link and its code or token, the
+/// machine found behind it.
+fn link_tab(s: &State, t: &Theme, mut e: El) -> El {
+    let f = &s.machine_page.add;
+    let pasted = f.pasted();
+    if let Some(name) = &f.link_hint {
+        e = e.child(with_code(
+            t,
+            "machines-add-link-hint",
+            &format!("Fleet can't set up {name} from here. On {name}, run `fleet node up` and paste the link it prints."),
+            rem(0.75),
+            t.text,
+        ));
+    }
+    let mut e = e
+        .child(with_code(
             t,
             "machines-add-link-help",
-            &["On the other machine, run ", "fleet node pair", ". It prints a pairing link that works once for 10 minutes. Paste it here."],
+            "On the other machine, run `fleet node pair`. It prints a pairing link that works once for 10 minutes. Paste it here.",
+            rem(0.75),
+            t.muted,
         ))
         .child(labelled(
             t,
@@ -217,7 +301,7 @@ pub fn form(s: &State, t: &Theme) -> El {
                 &f.link,
                 LINK_FIELD,
                 "Pairing link",
-                "http://100.64.90.72:2113/add-machine#ABCD-EFGH",
+                "http://100.64.90.72:6262/add-machine#ABCD-EFGH",
                 sans(rem(0.875), 400.0, 1.4),
                 f.adding,
             )
@@ -278,19 +362,7 @@ pub fn form(s: &State, t: &Theme) -> El {
     if let Some(card) = found_card(s, t) {
         e = e.child(card);
     }
-    if let Some(why) = &f.error {
-        e = e.child(error_note(t, "machines-add-error", why, false, copied(s, "machines-add-error")));
-    }
-    let submit = if f.adding {
-        faded(button_lead(t, Variant::Default, Size::Default, Some(spinner(t.primary_fg, 16.0)), "Checking…"))
-    } else if f.can_add() {
-        button(t, Variant::Default, Size::Default, None, &f.label()).on_press(|s: &mut State| s.submit_add())
-    } else {
-        faded(button(t, Variant::Default, Size::Default, None, &f.label()))
-    };
-    let cancel = plain_button(t, "machines-add-cancel".into(), "Cancel");
-    let cancel = if f.adding { faded(cancel) } else { cancel.on_press(|s: &mut State| s.close_add_form()) };
-    e.child(row().flex_wrap().gap(8.0).child(submit.key("machines-add-submit")).child(cancel))
+    e
 }
 
 /// "Added <name>. Its sessions are in the sessions list." (`justAdded`).

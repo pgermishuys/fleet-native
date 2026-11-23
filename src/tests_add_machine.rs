@@ -6,15 +6,15 @@ use crate::tests_machines_page::{Rig, Rt, exists, fake, page, press, words};
 use rune::Key;
 use serde_json::json;
 
-const LINK: &str = "http://100.64.90.72:2113/add-machine#K7QM-R2XD";
+const LINK: &str = "http://100.64.90.72:6262/add-machine#K7QM-R2XD";
 
 fn kestrel() -> String {
-    json!({ "machineId": "m-kestrel", "name": "kestrel", "os": "linux", "version": "0.72.0", "baseUrl": "http://100.64.90.72:2113" })
+    json!({ "machineId": "m-kestrel", "name": "kestrel", "os": "linux", "version": "0.72.0", "baseUrl": "http://100.64.90.72:6262" })
         .to_string()
 }
 
 fn added() -> String {
-    json!({ "id": "m-kestrel", "name": "kestrel", "baseUrl": "http://100.64.90.72:2113", "token": "scratch-key-0001", "addedAt": "2026-11-16T10:00:00Z" })
+    json!({ "id": "m-kestrel", "name": "kestrel", "baseUrl": "http://100.64.90.72:6262", "token": "scratch-key-0001", "addedAt": "2026-11-16T10:00:00Z" })
         .to_string()
 }
 
@@ -25,9 +25,15 @@ fn type_in(rt: &mut Rt, field: &str, text: &str) {
     rt.frame(FRAME);
 }
 
+/// Add a machine opens on Found; these tests are about pasting a link (Fleet's `openAddForm`).
 fn open(rig: &mut Rig) {
-    click(&mut rig.rt, "machines-add");
-    assert!(exists(&rig.rt, "machines-add-form"));
+    open_link(&mut rig.rt);
+}
+
+fn open_link(rt: &mut Rt) {
+    click(rt, "machines-add");
+    assert!(exists(rt, "machines-add-form"));
+    click(rt, "machines-add-mode-link");
 }
 
 fn refusal(error: &str) -> String {
@@ -57,11 +63,15 @@ fn opens_the_form_at_once_when_it_was_asked_for_before_machines_was_shown() {
 }
 
 #[test]
-fn opens_on_the_pairing_link_when_fleet_sees_no_machines() {
+fn shows_the_pasted_links_field_on_the_paste_a_pairing_link_tab() {
     let mut rt = page();
-    click(&mut rt, "machines-add");
-    assert!(exists(&rt, LINK_FIELD) && exists(&rt, "machines-add-link-help"));
+    open_link(&mut rt);
+    assert!(exists(&rt, LINK_FIELD));
     assert!(words(&rt, "machines-add-link-help").contains("fleet node pair"));
+    assert!(!exists(&rt, CODE_FIELD));
+    assert!(!rt.state.machine_page.add.can_add(), "Add machine is off");
+    let submit = rt.elements().into_iter().find(|e| e.key.as_deref() == Some("machines-add-submit")).expect("the button");
+    assert!(submit.opacity < 1.0, "drawn as off");
 }
 
 #[test]
@@ -73,12 +83,12 @@ fn looks_at_the_machine_behind_a_pasted_link_and_says_what_adding_it_means() {
     type_in(&mut rig.rt, LINK_FIELD, LINK);
     rig.wait("the machine behind the link", |s| s.machine_page.add.found.is_some());
     assert_eq!(words(&rig.rt, "machines-add-found-line"), "kestrel · Linux · Fleet 0.72.0");
-    assert_eq!(words(&rig.rt, "machines-add-found-reach"), "Reached over Tailscale at 100.64.90.72:2113");
+    assert_eq!(words(&rig.rt, "machines-add-found-reach"), "Reached over Tailscale at 100.64.90.72:6262");
     assert!(words(&rig.rt, "machines-add-note").contains("kestrel gives this Fleet a key of its own."));
     assert_eq!(rig.rt.state.machine_page.add.label(), "Add kestrel");
     let asked = home.seen("POST", "/api/machines/pair/preview");
     assert_eq!(asked.len(), 1, "one look, and the code is not used up");
-    assert_eq!(asked[0].0, json!({ "baseUrl": "http://100.64.90.72:2113", "code": "K7QM-R2XD" }));
+    assert_eq!(asked[0].0, json!({ "baseUrl": "http://100.64.90.72:6262", "code": "K7QM-R2XD" }));
     assert!(home.seen("POST", "/api/machines/pair").is_empty());
 }
 
@@ -92,7 +102,7 @@ fn adds_the_machine_from_the_link_and_says_so() {
     click(&mut rig.rt, "machines-add-submit");
     rig.wait("the machine added", |s| s.machine_page.add.added.is_some());
     rig.rt.frame(FRAME);
-    assert_eq!(home.seen("POST", "/api/machines/pair")[0].0, json!({ "baseUrl": "http://100.64.90.72:2113", "code": "K7QM-R2XD" }));
+    assert_eq!(home.seen("POST", "/api/machines/pair")[0].0, json!({ "baseUrl": "http://100.64.90.72:6262", "code": "K7QM-R2XD" }));
     assert!(!exists(&rig.rt, "machines-add-form"), "the form closes");
     assert!(rig.rt.state.machine_page.add.link.text.is_empty(), "and is emptied");
     assert_eq!(words(&rig.rt, "machines-added"), "Added kestrel. Its sessions are in the sessions list.");
@@ -104,12 +114,12 @@ fn takes_a_bare_address_asks_for_the_code_then_looks() {
     let mut rig = Rig::new(&home);
     open(&mut rig);
     assert!(!exists(&rig.rt, CODE_FIELD));
-    type_in(&mut rig.rt, LINK_FIELD, "100.64.90.72:2113");
+    type_in(&mut rig.rt, LINK_FIELD, "100.64.90.72:6262");
     assert!(exists(&rig.rt, CODE_FIELD), "the code is asked for");
     assert!(home.seen("POST", "/api/machines/pair/preview").is_empty(), "nothing to look at without a code");
     type_in(&mut rig.rt, CODE_FIELD, "k7qm r2xd");
     rig.wait("the machine behind the address", |s| s.machine_page.add.found.is_some());
-    assert_eq!(home.seen("POST", "/api/machines/pair/preview")[0].0, json!({ "baseUrl": "http://100.64.90.72:2113", "code": "K7QM-R2XD" }));
+    assert_eq!(home.seen("POST", "/api/machines/pair/preview")[0].0, json!({ "baseUrl": "http://100.64.90.72:6262", "code": "K7QM-R2XD" }));
 }
 
 #[test]
@@ -117,7 +127,7 @@ fn keeps_the_master_token_under_advanced_for_an_address() {
     let home = fake(vec![("POST", "/api/machines", 200, added())]);
     let mut rig = Rig::new(&home);
     open(&mut rig);
-    type_in(&mut rig.rt, LINK_FIELD, "100.64.90.72:2113");
+    type_in(&mut rig.rt, LINK_FIELD, "100.64.90.72:6262");
     assert!(!exists(&rig.rt, TOKEN_FIELD), "the token is under Advanced");
     click(&mut rig.rt, "machines-add-advanced");
     assert!(exists(&rig.rt, TOKEN_FIELD));
@@ -127,7 +137,7 @@ fn keeps_the_master_token_under_advanced_for_an_address() {
     click(&mut rig.rt, "machines-add-submit");
     rig.wait("the machine added", |s| s.machine_page.add.added.is_some());
     // The address is normalised, the token trimmed; nothing was looked at, and no code was redeemed.
-    assert_eq!(home.seen("POST", "/api/machines")[0].0, json!({ "baseUrl": "http://100.64.90.72:2113", "token": "scratch-master-0002" }));
+    assert_eq!(home.seen("POST", "/api/machines")[0].0, json!({ "baseUrl": "http://100.64.90.72:6262", "token": "scratch-master-0002" }));
     assert!(home.seen("POST", "/api/machines/pair/preview").is_empty() && home.seen("POST", "/api/machines/pair").is_empty());
 }
 
@@ -139,7 +149,7 @@ fn says_why_a_link_cant_be_used_and_why_the_machine_wasnt_found() {
         "POST",
         "/api/machines/pair/preview",
         400,
-        json!({ "error": "Couldn't reach http://100.64.90.72:2113. Check the address, that Fleet is running there, and that this machine can reach it.", "diagnosis": diagnosis }).to_string(),
+        json!({ "error": "Couldn't reach http://100.64.90.72:6262. Check the address, that Fleet is running there, and that this machine can reach it.", "diagnosis": diagnosis }).to_string(),
     )]);
     let mut rig = Rig::new(&home);
     open(&mut rig);
@@ -161,7 +171,7 @@ fn says_why_a_link_cant_be_used_and_why_the_machine_wasnt_found() {
     rig.rt.frame(FRAME);
     // With a diagnosis its headline is the message (`diagnosis?.headline ?? error.message`); the server's sentence stays in the state.
     assert!(words(&rig.rt, "machines-add-preview-error").starts_with("Nothing answers"));
-    assert!(rig.rt.state.machine_page.add.preview_error.as_ref().unwrap().message.starts_with("Couldn't reach http://100.64.90.72:2113."));
+    assert!(rig.rt.state.machine_page.add.preview_error.as_ref().unwrap().message.starts_with("Couldn't reach http://100.64.90.72:6262."));
     assert!(words(&rig.rt, "machines-add-preview-error").contains("No route to the host."), "the diagnosis's steps show");
     assert!(words(&rig.rt, "machines-add-preview-error").contains("starting Fleet on kestrel."));
     assert!(!rig.rt.state.machine_page.add.can_add());
@@ -211,7 +221,7 @@ fn wont_pair_from_a_fleet_that_doesnt_keep_the_list() {
 fn says_the_servers_words_when_an_address_and_token_are_refused() {
     for why in [
         "That token wasn't accepted.",
-        "Couldn't reach http://100.64.90.72:2113. Check the address, that Fleet is running there, and that this machine can reach it.",
+        "Couldn't reach http://100.64.90.72:6262. Check the address, that Fleet is running there, and that this machine can reach it.",
         "That Fleet speaks machine contract 2; this one speaks 1. Update the older one.",
         "That Fleet is too old to add as a machine. Update it first.",
         "That Fleet signs people in with an identity provider, which machines don't support yet.",
@@ -220,7 +230,7 @@ fn says_the_servers_words_when_an_address_and_token_are_refused() {
         let home = fake(vec![("POST", "/api/machines", 400, refusal(why))]);
         let mut rig = Rig::new(&home);
         open(&mut rig);
-        type_in(&mut rig.rt, LINK_FIELD, "100.64.90.72:2113");
+        type_in(&mut rig.rt, LINK_FIELD, "100.64.90.72:6262");
         click(&mut rig.rt, "machines-add-advanced");
         type_in(&mut rig.rt, TOKEN_FIELD, "scratch-0003");
         click(&mut rig.rt, "machines-add-submit");
@@ -233,7 +243,7 @@ fn says_the_servers_words_when_an_address_and_token_are_refused() {
 #[test]
 fn asks_for_the_token_when_it_is_empty_and_for_an_address_it_can_read() {
     let home = fake(vec![]);
-    let err = crate::fleet::pairing::add_by_token(&home.base, "http://100.64.90.72:2113", "  ").unwrap_err();
+    let err = crate::fleet::pairing::add_by_token(&home.base, "http://100.64.90.72:6262", "  ").unwrap_err();
     assert_eq!(err.message, "Paste the machine's access token.");
     assert!(home.seen("POST", "/api/machines").is_empty());
 }
@@ -241,13 +251,13 @@ fn asks_for_the_token_when_it_is_empty_and_for_an_address_it_can_read() {
 #[test]
 fn closes_and_clears_with_cancel_and_with_escape() {
     let mut rt = page();
-    click(&mut rt, "machines-add");
+    open_link(&mut rt);
     type_in(&mut rt, LINK_FIELD, LINK);
     click(&mut rt, "machines-add-cancel");
     assert!(!exists(&rt, "machines-add-form") && exists(&rt, "machines-add"));
     assert!(rt.state.machine_page.add.link.text.is_empty());
-    click(&mut rt, "machines-add");
-    type_in(&mut rt, LINK_FIELD, "100.64.90.72:2113");
+    open_link(&mut rt);
+    type_in(&mut rt, LINK_FIELD, "100.64.90.72:6262");
     press(&mut rt, Key::Escape);
     assert!(!exists(&rt, "machines-add-form"));
     assert!(rt.state.machine_page.add.link.text.is_empty() && !rt.state.machine_page.add.advanced);
