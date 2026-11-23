@@ -335,6 +335,8 @@ pub enum Strip {
     Install,
     Downloading,
     Refused,
+    /// Signed out: the Providers panel in the row, in place (C13.48).
+    SignIn,
 }
 
 impl State {
@@ -374,6 +376,7 @@ impl State {
                 update.job = Some(failed);
                 update.command = Some("weave-copilot update".into());
             }
+            Strip::SignIn => state = "sign-in-required",
             Strip::Install | Strip::Downloading => {
                 (state, version) = ("not-installed", None);
                 update.can_install = true;
@@ -393,6 +396,9 @@ impl State {
                 h.version = Some("0.1.4".into());
             }
             h.card.update = update;
+        }
+        if case == Strip::SignIn {
+            self.settings.harnesses.sign_in.scene(HOME_MACHINE_KEY, "copilot", Some(copilot_list(false)), true);
         }
         if case == Strip::Refused {
             self.settings.harnesses.strips.error = Some(("copilot".into(), "GitHub Copilot is already being updated.".into()));

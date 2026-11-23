@@ -1,8 +1,8 @@
 //! `HarnessSetupRows.vue` (`components/harness-setup`): the rows of the setup wizard's harnesses step. Each has the harness's icon,
 //! name, state chip and one button (Install, Update, Sign in, or Download); under it the install places, the notes, the setup
 //! terminal (component 13's view, `terminal_view`) with the found banner, and a failure with the command to copy. The update strip
-//! and sign-in panel (`HarnessUpdateStrip.vue`, `HarnessSignInPanel.vue`) are components 16's: the words and boxes around
-//! them are drawn, their buttons say so. Sizes are the component's own scoped CSS (literal px), as in `harness_setup.rs`.
+//! and sign-in panel (`HarnessUpdateStrip.vue`, `HarnessSignInPanel.vue`) are Settings' views (`view::settings`), shown here
+//! in place for a Fleet-installed harness (Copilot). Sizes are the component's own scoped CSS (literal px), as in `harness_setup.rs`.
 use crate::fleet::harness_setup_rows::{Action, Choice, rows};
 use crate::fleet::new_session::harness_choice::{HarnessEntry, Harnesses};
 use crate::icons::{
@@ -38,7 +38,7 @@ fn harness_row(s: &State, t: &Theme, all: &Harnesses, h: &HarnessEntry) -> El {
             r = r.child(strip);
         }
         if h.setup_state() == "sign-in-required" {
-            r = r.child(sign_in_panel(t, h));
+            r = r.child(crate::view::settings::harness_sign_in::body(s, t, &h.kind, &h.display_name));
         }
     }
     if !h.notes().is_empty() {
@@ -264,34 +264,6 @@ fn notes(t: &Theme, h: &HarnessEntry) -> El {
             .child(row().w(16.0).h(16.8).justify_end().center_y().pr(5.0).child(el().size(4.0, 4.0).radius(2.0).fill(t.muted)))
             .child(text(n.clone()).font(sans(12.0, 400.0, 1.4)).color(t.muted).wrap().grow(1.0).min_w(0.0))
     }))
-}
-
-// ─── Fleet's own download (GitHub Copilot): the strip and sign-in panel are Settings' ────────────────────────
-
-fn hand_off(_what: &'static str) -> impl Fn(&mut State, &mut Tx) + 'static {
-    move |s: &mut State, _: &mut Tx| s.open_settings("harnesses", None)
-}
-
-fn sign_in_panel(t: &Theme, h: &HarnessEntry) -> El {
-    let head = row()
-        .center_y()
-        .gap(8.0)
-        .child(icon(&KEY_ROUND, 14.0).color(t.text))
-        .child(text("Providers").font(sans(13.0, 600.0, 1.4)).color(t.text));
-    let line = text(format!("Sign in to the providers {} uses, with a key or in the browser.", h.display_name))
-        .font(sans(12.5, 400.0, 1.4))
-        .color(t.muted)
-        .wrap()
-        .w_full();
-    let show = button(t, false, None, "Show providers")
-        .key(format!("harness-setup-providers-{}", h.kind))
-        .on_press_tx(hand_off("The providers list"));
-    el_box(t, RADIUS_CARD, 16.0, 14.0).key(format!("harness-sign-in-{}", h.kind)).gap(8.0).child(head).child(line).child(show)
-}
-
-/// A bordered box on the main background (the strip's and the panel's frame).
-fn el_box(t: &Theme, radius: f32, px: f32, py: f32) -> El {
-    col().w_full().px(px).py(py).radius(radius).fill(t.main_bg).border(1.0, t.border).border_layout()
 }
 
 // ─── the setup terminal, the found banner, a failure ───────────────────────────────────────────────────────

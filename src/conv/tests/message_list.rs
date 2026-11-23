@@ -54,6 +54,8 @@ fn sent(id: &str, body: &str, status: PromptStatus) -> SentPrompt {
         body: body.into(),
         created_at: 3,
         sent_at: 0.0,
+        images: Vec::new(),
+        session_references: Vec::new(),
     }
 }
 

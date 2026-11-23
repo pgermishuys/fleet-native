@@ -117,6 +117,8 @@ mod tests_code_typing;
 #[cfg(test)]
 mod tests_completion;
 #[cfg(test)]
+mod tests_composer_other_machine;
+#[cfg(test)]
 mod tests_context_tab;
 #[cfg(test)]
 mod tests_dashboard;
@@ -3464,6 +3466,8 @@ pub fn spec() -> AppSpec<State> {
             ("harness-strip-downloading-light", |s| s.show_strip(false, mock::harnesses::Strip::Downloading)),
             ("harness-strip-refused", |s| s.show_strip(true, mock::harnesses::Strip::Refused)),
             ("harness-strip-refused-light", |s| s.show_strip(false, mock::harnesses::Strip::Refused)),
+            ("harness-setup-sign-in", |s| s.show_strip(true, mock::harnesses::Strip::SignIn)),
+            ("harness-setup-sign-in-light", |s| s.show_strip(false, mock::harnesses::Strip::SignIn)),
             ("settings-providers-before", |s| s.show_providers(true, mock::harnesses::Providers::Before)),
             ("settings-providers-before-light", |s| s.show_providers(false, mock::harnesses::Providers::Before)),
             ("settings-providers-asking", |s| s.show_providers(true, mock::harnesses::Providers::Asking)),
@@ -5154,6 +5158,14 @@ pub fn spec() -> AppSpec<State> {
             }),
             ("screenshot-lost", |s| s.show_images(mock::images::Case::Lost)),
             ("image-attachments", |s| s.show_images(mock::images::Case::Attachments)),
+            ("first-message", |s| {
+                s.dark = Some(true);
+                s.show_images(mock::images::Case::FirstMessage)
+            }),
+            ("first-message-light", |s| {
+                s.dark = Some(false);
+                s.show_images(mock::images::Case::FirstMessage)
+            }),
             ("image-attachments-light", |s| {
                 s.dark = Some(false);
                 s.show_images(mock::images::Case::Attachments)

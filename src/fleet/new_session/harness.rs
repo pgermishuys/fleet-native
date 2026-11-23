@@ -480,10 +480,12 @@ impl State {
 
     /// `fixNoHarness`: the wizard sets a harness up on this machine; another machine's Settings do it there, so the click opens Harnesses.
     pub fn fix_no_harness(&mut self, _tx: &mut crate::Tx) {
-        if self.new_draft.machine().is_none() {
+        let Some(machine) = self.new_draft.machine().map(str::to_string) else {
             self.open_harness_setup();
             return;
-        }
+        };
+        // `machines.setCurrent(target.key)`: Settings then shows that machine's Harnesses.
+        self.machines.set_current(&machine);
         self.open_settings("harnesses", None);
     }
 

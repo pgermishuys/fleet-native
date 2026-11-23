@@ -3,6 +3,7 @@
 //! `Composer.vue` around `useAutocomplete`. The popup is drawn by `view::autocomplete`.
 use super::finder::{Scope, Step, parse_files, parse_sessions};
 use super::http;
+use super::settings::HOME_MACHINE_KEY;
 use crate::State;
 use crate::composer::refs::{Picks, SessionItem, skill_list_hint};
 use crate::composer::status::{Mode, mode_of};
@@ -82,14 +83,16 @@ impl State {
 
     /// The sessions the `@` list can offer: the list's own, with the fetched ones (archived, sub-agents) behind them. What the
     /// list holds wins, since its status is live; it keeps no `updated`, so a fetched copy gives that.
-    pub(crate) fn mentionable_sessions(&self) -> Vec<SessionItem> {
+    pub(crate) fn mentionable_sessions(&self, machine: &str) -> Vec<SessionItem> {
         // One reading of the clock for the whole list: the rows are ranked by `updated`, and two invented sessions with the same
         // age would otherwise differ by the millisecond that passed between their reads, which put them in either order.
         let now = self.now_ms.unwrap_or_else(super::link::now_ms);
         let mut fetched: Vec<SessionItem> =
-            if self.link.is_some() { self.finder.sessions.sessions.clone() } else { crate::mock::finder::other_sessions(now) };
+            if self.link.is_some() { self.finder.sessions_on(machine).to_vec() } else { crate::mock::finder::other_sessions(now) };
         let mut out = Vec::new();
-        for (p, project) in self.projects.iter().enumerate() {
+        // The session list holds only the live machine's sessions; another machine's come all from its own fetch.
+        let listed = if machine == HOME_MACHINE_KEY { self.projects.as_slice() } else { &[] };
+        for (p, project) in listed.iter().enumerate() {
             for (i, session) in project.sessions.iter().enumerate() {
                 let id = if session.id.is_empty() { format!("mock.{p}.{i}") } else { session.id.clone() };
                 let at = fetched.iter().position(|f| f.id == id);
@@ -161,7 +164,8 @@ impl State {
         }
         lists.files_loading = self.finder.files.loading;
         lists.files_error = self.finder.files.error.clone();
-        lists.sessions = self.mentionable_sessions();
+        let machine = self.open_id().map_or(HOME_MACHINE_KEY, |id| self.machine_key_of(&id)).to_string();
+        lists.sessions = self.mentionable_sessions(&machine);
         lists
     }
 
@@ -370,19 +374,19 @@ impl State {
                 }
             }
         }
-        if self.link.is_some() && self.finder.sessions.should_fetch(mention_open, now) {
+        // The machine the open session is on looks a picked session up when the prompt is sent, so its list is the one offered.
+        let machine = self.open_id().map_or(HOME_MACHINE_KEY, |id| self.machine_key_of(&id)).to_string();
+        let link = self.open_id().and_then(|id| self.link_for(&id)).or_else(|| self.link.clone());
+        let fetch = self.finder.sessions.entry(machine.clone()).or_default().should_fetch(mention_open, now);
+        if let (true, Some(link)) = (fetch && self.link.is_some(), link) {
             let at = now;
-            if let Some(link) = &self.link {
-                link.off_thread(
-                    |base| http::sessions_for_mentions(base).map(|body| parse_sessions(&body)),
-                    move |s, _, result| {
-                        s.finder.sessions.arrived(result, s.clock.max(at));
-                        s.auto.dirty = true;
-                    },
-                );
-            }
-        } else if self.is_mock() {
-            let _ = self.finder.sessions.should_fetch(mention_open, now);
+            link.off_thread(
+                |base| http::sessions_for_mentions(base).map(|body| parse_sessions(&body)),
+                move |s, _, result| {
+                    s.finder.sessions.entry(machine).or_default().arrived(result, s.clock.max(at));
+                    s.auto.dirty = true;
+                },
+            );
         }
     }
 

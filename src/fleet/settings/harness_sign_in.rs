@@ -183,7 +183,29 @@ type Then = Box<dyn FnOnce(&mut State, Result<(), String>) + Send>;
 
 impl State {
     fn sign_in_key(&self, harness: &str) -> (String, String) {
-        (self.harness_machine(), harness.to_string())
+        (self.sign_in_machine(), harness.to_string())
+    }
+
+    /// The machine the panel asks: the setup dialog's rows are the live machine's, Settings' tab is the one it shows.
+    pub fn sign_in_machine(&self) -> String {
+        if self.harness_setup.is_open { crate::fleet::settings::HOME_MACHINE_KEY.to_string() } else { self.harness_machine() }
+    }
+
+    /// Asked each frame the setup dialog is open: a Fleet-installed harness that needs a sign-in lists its providers when its row
+    /// first shows (`HarnessSignInPanel` with `auto-load`). True when it asked.
+    pub fn keep_setup_sign_in(&mut self) -> bool {
+        if !self.harness_setup.is_open || self.harness_setup.cloud {
+            return false;
+        }
+        let list = self.setup_harnesses();
+        let Some(h) = list.all.iter().find(|h| h.fleet_installs() && h.setup_state() == "sign-in-required") else { return false };
+        let key = self.sign_in_key(&h.kind);
+        let panel = &mut self.settings.harnesses.sign_in;
+        if panel.key == key && (panel.requested || panel.loading) {
+            return false;
+        }
+        panel.mine(&key);
+        self.load_sign_ins(&h.kind, &h.display_name)
     }
 
     /// The providers of `harness` on the machine shown; none until read.
@@ -270,7 +292,7 @@ impl State {
     /// `changed`: after a sign-in the models on offer changed, and a harness that waited for one is ready. Forgets the catalogs of
     /// `harness`, reads the harnesses again and the providers; `then` hears about the last.
     fn sign_in_changed(&mut self, harness: &str, failed: String, then: Then) {
-        let machine = self.harness_machine();
+        let machine = self.sign_in_machine();
         if let Some(feed) = self.feeds.catalogs.get_mut(&machine) {
             feed.forget_harness(harness);
         }

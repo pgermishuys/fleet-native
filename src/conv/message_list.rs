@@ -477,6 +477,11 @@ pub fn optimistic_message(prompt: &SentPrompt) -> ListMessage {
     out.author = "You".into();
     out.created_at = Some(prompt.created_at);
     out.body = prompt.body.clone();
+    out.images = prompt
+        .images
+        .iter()
+        .map(|i| ListImage { url: i.data_url(), filename: i.filename.clone().unwrap_or_else(|| "image.png".into()) })
+        .collect();
     out.optimistic = Some(prompt.status);
     out
 }

@@ -626,3 +626,20 @@ fn closing_the_setup_terminal_gives_the_slot_back() {
     click(&mut r.rt, "harness-setup-terminal-close");
     assert!(!r.rt.state.setup_terminal_shown() && r.rt.state.terminal.live.is_none());
 }
+
+#[test]
+fn shows_the_providers_panel_in_the_row_of_a_fleet_installed_harness_that_needs_a_sign_in_and_asks_its_providers_there() {
+    let mut copilot = copilot(None);
+    copilot["state"] = json!("sign-in-required");
+    copilot["update"] = copilot_plan_only();
+    let mut r = rig(vec![opencode("ready"), copilot]);
+    assert!(r.has("harness-sign-in-copilot"), "the panel sits in the row, not behind a hand-off to Settings");
+    r.wait_request("GET", "/api/harnesses/copilot/sign-in");
+    assert_eq!(r.rt.state.rail, crate::Rail::Sessions, "Settings stayed shut");
+    assert!(r.rt.state.harness_setup.is_open);
+}
+
+/// What a Fleet-installed harness that is installed already says of its update: the plan only.
+fn copilot_plan_only() -> Value {
+    json!({ "updateAvailable": false, "canInstall": false, "installPlan": "Fleet downloads weave-copilot 0.1.0 and the Copilot CLI 1.0.98 from GitHub." })
+}

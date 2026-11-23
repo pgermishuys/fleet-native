@@ -27,8 +27,11 @@ pub(crate) struct Fake {
     /// What `GET /api/directories/find` lists by folder, and the (folder, query) pairs it was asked.
     pub(crate) folder_files: std::collections::HashMap<String, Vec<String>>,
     pub(crate) finds: Vec<(String, String)>,
-    /// What `GET /api/sessions` answers.
+    /// What `GET /api/sessions` answers, and the paths it was asked (the `@` list reads `retentionStatus=all`).
     pub(crate) sessions: Vec<Value>,
+    pub(crate) session_reads: Vec<String>,
+    /// The (session, body) pairs `POST /api/sessions/{id}/prompt` got.
+    pub(crate) prompts: Vec<(String, Value)>,
     /// The (key, value) pairs `PUT /api/preferences/{key}` got.
     pub(crate) preferences: Vec<(String, String)>,
     /// What `GET /api/machines` lists.
@@ -118,8 +121,15 @@ fn answer(mut stream: std::net::TcpStream, fake: Shared) {
         let value = sent["value"].as_str().unwrap_or("").to_string();
         fake.lock().unwrap().preferences.push((path.trim_start_matches("/api/preferences/").to_string(), value));
         (200, json!({}))
+    } else if method == "POST" && path.starts_with("/api/sessions/") && path.ends_with("/prompt") {
+        let sent: Value = serde_json::from_slice(&body).unwrap_or(Value::Null);
+        let id = path.trim_start_matches("/api/sessions/").trim_end_matches("/prompt").to_string();
+        fake.lock().unwrap().prompts.push((id, sent));
+        (202, json!({}))
     } else if method == "GET" && path.starts_with("/api/sessions") {
-        (200, Value::Array(fake.lock().unwrap().sessions.clone()))
+        let mut f = fake.lock().unwrap();
+        f.session_reads.push(path.to_string());
+        (200, Value::Array(f.sessions.clone()))
     } else {
         (404, json!({}))
     };
@@ -430,7 +440,7 @@ fn a_starter_fills_the_box_with_its_ellipsis_selected_and_sends_nothing() {
 // ─── another machine (A21.101, A21.104) ─────────────────────────────────────────
 
 /// The rig, plus a second Fleet that home lists as a machine, and the page moved onto it.
-fn rig_on_another_machine() -> (Rig, Shared) {
+pub(crate) fn rig_on_another_machine() -> (Rig, Shared) {
     let elsewhere: Shared = Default::default();
     let base = serve(elsewhere.clone());
     let falcon = json!({ "id": "m-falcon", "name": "falcon", "baseUrl": base, "os": "linux", "status": "online",

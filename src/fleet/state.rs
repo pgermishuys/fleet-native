@@ -5,7 +5,7 @@ use super::history::{self, Page};
 use super::http;
 use super::link::Connection;
 use super::model::{Msg, StreamState};
-use super::prompts::{self, Confirm, PromptStatus};
+use super::prompts::{self, Confirm};
 use super::reducer;
 use super::rows::RowPatch;
 use super::sessions;
@@ -668,17 +668,8 @@ impl State {
         let at = self.open_at();
         let sent = self.session_at(at).map(|s| s.id.clone()).unwrap_or_default();
         // The prompts the conversation doesn't hold yet, after the delivered messages (`mergeMessagesByTimestamp`).
-        let optimistic: Vec<Message> = self
-            .prompts
-            .of(&sent)
-            .iter()
-            .filter(|prompt| !shown.iter().any(|m| m.id == prompt.id))
-            .map(|prompt| {
-                let mut m = Message::user(format!("optimistic-{}", prompt.correlation_id), prompt.body.clone());
-                m.needs_retry = prompt.status == PromptStatus::NeedsRetry;
-                m
-            })
-            .collect();
+        let optimistic: Vec<Message> =
+            self.prompts.of(&sent).iter().filter(|prompt| !shown.iter().any(|m| m.id == prompt.id)).map(prompts::optimistic_view).collect();
         // Not `session_mut()`: that would borrow all of `self` while `stream` is still read.
         let Some(session) = (if at.0 == store::ELSEWHERE {
             self.store.elsewhere_at_mut(at.1)

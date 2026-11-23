@@ -228,7 +228,14 @@ impl State {
         }
         // All in one tick: the session page has the message and its row before the history loads.
         if let Some(message) = &sent.request.options.initial_prompt {
-            self.prompts.add(&id, message, sent.sent_at, self.clock);
+            let images = sent
+                .request
+                .options
+                .attachments
+                .iter()
+                .map(|i| crate::fleet::prompts::SentImage { mime: i.mime.clone(), filename: i.filename.clone(), data: i.data.clone() })
+                .collect();
+            self.prompts.add_with(&id, message, sent.sent_at, self.clock, images, sent.request.options.session_references.clone());
         }
         let project = sent.project.as_ref().map(|(id, name)| (id.as_str(), name.as_str()));
         let row = build_created_session_row(&created, &sent.request, project);

@@ -6,7 +6,7 @@
 //! the conversation holds the message (`reconcile`). Not confirmed in 15 s it becomes `NeedsRetry`.
 //! A prompt the server refuses is `remove`d and its text goes back to the composer (`State::on_prompt_refused`).
 use super::model::{Msg, PartData};
-use crate::view::conversation::Role;
+use crate::view::conversation::{Message, Part, Role};
 use std::collections::{HashMap, HashSet};
 use std::hash::{BuildHasher, Hasher};
 
@@ -32,6 +32,40 @@ pub struct SentPrompt {
     pub created_at: i64,
     /// When it was sent, on the app's clock: the 15 s start here.
     pub sent_at: f64,
+    /// The pictures that went with it, drawn under its words until the server's message replaces it (A9.7).
+    pub images: Vec<SentImage>,
+    /// The sessions its `@` names, as (token, session id): what Fleet turns into chips in the first bubble (A8.12).
+    pub session_references: Vec<(String, String)>,
+}
+
+/// A picture sent with a prompt: base64, as the request carried it.
+#[derive(Clone, Debug, PartialEq)]
+pub struct SentImage {
+    pub mime: String,
+    pub filename: Option<String>,
+    pub data: std::sync::Arc<str>,
+}
+
+impl SentImage {
+    /// `data:{mime};base64,{data}`, what the bubble's picture is read from.
+    pub fn data_url(&self) -> String {
+        format!("data:{};base64,{}", self.mime, self.data)
+    }
+}
+
+/// What the conversation draws for a prompt the stream hasn't echoed yet: its words, then its pictures (A9.7).
+pub fn optimistic_view(prompt: &SentPrompt) -> Message {
+    let mut m = Message::user(format!("optimistic-{}", prompt.correlation_id), prompt.body.clone());
+    m.needs_retry = prompt.status == PromptStatus::NeedsRetry;
+    for (n, image) in prompt.images.iter().enumerate() {
+        m.parts.push(Part::File {
+            id: format!("{}-img-{n}", m.id),
+            mime: image.mime.clone(),
+            filename: image.filename.clone().or_else(|| Some("image.png".into())),
+            url: image.data_url(),
+        });
+    }
+    m
 }
 
 /// What a confirmation says (`ConfirmSentPromptOptions`).
@@ -98,6 +132,19 @@ pub fn new_correlation_id() -> String {
 impl Prompts {
     /// Shows a message as sent. `None` for text that is only space (nothing is sent).
     pub fn add(&mut self, session: &str, body: &str, created_at: i64, now: f64) -> Option<String> {
+        self.add_with(session, body, created_at, now, Vec::new(), Vec::new())
+    }
+
+    /// The same, with the pictures and the session references the message went with.
+    pub fn add_with(
+        &mut self,
+        session: &str,
+        body: &str,
+        created_at: i64,
+        now: f64,
+        images: Vec<SentImage>,
+        session_references: Vec<(String, String)>,
+    ) -> Option<String> {
         let body = tidy_prompt(body);
         if body.is_empty() {
             return None;
@@ -112,6 +159,8 @@ impl Prompts {
             body: body.clone(),
             created_at,
             sent_at: now,
+            images,
+            session_references,
         });
         Some(correlation_id)
     }
@@ -132,6 +181,8 @@ impl Prompts {
             body: body.clone(),
             created_at,
             sent_at: now,
+            images: Vec::new(),
+            session_references: Vec::new(),
         });
     }
 
