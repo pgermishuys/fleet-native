@@ -144,7 +144,8 @@ fn its_permission_asks_wait_in_the_panel() {
     fx.rt.frame(1.0 / 60.0);
     assert_eq!(fx.rt.state.asks.of("side-1").len(), 1, "kept for the side session");
     assert!(fx.rt.state.open_asks().is_empty(), "not the session's");
-    assert!(fx.rt.presented("permission-allow-once").is_some(), "answerable in the panel");
+    assert!(fx.rt.presented("permission-allow-once-side").is_some(), "answerable in the panel");
+    assert!(fx.rt.presented("permission-allow-once").is_none(), "its keys end in -side, so the session's own card keeps its own");
 }
 
 #[test]
@@ -172,4 +173,32 @@ fn a_reconnect_listens_again() {
     assert_eq!(topics.all(), ["parent", "side-1"]);
     topics.mark_side("side-1", false);
     assert!(topics.unwatch("side-1") && !topics.is_side("side-1"));
+}
+
+// Component 26, piece S (row 2.90): a side ask is answered with the keys, as the session's own is.
+#[test]
+fn a_side_ask_is_answered_by_the_keyboard() {
+    use rune::Key;
+    let mut fx = open_side();
+    deliver(&mut fx, &snapshot("busy", false));
+    let ask = |id: &str| {
+        Event::Other(
+            crate::fleet::events::Kind::PermissionAsked,
+            json!({"id": id, "sessionId": "side-1", "kind": "shell", "tool": "bash", "title": "git push origin main",
+                   "always": ["git push *"], "askedAt": "2026-09-28T10:00:00Z"}),
+        )
+    };
+    let events = vec![ask("perm-1"), ask("perm-2")];
+    fx.rt.update(move |s, tx| s.on_side_events("side-1", events, tx));
+    fx.rt.frame(1.0 / 60.0);
+    let keys: Vec<String> = fx.rt.elements().into_iter().filter_map(|e| e.key).filter(|k| k.starts_with("permission-allow-once")).collect();
+    assert_eq!(keys, ["permission-allow-once-side", "permission-allow-once-side-perm-2"], "no two cards share a key");
+    // The arrows move between the side card's choices, 2 answers the first ask, and only that one.
+    crate::tests::click(&mut fx.rt, "permission-allow-once-side");
+    crate::tests::press_key(&mut fx.rt, Key::Down, Default::default());
+    assert_eq!(fx.rt.elements().into_iter().find(|e| e.focused).and_then(|e| e.key).as_deref(), Some("permission-allow-always-side"));
+    crate::tests::press_key(&mut fx.rt, Key::Text("2".into()), Default::default());
+    fx.rt.frame(1.0 / 60.0);
+    let left: Vec<String> = fx.rt.state.asks.of("side-1").iter().map(|a| a.id.clone()).collect();
+    assert_eq!(left, ["perm-2"], "the first side ask is answered, the second waits");
 }

@@ -70,8 +70,10 @@ fn open_button(s: &State, t: &Theme, st: &SideState, title: &str) -> El {
 
 /// The tab's ×: 22 square, discards like the header's.
 fn close(t: &Theme) -> El {
-    el().key("side-tab-close")
+    el().key(crate::fleet::side_tab::CLOSE_KEY)
         .size(22.0, 22.0)
+        .focusable(true)
+        .focus_ring(2.0, 2.0, t.accent)
         .center()
         .radius(RADIUS_BTN)
         .label(DISCARD_LABEL)

@@ -14,13 +14,45 @@ use crate::theme::{RADIUS_BTN, Theme, mono, sans};
 use crate::ui::text_menu::text_input;
 use rune::{Cursor, El, Key, KeyEvent, Tx, col, el, icon, row, text};
 
+thread_local! {
+    /// What the card being built ends its keys with; set by `card` and read by `k` while it builds.
+    static SUFFIX: std::cell::RefCell<String> = const { std::cell::RefCell::new(String::new()) };
+}
+
+struct Scope(String);
+
+impl Scope {
+    fn enter(sfx: &str) -> Scope {
+        Scope(SUFFIX.with(|c| c.replace(sfx.to_string())))
+    }
+}
+
+impl Drop for Scope {
+    fn drop(&mut self) {
+        SUFFIX.with(|c| c.replace(std::mem::take(&mut self.0)));
+    }
+}
+
+/// An element key of the card being built: the name and the card's suffix.
+fn k(base: &str) -> String {
+    SUFFIX.with(|c| format!("{base}{}", c.borrow()))
+}
+
+/// The suffix of the first card of the open session (none) and of the side conversation's.
+pub const SIDE_SFX: &str = "-side";
+
+/// The suffix of the `n`th card of a session: the first has `base`, the others are told apart by their ask.
+pub fn suffix(base: &str, n: usize, ask: &PermissionAsk) -> String {
+    if n == 0 { base.to_string() } else { format!("{base}-{}", ask.id) }
+}
+
 /// `.pcard__lines`: the diff scrolls at 240px.
 const LINES_MAX_H: f32 = 240.0;
 /// A monospace character at 12px, to give every diff line the width of the longest so its tint reaches the end.
 const CHAR_W: f32 = 7.2;
 
 /// `.pcard` and what is in it, for one waiting ask.
-pub fn card(t: &Theme, s: &State, ask: &PermissionAsk, first: bool) -> El {
+pub fn card(t: &Theme, s: &State, ask: &PermissionAsk, sfx: &str) -> El {
     // A command or a file made from coloured output shows without its terminal codes (`askTitle`, `askDirectory`, #1041).
     let plain;
     let ask = if [&ask.title, &ask.directory].iter().any(|t| t.as_deref().is_some_and(|t| t.contains('\u{1b}'))) {
@@ -34,10 +66,10 @@ pub fn card(t: &Theme, s: &State, ask: &PermissionAsk, first: bool) -> El {
         ask
     };
     let heading = permission_heading(ask);
-    // Cards after the first are keyed by their ask, so two waiting at once don't share a key. Their buttons still do:
-    // the keys act on the first card (docs/parity/04, row 3.14).
-    let key = if first { "permission-card".to_string() } else { format!("permission-card-{}", ask.id) };
-    let mut card = ask_card::frame(t, key).label(format!("The agent asks: {heading}")).child(head(t, ask, &heading));
+    // Every key in the card ends in `sfx`, so the cards on screen at once (the session's, the side conversation's, a second
+    // one waiting) never share one; the keys act on the first card of the open session or of the side one (rows 3.14, 15 3.6).
+    let _scope = Scope::enter(sfx);
+    let mut card = ask_card::frame(t, k("permission-card")).label(format!("The agent asks: {heading}")).child(head(t, ask, &heading));
     card = match &ask.handoff {
         Some(handoff) => card.child(handoff_block(t, handoff)),
         None => match body(t, ask) {
@@ -48,7 +80,7 @@ pub fn card(t: &Theme, s: &State, ask: &PermissionAsk, first: bool) -> El {
     card = card.child(choices(t, s, ask));
     if let Some(error) = s.ask_act(&ask.id).error {
         // `.pcard__error`, role alert: Fleet's own reason, or that the answer didn't get there.
-        card = card.child(text(error).key("permission-error").label("alert").font(sans(12.0, 400.0, 1.4)).color(t.error_text).wrap());
+        card = card.child(text(error).key(k("permission-error")).label("alert").font(sans(12.0, 400.0, 1.4)).color(t.error_text).wrap());
     }
     card.child(foot(t, ask))
 }
@@ -56,12 +88,12 @@ pub fn card(t: &Theme, s: &State, ask: &PermissionAsk, first: bool) -> El {
 /// `.pcard__head`: the shield, the heading, who asked, and "Needs you" at the far end.
 fn head(t: &Theme, ask: &PermissionAsk, heading: &str) -> El {
     let mut head = row().w_full().gap(8.0).center_y().child(icon(&SHIELD_ALERT, 15.0).color(t.status_waiting())).child(
-        text(heading.to_string()).key("permission-heading").font(sans(13.0, 600.0, 1.3)).color(t.text).truncate().shrink().min_w(0.0),
+        text(heading.to_string()).key(k("permission-heading")).font(sans(13.0, 600.0, 1.3)).color(t.text).truncate().shrink().min_w(0.0),
     );
     if ask.subagent.is_some() {
         head = head.child(
             row()
-                .key("permission-subagent")
+                .key(k("permission-subagent"))
                 .px(8.0)
                 .radius(999.0)
                 .border(1.0, t.border)
@@ -69,7 +101,7 @@ fn head(t: &Theme, ask: &PermissionAsk, heading: &str) -> El {
                 .child(text("Subagent").font(sans(11.5, 400.0, 1.4)).color(t.muted)),
         );
     }
-    head.child(el().grow(1.0)).child(ask_card::needs_you(t, "permission-needs-you"))
+    head.child(el().grow(1.0)).child(ask_card::needs_you(t, &k("permission-needs-you")))
 }
 
 /// `.pcard__cmd`: the plain block, scrolling sideways.
@@ -82,7 +114,7 @@ fn body(t: &Theme, ask: &PermissionAsk) -> Option<El> {
     if ask.kind == PermissionKind::Shell
         && let Some(command) = &ask.title
     {
-        let mut inner = col().key("permission-cmd");
+        let mut inner = col().key(k("permission-cmd"));
         if let Some(directory) = &ask.directory {
             inner = inner.child(text(directory.clone()).font(mono(11.5, 400.0, 1.5)).color(t.muted).mb(2.0));
         }
@@ -96,7 +128,7 @@ fn body(t: &Theme, ask: &PermissionAsk) -> Option<El> {
     }
     ask.title
         .as_ref()
-        .map(|title| block(t, col().key("permission-cmd").child(text(title.clone()).font(mono(12.5, 400.0, 1.5)).color(t.text))))
+        .map(|title| block(t, col().key(k("permission-cmd")).child(text(title.clone()).font(mono(12.5, 400.0, 1.5)).color(t.text))))
 }
 
 /// `.pcard__diff`: the file line, then the changed lines when there are any (rows 3.5-3.7).
@@ -105,7 +137,7 @@ fn file(t: &Theme, ask: &PermissionAsk) -> El {
     let (added, removed) = counts(&lines);
     let mut file_line = row().w_full().gap(8.0).px(12.0).py(6.0).child(
         text(ask.title.clone().unwrap_or_else(|| ask.tool.clone()))
-            .key("permission-path")
+            .key(k("permission-path"))
             .font(mono(11.5, 400.0, 1.5))
             .color(t.muted)
             .truncate()
@@ -113,15 +145,16 @@ fn file(t: &Theme, ask: &PermissionAsk) -> El {
             .min_w(0.0),
     );
     if added > 0 {
-        file_line = file_line.child(text(format!("+{added}")).key("permission-add").font(mono(11.5, 400.0, 1.5)).color(t.diff_add_text()));
+        file_line =
+            file_line.child(text(format!("+{added}")).key(k("permission-add")).font(mono(11.5, 400.0, 1.5)).color(t.diff_add_text()));
     }
     if removed > 0 {
         // A real minus sign, as Fleet writes it.
-        file_line =
-            file_line.child(text(format!("\u{2212}{removed}")).key("permission-del").font(mono(11.5, 400.0, 1.5)).color(t.diff_del_text()));
+        file_line = file_line
+            .child(text(format!("\u{2212}{removed}")).key(k("permission-del")).font(mono(11.5, 400.0, 1.5)).color(t.diff_del_text()));
     }
     let mut diff = col()
-        .key("permission-file")
+        .key(k("permission-file"))
         .w_full()
         .radius(RADIUS_BTN)
         .border(1.0, t.border)
@@ -154,7 +187,7 @@ fn lines_box(t: &Theme, lines: &[DiffLine]) -> El {
         }
         rows = rows.child(one);
     }
-    el().key("permission-lines").w_full().max_h(LINES_MAX_H).border_sides([0.0, 1.0, 0.0, 0.0], t.border).scroll_xy().child(rows)
+    el().key(k("permission-lines")).w_full().max_h(LINES_MAX_H).border_sides([0.0, 1.0, 0.0, 0.0], t.border).scroll_xy().child(rows)
 }
 
 /// `.pcard__handoff` and `.pcard__note`: what goes to the other machine, under whose permission level (rows 4.2, 4.3).
@@ -166,7 +199,7 @@ fn handoff_block(t: &Theme, handoff: &crate::asks::permission::HandoffAsk) -> El
         values = values.child(text(value).font(mono(12.5, 400.0, 1.5)).color(t.text).truncate());
     }
     let list = row()
-        .key("permission-handoff")
+        .key(k("permission-handoff"))
         .w_full()
         .gap(14.0)
         .px(12.0)
@@ -178,7 +211,7 @@ fn handoff_block(t: &Theme, handoff: &crate::asks::permission::HandoffAsk) -> El
         .child(labels)
         .child(values);
     let note = row()
-        .key("permission-handoff-level")
+        .key(k("permission-handoff-level"))
         .w_full()
         .flex_wrap()
         .child(text(format!("It runs under {}'s permission level: ", handoff.machine)).font(sans(12.5, 400.0, 1.5)).color(t.muted))
@@ -191,7 +224,7 @@ fn handoff_block(t: &Theme, handoff: &crate::asks::permission::HandoffAsk) -> El
 fn choice_row(t: &Theme, busy: bool, ask: &PermissionAsk, key: &'static str, number: &'static str, reply: Reply) -> El {
     let ask = ask.clone();
     row()
-        .key(key)
+        .key(k(key))
         .focusable(!busy)
         .opacity(if busy { 0.55 } else { 1.0 })
         .on_press(move |s: &mut State| s.answer_ask(&ask, reply))
@@ -219,7 +252,7 @@ fn scope(t: &Theme, words: String) -> El {
 
 fn choices(t: &Theme, s: &State, ask: &PermissionAsk) -> El {
     let busy = s.ask_act(&ask.id).busy;
-    let group = col().key("permission-choices").label("Answer").w_full().gap(4.0);
+    let group = col().key(k("permission-choices")).label("Answer").w_full().gap(4.0);
     let once = choice_row(t, busy, ask, "permission-allow-once", "1", Reply::Once).child(name(t, "Allow once".into()));
     if let Some(handoff) = &ask.handoff {
         let machine = &handoff.machine;
@@ -244,7 +277,7 @@ fn choices(t: &Theme, s: &State, ask: &PermissionAsk) -> El {
     if let Some(code) = wording.code {
         always_name = always_name.child(
             row()
-                .key("permission-always-code")
+                .key(k("permission-always-code"))
                 .ml(4.0)
                 .px(4.0)
                 .radius(4.0)
@@ -265,7 +298,7 @@ fn choices(t: &Theme, s: &State, ask: &PermissionAsk) -> El {
 fn deny_row(t: &Theme, s: &State, ask: &PermissionAsk, busy: bool) -> El {
     let hint = "Deny, and tell the agent what to do instead…";
     let field = text_input(&s.deny, sans(13.0, 400.0, 1.3))
-        .key("permission-deny-input")
+        .key(k("permission-deny-input"))
         .label("Deny, with an optional message for the agent")
         .placeholder(hint, t.muted)
         .color(t.text)
@@ -288,7 +321,7 @@ fn deny_row(t: &Theme, s: &State, ask: &PermissionAsk, busy: bool) -> El {
         });
     let denied = ask.clone();
     let pill = el()
-        .key("permission-deny")
+        .key(k("permission-deny"))
         .h(24.0)
         .px(10.0)
         .center()
@@ -302,7 +335,10 @@ fn deny_row(t: &Theme, s: &State, ask: &PermissionAsk, busy: bool) -> El {
     // Clicking the row (not the pill) puts the caret in the field; Enter there denies.
     choice_row(t, busy, ask, "permission-deny-row", "3", Reply::Reject)
         .focusable(false)
-        .on_press_tx(|_: &mut State, tx: &mut Tx| tx.focus("permission-deny-input", false))
+        .on_press_tx({
+            let input = k("permission-deny-input");
+            move |_: &mut State, tx: &mut Tx| tx.focus(&input, false)
+        })
         .cursor(Cursor::Text)
         .child(field)
         .child(pill)
@@ -328,12 +364,12 @@ fn foot(t: &Theme, ask: &PermissionAsk) -> El {
     };
     let mut foot = row().w_full().flex_wrap().center_y().gap(8.0);
     for (key, words) in spans {
-        foot = foot.child(if key.is_empty() { small(words) } else { small(words).key(key) });
+        foot = foot.child(if key.is_empty() { small(words) } else { small(words).key(k(key)) });
     }
     // Underline on hover has no equivalent at Rune's pin; the link keeps its colour (docs/RUNE.md).
     foot.child(el().grow(1.0)).child(
         text(settings)
-            .key("permission-settings")
+            .key(k("permission-settings"))
             .font(sans(11.0, 400.0, 1.4))
             .color(t.accent_text)
             .cursor(Cursor::Pointer)
@@ -363,8 +399,18 @@ fn buttons(ask: &PermissionAsk) -> &'static [&'static str] {
 
 /// The window's key handler, for a key while a card holds the keyboard (rows 3.14 and 4.5). True when it took it.
 pub fn on_key(s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool {
-    let Some(ask) = s.open_asks().first().cloned() else { return false };
-    let Some(focused) = tx.focused().filter(|k| CARD_KEYS.contains(k)).map(str::to_string) else { return false };
+    // The side conversation's card has the same elements with `-side` on their keys; its keys answer its own first ask.
+    let Some(held) = tx.focused().map(str::to_string) else { return false };
+    let (focused, side) = match held.strip_suffix(SIDE_SFX) {
+        Some(base) => (base.to_string(), true),
+        None => (held, false),
+    };
+    if !CARD_KEYS.contains(&focused.as_str()) {
+        return false;
+    }
+    let ask = if side { s.side_session_id().and_then(|id| s.asks.of(&id).first().cloned()) } else { s.open_asks().first().cloned() };
+    let Some(ask) = ask else { return false };
+    let at = |key: &str| if side { format!("{key}{SIDE_SFX}") } else { key.to_string() };
     if ev.mods.cmd || ev.mods.alt || ev.mods.ctrl || ev.mods.logo {
         return false;
     }
@@ -372,7 +418,7 @@ pub fn on_key(s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool {
         // Arrows move only from a choice button, and not at all from the deny field.
         return match crate::asks::focus::next_choice(buttons(&ask), &focused, step) {
             Some(next) => {
-                tx.focus(next, true);
+                tx.focus(at(next), true);
                 true
             }
             None => false,
@@ -386,7 +432,7 @@ pub fn on_key(s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool {
         Key::Text(t) if t == "2" => Some(Reply::Always),
         Key::Text(t) if t == "3" && handoff => Some(Reply::Reject),
         Key::Text(t) if t == "3" => {
-            tx.focus("permission-deny-input", false);
+            tx.focus(at("permission-deny-input"), false);
             return true;
         }
         // Enter on a focused choice presses it.

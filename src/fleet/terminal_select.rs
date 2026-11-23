@@ -8,6 +8,12 @@ use crate::composer::attached::TerminalDraft;
 use crate::term::fit::{CELL_H, CELL_W, PAD};
 use crate::term::selection::Pick;
 
+/// How far the pointer may travel and still be a click (Rune's own double-click slop).
+/// The most lines one tick of a drag's own scrolling moves.
+const DRAG_SCROLL_MAX: i32 = 5;
+
+const CLICK_SLOP: f32 = 4.0;
+
 /// Lines one notch of a wheel scrolls (xterm: three).
 pub const NOTCH_LINES: f32 = 3.0;
 
@@ -20,7 +26,7 @@ fn cell_at(x: f32, y: f32) -> (usize, usize, bool) {
 impl State {
     /// The box's drag: a press selects (a word on a double click, a line on a triple), moving extends. A press past the top or
     /// bottom edge scrolls the view a line with each move, so a selection can reach what is off screen.
-    pub fn terminal_drag(&mut self, d: &Drag, tx: &Tx) {
+    pub fn terminal_drag(&mut self, d: &Drag, tx: &mut Tx) {
         if self.report_drag(d, tx) {
             return;
         }
@@ -40,14 +46,26 @@ impl State {
                 live.term.select_start(pick, col, row, right);
             }
             Phase::Move => {
-                if d.y < PAD[0] {
-                    live.term.scroll_by(1);
-                } else if d.y > PAD[0] + live.term.size().1 as f32 * CELL_H {
-                    live.term.scroll_by(-1);
+                // Held past an edge the view scrolls on a timer (`keep_drag_scroll`), faster the further out the pointer is.
+                let bottom = PAD[0] + live.term.size().1 as f32 * CELL_H;
+                self.terminal.drag_scroll = if d.y < PAD[0] {
+                    1 + ((PAD[0] - d.y) / CELL_H) as i32
+                } else if d.y > bottom {
+                    -1 - ((d.y - bottom) / CELL_H) as i32
+                } else {
+                    0
                 }
+                .clamp(-DRAG_SCROLL_MAX, DRAG_SCROLL_MAX);
+                self.terminal.drag_cell = (col, row, right);
                 live.term.select_to(col, row, right);
             }
-            Phase::Up => {}
+            Phase::Up => {
+                self.terminal.drag_scroll = 0;
+                // A click that never moved on a link opens it; a drag that began on one selected instead.
+                if d.clicks <= 1 && d.dx.abs() < CLICK_SLOP && d.dy.abs() < CLICK_SLOP && !d.cancelled() {
+                    self.open_terminal_link(tx);
+                }
+            }
         }
     }
 
@@ -59,6 +77,7 @@ impl State {
         let Some(live) = self.terminal.live.as_ref() else { return false };
         // A notch is three lines; a trackpad's steps are points, kept until they add up to a line.
         let lines = if e.precise { e.dy / CELL_H } else { e.dy.signum() * NOTCH_LINES };
+        self.terminal.bar_seen = self.clock;
         self.terminal.wheel_rem += lines;
         let whole = self.terminal.wheel_rem.trunc();
         self.terminal.wheel_rem -= whole;
@@ -124,12 +143,27 @@ impl State {
                 let back = d.data - d.dy / per_line;
                 live.term.scroll_to_offset(back.round().clamp(0.0, history as f32) as usize);
             }
-            Phase::Up => self.terminal.bar_held = false,
+            Phase::Up => {
+                self.terminal.bar_held = false;
+                self.terminal.bar_seen = self.clock;
+            }
+        }
+    }
+
+    /// A press on the empty track (or a drag that began there): the slider centres on the pointer and follows it.
+    pub fn terminal_track_drag(&mut self, d: &mut Drag) {
+        let Some(live) = self.terminal.live.as_ref() else { return };
+        let (history, _, rows) = live.term.scroll_state();
+        self.terminal.bar_held = d.phase != Phase::Up;
+        self.terminal.bar_seen = self.clock;
+        if d.phase != Phase::Up {
+            live.term.scroll_to_offset(crate::view::terminal_bar::offset_at(d.y, rows as f32 * CELL_H, history, rows));
         }
     }
 
     /// The pointer came over the box or left it.
     pub fn terminal_hover(&mut self, inside: bool) {
+        self.terminal.bar_seen = self.clock;
         self.terminal.hover = inside;
         if !inside {
             self.terminal.link = None;

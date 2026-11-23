@@ -417,6 +417,8 @@ mod tests_terminal_live;
 #[cfg(test)]
 mod tests_terminal_mouse;
 #[cfg(test)]
+mod tests_terminal_polish;
+#[cfg(test)]
 mod tests_terminal_select;
 #[cfg(test)]
 mod tests_terminal_tabs;

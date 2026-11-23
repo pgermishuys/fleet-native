@@ -63,6 +63,13 @@ pub struct Slot {
     pub hover: bool,
     /// The scrollbar's slider is held.
     pub bar_held: bool,
+    /// A selection drag is held past the top (positive) or bottom (negative) edge: the lines the view moves each tick.
+    pub drag_scroll: i32,
+    /// The cell the held drag reaches, and the clock time of the next tick.
+    pub drag_cell: (usize, usize, bool),
+    pub drag_tick: f64,
+    /// When the scrollbar last had a reason to show (the pointer over the box, the slider held, the wheel); it fades after.
+    pub bar_seen: f64,
     /// What a wheel left over, in lines, so a trackpad's small steps add up.
     pub wheel_rem: f32,
     /// When the cursor's blink last restarted, on the app's clock: typing keeps it lit (xterm restarts it with each key).
@@ -100,6 +107,9 @@ impl Slot {
         self.live.as_ref().and_then(|l| l.socket.as_ref()).map(Socket::status)
     }
 }
+
+/// The gap between two ticks of a drag that scrolls the view by itself.
+pub const DRAG_SCROLL_SECS: f64 = 0.05;
 
 impl State {
     /// Ctrl/Cmd+J and the header's terminal button (`toggle-terminal`): shows or hides the open session's drawer, which is
@@ -409,7 +419,37 @@ impl State {
                 socket.resize(cols, rows);
             }
         }
-        changed | (was != focused) | self.keep_cursor_blink(tx)
+        changed | (was != focused) | self.keep_cursor_blink(tx) | self.keep_drag_scroll(tx) | self.keep_bar_fade(tx)
+    }
+
+    /// A selection drag held past the box's top or bottom keeps scrolling by itself, every 50 ms, and the selection follows the
+    /// view (xterm's `SelectionService` drag-scroll timer). True when the view moved.
+    fn keep_drag_scroll(&mut self, tx: &mut Tx) -> bool {
+        let lines = self.terminal.drag_scroll;
+        let Some(live) = self.terminal.live.as_ref().filter(|_| lines != 0) else { return false };
+        let wait = self.terminal.drag_tick - self.clock;
+        if wait > 0.0 {
+            tx.wake_after(std::time::Duration::from_secs_f64(wait));
+            return false;
+        }
+        let (col, row, right) = self.terminal.drag_cell;
+        live.term.scroll_by(lines);
+        live.term.select_to(col, row, right);
+        self.terminal.drag_tick = self.clock + DRAG_SCROLL_SECS;
+        tx.wake_after(std::time::Duration::from_secs_f64(DRAG_SCROLL_SECS));
+        true
+    }
+
+    /// While the scrollbar fades out the view is drawn again each frame.
+    fn keep_bar_fade(&mut self, tx: &mut Tx) -> bool {
+        use crate::view::terminal_bar::{FADE, LINGER};
+        let idle = self.clock - self.terminal.bar_seen;
+        let has_bar = self.terminal.live.as_ref().is_some_and(|l| l.term.scroll_state().0 > 0);
+        if !has_bar || self.terminal.hover || self.terminal.bar_held || idle >= LINGER + FADE {
+            return false;
+        }
+        tx.wake_after(std::time::Duration::from_secs_f64(if idle < LINGER { LINGER - idle } else { 1.0 / 60.0 }));
+        idle >= LINGER
     }
 
     /// The cursor's blink: 600 ms lit, 600 ms dark while the box has the keyboard and the program hasn't asked for a steady

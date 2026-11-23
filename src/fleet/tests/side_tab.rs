@@ -243,3 +243,15 @@ fn the_fold_settles_to_nothing_on_a_drawn_frame() {
     assert_eq!(fx.rt.state.side_open_share(), 0.0);
     assert!(fx.rt.presented("side-fold").is_none_or(|p| p.0[3] < 0.5 || p.1 < 0.01), "nothing of the card is left");
 }
+
+// Component 26, piece S (row 2.90): `:focus-within` on the tab's wrap, so keyboard focus on the × shows the peek too.
+#[test]
+fn focus_on_the_tabs_close_button_shows_the_peek() {
+    let mut fx = Fx::loaded(Some(side_json(true, None)));
+    report(&mut fx, false, "It is in the config file.", "a1");
+    run(&mut fx.rt, 0.4);
+    assert!(!drawn(&fx.rt, "side-peek"));
+    fx.rt.update(|_, tx| tx.focus("side-tab-close", true));
+    run(&mut fx.rt, 0.3);
+    assert!(opacity(&fx.rt, "side-peek") > 0.99, "focus on the × shows it");
+}
