@@ -198,6 +198,19 @@ impl Listener {
     }
 }
 
+/// A fake's listener stays bound after its test is over; only its thread ends. Letting the port go would hand it to a later
+/// test's fake, and a finished test's app, still polling its old address, then talks to that fake: on Windows, which gives
+/// out ports nearly in order, a jobs test read another test's `POST {}` as its own. Parked, such a call waits unanswered.
+impl Drop for Listener {
+    fn drop(&mut self) {
+        if self.over.load(std::sync::atomic::Ordering::SeqCst) {
+            PARKED.lock().unwrap_or_else(|e| e.into_inner()).push(self.inner.clone());
+        }
+    }
+}
+
+static PARKED: std::sync::Mutex<Vec<std::sync::Arc<std::net::TcpListener>>> = std::sync::Mutex::new(Vec::new());
+
 /// Set on a listener when the thread that bound it ends.
 struct End {
     over: std::sync::Arc<std::sync::atomic::AtomicBool>,
@@ -317,16 +330,18 @@ mod tests {
             });
             // While the test runs, the fake answers.
             TcpStream::connect(addr).unwrap();
-            tx.send(serving).unwrap();
+            tx.send((serving, addr)).unwrap();
         })
         .join()
         .unwrap();
-        let serving = rx.recv().unwrap();
+        let (serving, addr) = rx.recv().unwrap();
         let deadline = std::time::Instant::now() + Duration::from_secs(20);
         while !serving.is_finished() {
             assert!(std::time::Instant::now() < deadline, "the accept loop outlived the test that bound its listener");
             std::thread::sleep(Duration::from_millis(10));
         }
+        // Its port stays taken, so no later test's fake is handed the address a finished test's app may still call.
+        assert!(std::net::TcpListener::bind(addr).is_err(), "the port of a finished test's fake was let go");
     }
 
     /// Every fake server binds and reads its requests through this module: no file but the app's own port probe binds a
