@@ -92,7 +92,7 @@ pub fn tool_entry(t: &Theme, s: &State, part: &Part) -> El {
     let mut card = rune::col().w_full().child(header);
     // A failed call keeps what it printed, one line, under its row, open or closed (`v-if="preview && status === 'Error'"`);
     // a mod drawing the line says what the call did instead.
-    if let (ToolStatus::Error, Some(line), None) = (*status, body.preview.as_deref(), &line_tree) {
+    if let (false, ToolStatus::Error, Some(line), None) = (open, *status, body.preview.as_deref(), &line_tree) {
         card = card.child(toolcard::preview(t, id, line));
     }
     if open {
