@@ -3014,3 +3014,8 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 - **A browser `<select>` has no counterpart**: draw a field with a chevron (role `combobox`) that opens `ui::select::content` as an `Open::Select(name)` list, anchored to the field's key. Its rows are keyed `<key>-opt<i>`, which tests click.
 - **A `cargo test --lib` build of this crate now peaks about 5 GB in one `rustc`** (jobs=1, `CARGO_PROFILE_DEV_DEBUG=0` and four codegen units did not lower it): on this machine the 5000M cap OOM-killed it. `systemd-run --user --unit` (not `--scope`) keeps a long build alive past the tool call.
 
+## Component 23, piece R (the Board's right panel)
+
+- **A CSS `border-bottom` that takes room needs `.border_layout()` next to `.border_sides(..)`**: without it a 2 px tab underline, a 1 px metric rule and an activity row's rule take no height and the panel comes out 1-3 px short per row against Fleet's DOM.
+- **`.w_frac(f)` is a share of the parent's width** (a status track's fill, a stacked bar's segments); there is no `.w_pct`. A row whose children must not be stretched needs an explicit `.h(..)` (the collapse button is 24.5 high at the top of a 34 high tab row).
+- **A test that needs `sheet_w`** (the panel's `fits`) gets it from the Board sheet's own `on_layout`; the Board's sheet sets the same field Sessions' does, since only one is on screen.

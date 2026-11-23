@@ -85,6 +85,8 @@ mod tests_board_manage;
 #[cfg(test)]
 mod tests_board_page;
 #[cfg(test)]
+mod tests_board_right;
+#[cfg(test)]
 mod tests_board_store;
 #[cfg(test)]
 mod tests_browser;
@@ -1932,6 +1934,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_board()
         | s.keep_board_sources()
         | s.keep_board_toast(now, tx)
+        | s.keep_board_right(now, tx)
         | s.keep_mission(now, tx)
         | s.keep_jobs(now, tx)
         | s.keep_settings_anchor(tx)
@@ -2121,7 +2124,12 @@ fn on_key(s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool {
     } else if ev.is_command('k') {
         ui::palette::toggle(s, tx);
     } else if ev.is_command('b') && ev.mods.shift {
-        s.set_content_open(!s.content_open);
+        // On the Board the fold is the shared one, with no session's own (`toggle-right-panel`).
+        if s.rail == Rail::Board {
+            s.toggle_board_right();
+        } else {
+            s.set_content_open(!s.content_open);
+        }
     } else if ev.is_command('b') {
         s.set_sidebar_open(!s.sidebar_open);
     } else if ev.is_command('[') {
@@ -2870,6 +2878,14 @@ pub fn spec() -> AppSpec<State> {
             ("board-sources-empty-light", |s| plugins::board_scene(s, mock::board::Case::SourcesEmpty, false)),
             ("board-sources-error", |s| plugins::board_scene(s, mock::board::Case::SourcesError, true)),
             ("board-sources-error-light", |s| plugins::board_scene(s, mock::board::Case::SourcesError, false)),
+            // Component 23, piece R: the right panel's two tabs (the feed's clock fixed so its times don't move) and the folded panel
+            // (the gutter stays, FB8).
+            ("board-summary", |s| s.show_board(mock::board::Case::Board, true)),
+            ("board-summary-light", |s| s.show_board(mock::board::Case::Board, false)),
+            ("board-activity", |s| s.show_board_panel(Some(true), false, true)),
+            ("board-activity-light", |s| s.show_board_panel(Some(true), false, false)),
+            ("board-panel-folded", |s| s.show_board_panel(None, true, true)),
+            ("board-panel-folded-light", |s| s.show_board_panel(None, true, false)),
             ("board-off", |s| labs_off_scene(s, true, Rail::Board)),
             ("board-off-light", |s| labs_off_scene(s, false, Rail::Board)),
             // Piece T: Labs with everything off, with another machine listed, and with everything on.

@@ -2,11 +2,14 @@
 //! context's layout, with `KanbanBoard.vue`'s page: the header and its states (`header`). The lanes and cards (`lane`, `card`)
 //! and, in manage mode, what `manage` adds. Dragging, the controls (`BoardControlsPanel`) and the right panel come with later
 //! pieces.
+mod activity;
 mod card;
 mod header;
 mod lane;
 mod manage;
+mod right_panel;
 pub mod sources;
+mod summary;
 
 use crate::State;
 use crate::fleet::labs::Feature;
@@ -60,7 +63,21 @@ fn board(s: &State, t: &Theme) -> El {
         .children(header::toast(s, t))
         .children(header::banner(s, t))
         .child(body(s, t));
-    sheet(t, "board").child(page)
+    // Fleet's workspace sheet holds the page, then the gutter and the right panel; its width is what the panel's rules measure.
+    sheet(t, "board")
+        .on_layout(|s: &mut State, [_, _, w, h]| {
+            s.sheet_w = w;
+            s.sheet_h = h;
+        })
+        .child(
+            row()
+                .w_full()
+                .grow(1.0)
+                .min_h(0.0)
+                .items_stretch()
+                .child(col().grow(1.0).min_w(0.0).h_full().min_h(0.0).child(page))
+                .children(right_panel::columns(s, t)),
+        )
 }
 
 pub fn page(s: &State, t: &Theme) -> Vec<rune::El> {

@@ -222,4 +222,17 @@ impl crate::State {
         }
         self.enter_labs(crate::Rail::Board);
     }
+
+    /// Scenes of the right panel (piece R): the Board as a person first sees it, with the Activity tab open (`activity`) on a fixed
+    /// clock so the feed's times don't move, and/or the panel folded (the gutter stays).
+    pub fn show_board_panel(&mut self, activity: Option<bool>, folded: bool, dark: bool) {
+        self.show_board(Case::Board, dark);
+        if activity == Some(true) {
+            self.board.right.tab = crate::fleet::board::panel::Tab::Activity;
+            self.now_ms = Some(super::rows::NOW);
+        }
+        if folded {
+            self.sidebar.set_right_collapsed(None, true);
+        }
+    }
 }

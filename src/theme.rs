@@ -249,6 +249,37 @@ impl Theme {
         Color::WHITE.alpha(0.02)
     }
 
+    /// The right panel's bar tracks and rules (`.bar-track`, `.stacked-bar` `rgba(255,255,255,.04)`; the activity rows' rule `.03`):
+    /// literals in Fleet, the same in both themes, so they vanish on the light one (FB16).
+    pub fn board_track(&self) -> Color {
+        Color::WHITE.alpha(0.04)
+    }
+
+    pub fn board_activity_rule(&self) -> Color {
+        Color::WHITE.alpha(0.03)
+    }
+
+    /// `#52525b`: the activity feed's time and project.
+    pub fn board_dim(&self) -> Color {
+        c("#52525b")
+    }
+
+    /// `#fca5a5`: the fleet summary's error footnote.
+    pub fn board_error_note(&self) -> Color {
+        c("#fca5a5")
+    }
+
+    /// The stacked bar's segments cycle `--accent`, `--running`, `#f59e0b`, `--complete`, `#a855f7`.
+    pub fn board_segment(&self, n: usize) -> Color {
+        match n % 5 {
+            0 => self.accent,
+            1 => self.running,
+            2 => c("#f59e0b"),
+            3 => self.complete,
+            _ => c("#a855f7"),
+        }
+    }
+
     /// The Files tree's change badges (`.file-browser-tree-node__badge--green|orange|red`): fixed hex in Fleet, not tokens, so the
     /// same in both themes. Added, modified, deleted.
     pub fn badge_added(&self) -> Color {
