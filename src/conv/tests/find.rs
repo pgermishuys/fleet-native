@@ -203,3 +203,15 @@ fn locate_numbers_the_marks_across_blocks_and_clamps_to_the_last() {
     assert_eq!(locate(&[], 0), None);
     assert_eq!(locate(&[0], 0), None);
 }
+
+// Row 2.19: the side conversation's own stream has its find switched off (`enabled: () => props.after === undefined`), so a key
+// pressed with the focus inside it opens nothing, and the main conversation's bar is not opened from there either.
+#[test]
+fn ctrl_f_with_the_focus_in_the_side_conversation_opens_nothing() {
+    use crate::conv::find::{Focus, Press, focus_of_key, press};
+    for key in ["side-timeline", "side-body", "side-close", "side-u1"] {
+        let focus = focus_of_key(Some(key));
+        assert_eq!(focus, Focus::Elsewhere, "{key}");
+        assert_eq!(press(false, focus, true, true), Press::Ignore);
+    }
+}

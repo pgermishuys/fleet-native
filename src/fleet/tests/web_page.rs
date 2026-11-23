@@ -175,3 +175,16 @@ fn puts_the_page_on_the_machine_it_was_shown_on_and_names_none_without_an_id() {
     assert_eq!(page_url("http://127.0.0.1:6411", &page("", "a.html")), None);
     assert_eq!(page_url("http://127.0.0.1:6411", &page("pg_1", "")), None);
 }
+
+// Row 2.12 (`toToolCardItem`'s `waiting`): a page call waiting for a pick draws the amber glyph, until it finishes.
+#[test]
+fn a_page_call_waiting_for_a_pick_reads_as_waiting_until_it_finishes() {
+    use crate::fleet::view::tool_state;
+    use crate::view::conversation::ToolState;
+    let call = |status: &str| json!({"status": status, "input": {"waitForChoice": true, "title": "Layouts"}});
+    assert!(tool_state("fleet_page_show", &call("running"), &[]) == ToolState::Waiting);
+    assert!(tool_state("fleet_page_show", &call("completed"), &[]) != ToolState::Waiting);
+    assert!(tool_state("fleet_page_show", &call("error"), &[]) != ToolState::Waiting);
+    let plain = json!({"status": "running", "input": {"title": "Layouts"}});
+    assert!(tool_state("fleet_page_show", &plain, &[]) != ToolState::Waiting, "a page with no pick isn't waiting");
+}

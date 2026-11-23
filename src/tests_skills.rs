@@ -127,7 +127,7 @@ fn has(rt: &Runtime<State>, key: &str) -> bool {
 }
 
 #[test]
-fn a_finished_call_of_a_built_in_skill_offers_improve_and_no_other_call_does() {
+fn leaves_improve_off_a_skill_that_isn_t_fleet_s_or_hasn_t_finished_loading() {
     let rt = scene();
     assert!(has(&rt, "tool-k1-improve"), "tidy-docs is built in and finished");
     assert!(!has(&rt, "tool-k2-improve"), "release-notes is still running");
@@ -143,7 +143,7 @@ fn no_list_of_skills_yet_means_no_button() {
 }
 
 #[test]
-fn pressing_improve_asks_for_that_skill_and_leaves_the_card_as_it_was() {
+fn offers_improve_on_a_finished_call_that_loaded_a_built_in_skill_without_opening_the_row() {
     let mut rt = scene();
     let before = rt.state.tool_open.clone();
     click(&mut rt, "tool-k1-improve");

@@ -164,3 +164,57 @@ impl State {
         }
     }
 }
+
+impl State {
+    /// Messages other sessions sent, as the chip above each: a session on falcon (a machine this app lists), an update that
+    /// finished, one that failed, and a sender on a machine that isn't listed. `show_machines_only` first, so falcon is known.
+    pub fn show_peer_messages(&mut self) {
+        self.show_machines_only(super::machines::Case::Several);
+        let tag = |kind: &str, from: &str, title: &str, extra: &str, text: &str| {
+            format!("<fleet-session-{kind} {from} title=\"{title}\"{extra}>\n{text}\n</fleet-session-{kind}>")
+        };
+        let messages = vec![
+            message(
+                "u1",
+                "user",
+                minutes(9),
+                vec![text(
+                    "u1-t",
+                    &tag(
+                        "message",
+                        "from=\"ses_peer1\"",
+                        "Fix the login flake",
+                        " machine=\"m-falcon\" machine-name=\"falcon\"",
+                        "The installer test fails about one run in ten. Could you check the timeout?",
+                    ),
+                )],
+            ),
+            message("a1", "assistant", minutes(8), vec![text("a1-t", "I'll look at the timeout in the installer test.")]),
+            message(
+                "u2",
+                "user",
+                minutes(5),
+                vec![text(
+                    "u2-t",
+                    &tag("update", "session=\"ses_peer2\"", "Update the docs", " outcome=\"finished\"", "Docs updated; two pages changed."),
+                )],
+            ),
+            message(
+                "u3",
+                "user",
+                minutes(3),
+                vec![text(
+                    "u3-t",
+                    &tag(
+                        "update",
+                        "session=\"ses_peer3\"",
+                        "Run the tests",
+                        " outcome=\"failed\" machine=\"m-unlisted\" machine-name=\"harbor-two\"",
+                        "Rate limited.",
+                    ),
+                )],
+            ),
+        ];
+        self.show_stream(messages, Status::Idle, "idle");
+    }
+}

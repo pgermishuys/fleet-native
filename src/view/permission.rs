@@ -50,7 +50,7 @@ pub fn card(t: &Theme, s: &State, ask: &PermissionAsk, first: bool) -> El {
         // `.pcard__error`, role alert: Fleet's own reason, or that the answer didn't get there.
         card = card.child(text(error).key("permission-error").label("alert").font(sans(12.0, 400.0, 1.4)).color(t.error_text).wrap());
     }
-    card.child(foot(t, ask))
+    card.child(foot(t, ask, ck(s, ask, "permission-settings")))
 }
 
 /// `.pcard__head`: the shield, the heading, who asked, and "Needs you" at the far end.
@@ -187,8 +187,24 @@ fn handoff_block(t: &Theme, handoff: &crate::asks::permission::HandoffAsk) -> El
     col().w_full().gap(12.0).child(list).child(note)
 }
 
+/// An element key of a card: the card's first keeps the plain name, one waiting behind it adds its ask, so two cards
+/// never share a key and a key press goes to the card that holds the focus (`handleCardKeydown` is on each card).
+fn ck(s: &State, ask: &PermissionAsk, base: &str) -> String {
+    if s.open_asks().first().is_none_or(|first| first.id == ask.id) { base.to_string() } else { format!("{base}-{}", ask.id) }
+}
+
+/// The card holding the focus, and which of its elements has it: the ask whose element key is `focused`.
+fn card_of_focus(asks: &[PermissionAsk], focused: &str) -> Option<(PermissionAsk, &'static str)> {
+    asks.iter().enumerate().find_map(|(i, ask)| {
+        CARD_KEYS
+            .iter()
+            .find(|base| if i == 0 { focused == **base } else { focused == format!("{base}-{}", ask.id) })
+            .map(|base| (ask.clone(), *base))
+    })
+}
+
 /// `.pcard__choice`: a button-shaped row with its number chip.
-fn choice_row(t: &Theme, busy: bool, ask: &PermissionAsk, key: &'static str, number: &'static str, reply: Reply) -> El {
+fn choice_row(t: &Theme, busy: bool, ask: &PermissionAsk, key: String, number: &'static str, reply: Reply) -> El {
     let ask = ask.clone();
     row()
         .key(key)
@@ -220,19 +236,19 @@ fn scope(t: &Theme, words: String) -> El {
 fn choices(t: &Theme, s: &State, ask: &PermissionAsk) -> El {
     let busy = s.ask_act(&ask.id).busy;
     let group = col().key("permission-choices").label("Answer").w_full().gap(4.0);
-    let once = choice_row(t, busy, ask, "permission-allow-once", "1", Reply::Once).child(name(t, "Allow once".into()));
+    let once = choice_row(t, busy, ask, ck(s, ask, "permission-allow-once"), "1", Reply::Once).child(name(t, "Allow once".into()));
     if let Some(handoff) = &ask.handoff {
         let machine = &handoff.machine;
         return group
             .child(once)
             .child(
-                choice_row(t, busy, ask, "permission-allow-always", "2", Reply::Always)
+                choice_row(t, busy, ask, ck(s, ask, "permission-allow-always"), "2", Reply::Always)
                     .child(name(t, format!("Always for {machine}")))
                     .child(el().grow(1.0))
                     .child(scope(t, format!("sets {machine} to Always"))),
             )
             .child(
-                choice_row(t, busy, ask, "permission-handoff-never", "3", Reply::Reject)
+                choice_row(t, busy, ask, ck(s, ask, "permission-handoff-never"), "3", Reply::Reject)
                     .child(name(t, format!("Not {machine}")))
                     .child(el().grow(1.0))
                     .child(scope(t, format!("sets {machine} to Never"))),
@@ -254,7 +270,7 @@ fn choices(t: &Theme, s: &State, ask: &PermissionAsk) -> El {
                 .child(text(code).font(mono(12.0, 400.0, 1.5)).color(t.text).truncate().shrink().min_w(0.0)),
         );
     }
-    let always = choice_row(t, busy, ask, "permission-allow-always", "2", Reply::Always)
+    let always = choice_row(t, busy, ask, ck(s, ask, "permission-allow-always"), "2", Reply::Always)
         .child(always_name)
         .child(el().grow(1.0))
         .child(scope(t, "this session".into()));
@@ -265,7 +281,7 @@ fn choices(t: &Theme, s: &State, ask: &PermissionAsk) -> El {
 fn deny_row(t: &Theme, s: &State, ask: &PermissionAsk, busy: bool) -> El {
     let hint = "Deny, and tell the agent what to do instead…";
     let field = text_input(&s.deny, sans(13.0, 400.0, 1.3))
-        .key("permission-deny-input")
+        .key(ck(s, ask, "permission-deny-input"))
         .label("Deny, with an optional message for the agent")
         .placeholder(hint, t.muted)
         .color(t.text)
@@ -288,7 +304,7 @@ fn deny_row(t: &Theme, s: &State, ask: &PermissionAsk, busy: bool) -> El {
         });
     let denied = ask.clone();
     let pill = el()
-        .key("permission-deny")
+        .key(ck(s, ask, "permission-deny"))
         .h(24.0)
         .px(10.0)
         .center()
@@ -300,16 +316,19 @@ fn deny_row(t: &Theme, s: &State, ask: &PermissionAsk, busy: bool) -> El {
         .on_press(move |s: &mut State| s.answer_ask(&denied, Reply::Reject))
         .child(text("Deny").font(sans(12.0, 400.0, 1.3)).color(t.muted).group_color(t.error_text));
     // Clicking the row (not the pill) puts the caret in the field; Enter there denies.
-    choice_row(t, busy, ask, "permission-deny-row", "3", Reply::Reject)
+    choice_row(t, busy, ask, ck(s, ask, "permission-deny-row"), "3", Reply::Reject)
         .focusable(false)
-        .on_press_tx(|_: &mut State, tx: &mut Tx| tx.focus("permission-deny-input", false))
+        .on_press_tx({
+            let field = ck(s, ask, "permission-deny-input");
+            move |_: &mut State, tx: &mut Tx| tx.focus(field.clone(), false)
+        })
         .cursor(Cursor::Text)
         .child(field)
         .child(pill)
 }
 
 /// `.pcard__foot`: the keys, the undo hint, and the way to Settings (rows 3.13, 4.6).
-fn foot(t: &Theme, ask: &PermissionAsk) -> El {
+fn foot(t: &Theme, ask: &PermissionAsk, settings_key: String) -> El {
     let small = |words: String| text(words).font(sans(11.0, 400.0, 1.4)).color(t.muted);
     let (settings, section, spans) = match &ask.handoff {
         Some(handoff) => (
@@ -333,7 +352,7 @@ fn foot(t: &Theme, ask: &PermissionAsk) -> El {
     // Underline on hover has no equivalent at Rune's pin; the link keeps its colour (docs/RUNE.md).
     foot.child(el().grow(1.0)).child(
         text(settings)
-            .key("permission-settings")
+            .key(settings_key)
             .font(sans(11.0, 400.0, 1.4))
             .color(t.accent_text)
             .cursor(Cursor::Pointer)
@@ -363,8 +382,9 @@ fn buttons(ask: &PermissionAsk) -> &'static [&'static str] {
 
 /// The window's key handler, for a key while a card holds the keyboard (rows 3.14 and 4.5). True when it took it.
 pub fn on_key(s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool {
-    let Some(ask) = s.open_asks().first().cloned() else { return false };
-    let Some(focused) = tx.focused().filter(|k| CARD_KEYS.contains(k)).map(str::to_string) else { return false };
+    let Some(focused) = tx.focused().map(str::to_string) else { return false };
+    let Some((ask, focused)) = card_of_focus(s.open_asks(), &focused) else { return false };
+    let focused = focused.to_string();
     if ev.mods.cmd || ev.mods.alt || ev.mods.ctrl || ev.mods.logo {
         return false;
     }
@@ -372,7 +392,7 @@ pub fn on_key(s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool {
         // Arrows move only from a choice button, and not at all from the deny field.
         return match crate::asks::focus::next_choice(buttons(&ask), &focused, step) {
             Some(next) => {
-                tx.focus(next, true);
+                tx.focus(ck(s, &ask, next), true);
                 true
             }
             None => false,
@@ -386,7 +406,7 @@ pub fn on_key(s: &mut State, ev: &KeyEvent, tx: &mut Tx) -> bool {
         Key::Text(t) if t == "2" => Some(Reply::Always),
         Key::Text(t) if t == "3" && handoff => Some(Reply::Reject),
         Key::Text(t) if t == "3" => {
-            tx.focus("permission-deny-input", false);
+            tx.focus(ck(s, &ask, "permission-deny-input"), false);
             return true;
         }
         // Enter on a focused choice presses it.

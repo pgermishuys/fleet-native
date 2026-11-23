@@ -29,7 +29,10 @@ pub fn create_state(snapshot: &Value) -> StreamState {
         context: snapshot.get("context").and_then(to_context_usage),
         recap: snapshot.pointer("/recap/text").and_then(Value::as_str).filter(|t| !t.is_empty()).map(str::to_string),
         explicit_status,
-        last_event_id: snapshot.get("lastEventId").or_else(|| snapshot.get("lastSequenceNumber")).and_then(Value::as_i64),
+        last_event_id: snapshot
+            .get("lastEventId")
+            .and_then(Value::as_i64)
+            .or_else(|| snapshot.get("lastSequenceNumber").and_then(Value::as_i64)),
         is_partial: snapshot.get("isPartial").and_then(Value::as_bool).unwrap_or(false),
         has_more: snapshot.get("hasMore").and_then(Value::as_bool).unwrap_or(false),
         cursor: snapshot.get("cursor").and_then(Value::as_str).map(str::to_string),

@@ -5,6 +5,7 @@ use crate::conv::background::{AgentCall, Finished, background_status, parse_back
 use crate::conv::card::tool_body;
 use crate::conv::compaction::fold_compaction_summaries;
 use crate::conv::message_list::render_message_body;
+use crate::conv::peer::{parse_peer_message, parse_peer_update};
 use crate::conv::shell::shell_command_of;
 use crate::conv::tools::{Category, ToolStatus, get_tool, is_shell_row, is_write_call, tool_duration_ms};
 use crate::view::conversation::{Failure, Message, Meta, Part, Role, ToolState};
@@ -57,8 +58,23 @@ pub fn message(m: &Msg, folded: Option<&str>, finished: &Finished) -> Message {
             vec![Part::Text { id: format!("{}-notice", m.id), text: notice.text.clone() }]
         };
     }
+    // A message another session sent (`parsePeerMessage`, `parsePeerUpdate`): its words under a chip naming the sender.
+    let peer = (m.role == Role::User && notice.is_none())
+        .then(|| {
+            let body = render_message_body(&m.parts);
+            parse_peer_message(&body).or_else(|| parse_peer_update(&body))
+        })
+        .flatten();
+    if let Some(peer) = &peer {
+        let id = parts.iter().find_map(|p| if let Part::Text { id, .. } = p { Some(id.clone()) } else { None });
+        parts.retain(|p| !matches!(p, Part::Text { .. }));
+        if !peer.text.trim().is_empty() {
+            parts.insert(0, Part::Text { id: id.unwrap_or_else(|| format!("{}-peer", m.id)), text: peer.text.clone() });
+        }
+    }
     let mut out = Message::new(m.id.clone(), m.role, parts);
     out.meta = Meta {
+        peer,
         created_at: m.created_at,
         model: m.model_id.clone(),
         command: m.command.clone(),
@@ -124,7 +140,19 @@ fn title(tool: &str, state: &Value) -> String {
 }
 
 /// What a finished call shows on the right of its row: lines changed for a file write, how long a shell command took.
-fn tool_state(tool: &str, state: &Value, diff: &[crate::conv::diff::DiffLine]) -> ToolState {
+pub(crate) fn tool_state(tool: &str, state: &Value, diff: &[crate::conv::diff::DiffLine]) -> ToolState {
+    // `toToolCardItem`: a page call named by its pick, and not finished, waits.
+    if get_tool(tool).name == "fleet_page_show"
+        && !matches!(state.get("status").and_then(Value::as_str), Some("completed" | "error"))
+        && super::web_page::page_choice_row_title(
+            state.get("input").unwrap_or(&Value::Null),
+            state.get("status").and_then(Value::as_str),
+            state.get("metadata").unwrap_or(&Value::Null),
+        )
+        .is_some()
+    {
+        return ToolState::Waiting;
+    }
     if state.get("status").and_then(Value::as_str) != Some("completed") {
         return ToolState::Plain;
     }

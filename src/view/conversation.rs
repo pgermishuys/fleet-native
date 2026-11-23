@@ -10,7 +10,6 @@ use super::compaction;
 use super::failure;
 use super::fold;
 use super::image;
-use super::interrupted;
 use super::message::{self, copy_text};
 use super::page_card;
 use super::prose;
@@ -85,6 +84,8 @@ pub struct Meta {
     pub failure: Option<Failure>,
     /// This message is the notice that background work finished: drawn as a chip, its text as the helper's words.
     pub background: Option<BackgroundNotice>,
+    /// Another session sent this message (or an update on how its turn ended): the chip above it, `message.peer` of Fleet.
+    pub peer: Option<crate::conv::peer::Peer>,
 }
 
 /// A turn's failure (`TurnError`): the harness's name for it, its message, and the limit that caused it, if any.
@@ -151,6 +152,8 @@ pub enum ToolState {
     Diff(u32, u32),
     /// How long a shell command took, in seconds.
     Took(f32),
+    /// A page call that waits for the user's pick: its glyph is the amber diamond (`waiting` on the card).
+    Waiting,
     Plain,
 }
 
@@ -216,6 +219,7 @@ impl Part {
                     ToolState::Diff(a, r) => 2 + a as usize + r as usize,
                     ToolState::Took(secs) => 3 + secs.to_bits() as usize,
                     ToolState::Plain => 4,
+                    ToolState::Waiting => 5,
                 };
                 shown
                     + (*status as usize) * 7
@@ -251,7 +255,8 @@ impl Message {
             self.parts.len() + usize::from(failure.is_some()),
             self.parts.iter().map(Part::weight).sum::<usize>()
                 + failure.map_or(0, |f| f.message.len())
-                + self.meta.background.as_ref().map_or(0, |b| 1 + b.state as usize + b.label.len()),
+                + self.meta.background.as_ref().map_or(0, |b| 1 + b.state as usize + b.label.len())
+                + self.meta.peer.as_ref().map_or(0, |p| 1 + p.sender.title.len()),
         )
     }
 }
@@ -266,19 +271,18 @@ pub fn styles(t: &Theme) -> Styles {
 pub fn stream(t: &Theme, which: Which, session: &Session, plan: &FoldPlan, partial: bool, older: Option<Older>, scroll: Scroll) -> El {
     let theme = *t;
     let side = which == Which::Side;
+    let has_card = scroll.interrupted.is_some();
     let md = styles(t);
     // After the messages: the card a restart left, then the line that says what the turn is doing. Fleet's line shows
     // while the turn isn't idle, so a question that holds it shows "Needs input" there.
     // The side conversation has no restart card: that is its session's own, not the panel's.
     let working = session.status != Status::Idle;
-    let interrupted = session.row.interrupted.is_some() && !side;
     // The drafts the agent wrote sit after the last reply and before that card (`ModDraftCards` in `ActivityStream.vue`); a side
     // conversation has none of its own.
     let drafts = scroll.drafts.clone().filter(|_| !side);
     let (draft_key, draft_row) = (drafts.clone(), drafts.clone());
-    let with_drafts = usize::from(drafts.is_some());
     let shown = plan.count(session.messages.len());
-    let count = shown + usize::from(drafts.is_some()) + usize::from(interrupted) + usize::from(working);
+    let count = shown + usize::from(drafts.is_some()) + usize::from(working);
     let rows =
         col().key(if side { "side-timeline" } else { "timeline" }).w_full().max_w(COLUMN).growth(GrowthSpec::default()).virtual_rows(
             count,
@@ -289,9 +293,6 @@ pub fn stream(t: &Theme, which: Which, session: &Session, plan: &FoldPlan, parti
                     Some(m) if side => Cow::Owned(format!("side-{}", m.id)),
                     Some(m) => Cow::Borrowed(m.id.as_str()),
                     None if draft_key.is_some() && i == plan.count(session.messages.len()) => Cow::Borrowed("mod-drafts"),
-                    None if session.row.interrupted.is_some() && !side && i == plan.count(session.messages.len()) + with_drafts => {
-                        Cow::Borrowed("interrupted")
-                    }
                     None => Cow::Borrowed(if side { "side-working" } else { "working" }),
                 }
             },
@@ -302,13 +303,7 @@ pub fn stream(t: &Theme, which: Which, session: &Session, plan: &FoldPlan, parti
                     if let Some(id) = draft_row.as_ref().filter(|_| i == plan.count(len)) {
                         return super::mods::draft_card::cards(s, &theme, id);
                     }
-                    return match session.row.interrupted.as_ref() {
-                        Some(card) if i == plan.count(len) + with_drafts && !side => {
-                            col().w_full().child(interrupted::card(&theme, s, card))
-                        }
-                        _ if side => working::side_line(&theme, s),
-                        _ => working::line(&theme, s),
-                    };
+                    return if side { working::side_line(&theme, s) } else { working::line(&theme, s) };
                 };
                 let msg = &session.messages[at];
                 let kept = plan.kept.get(&msg.id);
@@ -358,7 +353,7 @@ pub fn stream(t: &Theme, which: Which, session: &Session, plan: &FoldPlan, parti
                             improvable(s, msg),
                             super::mods::row::key(s, msg),
                         ),
-                        (s.is_shown(&msg.id), s.find_row_key(&msg.id)),
+                        (s.is_shown(&msg.id), s.find_row_key(&msg.id), file_stats_key(s, msg)),
                     ),
                     || message_row(&theme, &md, msg, (kept, after_tool), streaming, (s, which), (frame.0, frame.1)),
                 )
@@ -382,13 +377,22 @@ pub fn stream(t: &Theme, which: Which, session: &Session, plan: &FoldPlan, parti
                 // is Fleet's 8 plus the 18 that the main stream's 30 holds over its 12 for the last message's own space.
                 .pt(if side { 12.0 } else { 24.0 })
                 .px(if side { 16.0 } else { 32.0 })
-                .pb(if side { 26.0 } else { 30.0 })
+                // The restart card ends the column with Fleet's own 12 under it.
+                .pb(if side {
+                    26.0
+                } else if has_card {
+                    12.0
+                } else {
+                    30.0
+                })
                 .items_center()
                 .children(partial.then(|| partial_banner(&theme)))
                 .children(older.map(|o| older_row(&theme, o)))
                 .child(rows)
                 // `.activity-permission`: as wide as a message, 16 below.
-                .children((!scroll.asks.is_empty()).then(|| col().w_full().max_w(COLUMN).mb(16.0).children(scroll.asks))),
+                .children((!scroll.asks.is_empty()).then(|| col().w_full().max_w(COLUMN).mb(16.0).children(scroll.asks)))
+                // `SessionInterruptedCard` sits in the stream's own column, as wide as it, not in the message column.
+                .children(scroll.interrupted),
         );
     col()
         .key(if side { "side-stream-shell" } else { "stream-shell" })
@@ -401,11 +405,27 @@ pub fn stream(t: &Theme, which: Which, session: &Session, plan: &FoldPlan, parti
         .children(scroll.find)
 }
 
+/// What the session's diff says the message's whole-file writes changed: the counts arriving redraw the row.
+fn file_stats_key(s: &State, msg: &Message) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    for part in &msg.parts {
+        if let Part::Tool { id, .. } = part
+            && let Some(stat) = s.fold_plan.whole_file_stats.get(id.as_str())
+        {
+            (id, stat).hash(&mut hasher);
+        }
+    }
+    hasher.finish()
+}
+
 /// What the stream needs of `State`'s scroll: whether Jump to latest shows, and where the box reports itself.
 pub struct Scroll {
     pub jump: bool,
     /// The find bar, floating over the top right of the box (`view::find`).
     pub find: Option<El>,
+    /// The card a Fleet restart left, at the end of the column (`SessionInterruptedCard`).
+    pub interrupted: Option<El>,
     /// The cards of what the agent waits on, after the messages (component 4).
     pub asks: Vec<El>,
     /// The open session when it has draft mods to show: their cards are the row after the last reply.
@@ -644,7 +664,7 @@ fn message_row(
     let workflow = (which == Which::Open && msg.role == Role::User && s.stepper_run().is_some())
         .then(|| s.workflow_mark(&msg.id, &msg.text()))
         .flatten();
-    let marks = message::marks(t, msg, lead, workflow);
+    let marks = message::marks(t, s, msg, lead, workflow);
     let mut lead_spent = marks.is_some();
     column = column.children(marks);
     // The chip of a notice that background work finished, above its words.

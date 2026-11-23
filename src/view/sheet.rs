@@ -47,6 +47,7 @@ pub fn sheet(s: &State, t: &Theme) -> El {
                     probe: s.scroll_probe.clone(),
                     layout: s.scroll_layout,
                     find: super::find::bar(s, t),
+                    interrupted: session.row.interrupted.as_ref().map(|card| super::interrupted::card(t, s, card)),
                     asks: s
                         .open_asks()
                         .iter()

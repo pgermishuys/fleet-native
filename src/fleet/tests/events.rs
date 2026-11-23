@@ -85,6 +85,19 @@ fn a_malformed_frame_between_two_good_ones_skips_only_itself() {
     assert_eq!(state.messages.iter().map(|m| m.id.as_str()).collect::<Vec<_>>(), ["msg_1", "msg_2"]);
 }
 
+/// `snapshot.lastEventId ?? snapshot.lastSequenceNumber ?? null`: zero and negative numbers are cursors; only a missing or
+/// null `lastEventId` falls back to the older name.
+#[test]
+fn the_snapshots_cursor_reads_zero_negative_and_the_older_name() {
+    let cursor = |snapshot: serde_json::Value| create_state(&snapshot).last_event_id;
+    assert_eq!(cursor(json!({"lastEventId": 0})), Some(0));
+    assert_eq!(cursor(json!({"lastEventId": -4})), Some(-4));
+    assert_eq!(cursor(json!({"lastEventId": 0, "lastSequenceNumber": 9})), Some(0));
+    assert_eq!(cursor(json!({"lastEventId": null, "lastSequenceNumber": 9})), Some(9));
+    assert_eq!(cursor(json!({"lastSequenceNumber": 0})), Some(0));
+    assert_eq!(cursor(json!({})), None);
+}
+
 #[test]
 fn the_hubs_event_id_moves_the_cursor_when_it_is_a_number() {
     let frames = catalogue();

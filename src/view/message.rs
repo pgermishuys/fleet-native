@@ -3,7 +3,7 @@
 //! rules (what the marks say, who shows a pill) are `conv::bubble`, and the note of attached files is `conv::attached`.
 //!
 //! Not drawn here yet: image thumbnails (piece N), `@` session and `$` skill chips and file links in running text (Rune's
-//! `Markdown` has no inline-chip hook; `docs/RUNE.md`), the peer mark (another component), `message--shown`.
+//! `Markdown` has no inline-chip hook; `docs/RUNE.md`), `message--shown`.
 use super::conversation::{Message, Part, Role, Styles};
 use super::prose;
 use super::toolcard::mix;
@@ -11,6 +11,7 @@ use crate::State;
 use crate::composer::choice::model_display_name;
 use crate::conv::attached::{AttachedFileRef, file_extension_label, parse_attached_note};
 use crate::conv::bubble::{STEERED_TEXT, STEERED_TIP, has_expanded_prompt, looks_like_markdown, mod_mark_text};
+use crate::conv::peer::PeerOutcome;
 use crate::conv::references::format_slash_command;
 use crate::conv::time::{format_absolute_timestamp, format_relative_time, local_offset_secs};
 use crate::fleet::model::SlashCommand;
@@ -55,8 +56,8 @@ fn chip(t: &Theme, key: &str, glyph: &'static Icon, label: String, tip: &str) ->
 
 /// The marks above a user's bubble (rows 1.55, 1.56 / 2.15-2.17), right-aligned with it. `workflow` is what Fleet sent into a
 /// workflow step ("Workflow \u{b7} step 2 of 6"): it comes first, then a mod's, then "Sent mid-turn" (row 2.19).
-pub fn marks(t: &Theme, msg: &Message, lead: f32, workflow: Option<String>) -> Option<El> {
-    if msg.role != Role::User || (workflow.is_none() && msg.meta.mod_mark.is_none() && !msg.meta.steered) {
+pub fn marks(t: &Theme, s: &State, msg: &Message, lead: f32, workflow: Option<String>) -> Option<El> {
+    if msg.role != Role::User || (workflow.is_none() && msg.meta.mod_mark.is_none() && !msg.meta.steered && msg.meta.peer.is_none()) {
         return None;
     }
     // Fleet's chips end in a 6px margin and the bubble's own 2px padding follows: 8px to the bubble.
@@ -71,7 +72,52 @@ pub fn marks(t: &Theme, msg: &Message, lead: f32, workflow: Option<String>) -> O
     if msg.meta.steered {
         marks = marks.child(chip(t, "steered-mark", &CORNER_DOWN_RIGHT, STEERED_TEXT.to_string(), STEERED_TIP));
     }
+    if let Some(peer) = &msg.meta.peer {
+        marks = marks.child(peer_chip(t, s, &msg.id, peer));
+    }
     Some(marks)
+}
+
+/// The chip naming the session a message came from: "From <title> \u{b7} <machine>", or "<title> \u{b7} <machine> finished" for
+/// an update. A sender on a machine this app lists (or on this session's own) opens in place; one that isn't listed is named
+/// but not opened (`peerMachineKey`).
+fn peer_chip(t: &Theme, s: &State, id: &str, peer: &crate::conv::peer::Peer) -> El {
+    let sender = peer.sender.clone();
+    let failed = peer.outcome == Some(PeerOutcome::Failed);
+    let opens = s.peer_machine_key(&sender).is_some();
+    let mut pill = row()
+        .key(format!("peer-from-{id}"))
+        .gap(5.0)
+        .center_y()
+        .max_w(380.0)
+        .px(10.0)
+        .py(4.0)
+        .radius(999.0)
+        .border(1.0, t.border.alpha(t.border.a * 0.9))
+        .border_layout()
+        .fill(mix(t.card_bg, t.accent_dim, 0.04))
+        .child(icon(&BOT, 11.9).color(t.muted));
+    let small = sans(10.5, 400.0, 1.5);
+    if peer.outcome.is_none() {
+        pill = pill.child(text("From").font(small).color(t.muted));
+    }
+    pill = pill.child(text(sender.title.clone()).font(sans(10.5, 600.0, 1.5)).color(t.text).truncate());
+    if let Some(name) = &sender.machine_name {
+        pill = pill.child(text(format!("\u{b7} {name}")).key(format!("peer-from-machine-{id}")).font(small).color(t.muted));
+    }
+    if let Some(outcome) = peer.outcome {
+        pill = pill.child(text(outcome.word()).font(small).color(if failed { t.error_text } else { t.muted }));
+    }
+    if opens {
+        pill = pill.child(icon(&ARROW_UP_RIGHT, 11.9).color(t.muted));
+    }
+    if let Some(name) = &sender.machine_name {
+        pill = pill.help(format!("A session on {name}"));
+    }
+    if opens {
+        pill = pill.cursor(Cursor::Pointer).on_press_tx(move |s: &mut State, tx: &mut Tx| s.open_peer(&sender, tx));
+    }
+    pill
 }
 
 /// `.msg-copy-btn`: 26px square, hidden until the message is hovered, "Copied" for 1.5s after a press.

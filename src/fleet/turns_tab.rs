@@ -87,7 +87,7 @@ impl TurnsTab {
 
 /// The session diff's counts per file, for a file a call wrote whole (`useFileStats`). `None` while the list isn't the open
 /// session's or is unavailable: those files then show no counts.
-fn file_stats(s: &State, session: &str) -> Option<FileStats> {
+pub(super) fn file_stats(s: &State, session: &str) -> Option<FileStats> {
     let diffs = &s.diffs;
     if diffs.session() != session || !diffs.available {
         return None;
