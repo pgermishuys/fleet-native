@@ -323,13 +323,13 @@ pub fn all(s: &State) -> Vec<Command> {
         ),
         c(
             "toggle-right-panel",
-            if s.content_open { "Hide right panel" } else { "Show right panel" },
+            if s.right_panel_open() { "Hide right panel" } else { "Show right panel" },
             "Collapse or expand the right detail panel.",
             &PANEL_RIGHT_CLOSE,
             View,
             Some(md("Shift+B")),
             &["content", "detail"],
-            now(|s, _| s.content_open = !s.content_open),
+            now(|s, _| s.toggle_right_panel()),
         ),
         {
             // Fleet turns it off while no session is open ("Open a session to use its terminal.").

@@ -70,6 +70,8 @@ pub struct BoardStore {
     pub filters: Filters,
     /// The page's own state: Sync now and its toast.
     pub page: super::page::BoardPage,
+    /// The right panel's tab, fleet summary and feed (`panel`).
+    pub right: super::panel::RightPanel,
     /// The lanes' composers and the cards' renames (`compose`).
     pub compose: super::compose::Compose,
     /// The sources form in manage mode (`source_form`).
@@ -164,6 +166,11 @@ impl BoardStore {
 
     pub fn available_agents(&self) -> Vec<String> {
         filters::available_agents(&self.sessions())
+    }
+
+    /// `filteredSessions`: what the left panel's choices leave (FB3: only the side panels follow them).
+    pub fn filtered_sessions(&self) -> Vec<CardSession> {
+        filters::filtered(&self.sessions(), &self.filters)
     }
 
     pub fn quick_stats(&self) -> filters::QuickStats {

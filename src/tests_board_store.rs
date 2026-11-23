@@ -383,6 +383,8 @@ pub(crate) fn rig(kept: Kept) -> Rig {
     rt.update(move |s, _| {
         s.link = Some(link);
         s.pickers.prefs.adopt(&json!({ "features.board.enabled": if on { "true" } else { "false" } }));
+        // The right panel (piece R) is folded here: these tests drive the lanes, which the open panel would push off screen.
+        s.sidebar.set_right_collapsed(None, true);
     });
     rt.frame(FRAME);
     Rig { rt, queue, fake }
