@@ -28,6 +28,14 @@ fn status(extra: &str) -> (&'static str, &'static str, u16, String) {
     )
 }
 
+/// A token the page was given is held for the whole process, under the fake's `host:port`. Clearing it when the rig goes
+/// (even on a panic) means no later fake that is handed the same port can inherit it.
+impl Drop for Rig {
+    fn drop(&mut self) {
+        auth::set_for(&self.home.base, None);
+    }
+}
+
 impl Rig {
     /// The app on a Fleet that has just turned it away.
     fn refused(routes: Vec<(&'static str, &'static str, u16, String)>) -> Rig {
@@ -152,7 +160,7 @@ fn a_right_token_connects() {
     rig.type_token(TOKEN);
     click(&mut rig.rt, "sign-in-continue");
     let base = rig.home.base.clone();
-    let Rig { rt, jobs, home } = &mut rig;
+    let (rt, jobs, home) = (&mut rig.rt, &rig.jobs, &rig.home);
     test_wait::drive(
         rt,
         jobs,
