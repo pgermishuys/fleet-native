@@ -7,6 +7,7 @@
 pub mod add;
 pub mod data;
 pub mod found;
+pub mod phone;
 pub mod reach;
 pub mod screens;
 

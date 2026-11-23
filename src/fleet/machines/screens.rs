@@ -115,3 +115,30 @@ pub fn remove(base: &str, id: &str) -> Result<(), String> {
         http::text_with("DELETE", base, &format!("/api/machine/screens/{}", http::escape(id)), None).map_err(|_| fallback.to_string())?;
     if (200..300).contains(&status) || status == 404 { Ok(()) } else { Err(read_error(&text, fallback.into())) }
 }
+
+/// `removeDevice`: a device of this machine's own list (an older Fleet's) loses its key here. A 404 is as good as done.
+pub fn remove_own(base: &str, id: &str) -> Result<(), String> {
+    let fallback = "Couldn't remove the device.";
+    let (status, text) =
+        http::text_with("DELETE", base, &format!("/api/machine/devices/{}", http::escape(id)), None).map_err(|_| fallback.to_string())?;
+    if (200..300).contains(&status) || status == 404 { Ok(()) } else { Err(read_error(&text, fallback.into())) }
+}
+
+/// What Remove asks first (`DevicesList.vue` `remove`): a phone or browser goes from every machine; another machine's key, only
+/// from this one. (title, body, confirm label)
+pub fn remove_words(screen: &Screen) -> (String, String, String) {
+    let name = &screen.name;
+    if screen.is_machine {
+        return (
+            format!("Remove {name}?"),
+            "It loses access to this machine at once. Other devices aren't affected.".into(),
+            "Remove machine".into(),
+        );
+    }
+    (
+        format!("Remove {name} on every machine in your Fleet?"),
+        "It loses its keys on every machine at once, even on machines that are off now: they hear when they're back. It isn't given new ones."
+            .into(),
+        format!("Remove {name}"),
+    )
+}

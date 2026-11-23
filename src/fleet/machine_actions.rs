@@ -194,7 +194,14 @@ impl State {
         // The reach line on home's card needs who the desktop app lets reach it.
         self.read_reach();
         if let Some(link) = self.link.clone() {
-            link.off_thread(read_access, |s, _, access| s.machine_page.access = access);
+            // The phones and browsers are read once the access is: a paired device may see neither (`useHomeAccess.load`).
+            link.off_thread(read_access, |s, _, access| {
+                let loaded = matches!(access, AccessState::Loaded(_));
+                s.machine_page.access = access;
+                if loaded {
+                    s.read_screens();
+                }
+            });
         }
         true
     }

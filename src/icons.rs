@@ -883,3 +883,13 @@ pub static CODE_XML: Icon = Icon {
     view: 24.0,
     body: r#"<path d="m18 16 4-4-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="m6 8-4 4 4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="m14.5 4-5 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>"#,
 };
+pub static SMARTPHONE: Icon = Icon {
+    name: "lucide-smartphone",
+    view: 24.0,
+    body: r#"<rect width="14" height="20" x="5" y="2" rx="2" ry="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M12 18h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>"#,
+};
+pub static WIFI: Icon = Icon {
+    name: "lucide-wifi",
+    view: 24.0,
+    body: r#"<path d="M12 20h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M2 8.82a15 15 0 0 1 20 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M5 12.859a10 10 0 0 1 14 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M8.5 16.429a5 5 0 0 1 7 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>"#,
+};

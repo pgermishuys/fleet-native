@@ -1,6 +1,7 @@
 //! The shell: `[rail][context]` over the status bar. Sizes are Fleet's CSS pixels at its default
 //! 14px root (see `client/src/components/layout/AppShell.vue`).
 pub mod add_machine;
+pub mod add_phone;
 pub mod agent_row;
 pub mod agent_tab;
 pub mod agents;
@@ -33,6 +34,7 @@ pub mod context_tab;
 pub mod conversation;
 pub mod dashboard;
 pub mod dashboard_row;
+pub mod devices_list;
 pub mod diff;
 pub mod document_tab;
 pub mod draft_row;
