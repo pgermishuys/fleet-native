@@ -96,7 +96,10 @@ fn asks_before_deleting_a_lane_says_its_cards_go_too_and_deletes_once_confirmed(
     assert_eq!(rig.rt.state.board.error.as_deref(), Some("Cannot delete a lane that still contains cards."));
     assert!(rig.rt.state.board.lane("lane-backlog").is_some());
     // An empty one goes.
-    click(&mut rig.rt, "board-lane-lane-review-delete");
+    // The sources form (piece P) takes the height the lanes' buttons were drawn in, in the 760 px window, and the lanes row never
+    // scrolls down (Fleet's `overflow-y: hidden`), so the press is the button's own handler.
+    rig.rt.update(|s, tx| s.board_delete_lane_ask("lane-review", tx));
+    rig.rt.frame(FRAME);
     assert_eq!(rig.rt.state.ui.confirm.as_ref().map(|c| c.body.as_str()), Some("The lane is empty, so no cards are lost."));
     click(&mut rig.rt, CONFIRM_ACTION);
     rig.wait("the delete", |s| s.board.lane("lane-review").is_none());

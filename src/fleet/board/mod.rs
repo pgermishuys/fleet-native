@@ -10,6 +10,7 @@ pub mod filters;
 pub mod manage;
 pub mod order;
 pub mod page;
+pub mod source_form;
 pub mod sources;
 pub mod store;
 

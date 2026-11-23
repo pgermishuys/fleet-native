@@ -119,8 +119,7 @@ pub fn showcase_cards() -> Vec<Card> {
     all
 }
 
-/// Only the tests read them until the sources' scenes do (piece P).
-#[cfg(test)]
+/// The invented sources a scene lists, and the tests'.
 pub fn sources() -> Vec<crate::fleet::board::Source> {
     let source = |id: &str, config: &str, last_sync_at: Option<&str>| crate::fleet::board::Source {
         id: id.into(),
@@ -162,6 +161,12 @@ pub enum Case {
     BoardRename,
     /// A card held over the slot between the two cards of the In progress lane, mid-drag (piece O).
     Dragging,
+    /// Manage mode with the sources form: two sources listed, three bookmarks to pick from (piece P).
+    Sources,
+    /// The same with no bookmarks and no sources: the plugin's hint and "No configured sources yet".
+    SourcesEmpty,
+    /// The same, with the bookmarks refusing to load: the red band and "Try loading bookmarks again".
+    SourcesError,
 }
 
 impl crate::State {
@@ -175,9 +180,16 @@ impl crate::State {
             Case::Loading => MockAnswers::Silent,
             Case::Empty => MockAnswers::Empty,
             Case::Failed => MockAnswers::Failed,
-            Case::Synced | Case::Board | Case::Rename | Case::Manage | Case::LaneNew | Case::BoardRename | Case::Dragging => {
-                MockAnswers::Data
-            }
+            Case::Synced
+            | Case::Board
+            | Case::Rename
+            | Case::Manage
+            | Case::LaneNew
+            | Case::BoardRename
+            | Case::Dragging
+            | Case::Sources
+            | Case::SourcesEmpty
+            | Case::SourcesError => MockAnswers::Data,
             Case::Cards => MockAnswers::Showcase,
         };
         if case == Case::Synced {
@@ -188,7 +200,7 @@ impl crate::State {
         if case == Case::Rename {
             self.board.compose.renames.insert("card-sketch".into(), rune::TextEdit::new("Sketch the frame and the tail"));
         }
-        if matches!(case, Case::Manage | Case::LaneNew | Case::BoardRename) {
+        if matches!(case, Case::Manage | Case::LaneNew | Case::BoardRename | Case::Sources | Case::SourcesEmpty | Case::SourcesError) {
             self.board.set_mode(crate::fleet::board::store::Mode::Manage);
         }
         if case == Case::LaneNew {
@@ -196,6 +208,9 @@ impl crate::State {
         }
         if case == Case::BoardRename {
             self.board.compose.board_rename = Some(rune::TextEdit::new("Kite launch, spring"));
+        }
+        if case == Case::SourcesEmpty {
+            self.board.source_form.mock = crate::fleet::board::source_form::MockSources::None;
         }
         if case == Case::Dragging {
             let drag = crate::fleet::board::drag::CardDrag {

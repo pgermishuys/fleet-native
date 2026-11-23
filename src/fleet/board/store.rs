@@ -72,6 +72,8 @@ pub struct BoardStore {
     pub page: super::page::BoardPage,
     /// The lanes' composers and the cards' renames (`compose`).
     pub compose: super::compose::Compose,
+    /// The sources form in manage mode (`source_form`).
+    pub source_form: super::source_form::SourceForm,
     /// See `MockAnswers`; used only with no server.
     pub mock_answers: MockAnswers,
     /// The Board has been shown once with its switch on, so the one load has started (15.8).
@@ -105,6 +107,7 @@ impl BoardStore {
         self.mode = mode;
         if mode == Mode::Work {
             self.compose.leave_manage();
+            self.source_form.unmount();
         }
     }
 
@@ -257,7 +260,7 @@ type Then<T> = Box<dyn FnOnce(&mut State, &Result<T, String>) + Send>;
 
 impl State {
     /// The live machine's address and a way back to the UI thread; none with no server.
-    fn board_server(&self) -> Option<(String, Post)> {
+    pub(super) fn board_server(&self) -> Option<(String, Post)> {
         self.link.as_ref().map(|l| (l.base.clone(), l.post()))
     }
 

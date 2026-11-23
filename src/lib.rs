@@ -1930,6 +1930,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_summary(now, tx)
         | s.keep_analytics(now, tx)
         | s.keep_board()
+        | s.keep_board_sources()
         | s.keep_board_toast(now, tx)
         | s.keep_mission(now, tx)
         | s.keep_jobs(now, tx)
@@ -2863,6 +2864,12 @@ pub fn spec() -> AppSpec<State> {
             ("board-rename-light", |s| s.show_board(mock::board::Case::BoardRename, false)),
             ("board-dragging", |s| s.show_board(mock::board::Case::Dragging, true)),
             ("board-dragging-light", |s| s.show_board(mock::board::Case::Dragging, false)),
+            ("board-sources", |s| plugins::board_scene(s, mock::board::Case::Sources, true)),
+            ("board-sources-light", |s| plugins::board_scene(s, mock::board::Case::Sources, false)),
+            ("board-sources-empty", |s| plugins::board_scene(s, mock::board::Case::SourcesEmpty, true)),
+            ("board-sources-empty-light", |s| plugins::board_scene(s, mock::board::Case::SourcesEmpty, false)),
+            ("board-sources-error", |s| plugins::board_scene(s, mock::board::Case::SourcesError, true)),
+            ("board-sources-error-light", |s| plugins::board_scene(s, mock::board::Case::SourcesError, false)),
             ("board-off", |s| labs_off_scene(s, true, Rail::Board)),
             ("board-off-light", |s| labs_off_scene(s, false, Rail::Board)),
             // Piece T: Labs with everything off, with another machine listed, and with everything on.
