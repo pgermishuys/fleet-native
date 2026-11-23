@@ -49,6 +49,11 @@ pub(crate) fn press(rt: &mut Rt, key: Key) {
     rt.frame(FRAME);
 }
 
+/// Manage on a machine's card (`openPage`): its own page replaces the list.
+pub(crate) fn open(rt: &mut Rt, key: &str) {
+    click(rt, &format!("machine-manage-{key}"));
+}
+
 pub(crate) fn card_of(rt: &Rt, key: &str) -> crate::fleet::machine_card::Card {
     rt.state.machine_cards().into_iter().find(|c| c.key == key).unwrap_or_else(|| panic!("no card {key}"))
 }
@@ -138,6 +143,7 @@ fn token_json(token: &str) -> String {
 #[test]
 fn asks_before_forgetting_a_machine_and_keeps_it_when_cancelled() {
     let mut rt = page();
+    open(&mut rt, "m-falcon");
     click(&mut rt, "machine-forget-m-falcon");
     let c = rt.state.ui.confirm.as_ref().expect("asked");
     assert_eq!(
@@ -146,11 +152,14 @@ fn asks_before_forgetting_a_machine_and_keeps_it_when_cancelled() {
     );
     click(&mut rt, "confirm-cancel");
     assert!(rt.state.ui.confirm.is_none());
-    assert!(exists(&rt, "machine-card-m-falcon"), "cancelled: the machine stays");
+    assert!(exists(&rt, "machine-about-m-falcon"), "cancelled: the machine and its page stay");
 
     click(&mut rt, "machine-forget-m-falcon");
     click(&mut rt, "confirm-action");
-    assert!(!exists(&rt, "machine-card-m-falcon"), "confirmed: its card and its group are gone at once");
+    // Forgotten: its page closes and the list no longer has it.
+    assert!(!exists(&rt, "machine-about-m-falcon") && !exists(&rt, "machine-card-m-falcon"));
+    rt.frame(FRAME);
+    assert!(rt.state.machine_page.managing.is_none(), "the page is closed, not just hidden");
     assert!(rt.state.machines.machine("m-falcon").is_none());
 }
 
@@ -165,6 +174,7 @@ fn asks_before_replacing_this_machines_token_and_replaces_nothing_when_cancelled
             AccessState::Loaded(Access::from_json(&serde_json::from_str(&token_json("old-token-0123456789")).unwrap()).unwrap())
     });
     rig.rt.frame(FRAME);
+    open(&mut rig.rt, "home");
     click(&mut rig.rt, "machine-replace-token");
     let c = rig.rt.state.ui.confirm.as_ref().expect("asked");
     assert_eq!((c.title.as_str(), c.confirm_label.as_str(), c.destructive), ("Replace this machine's token?", "Replace token", true));
@@ -182,6 +192,7 @@ fn asks_before_replacing_this_machines_token_and_replaces_nothing_when_cancelled
 #[test]
 fn hides_the_token_until_shown() {
     let mut rt = short_page();
+    open(&mut rt, "home");
     assert_eq!(words(&rt, "machine-access-token"), Access::hidden_token());
     click(&mut rt, "machine-show-token");
     assert_eq!(words(&rt, "machine-access-token"), crate::mock::machines_page::SCENE_TOKEN);
@@ -243,6 +254,7 @@ fn shows_no_version_update_rule_or_restart_even_though_they_exist_they_are_in_up
 fn names_the_step_that_broke_on_the_card_with_the_steps_under_details() {
     let mut rt = page();
     assert_eq!(card_of(&rt, "m-harbor").state, "harbor isn't answering");
+    open(&mut rt, "m-harbor");
     assert!(!exists(&rt, "machine-diagnosis-m-harbor"), "closed until Details is pressed");
     click(&mut rt, "machine-details-m-harbor");
     assert!(exists(&rt, "machine-diagnosis-m-harbor"));
@@ -259,6 +271,7 @@ fn asks_by_default_on_each_other_machines_card_says_its_level_and_saves_always_o
     let saved = json!({ "id": "m-falcon", "agentWork": "always" }).to_string();
     let home = fake(vec![("PUT", "/api/machines/m-falcon", 200, saved)]);
     let mut rig = Rig::new(&home);
+    open(&mut rig.rt, "m-falcon");
     // This machine is where agents send work from: no setting on its card.
     assert!(card_of(&rig.rt, "home").agent_work.is_none());
     let (work, level) = card_of(&rig.rt, "m-falcon").agent_work.unwrap();
@@ -277,6 +290,7 @@ fn says_the_level_is_unknown_for_a_machine_on_a_fleet_too_old_to_say() {
     let mut rt = page();
     rt.update(|s, _| drop(s.machines.identities.remove("m-falcon")));
     rt.frame(FRAME);
+    open(&mut rt, "m-falcon");
     assert_eq!(words(&rt, "machine-agent-work-level-m-falcon"), "Work there runs under falcon's level: unknown.");
 }
 
@@ -302,6 +316,7 @@ fn renames_a_machine_on_the_machine_itself() {
         m.base_url = base;
         crate::fleet::auth::set_for(&m.base_url, Some("falcon-scene-token"));
     });
+    open(&mut rig.rt, "m-falcon");
     click(&mut rig.rt, "machine-rename-m-falcon");
     assert_eq!(rig.rt.state.machine_page.rename.text, "falcon");
     press(&mut rig.rt, Key::Text("kestrel".into()));
@@ -319,6 +334,7 @@ fn escape_cancels_a_rename_and_a_refusal_shows_under_the_card() {
     let mut rig = Rig::new(&home);
     let base = node.base.clone();
     rig.rt.update(move |s, _| s.machines.list.iter_mut().find(|m| m.id == "m-falcon").unwrap().base_url = base);
+    open(&mut rig.rt, "m-falcon");
     click(&mut rig.rt, "machine-rename-m-falcon");
     press(&mut rig.rt, Key::Escape);
     assert!(rig.rt.state.machine_page.renaming.is_none());
@@ -333,6 +349,7 @@ fn escape_cancels_a_rename_and_a_refusal_shows_under_the_card() {
 fn saves_a_new_token_through_home_and_says_why_when_it_is_not_taken() {
     let home = fake(vec![("PUT", "/api/machines/m-falcon", 400, json!({ "error": "falcon didn't accept that token." }).to_string())]);
     let mut rig = Rig::new(&home);
+    open(&mut rig.rt, "m-falcon");
     click(&mut rig.rt, "machine-token-m-falcon");
     press(&mut rig.rt, Key::Text("not-the-token".into()));
     press(&mut rig.rt, Key::Enter);
@@ -358,6 +375,7 @@ fn the_access_is_read_once_per_visit_and_a_missing_one_is_said() {
     rig.rt.frame(FRAME);
     rig.rt.frame(FRAME);
     rig.wait("the access answer", |s| s.machine_page.access == AccessState::Unavailable);
+    open(&mut rig.rt, "home");
     assert!(words(&rig.rt, "machine-access-note").contains("doesn't hand out access tokens"));
 }
 
@@ -422,6 +440,7 @@ fn a_machine_that_stopped_answering_says_so_in_the_error_colour() {
 #[test]
 fn forgetting_a_machine_saying_it_reaches_every_machine() {
     let mut rt = page();
+    open(&mut rt, "m-falcon");
     click(&mut rt, "machine-forget-m-falcon");
     let c = rt.state.ui.confirm.as_ref().expect("asked");
     assert_eq!(c.title, "Forget falcon on every machine in your Fleet?");
@@ -449,4 +468,156 @@ fn manage_opens_the_machines_own_page_and_work_here_is_not_on_the_live_machine()
     assert!(exists(&rt, "machine-open-m-falcon"));
     click(&mut rt, "machine-manage-m-falcon");
     assert_eq!(rt.state.machine_page.managing.as_deref(), Some("m-falcon"));
+}
+
+// ── a machine's own page (26 G) ────────────────────────────────────────────────
+
+#[test]
+fn keeps_the_token_and_addresses_off_the_list_on_the_machines_own_page() {
+    let mut rt = page();
+    assert!(!exists(&rt, "machine-access-token"));
+    assert!(!exists(&rt, "machine-address-0"));
+    for gone in ["machine-rename-home", "machine-forget-m-falcon", "machine-token-m-falcon", "machine-agent-work-m-falcon"] {
+        assert!(!exists(&rt, gone), "{gone} is on the machine's page, not the list");
+    }
+
+    open(&mut rt, "home");
+    assert!(exists(&rt, "machine-access-token"));
+    assert!(exists(&rt, "machine-address-0"), "home's addresses, with a kind chip and Copy");
+    assert!(!exists(&rt, "machines-add"), "the page replaces the section");
+}
+
+#[test]
+fn manage_opens_the_page_titled_with_the_machine_and_its_trail_leads_back() {
+    let mut rt = page();
+    open(&mut rt, "m-falcon");
+    assert_eq!(rt.state.machine_page.managing.as_deref(), Some("m-falcon"));
+    let header = words(&rt, "settings-header");
+    assert!(
+        header.starts_with("falcon") && header.ends_with("Everything about this machine: how it is reached, and what it keeps."),
+        "{header}"
+    );
+    assert!(exists(&rt, "machine-page-m-falcon") && !exists(&rt, "machines-page-body"));
+    click(&mut rt, "machine-page-back");
+    assert!(rt.state.machine_page.managing.is_none());
+    assert!(exists(&rt, "machines-page-body") && !exists(&rt, "machine-page-m-falcon"));
+}
+
+#[test]
+fn leaving_the_page_drops_a_rename_or_token_left_open() {
+    let mut rt = page();
+    open(&mut rt, "m-falcon");
+    click(&mut rt, "machine-token-m-falcon");
+    assert!(rt.state.machine_page.token_for.is_some());
+    click(&mut rt, "machine-page-back");
+    assert!(rt.state.machine_page.token_for.is_none() && rt.state.machine_page.renaming.is_none());
+}
+
+#[test]
+fn a_machine_that_leaves_closes_its_page() {
+    let mut rt = page();
+    open(&mut rt, "m-falcon");
+    rt.update(|s, _| s.machines.list.retain(|m| m.id != "m-falcon"));
+    rt.frame(FRAME);
+    rt.frame(FRAME);
+    assert!(rt.state.machine_page.managing.is_none());
+    assert!(exists(&rt, "machines-page-body"));
+}
+
+#[test]
+fn another_machines_page_has_work_here_rename_forget_and_its_key_but_not_who_can_reach_it() {
+    let mut rt = page();
+    open(&mut rt, "m-falcon");
+    for here in
+        ["machine-open-m-falcon", "machine-rename-m-falcon", "machine-forget-m-falcon", "machine-token-m-falcon", "machine-key-note"]
+    {
+        assert!(exists(&rt, here), "{here}");
+    }
+    assert_eq!(words(&rt, "machine-key-note"), "This browser holds a key for falcon. If it stopped working, give it a new one.");
+    assert!(!exists(&rt, "machine-access-token"), "who can reach it is home's");
+    assert!(!exists(&rt, "machine-manage-m-falcon"));
+}
+
+#[test]
+fn homes_page_has_who_can_reach_it_and_no_forget_work_here_or_key() {
+    let mut rt = page();
+    open(&mut rt, "home");
+    assert!(exists(&rt, "machine-rename-home") && exists(&rt, "machine-access-block"));
+    for gone in ["machine-forget-home", "machine-open-home", "machine-token-home", "machine-key-note"] {
+        assert!(!exists(&rt, gone), "{gone}");
+    }
+}
+
+#[test]
+fn says_who_can_reach_home_in_the_words_of_its_mode() {
+    use crate::fleet::machines::reach::ReachMode;
+    let mut rt = page();
+    open(&mut rt, "home");
+    rt.update(|s, _| s.machine_data.reach = Some(reach_state(ReachMode::Off)));
+    rt.frame(FRAME);
+    assert_eq!(
+        words(&rt, "machine-access-loopback"),
+        "Reachable from this machine only. Turn it on to use atlas from your phone or another machine."
+    );
+    for (mode, label) in [
+        (ReachMode::TailscaleAndHome, "Tailscale and home network"),
+        (ReachMode::Home, "Home network only"),
+        (ReachMode::Own, "Your own address"),
+    ] {
+        rt.update(move |s, _| s.machine_data.reach = Some(reach_state(mode)));
+        rt.frame(FRAME);
+        assert_eq!(words(&rt, "machine-access-reach"), format!("Reachable from other devices: {label}. Each one needs its own key."));
+    }
+}
+
+#[test]
+fn names_where_fleet_listens_when_only_this_machine_can_reach_it() {
+    let mut rt = page();
+    open(&mut rt, "home");
+    rt.update(|s, _| {
+        if let AccessState::Loaded(a) = &mut s.machine_page.access {
+            a.remote_reachable = false;
+            a.requires_token = false;
+            a.host = "127.0.0.1".into();
+            a.port = 2113;
+        }
+    });
+    rt.frame(FRAME);
+    assert!(
+        words(&rt, "machine-access-listens")
+            .starts_with("Only this machine can reach it: Fleet listens on 127.0.0.1:2113. To add it from another device")
+    );
+    rt.update(|s, _| {
+        if let AccessState::Loaded(a) = &mut s.machine_page.access {
+            a.requires_token = true;
+        }
+    });
+    rt.frame(FRAME);
+    assert!(words(&rt, "machine-access-proxy").starts_with("Fleet listens on 127.0.0.1:2113 and asks every request for the token"));
+}
+
+#[test]
+fn masks_the_new_token_field() {
+    let home = fake(vec![]);
+    let mut rig = Rig::new(&home);
+    open(&mut rig.rt, "m-falcon");
+    click(&mut rig.rt, "machine-token-m-falcon");
+    press(&mut rig.rt, Key::Text("not-the-token".into()));
+    let page = &rig.rt.state.machine_page;
+    assert!(page.token.is_secure(), "a secure edit draws bullets and keeps no undo or copy");
+    assert_eq!(page.token.text, "not-the-token", "what is saved is what was typed");
+}
+
+#[test]
+fn masks_the_access_token_field_of_the_add_a_machine_form() {
+    let mut rt = page();
+    assert!(!rt.state.machine_page.add.token.is_secure());
+    click(&mut rt, "machines-add");
+    click(&mut rt, crate::fleet::pairing::LINK_FIELD);
+    press(&mut rt, Key::Text("100.64.90.72:2113".into()));
+    click(&mut rt, "machines-add-advanced");
+    click(&mut rt, crate::fleet::pairing::TOKEN_FIELD);
+    press(&mut rt, Key::Text("scratch-master-0002".into()));
+    assert!(rt.state.machine_page.add.token.is_secure());
+    assert_eq!(rt.state.machine_page.add.token.text, "scratch-master-0002");
 }

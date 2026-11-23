@@ -35,7 +35,19 @@ pub struct Access {
     pub token_source: String,
     pub remote_reachable: bool,
     pub requires_token: bool,
+    /// Where Fleet listens (`host`, `port`), which the page names when only this machine can reach it.
+    pub host: String,
+    pub port: u16,
     pub addresses: Vec<AccessAddress>,
+}
+
+/// A token field is masked (`type="password"`): bullets, no undo, no copy. Set where the field is bound, so a field kept in a
+/// `Default` struct is masked from the first key.
+pub fn masked(edit: &mut TextEdit) -> &mut TextEdit {
+    if !edit.is_secure() {
+        edit.set_secure(true);
+    }
+    edit
 }
 
 impl std::fmt::Debug for Access {
@@ -52,6 +64,8 @@ impl Access {
             token_source: text("tokenSource").unwrap_or_default(),
             remote_reachable: v.get("remoteReachable").and_then(Value::as_bool).unwrap_or(false),
             requires_token: v.get("requiresToken").and_then(Value::as_bool).unwrap_or(false),
+            host: text("host").unwrap_or_default(),
+            port: v.get("port").and_then(Value::as_u64).and_then(|p| u16::try_from(p).ok()).unwrap_or(0),
             addresses: v
                 .get("addresses")
                 .and_then(Value::as_array)
@@ -109,7 +123,7 @@ pub struct Page {
     pub copied: Option<(String, f64)>,
     /// The page was opened once, so the access is read once per visit.
     pub opened: bool,
-    /// The machine whose own page is open (Manage); piece G draws the page.
+    /// The machine whose own page is open (Manage), by card key (`use-machine-page`'s `openKey`).
     pub managing: Option<String>,
     /// The address lists' own state (`MachineAddressList.vue`).
     pub addresses: super::machine_addresses::Lists,
@@ -185,9 +199,24 @@ impl State {
         true
     }
 
-    /// Manage (`page.open`): the section gives way to the machine's own page. Piece G draws it.
+    /// Manage (`page.open`): the section gives way to the machine's own page.
     pub fn manage_machine(&mut self, key: &str) {
         self.machine_page.managing = Some(key.to_string());
+    }
+
+    /// The trail's "Machines" (`page.close`): back to the list. A rename or a new token left open is dropped with the page.
+    pub fn close_machine_page(&mut self) {
+        let page = &mut self.machine_page;
+        page.managing = None;
+        page.renaming = None;
+        page.token_for = None;
+    }
+
+    /// The open page's card, or None for the list; a machine that has left (forgotten here or on another machine) closes its page
+    /// (`watch(entries)`).
+    pub fn managed_card(&self) -> Option<crate::fleet::machine_card::Card> {
+        let key = self.machine_page.managing.as_deref()?;
+        self.machine_cards().into_iter().find(|c| c.key == key)
     }
 
     // ---- rename -----------------------------------------------------------------------------------------------------------
@@ -264,7 +293,7 @@ impl State {
             return;
         }
         self.machine_page.errors.remove(key);
-        self.machine_page.token = TextEdit::new(String::new());
+        self.machine_page.token = TextEdit::new(String::new()).secure();
         self.machine_page.token_for = Some(key.to_string());
         tx.focus(TOKEN_FIELD, true);
     }
@@ -440,6 +469,10 @@ impl State {
     /// The poll's turn: the page's visit and the tick, which ends by itself. True when something drawn changed.
     pub fn keep_machine_page(&mut self, now: f64, tx: &mut Tx) -> bool {
         let mut changed = self.keep_machines_page_open() | self.keep_add_form(tx);
+        if self.machine_page.managing.is_some() && self.managed_card().is_none() {
+            self.close_machine_page();
+            changed = true;
+        }
         if self.machine_page.copied.as_ref().is_some_and(|(_, until)| now >= *until) {
             self.machine_page.copied = None;
             changed = true;

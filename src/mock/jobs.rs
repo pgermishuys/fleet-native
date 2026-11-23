@@ -153,5 +153,6 @@ impl State {
         self.jobs.machines[0].labels = vec!["linux".into(), "gpu".into()];
         self.jobs.machines[1].labels = vec!["mac".into()];
         self.sync_seat_fields();
+        self.manage_machine("home");
     }
 }

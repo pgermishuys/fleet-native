@@ -785,7 +785,7 @@ test output.
 | Open | Why | Owner |
 |---|---|---|
 | 13.1 the `lg` breakpoint and the stretched grid rows on the Agents tab | Rune gives a view no window width, and a cell's height follows its content; Fleet's stretch to the page's bottom is not drawn | none (a Rune limit, noted in `docs/RUNE.md`) |
-| 14.7 Fleet 0.74's per-machine page (Settings → Machines → Manage) | native's cards hold the seats row on the card, as 0.72's do; 0.74 moved the row to the machine's own page | component 17 |
+| 14.7 Fleet 0.74's per-machine page (Settings → Machines → Manage) | Done (26 G, 23 November 2026): the seats row is on the machine's own page, not the list | none |
 | 8.6 the nudge field's accent border for a mouse focus | Fleet draws it for a mouse focus; the ring here shows for a key focus | none (a small difference, left) |
 | the "This machine" name on tiles and cards of home | Fleet's quirk (the Fleet bugs list); native names them by the machine's current name | Fleet (reported, not fixed here) |
 

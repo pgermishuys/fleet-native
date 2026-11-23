@@ -11,7 +11,10 @@ const URLS: [&str; 4] = ["http://falcon.tail4f2a.ts.net:2113", "http://100.88.14
 
 fn addresses_page() -> Rt {
     let mut rt = page();
-    rt.update(|s, _| s.show_machines_page_addresses(true));
+    rt.update(|s, _| {
+        s.show_machines_page_addresses(true);
+        s.manage_machine(KEY);
+    });
     rt.frame(FRAME);
     rt.frame(FRAME);
     rt
@@ -23,10 +26,17 @@ fn rig(home: &Fake) -> Rig {
     rig.rt.update(|s, _| {
         s.show_machines_page_addresses(true);
         s.machines.list.retain(|m| m.id == KEY);
+        s.manage_machine(KEY);
     });
     rig.rt.frame(FRAME);
     rig.rt.frame(FRAME);
     rig
+}
+
+/// Another machine's own page (`openPage`).
+fn manage(rt: &mut Rt, key: &str) {
+    rt.update(|s, _| s.manage_machine(key));
+    rt.frame(FRAME);
 }
 
 fn kinds(rt: &Rt) -> Vec<&'static str> {
@@ -71,16 +81,20 @@ fn says_connected_over_tailscale_on_its_ip_without_saying_tailscale_isnt_answeri
 
 #[test]
 fn says_how_the_machine_is_reached_only_while_it_answers_and_shows_one_address_plainly() {
-    let rt = addresses_page();
+    let mut rt = addresses_page();
+    manage(&mut rt, "m-harbor");
     assert!(!exists(&rt, "machine-route-m-harbor"), "an SSH machine has no addresses to order");
+    manage(&mut rt, "m-lantern");
     assert!(!exists(&rt, "machine-route-m-lantern"), "one still being read says nothing yet");
     assert_eq!(words(&rt, "machine-address-single-m-lantern"), "http://lantern.example.test:2113");
+    manage(&mut rt, "home");
     assert!(!exists(&rt, "machine-addresses-home"), "home has none");
 }
 
 #[test]
 fn says_how_an_ssh_machine_is_reached_and_when_its_tunnel_is_down() {
-    let rt = addresses_page();
+    let mut rt = addresses_page();
+    manage(&mut rt, "m-harbor");
     assert_eq!(words(&rt, "machine-location-m-harbor"), "Over SSH as alice@harbor");
     assert_eq!(words(&rt, "machine-state-m-harbor"), "The SSH tunnel to harbor is down");
     assert!(!exists(&rt, "machine-addresses-m-harbor"));
@@ -159,7 +173,9 @@ fn a_dragged_address_takes_the_place_of_the_row_it_is_dropped_on_and_escape_drop
 
 #[test]
 fn nothing_is_shown_for_a_machine_with_no_addresses() {
-    let rt = page();
+    let mut rt = page();
+    rt.update(|s, _| s.manage_machine(KEY));
+    rt.frame(FRAME);
     assert!(card_of(&rt, KEY).addresses.is_empty());
     assert!(!exists(&rt, &format!("machine-addresses-{KEY}")) && card_of(&rt, KEY).route.is_none());
 }

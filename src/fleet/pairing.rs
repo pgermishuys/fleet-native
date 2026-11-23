@@ -129,7 +129,7 @@ impl AddForm {
     pub fn clear(&mut self) {
         self.link = TextEdit::new(String::new());
         self.code = TextEdit::new(String::new());
-        self.token = TextEdit::new(String::new());
+        self.token = TextEdit::new(String::new()).secure();
     }
 }
 

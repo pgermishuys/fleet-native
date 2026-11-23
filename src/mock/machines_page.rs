@@ -45,6 +45,8 @@ impl State {
             token_source: "saved".into(),
             remote_reachable: true,
             requires_token: true,
+            host: "0.0.0.0".into(),
+            port: 2113,
             addresses: vec![
                 AccessAddress { url: "http://atlas.example.test:2113".into(), kind: "hostname".into() },
                 AccessAddress { url: "http://192.168.1.20:2113".into(), kind: "lan".into() },
@@ -57,6 +59,7 @@ impl State {
     pub fn show_machines_page_addresses(&mut self, dark: bool) {
         use crate::fleet::machine::{Address, AddressResult, kind_of};
         self.show_machines_page(dark, false);
+        self.manage_machine("m-falcon");
         let address = |url: &str, learned: bool, last_result: Option<AddressResult>| Address {
             url: url.into(),
             kind: kind_of(url),
@@ -118,21 +121,36 @@ impl State {
         self.machine_page.rename.set_selection(0, 6);
         self.machine_page.rename.focused = true;
         self.machine_page.renaming = Some("m-falcon".into());
+        self.manage_machine("m-falcon");
     }
 
-    /// Harbor's card with its Details open and the New token field under falcon's.
+    /// A machine's own page (Manage): home's or another machine's.
+    pub fn show_machine_page(&mut self, dark: bool, key: &str) {
+        self.show_machines_page(dark, false);
+        self.manage_machine(key);
+    }
+
+    /// Harbor's page with its Details open.
     pub fn show_machines_page_details(&mut self, dark: bool) {
         self.show_machines_page(dark, false);
         self.machine_page.details.push("m-harbor".into());
-        self.machine_page.token = rune::TextEdit::new(String::new());
+        self.manage_machine("m-harbor");
+    }
+
+    /// Falcon's page with the New token field open and a token typed in, masked.
+    pub fn show_machines_page_token_form(&mut self, dark: bool) {
+        self.show_machines_page(dark, false);
+        self.machine_page.token = rune::TextEdit::new("falcon-scene-token".to_string()).secure();
         self.machine_page.token.focused = true;
         self.machine_page.token_for = Some("m-falcon".into());
+        self.manage_machine("m-falcon");
     }
 
     /// A card with a refusal under it, and a token that couldn't be replaced.
     pub fn show_machines_page_errors(&mut self, dark: bool) {
         self.show_machines_page(dark, false);
         self.machine_page.errors.insert("m-falcon".into(), "falcon didn't accept that token.".into());
+        self.manage_machine("m-falcon");
     }
 }
 
