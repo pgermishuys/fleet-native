@@ -82,6 +82,11 @@ when none is running. Pick one:
 | | [`fleet-native-linux-x64.deb`](https://github.com/pgermishuys/fleet-native/releases/download/latest/fleet-native-linux-x64.deb) | `sudo apt install ./fleet-native-linux-x64.deb`: `/opt/Fleet-Native`, `fleet-native` on the path, a launcher entry; `apt remove fleet-native` removes it |
 | | [`fleet-native-linux-x64.tar.gz`](https://github.com/pgermishuys/fleet-native/releases/download/latest/fleet-native-linux-x64.tar.gz) | Unpack and run `./fleet-native` (see below for a launcher entry) |
 
+An update replaces the program and its server together, from the same release: the Windows setup and the zip, the
+AppImage, the tar and the macOS app update themselves; a `.deb` install says a new build is out and links to the new `.deb`
+(apt installs it). After a Windows update, Settings → Apps still shows the version the setup wrote until the setup runs again.
+Set `FLEET_NATIVE_UPDATES=off` to stop it looking.
+
 Each Linux file and the Windows installer has a `.sha256` beside it (`sha256sum -c fleet-native-linux-x64.deb.sha256`), and
 `latest.json` lists every file's SHA-256.
 
@@ -281,6 +286,12 @@ This repository has no licence yet (`docs/PORT.md`, "Open decisions"). What it b
 - appimagetool 1.9.1 and the type 2 runtime 20251108 (AppImage project, MIT; build time only, downloaded and checked by SHA-256
   from `packaging/appimage-tools`; the runtime is embedded in the AppImage). Licence texts, unchanged:
   `packaging/licences/type2-runtime-LICENSE.txt` and `packaging/licences/appimagetool-LICENSE.txt`.
+- NSIS 3 (Nullsoft Scriptable Install System; build time, but its installer stub is in the Windows setup.exe, with the
+  LZMA module because `installer.nsi` uses `SetCompressor lzma`): zlib/libpng licence for NSIS, Common Public License 1.0
+  for the LZMA module. Licence text, unchanged: `packaging/licences/NSIS-COPYING.txt`.
+- Fleet's server (`fleet/` in every package, `Contents/Resources/fleet` in the `.app`): weave-fleet's own released CLI
+  archive, the version pinned in `packaging/server-version`, unchanged but for its debug files (same owner; weave-fleet has
+  no licence file yet). It is a .NET native-AOT build, so the .NET runtime (MIT) is compiled into it.
 - `winresource` (MIT or Apache-2.0, build time only on Windows, nothing of it ships in the exe) writes the exe's icon
   and version information. It is the small, maintained fork of `winres`, and needs no tool beyond the Windows SDK
   the runner has.

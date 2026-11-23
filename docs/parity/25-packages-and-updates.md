@@ -46,7 +46,20 @@ Sources (weave-fleet): `desktop/electron-builder.config.js` (EB), `desktop/packa
 | A smoke run of a built app | `scripts/smoke-desktop.sh` (Linux and macOS, SIGKILL) | Done; the Windows twin `smoke-desktop.ps1` and the smoke of each package by piece G |
 | CI: build, lint and test on three systems; release build of each system's app on `main`; verification of the published assets by hand | `ci.yml`, `verify-release.yml` | Done |
 
-## Decisions this component needs (for the owner, none is blocking the first pieces)
+## Decisions open for the owner (after the sweep, 23 November 2026)
+
+Every piece was built on the planner's recommendation below; none of these has been decided by the owner. Each says what is
+built today and what changing it would take.
+
+| Decision | Built today (the default) | What the owner decides | If changed |
+|---|---|---|---|
+| **What an update replaces** (3) | The whole app folder, server included: the program and `fleet/` swapped together, rolled back on failure (`install::replace_folder`); macOS swaps the bundle; an AppImage replaces its one file; a `.deb` only links. Windows downloads the zip, not the setup | Keep it, or run the installer silently over the old install (Fleet's way), or update the program alone and the server separately | Running the setup: the Apps entry's version would follow (25.32 open item); the updater would download `windows-x64-setup` (already in `latest.json`), start it with `/S` and exit. Program alone: a new server needs a new install |
+| **arm64** (4) | x64 only on Windows and Linux, arm64 only on macOS; Windows arm64's server archive is pinned but nothing packs it | Whether to ship Windows arm64 and Linux arm64 (Fleet ships Windows arm64; neither ships Intel Macs) | A runner per system in `package`, a key per system in `manifest::key_for`, a row in `publish-release.sh` (25.51) |
+| **Signing, once a certificate exists** (5) | Nothing signed: macOS ad hoc, Windows and Linux none. The steps exist and skip with "not signed: … is not set" (piece E) | Which certificates to buy or apply for (Apple Developer ID and notarisation; a Windows `.pfx` or Azure Trusted Signing; optionally a GPG key), and adding them as secrets (names in rows 25.20 to 25.25) | Add the secrets; the next `main` build signs. Then 25.26 (the updater checks the signature before the swap) becomes worth building |
+| **The package tool** (1) | Plain scripts, no Node and no packager crate: `make-mac-app.sh`, `make-installer.ps1` + NSIS 3, `make-appimage.sh` (appimagetool pinned), `make-deb.sh` (`dpkg-deb`) | Keep them, or move to one tool (`cargo-packager`) | One config instead of four scripts; each package's checks (B, C, D, G) would be re-proved |
+| **Which server goes inside** (2) | Fleet's released CLI archive v0.74.0, pinned by version and SHA-256 in `packaging/server-version` (`fetch-server.sh`) | Which Fleet version each app build carries, and whether it follows Fleet's releases | A one-line pull request moves the pin; installed apps get it with their next update (the whole folder is replaced) |
+
+The original recommendations, as planned:
 
 1. **Which package tool.** Fleet uses electron-builder (Node). This repository has no Node ("Cargo only"). Recommendation: no
    packager crate and no Node; plain scripts per system, as `make-mac-app.sh` already is: macOS `.app` and `.dmg` by hand,
@@ -82,7 +95,7 @@ against the code; nothing below was built by this planning session.
 | 25.4 | Names: product "Fleet", app id `com.pgermishuys.fleet`, executable `fleet-desktop` (Linux), `StartupWMClass: Fleet`, category Development, synopsis "Run and watch many AI coding agents at once" | EB | **Linux done (piece B, 22 November 2026)**: the desktop entry is "Fleet Native" (comment, Development), the window's app id and `StartupWMClass` are `fleet-native`, the deb is `fleet-native` in `/opt/Fleet-Native`; Fleet's own names and install folder stay free. The window's title stays "Fleet" (24.50). macOS (D): id `io.tryweave.fleet-native`, name "Fleet Native", Developer-tools category, done. **Windows done (piece C)**: "Fleet Native" by Weave in the Start menu and Settings → Apps (`HKCU\…\Uninstall\FleetNative`), installed in `%LOCALAPPDATA%\Programs\Fleet-Native`, the shortcut's comment the synopsis. Not matched on purpose: Fleet's id `com.pgermishuys.fleet`, executable `fleet-desktop`, `/opt/Fleet`, so both can be installed | B, C, D |
 | 25.5 | The window's class on Linux (taskbar grouping, icon): `StartupWMClass` matches the window's app id | EB `linux.desktop` | **Done (piece B)**: `rune::set_app_id("fleet-native")` in `start_desktop` (Rune has the call: X11 `WM_CLASS` class and instance, Wayland `app_id`) and `StartupWMClass=fleet-native`. Checked on X11 under Xvfb from the AppImage and from the extracted `.deb`; a window manager's taskbar and Wayland could not be shown here | B |
 | 25.6 | Package version: `0.0.<build>` on every system (the build number only goes up); `--version` prints version, build and commit; the Windows exe's file and product version carry it | EB `extraMetadata.version`, REL "Resolve the desktop version" | **Linux done (piece B)**: the `.deb` is `0.0.<build>` (control `Version`), the AppImage is built with `VERSION=0.0.<build>` and runs the same binary, whose `--version` prints build and commit. **Windows done (piece C)**: the setup.exe's file and product version are `0.0.<build>.0`, the Apps entry's `DisplayVersion` `0.0.<build>` (checked in CI), and the exe it carries has its own (`build.rs`) | B, C |
-| 25.7 | Size: a native package is expected near 40 MB plus the server (about 100 to 130 MB), against Fleet's 130 to 200 MB; the numbers go in the pull requests | measured v0.74.0 assets | **Measured (piece A)**: server 106 MB unpacked (v0.74.0 Linux), tar.gz 86 MB with a 169 MB *debug* exe; the release numbers come from CI. Fleet's CLI archives are 83 to 132 MB | A, G |
+| 25.7 | Size: a native package is expected near 40 MB plus the server (about 100 to 130 MB), against Fleet's 130 to 200 MB; the numbers go in the pull requests | measured v0.74.0 assets | **Measured (piece A)**: server 106 MB unpacked (v0.74.0 Linux), tar.gz 86 MB with a 169 MB *debug* exe; the release numbers come from CI. Fleet's CLI archives are 83 to 132 MB. **Closed by the sweep** with the release (build 1706): Windows setup 45.9 MB, zip 68.6 MB, 187.8 MB installed; macOS `.dmg` 126.2 MB; Linux AppImage 65.9 MB, `.deb` 55.2 MB, tar 72.5 MB. Against Fleet v0.74.0's 130 to 200 MB per file, every native package is smaller, most by half | A, G, H |
 
 ### 2. The three installers
 
@@ -96,7 +109,7 @@ against the code; nothing below was built by this planning session.
 | 25.15 | **macOS `.dmg`**: "Fleet Native.app" with the server in `Contents/Resources/fleet`, an Applications link, the icon; opens to the drag-to-Applications view (Fleet's volume title "Fleet <version>") | EB `mac`, `dmg.title` | **Done (piece D)**: `scripts/make-mac-app.sh` builds "Fleet Native.app" with the pinned server in `Contents/Resources/fleet`, the icon and an `Applications` link, in a `.dmg` titled "Fleet Native 0.0.<build>" (Fleet's is "Fleet <version>"; the name stays Fleet Native so both can be installed). CI builds it on every pull request (debug build, `check` job) and on `main` (release, `package`), mounts it, and runs the app from the image | D |
 | 25.16 | Mac `.app` Info.plist: id, name, version, category, `LSMinimumSystemVersion` from the binary, `NSHighResolutionCapable`; no `LSUIElement` (the app has a dock icon); usage strings the app needs, if any | `make-mac-app.sh` | **Done (piece D)**: `scripts/check-mac-app.sh` asserts id `io.tryweave.fleet-native`, name, executable, `APPL`, version `0.0.<build>`, `LSMinimumSystemVersion` (read from the binary), `NSHighResolutionCapable`, the category, no `LSUIElement`, the icon file. No usage strings: no feature asks for one | D |
 | 25.17 | macOS `.zip` of the app, which Fleet's own updater uses (electron-updater) | EB `mac.target` | Not needed: the native updater reads the `.dmg` | — |
-| 25.18 | Icons at every size each system wants: `.ico` with 16 to 256, `.icns` with retina sizes, PNGs 16 to 512 for the deb, the tray image; same artwork as Fleet's `desktop/build/icon.png` | `desktop/build`, `static/icon.png`, `tray.png` | **Linux done (piece B)**: `packaging/icons/<16..512>/fleet-native.png`, scaled from `assets/icon/icon.png` (Lanczos), in the deb's hicolor tree and the AppImage | B |
+| 25.18 | Icons at every size each system wants: `.ico` with 16 to 256, `.icns` with retina sizes, PNGs 16 to 512 for the deb, the tray image; same artwork as Fleet's `desktop/build/icon.png` | `desktop/build`, `static/icon.png`, `tray.png` | **Linux done (piece B)**: `packaging/icons/<16..512>/fleet-native.png`, scaled from `assets/icon/icon.png` (Lanczos), in the deb's hicolor tree and the AppImage. **Closed by the sweep**: Windows, `assets/icon/fleet-native.ico` (16, 24, 32, 48, 64, 128, 256) in the exe (`build.rs`), which the setup's shortcut and Apps entry use (`verify-release.yml` extracts it as a picture); macOS, the `.icns` in the bundle (`make-mac-app.sh`, `check-mac-app.sh`); the tray image is `assets/tray.png`, Fleet's own (24). Same artwork as Fleet's, from the Weave logo | B, H |
 
 ### 3. Signing and notarising (none is run without its secrets)
 
@@ -112,8 +125,8 @@ or guessed by this component's pieces**; the owner creates them in the repositor
 | 25.23 | Windows Authenticode signing of the exe, the server's exe and dlls, and the installer, with a timestamp | One of: `WINDOWS_CERTIFICATE` (base64 `.pfx`) and `WINDOWS_CERTIFICATE_PASSWORD`; or Azure Trusted Signing (`AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, endpoint, account, profile). Piece E writes the step for the first and says how to switch | **Built, waiting for secrets (piece E)**: `scripts/sign-windows.ps1` (signtool, SHA-256, RFC 3161 timestamp, every exe and dll without a valid signature; Microsoft's own files are left alone) signs the exe and the server before the zip and installer are made, and `make-installer.ps1` signs the setup before its `.sha256`; `package` then checks each with `Get-AuthenticodeSignature`. The script's header says how to switch to Azure Trusted Signing. Dry run only. Not signed: the uninstaller NSIS writes inside the setup (needs `!uninstfinalize`) | E |
 | 25.24 | Without it: unsigned; SmartScreen warns on first run; the README says how to continue ("More info", "Run anyway") | none | **Done (piece E)**: unsigned, "not signed: WINDOWS_CERTIFICATE is not set" in the log; the README's "Installing" says "More info", "Run anyway" | E |
 | 25.25 | Linux: a `.sha256` per file; optional detached GPG signature of the AppImage | `GPG_PRIVATE_KEY`, `GPG_PASSPHRASE` (optional) | **Hashes done (piece B)**: a `.sha256` for the tar, the `.deb` and the AppImage, written next to each and checked in CI (`sha256sum -c`). The optional GPG signature is E's. **E done, waiting for a key**: `scripts/sign-linux.sh` writes `<file>.asc` for the tar, `.deb` and AppImage when `GPG_PRIVATE_KEY` is set (released beside them), else "not signed: GPG_PRIVATE_KEY is not set" | B, E |
-| 25.26 | The update is only trusted by hash: `latest.json` is read over https from the repository, files are checked for size and SHA-256 before anything is touched. With signing on, the downloaded package's signature is checked too (macOS `codesign --verify`, Windows `Get-AuthenticodeSignature`) before the swap, and a failed check shows "can't verify" and leaves the old app | UPD (electron-updater checks the Windows signature itself) | **Hash and size done; the signature check is open**: nothing is signed yet (E), so there is nothing to verify. A piece E that signs adds the check before the swap in `install::apply` (the hook `before_swap` is the place) | F |
-| 25.27 | A signed build keeps working with `scripts/verify-release.yml` (it checks `codesign --verify --deep --strict` today; add `spctl`, `stapler validate` and the Windows signature when secrets exist) | `verify-release.yml` | **Done (piece E)**: `verify-release.yml` runs `spctl --assess` and `stapler validate` on a Developer ID app and image, and `Get-AuthenticodeSignature` (valid and timestamped) on the exe, the server and the setup when any is signed; unsigned, it says "not signed" and passes | E, H |
+| 25.26 | The update is only trusted by hash: `latest.json` is read over https from the repository, files are checked for size and SHA-256 before anything is touched. With signing on, the downloaded package's signature is checked too (macOS `codesign --verify`, Windows `Get-AuthenticodeSignature`) before the swap, and a failed check shows "can't verify" and leaves the old app | UPD (electron-updater checks the Windows signature itself) | **Hash and size done; the signature check is open**: nothing is signed yet (E), so there is nothing to verify. A piece E that signs adds the check before the swap in `install::apply` (the hook `before_swap` is the place). **Open after the sweep. Owner: the owner's signing decision (5), then a follow-up piece**: once a certificate signs `main`'s builds, check the downloaded package's signature in `before_swap` and say "can't verify" on failure. Built before anything is signed, the check could only ever fail or be skipped | F → follow-up |
+| 25.27 | A signed build keeps working with `scripts/verify-release.yml` (it checks `codesign --verify --deep --strict` today; add `spctl`, `stapler validate` and the Windows signature when secrets exist) | `verify-release.yml` | **Done (piece E)**: `verify-release.yml` runs `spctl --assess` and `stapler validate` on a Developer ID app and image, and `Get-AuthenticodeSignature` (valid and timestamped) on the exe, the server and the setup when any is signed; unsigned, it says "not signed" and passes. **Checked by the sweep**: unsigned today on all three (this machine: the released setup is `NotSigned`); the signed branches have never run, and first will on the owner's first signed build | E, H |
 
 ### 4. Update path for the installers
 
@@ -128,6 +141,7 @@ or guessed by this component's pieces**; the owner creates them in the repositor
 | 25.36 | Update states and words of Fleet's updater: idle "Up to date", checking, downloading with percent, ready "v<v> is ready" (Restart to update), available (Download), error "Update check failed", off "This build doesn't update itself"; Help → Check for Updates… dialogs ("You're on the latest version (<v>).", "Fleet is already checking for updates.", "Fleet <v> is downloading…", failure) | UPD `nextState`, `updateCheckMessage`; UT ×13 ("downloads a new version where it can install it", "links to the release where it can't install", "keeps a downloaded update through later checks and errors", "stays ready when a check finds the version it already downloaded", "reports a failed check", "goes back to idle when there's nothing new", "ignores progress when nothing is downloading", the three "Check for Updates… from the menu" cases) | **Done (piece F)**: Fleet's 13 UT cases are in `src/update/tests_installers.rs` under native names, table below. Words: "Up to date", "Checking for updates…", "Downloading build N…", "Update check failed", "This build doesn't update itself"; the Help → Check for Updates… words are 24's (`desktop/menu_tests.rs`) | F |
 | 25.37 | The Windows update feed merge (`latest.yml` from two feeds) | MUM, MT ×4 | Not applicable: one `latest.json` serves every system | — |
 | 25.38 | The mac "ready, restart" when the app can't write its own folder: the disk image is opened for a drag | `install.rs` `MacResult` | Done | — |
+| 25.39 | (Added by the sweep.) What Check for Updates… says once its check ends: "You're on the latest version (<v>).", "Couldn't check for updates: <error>", and "Fleet <v> is downloading. Fleet lets you know when it's ready to install." while a download runs | UPD `updateCheckMessage`; UT "Check for Updates… from the menu" ×2 of 3; 24.108 | **Open**: the menu entry wakes the checker and says "Checking for updates…"; the result shows only on Updates & about and as the status-bar item when a build is found. While a download runs it says "Fleet is already checking for updates.". Needs the end of a menu-started check (`State::update_checked`, which has no `Tx` for a toast) to remember who asked. **Owner: a follow-up piece of 25 (not planned yet), about 40 lines and two tests**; 24.108 had passed these words to 25, and 25's plan had passed them back | follow-up |
 
 ### 5. Smoke runs and package checks
 
@@ -148,15 +162,42 @@ or guessed by this component's pieces**; the owner creates them in the repositor
 | 25.52 | The unversioned `Fleet-…` copies and `install.sh` / `install.ps1` | Fleet's own release channel; the native app has one rolling release |
 | 25.53 | A Microsoft Store, Mac App Store, Homebrew cask, winget, Flatpak or Snap listing | Not Fleet's either |
 | 25.54 | Notarising and signing without a certificate | Needs the owner's secrets (rows 25.20 to 25.24); planned behind a check, built only so far as it can be tested without them (a dry-run flag that runs every step but the signing call) |
-| 25.55 | A picture of the macOS and Windows installers' first screen from this machine | Linux only here: those two are pictured from CI runs (a runner screenshot of the NSIS window; the mounted `.dmg`'s Finder view is not capturable, so its content listing stands in) |
+| 25.55 | A picture of the macOS and Windows installers' first screen from this machine | Planned when only Linux could be run here. Since then: Windows pictured on a Windows machine (piece C, the NSIS window mid-install); macOS from CI's runner only (the app inside the mounted `.dmg`, piece D and G); the `.dmg`'s Finder window is not capturable there, so its listing stands in. No Mac was available to any piece |
 
 ## Fleet's tests, accounted for
 
 | Fleet test | Cases | Native |
 |---|---|---|
-| `updates.test.ts` | 13 | Row 25.36, piece F, in `src/update/tests_installers.rs`: "installs on Windows and from an AppImage" = `installs_on_windows_and_from_an_appimage`; "only tells you about a new version on macOS (unsigned) and from the .deb" = `only_tells_you_about_a_new_version_from_the_deb_and_macos_installs` (macOS installs here: a difference); "is off in development and when turned off" = `is_off_in_development_and_when_turned_off`; "downloads a new version where it can install it" = `downloads_a_new_version_where_it_can_install_it` (the user starts it: no background download); "links to the release where it can't install" = `links_to_the_release_where_it_cant_install`; "keeps a downloaded update through later checks and errors" = `keeps_a_found_update_through_later_checks_and_errors` (the offer, since native has no "ready" resting state); "stays ready when a check finds the version it already downloaded" = `stays_the_same_when_a_check_finds_the_build_it_is_already_downloading`; "reports a failed check" = `reports_a_failed_check`; "goes back to idle when there's nothing new" = `goes_back_to_idle_when_theres_nothing_new`; "ignores progress when nothing is downloading" = `ignores_progress_when_nothing_is_downloading`; the three "Check for Updates… from the menu" cases are component 24's (`src/desktop/menu_tests.rs`, `menu_check_for_updates`), not repeated |
-| `check-bundled-server.test.mjs` | 8 | Row 25.2, same names, in piece A |
-| `merge-update-manifests.test.mjs` | 4 | Not applicable (25.37) |
+Checked by the sweep (piece H) against weave-fleet `c1a48bd`: every `it(...)` of the three files, by name. 25 cases: 19 have a
+native test (11 UT, 8 CT), 1 is partly covered and 1 is open (both UT menu cases, row 25.39), 4 are not applicable (MT).
+
+| Fleet test | Case | Native |
+|---|---|---|
+| UT `updates.test.ts` | "installs on Windows and from an AppImage" | `update::tests_installers::installs_on_windows_and_from_an_appimage` |
+| UT | "only tells you about a new version on macOS (unsigned) and from the .deb" | `only_tells_you_about_a_new_version_from_the_deb_and_macos_installs` (a difference on purpose: macOS installs here, 25.30) |
+| UT | "is off in development and when turned off" | `is_off_in_development_and_when_turned_off` |
+| UT | "downloads a new version where it can install it" | `downloads_a_new_version_where_it_can_install_it` (the user starts it: no background download) |
+| UT | "links to the release where it can't install" | `links_to_the_release_where_it_cant_install` |
+| UT | "keeps a downloaded update through later checks and errors" | `keeps_a_found_update_through_later_checks_and_errors` (the offer: native has no "ready" resting state) |
+| UT | "stays ready when a check finds the version it already downloaded" | `stays_the_same_when_a_check_finds_the_build_it_is_already_downloading` |
+| UT | "reports a failed check" | `reports_a_failed_check` |
+| UT | "goes back to idle when there's nothing new" | `goes_back_to_idle_when_theres_nothing_new` |
+| UT | "ignores progress when nothing is downloading" | `ignores_progress_when_nothing_is_downloading` |
+| UT "Check for Updates… from the menu" | "leaves a found update to the UI's card" | `desktop::menu_tests::check_for_updates_says_what_it_can_and_wakes_the_checker` and `menu_bar::menu_check_for_updates`: a found build opens the update dialog, no note (component 24, 24.108) |
+| UT "Check for Updates… from the menu" | "says a found update is still downloading instead of opening a card with nothing to install" | **Open (25.39)**: native says "Fleet is already checking for updates." while it downloads, not "Fleet build N is downloading…" |
+| UT "Check for Updates… from the menu" | "says when there's nothing new, or the check failed" | **Partly (25.39)**: "This build of Fleet doesn't update itself." is tested (same test as above); "You're on the latest version" and "Couldn't check for updates: <error>" after a menu check are not said (the result shows on Updates & about only). The planning table and piece F said 24 owned these; 24.108 had left them to 25 |
+| CT `check-bundled-server.test.mjs` | "sees a re-signed file as the same" | `desktop::bundle_tests::compare_mach_o_sees_a_re_signed_file_as_the_same` |
+| CT | "allows zero padding before a signature codesign placed further on" | `compare_mach_o_allows_zero_padding_before_a_signature_codesign_placed_further_on` |
+| CT | "catches one changed byte of code" | `compare_mach_o_catches_one_changed_byte_of_code` |
+| CT | "catches bytes hidden where only padding may be" | `compare_mach_o_catches_bytes_hidden_where_only_padding_may_be` |
+| CT | "compares each architecture of a fat file" | `compare_mach_o_compares_each_architecture_of_a_fat_file` |
+| CT | "passes an app that ships the server as built, re-signed Mach-O files included" | `check_bundled_server_passes_an_app_that_ships_the_server_as_built_re_signed_mach_o_files_included` |
+| CT | "fails on a changed, missing or extra file" | `check_bundled_server_fails_on_a_changed_missing_or_extra_file` |
+| CT | "fails when nothing was packaged" | `check_bundled_server_fails_when_nothing_was_packaged` (plus native's own `check_bundled_server_finds_the_server_beside_the_exe` and the three `layouts` cases) |
+| MT `merge-update-manifests.test.mjs` | "lists both installers, keeping x64 as the default" | Not applicable (25.37): one `latest.json`, no electron-builder feeds to merge |
+| MT | "refuses feeds for different versions" | Not applicable (25.37) |
+| MT | "refuses two different files with the same name" | Not applicable (25.37); `publish-release.sh` names each asset once |
+| MT | "reads and writes the YAML electron-builder produces" | Not applicable (25.37): no YAML feed |
 | `desktop.test.ts`, `menu.test.ts` | — | Component 24 (done) |
 
 ## Pieces
@@ -175,7 +216,7 @@ installer where the system allows) and the files a package holds. All use invent
 | **E** (built 22 November 2026, waiting for the owner's secrets; pictures in `shots/parity/25e-signing/`) | Signing and notarising, behind secrets | 25.20 to 25.25, 25.27 | `scripts/sign-mac.sh`, `scripts/sign-windows.ps1`, `packaging/mac/entitlements.plist`, `ci.yml` steps with `if: env.APPLE_CERTIFICATE != ''` style checks, README "Installing" section | C, D | The skipped-path itself: a workflow test that runs the steps with no secrets and expects "not signed: … is not set" and a green job; the signing calls only dry-run (arguments printed) | The CI log of the skip step; the README's section; no signed package can be shown until the owner adds secrets (said in the pull request) |
 | **F** (done, 23 November 2026, pictures in `shots/parity/25f-updater/`) | The updater for installers | 25.26, 25.30 to 25.36 | `src/update/` (`install.rs`: replace the app folder with the server; `mod.rs`: modes, size in the dialog; `manifest.rs`: asset keys per package kind), `scripts/publish-release.sh` and `latest.json`, `FLEET_NATIVE_UPDATES=off`, tests | A, B, C, D | UT's 13 under native names; the existing `scripts/update-check.sh` proof extended to a bundle with a server; tests for the `.deb` notify mode | The update dialog with the size line and the ready state, native beside Fleet's Updates & about "Fleet app" row (same state, both themes), and a recorded run of an update on a scratch release from a loopback server |
 | **G** (done, 22 November 2026, pictures in `shots/parity/25g-package-smoke/`) | Package smoke and Windows | 25.40 to 25.44 | `scripts/smoke-desktop.ps1`, `ci.yml` smoke steps per package kind, `verify-release.yml` extended to the new assets | A to D | none of Fleet's; the smoke itself is the test | The Windows runner's log and picture of the smoke run, the Linux and macOS ones; a table of what each ran on which system |
-| **H** | Sweep | all | `docs/parity/25-packages-and-updates.md`, `docs/PORT.md` row 25, `README.md` Installing and Licences (AppImage tool, NSIS, if bundled) | A to G | Every UT, CT, MT case accounted for | A walk: download the `latest` assets, install each on the systems available, run the app with its server, take an update; the pictures next to Fleet's own installers where Fleet's can be run (Linux AppImage on this machine) |
+| **H** (done, 23 November 2026, pictures in `shots/parity/25h-sweep/`) | Sweep | all | `docs/parity/25-packages-and-updates.md`, `docs/PORT.md` row 25, `README.md` Installing and Licences (AppImage tool, NSIS, if bundled) | A to G | Every UT, CT, MT case accounted for | A walk: download the `latest` assets, install each on the systems available, run the app with its server, take an update; the pictures next to Fleet's own installers where Fleet's can be run (Linux AppImage on this machine) |
 
 ## Notes for the pieces
 
@@ -233,3 +274,41 @@ installer where the system allows) and the files a package holds. All use invent
 - Checked: `scripts/check-signing-skipped.sh` in every pull request's `check` job on all three systems: with no secret each script says it skipped and succeeds, and the dry run with invented values prints the signing calls inside out with no password in the log. On this machine (Windows 11) the Windows half passed.
 - **No signed package can be shown**: no certificate, key or Apple account exists in the repository's secrets. Nothing was signed, notarised or timestamped for real; the first real run is the first `main` build after the owner adds them (names in rows 25.20 to 25.25).
 - Open: the NSIS uninstaller inside the setup is not signed (`!uninstfinalize` with the same script); 25.26 (the updater checking a downloaded package's signature before the swap) is F's, once something is signed; Azure Trusted Signing is described, not written.
+
+## Piece H: the sweep (23 November 2026)
+
+- **Rows**: every row of sections 1 to 6 is done, not applicable, or open with an owner. Closed by the sweep: 25.7 (the
+  release's sizes), 25.18 (Windows `.ico` and macOS `.icns`, with Linux's), 25.27 (checked unsigned on all three). Added: 25.39.
+- **Open, with owners**:
+
+  | Row | What is open | Owner |
+  |---|---|---|
+  | 25.20 to 25.25 | Nothing is signed or notarised: the steps exist and skip | The owner: certificates and secrets (decision 5) |
+  | 25.26 | The updater checking a package's signature before the swap | A follow-up piece, after the first signed build |
+  | 25.31 | A Fleet the updater stopped isn't started again when the swap fails after the stop | The updater (a follow-up piece) |
+  | 25.32 | Settings → Apps keeps the version the setup wrote after an in-app update | Decision 3 (running the setup instead would fix it), else a follow-up that rewrites `DisplayVersion` |
+  | 25.35 | An AppImage from before piece F needs one manual download | None: a one-off for AppImages installed before 23 November 2026 (they look for the tar) |
+  | 25.39 | Check for Updates… doesn't say what its check found | A follow-up piece of 25 |
+  | 25.51 | Windows arm64, Linux arm64, macOS Intel | The owner (decision 4) |
+  | 25.11, 25.41 | `dpkg -i` and `apt` resolving `Depends` on a clean system; the AppImage through FUSE | Not run by any piece; a container job in CI would |
+
+- **Fleet's tests**: all 25 cases of UT, CT and MT accounted for by name in the table above (19 ported, 1 partly, 1 open, 4
+  not applicable). The planning table had pointed UT's three menu cases at a test name that doesn't exist and at component
+  24, which had pointed them back at 25; now each is named, and the two that are not done are row 25.39.
+- **The walk, on Windows 11 x64** (pictures in `shots/parity/25h-sweep/`), with the published `latest` (build 1706,
+  `c1bdf73`): downloaded with `gh release download` into an empty folder, every `.sha256` checked and the zip and `.dmg`
+  checked against `latest.json`; the setup installed silently into a scratch folder (570 server files identical to the zip's,
+  Apps entry 0.0.1706, no Visual C++ redistributable needed); the app started its bundled Fleet 0.74.0 and passed the smoke
+  run; the installed, released program updated itself (`--update-now`) to a scratch build 1707 served on 127.0.0.1, server
+  included (old server file gone, user's file kept, `FLEET_NATIVE_UPDATES=off` made no request); then uninstalled silently
+  (Apps entry and shortcut gone, the user's file kept).
+- **One step used a local build**: this machine's own Fleet answers on 6262, and the released app uses any Fleet there
+  instead of starting its own (as Fleet's does). For step 3 the installed folder was copied and its program swapped for a
+  local debug build with the default port moved (not committed); the server was the installed one. The update in step 4
+  was run by the released program itself.
+- **Linux and macOS were not run on this machine.** They come from CI: run `45078392660` on `main` (the run that built
+  build 1706), jobs "Package (linux-x64)" ("Smoke-test the Linux packages": the `.deb`, AppImage and tar) and "Package
+  (macos-arm64)" ("Mount the package and run the app (macOS)"), and `verify-release.yml` run `45074683915` (all three
+  systems, against the build published before 1706). Their runner names are blanked in the pictures.
+- **Fleet's side**: Fleet's own installers were not run by this piece; Fleet's Updates & about row is the planning session's
+  pictures in `shots/parity/25-plan/`.
