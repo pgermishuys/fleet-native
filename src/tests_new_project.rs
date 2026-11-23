@@ -8,7 +8,6 @@ use crate::tests::{FRAME, app, click};
 use rune::{Key, KeyEvent, Mods, Runtime};
 use serde_json::{Value, json};
 use std::io::Write;
-use std::net::TcpListener;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
@@ -23,7 +22,7 @@ struct Fake {
 
 impl Fake {
     fn start(status: u16, text: &'static str) -> Fake {
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let listener = crate::test_http::bind().unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
         let heard: Heard = Default::default();
         let log = heard.clone();

@@ -8,7 +8,6 @@ use crate::fleet::usage::*;
 use crate::fleet::usage_rules::*;
 use serde_json::{Value, json};
 use std::io::Write;
-use std::net::TcpListener;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
@@ -374,7 +373,7 @@ pub(crate) struct Fake {
 pub(crate) type Routes = Vec<(&'static str, u16, String)>;
 
 pub(crate) fn fake(routes: Routes) -> Fake {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = crate::test_http::bind().unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let asked: Arc<Mutex<Vec<String>>> = Arc::default();
     let (log, routes) = (asked.clone(), Arc::new(routes));

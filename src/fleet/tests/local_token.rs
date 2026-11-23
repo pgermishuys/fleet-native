@@ -5,7 +5,6 @@ use crate::fleet::discover::{self, Found, Os, Place};
 use crate::fleet::local_token::{self, Outcome, machine_file_for, parse_machine_file, read_access_token};
 use crate::fleet::{auth, http};
 use std::io::Write;
-use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -21,7 +20,7 @@ fn temp(name: &str) -> PathBuf {
 
 /// A Fleet that wants `TOKEN` on `/api/projects` (401 without it) when `needs` is true, and records every head.
 fn fleet(needs: bool) -> (String, Arc<Mutex<Vec<String>>>) {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = crate::test_http::bind().unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let seen = Arc::new(Mutex::new(Vec::new()));
     let log = seen.clone();
@@ -226,7 +225,7 @@ fn a_key_fleet_turned_away_is_reported_with_its_own_words() {
     assert_eq!(outcome.words(), Some(local_token::TURNED_AWAY));
     assert!(!auth::is_set() && auth::token_for(&base).is_none(), "a key Fleet refused is not kept");
     // A Fleet that doesn't answer has not accepted it either.
-    let dead = TcpListener::bind("127.0.0.1:0").unwrap();
+    let dead = crate::test_http::bind().unwrap();
     let gone = format!("http://{}", dead.local_addr().unwrap());
     drop(dead);
     let found = Found { url: gone, place: Place::Port(6262) };

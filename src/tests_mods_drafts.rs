@@ -9,7 +9,6 @@ use crate::tests::{FRAME, app};
 use crate::{State, test_http, test_wait};
 use rune::Runtime;
 use serde_json::{Value, json};
-use std::net::TcpListener;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
@@ -57,7 +56,7 @@ impl Default for Fake {
 type Shared = Arc<Mutex<Fake>>;
 
 fn serve(fake: Shared) -> (String, std::net::SocketAddr) {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("a port");
+    let listener = crate::test_http::bind().expect("a port");
     let addr = listener.local_addr().expect("an address");
     let base = format!("http://{addr}");
     std::thread::spawn(move || {

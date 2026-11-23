@@ -8,7 +8,6 @@ use crate::{State, test_wait};
 use rune::Runtime;
 use serde_json::{Value, json};
 use std::io::Write;
-use std::net::TcpListener;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
@@ -105,7 +104,7 @@ fn prepared() -> Value {
 /// Answers the three report routes as Fleet does and writes down what was asked. `refusal` is what `/send` answers with
 /// instead of an id, with status 429.
 pub(crate) fn standin(refusal: Option<&'static str>, can_send: bool) -> (String, Heard) {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("a port");
+    let listener = crate::test_http::bind().expect("a port");
     let base = format!("http://{}", listener.local_addr().unwrap());
     let heard: Heard = Default::default();
     let log = heard.clone();

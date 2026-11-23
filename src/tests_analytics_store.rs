@@ -53,7 +53,7 @@ fn body(route: &str, n: u32) -> Value {
 }
 
 fn fake() -> Fake {
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("a port");
+    let listener = crate::test_http::bind().expect("a port");
     let base = format!("http://{}", listener.local_addr().expect("an address"));
     let heard = Arc::new(Mutex::new(Heard::default()));
     let refuse = Arc::new(Mutex::new(Vec::<String>::new()));

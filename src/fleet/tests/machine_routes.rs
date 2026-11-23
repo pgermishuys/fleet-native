@@ -5,7 +5,6 @@ use crate::fleet::{auth, machine_routes::probe_address};
 use serde_json::json;
 use std::collections::HashMap;
 use std::io::Write;
-use std::net::TcpListener;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -210,7 +209,7 @@ type Seen = Arc<Mutex<Vec<(String, Option<String>, bool)>>>;
 /// A server at a loopback port: `route` answers a path with a content type and a body. Logs the path, the `Authorization`
 /// header and whether a cookie came.
 fn serve(route: impl Fn(&str) -> Option<(&'static str, String)> + Send + Sync + 'static) -> (String, Seen) {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = crate::test_http::bind().unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let seen: Seen = Arc::default();
     let (log, route) = (seen.clone(), Arc::new(route));
@@ -257,7 +256,7 @@ fn asks_who_answers_without_a_token_or_cookies_and_checks_the_id() {
 #[test]
 fn says_no_answer_when_the_address_doesn_t_answer_in_time() {
     // Accepts the call and never says a word.
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = crate::test_http::bind().unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     std::thread::spawn(move || {
         let held: Vec<_> = listener.incoming().flatten().collect();

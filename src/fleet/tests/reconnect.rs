@@ -6,7 +6,7 @@ use super::*;
 use crate::{State, spec};
 use rune::{App, Env, Runtime};
 use std::io::Write;
-use std::net::{TcpListener, TcpStream};
+use std::net::TcpStream;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::channel;
@@ -268,7 +268,7 @@ fn serve(mut stream: TcpStream, hubs: Arc<AtomicUsize>) {
 
 #[test]
 fn a_dropped_connection_comes_back_with_the_conversation_a_fresh_open_shows() {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = crate::test_http::bind().unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let hubs = Arc::new(AtomicUsize::new(0));
     let counted = hubs.clone();
@@ -331,7 +331,7 @@ fn coming_back_to_the_window_while_the_hub_is_down_reconnects_at_once() {
     // five-second step (1, 2, 5 s), so "at once" is told apart from "on schedule" by seconds, not by the 0.7 s this test
     // used to allow, which a busy machine ran past. The times are taken where the attempts arrive, so how long the app
     // takes to say it is online doesn't count.
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = crate::test_http::bind().unwrap();
     let addr = listener.local_addr().unwrap();
     let up = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let attempts = Arc::new(std::sync::Mutex::new(Vec::<Instant>::new()));

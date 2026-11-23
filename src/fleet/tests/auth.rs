@@ -4,7 +4,6 @@ use crate::fleet::auth::{self, bearer, explicit_token, hub_query, is_refusal, sp
 use crate::fleet::link::{Connection, Link, Post};
 use crate::tests::app;
 use std::io::Write;
-use std::net::TcpListener;
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -48,7 +47,7 @@ fn the_header_and_the_hub_query_carry_the_token() {
 type Seen = Arc<Mutex<Vec<(String, bool)>>>;
 
 fn fake_fleet() -> (String, Seen) {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = crate::test_http::bind().unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let seen = Arc::new(Mutex::new(Vec::new()));
     let log = seen.clone();
@@ -173,7 +172,7 @@ fn seen_hub(seen: &Seen) -> bool {
 
 /// A server that records each request's head (lower case) and answers `{}`.
 fn recording_server() -> (String, Arc<Mutex<Vec<String>>>) {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = crate::test_http::bind().unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let seen = Arc::new(Mutex::new(Vec::new()));
     let log = seen.clone();

@@ -11,7 +11,6 @@ use rune::Runtime;
 use serde_json::{Value, json};
 use std::collections::VecDeque;
 use std::io::Write;
-use std::net::TcpListener;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
@@ -33,7 +32,7 @@ fn answer() -> Value {
 type Asked = Arc<Mutex<Vec<String>>>;
 
 fn scene(mut replies: VecDeque<Reply>) -> (Rt, Receiver<Job>, Asked) {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("a port");
+    let listener = crate::test_http::bind().expect("a port");
     let base = format!("http://{}", listener.local_addr().expect("an address"));
     let asked: Asked = Default::default();
     let log = asked.clone();

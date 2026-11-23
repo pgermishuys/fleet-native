@@ -9,7 +9,6 @@ use crate::{State, test_wait};
 use rune::Runtime;
 use serde_json::{Value, json};
 use std::io::Write;
-use std::net::TcpListener;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
@@ -177,7 +176,7 @@ fn the_skill_diff_says_its_file_counts_the_lines_and_says_when_nothing_differs()
 pub(crate) type Heard = Arc<Mutex<Vec<(String, String, Value)>>>;
 
 pub(crate) fn fake() -> (String, Heard) {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("a port");
+    let listener = crate::test_http::bind().expect("a port");
     let base = format!("http://{}", listener.local_addr().unwrap());
     let heard: Heard = Default::default();
     let log = heard.clone();

@@ -10,7 +10,6 @@ use rune::Runtime;
 use serde_json::json;
 use std::collections::HashMap;
 use std::io::Write;
-use std::net::TcpListener;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
@@ -59,7 +58,7 @@ fn decode(text: &str) -> String {
 }
 
 pub(crate) fn scene(changed: Vec<Changed>, search: Search) -> (Rt, Receiver<Job>, Arc<Mutex<Asked>>) {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("a port");
+    let listener = crate::test_http::bind().expect("a port");
     let base = format!("http://{}", listener.local_addr().expect("an address"));
     let asked = Arc::new(Mutex::new(Asked::default()));
     let log = asked.clone();

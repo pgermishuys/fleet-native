@@ -7,7 +7,6 @@ use crate::fleet::{auth, http};
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use rustls::{ServerConfig, ServerConnection, StreamOwned};
 use std::io::{Read, Write};
-use std::net::TcpListener;
 use std::sync::Arc;
 use std::thread;
 use tungstenite::Message;
@@ -30,7 +29,7 @@ fn server_config((cert, key): (&[u8], &[u8])) -> Arc<ServerConfig> {
 /// WebSocket that answers the hub handshake and then waits to be closed. Reports each request line it saw.
 #[allow(clippy::result_large_err)]
 fn serve(cert: (&[u8], &[u8]), connections: usize) -> (String, thread::JoinHandle<Vec<String>>) {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = crate::test_http::bind().unwrap();
     let base = format!("https://{}", listener.local_addr().unwrap());
     let config = server_config(cert);
     let handle = thread::spawn(move || {

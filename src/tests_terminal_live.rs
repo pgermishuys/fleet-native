@@ -9,7 +9,7 @@ use crate::tests::{FRAME, app, click};
 use rune::{Key, KeyEvent, Mods, Runtime};
 use serde_json::{Value, json};
 use std::io::Write;
-use std::net::{TcpListener, TcpStream};
+use std::net::TcpStream;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::sync::{Arc, Mutex};
@@ -63,7 +63,7 @@ struct Fake {
 impl Fake {
     /// `listed` are the session's terminals; `scrollback` is what a socket replays before `ready`.
     fn start(listed: &'static [&'static str], scrollback: &'static [u8]) -> Fake {
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let listener = crate::test_http::bind().unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
         let heard = Arc::new(Mutex::new(Heard::default()));
         let (live, rx) = channel();

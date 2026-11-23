@@ -6,7 +6,6 @@ use super::super::link::{Job, Link, Post};
 use super::reconnect::app;
 use super::*;
 use std::io::Write;
-use std::net::TcpListener;
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
 
@@ -286,7 +285,7 @@ fn serve(mut stream: std::net::TcpStream, seen: Arc<Mutex<Seen>>) {
 
 #[test]
 fn saving_sends_the_text_in_the_files_own_breaks_with_the_hash_it_read_and_a_409_is_the_conflict() {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = crate::test_http::bind().unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let seen = Arc::new(Mutex::new(Seen::default()));
     let shared = seen.clone();

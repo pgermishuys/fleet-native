@@ -10,7 +10,6 @@ use crate::{State, test_wait};
 use rune::Runtime;
 use serde_json::{Value, json};
 use std::io::Write;
-use std::net::TcpListener;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
@@ -45,7 +44,7 @@ struct Rig {
 
 /// A session whose changes are `items`, over a fake Fleet, with every file's diff loaded.
 fn rig(items: Vec<Value>, server: Server) -> Rig {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("a port");
+    let listener = crate::test_http::bind().expect("a port");
     let base = format!("http://{}", listener.local_addr().expect("an address"));
     let log = Arc::new(Mutex::new(Vec::<String>::new()));
     let written = log.clone();

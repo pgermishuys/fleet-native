@@ -8,7 +8,7 @@ use crate::tests::{FRAME, app, click};
 use rune::{Key, KeyEvent, Mods, Runtime};
 use serde_json::{Value, json};
 use std::io::Write;
-use std::net::{TcpListener, TcpStream};
+use std::net::TcpStream;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
@@ -306,7 +306,7 @@ fn serve(mut stream: TcpStream, seen: Arc<Mutex<Seen>>) {
 
 impl Live {
     pub(crate) fn start(case: Case, answer: Option<(u16, &str)>) -> Live {
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let listener = crate::test_http::bind().unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
         let seen = Arc::new(Mutex::new(Seen { answer: answer.map(|(c, b)| (c, b.to_string())), ..Default::default() }));
         let shared = seen.clone();

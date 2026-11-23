@@ -280,7 +280,7 @@ mod wants_its_key {
 
     /// A Fleet on this computer that wants `KEY` on every call but `/readyz`; every head it was sent is recorded.
     fn node() -> (String, Arc<Mutex<Vec<String>>>) {
-        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let listener = crate::test_http::bind().unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
         let seen = Arc::new(Mutex::new(Vec::new()));
         let log = seen.clone();

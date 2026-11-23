@@ -8,7 +8,6 @@ use crate::tests::FRAME;
 use crate::view::code_view::CODE;
 use rune::{App, Env, Key, KeyEvent, Mods, Runtime};
 use serde_json::json;
-use std::net::TcpListener;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
@@ -158,7 +157,7 @@ fn serve(mut stream: std::net::TcpStream, seen: Arc<Mutex<Seen>>) {
 }
 
 fn on_fake_fleet() -> (Runtime<State>, Receiver<Job>, Arc<Mutex<Seen>>) {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = crate::test_http::bind().unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let seen = Arc::new(Mutex::new(Seen::default()));
     let shared = seen.clone();

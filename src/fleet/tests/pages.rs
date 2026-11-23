@@ -9,7 +9,6 @@ use super::reconnect::app;
 use super::*;
 use crate::State;
 use std::io::Write;
-use std::net::TcpListener;
 use std::sync::Mutex;
 use std::sync::mpsc::channel;
 
@@ -122,7 +121,7 @@ fn a_page_waits_only_while_the_session_is_stopped_on_you() {
 
 #[test]
 fn loads_the_canvases_when_the_session_opens() {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = crate::test_http::bind().unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     std::thread::spawn(move || {
         for mut stream in listener.incoming().flatten() {

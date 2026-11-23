@@ -15,7 +15,7 @@ use rune::Runtime;
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::io::Write;
-use std::net::{TcpListener, TcpStream};
+use std::net::TcpStream;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
@@ -481,7 +481,7 @@ struct Live {
 
 impl Live {
     fn start() -> Live {
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let listener = crate::test_http::bind().unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
         let fake = Arc::new(Mutex::new(Fake::default()));
         let shared = fake.clone();

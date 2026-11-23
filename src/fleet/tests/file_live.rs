@@ -12,7 +12,6 @@ use super::reconnect::app;
 use super::*;
 use crate::State;
 use std::io::Write;
-use std::net::TcpListener;
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -160,7 +159,7 @@ struct Fake {
 impl Fake {
     /// A Fleet with `src/app.py` open and read ("one\ntwo\n", hash h1); the read that opened it isn't counted.
     fn start() -> Fake {
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let listener = crate::test_http::bind().unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
         let seen = Arc::new(Mutex::new(Seen { content: "one\ntwo\n".into(), hash: "h1".into(), ..Default::default() }));
         let shared = seen.clone();

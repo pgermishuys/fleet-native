@@ -12,7 +12,7 @@ use crate::composer::status::{HarnessInfo, SteerDelivery};
 use crate::mock::Status;
 use rune::{Key, KeyEvent, Mods, Runtime};
 use std::io::Write;
-use std::net::{TcpListener, TcpStream};
+use std::net::TcpStream;
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
 
@@ -505,7 +505,7 @@ fn serve(mut stream: TcpStream, seen: Arc<Mutex<Seen>>) {
 }
 
 fn server(queue: Value, refuse: Option<(u16, Value)>) -> (String, Arc<Mutex<Seen>>) {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = crate::test_http::bind().unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let seen = Arc::new(Mutex::new(Seen { queue, refuse, ..Default::default() }));
     let shared = seen.clone();

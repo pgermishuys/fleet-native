@@ -8,7 +8,7 @@ use crate::fleet::link::{Connection, Job, Link, Post};
 use crate::{State, spec};
 use rune::{App, Env};
 use std::io::{Read, Write};
-use std::net::{TcpListener, TcpStream};
+use std::net::TcpStream;
 use std::sync::mpsc::{Sender, channel};
 use tungstenite::Message;
 
@@ -85,7 +85,7 @@ fn hub(stream: TcpStream, head: String) {
 
 #[test]
 fn the_hub_thread_fills_the_state_from_a_server_and_sends_prompts() {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = crate::test_http::bind().unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let (prompts, sent) = channel();
     std::thread::spawn(move || {

@@ -10,7 +10,6 @@ use crate::tests::{FRAME, app};
 use crate::{State, test_http, test_wait};
 use rune::tray::TrayEvent;
 use rune::{Key, KeyEvent, Mods, Runtime, Shell};
-use std::net::TcpListener;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -89,7 +88,7 @@ mod status {
 
     /// A Fleet that answers `/api/desktop/status` with `status` and `body`; returns its address and the paths it was asked.
     fn fake(status: u16, body: &'static str) -> (String, Arc<Mutex<Vec<String>>>) {
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let listener = crate::test_http::bind().unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
         let asked = Arc::new(Mutex::new(Vec::new()));
         let seen = asked.clone();
@@ -123,13 +122,13 @@ mod status {
         let (base, _) = fake(500, r#"{"workingSessions":5}"#);
         assert_eq!(crate::fleet::http::desktop_working(&base), 0, "an error answer");
         // Nothing listens here: a port bound and let go.
-        let gone = TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap();
+        let gone = crate::test_http::bind().unwrap().local_addr().unwrap();
         assert_eq!(crate::fleet::http::desktop_working(&format!("http://{gone}")), 0, "no answer");
     }
 
     #[test]
     fn gives_up_after_two_seconds() {
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let listener = crate::test_http::bind().unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
         // Accepts and never answers; the stream is kept open for the length of the call.
         let (hold_tx, hold_rx) = channel::<()>();

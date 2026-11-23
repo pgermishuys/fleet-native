@@ -8,7 +8,6 @@ use crate::{State, test_wait};
 use rune::Runtime;
 use serde_json::{Value, json};
 use std::io::Write;
-use std::net::TcpListener;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
@@ -239,7 +238,7 @@ type Heard = Arc<Mutex<Vec<(String, String, Value)>>>;
 
 /// A Fleet that has two tools and key files, notes every call, and refuses an open when `refuse` is set.
 fn fake(refuse: bool) -> (String, Heard) {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("a port");
+    let listener = crate::test_http::bind().expect("a port");
     let base = format!("http://{}", listener.local_addr().unwrap());
     let heard: Heard = Default::default();
     let log = heard.clone();

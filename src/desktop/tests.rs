@@ -5,7 +5,7 @@ use super::paths::{Inputs, Os, ServerBin, candidates, find_server, not_found_mes
 use super::server::{Event, FleetServer, Options, can_listen, pick_port, restart_delay, server_env};
 use crate::test_wait;
 use std::collections::HashSet;
-use std::net::TcpListener;
+
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -228,7 +228,7 @@ mod restarts {
 
 /// Holds a port the way a listening Fleet would, reading what connects through `test_http` (a probe sends nothing).
 fn hold(address: &str) -> (u16, std::thread::JoinHandle<()>) {
-    let listener = TcpListener::bind(address).unwrap();
+    let listener = crate::test_http::bind_at(address).unwrap();
     let port = listener.local_addr().unwrap().port();
     let thread = std::thread::spawn(move || {
         for mut stream in listener.incoming().flatten() {

@@ -130,11 +130,13 @@ speed; only measure on real hardware.
 - **Mock data stays.** With no server given, the app draws `src/mock.rs`. Tests, scenes and
   pictures use it, so they come out the same every time. Don't make a test or a scene need a
   server.
-- **Fake servers read requests through `crate::test_http`.** A test fake that binds a `TcpListener` calls
+- **Fake servers bind and read requests through `crate::test_http`.** A test fake binds with `test_http::bind()` (never
+  `TcpListener::bind`): its accept loop ends when the test that bound it is over. One that never ended kept a thread
+  for the rest of the run, and about 2,000 of them hit macOS's threads-per-process cap. It reads with
   `test_http::read(&mut stream)` (the whole request: head, then exactly Content-Length bytes or the chunks, with a
   bound) and may answer with `test_http::respond_json`. Never one `stream.read()` or a hand-rolled Content-Length
   parser: on a slow Windows or macOS runner they see half a request (#203, #214, #250, #265).
-  `test_http::tests::fakes_read_requests_through_test_http` fails a file that does.
+  `test_http::tests::fakes_read_requests_through_test_http` fails a file that does either.
 - **Invented data only**, in mock data, tests, fixtures, pictures and examples: never a real
   session title, repository, person, path or company.
 - **Icons** are generated (`tools/gen-icons.py`, see `README.md`); don't edit `src/icons.rs`.

@@ -14,7 +14,6 @@ use super::reconnect::app;
 use super::*;
 use crate::State;
 use std::io::Write;
-use std::net::TcpListener;
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
 
@@ -344,7 +343,7 @@ fn serve(mut stream: std::net::TcpStream, seen: Arc<Mutex<Seen>>) {
 impl Live {
     /// The fixture's first session open on a server that answers its progress with `answer`.
     fn start(answer: (u16, String)) -> Live {
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let listener = crate::test_http::bind().unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
         let seen = Arc::new(Mutex::new(Seen { answer, ..Default::default() }));
         let shared = seen.clone();

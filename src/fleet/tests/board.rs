@@ -10,12 +10,11 @@ use crate::fleet::board::{Board, Card, Lane, Source, SyncResult};
 use crate::mock::board as mock;
 use crate::test_http;
 use serde_json::{Value, json};
-use std::net::TcpListener;
 use std::sync::mpsc::{Receiver, channel};
 
 /// A fake Fleet that answers every request with `status` and `body`, and hands each whole request it read to the test.
 fn fake(status: &'static str, body: String) -> (String, Receiver<test_http::Request>) {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = crate::test_http::bind().unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let (tx, heard) = channel();
     std::thread::spawn(move || {

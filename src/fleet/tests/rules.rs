@@ -10,7 +10,7 @@ use crate::State;
 use crate::asks::rules::{PermissionLevel, read_rules};
 use rune::Runtime;
 use std::io::Write;
-use std::net::{TcpListener, TcpStream};
+use std::net::TcpStream;
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -89,7 +89,7 @@ struct Live {
 impl Live {
     /// The fixture's first session open on a server that holds `rules`.
     fn start(rules: Value) -> Live {
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let listener = crate::test_http::bind().unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
         let seen = Arc::new(Mutex::new(Seen { rules, ..Default::default() }));
         let shared = seen.clone();

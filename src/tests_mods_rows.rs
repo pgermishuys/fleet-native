@@ -340,7 +340,7 @@ type Heard = Arc<Mutex<Vec<Value>>>;
 
 /// A Fleet that takes a used control (`POST …/mods/action`) and says it was handled.
 fn fake_fleet() -> (String, Heard) {
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("a port");
+    let listener = crate::test_http::bind().expect("a port");
     let base = format!("http://{}", listener.local_addr().expect("an address"));
     let heard: Heard = Default::default();
     let seen = heard.clone();

@@ -14,7 +14,7 @@ use crate::{State, test_wait};
 use rune::Runtime;
 use serde_json::{Value, json};
 use std::io::Write;
-use std::net::{TcpListener, TcpStream};
+use std::net::TcpStream;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
@@ -87,7 +87,7 @@ fn serve(mut stream: TcpStream, hub: &Hub, run: Option<&str>) {
 }
 
 fn hub(up: bool, run: Option<&'static str>) -> Hub {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("a port");
+    let listener = crate::test_http::bind().expect("a port");
     let hub = Hub {
         base: format!("http://{}", listener.local_addr().expect("an address")),
         up: Arc::new(AtomicBool::new(up)),
