@@ -454,7 +454,7 @@ the retry line in `view/conversation.rs`). Gaps, with reasons:
   actions keep the list true. Native refetches 400 ms after any non-`activity_status` event. Keep that (it is better than
   polling) and also poll every 15 s while the window is visible, and refetch when the window regains focus
   (`use-sessions.ts`: `visibilitychange`). A session that disappears while open: the open conversation falls back to the
-  first one (native does) and the stream is dropped; Fleet shows a "Session not found" page (component 6/9).
+  first one (native does; since 26 piece P it goes home) and the stream is dropped; Fleet shows a "Session not found" page only when the open id's own read answers 404, which native does too (`fleet::session_open`).
 - [x] **7.3 The feed's states.** Vue's machine feed (`lib/machine-feed.ts`) has `connecting`, `live`, `polling`,
   `unreachable`; one machine here, so: Connecting, Online, Down(why), mapped to the status bar's note as now.
 - [x] **7.4 Status mapping.** The list's glyph from `activityStatus`: busy, working, retry, delegating → working,

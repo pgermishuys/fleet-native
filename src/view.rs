@@ -127,6 +127,7 @@ pub mod running_counter;
 pub mod scroll;
 pub mod selection_bar;
 pub mod selector;
+pub mod session_not_found;
 pub mod session_row;
 mod sessions;
 pub mod settings;

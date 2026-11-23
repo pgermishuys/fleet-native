@@ -215,21 +215,21 @@ Rune's limits are in Part 8.
 
 | # | What | Source | Native |
 |---|---|---|---|
-| 2.50 | A run's or a link's session that no list holds opens and loads (Automations, Workflows, GitHub) | 19 5.9, 18, 21 | Open |
-| 2.51 | "Session not found" when the open session disappears | 02 7.2 | Falls back to the first row |
-| 2.52 | After a delete, go home (`/`), as Fleet does | 08 5.12 | Opens another session |
-| 2.53 | The filter box's clear button; the filter resets when the rail changes (Fleet resets) | 06 piece E, 1.30 | Open |
-| 2.54 | Esc clears the filter as well as picked rows; focus returns to a row moved by Alt+Up/Down | 06 1.52, 3.72 | Open |
-| 2.55 | Lifecycle `error` counts as live (`LIVE_STATUSES`) | 06 piece C | Open |
-| 2.56 | Draft row in the Archived view; a child row in rename keeps its layout; the draft row sorts first (21 N) | 06 piece K, M; 21 N sweep 3 | Open |
-| 2.57 | Open in: tool list cached across menus | 06 piece N | Open |
-| 2.58 | `isAnyActionPending` counts every action; a drop over its own family keeps a nested session | 06 3.65, 2.125 | Open |
-| 2.59 | Fork: the form restarts when the source title changes; the new session is put in the list at once | 08 7.3, 7.5 | Open |
-| 2.60 | Abort disabled when the session has no instance | 08 5.2 | Open |
-| 2.61 | Retry note ticks every second | 08 1.12 | Not checked |
-| 2.62 | Progress strip heading capped at 45 %; header 0.8 px short | 08 9.2, piece B | Open |
-| 2.63 | Copy folder path row's tooltip; the ⋯ menu not modal | 08 5.7, 5.6 | Open |
-| 2.64 | The header's own buttons, the Send button and the filter field use the kit's elements | 01 shell use | Not checked again |
+| 2.50 | A run's or a link's session that no list holds opens and loads (Automations, Workflows, GitHub) | 19 5.9, 18, 21 | **Done (piece P)**: `State::open_session_by_id` reads `GET /api/sessions/{id}` on the session's machine and files the row (the list for an active session of this machine; the kept sessions for a sub-agent's, an archived one, or another machine's). Automations, Workflows (run box excepted, which waits for its own list), GitHub and a dream's link use it. Test `a_session_no_list_holds_is_read_by_its_id_and_put_in_the_list` and three more |
+| 2.51 | "Session not found" when the open session disappears | 02 7.2 | **Done (piece P)** for what Fleet does: a 404 from the id's own read shows "Session not found" in the conversation's column, the content panel stays beside it, and Back to sessions goes home. Fleet's page sets that flag only on load, never when a poll later drops the row; native also leaves a row that vanishes from the list for home (as before). Tests `a_404_is_session_not_found_and_back_to_sessions_goes_home`, `another_failure_is_not_session_not_found` |
+| 2.52 | After a delete, go home (`/`), as Fleet does | 08 5.12 | **Done (piece P)**: it already went home (`on_list`); the old test only checked "not that session". `asks_first_naming_the_session…` and `a_deleted_open_session_leaves_the_window_at_home` now assert `Route::Home` |
+| 2.53 | The filter box's clear button; the filter resets when the rail changes (Fleet resets) | 06 piece E, 1.30 | **Done (piece P)**: `filter-clear` (Chromium's × for `type=search`), shown with text, empties the box and keeps the focus; the box empties when another rail takes the panel (`keep_filter`). Tests `the_clear_button_shows_with_text_and_empties_the_box`, `the_filter_is_lost_when_another_rail_takes_the_panel`, `the_filter_is_kept_while_the_sessions_rail_stays_up_and_a_session_opens`. Not drawn: Chromium shows the × only while the box is hovered or focused; native shows it while there is text |
+| 2.54 | Esc clears the filter as well as picked rows; focus returns to a row moved by Alt+Up/Down | 06 1.52, 3.72 | **Done (piece P)**: Esc in the box clears it and lets picked rows go (`on_input_key`: Rune's text field takes Esc itself, the window's `on_key` never sees it); Alt+Up/Down gives the keyboard back to the moved row (`list_keys`). Tests `escape_in_the_box_clears_it_and_only_then`, `a_moved_pinned_row_keeps_the_focus` |
+| 2.55 | Lifecycle `error` counts as live (`LIVE_STATUSES`) | 06 piece C | **Done**: `row_status::is_live` already has it (the row said Open from before it was built); test `an_errored_session_counts_as_live_like_fleets_live_statuses` (piece P) |
+| 2.56 | Draft row in the Archived view; a child row in rename keeps its layout; the draft row sorts first (21 N) | 06 piece K, M; 21 N sweep 3 | Open (piece P: not taken: draft rows are piece K/M territory and needs a look at three views at once) |
+| 2.57 | Open in: tool list cached across menus | 06 piece N | Open (piece P: not taken: needs the Open in menu's cache read first) |
+| 2.58 | `isAnyActionPending` counts every action; a drop over its own family keeps a nested session | 06 3.65, 2.125 | Open (piece P: not taken: the row's own pending set (restoring, deleting, forking, starting in a folder, moving, renaming) is a rewrite of the row buttons; the header's `isPending` (abort, restore, delete, rename) already matches Fleet's) |
+| 2.59 | Fork: the form restarts when the source title changes; the new session is put in the list at once | 08 7.3, 7.5 | **Partly done (piece P)**: the form restarts when the source's title changes (`keep_fork_form`, test `the_fork_form_starts_over_when_the_source_title_changes`). Open: the "session upsert" announcement has no native listener; the new session is put in the list at once (done in 6/8 E) |
+| 2.60 | Abort disabled when the session has no instance | 08 5.2 | **Done (piece P)**: Abort and Delete… wait for an instance (`State::has_instance`: the row's or the session's own read's `instanceId`; invented sessions have one). Test `abort_and_delete_wait_for_an_instance` |
+| 2.61 | Retry note ticks every second | 08 1.12 | Not checked (piece P: not taken: the header's note is drawn from the clock but nobody has checked it ticks each second (the failure card's countdown does, `keep_retry_clock`)) |
+| 2.62 | Progress strip heading capped at 45 %; header 0.8 px short | 08 9.2, piece B | Open (piece P: not taken: needs the 45 % cap in the strip's heading, Rune measures it by width) |
+| 2.63 | Copy folder path row's tooltip; the ⋯ menu not modal | 08 5.7, 5.6 | Open (piece P: not taken: the tooltip on a menu row needs a Rune hover text; the non-modal ⋯ menu waits on the kit) |
+| 2.64 | The header's own buttons, the Send button and the filter field use the kit's elements | 01 shell use | Not checked again (piece P: not taken: a check of kit elements, for the sweep) |
 
 #### 2e. Other machines (component 17 and its seams)
 

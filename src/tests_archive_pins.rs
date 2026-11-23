@@ -527,6 +527,10 @@ fn alt_up_and_alt_down_move_a_pinned_rows_pin() {
     r.rt.frame(FRAME);
     r.wait("the move", |_| !fake.calls("/pin").is_empty());
     assert_eq!(fake.calls("/pin")[0].2, json!({ "beforeSessionId": "mock.0.0" }));
+    // The moved row takes the keyboard back once the list is drawn again (`handleMovePin`); let that settle before moving it away.
+    r.wait("the focus to settle on the moved row", |s| s.projects[0].sessions[1].listing.pin_order.is_some());
+    r.rt.frame(FRAME);
+    r.rt.frame(FRAME);
     // A row that isn't pinned does nothing.
     r.rt.update(|_, tx| tx.focus("session-0-2", true));
     r.rt.frame(FRAME);

@@ -44,6 +44,7 @@ impl State {
             if case == Case::Subagent {
                 l.parent = Some("a-cache".into());
             }
+            l.instance_id = Some("inst-orchard".into());
         });
         open.messages = messages;
         open.row.directory = "/srv/work/orchard-worktrees/fleet-session-4c2d1e90".into();

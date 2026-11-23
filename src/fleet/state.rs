@@ -419,8 +419,11 @@ impl State {
         let old_messages = self.session_mut().map(|s| std::mem::take(&mut s.messages)).unwrap_or_default();
         self.projects = projects;
         // The route names the session, so a reorder, a filter or a pin leaves it open wherever it went.
+        let opened_by_id = self.opening.holds(&self.route);
         match self.session_mut() {
             Some(session) => session.messages = old_messages,
+            // A session opened by its id that the list doesn't hold (yet, or at all) stays open: its own read decides.
+            None if opened_by_id => {}
             None => {
                 self.route = store::Route::None;
                 self.stream = None;

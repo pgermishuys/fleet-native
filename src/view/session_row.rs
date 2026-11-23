@@ -292,6 +292,8 @@ pub fn move_pin_key(s: &mut State, ev: &KeyEvent, id: &str) -> bool {
         return false;
     }
     s.move_pin(id, if ev.key == Key::Up { -1 } else { 1 });
+    // The row is drawn again where the move put it; the keyboard goes with it (`handleMovePin`).
+    s.list_keys.refocus(id);
     true
 }
 
