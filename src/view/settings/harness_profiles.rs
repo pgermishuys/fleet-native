@@ -122,6 +122,7 @@ fn empty(t: &Theme, name: &str) -> El {
         .py(21.0)
         .radius(RADIUS_CARD)
         .border(1.0, t.border)
+        .border_dash(4.0, 3.0)
         .border_layout()
         .child(icon(&LAYERS, 28.0).color(t.muted).mb(7.0))
         .child(text("No profiles yet").font(sans(rem(1.0), 600.0, 1.5)).color(t.text))

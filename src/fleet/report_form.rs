@@ -304,6 +304,10 @@ impl State {
             Connection::Down(_) => "reconnecting".to_string(),
             Connection::Refused => "refused".to_string(),
         };
+        let mut connection = vec![super::report::Fact::new("Live updates", live)];
+        if let Some(link) = &self.link {
+            connection.extend(socket_facts(&link.socket_facts(), self.report_about().is_some()));
+        }
         let machines = self.machines.list.iter().map(|m| (m.name.as_str(), m.base_url.as_str()));
         let own = self.link.as_ref().map(|l| l.base.clone()).unwrap_or_default();
         Client {
@@ -311,7 +315,7 @@ impl State {
             screen: Some(describe_screen(&path)),
             shown_status,
             place: where_facts(w, h, 1.0, self.drawn_dark.get()),
-            connection: vec![super::report::Fact::new("Live updates", live)],
+            connection,
             private_values: private_values(machines, &own),
         }
     }
@@ -382,4 +386,22 @@ impl State {
             self.report_form.copied = true;
         }
     }
+}
+
+/// "Subscribed" and "Open session" (`connectionFacts`, `subscribed`): how many topics the hub listens to and how many of
+/// those have a snapshot, and the open session's own state. The session's machine's own line is not drawn: this window's
+/// hub for another machine is only started while one of its sessions is open.
+pub fn socket_facts(facts: &super::topics::SocketFacts, about_a_session: bool) -> Vec<super::report::Fact> {
+    let s = |n: usize| if n == 1 { "" } else { "s" };
+    let mut out = vec![super::report::Fact::new(
+        "Subscribed",
+        format!("{} topic{}, {} with a snapshot", facts.topics, s(facts.topics), facts.with_snapshot),
+    )];
+    if let (Some(snapshot), true) = (facts.open, about_a_session) {
+        out.push(super::report::Fact::new(
+            "Open session",
+            format!("subscribed, {}", if snapshot { "with a snapshot" } else { "no snapshot yet" }),
+        ));
+    }
+    out
 }

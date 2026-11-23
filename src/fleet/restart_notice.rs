@@ -178,7 +178,8 @@ impl State {
         let cut = self.cut_off();
         let lines = self.other_machine_cut_offs();
         let auto_pref = RESTART_CONTINUE_AUTO.enabled(&self.pickers.prefs);
-        let inputs = Inputs { cut: &cut, lines: &lines, auto_pref, updated_to: None };
+        let updated_to = self.after_update.updated_to().map(str::to_string);
+        let inputs = Inputs { cut: &cut, lines: &lines, auto_pref, updated_to: updated_to.as_deref() };
         let notice = build(&inputs, &mut self.restart.continuing);
         self.restart.ids = cut.into_iter().map(|c| c.id).collect();
         match notice {
@@ -192,7 +193,7 @@ impl State {
         }
     }
 
-    /// Runs what the card's buttons told: each request on a thread, one session after another, and the card goes when
+    /// Runs what the card's buttons told: each request on its own thread, all at once, and the card goes when
     /// they're sent (Fleet's `eachSession` then `done`).
     pub fn keep_restart_buttons(&mut self) {
         for run in self.notices.take_heard_with(RUN_PREFIX) {
@@ -226,13 +227,26 @@ impl State {
         };
         link.off_thread(
             move |base| {
-                ids.into_iter()
-                    .map(|id| {
-                        let result =
-                            if send { super::http::interruption_continue(base, &id) } else { super::http::interruption_dismiss(base, &id) };
-                        (id, result)
-                    })
-                    .collect::<Vec<_>>()
+                // All at once, as Fleet's `Promise.allSettled` does: one slow session doesn't hold the rest back.
+                std::thread::scope(|scope| {
+                    let sent: Vec<_> = ids
+                        .iter()
+                        .map(|id| {
+                            scope.spawn(move || {
+                                if send {
+                                    super::http::interruption_continue(base, id)
+                                } else {
+                                    super::http::interruption_dismiss(base, id)
+                                }
+                            })
+                        })
+                        .collect();
+                    ids.iter()
+                        .cloned()
+                        .zip(sent)
+                        .map(|(id, h)| (id, h.join().unwrap_or_else(|_| Err("the request panicked".into()))))
+                        .collect::<Vec<_>>()
+                })
             },
             move |s, _, results| {
                 // Fleet's event says so too; this covers a socket that's down. A refusal leaves the card on the row.

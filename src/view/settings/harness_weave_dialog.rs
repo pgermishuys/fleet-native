@@ -75,6 +75,7 @@ fn own_box(t: &Theme, c: &Config, usable: &[Flavor]) -> El {
         .py(10.5)
         .radius(RADIUS_BTN)
         .border(1.0, t.border)
+        .border_dash(4.0, 3.0)
         .border_layout()
         .child(
             text("Weave reads your own files, as it does outside Fleet. Fleet doesn't set anything and doesn't edit them.")

@@ -195,6 +195,7 @@ fn none(s: &State, t: &Theme, all: &[Detection]) -> El {
             .py(21.0)
             .radius(RADIUS_CARD)
             .border(1.0, t.border)
+            .border_dash(4.0, 3.0)
             .border_layout()
             .child(text("Weave isn't running in any harness").font(sans(rem(1.0), 600.0, 1.5)).color(t.text))
             .child(text(words).font(sans(rem(0.875), 400.0, 1.43)).color(t.muted).align(Align::Center).wrap().max_w(560.0))

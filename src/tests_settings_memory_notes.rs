@@ -225,6 +225,16 @@ fn lists_the_repositorys_notes_and_the_machines_with_where_each_came_from() {
     assert_eq!(r.text("memory-count"), "3 notes · about 120 tokens per request");
 }
 
+// MemorySection.test.ts: "looks the same as today when the switch is off" (Search older notes): one list per place, no "always
+// read" group and no "move to search" buttons.
+#[test]
+fn looks_the_same_as_today_when_the_switch_is_off() {
+    let r = rig(two_lists);
+    assert_eq!(r.text("memory-count"), "3 notes · about 120 tokens per request");
+    assert!(!r.exists("memory-group-repository-always") && !r.exists("memory-to-search-r1"));
+    assert!(r.text("memory-list-repository").contains("Rebase onto main."));
+}
+
 #[test]
 fn filters_the_notes_by_what_the_user_searches_for() {
     let mut r = rig(two_lists);

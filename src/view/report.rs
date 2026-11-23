@@ -282,7 +282,14 @@ fn item(t: &Theme, form: &ReportForm, it: Item) -> El {
         None,
     );
     let mark = el().size(14.0, 14.0).mt(2.0).radius(3.0).border(1.0, if counts { t.accent } else { t.muted }).border_layout();
-    let mark = if counts { mark.fill(t.accent).center().child(icon(&crate::icons::CHECK, 11.0).color(t.primary_fg)) } else { mark };
+    let mark = if counts {
+        mark.fill(t.accent).center().child(icon(&crate::icons::CHECK, 11.0).color(t.primary_fg))
+    } else if on && !usable {
+        // No screenshot: Fleet's box stays ticked but disabled (greyed), and the name is muted and struck through.
+        mark.fill(t.muted.alpha(0.5)).border(1.0, t.muted.alpha(0.5)).center().child(icon(&crate::icons::CHECK, 11.0).color(t.primary_fg))
+    } else {
+        mark
+    };
     let r = row()
         .key(format!("report-include-{}", it.id()))
         .role("checkbox")

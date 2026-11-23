@@ -265,19 +265,19 @@ Rune's limits are in Part 8.
 
 | # | What | Source | Native |
 |---|---|---|---|
-| 2.100 | "Fleet updated to v&lt;x&gt;" title (`updated_to` always None) | 09 8.1 | Open |
-| 2.101 | The report's "Subscribed" and "Open session" facts | 09 9.6 | Open |
-| 2.102 | `maxlength` applied while typing (report 10,000/2,000/200, Improve note 2,000, mods note 2,000, memory) | 09 9.4, 12.2; 22 10.6; 16 8.80 | Open |
-| 2.103 | The report's screenshot box drawn ticked and disabled when there is none | 09 9.5 | Open |
-| 2.104 | Continue all / Dismiss all send in one go; a hidden chip doesn't shift the status bar | 09 N(3), M(1) | Open |
-| 2.105 | Save as file asks where (a save dialog) | 09 piece P | Open (`~/Downloads`) |
-| 2.106 | Usage reset column clipped; the running popover's height before the first resize | 09 6.7, 5.4 | Open |
-| 2.107 | SkillDiff wraps long lines; the hand edit has colours | 09 12.4, 12.5 | Open |
-| 2.108 | Dashed borders where Fleet has them (Profiles, Weave, own-file box, empty state) with `border_dash` | 16 H, Y, Z; 09 10.7 | Open |
-| 2.109 | Locations spinner before the list re-read; Appearance columns follow the zoomed width; plugins held until known | 16 AA, F, AD 11.6 | Open |
-| 2.110 | Turning a plugin off removes its picker and board sources too | 16 AD 11.3, 11.33 | Open (the board source is 23's) |
-| 2.111 | The 22 Settings test cases "not confirmed one by one" | 16 AQ | Open |
-| 2.112 | The palette, menus and scroll bars: Fleet's thin scroll bar | 01 scroll-area | Open |
+| 2.100 | "Fleet updated to v&lt;x&gt;" title (`updated_to` always None) | 09 8.1 | **Done (26U)**: `AfterUpdate::updated_to` is set when this run found it started on a newer version (`noteRunningVersion`) and the restart card's title says "Fleet updated to v<x>"; scene `notice-restart-updated` |
+| 2.101 | The report's "Subscribed" and "Open session" facts | 09 9.6 | **Done (26U)**: "Subscribed" (topics, and how many have a snapshot) and "Open session" come from the hub thread (`topics::SocketFacts`, `Link::socket_facts`). Gap: Fleet's "Session's machine" line for a session on another machine is not drawn |
+| 2.102 | `maxlength` applied while typing (report 10,000/2,000/200, Improve note 2,000, mods note 2,000, memory) | 09 9.4, 12.2; 22 10.6; 16 8.80 | **Done (26U)**: `fleet::text_limit` cuts the report (10,000 / 2,000 / 200, 200 for the title), the Improve note (2,000) and the mods note (2,000) on every poll; memory (400) was already cut. Gap: the cut is on the next poll, so one frame can show the extra text; the skill editor's 2,000 (Fleet `SkillEditorDialog.vue`) is not cut |
+| 2.103 | The report's screenshot box drawn ticked and disabled when there is none | 09 9.5 | **Done (26U)**: with no screenshot the box is drawn ticked but disabled (greyed), the name muted and struck through, and the count leaves it out |
+| 2.104 | Continue all / Dismiss all send in one go; a hidden chip doesn't shift the status bar | 09 N(3), M(1) | **Half (26U)**: Continue all and Dismiss all send every request at once (a thread each, `Promise.allSettled`). The hidden chip no longer moves the status bar (a zero-width slot holds it); unverified in a picture, only by `tests_notice_chips` |
+| 2.105 | Save as file asks where (a save dialog) | 09 piece P | **Done (26U)**: Save as file asks where, in the system's save dialog starting in Downloads and offering the server's name; a cancel writes nothing. Not run by hand: a save dialog needs a desktop session |
+| 2.106 | Usage reset column clipped; the running popover's height before the first resize | 09 6.7, 5.4 | **Open (26U)**: not built; the reset column's clip needs a picture of a long "resets Sat 2:02 AM" in Fleet's popover to see what it clips, and the running popover's first height needs the first-resize order |
+| 2.107 | SkillDiff wraps long lines; the hand edit has colours | 09 12.4, 12.5 | **Open (26U)**: the diff keeps one line per row (`docs/RUNE.md`: its number and code columns are rows of one height), so wrapping is a rebuild of `view::diff`, not a piece of this one; the hand edit has no colours |
+| 2.108 | Dashed borders where Fleet has them (Profiles, Weave, own-file box, empty state) with `border_dash` | 16 H, Y, Z; 09 10.7 | **Done (26U)**: dashed 1 px borders on Profiles' empty state, Weave's "isn't running in any harness" empty state and the Weave dialog's own-file box (the shared `EmptyState` and the rest already were) |
+| 2.109 | Locations spinner before the list re-read; Appearance columns follow the zoomed width; plugins held until known | 16 AA, F, AD 11.6 | **Open (26U)**: not built (three small settings rows, each needs its own live check) |
+| 2.110 | Turning a plugin off removes its picker and board sources too | 16 AD 11.3, 11.33 | **Open (26U)**: not built; the picker half is 16's `plugins` place, the board source half is 23's |
+| 2.111 | The 22 Settings test cases "not confirmed one by one" | 16 AQ | **Done (26U)**: each of the 22 mapped to a native test or ported, below (### U.) |
+| 2.112 | The palette, menus and scroll bars: Fleet's thin scroll bar | 01 scroll-area | **Open (26U), Rune can't**: Rune draws the system's scroll bars and has no API for a thumb's colour or width (`docs/RUNE.md`, 26 piece U) |
 
 #### 2h. Rail views (18 to 21, 23)
 
@@ -666,6 +666,17 @@ then the walks (AE to AI), then the report.
 - **Pictures:** a message, the Document tab and What's new with headings and lists, beside Fleet's.
 
 ### U. Settings and the frame
+
+- **Done (26U), 23 November 2026:** rows 2.100-2.105, 2.108 and 2.111; 2.104's chip is half. Open with reasons: 2.106, 2.107, 2.109, 2.110, 2.112 (rows above).
+- **2.111, the 22 cases that were "not confirmed one by one"** (weave-fleet `0f832ca`). Native test, or what was added:
+  - Harnesses: "lists OpenCode 2's providers…" `tests_settings_harness_sign_in::shows_the_signed_in_providers_with_the_sign_in_each_uses`; "still lists a harness's sign-ins while it waits for one" **ported** (`tests_settings_harness_install::still_lists_a_harness_s_sign_ins_while_it_waits_for_one`); "offers no sign-in from Fleet when the server doesn't" **ported** (`offers_no_sign_in_from_fleet_when_the_server_doesn_t`); "no sign-in before OpenCode 2 is installed" `…::offers_no_sign_in_before_opencode_2_is_installed_and_shows_its_installer`; "says which weave-copilot and which Copilot CLI" `tests_settings_harnesses::shows_the_version_and_where_fleet_found_a_harness_that_needs_a_sign_in`; "Copilot's own tab, third" `tests_settings_harnesses::has_one_tab_per_harness_fleet_lists_in_its_order_…` and `::gives_github_copilot_its_own_tab_…`; "follows a harness update from its tab" `tests_settings_harness_install::reads_the_harnesses_every_two_seconds_while_an_update_waits_or_runs_and_stops_when_it_ends`; "no permission controls" `tests_settings_harnesses::says_the_level_it_runs_at_and_links_to_what_agents_can_do` (it does not assert that a select is absent).
+  - Labs "Your Fleet": Fleet's `main` now says "has no Your Fleet switch: it is always on" and native has it (`tests_settings_labs::has_no_your_fleet_switch_it_is_always_on`).
+  - `plugin-switch` and plugin preference: all in `tests_settings_plugins.rs` (one by one); "moves a browser-local list up to the server" is the browser's `localStorage`: not applicable. `settings-plugins-routes` is a web router: not applicable.
+  - `settings-follow-machine`: update status and notes `tests_updates::asks_another_machines_status_and_notes_when_settings_shows_it_never_home`; API keys `tests_settings_credentials::api_keys_are_read_from_and_saved_to_that_machine`; **skills and tools: still no test with a second machine** (`fleet/settings/skills_actions.rs`, `tools.rs` use `settings_target`); left for the Settings walk (AF).
+  - DesktopAppUpdates "links to the download": `update/tests_installers.rs::the_fleet_app_row_of_a_deb_install_offers_the_download_not_the_restart` (native words it for the .deb).
+  - Memory "looks the same as today when the switch is off" **ported** (`tests_settings_memory_notes::looks_the_same_as_today_when_the_switch_is_off`).
+  - Permissions "keeps today's defaults" `tests_settings_permissions::keeps_today_s_defaults_…` (split across `tests_settings_permissions_more`).
+  - SettingsNavPanel: Plugins entry `tests_settings_plugins::the_menu_counts_the_plugins_that_are_on_…`; the update dot `tests_settings_updates::the_menu_marks_an_update_waiting_with_a_dot_…`.
 
 - **Rows:** 2.100-2.112.
 - **Files:** `src/fleet/restart_notice.rs`, `src/view/report.rs`, `report_review.rs`, `src/view/improve_skill.rs`, the settings pages
