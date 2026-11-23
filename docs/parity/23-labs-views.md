@@ -118,7 +118,7 @@ Never turn Labs switches on in a real Fleet.
 | `GET /api/fleet/summary` read and polled every 30 s while shown | Done for the home page (component 9) | `src/fleet/summary.rs` |
 | A pointer drag with drop targets found by key (`Tx::element_at`) | Done for session rows (component 6) | `src/fleet/row_drag.rs` |
 | Places core offers to plugins; GitHub's bookmarks store; GitHub's manifest listing the area "Board" | Done (component 21, pieces A and C, and the board-source place, piece P) | `src/fleet/places.rs`, `src/plugins/github/` |
-| A checkbox look | Private copies only (Q lifts one into the kit) | `src/view/session_row.rs`, `src/view/file_find.rs` |
+| A checkbox look | Kit: `ui::controls::checkbox` (Q); `session_row`'s picking box is a different, round look and stays | `src/view/session_row.rs`, `src/view/file_find.rs` |
 | Any mission control data, feed, menu or page; any jobs data, store, list, page or dialog; any board data or view | None | |
 
 ## The checklist
@@ -474,14 +474,14 @@ CR `components/layout/core-rails.ts`, AS `components/layout/AppShell.vue`, RPT `
 
 | # | Row | Source | Native |
 |---|---|---|---|
-| 23.1 | No header; padding 0 12 12, scrolls; sections margin-bottom 16; labels 10 px 600 upper case tracking .05em muted, margin-bottom 6; `aria-label` "Board controls panel" | BCP 52-56, 200-217 | None (Q) |
-| 23.2 | "Project": select (`aria-label` "Filter by project"; full width, `--card-bg`, border, radius-btn, padding 7 10): "All projects", then the board's name | BCP 56-76, 219-226 | `ui::select` (Q) |
-| 23.3 | "Status": a checkbox row per status (11 px `--text`, gap 8, padding 3 0) with an 8 px dot in its colour: Active, Idle, Waiting, Complete, Error | BCP 78-99, 228-243 | None (Q) |
-| 23.4 | "Agents": a checkbox per agent (`manual`, `github-issue`, …, sorted) | BCP 101-117 | None (Q) |
-| 23.5 | "Group by": filter-variant sm buttons "Status", "Project", "Agent" (`role=radiogroup` "Group board cards by"; active: accent-dim fill, accent border, `--accent-text`; `aria-pressed`) | BCP 119-142, 245-254 | `Variant::Filter` (Q) |
-| 23.6 | "Sort": select (`aria-label` "Sort board cards"): "Newest first", "Oldest first", "Title (A–Z)" | BCP 144-161 | `ui::select` (Q) |
-| 23.7 | "Summary": the filter summary (11 px muted); quick stats row (border-top, padding-top 10, margin-top 8, gap 12): value 15 px 600 over label 10 px muted: "Visible", "Active", "Done", "Projects" | BCP 163-196, 256-287 | None (Q) |
-| 23.8 | None of it changes the lanes (FB3): only 23.7 and the Summary tab follow it | BS 387-458, KB 643-665 | None (Q) |
+| 23.1 | No header; padding 0 12 12, scrolls; sections margin-bottom 16; labels 10 px 600 upper case tracking .05em muted, margin-bottom 6; `aria-label` "Board controls panel" | BCP 52-56, 200-217 | **Done (Q)**: `view/board/controls.rs` (`board-controls`): no header, 12 px at the sides and under, scrolling; labels 10 px 600 upper case, 6 under; sections 16 apart |
+| 23.2 | "Project": select (`aria-label` "Filter by project"; full width, `--card-bg`, border, radius-btn, padding 7 10): "All projects", then the board's name | BCP 56-76, 219-226 | **Done (Q)**: a combobox row opening `ui::select::content` (`board-project`), 35 px high with 14 px text as the browser's select; the list holds "All projects" and the board's name |
+| 23.3 | "Status": a checkbox row per status (11 px `--text`, gap 8, padding 3 0) with an 8 px dot in its colour: Active, Idle, Waiting, Complete, Error | BCP 78-99, 228-243 | **Done (Q)**: a kit checkbox row per status with its dot (`board-status-<value>`); the dots' colours are `Status::color` |
+| 23.4 | "Agents": a checkbox per agent (`manual`, `github-issue`, …, sorted) | BCP 101-117 | **Done (Q)**: a checkbox per agent, sorted (`board-agent-<name>`) |
+| 23.5 | "Group by": filter-variant sm buttons "Status", "Project", "Agent" (`role=radiogroup` "Group board cards by"; active: accent-dim fill, accent border, `--accent-text`; `aria-pressed`) | BCP 119-142, 245-254 | **Done (Q)**: three `Variant::Filter` small buttons in a `radiogroup` (`board-group-<name>`), `checked` set on the active one |
+| 23.6 | "Sort": select (`aria-label` "Sort board cards"): "Newest first", "Oldest first", "Title (A–Z)" | BCP 144-161 | **Done (Q)**: a combobox row (`board-sort`) with Newest first, Oldest first, Title (A–Z) |
+| 23.7 | "Summary": the filter summary (11 px muted); quick stats row (border-top, padding-top 10, margin-top 8, gap 12): value 15 px 600 over label 10 px muted: "Visible", "Active", "Done", "Projects" | BCP 163-196, 256-287 | **Done (Q)**: the summary line (`board-summary`) and the four stats (`board-stat-<name>`) |
+| 23.8 | None of it changes the lanes (FB3): only 23.7 and the Summary tab follow it | BS 387-458, KB 643-665 | **Done (Q)**: `tests_board_controls`: unchecking a status changes the counts and the summary, the lanes keep every card |
 
 ### 24. Board: the right panel (BoardRightPanel, Summary, Activity)
 

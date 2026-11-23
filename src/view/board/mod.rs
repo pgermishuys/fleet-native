@@ -1,8 +1,8 @@
 //! The Board (component 23): `[board-controls][board]`. Ports `routes/board.tsx` (the off notice or the board) and the
 //! context's layout, with `KanbanBoard.vue`'s page: the header and its states (`header`). The lanes and cards (`lane`, `card`)
-//! and, in manage mode, what `manage` adds. Dragging, the controls (`BoardControlsPanel`) and the right panel come with later
-//! pieces.
+//! and, in manage mode, what `manage` adds. The left panel (`controls`, `BoardControlsPanel`). Dragging and the right panel come with later pieces.
 mod card;
+pub mod controls;
 mod header;
 mod lane;
 mod manage;
@@ -64,5 +64,5 @@ fn board(s: &State, t: &Theme) -> El {
 }
 
 pub fn page(s: &State, t: &Theme) -> Vec<rune::El> {
-    labs_frame::page(s, t, Feature::Board, "board", labs_frame::panel(s, "board-controls", "Board controls"), board(s, t))
+    labs_frame::page(s, t, Feature::Board, "board", controls::panel(s, t), board(s, t))
 }

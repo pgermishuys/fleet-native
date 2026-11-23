@@ -86,6 +86,15 @@ pub enum SortBy {
 }
 
 impl SortBy {
+    /// `boardSortOptions`' values.
+    pub fn value(self) -> &'static str {
+        match self {
+            SortBy::Newest => "newest",
+            SortBy::Oldest => "oldest",
+            SortBy::Title => "title",
+        }
+    }
+
     pub const ALL: [SortBy; 3] = [SortBy::Newest, SortBy::Oldest, SortBy::Title];
 
     pub fn label(self) -> &'static str {

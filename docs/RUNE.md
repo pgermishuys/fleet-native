@@ -3017,3 +3017,8 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 - **A virtual list inside a tall open row needs a frame to settle before a test clicks into it**: a row is laid out once it is mounted, and an estimated row height (52 here) moves the rows below when the real one is known. A test that opens a turn and then presses something under it settles a few frames first, and presses what is on screen (`find` reports rows that are laid out off the bottom of the window, where a press does nothing).
 - **`El::key` can't be read back**, so an overlay layer can't learn the rectangle of a panel it didn't name itself. The menu builder records the keys of its panels in a thread-local (`ui::menu::take_panels`) as it builds them; `window_layout(key)` then gives where each one is, and the web view host hides the page only where one is over it.
 - **A window's focus event doesn't know about a native web view child**: when the page has the keyboard Rune's `on_focus` says the window lost it. Count the page's own `focus` and `blur` (a script in the page, over IPC) as the window's half.
+
+## Component 23, piece Q (the Board's left panel)
+
+- **A `<select>` is a combobox row plus `ui::select::content`**: Rune has no native select, so the row opens `Open::Select(name)` and `ui/mod.rs`'s overlay match lists it; a browser select with 14 px text and 7 px padding is 35 px high, which `.h(35.0)` states.
+- **`.checked(on)` is also how a toggle button says `aria-pressed`**: the Group by pills set it, so a test reads the active one from `ElementInfo`.
