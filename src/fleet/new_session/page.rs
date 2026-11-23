@@ -79,33 +79,23 @@ impl State {
     }
 
     /// The palette's "New session in this folder" (A2.6): asks the server for an empty session in the open session's folder,
-    /// then opens it. A failure is swallowed, as Fleet's palette does.
+    /// puts its row in the list at once (an upsert, as `startSessionInFolderOf` does) and opens it. A failure is swallowed, as
+    /// Fleet's palette does.
     pub fn new_session_in_folder(&mut self) {
-        let (Some(link), Some(id)) = (&self.link, self.open_id()) else { return };
+        let (Some(link), Some(source)) = (&self.link, self.open_id()) else { return };
         link.off_thread(
-            move |base| http::post(base, &new_in_folder_path(&id), &serde_json::json!({})),
-            |s, _: &mut Tx, answer| {
-                let Some(id) = answer.ok().as_ref().and_then(created_session_id) else { return };
-                // The list doesn't have the row yet: ask for it, and open the session when it arrives.
-                s.new_draft.open_after_list = Some(id);
-                if let Some(link) = &s.link {
-                    link.refetch_list();
+            {
+                let source = source.clone();
+                move |base| http::post(base, &new_in_folder_path(&source), &serde_json::json!({}))
+            },
+            move |s, tx: &mut Tx, answer| {
+                let Ok(answer) = answer else { return };
+                if created_session_id(&answer).is_none() {
+                    return;
                 }
+                s.made_done(&source, HOME_MACHINE_KEY, crate::fleet::fork::Made::InFolder, answer, tx);
             },
         );
-    }
-
-    /// The list arrived: opens the session `new_session_in_folder` made, once it is in it.
-    pub(crate) fn open_made_session(&mut self, tx: &mut Tx) {
-        let Some(id) = self.new_draft.open_after_list.clone() else { return };
-        let Some(at) =
-            self.projects.iter().enumerate().find_map(|(p, project)| project.sessions.iter().position(|s| s.id == id).map(|i| (p, i)))
-        else {
-            return;
-        };
-        self.new_draft.open_after_list = None;
-        self.rail = Rail::Sessions;
-        self.open_session(at.0, at.1, tx);
     }
 }
 

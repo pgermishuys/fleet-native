@@ -12,6 +12,7 @@ use crate::fleet::link::now_ms;
 use crate::fleet::prefs::Prefs;
 use crate::fleet::settings::HOME_MACHINE_KEY;
 use crate::{State, Tx};
+use serde_json::Value;
 
 pub(crate) type Done<T> = Box<dyn FnOnce(&mut State, &mut Tx, T) + Send>;
 
@@ -98,11 +99,36 @@ impl State {
 
     /// The scans saved on the last visit show at once (called when the settings file is read).
     pub fn seed_feeds_from_settings(&mut self) {
+        self.seed_harness_feeds_from_settings();
         let saved: Vec<(String, Scan)> = self.sidebar.saved_repositories().map(|(k, s)| (k.clone(), s.clone())).collect();
         for (key, scan) in saved {
             let feed = self.feeds.repos.entry(key).or_default();
             if feed.scanned_at.is_none() && feed.list.is_empty() {
                 *feed = RepoFeed::seeded(scan);
+            }
+        }
+    }
+
+    /// The harness lists and catalogs saved on the last visit show at once, and are checked behind it (`readSaved`). Only what a
+    /// feed doesn't have yet is taken, so a list that has just come is never replaced by an older one.
+    fn seed_harness_feeds_from_settings(&mut self) {
+        let lists: Vec<(String, Value)> = self.sidebar.saved_harnesses().map(|(k, v)| (k.clone(), v.clone())).collect();
+        for (key, raw) in lists {
+            let feed = self.feeds.harnesses.entry(key).or_default();
+            if feed.harnesses.all.is_empty() && feed.answered_at.is_none() {
+                let list = super::harness_choice::parse_harness_entries(&raw);
+                if !list.is_empty() {
+                    *feed = super::feed_state::HarnessFeed::seeded(list);
+                }
+            }
+        }
+        let catalogs: Vec<(String, Vec<crate::fleet::settings::SavedCatalog>)> =
+            self.sidebar.saved_catalogs().map(|(k, v)| (k.clone(), v.clone())).collect();
+        for (key, saved) in catalogs {
+            let feed = self.feeds.catalogs.entry(key).or_default();
+            for c in saved {
+                let at = CatalogKey { harness: c.harness, directory: c.directory, profile: c.profile };
+                feed.seed(at, catalog_from_json(&c.catalog), c.fetched_at);
             }
         }
     }
@@ -169,10 +195,12 @@ impl State {
                 Ok(roots) => {
                     s.feeds.roots = roots;
                     s.feeds.roots_error = None;
+                    s.feeds.roots_read = true;
                 }
                 Err(e) => {
                     s.feeds.roots.clear();
                     s.feeds.roots_error = Some(e);
+                    s.feeds.roots_read = true;
                 }
             },
         );
@@ -230,9 +258,19 @@ impl State {
         let machine = key.to_string();
         self.feed_call(
             key,
-            move |base| parse_harnesses(http::harness_list(base, fresh)),
-            move |s, _, r| {
-                s.feeds.harnesses.entry(machine).or_default().finish(seq, fresh, now_ms(), r);
+            move |base| {
+                let answer = http::harness_list(base, fresh);
+                (raw_of(&answer), parse_harnesses(answer))
+            },
+            move |s, _, (raw, r)| {
+                let good = r.is_ok();
+                if s.feeds.harnesses.entry(machine.clone()).or_default().finish(seq, fresh, now_ms(), r)
+                    && good
+                    && let Some(raw) = raw
+                {
+                    s.sidebar.save_harnesses(&machine, &raw);
+                    s.save_settings();
+                }
                 s.settle_choices();
                 s.harness_setup_check();
                 after(s);
@@ -317,12 +355,30 @@ impl State {
     fn fetch_catalog(&self, key: &str, seq: u64) {
         let Some(wanted) = self.feeds.catalogs.get(key).and_then(|c| c.wanted.clone()) else { return };
         let machine = key.to_string();
+        let at = wanted.clone();
         self.feed_call(
             key,
-            move |base| parse_catalog(http::harness_catalog(base, &wanted.harness, wanted.directory.as_deref(), wanted.profile.as_deref())),
-            move |s, _, r| {
-                if let Some(feed) = s.feeds.catalogs.get_mut(&machine) {
-                    feed.finish(seq, now_ms(), r);
+            move |base| {
+                let answer = http::harness_catalog(base, &wanted.harness, wanted.directory.as_deref(), wanted.profile.as_deref());
+                (raw_of(&answer), parse_catalog(answer))
+            },
+            move |s, _, (raw, r)| {
+                let good = r.is_ok();
+                let now = now_ms();
+                if let Some(feed) = s.feeds.catalogs.get_mut(&machine)
+                    && feed.finish(seq, now, r)
+                    && good
+                    && let Some(catalog) = raw
+                {
+                    let saved = crate::fleet::settings::SavedCatalog {
+                        harness: at.harness,
+                        directory: at.directory,
+                        profile: at.profile,
+                        fetched_at: now,
+                        catalog,
+                    };
+                    s.sidebar.save_catalog(&machine, saved);
+                    s.save_settings();
                 }
                 s.settle_choices();
             },

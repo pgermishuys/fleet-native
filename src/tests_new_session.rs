@@ -247,22 +247,6 @@ fn new_session_in_this_folder_asks_the_server_and_opens_what_it_made() {
     assert_eq!(created_session_id(&json!({ "instanceId": "i", "session": { "id": "ses_2" } })).as_deref(), Some("ses_2"));
     assert_eq!(created_session_id(&json!({ "session": {} })), None);
     assert_eq!(created_session_id(&json!({ "session": { "id": "" } })), None);
-
-    let mut rt = app();
-    rt.update(|s, tx| {
-        s.set_session_id((0, 0), "ses_2");
-        s.new_draft.open_after_list = Some("ses_2".into());
-        s.route = Route::None;
-        s.open_made_session(tx);
-    });
-    assert_eq!(rt.state.open_at(), (0, 0));
-    assert_eq!(rt.state.new_draft.open_after_list, None);
-    // Not in the list yet: it waits for the list.
-    rt.update(|s, tx| {
-        s.new_draft.open_after_list = Some("later".into());
-        s.open_made_session(tx);
-    });
-    assert_eq!(rt.state.new_draft.open_after_list.as_deref(), Some("later"));
 }
 
 #[test]

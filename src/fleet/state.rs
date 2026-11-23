@@ -409,7 +409,6 @@ impl State {
         // The page isn't a session in the list: a refresh leaves it where it is.
         if self.on_new_session_page() {
             self.projects = projects;
-            self.open_made_session(tx);
             return;
         }
         // Invented sessions being replaced by a first list (a scene, a headless run) still open the first one, as they did; a
@@ -440,7 +439,6 @@ impl State {
             }
         }
         self.sync_open();
-        self.open_made_session(tx);
     }
 
     /// A `sessions` event that changes rows (`use-session-activity-updates.ts` and its siblings).

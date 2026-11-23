@@ -119,6 +119,8 @@ mod tests_completion;
 #[cfg(test)]
 mod tests_composer_other_machine;
 #[cfg(test)]
+mod tests_composer_rest;
+#[cfg(test)]
 mod tests_context_tab;
 #[cfg(test)]
 mod tests_dashboard;
@@ -1380,11 +1382,12 @@ impl State {
         if activity == "waiting_input" { ComposerStatus::WaitingInput } else { status }
     }
 
-    /// Whether the composer takes input at all (`isDisabled`, row 1.9). A session list row without `capabilities` is
-    /// taken as able: its `lifecycleStatus` isn't on the row yet, and "running" is what the rule would ask of it.
+    /// Whether the composer takes input at all (`isDisabled`, row 1.9): not archived, and the row's `canPrompt`, or with no
+    /// `capabilities` its `lifecycleStatus` being "running" (an invented session has none and counts as running).
     pub fn composer_disabled(&self) -> bool {
         let row = &self.session().row;
-        let gate = composer::status::SessionGate { archived: row.archived, can_prompt: row.can_prompt, lifecycle: "running" };
+        let lifecycle = row.lifecycle_status.as_deref().unwrap_or("running");
+        let gate = composer::status::SessionGate { archived: row.archived, can_prompt: row.can_prompt, lifecycle };
         !composer::status::can_send(Some(gate))
     }
 
@@ -1906,7 +1909,8 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
         | s.keep_autocomplete(now, tx)
         | s.keep_attachments(tx)
         | s.keep_new_message(tx)
-        | s.keep_new_mentions(now, tx);
+        | s.keep_new_mentions(now, tx)
+        | s.keep_draft_group_open();
     s.keep_focus_report();
     let scrolled = s.keep_scroll(tx)
         | s.keep_review_near()

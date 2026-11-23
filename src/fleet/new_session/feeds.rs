@@ -29,6 +29,13 @@ fn text(v: &Value, key: &str) -> Option<String> {
 /// A call's answer: the status and the body, or why nothing answered.
 pub type Answer = Result<(u16, String), String>;
 
+/// The JSON of a good answer, kept as it came so a machine's list can be saved and read back by the same parsers
+/// (`writeSaved`); none for a refusal, a failure or a body that isn't JSON.
+pub fn raw_of(answer: &Answer) -> Option<Value> {
+    let (status, body) = answer.as_ref().ok()?;
+    ok(*status).then(|| json(body)).flatten().filter(|v| !v.is_null())
+}
+
 /// The body of a good answer, or the words of what went wrong: `fallback` for a transport failure is the error itself.
 fn body_of(answer: Answer) -> Result<Value, String> {
     let (status, body) = answer?;
@@ -400,13 +407,18 @@ pub fn parse_catalog(answer: Answer) -> Result<Catalog, String> {
         return Err(api_error(status, &body));
     }
     let v = json(&body).filter(|v| !v.is_null()).ok_or_else(|| format!("HTTP {status}"))?;
-    Ok(Catalog {
+    Ok(catalog_from_json(&v))
+}
+
+/// One catalog as the machine sends it, or as it was saved.
+pub fn catalog_from_json(v: &Value) -> Catalog {
+    Catalog {
         supported: v.get("supported").and_then(Value::as_bool) == Some(true),
-        agents: crate::fleet::catalog::parse_agents(&v),
-        models: crate::fleet::catalog::parse_models(&v),
-        default_agent: text(&v, "defaultAgent"),
+        agents: crate::fleet::catalog::parse_agents(v),
+        models: crate::fleet::catalog::parse_models(v),
+        default_agent: text(v, "defaultAgent"),
         default_model: v.get("defaultModel").and_then(crate::fleet::catalog::model_reference),
-    })
+    }
 }
 
 // ─── Worktree naming ────────────────────────────────────────────────────────

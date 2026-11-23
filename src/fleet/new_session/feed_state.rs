@@ -120,6 +120,12 @@ pub struct HarnessFeed {
 pub const REUSE_FOR_MS: i64 = 10_000;
 
 impl HarnessFeed {
+    /// The list saved on the last visit shows at once; the machine is asked behind it (`useHarnesses`'s saved list).
+    pub fn seeded(list: Vec<super::harness_choice::HarnessEntry>) -> HarnessFeed {
+        let load = if list.is_empty() { Load::Loading } else { Load::Done };
+        HarnessFeed { harnesses: Harnesses { all: list, load, preferred: None }, ..HarnessFeed::default() }
+    }
+
     /// Whether a page that mounts now should ask.
     pub fn wants_read(&self, now: i64) -> bool {
         self.answered_at.is_none_or(|at| now - at >= REUSE_FOR_MS)
@@ -276,6 +282,11 @@ impl CatalogFeed {
         self.cache.retain(|k, _| k.harness != harness);
     }
 
+    /// A catalog saved on the last visit, cached as it was (`cacheFor`): it shows at once and is asked for again once old.
+    pub fn seed(&mut self, key: CatalogKey, catalog: Catalog, fetched_at: i64) {
+        self.cache.entry(key).or_insert(Cached { catalog, fetched_at });
+    }
+
     /// Whether a catalog is cached for `key` (for tests and the pickers).
     pub fn is_cached(&self, key: &CatalogKey) -> bool {
         self.cache.contains_key(key)
@@ -346,6 +357,8 @@ pub struct Feeds {
     /// The locations that exist on the machine the folder menu is for; empty when the call failed.
     pub roots: Vec<String>,
     pub roots_error: Option<String>,
+    /// The machine has answered (with none, or with an error): `roots` null in Fleet's picker until then.
+    pub roots_read: bool,
     pub defaults: Option<DirectoryDefaults>,
 }
 

@@ -137,10 +137,9 @@ pub fn paste_offer(s: &State, t: &Theme) -> Option<El> {
         row()
             .key("paste-offer")
             .label("Large paste")
-            // Fleet's pill is a block-level flex box: it spans the column, with its parts at the left (the real one also
-            // reaches 14 px past the frame on each side; the native one stops at the frame, listed in the checklist).
+            // Fleet's pill is a block-level flex box: it spans the composer's whole content width (24 px padding each side),
+            // not the frame's 760 px column, so in a wide window it reaches 14 px past the frame on each side.
             .w_full()
-            .max_w(super::conversation::COLUMN)
             .center_y()
             .gap(4.0)
             .mb(6.0)

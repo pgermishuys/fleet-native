@@ -121,7 +121,7 @@ fn rows(s: &State, t: &Theme) -> El {
     } else if s.current_listing().is_some() && rows.is_empty() && s.path_note().is_none() {
         c = c.child(pop_note(t, "Nothing in this folder."));
     }
-    c.scroll(ScrollSpec { stick_bottom: false }).max_h(LIST_MAX_H)
+    c.scroll(ScrollSpec { stick_bottom: false }).max_h(crate::ui::chip::list_max_h(s, LIST_MAX_H, 0.36))
 }
 
 fn kind_button(s: &State, t: &Theme, key: &str, glyph: &'static rune::Icon, label: &str, kind: NewKind) -> El {

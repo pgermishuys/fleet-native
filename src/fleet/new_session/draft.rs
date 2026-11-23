@@ -92,8 +92,8 @@ pub struct DraftStore {
     /// Boxes on the page now. A rebuilt box opens before the one it replaces leaves, so for a moment there are two.
     open_boxes: usize,
     count: usize,
-    /// A session made by "New session in this folder", to open when the list has it.
-    pub open_after_list: Option<String>,
+    /// The group the draft row last showed in (`draftGroupId`): a group opens when the draft lands in it, not again while it stays.
+    pub landed_in: Option<String>,
 }
 
 impl DraftStore {
@@ -209,5 +209,35 @@ impl DraftStore {
         let Some(d) = self.draft.take() else { return };
         self.session_row_keys.insert(session_id.to_string(), d.row_key);
         self.machine = None;
+    }
+}
+
+impl crate::State {
+    /// The group the draft row shows in: its project, else Ungrouped (`draftGroupIdFor`); none while the archived view is
+    /// shown or there is no draft.
+    pub fn draft_group(&self) -> Option<usize> {
+        let draft = self.new_draft.row().filter(|_| !self.is_archived_view())?;
+        let by_id = draft.project_id.as_deref().and_then(|id| self.projects.iter().position(|p| p.id == id));
+        by_id.or_else(|| self.projects.iter().position(|p| p.id == crate::fleet::groups::UNGROUPED_ID))
+    }
+
+    /// A draft shows in its group, so that group (and the machine's) opens when a draft lands in it (`SessionsPanel`'s watch on
+    /// `draftGroupId`). True when the list must be drawn again.
+    pub fn keep_draft_group_open(&mut self) -> bool {
+        let now = self.draft_group().map(|p| self.projects[p].id.clone());
+        if now == self.new_draft.landed_in {
+            return false;
+        }
+        self.new_draft.landed_in = now.clone();
+        let Some(id) = now else { return false };
+        let machine = crate::fleet::settings::machine_group_key(crate::fleet::settings::HOME_MACHINE_KEY);
+        self.sidebar.set_group_collapsed(&machine, false);
+        if let Some(p) = self.projects.iter().position(|p| p.id == id) {
+            self.projects[p].open = true;
+            let key = crate::fleet::settings::project_group_key(crate::fleet::settings::HOME_MACHINE_KEY, &id);
+            self.sidebar.set_group_collapsed(&key, false);
+        }
+        self.save_settings();
+        true
     }
 }

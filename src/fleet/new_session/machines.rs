@@ -84,9 +84,14 @@ impl State {
             .map(|e| {
                 let os = e.os.as_deref().and_then(os_name);
                 let (reachable, detail, heard_at) = if e.key == live {
-                    // The live machine answers while the app has its hub (`liveReachable`).
-                    let words = ["Working here"].into_iter().chain(os).collect::<Vec<_>>().join(" · ");
-                    (true, words, None)
+                    // `liveReachable`: home always answers; a live machine that isn't home answers while its last read had no error.
+                    let up = self.machines.is_answering(&e.key);
+                    let words = if up {
+                        ["Working here"].into_iter().chain(os).collect::<Vec<_>>().join(" · ")
+                    } else {
+                        "Unreachable".to_string()
+                    };
+                    (up, words, None)
                 } else {
                     let heard = self.machines.others.get(&e.key);
                     let reachable = heard.is_none_or(|h| h.error.is_none());

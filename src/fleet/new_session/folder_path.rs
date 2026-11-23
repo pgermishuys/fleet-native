@@ -82,9 +82,10 @@ impl State {
         self.path_rows().into_iter().nth(self.folder_menu.path_highlight)
     }
 
-    /// Whether the locations have been read (a failed read counts: none is known then).
-    fn roots_known(&self) -> bool {
-        !self.feeds.roots.is_empty() || self.feeds.roots_error.is_some()
+    /// Whether the locations have been read (a failed read counts: none is known then; so does an answer with none, which makes
+    /// every Open or Create row add one: `roots.value !== null`).
+    pub(crate) fn roots_known(&self) -> bool {
+        self.feeds.roots_read || !self.feeds.roots.is_empty() || self.feeds.roots_error.is_some()
     }
 
     /// The line that says Fleet adds the folder to the locations (B2.136).

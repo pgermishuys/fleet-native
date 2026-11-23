@@ -201,35 +201,36 @@ fn error_note(t: &Theme, reason: &str) -> El {
         )
 }
 
-/// `EmptyState bordered`: a dashed box with the icon, the words and the way to Settings.
+/// The empty Repositories page (weave-fleet `main`'s `RepositoriesPage.vue`; Fleet v0.75.0 still draws `EmptyState bordered`,
+/// with a 28 px icon and rounded corners): a dashed box, `p-8`, `gap-4`, a 44 px icon at half strength, the words and the way
+/// to Settings. 1rem is 14 px.
 fn empty(t: &Theme) -> El {
+    let font = |weight| sans(12.25, weight, 1.4286);
     col()
         .key("repositories-empty")
         .w_full()
         .grow(1.0)
         .center()
-        .gap(3.5)
-        .padding(21.0)
-        .radius(RADIUS_CARD)
+        .gap(14.0)
+        .padding(28.0)
         .border(1.0, t.border)
         .border_layout()
         .border_dash(3.0, 3.0)
-        .child(icon(&FOLDER_GIT_2, 28.0).color(t.muted).mb(7.0))
-        .child(text("No repositories found").font(sans(14.0, 600.0, 1.4)).color(t.text))
+        .fill(t.card_bg.alpha(0.4))
+        .child(icon(&FOLDER_GIT_2, 44.0).color(t.muted.alpha(0.5)))
         .child(
-            text("Add a location in Settings → Folders, and Fleet lists the repositories inside it.")
-                .font(sans(12.25, 400.0, 1.5))
-                .color(t.muted)
-                .wrap()
-                .align(Align::Center)
-                .max_w(455.0),
+            col().gap(3.5).items_center().child(text("No repositories found").font(font(500.0)).color(t.text)).child(
+                text("Add a location in Settings → Folders, and Fleet lists the repositories inside it.")
+                    .font(font(400.0))
+                    .color(t.muted)
+                    .wrap()
+                    .align(Align::Center),
+            ),
         )
         .child(
-            row().gap(7.0).mt(10.5).child(
-                button(t, Variant::Outline, Size::Sm, Some(&SETTINGS_2), "Open settings")
-                    .key("repositories-open-settings")
-                    .on_press_tx(|s: &mut State, tx: &mut Tx| s.open_workspace_settings(tx)),
-            ),
+            button(t, Variant::Outline, Size::Sm, Some(&SETTINGS_2), "Open settings")
+                .key("repositories-open-settings")
+                .on_press_tx(|s: &mut State, tx: &mut Tx| s.open_workspace_settings(tx)),
         )
 }
 

@@ -115,10 +115,7 @@ pub fn panel(s: &State, t: &Theme) -> El {
     // The draft shows in the group its session will land in: its project, else Ungrouped (`draftGroupIdFor`).
     let archived_view = s.is_archived_view();
     let draft = s.new_draft.row().filter(|_| !archived_view);
-    let draft_at = draft.as_ref().and_then(|d| {
-        let by_id = d.project_id.as_deref().and_then(|id| s.projects.iter().position(|p| p.id == id));
-        by_id.or_else(|| s.projects.iter().position(|p| p.id == crate::fleet::groups::UNGROUPED_ID))
-    });
+    let draft_at = s.draft_group();
     let mut placed = false;
     let layout = s.home_layout();
     // What the live machine's heading counts: the sessions the filter leaves.
