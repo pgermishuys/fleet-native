@@ -110,16 +110,17 @@ impl State {
         !self.pickers.prefs.fetched || SESSION_RECAP.enabled(&self.pickers.prefs) || DESKTOP_NOTIFICATIONS.enabled(&self.pickers.prefs)
     }
 
-    /// Tells each hub whether to report focus; only a change is sent. Another machine's Session recap switch isn't read
-    /// (the app's preference store is home's), so its hub always reports: that costs nothing but a call and never holds
-    /// a recap back that the person is not looking at.
+    /// Tells each hub whether to report focus; only a change is sent. Home's follows the app's own preferences; another
+    /// machine's follows its own Session recap switch (`use-session-recap.ts` reads the session's machine) or the app's
+    /// Desktop notifications. Until that machine's preferences are read its hub reports, as every link starts out doing.
     pub fn keep_focus_report(&self) {
         let wanted = self.report_focus_wanted();
         if let Some(home) = &self.link {
             home.report_focus(wanted);
         }
         for link in self.links.all() {
-            link.report_focus(true);
+            let theirs = self.feeds.prefs.get(&link.key).filter(|p| p.fetched);
+            link.report_focus(theirs.is_none_or(|p| SESSION_RECAP.enabled(p)) || DESKTOP_NOTIFICATIONS.enabled(&self.pickers.prefs));
         }
     }
 

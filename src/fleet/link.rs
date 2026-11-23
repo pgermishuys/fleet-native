@@ -74,6 +74,10 @@ pub enum Cmd {
     ReportFocus(bool),
     /// Whether mission control's feed of this machine wants its `sessions` topic (the hub of home has it always).
     SessionsFeed(bool),
+    /// The machine answered again: a hub waiting out its backoff tries now (`retryConnection`). A hub that's up ignores it.
+    RetryNow,
+    /// Whether the workflow runs of this machine are followed (its `sessions` topic is listened to for `workflow_run`).
+    RunsFeed(bool),
 }
 
 /// What the UI keeps of the connection. A clone shares the same threads.
@@ -147,9 +151,19 @@ impl Link {
         fetch_list(&self.base, &self.post);
     }
 
+    /// The machine this link is to answers again: its hub needn't wait out its backoff to catch up.
+    pub fn retry_now(&self) {
+        let _ = self.cmds.send(Cmd::RetryNow);
+    }
+
     /// Reads the machine list and every machine again now: after a machine is added, forgotten, renamed or given a new token.
     pub fn refresh_machines(&self) {
         let _ = self.machines.send(super::machine_poll::Cmd::Now);
+    }
+
+    /// The workflow runs of this machine are followed from now on: another machine's `sessions` topic is listened to.
+    pub fn runs_feed(&self, on: bool) {
+        let _ = self.cmds.send(Cmd::RunsFeed(on));
     }
 
     pub fn open(&self, session: &str) {
@@ -297,6 +311,8 @@ fn connection(post: &Post, key: &str, c: Connection) {
     post.update(move |s, _| s.set_connection(&key, c));
 }
 
+const DROPPED: &str = "the link was dropped";
+
 /// The hub thread: connect, serve, and on loss wait and connect again.
 fn run(key: String, base: String, rx: Receiver<Cmd>, post: Post) {
     let home = key == super::settings::HOME_MACHINE_KEY;
@@ -325,6 +341,10 @@ fn run(key: String, base: String, rx: Receiver<Cmd>, post: Post) {
             }
             Err(e) => e,
         };
+        // A link that was let go of (a machine moved to another address) says nothing: its key's hub is another one now.
+        if why == DROPPED {
+            return;
+        }
         // A page asked for on the connection that just ended will never be answered.
         for (session, cursor) in pending.drain() {
             history_failed(&post, session, cursor, &why);
@@ -376,6 +396,13 @@ fn run(key: String, base: String, rx: Receiver<Cmd>, post: Post) {
                 }
                 Ok(Cmd::SessionsFeed(on)) => {
                     topics.set_feed(on);
+                }
+                Ok(Cmd::RunsFeed(on)) => {
+                    topics.set_runs(on);
+                }
+                Ok(Cmd::RetryNow) => {
+                    attempt = 0;
+                    break;
                 }
                 // Not connected: no page can come (`loadSessionHistory` answers null).
                 Ok(Cmd::LoadOlder { session, cursor }) => history_failed(&post, session, cursor, "not connected"),
@@ -490,7 +517,7 @@ fn serve(
     // Every topic again, so each gets a fresh snapshot (`topicListenersV2` after a reconnect).
     let started = (|| -> Result<(), String> {
         // The sessions topic feeds the live list, which is home's: another machine's list is read by `machine_poll`.
-        if home || topics.feed() {
+        if home || topics.feed() || topics.runs() {
             call(&mut ws, "SubscribeToSessionsTopicAsync", vec![])?;
         }
         for id in topics.all() {
@@ -513,7 +540,7 @@ fn serve(
                 Ok(cmd) => cmd,
                 Err(TryRecvError::Empty) => break,
                 // The app dropped this link (its machine was forgotten or moved): the hub goes with it.
-                Err(TryRecvError::Disconnected) => return "the link was dropped".to_string(),
+                Err(TryRecvError::Disconnected) => return DROPPED.to_string(),
             };
             let result = match cmd {
                 Cmd::Open(id) if topics.open() == Some(id.as_str()) => Ok(()),
@@ -602,6 +629,11 @@ fn serve(
                     true => call(&mut ws, "SubscribeToSessionsTopicAsync", vec![]).map(|_| ()),
                     false => Ok(()),
                 },
+                Cmd::RetryNow => Ok(()),
+                Cmd::RunsFeed(on) => match topics.set_runs(on) && on && !home && !topics.feed() {
+                    true => call(&mut ws, "SubscribeToSessionsTopicAsync", vec![]).map(|_| ()),
+                    false => Ok(()),
+                },
                 Cmd::LoadOlder { session, cursor } => (|| {
                     let n = call(&mut ws, "LoadHistoryAsync", vec![json!(session), json!(cursor)])?;
                     pending.add(n.to_string(), session, cursor);
@@ -627,13 +659,20 @@ fn serve(
             Ok(Message::Text(text)) => {
                 for frame in signalr::parse(&text) {
                     match frame {
-                        Frame::Event { topic, .. } if topic == "sessions" && !home => {
+                        Frame::Event { topic, data, .. } if topic == "sessions" && !home => {
                             if topics.feed() {
                                 let key = key.to_string();
                                 post.update(move |s, tx| {
                                     s.mission_sessions_event(&key);
                                     tx.wake_after(Duration::from_millis(20));
                                 });
+                            }
+                            // Another machine's runs follow its `workflow_run` events, as the live machine's do.
+                            if topics.runs()
+                                && let Some(event @ Event::Other(super::events::Kind::WorkflowRun, _)) = Event::from_wire(&data)
+                            {
+                                let key = key.to_string();
+                                post.update(move |s, _| s.on_workflow_event_on(&key, &event));
                             }
                         }
                         Frame::Event { topic, data, .. } if topic == "sessions" && home => {

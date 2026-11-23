@@ -18,7 +18,7 @@ const CHILD_H: f32 = 30.0;
 
 /// The lines beside one child (`.lineage-line`, `.lineage-stub`): `muted` at 16%, 1px wide. The own line runs the full height,
 /// or stops at the middle on the last child; the stub is 9px long at the middle.
-fn lines(t: &Theme, key: &str, line: &Connector, row: El) -> El {
+pub(super) fn lines(t: &Theme, key: &str, line: &Connector, row: El) -> El {
     let ink = t.muted.alpha(0.16);
     let mut wrap = el().key(format!("lineage-{key}")).w_full();
     for level in &line.through {

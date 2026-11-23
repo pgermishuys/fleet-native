@@ -126,6 +126,16 @@ pub fn spawn_read(job: ReadJob, post: Post) {
                     if first || back {
                         eprintln!("fleet-native: machine {} listed {count} session(s)", job.name);
                     }
+                    // Back after not answering: its open sessions' hub tries now instead of waiting out its backoff.
+                    if back && let Some(link) = s.link_if_any(&job.key) {
+                        link.retry_now();
+                    }
+                    s.follow_address(&job.key);
+                    s.workflows_settle();
+                    // Its own preferences are read once, so its Session recap switch is known without visiting its settings.
+                    if !s.feeds.prefs.contains_key(&job.key) {
+                        s.read_preferences(&job.key);
+                    }
                     s.refresh_elsewhere(&job.key);
                     s.save_machines();
                 }
@@ -154,6 +164,14 @@ impl State {
     /// The cache file was read (off the UI thread): what a machine last listed shows before its first read comes back.
     pub fn adopt_machine_cache(&mut self, dir: std::path::PathBuf, cached: super::machine_cache::Cached) {
         self.machine_dir = Some(dir);
+        super::machine_routes::adopt_picks(cached.picks.clone());
+        // The list may have been read first, with each token held at the address home gives; it goes where the pick is.
+        for m in &self.machines.list {
+            if m.base() != m.base_url {
+                super::auth::set_for(&m.base_url, None);
+                m.hold_token();
+            }
+        }
         self.machines.adopt_cache(cached);
     }
 }

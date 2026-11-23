@@ -280,6 +280,8 @@ impl State {
                 let preferred = s.feeds.prefs[&machine].get(DEFAULT_HARNESS_PREFERENCE_KEY).filter(|v| !v.is_empty()).map(str::to_string);
                 s.sidebar.save_default_harness(&machine, preferred.as_deref());
                 s.save_settings();
+                // Its Session recap switch decides whether its hub reports which session the window looks at.
+                s.keep_focus_report();
             },
         );
     }

@@ -102,6 +102,19 @@ impl State {
         links.get(&target.key).cloned()
     }
 
+    /// A read moved `key`'s machine to another of its addresses: its link follows, and the open session on it opens again
+    /// there (`onAddressChange` bumps what rows and feeds read). The hub on the old address ends with its link.
+    pub fn follow_address(&mut self, key: &str) {
+        let Some(target) = self.target_of_key(key) else { return };
+        if target.is_home() || !self.links.get(key).is_some_and(|l| l.base != target.base) {
+            return;
+        }
+        self.link_of(&target);
+        if let Some(id) = self.open_id().filter(|id| self.machine_key_of(id) == key) {
+            self.open_on_link(&id);
+        }
+    }
+
     /// Lets go of the links of machines home no longer lists.
     pub fn prune_links(&mut self) {
         let ids: Vec<String> = self.machines.list.iter().map(|m| m.id.clone()).collect();

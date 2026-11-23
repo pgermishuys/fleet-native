@@ -2978,3 +2978,10 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
   field before it has nothing to hide. A secure field's typed text is not in `rt.elements()`, so a test asserts `is_secure()` and
   reads the text from the state.
 - **A trail with one link is a chevron-left and the link**, not `trail`'s chevron-right between steps: one step holds both.
+
+
+## Component 26, piece Q (other machines)
+
+- **Inline code chips in a running line**: `text(words).spans([Span::new(a, b).mono().size(..).bg(color, pad)]).span_radius(4.0)` draws Fleet's `<code class="machine-code">` (mono, a wash behind it, rounded corners) without splitting the line into elements.
+- **A `TextEdit` made with `Default` isn't secure**: `.secure()` is a property of the edit, not of the field drawn from it, so a state struct that derives `Default` shows its first field in plain text until something resets it with `TextEdit::new(..).secure()`. Call `set_secure(true)` where the field's form opens.
+- **A hub test needs no real socket library beyond `tungstenite::accept`**: a loopback listener that drops every connection counts reconnect attempts, which is how to tell "tried at once" from "waited out its delay" without timing a sleep.

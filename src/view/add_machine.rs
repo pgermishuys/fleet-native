@@ -10,7 +10,7 @@ use crate::ui::button::{Size, Variant, button, button_lead};
 use crate::ui::rem;
 use crate::ui::text_menu::text_input;
 use crate::{State, Tx};
-use rune::{Cursor, Cycle, El, Key, KeyEvent, TextEdit, col, icon, row, text};
+use rune::{Cursor, Cycle, El, Key, KeyEvent, Span, TextEdit, col, icon, row, text};
 
 /// `inputClass`: full width, 1px border, the page's colour, `text-sm`, an accent border while focused.
 fn input(t: &Theme, edit: &TextEdit, key: &str, label: &str, placeholder: &str, font: rune::TextStyle, locked: bool) -> El {
@@ -56,8 +56,18 @@ fn labelled(t: &Theme, words: &str, field: El, hint: Option<&str>) -> El {
     e
 }
 
-fn small(t: &Theme, key: &str, words: &str) -> El {
-    text(words.to_string()).key(key.to_string()).font(sans(rem(0.75), 400.0, 1.33)).color(t.muted).wrap().w_full()
+/// `small` with some words as `<code class="machine-code">`: mono at 0.85em on the accent wash, 1px 5px padding, 4px corners.
+/// `parts` alternate plain and code, starting with plain.
+fn small_with_code(t: &Theme, key: &str, parts: &[&str]) -> El {
+    let (mut words, mut spans) = (String::new(), Vec::new());
+    for (n, part) in parts.iter().enumerate() {
+        let at = words.len();
+        words.push_str(part);
+        if n % 2 == 1 {
+            spans.push(Span::new(at, words.len()).mono().size(rem(0.75) * 0.85).color(t.text).bg(t.accent_dim, 5.0));
+        }
+    }
+    text(words).key(key.to_string()).font(sans(rem(0.75), 400.0, 1.33)).color(t.muted).wrap().w_full().spans(spans).span_radius(4.0)
 }
 
 fn copied(s: &State, what: &str) -> bool {
@@ -194,10 +204,10 @@ pub fn form(s: &State, t: &Theme) -> El {
         .padding(16.0)
         .fill(t.main_bg)
         .child(text("Add a machine").font(sans(rem(0.875), 600.0, 1.43)).color(t.text))
-        .child(small(
+        .child(small_with_code(
             t,
             "machines-add-link-help",
-            "On the other machine, run fleet node pair. It prints a pairing link that works once for 10 minutes. Paste it here.",
+            &["On the other machine, run ", "fleet node pair", ". It prints a pairing link that works once for 10 minutes. Paste it here."],
         ))
         .child(labelled(
             t,

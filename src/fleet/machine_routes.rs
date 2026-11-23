@@ -8,8 +8,8 @@
 //! an old address. `Machine::base` is what every call uses; a pick changes it for all of them at once, and the machine's
 //! token goes with it (`auth`), and leaves the address it came from.
 //!
-//! A pick lasts for the run (Fleet keeps it in the browser's storage; this app has no such store, and the first read after
-//! a start costs one probe). Everything here blocks: it runs on the threads that read.
+//! A pick is kept between runs, as Fleet keeps it in the browser's storage: here it goes in the machines' cache file
+//! (`machine_cache`), so the first read after a start doesn't cost a probe. Everything here blocks: it runs on the threads that read.
 use super::auth;
 use super::http;
 use super::machine::Machine;
@@ -42,6 +42,21 @@ static PICKS: RwLock<Option<HashMap<String, String>>> = RwLock::new(None);
 /// The address picked for machine `id`, if any. `Machine::base` takes it only while it is still one of the machine's.
 pub fn picked(id: &str) -> Option<String> {
     PICKS.read().unwrap_or_else(|e| e.into_inner()).as_ref().and_then(|m| m.get(id).cloned())
+}
+
+/// Every pick made so far, for the cache file (`PICKS_KEY`: the address each machine was last reached at).
+pub fn all_picks() -> HashMap<String, String> {
+    PICKS.read().unwrap_or_else(|e| e.into_inner()).clone().unwrap_or_default()
+}
+
+/// Picks read back from the cache file at start. A pick made since (this run) stays; `Machine::base` ignores one that is no
+/// longer among the machine's addresses.
+pub fn adopt_picks(saved: HashMap<String, String>) {
+    let mut picks = PICKS.write().unwrap_or_else(|e| e.into_inner());
+    let picks = picks.get_or_insert_with(HashMap::new);
+    for (id, url) in saved {
+        picks.entry(id).or_insert(url);
+    }
 }
 
 pub fn has_choices(m: &Machine) -> bool {

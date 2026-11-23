@@ -30,6 +30,8 @@ pub struct Topics {
     last: HashMap<String, (Value, u32)>,
     /// Mission control's feed of this machine is open: the `sessions` topic is listened to and its events are passed on.
     feed: bool,
+    /// The workflow runs of this machine are followed: the `sessions` topic is listened to for its `workflow_run` events.
+    runs: bool,
 }
 
 impl Topics {
@@ -40,6 +42,15 @@ impl Topics {
     /// Sets whether the feed is open; true when that changed.
     pub fn set_feed(&mut self, on: bool) -> bool {
         std::mem::replace(&mut self.feed, on) != on
+    }
+
+    pub fn runs(&self) -> bool {
+        self.runs
+    }
+
+    /// Sets whether the runs are followed; true when that changed.
+    pub fn set_runs(&mut self, on: bool) -> bool {
+        std::mem::replace(&mut self.runs, on) != on
     }
 
     pub fn open(&self) -> Option<&str> {
