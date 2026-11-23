@@ -1,6 +1,6 @@
 //! One card of the Board (`KanbanCard.vue`): the source pill and the time, the title (or its rename field), GitHub's block for a
-//! GitHub card, the Created / Source key / Position details, a note that isn't JSON, and Rename / Archive / Delete. Dragging
-//! (`draggable`, `k-card--dragging`) comes with piece O.
+//! GitHub card, the Created / Source key / Position details, a note that isn't JSON, and Rename / Archive / Delete. The card
+//! drags unless a change is running (`draggable`), and is faded and tilted while it does (`k-card--dragging`).
 use crate::State;
 use crate::fleet::board::Card;
 use crate::fleet::board::cards::{self, GitHubMeta};
@@ -10,7 +10,7 @@ use crate::ui::age;
 use crate::ui::button::{Size, Variant, button, disabled};
 use crate::ui::text_menu::text_input;
 use crate::view::session_row::RowClock;
-use rune::{Color, Cursor, El, Key, KeyEvent, Spring, Tx, col, el, icon, row, text};
+use rune::{Color, Cursor, Drag, El, Key, KeyEvent, Phase, Spring, Tx, col, el, icon, row, text};
 
 /// `.k-card__source-pill`, `.k-card__sync-pill`, `.k-card__stale-pill`: a round pill, 10 px.
 fn pill(key: String, fill: Color, ink: Color, weight: f32, lead: Option<El>, words: &str) -> El {
@@ -254,5 +254,12 @@ pub fn view(s: &State, t: &Theme, card: &Card, clock: &RowClock) -> El {
         .child(body);
     // `:hover { transform: translateY(-2px); box-shadow: 0 12px 24px rgba(0,0,0,.18) }`, 0.2 s.
     let lifted = if hovered { c.offset(0.0, -2.0).shadow(12.0, 24.0, Color::BLACK.alpha(0.18)) } else { c };
-    lifted.offset_motion(Spring::new(0.2, 0.0))
+    // `.k-card--dragging { opacity: .45; transform: rotate(1deg) }`
+    let lifted = if s.board_is_dragging(card) { lifted.opacity(0.45).rotate(1.0_f32.to_radians()) } else { lifted };
+    let id = card.id.clone();
+    lifted.offset_motion(Spring::new(0.2, 0.0)).on_drag(move |s: &mut State, d: &mut Drag, tx: &mut Tx| match d.phase {
+        Phase::Down => {}
+        Phase::Move => s.board_card_drag_move(&id, d.window_point(), tx),
+        Phase::Up => s.board_card_drag_end(d.cancelled()),
+    })
 }

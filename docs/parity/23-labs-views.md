@@ -445,11 +445,11 @@ CR `components/layout/core-rails.ts`, AS `components/layout/AppShell.vue`, RPT `
 
 | # | Row | Source | Native |
 |---|---|---|---|
-| 21.1 | A card drags (not while mutating) in both modes; the dragged card fades to .45 and turns 1° | KCa 179-197, 414-417, KB 343-352 | None (O) |
-| 21.2 | Drop slots before each card and after the last (8 px, margin 4 0, round); the one under the pointer grows to 18 px, `rgba(59,130,246,.35)`, 200 ms; over the cards area with no slot: the end | KC 89-164, 230-232, 347-379, 537-548 | None (O) |
-| 21.3 | The lane under a drag tints `rgba(59,130,246,.06)`, radius-card | KC 339-345, 532-535 | None (O) |
-| 21.4 | Drop: same lane below its own place counts one less; same place is no request; else `moveCard` (17.9) to that lane and index; drag end clears | KB 354-383 | None (O) |
-| 21.5 | A failed move puts the card back and shows the banner | BS 757-760, KB 378-382 | None (O) |
+| 21.1 | A card drags (not while mutating) in both modes; the dragged card fades to .45 and turns 1° | KCa 179-197, 414-417, KB 343-352 | **Done (O)**: a card drags in both modes unless a change runs (`board_card_drag_move`); the dragged card is at .45 and turned 1° (scene `board-dragging`) |
+| 21.2 | Drop slots before each card and after the last (8 px, margin 4 0, round); the one under the pointer grows to 18 px, `rgba(59,130,246,.35)`, 200 ms; over the cards area with no slot: the end | KC 89-164, 230-232, 347-379, 537-548 | **Done (O)**: a slot before each card and after the last (`board-slot-<lane>-<i>`), the one under the pointer 18 high in `rgba(59,130,246,.35)` on a 200 ms ease; over the cards with no slot it keeps the place it had in that lane, else the end |
+| 21.3 | The lane under a drag tints `rgba(59,130,246,.06)`, radius-card | KC 339-345, 532-535 | **Done (O)**: the lane whose cards the pointer is over is tinted `rgba(59,130,246,.06)`, round (`theme.rs` `board_drop_tint`) |
+| 21.4 | Drop: same lane below its own place counts one less; same place is no request; else `moveCard` (17.9) to that lane and index; drag end clears | KB 354-383 | **Done (O)**: `drop_index`: one less below its own place in its own lane; the same place sends nothing; else `moveCard`; the release or Escape clears the drag |
+| 21.5 | A failed move puts the card back and shows the banner | BS 757-760, KB 378-382 | **Done (O)**: `moveCard` shows the move at once and, when refused, puts the card back and the banner shows the words (`a_refused_move_puts_the_card_back_and_shows_the_banner`) |
 
 ### 22. Board: sources (BoardSourceConfig, manage only)
 
@@ -503,7 +503,7 @@ CR `components/layout/core-rails.ts`, AS `components/layout/AppShell.vue`, RPT `
 |---|---|---|
 | 25.1 | Phone layout (the header's `phone-menu-lane`, actions on their own row, summary in 2 columns under 960) | Phone is out of scope (`docs/PORT.md`); the ≤960 two-column rules also hit a narrow desktop window: port the 4-column one only and note it |
 | 25.2 | The right panel as a sheet over a narrow window | Owned by component 10's sheet for the session panel; the board follows whatever 10 did |
-| 25.3 | HTML drag-and-drop: the browser's drag ghost image, `dropEffect`, auto-scroll of the lanes row near its edge | Rune has no drag-and-drop with targets: a pointer drag with `Tx::element_at` (as `row_drag.rs`); draw the card under the pointer instead of the ghost; edge auto-scroll only if cheap |
+| 25.3 | HTML drag-and-drop: the browser's drag ghost image, `dropEffect`, auto-scroll of the lanes row near its edge | Rune has no drag-and-drop with targets: a pointer drag with `Tx::element_at` (as `row_drag.rs`); draw the card under the pointer instead of the ghost; edge auto-scroll only if cheap **Done (O) in part**: the pointer drag; the faded, tilted card stays in its place instead of a ghost under the pointer, and the lanes row does not scroll at its edge (open, no owner: a drag to a lane off screen needs a manual scroll first) |
 | 25.4 | `aria-live`, `role=alert/status/radiogroup`, `aria-pressed` | Rune's accessibility tree is limited (`docs/RUNE.md`); keep labels and keys |
 | 25.5 | Native `<select>` / checkbox look | Drawn with the kit's `Select` and a kit checkbox (lift one from `session_row.rs`) |
 | 25.6 | On a phone (≤767 px) the fleet-menu and the jobs-list are chip strips above the page (1.11) | Phone is out of scope (`docs/PORT.md`) |
@@ -906,6 +906,13 @@ because the test window shows three lanes.
   `board-lane-<id>`; a pointer drag with `Tx::element_at` as `row_drag.rs` does); hooks in `lane.rs` and `card.rs`. Scene
   `board-dragging` and `-light`.
 - **Depends on:** M (N for the manage-mode case).
+- **Done (22 November 2026)**: rows 21.1-21.5, 25.3 in part (each row says how). Pictures `shots/parity/23-labs-views/O-board-dragging/`
+  (native and Fleet's, dark and light: a card held over the slot between two cards). Tests: `KanbanBoard.test.ts`' two drag cases
+  and `KanbanCard.test.ts`' "applies drag and manual styling" under their names, and native: the slot grows, a drop in the same
+  place sends nothing, a refused move puts the card back with the banner, Escape, no drag while a change runs, the end of a
+  lane's cards, a pointer off every lane, the drop index, keys with hyphens (`src/tests_board_drag.rs`). Open, no owner: Fleet's
+  browser scrolls the lanes row while a drag is near its edge (it did in the picture); here a lane off screen needs a scroll first.
+  Fleet's own page has the left and right panels (Q, R) that this app doesn't draw yet.
 - **Tests:** KanbanBoard's two drag cases, KanbanCard "applies drag and manual styling"; native: a drop in the same
   place sends nothing, a refused move puts the card back.
 - **Pictures:** a card mid-drag over a slot beside Fleet's (a Playwright drag held before the drop), both themes.
