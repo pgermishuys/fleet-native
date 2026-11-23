@@ -6,7 +6,7 @@ use crate::fleet::board::cards::Status;
 use crate::fleet::board::filters::GroupBy;
 use crate::fleet::board::order::POSITION_GAP;
 use crate::fleet::board::store::{MockAnswers, Mode, NOT_LOADED, ignore};
-use crate::fleet::board::{Board, Card, Lane, SyncResult};
+use crate::fleet::board::{Board, Card, Lane, Source, SyncResult};
 use crate::fleet::link::{Job, Link, Post};
 use crate::fleet::settings::HOME_MACHINE_KEY;
 use crate::tests::{FRAME, app};
@@ -63,6 +63,11 @@ pub(crate) struct Kept {
     pub(crate) fail_move: Option<String>,
     fail_reorder: Option<String>,
     fail_sync: Option<String>,
+    /// The board's sources, and the words the list, an add and a remove are refused in (piece P).
+    pub(crate) sources: Vec<Source>,
+    pub(crate) refuse_listing: Option<String>,
+    pub(crate) refuse_adding: Option<String>,
+    pub(crate) refuse_removing: Option<String>,
     /// The sync case's own answer (the inbox moves and the first lane is renamed).
     sync_moves_inbox: bool,
     /// Whether the Board's switch is on (`GET /api/preferences`).
@@ -271,6 +276,33 @@ impl Kept {
                 }
                 let card = self.move_card(id, body["laneId"].as_str().unwrap_or(""), body["position"].as_u64().unwrap_or(0) as usize);
                 ("200 OK", card.to_json().to_string())
+            }
+            ("GET", [_, "sources"]) => match self.refuse_listing.clone() {
+                Some(words) => refuse(&words),
+                None => list(self.sources.iter().map(Source::to_json).collect()),
+            },
+            ("POST", [board, "sources"]) => {
+                if let Some(words) = self.refuse_adding.clone() {
+                    return refuse(&words);
+                }
+                let source = Source {
+                    id: format!("source-{}", self.sources.len() + 1),
+                    board_id: board.to_string(),
+                    provider_type: body["providerType"].as_str().unwrap_or("").to_string(),
+                    config: body["config"].as_str().unwrap_or("").to_string(),
+                    last_sync_at: None,
+                    created_at: ts(1),
+                    updated_at: ts(1),
+                };
+                self.sources.push(source.clone());
+                ("201 Created", source.to_json().to_string())
+            }
+            ("DELETE", [_, "sources", id]) => {
+                if let Some(words) = self.refuse_removing.clone() {
+                    return refuse(&words);
+                }
+                self.sources.retain(|s| &s.id != id);
+                ("204 No Content", String::new())
             }
             ("POST", [_, "sync"]) => {
                 if let Some(words) = self.fail_sync.clone() {

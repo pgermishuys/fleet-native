@@ -6,6 +6,7 @@
 //! (`filter`) and an invented GitHub for scenes and tests (`mock`). Piece C adds the three stores the pages share: your work (`work`), the repositories you follow (`bookmarks`) and the repository cache (`repos`). Piece D adds the rail's panel (`view::panel`, loaded by `panel_loads`); piece E its Follow a repository dialog (`follow`, `view::follow`); piece F the item's row and its session chip (`view::row`, `view::session_chip`) and Fleet's side, the sessions on an item (`sessions`); piece G Your work (`home`, `view::home`, `view::home_connect`); piece H the stores the repository's page and the `#` picker read: search (`search`), items by number and one item (`item`) and a repository's labels, milestones and assignees (`metadata`); piece I a repository's page (`repo`, `view::repo`); piece K an item's page (`item_page`, `view::item`, `view::item_body`); the rest of the pages come in the pieces after.
 pub mod auth;
 pub mod bar;
+pub mod board_scene;
 pub mod bookmarks;
 pub mod filter;
 pub mod follow;
@@ -27,6 +28,8 @@ pub mod work;
 
 #[cfg(test)]
 mod tests_auth;
+#[cfg(test)]
+mod tests_board_source;
 #[cfg(test)]
 mod tests_filter;
 #[cfg(test)]
@@ -132,7 +135,23 @@ pub fn entry() -> Entry {
     e.overlay = Some(overlay);
     e.repositories = Some(repo_cache.source());
     e.item_picker = Some(picker::host());
+    e.board_source = Some(board_source());
     e
+}
+
+/// `githubBoardSource` (`contributions.ts`): the bookmarks, as the Board's sources form offers them.
+fn board_source() -> crate::fleet::places::BoardSourcePlace {
+    use crate::fleet::places::BoardSourcePlace;
+    BoardSourcePlace {
+        id: ID,
+        description: "Add GitHub issue sources from your bookmarks, optionally narrowing sync to matching labels.",
+        empty_hint: "Bookmark a repository in the GitHub panel to add it as a board source.",
+        mount: State::github_bookmarks_use,
+        repositories: |s| state_ref(&s.places).bookmarks.list.iter().map(|b| b.full_name.clone()).collect(),
+        error: |s| state_ref(&s.places).bookmarks.error.clone(),
+        is_loading: |s| state_ref(&s.places).bookmarks.loading,
+        refresh: State::github_bookmarks_load,
+    }
 }
 
 /// The dialog and the issue bar's menus, over the window.

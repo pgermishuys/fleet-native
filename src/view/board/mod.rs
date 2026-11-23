@@ -6,6 +6,7 @@ mod card;
 mod header;
 mod lane;
 mod manage;
+pub mod sources;
 
 use crate::State;
 use crate::fleet::labs::Feature;
@@ -54,6 +55,7 @@ fn board(s: &State, t: &Theme) -> El {
         .min_h(0.0)
         .child(header::bar(s, t))
         .child(header::tiles(s, t))
+        .children(sources::view(s, t))
         .children(manage::lane_creator(s, t))
         .children(header::toast(s, t))
         .children(header::banner(s, t))

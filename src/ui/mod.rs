@@ -179,6 +179,7 @@ pub fn overlays(s: &State, t: &Theme) -> Vec<El> {
         Some(Open::Select("sign-in-field")) => crate::view::settings::harness_sign_in_flow::field_list(s, t),
         Some(Open::Select("update-default-rule")) => crate::view::settings::updates_strip::rule_list(s, t),
         Some(Open::Select("update-machine-rule")) => crate::view::settings::updates_version::list(s, t),
+        Some(Open::Select(crate::view::board::sources::REPO_SELECT)) => crate::view::board::sources::repo_list(s, t),
         Some(Open::Select("browser-port")) => crate::view::browser_app::port_list(s, t),
         Some(Open::Select("default-harness")) => crate::view::settings::harnesses::default_list(s, t),
         Some(Open::Select(crate::view::analytics_page::filters::PROJECT)) => crate::view::analytics_page::filters::list(s, t),

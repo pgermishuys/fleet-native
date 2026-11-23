@@ -10,13 +10,13 @@ use crate::ui::text_menu::text_input;
 use rune::{El, Key, KeyEvent, TextEdit, Tx, col, el, row};
 
 /// An input's padding (y, x) and the fill behind it.
-struct Look {
-    pad: (f32, f32),
-    fill: rune::Color,
+pub(super) struct Look {
+    pub pad: (f32, f32),
+    pub fill: rune::Color,
 }
 
 /// One of Fleet's plain text inputs: single line, a 1 px border, `--radius-btn`, `padding` (y, x) round it, `fill` behind.
-fn field(t: &Theme, edit: &TextEdit, key: String, label: &str, placeholder: &str, look: Look, busy: bool) -> El {
+pub(super) fn field(t: &Theme, edit: &TextEdit, key: String, label: &str, placeholder: &str, look: Look, busy: bool) -> El {
     let Look { pad, fill } = look;
     text_input(edit, sans(14.0, 400.0, 1.4))
         .key(key)

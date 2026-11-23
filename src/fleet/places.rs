@@ -37,6 +37,24 @@ impl std::fmt::Debug for RailItem {
     }
 }
 
+/// `FleetPluginBoardSource` (`plugins/types.ts`): where a board can sync cards from. The plugin says what it is called in the
+/// sources list (`id`, also the stored `providerType`) and gives the repositories the form offers, the way `useRepositories()`
+/// does: the list's names, why it failed to load, whether it is loading, and a way to load it again.
+#[derive(Clone, Copy)]
+pub struct BoardSourcePlace {
+    pub id: &'static str,
+    pub description: &'static str,
+    /// What the form says when there are no repositories to pick (`emptyHint`).
+    pub empty_hint: &'static str,
+    /// `useRepositories()` as the form mounts: loads the list the first time anything asks.
+    pub mount: fn(&mut State),
+    /// The repositories' full names (`{fullName}[]`), in the plugin's order.
+    pub repositories: fn(&State) -> Vec<String>,
+    pub error: fn(&State) -> Option<String>,
+    pub is_loading: fn(&State) -> bool,
+    pub refresh: fn(&mut State),
+}
+
 /// What one plugin adds.
 pub struct Entry {
     pub manifest: Plugin,
@@ -53,6 +71,8 @@ pub struct Entry {
     pub repositories: Option<std::sync::Arc<dyn crate::fleet::new_session::clone::RepositorySource>>,
     /// The popup of the New session box's `#` (`GitHubItemPicker`, the `#` place).
     pub item_picker: Option<std::sync::Arc<dyn crate::fleet::new_session::places::ItemPicker>>,
+    /// Where the Board syncs from (`boardSources`).
+    pub board_source: Option<BoardSourcePlace>,
     pub state: Box<dyn Any + Send>,
 }
 
@@ -68,6 +88,7 @@ impl Entry {
             overlay: None,
             repositories: None,
             item_picker: None,
+            board_source: None,
             state: Box::new(state),
         }
     }
@@ -104,6 +125,11 @@ impl Places {
     /// The `#` popup of the first plugin that is on and fills the place.
     pub fn item_picker(&self, prefs: &Prefs) -> Option<std::sync::Arc<dyn crate::fleet::new_session::places::ItemPicker>> {
         self.on(prefs).find_map(|e| e.item_picker.clone())
+    }
+
+    /// The board sources of the plugins that are on (`getBoardSources()`); a switched-off plugin offers none.
+    pub fn board_sources(&self, prefs: &Prefs) -> Vec<BoardSourcePlace> {
+        self.on(prefs).filter_map(|e| e.board_source).collect()
     }
 
     /// The rail buttons of the plugins that are on: id and item.
@@ -153,6 +179,11 @@ impl Places {
 }
 
 impl State {
+    /// The source the Board's form uses: the first of the plugins that are on (`getBoardSources()[0]`).
+    pub fn board_source(&self) -> Option<BoardSourcePlace> {
+        self.places.board_sources(&self.pickers.prefs).first().copied()
+    }
+
     /// Runs each plugin's `keep` (from `poll`). True when any changed what is drawn.
     pub fn keep_places(&mut self, now: f64, tx: &mut Tx) -> bool {
         let mut changed = false;

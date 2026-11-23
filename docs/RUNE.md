@@ -3007,3 +3007,10 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 
 - Nothing new that Rune can't do. One test trap: a session started from the New session page is busy (its first turn), so Enter in its composer queues the draft instead of sending. A test that wants the prompt on the wire sets the row idle first (`optimistic = None`, status `Idle`).
 - The `@` session in a sent bubble stays plain text for the same reason as before: `Markdown` has no inline-chip hook (row 2.37).
+
+## Component 23, piece P (the Board's sources form)
+
+- **A column share (`1.4fr 1fr .9fr auto`) is `w(0.0).grow(f).min_w(0.0)` per column and a plain auto-width button at the end**; Rune has no grid fractions, and a cell with no zero basis sizes to its text.
+- **A browser `<select>` has no counterpart**: draw a field with a chevron (role `combobox`) that opens `ui::select::content` as an `Open::Select(name)` list, anchored to the field's key. Its rows are keyed `<key>-opt<i>`, which tests click.
+- **A `cargo test --lib` build of this crate now peaks about 5 GB in one `rustc`** (jobs=1, `CARGO_PROFILE_DEV_DEBUG=0` and four codegen units did not lower it): on this machine the 5000M cap OOM-killed it. `systemd-run --user --unit` (not `--scope`) keeps a long build alive past the tool call.
+
