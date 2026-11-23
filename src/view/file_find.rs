@@ -6,10 +6,9 @@
 use crate::State;
 use crate::conv::file_find::Options;
 use crate::fleet::file_find::{FIELD, MARK};
-use crate::icons::CHECK;
 use crate::theme::{Theme, sans};
 use crate::ui::text_menu::text_input;
-use rune::{Cursor, El, Key, KeyEvent, TextHighlight, Tx, col, el, icon, row, text};
+use rune::{Cursor, El, Key, KeyEvent, TextHighlight, Tx, col, row, text};
 use std::ops::Range;
 
 /// A button of the panel (`.cm-button`): 70 % of the panel's 12 px type, `--text` at 6 % for a fill, a 1 px rule, radius 5.
@@ -34,12 +33,6 @@ fn button(t: &Theme, key: &'static str, label: &'static str, help: &'static str,
     b.hover(t.wash(12.0)).cursor(Cursor::Pointer)
 }
 
-/// A browser checkbox, 13 px.
-fn mark(t: &Theme, on: bool) -> El {
-    let b = el().size(13.0, 13.0).border(1.0, if on { t.accent } else { t.muted }).border_layout().radius(2.0);
-    if on { b.fill(t.accent).center().child(icon(&CHECK, 10.0).color(t.primary_fg)) } else { b }
-}
-
 /// `<label><input type=checkbox> match case</label>`: 80 % of the panel's type, in `--muted`.
 fn checkbox(t: &Theme, key: &'static str, label: &'static str, on: bool, flip: fn(&mut Options) -> &mut bool) -> El {
     row()
@@ -51,7 +44,7 @@ fn checkbox(t: &Theme, key: &'static str, label: &'static str, on: bool, flip: f
         .items_center()
         .cursor(Cursor::Pointer)
         .focus_ring(2.0, 2.0, t.accent)
-        .child(mark(t, on))
+        .child(crate::ui::controls::checkbox(t, on))
         .child(text(label).font(sans(9.6, 400.0, 1.15)).color(t.muted).single_line())
         .on_press(move |s: &mut State| s.file_find_toggle(flip))
 }

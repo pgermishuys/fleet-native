@@ -250,3 +250,12 @@ pub fn collapsible_trigger(t: &Theme, label: &str, open: bool, chevron: &'static
         .child(icon(if open { chevron_open } else { chevron }, rem(1.0)).color(t.muted))
         .child(text(label.to_string()).font(sans(rem(0.875), 500.0, 1.4)).color(t.text))
 }
+
+// ---- checkbox --------------------------------------------------------------------------------
+
+/// A browser checkbox (`<input type="checkbox">`): 13 px, a 1 px ring in the muted ink, the accent filled with a check once on.
+/// The caller wraps it in its own labelled row, keys that and gives it the press.
+pub fn checkbox(t: &Theme, on: bool) -> El {
+    let b = el().size(13.0, 13.0).border(1.0, if on { t.accent } else { t.muted }).border_layout().radius(2.0);
+    if on { b.fill(t.accent).center().child(icon(&crate::icons::CHECK, 10.0).color(t.primary_fg)) } else { b }
+}

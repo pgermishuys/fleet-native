@@ -222,4 +222,10 @@ impl crate::State {
         }
         self.enter_labs(crate::Rail::Board);
     }
+
+    /// The left panel's scenes: the board with Waiting switched off, so the panel shows a choice made.
+    pub fn show_board_controls(&mut self, dark: bool) {
+        self.show_board(Case::Board, dark);
+        self.board.filters.set_status(crate::fleet::board::cards::Status::Waiting, false);
+    }
 }

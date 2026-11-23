@@ -79,6 +79,8 @@ mod tests_automations_workflow;
 #[cfg(test)]
 mod tests_board_cards;
 #[cfg(test)]
+mod tests_board_controls;
+#[cfg(test)]
 mod tests_board_drag;
 #[cfg(test)]
 mod tests_board_manage;
@@ -2854,6 +2856,8 @@ pub fn spec() -> AppSpec<State> {
             ("jobs-off-light", |s| labs_off_scene(s, false, Rail::Jobs)),
             ("board", |s| s.show_board(mock::board::Case::Board, true)),
             ("board-light", |s| s.show_board(mock::board::Case::Board, false)),
+            ("board-controls", |s| s.show_board_controls(true)),
+            ("board-controls-light", |s| s.show_board_controls(false)),
             ("board-cards", |s| s.show_board(mock::board::Case::Cards, true)),
             ("board-cards-light", |s| s.show_board(mock::board::Case::Cards, false)),
             ("board-card-rename", |s| s.show_board(mock::board::Case::Rename, true)),
