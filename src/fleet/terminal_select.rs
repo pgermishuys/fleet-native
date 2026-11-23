@@ -77,7 +77,7 @@ impl State {
         let Some(live) = self.terminal.live.as_ref() else { return false };
         // A notch is three lines; a trackpad's steps are points, kept until they add up to a line.
         let lines = if e.precise { e.dy / CELL_H } else { e.dy.signum() * NOTCH_LINES };
-        self.terminal.bar_seen = self.clock;
+        self.terminal.bar_seen = Some(self.clock);
         self.terminal.wheel_rem += lines;
         let whole = self.terminal.wheel_rem.trunc();
         self.terminal.wheel_rem -= whole;
@@ -145,7 +145,7 @@ impl State {
             }
             Phase::Up => {
                 self.terminal.bar_held = false;
-                self.terminal.bar_seen = self.clock;
+                self.terminal.bar_seen = Some(self.clock);
             }
         }
     }
@@ -155,7 +155,7 @@ impl State {
         let Some(live) = self.terminal.live.as_ref() else { return };
         let (history, _, rows) = live.term.scroll_state();
         self.terminal.bar_held = d.phase != Phase::Up;
-        self.terminal.bar_seen = self.clock;
+        self.terminal.bar_seen = Some(self.clock);
         if d.phase != Phase::Up {
             live.term.scroll_to_offset(crate::view::terminal_bar::offset_at(d.y, rows as f32 * CELL_H, history, rows));
         }
@@ -163,7 +163,7 @@ impl State {
 
     /// The pointer came over the box or left it.
     pub fn terminal_hover(&mut self, inside: bool) {
-        self.terminal.bar_seen = self.clock;
+        self.terminal.bar_seen = Some(self.clock);
         self.terminal.hover = inside;
         if !inside {
             self.terminal.link = None;

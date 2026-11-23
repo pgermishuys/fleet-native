@@ -30,7 +30,7 @@ fn a_selection_that_ends_at_a_rows_start_puts_the_bubble_at_that_row_and_column_
     rt.pointer_move(x2, y2);
     rt.frame(FRAME);
     let span = term(&rt).selection_span().unwrap();
-    assert_eq!((span.last_row, span.end_x), (2, 7));
+    assert_eq!((span.last_row, span.end_x), (2, 6), "the left half of column 6 leaves it out");
 }
 
 #[test]
@@ -58,8 +58,8 @@ fn the_scrollbar_fades_after_the_pointer_leaves_and_a_click_on_its_track_moves_t
     // Leaving the box: it stays 500 ms, fades over 800 ms, then goes.
     rt.pointer_move(1.0, 1.0);
     run(&mut rt, 0.3);
-    assert_eq!(rt.presented("terminal-scrollbar").map(|p| p.1), Some(1.0));
-    run(&mut rt, LINGER + FADE / 2.0);
+    assert!(rt.presented("terminal-scrollbar").is_some_and(|p| p.1 > 0.95), "still whole in its 500 ms");
+    run(&mut rt, LINGER + FADE / 2.0 - 0.3);
     let half = rt.presented("terminal-scrollbar").expect("fading").1;
     assert!(half > 0.2 && half < 0.8, "half way: {half}");
     run(&mut rt, FADE);

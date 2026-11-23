@@ -69,7 +69,7 @@ pub struct Slot {
     pub drag_cell: (usize, usize, bool),
     pub drag_tick: f64,
     /// When the scrollbar last had a reason to show (the pointer over the box, the slider held, the wheel); it fades after.
-    pub bar_seen: f64,
+    pub bar_seen: Option<f64>,
     /// What a wheel left over, in lines, so a trackpad's small steps add up.
     pub wheel_rem: f32,
     /// When the cursor's blink last restarted, on the app's clock: typing keeps it lit (xterm restarts it with each key).
@@ -94,6 +94,11 @@ pub struct Slot {
 }
 
 impl Slot {
+    /// Seconds since the scrollbar last had a reason to show; very long when it never has.
+    pub fn bar_idle(&self, clock: f64) -> f64 {
+        self.bar_seen.map_or(f64::MAX, |at| clock - at)
+    }
+
     /// A terminal fed by `bytes` instead of a socket: the invented data's scenes and the tests.
     pub fn replay(&mut self, cols: u16, rows: u16, bytes: &[u8]) {
         let term = Arc::new(Terminal::new(cols, rows));
@@ -443,7 +448,7 @@ impl State {
     /// While the scrollbar fades out the view is drawn again each frame.
     fn keep_bar_fade(&mut self, tx: &mut Tx) -> bool {
         use crate::view::terminal_bar::{FADE, LINGER};
-        let idle = self.clock - self.terminal.bar_seen;
+        let idle = self.terminal.bar_idle(self.clock);
         let has_bar = self.terminal.live.as_ref().is_some_and(|l| l.term.scroll_state().0 > 0);
         if !has_bar || self.terminal.hover || self.terminal.bar_held || idle >= LINGER + FADE {
             return false;

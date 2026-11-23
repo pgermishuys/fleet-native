@@ -121,13 +121,14 @@ impl State {
     }
 
     /// Events of the side session: its permission asks, the confirmation of the question, and the conversation itself.
-    pub fn on_side_events(&mut self, id: &str, events: Vec<Event>, _tx: &mut Tx) {
+    pub fn on_side_events(&mut self, id: &str, events: Vec<Event>, tx: &mut Tx) {
         if self.side_session_id().as_deref() != Some(id) {
             return;
         }
         let topic = Topic::Session(id.to_string());
         for event in &events {
             self.on_ask_event(&topic, event);
+            self.focus_new_side_ask(id, tx);
             if let Event::PromptCommitted { life, correlation_id, event_id } = event {
                 let confirm = Confirm {
                     correlation_id: correlation_id.clone(),

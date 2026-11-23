@@ -43,7 +43,7 @@ pub fn bar(s: &State, t: &Theme) -> Option<El> {
     let live = s.terminal.live.as_ref()?;
     let (history, offset, rows) = live.term.scroll_state();
     let shown = s.terminal.hover || s.terminal.bar_held;
-    let fade = opacity(shown, s.clock - s.terminal.bar_seen);
+    let fade = opacity(shown, s.terminal.bar_idle(s.clock));
     if history == 0 || fade <= 0.0 {
         return None;
     }

@@ -194,11 +194,14 @@ fn a_side_ask_is_answered_by_the_keyboard() {
     let keys: Vec<String> = fx.rt.elements().into_iter().filter_map(|e| e.key).filter(|k| k.starts_with("permission-allow-once")).collect();
     assert_eq!(keys, ["permission-allow-once-side", "permission-allow-once-side-perm-2"], "no two cards share a key");
     // The arrows move between the side card's choices, 2 answers the first ask, and only that one.
-    crate::tests::click(&mut fx.rt, "permission-allow-once-side");
+    fx.rt.update(|_, tx| tx.focus("permission-allow-once-side", true));
+    fx.rt.frame(1.0 / 60.0);
     crate::tests::press_key(&mut fx.rt, Key::Down, Default::default());
     assert_eq!(fx.rt.elements().into_iter().find(|e| e.focused).and_then(|e| e.key).as_deref(), Some("permission-allow-always-side"));
     crate::tests::press_key(&mut fx.rt, Key::Text("2".into()), Default::default());
     fx.rt.frame(1.0 / 60.0);
-    let left: Vec<String> = fx.rt.state.asks.of("side-1").iter().map(|a| a.id.clone()).collect();
-    assert_eq!(left, ["perm-2"], "the first side ask is answered, the second waits");
+    // The answer for the first side ask is on its way (no server here to take it); the second ask's card is untouched.
+    assert!(fx.rt.state.ask_act("perm-1").busy, "the first side ask is the one answered");
+    assert!(!fx.rt.state.ask_act("perm-2").busy);
+    assert!(fx.rt.state.open_asks().is_empty(), "the session's own cards were never asked");
 }
