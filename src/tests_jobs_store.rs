@@ -83,8 +83,10 @@ impl Fleet {
         move || heard.lock().unwrap().iter().filter(|h| h.method == method && h.path == path).count()
     }
 
-    pub(crate) fn last(&self, method: &str) -> Heard {
-        self.heard.lock().unwrap().iter().rev().find(|h| h.method == method).cloned().expect("a request")
+    /// The last request to one route. Never the last of a method alone: the app's hub knocks on the fake too (`POST
+    /// /hubs/session-events/negotiate` again after its backoff), and a slow run hears that after the request a test means.
+    pub(crate) fn last(&self, method: &str, path: &str) -> Heard {
+        self.heard.lock().unwrap().iter().rev().find(|h| h.method == method && h.path == path).cloned().expect("a request")
     }
 
     /// Every request about jobs; the connected app asks the fake other things too.
@@ -274,7 +276,7 @@ fn posts_a_job_and_loads_the_queue_again() {
     assert!(r.rt.state.jobs.post.busy);
     r.wait("the post and the read after it", |s| s.jobs.is_loaded && !s.jobs.post.busy);
     assert_eq!(
-        r.home.last("POST").body,
+        r.home.last("POST", "/api/jobs").body,
         json!({"title": "Update the docs", "ask": "Update the README", "repository": "https://example.com/acme/docs-site",
                "labels": ["mac"], "pinnedMachineId": null})
     );
@@ -329,14 +331,13 @@ fn keeps_a_machine_s_saved_seats_and_labels() {
     r.wait("the save", |s| !s.jobs.save.busy);
     let m = &r.rt.state.jobs.machines[0];
     assert_eq!((m.seats, m.labels.clone()), (3, vec!["mac".to_string()]));
-    let put = r.home.last("PUT");
-    assert_eq!((put.path.as_str(), put.body), ("/api/jobs/machines/m1", json!({"seats": 3, "labels": ["mac"]})));
+    assert_eq!(r.home.last("PUT", "/api/jobs/machines/m1").body, json!({"seats": 3, "labels": ["mac"]}));
 
     // A field left out stays out of the body, and so stays as it is.
     r.home.route("PUT", "/api/jobs/machines/m1", 400, json!({"detail": "Seats are 0 to 16."}));
     r.rt.update(|s, _| s.jobs_save_machine("m1", Some(99), None));
     r.wait("the refusal", |s| !s.jobs.save.busy);
-    assert_eq!(r.home.last("PUT").body, json!({"seats": 99}));
+    assert_eq!(r.home.last("PUT", "/api/jobs/machines/m1").body, json!({"seats": 99}));
     assert_eq!(r.rt.state.jobs.save.error.as_deref(), Some("Seats are 0 to 16."));
     assert_eq!(r.rt.state.jobs.machines[0].seats, 3, "a refused save changes nothing");
 }
