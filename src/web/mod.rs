@@ -42,6 +42,11 @@ pub struct Host {
     pub mock_base: Option<String>,
     /// A click in the page gave it the keyboard (it told us over IPC); Rune has none until one of its elements takes it.
     pub page_has_keys: bool,
+    /// Rune's own half of the window lost the keyboard (`on_focus(false)`); a new window has it.
+    pub rune_blurred: bool,
+    /// The page has the keyboard (its host script heard `focus` and not yet `blur`). Fleet's `focus`/`blur` also fire when focus moves
+    /// into an iframe of the same page, so a focused page counts as the window focused (row 2.88, 02 6.6).
+    pub page_focused: bool,
     /// What pages saved with `fleet:page-state`, kept for the app's run (row 14.31).
     pub kept: page_bridge::KeptStates,
     /// The theme the pages were last given, so a change is sent once (row 14.28).
@@ -77,9 +82,38 @@ impl Host {
     pub fn can_show(&self) -> bool {
         self.available && self.failed.is_none()
     }
+
+    /// Whether the window has the keyboard, counting a focused page (row 2.88): what presence and notifications read.
+    pub fn window_focused(&self) -> bool {
+        !self.rune_blurred || self.page_focused
+    }
 }
 
 impl crate::State {
+    /// Rune's half of the window gained or lost the keyboard, or the page's did (`page`): the server and the notices hear the
+    /// window's focus once, as "focused" while either half has it.
+    pub fn window_focus_changed(&mut self, from_page: bool, focused: bool, tx: &mut rune::Tx) {
+        let before = self.quiet.focused;
+        if from_page {
+            self.web.page_focused = focused;
+        } else {
+            self.web.rune_blurred = !focused;
+        }
+        let now = self.web.window_focused();
+        // The page's own focus and blur repeat what Rune already knows; Rune's own report always goes through, as before.
+        if from_page && now == before {
+            return;
+        }
+        self.each_link(|link| link.window_focus(now));
+        self.quiet.focused = now;
+        if now {
+            self.file_window_focus();
+        }
+        // Back in Fleet: a waiting card opens now, not at the next look.
+        self.clear_notification_for_open();
+        self.keep_notices(self.clock, tx);
+    }
+
     /// From `poll`, every frame: the native views follow `wanted`. True when the view must draw again (a web view
     /// couldn't be made, so the fallback shows).
     pub fn keep_web(&mut self, tx: &mut rune::Tx) -> bool {

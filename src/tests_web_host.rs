@@ -40,6 +40,8 @@ fn hidden(rt: &Runtime<State>) -> bool {
 #[test]
 fn every_menu_dropdown_popover_and_dialog_of_the_open_state_hides_the_page_and_closing_it_brings_it_back() {
     let mut rt = page_open();
+    // A right-click menu opens where the click was: over the page, so that it hides it (row 2.88 hides it only there).
+    rt.update(|s, _| s.ui.point = (PAGE[0] + 20.0, PAGE[1] + 20.0));
     for open in [
         Open::Palette,
         Open::Menu("agent"),
@@ -112,6 +114,25 @@ fn a_toast_hides_the_page_only_where_it_is_over_it() {
     rt.update(|s, _| s.ui.toast = None);
     settle(&mut rt);
     assert!(matches!(wanted(&rt.state), Wanted::Shown(_)), "the toast is gone: the page is back");
+}
+
+// Row 2.88: an anchored menu hides the page only where its panel is.
+#[test]
+fn a_menu_hides_the_page_only_where_its_panel_is_over_it() {
+    let mut rt = page_open();
+    rt.update(|s, _| s.ui.open = Some(Open::Menu("help")));
+    settle(&mut rt);
+    let menu = rt.presented("help-pop-menu").expect("the help menu is drawn").0;
+    rt.update(|s, _| s.web.rect = Some([menu[0] + menu[2] + 40.0, 0.0, 200.0, 200.0]));
+    rt.frame(FRAME);
+    assert!(matches!(wanted(&rt.state), Wanted::Shown(_)), "the menu is beside the page: it stays");
+    rt.update(|s, _| s.web.rect = Some([menu[0] - 10.0, menu[1] - 10.0, menu[2] + 20.0, menu[3] + 20.0]));
+    rt.frame(FRAME);
+    assert!(hidden(&rt), "the menu is over the page: it hides");
+    rt.update(|s, _| s.ui.open = Some(Open::Dialog));
+    rt.update(|s, _| s.web.rect = Some([menu[0] + menu[2] + 40.0, 0.0, 200.0, 200.0]));
+    rt.frame(FRAME);
+    assert!(hidden(&rt), "a dialog dims the window whole, wherever the page is");
 }
 
 #[test]

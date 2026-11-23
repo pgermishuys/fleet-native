@@ -10,7 +10,7 @@ use std::sync::Mutex;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
-const STEPS: [&str; 15] = [
+const STEPS: [&str; 17] = [
     "1-shown",
     "2-gutter",
     "3-palette",
@@ -26,6 +26,8 @@ const STEPS: [&str; 15] = [
     "13-resized",
     "14-narrow",
     "15-narrow-menu",
+    "16-narrow-help-menu",
+    "17-narrow-agent-menu",
 ];
 /// The page canvas the walk shows, and the page's field it types into.
 const TAB: &str = "page_walk";
@@ -129,6 +131,10 @@ fn next(s: &mut State, tx: &mut Tx) {
         // Too narrow for a third column: the panel lies over the conversation, closed until asked (`rightPanelFits`).
         Some("14-narrow") => tx.resize_window_instant((700.0, 600.0)),
         Some("15-narrow-menu") => s.ui.open = Some(crate::ui::Open::Palette),
+        // A menu hides the page only where it is over it (row 2.88): the rail's Help menu opens beside the panel, so the page stays;
+        // the composer's agent menu reaches under it, so the page goes.
+        Some("16-narrow-help-menu") => s.ui.open = Some(crate::ui::Open::Menu("help")),
+        Some("17-narrow-agent-menu") => s.ui.open = Some(crate::ui::Open::Menu("agent")),
         _ => {
             report(s);
             tx.quit();

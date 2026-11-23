@@ -47,6 +47,11 @@ impl TurnsTab {
         self.turns.iter().filter(|t| !self.changed_only || !t.read_only).collect()
     }
 
+    /// The `i`th of `visible`, without building the list: a virtual row asks for its own turn.
+    pub fn visible_at(&self, i: usize) -> Option<&SessionTurn> {
+        self.turns.iter().filter(|t| !self.changed_only || !t.read_only).nth(i)
+    }
+
     /// `isOpen`: what the user chose, else only the newest turn of all (not of the filtered list).
     pub fn is_open(&self, turn: &SessionTurn) -> bool {
         self.overrides.get(&turn.id).copied().unwrap_or_else(|| self.turns.first().is_some_and(|first| first.id == turn.id))

@@ -44,7 +44,8 @@ fn summary(t: &Theme, tab: &TurnsTab) -> El {
             text("Only turns that changed files").font(sans(12.0, 400.0, 1.5)).color(if on { t.text } else { t.muted }).group_color(t.text),
         );
     let totals = tab.totals();
-    let mut sums = row().key("turns-total").gap(8.0).center_y().child(figure(turns_text(totals.turns), t.muted));
+    // `margin-left: auto`: it fills what the line has left and is right-aligned in it, on its own line too (docs/RUNE.md).
+    let mut sums = row().key("turns-total").gap(8.0).grow(1.0).justify_end().center_y().child(figure(turns_text(totals.turns), t.muted));
     if let Some(a) = additions_text(totals.additions) {
         sums = sums.child(figure(a, t.running_text));
     }
@@ -56,13 +57,12 @@ fn summary(t: &Theme, tab: &TurnsTab) -> El {
         .w_full()
         .flex_wrap()
         .center_y()
-        .gap(8.0)
+        .gaps(8.0, 10.0)
         .px(12.0)
         .py(9.0)
         .border_sides([0.0, 0.0, 1.0, 0.0], t.border)
         .child(filter)
         .child(text("Newest first").key("turns-order").font(sans(12.0, 400.0, 1.5)).color(t.muted))
-        .child(el().grow(1.0))
         .child(sums)
 }
 
@@ -89,6 +89,9 @@ fn empty(t: &Theme, key: &str, title: &str, line: Option<&str>) -> El {
     e
 }
 
+/// A closed turn's row: two lines of 13 and 11.5 px type, 8 px above and below.
+const ESTIMATED_TURN: f32 = 52.0;
+
 fn list(s: &State, t: &Theme) -> El {
     let tab = &s.turns_tab;
     let mut body = col().key("turns-list-body").w_full().padding(6.0).gap(1.0).items_stretch();
@@ -109,9 +112,31 @@ fn list(s: &State, t: &Theme) -> El {
     } else if visible.is_empty() {
         body = body.child(empty(t, "turns-filter-empty", "No turn in the loaded history changed a file", None));
     }
-    let models = s.turn_models();
-    for turn in visible {
-        body = body.child(turn_box(s, t, turn, models));
+    // Only the turns on screen are built: a long session has hundreds, and an open one is tall (`virtual_rows`, row 2.80).
+    if !visible.is_empty() {
+        let theme = *t;
+        let (count, version) = (visible.len(), (tab.changed_only, tab.turns().len(), visible.first().map(|v| v.id.clone())));
+        body = body.child(
+            col()
+                .key("turns-rows")
+                .w_full()
+                .gap(1.0)
+                .items_stretch()
+                .growth(rune::GrowthSpec::default())
+                .virtual_rows(
+                    count,
+                    ESTIMATED_TURN,
+                    |s: &State, i| match s.turns_tab.visible_at(i) {
+                        Some(turn) => std::borrow::Cow::Owned(format!("turn-{}", turn.id)),
+                        None => std::borrow::Cow::Owned(format!("turn-gone-{i}")),
+                    },
+                    move |s: &State, i| match s.turns_tab.visible_at(i) {
+                        Some(turn) => turn_box(s, &theme, turn, s.turn_models()),
+                        None => col().w_full(),
+                    },
+                )
+                .virtual_rows_version(version),
+        );
     }
     if !tab.turns().is_empty()
         && let Some(older) = s.older()

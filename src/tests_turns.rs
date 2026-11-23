@@ -87,19 +87,30 @@ fn a_filter_that_leaves_nothing_says_which_history_it_looked_at() {
     assert_eq!(words(&rt, "turns-filter-empty"), "No turn in the loaded history changed a file");
 }
 
+fn settle(rt: &mut Runtime<crate::State>) {
+    for _ in 0..4 {
+        rt.frame(FRAME);
+    }
+}
+
 #[test]
 fn one_file_diff_is_open_across_every_turn_and_a_second_click_closes_it() {
     let mut rt = shown(Case::Main);
+    // The newest turn opens by itself and is tall: shut it, so the rows below it are on screen to be pressed.
+    click(&mut rt, "turn-row-u5");
+    settle(&mut rt);
     click(&mut rt, "turn-row-u3");
+    settle(&mut rt);
     click(&mut rt, "turn-row-u2");
+    settle(&mut rt);
     click(&mut rt, "turn-file-u2-0");
+    settle(&mut rt);
     assert!(exists(&rt, "turn-diff-u2-0"));
-    // The page lays out again a frame after the diff opens, so the next row has moved.
-    rt.frame(FRAME);
-    rt.frame(FRAME);
     click(&mut rt, "turn-file-u3-0");
+    settle(&mut rt);
     assert!(!exists(&rt, "turn-diff-u2-0") && exists(&rt, "turn-diff-u3-0"), "another file's click closes the first");
     click(&mut rt, "turn-file-u3-0");
+    settle(&mut rt);
     assert!(!exists(&rt, "turn-diff-u3-0"));
 }
 
