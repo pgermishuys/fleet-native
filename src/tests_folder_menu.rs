@@ -236,7 +236,10 @@ fn a_create_or_clone_row_does_nothing_while_one_already_runs_but_other_rows_stil
 #[test]
 fn no_folder_just_chat_creates_nothing() {
     let mut rt = opened();
-    click(&mut rt, "new-session-folder-none");
+    // The rows are 48 high now, so the last one is below the list's 340 px: it runs by its place, as a press after a scroll would.
+    let at = rt.state.folder_rows().iter().position(|r| r.id == "none").expect("none");
+    rt.update(move |s, tx| s.run_folder_row(at, tx));
+    rt.frame(FRAME);
     assert_eq!(folder(&rt), Some(Folder::None));
     assert_eq!(rt.state.folder_chip_label(folder(&rt).as_ref()), "No folder");
     assert!(!rt.state.new_draft.draft().is_some_and(|d| d.is_starting), "nothing was started");
