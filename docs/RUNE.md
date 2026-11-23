@@ -2966,3 +2966,6 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 - The note that stands for the composer (`view::subagent_prompt_line`) is a wrapping row of three texts, not one inline
   paragraph: Rune has no inline link in running text (see component 3's chips), so a title too long for the line moves to
   the next line as a whole rather than breaking in the middle.
+- **A focused text field takes Esc before the window's `on_key`** (`edit/input.rs`: `Key::Escape => out.blur = true`), so a window-level Esc handler never sees it while a field has the focus. A field that must clear itself on Esc, as a `type=search` box does, uses `.on_input_key` on the `text_input` and returns true (the list's filter, piece 26P).
+- **A pinned row that moves is a new element in the Pinned group**, so the focus it had is lost (it falls to the group's `pinned` element). After a pin move, ask for the focus again by the row's key once the list is drawn (`tx.focus("session-<p>-<i>", true)` from the poll, piece 26P).
+- **No right-aligned absolute position**: `absolute(left, top)` is all Rune has; a button laid over the right end of a field is a row with the button given `.ml(-width)` over the field, which grows (the filter's clear button).

@@ -293,14 +293,6 @@ impl State {
 
     /// A link to a session a dream read or started: it opens on the machine this app is on (`/sessions/{id}`).
     pub fn open_dreaming_session(&mut self, id: &str, tx: &mut Tx) {
-        self.rail = crate::Rail::Sessions;
-        let at = self.projects.iter().enumerate().find_map(|(p, pr)| pr.sessions.iter().position(|s| s.id == id).map(|i| (p, i)));
-        match at {
-            Some((p, i)) => self.open_session(p, i, tx),
-            None => {
-                self.go(crate::fleet::store::Route::Session(id.to_string()));
-                self.after_open(tx);
-            }
-        }
+        self.open_session_by_id(crate::fleet::settings::HOME_MACHINE_KEY, id, tx);
     }
 }

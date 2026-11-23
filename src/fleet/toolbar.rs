@@ -77,6 +77,15 @@ impl State {
         [&bar.aborting, &bar.restoring, &bar.renaming].iter().any(|p| p.as_deref() == Some(id)) || self.deleting(id)
     }
 
+    /// Whether the open session has an instance (`hasInstance`): the record the list or the session's own read gave names one. Abort and
+    /// Delete wait for it. The invented sessions stand in for a server's and have one.
+    pub fn has_instance(&self) -> bool {
+        let session = self.session();
+        super::store::is_invented(&session.id)
+            || session.listing.instance_id.is_some()
+            || self.header_details.get(&session.id).is_some_and(|d| d.listing.instance_id.is_some())
+    }
+
     /// The ⋯ button's spinner: renaming, archiving or deleting.
     pub fn toolbar_busy(&self) -> bool {
         let id = self.session().id.as_str();
@@ -88,7 +97,7 @@ impl State {
     /// when it has stopped.
     pub fn toolbar_abort(&mut self, _tx: &mut Tx) {
         let m = self.header_model();
-        if !self.has_session() || !m.actions.can_abort || self.toolbar_pending() {
+        if !self.has_session() || !m.actions.can_abort || self.toolbar_pending() || !self.has_instance() {
             return;
         }
         let id = self.session().id.clone();
@@ -124,7 +133,7 @@ impl State {
     /// sessions view once it has gone (`forget_session`).
     pub fn toolbar_delete(&mut self, tx: &mut Tx) {
         let m = self.header_model();
-        if !self.has_session() || !m.actions.can_delete || self.toolbar_pending() {
+        if !self.has_session() || !m.actions.can_delete || self.toolbar_pending() || !self.has_instance() {
             return;
         }
         let session = self.session();

@@ -43,9 +43,26 @@ pub fn panel(s: &State, t: &Theme) -> El {
         .on_press_tx(|s: &mut State, tx: &mut crate::Tx| s.open_new_project(None, tx))
         .child(icon(&FOLDER_PLUS, 15.0).color(t.muted).group_color(t.text));
 
+    // Chromium's own clear button of a `type=search` field: shown once there is text.
+    let clear = (!s.filter.text.is_empty()).then(|| {
+        el().key("filter-clear")
+            .label("Clear filter")
+            .size(16.0, 16.0)
+            .center()
+            .radius(8.0)
+            .cursor(Cursor::Pointer)
+            .hover_group()
+            .on_press_tx(|s: &mut State, tx: &mut crate::Tx| s.clear_filter(tx))
+            .child(icon(&X, 11.0).color(t.text))
+            .ml(-26.0)
+            .mr(10.0)
+    });
+
     // The field is the whole 32px box, so a click anywhere in it focuses it; the icon sits on top.
     let filter = el().w_full().px(8.0).pb(10.0).child(
-        el().w_full()
+        row()
+            .w_full()
+            .items_center()
             .child(
                 text_input(&s.filter, sans(13.0, 400.0, 1.3))
                     .key("filter")
@@ -54,7 +71,8 @@ pub fn panel(s: &State, t: &Theme) -> El {
                     .placeholder("Filter sessions", t.muted)
                     .color(t.text)
                     .caret(t.text, t.accent.alpha(0.35))
-                    .w_full()
+                    .grow(1.0)
+                    .min_w(0.0)
                     .h(32.0)
                     .pl(30.0)
                     .pr(10.0)
@@ -64,9 +82,14 @@ pub fn panel(s: &State, t: &Theme) -> El {
                     // Fleet eases it over 150 ms; Rune can't (docs/RUNE.md).
                     .fill(if s.filter.focused { t.panel_bg } else { t.wash(5.0) })
                     .border(1.0, if s.filter.focused { t.accent.alpha(0.55) } else { Color::TRANSPARENT })
-                    .on_edit(|s: &mut State| &mut s.filter),
+                    .on_edit(|s: &mut State| &mut s.filter)
+                    // A search field clears on Esc, and Fleet's window handler lets picked rows go on the same key.
+                    .on_input_key(|s: &mut State, ev: &rune::KeyEvent, tx: &mut crate::Tx| {
+                        ev.key == rune::Key::Escape && s.filter_escape(tx)
+                    }),
             )
-            .child(icon(&SEARCH, 13.0).color(t.muted).absolute(10.0, 9.5)),
+            .child(icon(&SEARCH, 13.0).color(t.muted).absolute(10.0, 9.5))
+            .children(clear),
     );
 
     let needle = s.filter.text.trim().to_lowercase();

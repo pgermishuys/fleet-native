@@ -75,7 +75,14 @@ impl State {
     pub fn open_workflow_run(&mut self, run_id: &str, tx: &mut rune::Tx) {
         let machine = self.workflows_machine();
         let Some(id) = self.workflow_runs(&machine).get(run_id).and_then(run_session).map(str::to_string) else { return };
-        self.open_workflow_session(&machine, &id, tx);
+        self.open_run_session(&machine, &id, tx);
+    }
+
+    /// `open_workflow_session`, and a session the machine's list doesn't hold is read by its id and opened (row 2.50).
+    pub fn open_run_session(&mut self, machine: &str, id: &str, tx: &mut rune::Tx) {
+        if !self.open_workflow_session(machine, id, tx) {
+            self.open_session_by_id(machine, id, tx);
+        }
     }
 
     /// Opens a session of a run on `machine`. The session belongs to Sessions: the rail follows the route, as a fork's does.

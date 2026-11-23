@@ -309,6 +309,8 @@ mod tests_selection;
 #[cfg(test)]
 mod tests_session_header;
 #[cfg(test)]
+mod tests_session_open;
+#[cfg(test)]
 mod tests_settings_appearance;
 #[cfg(test)]
 mod tests_settings_appearance_page;
@@ -566,6 +568,10 @@ pub struct State {
     pub agent_sends: fleet::send_to_agent::SendToAgent,
     /// What the window shows: the open session by its id, so a refetch, a filter or a pin doesn't move it.
     pub route: fleet::store::Route,
+    /// The session opened by its id that no list holds (a run's, a link's): loading, or "Session not found".
+    pub opening: fleet::session_open::Opening,
+    /// What the list's keys leave for the next frame (the focus back on a pinned row that moved).
+    pub list_keys: fleet::filter_box::ListKeys,
     /// The list's own state beyond its rows: loading, error, the request in flight, sessions opened from other machines.
     pub store: fleet::store::SessionStore,
     pub filter: TextEdit,
@@ -980,6 +986,8 @@ impl Default for State {
             head: Default::default(),
             agent_sends: Default::default(),
             route: fleet::store::Route::Session(fleet::store::invented_id(0, 0)),
+            opening: Default::default(),
+            list_keys: Default::default(),
             store: Default::default(),
             filter: TextEdit::new(""),
             draft: TextEdit::new(""),
@@ -1902,7 +1910,7 @@ fn poll(s: &mut State, now: f64, tx: &mut Tx) -> bool {
     // The tick asks for the next frame first, so `keep_images` starts it in the same poll.
     let agent_view = s.keep_agent_view(now, tx);
     let pictures = s.keep_images(tx) | agent_view | s.keep_session_images(tx);
-    let renamed = s.keep_rename(tx) | s.keep_row_rename(tx) | s.keep_header(now, tx);
+    let renamed = s.keep_filter(tx) | s.keep_fork_form(tx) | s.keep_rename(tx) | s.keep_row_rename(tx) | s.keep_header(now, tx);
     let found = s.find_poll(tx) | s.keep_questions(tx) | s.keep_allowed_flash(now, tx);
     let exported = s.export_poll(tx) | s.keep_setup_rows(now, tx) | s.keep_context(now, tx) | s.keep_machine_page(now, tx);
     let exported = exported
@@ -4320,6 +4328,8 @@ pub fn spec() -> AppSpec<State> {
                 s.dark = Some(false);
                 s.ui.open = Some(ui::Open::Menu("help"));
             }),
+            ("session-not-found", |s| s.show_session_not_found(true)),
+            ("session-not-found-light", |s| s.show_session_not_found(false)),
             ("home", |s| s.show_home_scene(fleet::home::Scene::Mock, true)),
             ("home-light", |s| s.show_home_scene(fleet::home::Scene::Mock, false)),
             ("home-needs-you", |s| s.show_home_scene(fleet::home::Scene::Three, true)),

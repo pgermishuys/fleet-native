@@ -169,8 +169,8 @@ fn asks_first_naming_the_session_with_the_delete_run_inside_the_confirm_then_goe
     assert!(live.calls().is_empty(), "nothing is sent before the answer");
     click(&mut live.rt, "confirm-action");
     live.wait("the delete and the way home", |l| l.rt.state.row_of("a-open").is_none());
-    // Fleet's "/" has no session open; the native app opens the first one (6H's decision, `deleting_the_open_session_opens_another`).
-    assert_ne!(live.rt.state.open_id().as_deref(), Some("a-open"));
+    // Fleet's `goHome` is `navigate({ to: "/" })`: the home page, with no session open.
+    assert_eq!(live.rt.state.route, crate::fleet::store::Route::Home);
     assert_eq!(live.calls(), [("DELETE".to_string(), "/api/sessions/a-open".to_string(), Value::Null)]);
 }
 

@@ -93,19 +93,13 @@ pub fn ensure_loaded(s: &mut State) {
 
 /// `openSession`: the session's page, on its machine.
 pub fn open_session(s: &mut State, session: &ItemSession, tx: &mut Tx) {
-    s.rail = Rail::Sessions;
+    let machine = session.machine.as_deref().unwrap_or(crate::fleet::settings::HOME_MACHINE_KEY).to_string();
     match &session.machine {
-        Some(machine) => s.open_machine_session(machine, &session.id, tx),
-        None => {
-            let at = s
-                .projects
-                .iter()
-                .enumerate()
-                .find_map(|(p, project)| project.sessions.iter().position(|x| x.id == session.id).map(|i| (p, i)));
-            if let Some((p, i)) = at {
-                s.open_session(p, i, tx);
-            }
+        Some(m) if s.machines.others.get(m).is_some_and(|o| o.sessions.iter().any(|x| x.id == session.id)) => {
+            s.rail = Rail::Sessions;
+            s.open_machine_session(m, &session.id, tx);
         }
+        _ => s.open_session_by_id(&machine, &session.id, tx),
     }
 }
 

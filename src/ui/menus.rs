@@ -98,7 +98,11 @@ pub fn more(s: &State) -> Vec<Entry> {
     if m.actions.can_delete {
         entries.push(Entry::Separator);
         entries.push(Entry::Item(
-            Item::new("Delete…").icon(&TRASH_2).destructive().disabled(pending).on(|s: &mut State, tx: &mut Tx| s.toolbar_delete(tx)),
+            Item::new("Delete…")
+                .icon(&TRASH_2)
+                .destructive()
+                .disabled(pending || !s.has_instance())
+                .on(|s: &mut State, tx: &mut Tx| s.toolbar_delete(tx)),
         ));
     }
     entries

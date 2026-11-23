@@ -158,7 +158,7 @@ impl State {
         let Some(session) = super::workflow::session_of(&run, self.workflow_run_of(&run)).map(str::to_string) else { return };
         // A run that went to another machine started its session there: it opens on that machine (row 5.9).
         let machine = self.run_machine(run.machine_id.as_deref(), &session).unwrap_or(machine);
-        self.open_workflow_session(&machine, &session, tx);
+        self.open_run_session(&machine, &session, tx);
     }
 
     /// What the empty runs list says about the first run (`firstRunHint`).

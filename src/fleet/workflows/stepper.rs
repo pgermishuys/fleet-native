@@ -65,7 +65,7 @@ impl State {
             return;
         }
         let machine = self.machine_key_of(&here).to_string();
-        self.open_workflow_session(&machine, step_session, tx);
+        self.open_run_session(&machine, step_session, tx);
     }
 
     /// `WorkflowStartedBy`'s click: the automation opens in Automations.

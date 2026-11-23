@@ -41,6 +41,8 @@ pub fn prefill(raw: &str) -> String {
 pub struct ForkDialog {
     pub session: String,
     pub source_title: String,
+    /// The source's title as the list holds it, to see it change while the dialog is open.
+    raw_title: String,
     pub title: TextEdit,
     pub forking: bool,
     pub error: Option<String>,
@@ -51,6 +53,7 @@ impl ForkDialog {
         ForkDialog {
             session: session.to_string(),
             source_title: source_title(raw_title),
+            raw_title: raw_title.to_string(),
             title: TextEdit::new(prefill(raw_title)),
             forking: false,
             error: None,
@@ -126,13 +129,32 @@ pub fn post_made(base: &str, path: &str, body: &Value) -> Result<Value, String> 
 impl State {
     /// Opens the dialog for `id` (the form starts over each time, and an earlier error is gone).
     pub(crate) fn open_fork_dialog(&mut self, tx: &mut Tx) {
-        let session = self.session();
-        let mut dialog = ForkDialog::open(&session.id, &session.title);
+        let (id, title) = match self.head.bar.fork.as_ref() {
+            // A form that starts over stays on its own source.
+            Some(d) => match self.store.session_by_id(&self.projects, &d.session) {
+                Some(s) => (s.id.clone(), s.title.clone()),
+                None => return,
+            },
+            None => (self.session().id.clone(), self.session().title.clone()),
+        };
+        let mut dialog = ForkDialog::open(&id, &title);
         // The browser selects an autofocused field's text; the prefill is meant to be typed over.
         let end = dialog.title.text.len();
         dialog.title.set_selection(0, end);
         self.head.bar.fork = Some(dialog);
         tx.focus(TITLE_FIELD, false);
+    }
+
+    /// The form starts over when the source's title changes while the dialog is open (`watch([open, resolvedSourceTitle])`): the
+    /// prefill follows the new title and an earlier error goes. A fork in flight is left alone.
+    pub(crate) fn keep_fork_form(&mut self, tx: &mut Tx) -> bool {
+        let Some(d) = self.head.bar.fork.as_ref().filter(|d| !d.forking) else { return false };
+        let now = self.store.session_by_id(&self.projects, &d.session).map(|s| s.title.clone());
+        if now.is_none_or(|t| source_title(&t) == source_title(&d.raw_title)) {
+            return false;
+        }
+        self.open_fork_dialog(tx);
+        true
     }
 
     /// Closing the dialog while the request runs leaves the request to finish (Fleet's dialog can be closed then too).

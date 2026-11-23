@@ -331,6 +331,6 @@ impl State {
     /// The link in the resolved line: the session the run is in now, on the machine this one is on.
     pub fn card_open_next(&mut self, session: &str, tx: &mut Tx) {
         let machine = self.machine_key_of(&self.session().id.clone()).to_string();
-        self.open_workflow_session(&machine, session, tx);
+        self.open_run_session(&machine, session, tx);
     }
 }

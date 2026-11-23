@@ -22,46 +22,51 @@ fn centre_w(s: &State) -> f32 {
 pub fn sheet(s: &State, t: &Theme) -> El {
     let session = s.session();
     let drawer = super::terminal_drawer::drawer(s, t);
-    let centre = col()
-        .grow(1.0)
-        .min_w(0.0)
-        .h_full()
-        .min_h(0.0)
-        .child(super::header::header(s, t, centre_w(s)))
-        .children(super::workflows::stepper::stepper(s, t))
-        .children(super::header_banners::banners(s, t, &s.header_model()))
-        .child(stream(
-            t,
-            Which::Open,
-            session,
-            &s.fold_plan,
-            s.is_partial(),
-            s.older(),
-            Scroll {
-                jump: s.pin.show_jump(),
-                drafts: s.open_id().filter(|id| !s.draft_cards(id).is_empty()),
-                probe: s.scroll_probe.clone(),
-                layout: s.scroll_layout,
-                find: super::find::bar(s, t),
-                asks: s
-                    .open_asks()
-                    .iter()
-                    .enumerate()
-                    .map(|(n, ask)| super::permission::card(t, s, ask, n == 0))
-                    .chain(super::pagepick::card(t, s))
-                    .collect(),
-            },
-        ))
-        .children(super::workflows::run_card::run_card(s, t))
-        .children(super::workflows::finish_bar::finish_bar(s, t))
-        .children(super::recap::recap_line(t, s.recap()))
-        .children(super::side::panel(s, t))
-        .children(super::side_tab::dock(s, t))
-        .child(match s.read_only_subagent() {
-            Some(parent) => super::subagent_prompt_line::line(s, t, &parent),
-            None => super::composer::composer(s, t, session),
-        })
-        .children(drawer);
+    let centre = if s.session_missing() {
+        // Fleet's route swaps only its own column: the content panel stays beside it.
+        super::session_not_found::column(t)
+    } else {
+        col()
+            .grow(1.0)
+            .min_w(0.0)
+            .h_full()
+            .min_h(0.0)
+            .child(super::header::header(s, t, centre_w(s)))
+            .children(super::workflows::stepper::stepper(s, t))
+            .children(super::header_banners::banners(s, t, &s.header_model()))
+            .child(stream(
+                t,
+                Which::Open,
+                session,
+                &s.fold_plan,
+                s.is_partial(),
+                s.older(),
+                Scroll {
+                    jump: s.pin.show_jump(),
+                    drafts: s.open_id().filter(|id| !s.draft_cards(id).is_empty()),
+                    probe: s.scroll_probe.clone(),
+                    layout: s.scroll_layout,
+                    find: super::find::bar(s, t),
+                    asks: s
+                        .open_asks()
+                        .iter()
+                        .enumerate()
+                        .map(|(n, ask)| super::permission::card(t, s, ask, n == 0))
+                        .chain(super::pagepick::card(t, s))
+                        .collect(),
+                },
+            ))
+            .children(super::workflows::run_card::run_card(s, t))
+            .children(super::workflows::finish_bar::finish_bar(s, t))
+            .children(super::recap::recap_line(t, s.recap()))
+            .children(super::side::panel(s, t))
+            .children(super::side_tab::dock(s, t))
+            .child(match s.read_only_subagent() {
+                Some(parent) => super::subagent_prompt_line::line(s, t, &parent),
+                None => super::composer::composer(s, t, session),
+            })
+            .children(drawer)
+    };
     let mut sheet = row()
         .key("workspace-sheet")
         .grow(1.0)

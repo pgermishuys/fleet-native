@@ -508,7 +508,7 @@ fn actions(s: &State, t: &Theme, m: &HeaderModel) -> El {
     if a.can_abort {
         let b = Tool {
             danger: true,
-            off: pending,
+            off: pending || !s.has_instance(),
             spinning: s.head.bar.aborting.as_deref() == Some(s.session().id.as_str()),
             ..tool("abort", &OCTAGON_X, "Abort")
         };
