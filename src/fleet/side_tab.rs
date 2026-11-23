@@ -14,6 +14,8 @@ const PULSE_SECS: f64 = 1.6;
 const PULSE_TIMES: f64 = 2.0;
 /// The key of the tab's open button: keyboard focus on it shows the peek (`:focus-within`).
 pub const OPEN_KEY: &str = "side-open";
+/// The tab's × is inside the same wrap, so focus on it shows the peek too.
+pub const CLOSE_KEY: &str = "side-tab-close";
 
 /// The tab's own bits of `State`.
 #[derive(Default)]
@@ -151,7 +153,7 @@ impl State {
     pub fn keep_side_tab(&mut self, tx: &mut Tx) -> bool {
         let clock = self.clock;
         let shown = self.side_tab_shown();
-        let focus = shown && tx.focused() == Some(OPEN_KEY);
+        let focus = shown && tx.focused().is_some_and(|k| k == OPEN_KEY || k == CLOSE_KEY);
         let want = shown && (self.side_ui.tab.hover || focus);
         let toast = self.side_undo_offered();
         let pulse_of = self.side().filter(|_| shown).filter(|st| st.pulse()).and_then(|st| st.latest_answer_id.clone());

@@ -51,7 +51,7 @@ pub fn sheet(s: &State, t: &Theme) -> El {
                         .open_asks()
                         .iter()
                         .enumerate()
-                        .map(|(n, ask)| super::permission::card(t, s, ask, n == 0))
+                        .map(|(n, ask)| super::permission::card(t, s, ask, &super::permission::suffix("", n, ask)))
                         .chain(super::pagepick::card(t, s))
                         .collect(),
                 },

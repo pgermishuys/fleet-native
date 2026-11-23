@@ -160,6 +160,19 @@ impl State {
         }
     }
 
+    /// The side conversation's card that just appeared takes the keyboard the same way (Fleet's card mounts in the panel too), on
+    /// its own keys (`-side`), so 1, 2, 3, Esc and the arrows answer it.
+    pub fn focus_new_side_ask(&mut self, side: &str, tx: &mut Tx) {
+        let fresh: Vec<String> = self.asks.of(side).iter().map(|a| a.id.clone()).filter(|id| !self.ask_seen.contains(id)).collect();
+        if fresh.is_empty() {
+            return;
+        }
+        self.ask_seen.extend(fresh);
+        if crate::asks::focus::takes_focus(tx.focused(), "composer", self.draft.text.len()) {
+            tx.focus("permission-allow-once-side", false);
+        }
+    }
+
     /// `answer`: sends `reply`; the card goes when Fleet takes it (or says the ask no longer waits), and stays with
     /// Fleet's reason when it didn't. Ignored while an answer is on its way.
     pub fn answer_ask(&mut self, ask: &PermissionAsk, reply: Reply) {

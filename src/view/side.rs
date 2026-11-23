@@ -145,7 +145,11 @@ fn body(s: &State, t: &Theme, forked: bool) -> El {
     // own): the find bar, the page-pick card, "older messages" (rows 3.4, 3.5).
     // The side session's own permission asks wait in the panel and are answered there; its questions are cards in its messages.
     let asks = s.side_session_id().map(|id| s.asks.of(&id).to_vec()).unwrap_or_default();
-    let asks = asks.iter().enumerate().map(|(n, ask)| super::permission::card(t, s, ask, n == 0 && s.open_asks().is_empty())).collect();
+    let asks = asks
+        .iter()
+        .enumerate()
+        .map(|(n, ask)| super::permission::card(t, s, ask, &super::permission::suffix(super::permission::SIDE_SFX, n, ask)))
+        .collect();
     let scroll = Scroll { jump: false, drafts: None, probe: Rc::default(), layout: 0, find: None, asks };
     let stream = stream(t, Which::Side, conv, plan, false, None, scroll);
     col().key("side-body").w_full().grow(1.0).min_h(0.0).child(stream)

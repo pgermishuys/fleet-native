@@ -60,6 +60,9 @@ impl Dimensions for Size {
 struct Inner {
     term: Term<Listener>,
     parser: Processor<StdSyncHandler>,
+    /// Where the drag last reached, as the pointer gave it: alacritty's range moves an end at a row's start back to the row
+    /// before, and xterm's bubble goes at that start (`term::selection`).
+    drag_end: Option<(alacritty_terminal::index::Point, alacritty_terminal::index::Side)>,
 }
 
 pub struct Terminal {
@@ -81,7 +84,7 @@ impl Terminal {
     /// Parses output from the shell.
     pub fn feed(&self, bytes: &[u8]) {
         let mut inner = self.lock();
-        let Inner { term, parser } = &mut *inner;
+        let Inner { term, parser, .. } = &mut *inner;
         parser.advance(term, bytes);
     }
 
@@ -181,7 +184,7 @@ impl Inner {
             ..Config::default()
         };
         let size = Size { cols: cols.max(1) as usize, rows: rows.max(1) as usize };
-        Inner { term: Term::new(config, &size, answers.clone()), parser: Processor::new() }
+        Inner { term: Term::new(config, &size, answers.clone()), parser: Processor::new(), drag_end: None }
     }
 }
 

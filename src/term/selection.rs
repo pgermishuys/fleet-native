@@ -46,6 +46,7 @@ impl Terminal {
             Pick::Line => SelectionType::Lines,
         };
         inner.term.selection = Some(Selection::new(ty, at, side(right)));
+        inner.drag_end = Some((at, side(right)));
     }
 
     /// The pointer moved, button down.
@@ -54,6 +55,7 @@ impl Terminal {
         let at = at_cell(&inner.term, col, row);
         if let Some(s) = inner.term.selection.as_mut() {
             s.update(at, side(right));
+            inner.drag_end = Some((at, side(right)));
         }
     }
 
@@ -113,13 +115,23 @@ impl Terminal {
         })
     }
 
-    /// Where the selection is in the view, for placing the bubble.
+    /// Where the selection is in the view, for placing the bubble. A drag that ends at the start of a row (its left half, column 0)
+    /// puts the bubble at that start, on that row, as xterm does; alacritty's own range ends on the row before.
     pub fn selection_span(&self) -> Option<Span> {
-        self.read(|t| {
-            let range = t.selection.as_ref().and_then(|s| s.to_range(t))?;
-            let offset = t.grid().display_offset() as i32;
-            Some(Span { first_row: range.start.line.0 + offset, last_row: range.end.line.0 + offset, end_x: range.end.column.0 + 1 })
-        })
+        let inner = self.lock();
+        let t = &inner.term;
+        let range = t.selection.as_ref().and_then(|s| s.to_range(t))?;
+        let offset = t.grid().display_offset() as i32;
+        let mut span = Span { first_row: range.start.line.0 + offset, last_row: range.end.line.0 + offset, end_x: range.end.column.0 + 1 };
+        if let Some((end, Side::Left)) = inner.drag_end
+            && end.column.0 == 0
+            && end.line.0 == range.end.line.0 + 1
+            && range.end.column.0 + 1 == t.columns()
+        {
+            span.last_row = end.line.0 + offset;
+            span.end_x = 0;
+        }
+        Some(span)
     }
 }
 

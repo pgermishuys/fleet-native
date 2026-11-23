@@ -14,7 +14,7 @@ use rune::Runtime;
 use rune::{Key, KeyEvent, Mods};
 
 /// The open session's drawer on a terminal that was fed `bytes`, `cols` × `rows`, as the scenes show one.
-fn shown(cols: u16, rows: u16, bytes: &[u8]) -> Runtime<crate::State> {
+pub(crate) fn shown(cols: u16, rows: u16, bytes: &[u8]) -> Runtime<crate::State> {
     let mut rt = app();
     let bytes = bytes.to_vec();
     rt.update(move |s, _| {
@@ -32,12 +32,12 @@ fn shown(cols: u16, rows: u16, bytes: &[u8]) -> Runtime<crate::State> {
     rt
 }
 
-fn term(rt: &Runtime<crate::State>) -> std::sync::Arc<Terminal> {
+pub(crate) fn term(rt: &Runtime<crate::State>) -> std::sync::Arc<Terminal> {
     rt.state.terminal.live.as_ref().unwrap().term.clone()
 }
 
 /// The window point of a cell's left edge (`dx` of a cell in) and middle of its row.
-fn at(rt: &Runtime<crate::State>, col: usize, row: usize, dx: f32) -> (f32, f32) {
+pub(crate) fn at(rt: &Runtime<crate::State>, col: usize, row: usize, dx: f32) -> (f32, f32) {
     let r = rt.elements().into_iter().find(|e| e.key.as_deref() == Some("terminal-view")).expect("the box").rect;
     (r[0] + PAD[3] + col as f32 * CELL_W + dx, r[1] + PAD[0] + row as f32 * CELL_H + CELL_H / 2.0)
 }
@@ -298,7 +298,7 @@ fn a_paste_is_bracketed_only_when_the_program_asked_and_newlines_are_returns() {
 
 // ---- the wheel and the scrollbar (13.6, 13.7) ---------------------------------------------------------------------------------
 
-fn scrolled_stream() -> Vec<u8> {
+pub(crate) fn scrolled_stream() -> Vec<u8> {
     (1..=40).flat_map(|i| format!("line {i}\r\n").into_bytes()).collect()
 }
 

@@ -91,6 +91,7 @@ fn body(s: &State, t: &Theme) -> El {
         .pl(PAD[3])
         .focusable(true)
         .no_focus_ring()
+        .cursor(if slot.link.is_some() { Cursor::Pointer } else { Cursor::Default })
         .on_layout(|s: &mut State, [_, _, w, h]| s.fit_terminal(w, h))
         .on_key(on_key)
         .on_pointer_move_local(|s: &mut State, ev: rune::PointerEvent, _: &mut Tx| s.terminal_pointer(ev.x, ev.y))
@@ -161,7 +162,8 @@ fn body(s: &State, t: &Theme) -> El {
 const CURSOR_THIN: f32 = 1.0;
 
 /// The link under the pointer: its cells get a hand and a line under them, and a click opens it. The line is in the text's
-/// colour; the hand is a layer over the cells (so a press on a link opens it and doesn't start a selection).
+/// colour. The layer takes no pointer: a press on a link starts a selection as anywhere, and a click that didn't move opens it
+/// (`terminal_drag`); the hand is the box's own cursor while a link is under the pointer.
 fn links(mut stack: El, link: &crate::term::links::Link, pal: &Palette) -> El {
     for (n, &(line, from, to)) in link.spans.iter().enumerate() {
         let w = (to - from) as f32 * CELL_W;
@@ -169,8 +171,7 @@ fn links(mut stack: El, link: &crate::term::links::Link, pal: &Palette) -> El {
             el().key(format!("terminal-link-{n}"))
                 .absolute(from as f32 * CELL_W, line as f32 * CELL_H)
                 .size(w, CELL_H)
-                .cursor(Cursor::Pointer)
-                .on_press_tx(|s: &mut State, tx: &mut Tx| s.open_terminal_link(tx))
+                .inert()
                 .child(el().absolute(0.0, UNDERLINE_AT).size(w, 1.0).fill(pal.fg)),
         );
     }
