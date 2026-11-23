@@ -235,6 +235,16 @@ impl Theme {
         Color::WHITE.alpha(0.03)
     }
 
+    /// `rgba(59,130,246,.06)` (`.kanban-col__cards--drop-target`) and `.35` (`.kanban-col__drop-slot--active`): literals in Fleet,
+    /// the same in both themes.
+    pub fn board_drop_tint(&self) -> Color {
+        c("#3b82f6").alpha(0.06)
+    }
+
+    pub fn board_drop_slot(&self) -> Color {
+        c("#3b82f6").alpha(0.35)
+    }
+
     pub fn board_faint_fill(&self) -> Color {
         Color::WHITE.alpha(0.02)
     }

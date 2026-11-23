@@ -1,9 +1,9 @@
 //! One lane of the Board (`KanbanColumn.vue`), as work mode shows it: the "Inbox" and count pills over the name, the cards (or
 //! "Inbox is empty." / "Drop a card here or add one below."), and the composer; in manage mode the actions row and the rename
-//! field (`manage`). Dropping a card comes with piece O; the slots between cards are laid out now, keyed for it.
+//! field (`manage`). While a card is dragged (`fleet::board::drag`) the lane under it is tinted and the slot under the pointer grows.
 use super::{card, manage};
 use crate::State;
-use crate::fleet::board::{Card, Lane};
+use crate::fleet::board::{Card, Lane, drag};
 use crate::theme::{RADIUS_BTN, RADIUS_CARD, Theme, sans};
 use crate::ui::button::{Size, Variant, button, disabled};
 use crate::ui::text_menu::text_input;
@@ -95,24 +95,30 @@ fn composer(s: &State, t: &Theme, lane: &Lane) -> El {
         .child(row().flex_wrap().center_y().gap(6.0).child(add).child(cancel))
 }
 
-/// `.kanban-col__drop-slot`: 8 high with 4 above and below, between cards and at both ends. Piece O fills them.
-fn slot(lane: &Lane, index: usize) -> El {
-    el().key(format!("board-slot-{}-{index}", lane.id)).w_full().h(8.0).my(4.0).radius(999.0)
+/// `.kanban-col__drop-slot`: 8 high with 4 above and below, between cards and at both ends; the active one is 18 high and blue.
+fn slot(s: &State, t: &Theme, lane: &Lane, index: usize) -> El {
+    let active = s.board.compose.drag.as_ref().and_then(|d| d.over.as_ref()).is_some_and(|(l, i)| *l == lane.id && *i == index);
+    let slot = el().key(drag::slot_key(&lane.id, index)).w_full().my(4.0).radius(999.0);
+    if active { slot.h(18.0).fill(t.board_drop_slot()) } else { slot.h(8.0) }
 }
 
 /// `.kanban-col__cards`: the cards in a column that scrolls, at least 180 high.
 fn cards_area(s: &State, t: &Theme, lane: &Lane, cards: &[Card], clock: &RowClock) -> El {
+    let over = s.board.compose.drag.as_ref().and_then(|d| d.over.as_ref()).is_some_and(|(l, _)| *l == lane.id);
     let mut area = col()
-        .key(format!("board-lane-{}-cards", lane.id))
+        .key(drag::cards_key(&lane.id))
         .w_full()
         .grow(1.0)
         .min_h(180.0)
         .shrink()
         .scroll(ScrollSpec { stick_bottom: false })
         .pr(4.0)
-        .child(slot(lane, 0));
+        .child(slot(s, t, lane, 0));
+    if over {
+        area = area.radius(RADIUS_CARD).fill(t.board_drop_tint());
+    }
     for (i, c) in cards.iter().enumerate() {
-        area = area.child(card::view(s, t, c, clock)).child(slot(lane, i + 1));
+        area = area.child(card::view(s, t, c, clock)).child(slot(s, t, lane, i + 1));
     }
     if cards.is_empty() {
         let words = if lane.is_inbox { "Inbox is empty." } else { "Drop a card here or add one below." };

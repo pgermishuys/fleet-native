@@ -2950,3 +2950,10 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 - **An inset box-shadow draws a header's inner line**: `.box_shadow(Shadow { x: 0.0, y: -1.0, blur: 0.0, spread: 0.0, color, inset: true })` is Fleet's `inset 0 -1px 0`; `border_sides([0.0, 0.0, 1.0, 0.0], c)` after `bar_lead` recolours its rule, since a later `border_sides` replaces the first.
 - **A button that is off screen can't be clicked in a test**: `rt.find(key)` finds it but the press lands on whatever is there, so a test clicks the lanes it can see (the test window shows three of four lanes) and reaches the rest through the state.
 - **A test build of this crate peaks near 4.8 GB with debug info**: on a shared 14 GB machine it is OOM-killed (exit 143 under `systemd-run`); `--config profile.dev.package.fleet-native.debug=0` with `CARGO_BUILD_JOBS=1` fits (the dependencies stay built).
+
+## Component 23, piece O (dragging a card)
+
+- **A pointer drag with targets inside a scroll box works for cards as for rows** (`Tx::element_at`, the keys on `Picked::path()`). Lane ids hold hyphens (`lane-doing`), so a path segment can't be split into lane and index: try each known lane's id as the prefix (`board-slot-<lane>-<i>`).
+- **A slot's height eases on the pick's own commit**: set `tx.motion_curve(Curve::tween(0.2, ..))` inside the `element_at` callback, or a drag's commit lands the 8 to 18 px change at once.
+- **A dragged element must not follow the pointer with `offset`**: hit tests follow the shift, so the pick would find the dragged card itself and never the target. The card stays where it is, faded and tilted (`opacity(.45).rotate(..)`); no ghost is drawn.
+- **A test drag** presses on the card's title (the card's own centre can be a button), moves 12 pt, runs two frames, then moves to the target's `rt.find` point and runs two more.

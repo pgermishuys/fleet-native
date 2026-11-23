@@ -26,6 +26,8 @@ pub struct Compose {
     pub creator: Option<TextEdit>,
     /// The board's rename form (`isEditingBoard`), open with its draft.
     pub board_rename: Option<TextEdit>,
+    /// The card being dragged and the slot under the pointer (`drag`).
+    pub drag: Option<super::drag::CardDrag>,
 }
 
 impl Compose {

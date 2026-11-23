@@ -160,6 +160,8 @@ pub enum Case {
     LaneNew,
     /// Manage mode with the board's rename form open.
     BoardRename,
+    /// A card held over the slot between the two cards of the In progress lane, mid-drag (piece O).
+    Dragging,
 }
 
 impl crate::State {
@@ -173,7 +175,9 @@ impl crate::State {
             Case::Loading => MockAnswers::Silent,
             Case::Empty => MockAnswers::Empty,
             Case::Failed => MockAnswers::Failed,
-            Case::Synced | Case::Board | Case::Rename | Case::Manage | Case::LaneNew | Case::BoardRename => MockAnswers::Data,
+            Case::Synced | Case::Board | Case::Rename | Case::Manage | Case::LaneNew | Case::BoardRename | Case::Dragging => {
+                MockAnswers::Data
+            }
             Case::Cards => MockAnswers::Showcase,
         };
         if case == Case::Synced {
@@ -192,6 +196,14 @@ impl crate::State {
         }
         if case == Case::BoardRename {
             self.board.compose.board_rename = Some(rune::TextEdit::new("Kite launch, spring"));
+        }
+        if case == Case::Dragging {
+            let drag = crate::fleet::board::drag::CardDrag {
+                card: "card-sketch".into(),
+                lane: "lane-inbox".into(),
+                over: Some(("lane-doing".into(), 1)),
+            };
+            self.board.compose.drag = Some(drag);
         }
         self.enter_labs(crate::Rail::Board);
     }

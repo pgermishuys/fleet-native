@@ -60,7 +60,7 @@ pub(crate) struct Kept {
     boards: Vec<Board>,
     lanes: Vec<Lane>,
     pub(crate) cards: Vec<Card>,
-    fail_move: Option<String>,
+    pub(crate) fail_move: Option<String>,
     fail_reorder: Option<String>,
     fail_sync: Option<String>,
     /// The sync case's own answer (the inbox moves and the first lane is renamed).
@@ -417,7 +417,7 @@ impl Rig {
         self.fake.kept.lock().unwrap().heard.iter().filter(|h| *h == request).count()
     }
 
-    fn kept(&self) -> std::sync::MutexGuard<'_, Kept> {
+    pub(crate) fn kept(&self) -> std::sync::MutexGuard<'_, Kept> {
         self.fake.kept.lock().unwrap()
     }
 
@@ -425,7 +425,7 @@ impl Rig {
         self.rt.state.board.sorted_lanes().iter().map(|l| l.id.clone()).collect()
     }
 
-    fn card_ids(&self, lane: &str) -> Vec<String> {
+    pub(crate) fn card_ids(&self, lane: &str) -> Vec<String> {
         self.rt.state.board.cards_for_lane(lane).into_iter().map(|c| c.id).collect()
     }
 }
