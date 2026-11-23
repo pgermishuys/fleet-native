@@ -137,10 +137,18 @@ pub fn background_status(state: &Value, finished: &Finished) -> Option<ToolStatu
     })
 }
 
+/// `workByCall`'s lookup: the work item a call started, from the stream's items and the older ones asked for.
+pub fn work_of_call<'a>(running: &'a [RunningWorkItem], older: &'a [RunningWorkItem], call_id: &str) -> Option<&'a RunningWorkItem> {
+    if call_id.is_empty() {
+        return None;
+    }
+    // The stream's item wins over an older one for the same call.
+    running.iter().chain(older).find(|w| w.tool_call_id.as_deref() == Some(call_id))
+}
+
 /// `workStatus` of `toToolCardItem`: what a call shows from the running-work item it started. "Background" while that
 /// work runs on after the call returned (a Claude Code call reports itself done at once), "Stopped" once Fleet stopped
-/// it; `None` leaves the call's own state to say. Not yet read by the list: it needs the work item of each call
-/// (`workByCall`) in `ListContext`.
+/// it; `None` leaves the call's own state to say.
 pub fn work_status(work: Option<&RunningWorkItem>) -> Option<ToolStatus> {
     let work = work?;
     if crate::fleet::work::is_running(work) {

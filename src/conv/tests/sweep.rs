@@ -196,8 +196,14 @@ mod reopened_session {
         let search = calls.iter().find(|(t, _)| t == "search_code").unwrap();
         assert!(tool_body(&search.0, &search.0, &search.1).output.contains("authenticate"));
         // The canvas the call opened is what the card offers to show.
-        let context =
-            ListContext { delegations: &[], finished: &Default::default(), models: &[], thinking: crate::conv::gist::Thinking::Folded };
+        let context = ListContext {
+            delegations: &[],
+            finished: &Default::default(),
+            running: &[],
+            older: &[],
+            models: &[],
+            thinking: crate::conv::gist::Thinking::Folded,
+        };
         let list = build_list(&stream.messages, &[], &context);
         let canvas = list[0].tools.iter().find(|t| t.kind == "fleet_page_show").unwrap();
         assert!(canvas.canvas);
@@ -441,8 +447,14 @@ mod message_bubble_tool_rows_pages {
                 state: json!({"status": "completed"}),
             })
             .collect();
-        let context =
-            ListContext { delegations: &[], finished: &Default::default(), models: &[], thinking: crate::conv::gist::Thinking::Folded };
+        let context = ListContext {
+            delegations: &[],
+            finished: &Default::default(),
+            running: &[],
+            older: &[],
+            models: &[],
+            thinking: crate::conv::gist::Thinking::Folded,
+        };
         assert_eq!(build_list(&[m], &[], &context)[0].tools.len(), 60);
     }
 }

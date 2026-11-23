@@ -766,7 +766,14 @@ impl State {
         let running = stream.session_status.working();
         self.watched.on_working(running);
         let sent = self.prompts.of(&self.open_id().unwrap_or_default());
-        let context = ListContext { delegations: &stream.delegations, finished: &self.work.finished, models: &[], thinking: self.thinking };
+        let context = ListContext {
+            delegations: &stream.delegations,
+            finished: &self.work.finished,
+            running: &stream.running_work,
+            older: &self.work.older,
+            models: &[],
+            thinking: self.thinking,
+        };
         let options = FoldOptions { running, keep_last: self.watched.watched(), directory: None, open: &self.turns_open };
         let mut plan = FoldPlan::build(&stream.messages, sent, &context, &options);
         plan.place(self.session().messages.iter().map(|m| m.id.as_str()));

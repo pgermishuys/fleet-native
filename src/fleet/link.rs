@@ -276,10 +276,16 @@ fn fetch_list(base: &str, post: &Post) {
         std::thread::spawn(move || match http::sessions(&base, retention) {
             Ok(rows) => {
                 let listed = sessions::parse_sessions_for(&rows, now_ms(), retention);
+                let subagents = sessions::parse_subagents(&rows, now_ms(), retention);
                 // Read with every list so a project's rename, move or delete shows; a failure keeps the last good answer
                 // (`useProjects`).
                 let projects = http::projects(&base).map(|body| groups::parse_projects(&body));
-                post.update(move |s, tx| s.on_sessions(request, listed, projects, tx));
+                post.update(move |s, tx| {
+                    // Kept ones are the ones Open read by id; a server that lists sub-agents refreshes them.
+                    s.store.subagents.retain(|k| !subagents.iter().any(|n| n.id == k.id));
+                    s.store.subagents.extend(subagents);
+                    s.on_sessions(request, listed, projects, tx)
+                });
             }
             Err(e) => post.update(move |s, _| s.on_list_failed(request, e)),
         });

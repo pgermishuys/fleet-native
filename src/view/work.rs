@@ -52,7 +52,7 @@ pub fn strip(s: &State, t: &Theme) -> Option<El> {
     if visible.is_empty() {
         return None;
     }
-    let collapsed = s.work.collapsed;
+    let collapsed = s.sidebar.strip_collapsed();
     let tip = if collapsed { "Show what runs in the background" } else { "Collapse to one line" };
     let header = row()
         .key("background-strip-toggle")
@@ -65,7 +65,7 @@ pub fn strip(s: &State, t: &Theme) -> Option<El> {
         .cursor(Cursor::Pointer)
         .help(tip)
         .label(tip)
-        .on_press(|s: &mut State| s.work.collapsed = !s.work.collapsed)
+        .on_press(|s: &mut State| s.sidebar.set_strip_collapsed(!s.sidebar.strip_collapsed()))
         .child(text("BACKGROUND").font(sans(11.0, 600.0, 1.3).tracking(0.44)).color(t.muted))
         .child(
             text(s.work.summary(items, now))
@@ -140,11 +140,12 @@ pub fn work_row(s: &State, t: &Theme, item: &RunningWorkItem, now: i64, narrow: 
     }
     let mut said = row().grow(1.0).shrink().min_w(0.0).help(what.clone());
     said = said.child(text(what).key(format!("work-what-{}", item.id)).font(font).color(ink).truncate().shrink().min_w(0.0));
-    // " · x" in muted: its model and a chain's step are for the Pi and sub-agent rows (the model needs the child's session).
+    // " · x" in muted, in this order: the sub-agent's model (while it runs), a chain's step (while it runs), the result.
+    let model = running.then(|| s.work_model(item)).flatten();
     let meta = if running { item.detail.clone() } else { work_result(item) };
-    if let Some(meta) = meta {
-        said =
-            said.child(text(format!(" \u{b7} {meta}")).key(format!("work-meta-{}", item.id)).font(sans(12.0, 400.0, 1.3)).color(t.muted));
+    for (n, meta) in model.into_iter().map(|m| (0, m)).chain(meta.map(|m| (1, m))) {
+        let key = if n == 0 { format!("work-model-{}", item.id) } else { format!("work-meta-{}", item.id) };
+        said = said.child(text(format!(" \u{b7} {meta}")).key(key).font(sans(12.0, 400.0, 1.3)).color(t.muted));
     }
     line = line.child(said).child(
         text(time_text(item, now))
@@ -245,4 +246,17 @@ fn stop(s: &State, t: &Theme, item: &RunningWorkItem, narrow: bool, slot: f32) -
     }
     let id = item.id.clone();
     b.hover(t.accent.alpha(0.10)).hover_group().cursor(Cursor::Pointer).on_press(move |s: &mut State| s.stop_work(&id))
+}
+
+impl State {
+    /// `modelOf` of `BackgroundStrip`: a sub-agent's model, its session's choice else whatever answered there last, by the
+    /// name the model list gives it. Unknown until the list holds the child session.
+    pub fn work_model(&self, item: &RunningWorkItem) -> Option<String> {
+        if item.kind != WorkKind::Subagent {
+            return None;
+        }
+        let child = self.store.session_by_id(&self.projects, item.child_session_id.as_deref()?)?;
+        let id = child.row.selected_model.as_ref().map(|m| m.model_id.as_str()).or(child.row.last_model_id.as_deref())?;
+        Some(crate::composer::choice::model_display_name(Some(id), &self.lists().models)).filter(|n| !n.is_empty())
+    }
 }

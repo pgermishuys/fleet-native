@@ -57,7 +57,10 @@ pub fn sheet(s: &State, t: &Theme) -> El {
         .children(super::recap::recap_line(t, s.recap()))
         .children(super::side::panel(s, t))
         .children(super::side_tab::dock(s, t))
-        .child(super::composer::composer(s, t, session))
+        .child(match s.read_only_subagent() {
+            Some(parent) => super::subagent_prompt_line::line(s, t, &parent),
+            None => super::composer::composer(s, t, session),
+        })
         .children(drawer);
     let mut sheet = row()
         .key("workspace-sheet")

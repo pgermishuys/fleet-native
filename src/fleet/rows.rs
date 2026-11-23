@@ -114,6 +114,8 @@ pub struct Row {
     pub archived: bool,
     /// `capabilities.canPrompt`, when the row has capabilities.
     pub can_prompt: Option<bool>,
+    /// `capabilities.promptDisabledReason`: why the session takes no prompt; the sub-agent line's tooltip.
+    pub prompt_disabled_reason: Option<String>,
     /// `capabilities.canCompact`: only an explicit `false` turns Compact now off.
     pub can_compact: Option<bool>,
     /// `capabilities.compactDisabledReason`: what the Compact now button says when it can't.
@@ -274,6 +276,12 @@ impl Row {
             checkout_restoring: false,
             archived: text(item, "retentionStatus").as_deref() == Some("archived"),
             can_prompt: item.get("capabilities").and_then(|c| c.get("canPrompt")).and_then(Value::as_bool),
+            prompt_disabled_reason: item
+                .get("capabilities")
+                .and_then(|c| c.get("promptDisabledReason"))
+                .and_then(Value::as_str)
+                .filter(|r| !r.is_empty())
+                .map(str::to_string),
             can_compact: item.get("capabilities").and_then(|c| c.get("canCompact")).and_then(Value::as_bool),
             compact_disabled_reason: item
                 .get("capabilities")

@@ -31,6 +31,8 @@ fn shows_a_browser_tools_title_and_address_and_the_canvas_it_opened() {
         &crate::conv::message_list::ListContext {
             delegations: &[],
             finished: &Finished::new(),
+            running: &[],
+            older: &[],
             models: &[],
             thinking: crate::conv::gist::Thinking::Folded,
         },

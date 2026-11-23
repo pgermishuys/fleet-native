@@ -166,13 +166,43 @@ impl State {
         }
     }
 
-    /// Open (`openChild`): the child's session, with this one remembered as its parent. Children aren't in the session
-    /// list yet (component 6), so one that isn't listed can't be shown; returns whether it was.
+    /// Open (`openChild`): the child's session, with this one remembered as its parent. A sub-agent isn't in the list
+    /// the user sees; it is kept apart (`store.subagents`) and opened in place like a session of another machine. Returns
+    /// whether the child was known.
     pub fn open_child(&mut self, parent: &str, child: &str, tx: &mut Tx) -> bool {
         let found = self.projects.iter().enumerate().find_map(|(p, pr)| pr.sessions.iter().position(|s| s.id == child).map(|i| (p, i)));
-        let Some((p, i)) = found else { return false };
-        self.open_session(p, i, tx);
+        if let Some((p, i)) = found {
+            self.open_session(p, i, tx);
+        } else if let Some(row) = self.store.subagents.iter().find(|s| s.id == child).map(|s| s.row_copy()) {
+            self.store.upsert_elsewhere(super::settings::HOME_MACHINE_KEY, row);
+            self.go(super::store::Route::Session(child.to_string()));
+            self.after_open(tx);
+        } else {
+            return self.read_child(parent, child);
+        }
         self.work.opened_from = Some(parent.to_string());
+        true
+    }
+
+    /// The server's list never holds a sub-agent, so one that isn't known is read by id off the UI thread and opened when
+    /// it arrives. Returns whether a read was started.
+    fn read_child(&mut self, parent: &str, child: &str) -> bool {
+        let Some(link) = self.link_for(parent) else { return false };
+        let (parent, child) = (parent.to_string(), child.to_string());
+        let path = format!("/api/sessions/{}", crate::conv::image_sniff::encode_component(&child));
+        link.off_thread(
+            move |base| super::http::get(base, &path),
+            move |s, tx, result| {
+                let Ok(detail) = result else { return };
+                let rows = Value::Array(vec![super::sessions::row_from_detail(&detail)]);
+                let retention = super::store::Retention::All;
+                s.store.subagents.retain(|k| k.id != child);
+                s.store.subagents.extend(super::sessions::parse_subagents(&rows, super::link::now_ms(), retention));
+                if s.store.subagents.iter().any(|k| k.id == child) {
+                    s.open_child(&parent, &child, tx);
+                }
+            },
+        );
         true
     }
 

@@ -2957,3 +2957,12 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 - **A slot's height eases on the pick's own commit**: set `tx.motion_curve(Curve::tween(0.2, ..))` inside the `element_at` callback, or a drag's commit lands the 8 to 18 px change at once.
 - **A dragged element must not follow the pointer with `offset`**: hit tests follow the shift, so the pick would find the dragged card itself and never the target. The card stays where it is, faded and tilted (`opacity(.45).rotate(..)`); no ghost is drawn.
 - **A test drag** presses on the card's title (the card's own centre can be a button), moves 12 pt, runs two frames, then moves to the target's `rt.find` point and runs two more.
+
+## Component 26, piece M (sub-agents and running work)
+
+- Nothing Rune couldn't do. Two build notes: a test build of this crate was OOM-killed (silent exit 143, 4.7-5.1 GB peak)
+  under a 5000M cap on a loaded machine; `cargo test --config 'profile.dev.package.fleet-native.debug=0'` (debuginfo off
+  for this crate only, Rune isn't rebuilt) with `CARGO_BUILD_JOBS=1` and a 5600M cap finished in 4.5 minutes.
+- The note that stands for the composer (`view::subagent_prompt_line`) is a wrapping row of three texts, not one inline
+  paragraph: Rune has no inline link in running text (see component 3's chips), so a title too long for the line moves to
+  the next line as a whole rather than breaking in the middle.

@@ -33,14 +33,52 @@ pub fn parse_sessions(rows: &Value, now_ms: i64) -> Vec<Session> {
 }
 
 /// `parse_sessions` for a list asked for `retention`: the Archived view and "all" keep the archived rows the server sent.
-pub fn parse_sessions_for(rows: &Value, _now_ms: i64, retention: super::store::Retention) -> Vec<Session> {
+pub fn parse_sessions_for(rows: &Value, now_ms: i64, retention: super::store::Retention) -> Vec<Session> {
+    parse_rows(rows, now_ms, retention, false)
+}
+
+/// The sub-agent sessions of the same list (rows with a `parentSessionId`). The list doesn't draw them, but Open on a
+/// sub-agent's row and Back to parent need them (`sessionById` holds every row, the list filters).
+pub fn parse_subagents(rows: &Value, now_ms: i64, retention: super::store::Retention) -> Vec<Session> {
+    parse_rows(rows, now_ms, retention, true)
+}
+
+/// A session's own answer (`GET /api/sessions/{id}`) in the shape of a list item, so the list's parser reads it. A
+/// sub-agent's session is never in the list; Open reads it by id (`remoteSession`).
+pub fn row_from_detail(detail: &Value) -> Value {
+    let mut row = detail.clone();
+    let text = |k: &str| detail.get(k).and_then(Value::as_str);
+    let iso = |k: &str| text(k).and_then(super::work::parse_iso_ms).unwrap_or(0);
+    let created = iso("createdAt");
+    row["session"] = serde_json::json!({
+        "id": detail.get("id"),
+        "title": detail.get("title"),
+        "tags": detail.get("tags").cloned().unwrap_or_else(|| serde_json::json!([])),
+        "time": {"created": created, "updated": detail.get("updatedAt").and(Some(iso("updatedAt"))).unwrap_or(created)},
+    });
+    if row.get("sessionStatus").is_none() {
+        let lifecycle = text("lifecycleStatus").unwrap_or("running");
+        let status = if matches!(lifecycle, "stopped" | "completed" | "error" | "disconnected") {
+            lifecycle
+        } else if text("activityStatus").is_some_and(|a| a != "idle") {
+            "active"
+        } else {
+            "idle"
+        };
+        row["sessionStatus"] = Value::String(status.into());
+    }
+    row
+}
+
+fn parse_rows(rows: &Value, _now_ms: i64, retention: super::store::Retention, children: bool) -> Vec<Session> {
     let active_only = retention == super::store::Retention::Active;
     let mut listed: Vec<(i64, Session)> = Vec::new();
     for row in rows.as_array().into_iter().flatten() {
         let text = |k: &str| row.get(k).and_then(Value::as_str);
-        if row.get("isHidden") == Some(&Value::Bool(true))
+        // A sub-agent is hidden from the list by the server; it is what these rows are for.
+        if (row.get("isHidden") == Some(&Value::Bool(true)) && !children)
             || (active_only && text("retentionStatus").is_some_and(|r| r != "active"))
-            || text("parentSessionId").is_some()
+            || text("parentSessionId").is_some() != children
         {
             continue;
         }

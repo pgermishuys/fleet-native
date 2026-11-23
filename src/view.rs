@@ -141,6 +141,7 @@ pub mod smart_link_row;
 pub mod start_page;
 pub mod starters;
 mod status;
+pub mod subagent_prompt_line;
 pub mod subagent_row;
 pub mod summary_bar;
 pub mod terminal_bar;

@@ -319,11 +319,17 @@ pub fn stream(t: &Theme, which: Which, session: &Session, plan: &FoldPlan, parti
                     above.map(|m| drawn_parts(m, above_kept).last().is_some_and(|p| matches!(p, Part::Tool { .. } | Part::Shell(_))));
                 let streaming = at + 1 == len && session.status == Status::Working && msg.role == Role::Assistant && !side;
                 let opened = open_mask(msg, s);
-                let same_as_prev = at.checked_sub(1).is_some_and(|p| session.messages[p].role == msg.role);
+                // The run of one sender comes from the list's clusters; a conversation with no plan (the side one) reads roles.
+                let (same_as_prev, same_as_next) = plan.grouped(&msg.id).unwrap_or_else(|| {
+                    (
+                        at.checked_sub(1).is_some_and(|p| session.messages[p].role == msg.role),
+                        session.messages.get(at + 1).is_some_and(|n| n.role == msg.role),
+                    )
+                });
                 // The pill's relative time moves every 30s; "Copied" lasts a moment.
                 let frame = (
                     same_as_prev,
-                    session.messages.get(at + 1).is_some_and(|n| n.role == msg.role),
+                    same_as_next,
                     msg.meta.created_at.map(|_| message::now_ms(s) / 30_000),
                     s.copied.as_ref().is_some_and(|(m, until)| *m == msg.id && s.clock < *until),
                     s.prompt_open.contains(&msg.id),

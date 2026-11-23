@@ -11,11 +11,10 @@ use std::collections::{HashMap, HashSet};
 /// `FINISHED_VISIBLE_MS`: how long a finished item stays with its result before it drops off.
 pub const FINISHED_VISIBLE_MS: i64 = 30_000;
 
-/// What the strip remembers between frames: whether it is collapsed (`weave:background-strip-collapsed`; kept for the
-/// run, not yet across restarts: checklist row 4.4) and when each item was seen to end.
+/// What the strip remembers between frames: when each item was seen to end. Whether it is folded
+/// (`weave:background-strip-collapsed`) lives in the settings file (`Sidebar::strip_collapsed`).
 #[derive(Default, Debug)]
 pub struct WorkStrip {
-    pub collapsed: bool,
     /// The strip's measured width, for its narrow layout; 0 until its first layout.
     pub width: f32,
     /// Items whose Stop is on its way, by Fleet's item id (`stopping`): shared by the strip and the status bar's list.
@@ -112,7 +111,7 @@ impl WorkStrip {
 
     /// Records what the strip shows now; true when it differs from the last frame.
     pub fn changed(&mut self, items: &[RunningWorkItem], now: i64) -> bool {
-        let mut shown = vec![self.collapsed.to_string()];
+        let mut shown = Vec::new();
         shown.extend(self.visible(items, now).into_iter().map(|i| format!("{}|{}|{}", i.id, is_running(i), time_text(i, now))));
         std::mem::replace(&mut self.shown, shown) != self.shown
     }

@@ -186,7 +186,14 @@ impl State {
             optimistic,
         );
         let running = state.session_status.working();
-        let context = ListContext { delegations: &state.delegations, finished: &finished, models: &[], thinking: self.thinking };
+        let context = ListContext {
+            delegations: &state.delegations,
+            finished: &finished,
+            running: &[],
+            older: &[],
+            models: &[],
+            thinking: self.thinking,
+        };
         let options = FoldOptions { running, keep_last: stream.watched, directory: None, open: &self.turns_open };
         let mut plan = FoldPlan::build(&shown, sent, &context, &options);
         plan.place(messages.iter().map(|m| m.id.as_str()));
