@@ -93,12 +93,15 @@ fn the_footnote_follows_the_fleet_summary() {
 fn summary_opens_first_and_pressing_the_open_tab_changes_nothing() {
     let mut rt = scene();
     assert_eq!(rt.state.board.right.tab, Tab::Summary);
-    assert!(shown(&rt, "board-summary"));
+    assert!(shown(&rt, "board-summary-panel"));
     click(&mut rt, "board-tab-summary");
-    assert!(shown(&rt, "board-summary"));
+    assert!(shown(&rt, "board-summary-panel"));
     click(&mut rt, "board-tab-activity");
+    // The summary fades out before it is gone.
+    rt.frame(0.5);
     assert_eq!(rt.state.board.right.tab, Tab::Activity);
-    assert!(shown(&rt, "board-activity") && !shown(&rt, "board-summary"));
+    assert!(shown(&rt, "board-activity"), "the feed is drawn");
+    assert!(!shown(&rt, "board-summary-panel"), "the summary is gone");
     // Leaving the Board unmounts the panel: the next time it opens on Summary.
     rt.update(|s, _| s.rail = Rail::Sessions);
     rt.frame(FRAME);

@@ -134,7 +134,7 @@ fn costs(s: &State, t: &Theme, visible: &[crate::fleet::board::cards::CardSessio
 pub fn view(s: &State, t: &Theme) -> El {
     let visible = s.board.filtered_sessions();
     col()
-        .key("board-summary")
+        .key("board-summary-panel")
         .label("Board summary panel")
         .w_full()
         .gap(12.0)
