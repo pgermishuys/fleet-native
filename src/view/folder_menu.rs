@@ -14,7 +14,7 @@ use crate::view::folder_menu_path;
 use crate::{State, Tx};
 use rune::{Align, Cursor, Cycle, El, Key, KeyEvent, ScrollSpec, Side, col, icon, row, text};
 
-/// `.ns-pop`'s width, and the list's height limit (`min(340px, 50vh)`; the window is never shorter than 680).
+/// `.ns-pop`'s width, and the list's height limit (`min(340px, 50vh)`).
 const WIDTH: f32 = 344.0;
 const LIST_MAX_H: f32 = 340.0;
 
@@ -165,7 +165,7 @@ fn list(s: &State, t: &Theme) -> El {
     if let Some(note) = s.folder_empty_note() {
         c = c.child(pop_note(t, &note));
     }
-    c.scroll(ScrollSpec { stick_bottom: false }).max_h(LIST_MAX_H)
+    c.scroll(ScrollSpec { stick_bottom: false }).max_h(crate::ui::chip::list_max_h(s, LIST_MAX_H, 0.5))
 }
 
 /// `.ns-folder-root`: the Location the new folder or clone goes in. Fleet's is a native `<select>`; here the box opens its list

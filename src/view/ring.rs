@@ -7,7 +7,7 @@ use crate::fleet::context::ContextUsage;
 use crate::theme::{RADIUS_BTN, Theme, sans};
 use crate::ui::Open;
 use rune::{Color, Cursor, El, LineCap, Live, Shape, Spring, canvas, el, row, text};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::f32::consts::{FRAC_PI_2, TAU};
 
 /// The ring's own state: the arc's animated end, and (for scenes, which have no server) a context to draw.
@@ -20,11 +20,23 @@ pub struct Ring {
     pub mock: Option<ContextUsage>,
     /// The chart's bar the pointer is over (the popover's caption names it).
     pub hovered: Option<usize>,
+    /// The popover's meters (the window's first, then each usage limit's): the end of the fill's trim, easing over 300 ms
+    /// while the popover stays open (`transition: width 300ms ease-out`).
+    pub bars: [Live<[f32; 2]>; 6],
+    /// True while the popover is closed: its meters then land at once the next time it opens, as a new box does in CSS.
+    pub bars_fresh: Cell<bool>,
 }
 
 impl Default for Ring {
     fn default() -> Self {
-        Ring { trim: Live::new([0.0, 0.0]), drawn_for: RefCell::new(None), mock: None, hovered: None }
+        Ring {
+            trim: Live::new([0.0, 0.0]),
+            drawn_for: RefCell::new(None),
+            mock: None,
+            hovered: None,
+            bars: std::array::from_fn(|_| Live::new([0.0, 0.0])),
+            bars_fresh: Cell::new(true),
+        }
     }
 }
 
@@ -92,6 +104,9 @@ pub fn button(s: &State, t: &Theme) -> Option<El> {
     let context = s.context()?;
     let compacting = s.compact_requesting();
     let open = s.ui.open == Some(Open::Popover("context"));
+    if !open {
+        s.ring.bars_fresh.set(true);
+    }
     let percent = ring::percent(context);
     let tone = ring::tone(percent);
     let amber = ring::amber(percent) && tone != Tone::Danger;

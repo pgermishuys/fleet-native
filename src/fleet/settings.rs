@@ -79,6 +79,36 @@ pub fn project_group_key(machine: &str, project: &str) -> String {
     format!("project:{machine}:{project}")
 }
 
+/// One saved catalog: which one it is, when it came and the machine's own words.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SavedCatalog {
+    pub harness: String,
+    pub directory: Option<String>,
+    pub profile: Option<String>,
+    pub fetched_at: i64,
+    pub catalog: Value,
+}
+
+/// How many catalogs a machine keeps (`MAX_SAVED`).
+pub const MAX_SAVED_CATALOGS: usize = 12;
+
+impl SavedCatalog {
+    fn from_json(v: &Value) -> Option<SavedCatalog> {
+        let text = |k: &str| v.get(k).and_then(Value::as_str).map(str::to_string);
+        Some(SavedCatalog {
+            harness: text("harness").filter(|h| !h.is_empty())?,
+            directory: text("directory"),
+            profile: text("profile"),
+            fetched_at: v.get("fetchedAt")?.as_i64()?,
+            catalog: v.get("catalog").filter(|c| c.is_object())?.clone(),
+        })
+    }
+
+    fn to_json(&self) -> Value {
+        json!({ "harness": self.harness, "directory": self.directory, "profile": self.profile, "fetchedAt": self.fetched_at, "catalog": self.catalog })
+    }
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct Sidebar {
     /// Only folded groups are kept: an open group has no entry.
@@ -102,6 +132,10 @@ pub struct Sidebar {
     /// The last repository scan of each machine, so the box has repositories before the machine answers
     /// (`weave:saved:repositories:{machineKey}`).
     saved_repositories: BTreeMap<String, super::new_session::feeds::Scan>,
+    /// The last harness list of each machine, as the machine sent it (`weave:saved:harnesses:{machineKey}`).
+    saved_harnesses: BTreeMap<String, Value>,
+    /// The newest catalogs of each machine, at most `MAX_SAVED_CATALOGS` (`weave:saved:harness-catalogs:{machineKey}`).
+    saved_catalogs: BTreeMap<String, Vec<SavedCatalog>>,
     /// Ids of the notices that have been a card, oldest first (`weave:notices-shown`).
     notices_shown: Vec<String>,
     /// The Appearance page's choices (`weave:theme`, `weave:code-theme`, `weave:font-size`, `weave:thinking`).
@@ -173,6 +207,18 @@ impl Sidebar {
         if let Some(Value::Object(by_machine)) = root.get("savedRepositories") {
             s.saved_repositories = by_machine.iter().map(|(k, v)| (k.clone(), super::new_session::feeds::Scan::from_json(v))).collect();
         }
+        if let Some(Value::Object(by_machine)) = root.get("savedHarnesses") {
+            s.saved_harnesses = by_machine.iter().filter(|(_, v)| v.is_array()).map(|(k, v)| (k.clone(), v.clone())).collect();
+        }
+        if let Some(Value::Object(by_machine)) = root.get("savedCatalogs") {
+            s.saved_catalogs = by_machine
+                .iter()
+                .filter_map(|(k, v)| {
+                    let list: Vec<SavedCatalog> = v.as_array()?.iter().filter_map(SavedCatalog::from_json).collect();
+                    Some((k.clone(), list))
+                })
+                .collect();
+        }
         if let Some(Value::Object(by_machine)) = root.get("analyticsFilters") {
             s.analytics_filters =
                 by_machine.iter().filter_map(|(k, v)| Some((k.clone(), super::analytics::filters::Filters::from_json(v)?))).collect();
@@ -224,6 +270,13 @@ impl Sidebar {
         }
         if !self.saved_repositories.is_empty() {
             root["savedRepositories"] = self.saved_repositories.iter().map(|(m, scan)| (m.clone(), scan.to_json())).collect();
+        }
+        if !self.saved_harnesses.is_empty() {
+            root["savedHarnesses"] = json!(self.saved_harnesses);
+        }
+        if !self.saved_catalogs.is_empty() {
+            root["savedCatalogs"] =
+                self.saved_catalogs.iter().map(|(m, l)| (m.clone(), Value::Array(l.iter().map(SavedCatalog::to_json).collect()))).collect();
         }
         if !self.analytics_filters.is_empty() {
             root["analyticsFilters"] = self.analytics_filters.iter().map(|(m, f)| (m.clone(), f.to_json())).collect();
@@ -579,6 +632,33 @@ impl Sidebar {
             self.saved_repositories.insert(machine.to_string(), scan.clone());
             self.dirty = true;
         }
+    }
+
+    /// The harness list a machine last sent, as it sent it (`readSaved("harnesses", key)`).
+    pub fn saved_harnesses(&self) -> impl Iterator<Item = (&String, &Value)> {
+        self.saved_harnesses.iter()
+    }
+
+    /// Keeps a machine's harness list (`writeSaved`).
+    pub fn save_harnesses(&mut self, machine: &str, list: &Value) {
+        if self.saved_harnesses.get(machine) != Some(list) {
+            self.saved_harnesses.insert(machine.to_string(), list.clone());
+            self.dirty = true;
+        }
+    }
+
+    pub fn saved_catalogs(&self) -> impl Iterator<Item = (&String, &Vec<SavedCatalog>)> {
+        self.saved_catalogs.iter()
+    }
+
+    /// Keeps a catalog a machine sent, the newest `MAX_SAVED_CATALOGS` of that machine (`saveCache`).
+    pub fn save_catalog(&mut self, machine: &str, saved: SavedCatalog) {
+        let list = self.saved_catalogs.entry(machine.to_string()).or_default();
+        list.retain(|c| (&c.harness, &c.directory, &c.profile) != (&saved.harness, &saved.directory, &saved.profile));
+        list.push(saved);
+        list.sort_by_key(|c| std::cmp::Reverse(c.fetched_at));
+        list.truncate(MAX_SAVED_CATALOGS);
+        self.dirty = true;
     }
 
     // ── Appearance ────────────────────────────────────────────────────────────

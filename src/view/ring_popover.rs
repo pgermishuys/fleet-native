@@ -8,9 +8,11 @@ use crate::fleet::usage::current_windows;
 use crate::theme::{RADIUS_BTN, RADIUS_PANEL, Theme, sans};
 use crate::ui::overlay::{anchored, scrim};
 use crate::view::ring::srgb_mix;
-use rune::{Align, Color, Cursor, El, LineCap, Shape, Side, canvas, col, el, icon, row, text};
+use rune::{Align, Color, Cursor, El, LineCap, Shape, Side, Spring, canvas, col, el, icon, row, text};
 
 const WIDTH: f32 = 340.0;
+/// The slots of `Ring::bars`: the window's meter, then one per usage limit (the rest share the last).
+const LIMIT_SLOTS: usize = 5;
 /// The width inside the 1px border and the 14px padding.
 const INNER: f32 = WIDTH - 2.0 - 28.0;
 const CHART_H: f32 = 54.0;
@@ -43,6 +45,8 @@ pub fn overlay(s: &State, t: &Theme) -> Vec<El> {
         .role("dialog")
         .label("Context window")
         .w(WIDTH)
+        // `max-width: calc(100vw - 16px)`; the window is 0 wide until it is measured.
+        .max_w(if s.ui.sel.window.0 > 0.0 { s.ui.sel.window.0 - 16.0 } else { WIDTH })
         .pt(14.0)
         .px(14.0)
         .pb(12.0)
@@ -77,11 +81,12 @@ fn tone_color(t: &Theme, tone: Tone) -> Color {
 
 fn card(s: &State, t: &Theme, d: &Details) -> El {
     let tone = tone_color(t, d.tone);
+    let fresh = s.ring.bars_fresh.replace(false);
     let mut c = col().w_full().items_stretch().child(head(s, t, d, tone)).child(
         text(d.size_line.clone()).key("context-size").font(sans(12.5, 400.0, 1.5).features("'tnum' 1")).color(t.muted).mt(3.0).wrap(),
     );
     if let Some(m) = &d.meter {
-        c = c.child(meter(t, m, d.tone)).child(legend(t, m));
+        c = c.child(meter(s, t, m, d.tone, fresh)).child(legend(t, m));
     }
     if let Some(chart) = &d.chart {
         c = c.child(label_row(t, "After each turn", &chart.caption, false)).child(chart_view(t, chart, d.tone));
@@ -90,7 +95,7 @@ fn card(s: &State, t: &Theme, d: &Details) -> El {
         c = c.child(rows(t, d));
     }
     if !d.limits.is_empty() {
-        c = c.child(limits(t, d));
+        c = c.child(limits(s, t, d, fresh));
     }
     if let Some(error) = &d.error {
         c = c.child(text(error.clone()).key("context-error").font(sans(12.0, 400.0, 1.5)).color(t.error_text).mt(12.0).wrap());
@@ -135,10 +140,12 @@ pub(crate) fn spinner() -> rune::Cycle {
 }
 
 /// `.context-card__meter`: 6 px high; the fill is the accent, the tone itself once it is getting full.
-fn meter(t: &Theme, m: &Meter, tone: Tone) -> El {
+fn meter(s: &State, t: &Theme, m: &Meter, tone: Tone, fresh: bool) -> El {
     let fill = if tone == Tone::Ok { t.accent } else { tone_color(t, tone) };
     let mut track = el().key("context-meter").w_full().h(6.0).mt(12.0).mb(4.0).radius(3.0).fill(srgb_mix(t.text, t.card_bg, 0.09));
-    track = track.child(el().key("context-meter-fill").absolute(0.0, 0.0).w(INNER * m.fill as f32 / 100.0).h(6.0).radius(3.0).fill(fill));
+    if m.fill > 0.0 {
+        track = track.child(eased_fill(s, 0, "context-meter-fill".to_string(), m.fill as f32, 6.0, fill, fresh));
+    }
     if let Some(tick) = m.tick {
         track = track.child(
             el().key("context-meter-tick")
@@ -149,6 +156,25 @@ fn meter(t: &Theme, m: &Meter, tone: Tone) -> El {
         );
     }
     track
+}
+
+/// A meter's fill: a round-capped stroke along the track, so its end can ease (`transition: width 300ms ease-out`; a box's
+/// width can't, a canvas stroke's trim can). Its right end sits at `percent` of `INNER`, as the box's would.
+fn eased_fill(s: &State, slot: usize, key: String, percent: f32, height: f32, color: Color, fresh: bool) -> El {
+    let live = &s.ring.bars[slot.min(LIMIT_SLOTS)];
+    let end = ((INNER * percent / 100.0 - height) / (INNER - height)).clamp(0.0, 1.0);
+    // The first draw after the popover opened lands at once; a later change eases.
+    if fresh {
+        live.snap([0.0, end]);
+    } else {
+        live.set([0.0, end]);
+    }
+    let r = height / 2.0;
+    canvas(Shape::new().stroke_with(vec![[r, r], [INNER - r, r]], false, height, LineCap::Round, color))
+        .key(key)
+        .size(INNER, height)
+        .absolute(0.0, 0.0)
+        .live_trim(live.smooth(Spring::new(0.3, 0.0)))
 }
 
 fn legend(t: &Theme, m: &Meter) -> El {
@@ -232,7 +258,7 @@ fn rows(t: &Theme, d: &Details) -> El {
 }
 
 /// `.context-card__limits`: the harness's windows, each with a 4 px meter.
-fn limits(t: &Theme, d: &Details) -> El {
+fn limits(s: &State, t: &Theme, d: &Details, fresh: bool) -> El {
     let mut c = col()
         .key("context-limits")
         .label("Usage limits")
@@ -249,27 +275,25 @@ fn limits(t: &Theme, d: &Details) -> El {
             LimitTone::Danger => t.error,
         };
         let font = sans(11.0, 400.0, 1.5).features("'tnum' 1");
-        c = c.child(
-            col()
-                .key(format!("context-limit{i}"))
-                .w_full()
-                .child(
-                    row()
-                        .w_full()
-                        .justify_between()
-                        .gap(8.0)
-                        .child(text(l.label.clone()).font(font).color(t.muted))
-                        .child(text(l.value.clone()).font(font).color(t.text)),
-                )
-                .child(
-                    el().w_full()
-                        .h(4.0)
-                        .mt(5.0)
-                        .radius(2.0)
-                        .fill(srgb_mix(t.text, t.card_bg, 0.09))
-                        .child(el().absolute(0.0, 0.0).w(INNER * l.fill.clamp(0, 100) as f32 / 100.0).h(4.0).radius(2.0).fill(fill)),
-                ),
-        );
+        c =
+            c.child(
+                col()
+                    .key(format!("context-limit{i}"))
+                    .w_full()
+                    .child(
+                        row()
+                            .w_full()
+                            .justify_between()
+                            .gap(8.0)
+                            .child(text(l.label.clone()).font(font).color(t.muted))
+                            .child(text(l.value.clone()).font(font).color(t.text)),
+                    )
+                    .child(
+                        el().w_full().h(4.0).mt(5.0).radius(2.0).fill(srgb_mix(t.text, t.card_bg, 0.09)).children((l.fill > 0).then(
+                            || eased_fill(s, i + 1, format!("context-limit-fill{i}"), l.fill.clamp(0, 100) as f32, 4.0, fill, fresh),
+                        )),
+                    ),
+            );
     }
     c
 }
@@ -287,6 +311,8 @@ fn foot(t: &Theme, d: &Details) -> El {
         .help(d.compact_title.clone())
         .px(10.0)
         .py(6.0)
+        // `margin-left: auto; margin-right: 2px`: the button sits 2 px in from the card's edge.
+        .mr(2.0)
         .radius(RADIUS_BTN)
         .fill(fill)
         .border(1.0, edge)

@@ -288,7 +288,13 @@ impl Option_ {
     }
 }
 
-/// `.ns-option`: grid `16 1fr 14`, 8px gap, `6px 8px`, 6px radius, 13px; highlight `--text` 6% on hover and on the focused
+/// A list's `max-height: min(<cap>px, <share>vh)`: the window is measured after the first frame, so until then the cap alone.
+pub fn list_max_h(s: &State, cap: f32, share: f32) -> f32 {
+    let window_h = s.ui.sel.window.1;
+    if window_h > 0.0 { cap.min(window_h * share) } else { cap }
+}
+
+/// `.ns-option`: grid `16 1fr 14`, 8px gap, `6px 8px`, 6px radius, 13px at the page's line-height 1.5 (a two-line row is 48 high); highlight `--text` 6% on hover and on the focused
 /// row. `lead` replaces the icon column (the machine dot).
 pub fn option(t: &Theme, o: Option_, lead: Option<El>, on_press: impl Fn(&mut State, &mut crate::Tx) + 'static) -> El {
     let wash = t.wash(6.0);
@@ -317,7 +323,7 @@ pub fn option(t: &Theme, o: Option_, lead: Option<El>, on_press: impl Fn(&mut St
     if !o.no_mark {
         r = r.child(el().w(16.0).center().children(lead));
     }
-    let font = if o.mono_title { mono(12.0, 400.0, 1.3) } else { sans(13.0, 400.0, 1.3) };
+    let font = if o.mono_title { mono(12.0, 400.0, 1.5) } else { sans(13.0, 400.0, 1.5) };
     let title = match (o.bold, o.tag) {
         (_, Some(tag)) => {
             let spans = vec![rune::Span::new(o.title.len(), o.title.len() + tag.len()).weight(400.0).size(11.5).color(t.muted)];
@@ -331,7 +337,7 @@ pub fn option(t: &Theme, o: Option_, lead: Option<El>, on_press: impl Fn(&mut St
     };
     let mut words = col().grow(1.0).min_w(0.0).child(title);
     if let Some(detail) = o.detail {
-        let font = if o.mono_detail { mono(11.0, 400.0, 1.3) } else { sans(11.5, 400.0, 1.3) };
+        let font = if o.mono_detail { mono(11.0, 400.0, 1.5) } else { sans(11.5, 400.0, 1.5) };
         words = words.child(text(detail).font(font).color(t.muted).truncate());
     }
     r = r.child(words);

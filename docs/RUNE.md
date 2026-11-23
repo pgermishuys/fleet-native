@@ -3014,3 +3014,10 @@ whose order the file keeps, so it is a `Vec<(String, String)>` here, and a renam
 - **A browser `<select>` has no counterpart**: draw a field with a chevron (role `combobox`) that opens `ui::select::content` as an `Open::Select(name)` list, anchored to the field's key. Its rows are keyed `<key>-opt<i>`, which tests click.
 - **A `cargo test --lib` build of this crate now peaks about 5 GB in one `rustc`** (jobs=1, `CARGO_PROFILE_DEV_DEBUG=0` and four codegen units did not lower it): on this machine the 5000M cap OOM-killed it. `systemd-run --user --unit` (not `--scope`) keeps a long build alive past the tool call.
 
+
+## Component 26, piece O part 2 (composer and new session, the rest)
+
+- **A box width can't ease; a stroke can.** Fleet's `transition: width 300ms` on a meter fill is drawn as a round-capped line along the track with `live_trim(Live<[f32; 2]>.smooth(Spring::new(0.3, 0.0)))`; for a fill of `f` of the track `INNER` wide and `h` high the trim end is `(f * INNER - h) / (INNER - h)`, so the pill's right edge lands where the box's would. `Live::snap` on the first draw after the popover opens keeps it from sweeping up from empty.
+- **A pane doesn't clip a menu, and a menu's place can't be given.** Fleet's selector slides left by what overhangs its pane (`SelectorDropdown.place()`) and the pane's `overflow: hidden` cuts what is left of the pane. A Rune `anchored` panel flips to the chip's right edge when it doesn't fit and is never cut by a pane; `offset` on it is a spring on top of that flipped place, and the place is not readable from the view, so Fleet's exact left edge can't be matched. A first try with `offset(-shift_left(..))` double-shifted the menu out of the window.
+- **Tests that seed a feed:** the mock state already has a harness list and catalogs for home, so a test of what a restart restores clears `feeds.harnesses` and `feeds.catalogs` first.
+- **A cargo test build of the lib peaks above 4.8 GB** now; at `MemoryMax=5000M` with 2 jobs it was OOM-killed (exit 143), at 5800M with `CARGO_BUILD_JOBS=1` it fit.

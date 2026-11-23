@@ -10,7 +10,7 @@ use crate::{State, Tx};
 use rune::{Align, Color, Cursor, El, Key, KeyEvent, ScrollSpec, Side, col, el, icon, row, text};
 
 const WIDTH: f32 = 344.0;
-/// `min(240px, 36vh)`; the window is never shorter than 680, so 36vh is at least 245.
+/// `min(240px, 36vh)` (`ui::chip::list_max_h`).
 const LIST_MAX_H: f32 = 240.0;
 
 fn row_key(i: usize) -> String {
@@ -107,7 +107,7 @@ fn list(s: &State, t: &Theme) -> El {
     if rows.is_empty() {
         c = c.child(pop_note(t, &base_empty_note(s.base_is_loading(), &s.pickers_ns.base_query.text)));
     }
-    c.scroll(ScrollSpec { stick_bottom: false }).max_h(LIST_MAX_H)
+    c.scroll(ScrollSpec { stick_bottom: false }).max_h(crate::ui::chip::list_max_h(s, LIST_MAX_H, 0.36))
 }
 
 /// `Switch` as `.ns-base-fetch` draws it: a 28 by 16.1 track, `--text` at 22% unchecked and `--primary` checked, a white thumb

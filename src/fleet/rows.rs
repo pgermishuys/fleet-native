@@ -114,6 +114,9 @@ pub struct Row {
     pub archived: bool,
     /// `capabilities.canPrompt`, when the row has capabilities.
     pub can_prompt: Option<bool>,
+    /// `lifecycleStatus`: with no `capabilities`, the composer takes a prompt only while it is "running" (`canSend`).
+    /// `None` for the invented sessions, which count as running.
+    pub lifecycle_status: Option<String>,
     /// `capabilities.promptDisabledReason`: why the session takes no prompt; the sub-agent line's tooltip.
     pub prompt_disabled_reason: Option<String>,
     /// `capabilities.canCompact`: only an explicit `false` turns Compact now off.
@@ -276,6 +279,7 @@ impl Row {
             checkout_restoring: false,
             archived: text(item, "retentionStatus").as_deref() == Some("archived"),
             can_prompt: item.get("capabilities").and_then(|c| c.get("canPrompt")).and_then(Value::as_bool),
+            lifecycle_status: text(item, "lifecycleStatus"),
             prompt_disabled_reason: item
                 .get("capabilities")
                 .and_then(|c| c.get("promptDisabledReason"))
