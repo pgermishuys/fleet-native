@@ -8,7 +8,6 @@ use crate::mock::analytics::Scene;
 use crate::tests::{FRAME, app, click, press_key};
 use crate::{Rail, State, test_wait};
 use rune::{FileDialogKind, Key, Mods, Runtime};
-use std::net::TcpListener;
 use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
@@ -121,7 +120,7 @@ struct Rig {
 
 /// The app connected to a fake Fleet that answers the export with `export` (a status and a body) and the reads with nothing.
 fn rig(name: &str, export: (u16, &'static str)) -> Rig {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("a port");
+    let listener = crate::test_http::bind().expect("a port");
     let base = format!("http://{}", listener.local_addr().expect("an address"));
     let heard = Arc::new(Mutex::new(Vec::<String>::new()));
     let log = heard.clone();

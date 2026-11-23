@@ -10,7 +10,6 @@ use super::reconnect::app;
 use super::*;
 use crate::State;
 use std::io::Write;
-use std::net::TcpListener;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
@@ -183,7 +182,7 @@ struct Fake {
 }
 
 fn start(answer: Answer) -> Fake {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = crate::test_http::bind().unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let (asked_tx, asked) = channel::<(String, String)>();
     let (asked_tx, answer) = (Arc::new(Mutex::new(asked_tx)), Arc::new(answer));

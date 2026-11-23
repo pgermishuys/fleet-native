@@ -7,7 +7,6 @@ use crate::{State, test_wait};
 use rune::Runtime;
 use serde_json::json;
 use std::io::Write;
-use std::net::TcpListener;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
@@ -44,7 +43,7 @@ fn settle(rt: &mut Rt) {
 // ChangesCanvas.test.ts: "says the changes could not be loaded, with Try again, instead of No changes when /diffs fails"
 #[test]
 fn says_the_changes_could_not_be_loaded_with_try_again_instead_of_no_changes_when_diffs_fails() {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("a port");
+    let listener = crate::test_http::bind().expect("a port");
     let base = format!("http://{}", listener.local_addr().expect("an address"));
     let asked = Arc::new(AtomicUsize::new(0));
     let counter = asked.clone();

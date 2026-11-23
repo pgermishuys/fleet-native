@@ -8,7 +8,6 @@ use crate::mock::{Session, Status};
 use crate::tests::app;
 use serde_json::json;
 use std::io::Write;
-use std::net::TcpListener;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -19,7 +18,7 @@ const LAB: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 type Heard = Arc<Mutex<Vec<(String, Option<String>)>>>;
 
 fn fake_fleet() -> (String, Heard) {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = crate::test_http::bind().unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let heard: Heard = Default::default();
     let log = heard.clone();

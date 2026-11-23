@@ -331,7 +331,7 @@ impl Drop for Fake {
 }
 
 fn fake(kept: Kept) -> Fake {
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("a port");
+    let listener = crate::test_http::bind().expect("a port");
     let base = format!("http://{}", listener.local_addr().expect("an address"));
     let kept = Arc::new(Mutex::new(kept));
     let shared = kept.clone();

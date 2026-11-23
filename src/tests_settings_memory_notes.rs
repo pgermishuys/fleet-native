@@ -8,7 +8,6 @@ use crate::{Rail, State, test_wait};
 use rune::{Key, KeyEvent, Mods, Runtime};
 use serde_json::{Value, json};
 use std::io::Write;
-use std::net::TcpListener;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
@@ -136,7 +135,7 @@ struct Rig {
 fn rig(setup: impl FnOnce(&mut Fake)) -> Rig {
     let fake: Shared = Default::default();
     setup(&mut fake.lock().unwrap());
-    let listener = TcpListener::bind("127.0.0.1:0").expect("a port");
+    let listener = crate::test_http::bind().expect("a port");
     let base = format!("http://{}", listener.local_addr().expect("an address"));
     let served = fake.clone();
     std::thread::spawn(move || {

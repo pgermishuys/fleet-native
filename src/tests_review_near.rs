@@ -9,7 +9,6 @@ use crate::{State, test_wait};
 use rune::Runtime;
 use serde_json::json;
 use std::io::Write;
-use std::net::TcpListener;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
@@ -21,7 +20,7 @@ fn path(i: usize) -> String {
 
 /// `n` changed files of 5 added lines each, the session served by a fake Fleet that logs every `/diffs/file` path it is asked for.
 fn forty(n: usize) -> (Rt, Receiver<Job>, Arc<Mutex<Vec<String>>>) {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("a port");
+    let listener = crate::test_http::bind().expect("a port");
     let base = format!("http://{}", listener.local_addr().expect("an address"));
     let asked = Arc::new(Mutex::new(Vec::new()));
     let log = asked.clone();

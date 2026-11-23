@@ -12,7 +12,6 @@ use crate::{State, test_wait};
 use rune::{Key, KeyEvent, Mods, Runtime, TextEdit};
 use serde_json::{Value, json};
 use std::io::Write;
-use std::net::TcpListener;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
@@ -118,7 +117,7 @@ fn listing(cfg: &Config, asked: &str) -> Value {
 }
 
 fn serve(cfg: Shared) -> String {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = crate::test_http::bind().unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     std::thread::spawn(move || {
         for mut stream in listener.incoming().flatten() {

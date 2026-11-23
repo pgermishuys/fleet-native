@@ -7,7 +7,6 @@ const BASE: &str = "http://127.0.0.1:1";
 use crate::State;
 use crate::tests::{FRAME, app, click};
 use std::io::Write;
-use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 
 /// A folder that is gone when the test ends.
@@ -28,7 +27,7 @@ impl Drop for Scratch {
 
 /// Serves `files` (path → bytes) on a loopback port until the test ends; unknown paths are 404.
 pub(super) fn serve(files: Vec<(&'static str, Vec<u8>)>) -> String {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = crate::test_http::bind().unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     std::thread::spawn(move || {
         for stream in listener.incoming() {

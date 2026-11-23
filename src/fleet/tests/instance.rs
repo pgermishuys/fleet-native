@@ -5,7 +5,6 @@ use crate::fleet::discover;
 use crate::fleet::instance::{self, Instance, data_dir, find_running_fleet, is_loopback_http_url, is_ready, parse_instance};
 use serde_json::json;
 use std::io::Write;
-use std::net::TcpListener;
 use std::time::Duration;
 
 fn valid() -> serde_json::Value {
@@ -21,7 +20,7 @@ fn temp(name: &str) -> std::path::PathBuf {
 
 /// A server that answers every request with `status`, on a port of its own; stops when dropped.
 fn server(status: &'static str) -> (String, std::thread::JoinHandle<()>) {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = crate::test_http::bind().unwrap();
     let url = format!("http://{}", listener.local_addr().unwrap());
     let thread = std::thread::spawn(move || {
         if let Ok((mut s, _)) = listener.accept() {
@@ -174,14 +173,14 @@ fn is_ready_is_false_on_a_server_error() {
 
 #[test]
 fn is_ready_is_false_when_the_connection_is_refused() {
-    let port = TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
+    let port = crate::test_http::bind().unwrap().local_addr().unwrap().port();
     assert!(!is_ready(&format!("http://127.0.0.1:{port}"), Duration::from_millis(1500)));
 }
 
 #[test]
 fn is_ready_is_false_on_timeout() {
     // Accepts the connection and never answers.
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = crate::test_http::bind().unwrap();
     let url = format!("http://{}", listener.local_addr().unwrap());
     let started = std::time::Instant::now();
     assert!(!is_ready(&url, Duration::from_millis(200)));
@@ -236,7 +235,7 @@ fn find_running_fleet_finds_a_live_pid_that_answers() {
 #[test]
 fn find_running_fleet_is_none_for_a_live_pid_that_does_not_answer() {
     let dir = temp("silent");
-    let port = TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
+    let port = crate::test_http::bind().unwrap().local_addr().unwrap().port();
     let file = write_file(&dir, std::process::id(), &format!("http://127.0.0.1:{port}"));
     assert_eq!(find_running_fleet(&file), None);
 }

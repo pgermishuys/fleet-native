@@ -139,12 +139,84 @@ pub fn respond(stream: &mut TcpStream, status: impl std::fmt::Display, content_t
 }
 
 /// An address that answers nobody: the port stays bound for the whole run (so no other test's fake can be handed it, as
-/// it could after a bind-then-drop) and each call is closed unanswered.
+/// it could after a bind-then-drop) and each call is closed unanswered. One listener and one thread serve every test.
 pub fn dead_address() -> String {
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-    let base = format!("http://{}", listener.local_addr().unwrap());
-    std::thread::spawn(move || for _ in listener.incoming() {});
-    base
+    static DEAD: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    DEAD.get_or_init(|| {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        std::thread::spawn(move || for _ in listener.incoming() {});
+        base
+    })
+    .clone()
+}
+
+/// A fake server's listener on a free loopback port. Its accept loop ends when the test that bound it is over: a fake whose
+/// `for stream in listener.incoming()` never ended kept a thread per test, and by the end of the suite the process held
+/// about 2,000 of them, which is macOS's cap on threads per process (spawns then failed with EAGAIN, code 35).
+///
+/// "The test is over" is the end of the thread that called `bind`: libtest runs each test on its own thread, and that
+/// thread's locals are dropped when it exits. Binding from some other thread ties the listener to that thread instead.
+pub fn bind() -> std::io::Result<Listener> {
+    bind_at("127.0.0.1:0")
+}
+
+/// [`bind`] at a given address.
+pub fn bind_at(address: &str) -> std::io::Result<Listener> {
+    let inner = std::sync::Arc::new(std::net::TcpListener::bind(address)?);
+    let over = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let end = End { over: over.clone(), listener: std::sync::Arc::downgrade(&inner) };
+    ENDS.with(|ends| ends.borrow_mut().push(end));
+    Ok(Listener { inner, over })
+}
+
+pub struct Listener {
+    inner: std::sync::Arc<std::net::TcpListener>,
+    over: std::sync::Arc<std::sync::atomic::AtomicBool>,
+}
+
+impl Listener {
+    pub fn local_addr(&self) -> std::io::Result<std::net::SocketAddr> {
+        self.inner.local_addr()
+    }
+
+    /// The next connection, or an error once the test that bound this is over.
+    pub fn accept(&self) -> std::io::Result<(TcpStream, std::net::SocketAddr)> {
+        let (stream, addr) = self.inner.accept()?;
+        if self.over.load(std::sync::atomic::Ordering::SeqCst) {
+            return Err(std::io::Error::new(std::io::ErrorKind::ConnectionAborted, "the test that bound this listener is over"));
+        }
+        Ok((stream, addr))
+    }
+
+    /// Connections until the test that bound this is over. Like `TcpListener::incoming`, a failed accept is an `Err` item.
+    pub fn incoming(&self) -> impl Iterator<Item = std::io::Result<TcpStream>> + '_ {
+        std::iter::from_fn(move || match self.accept() {
+            Err(e) if e.kind() == std::io::ErrorKind::ConnectionAborted && self.over.load(std::sync::atomic::Ordering::SeqCst) => None,
+            other => Some(other.map(|(s, _)| s)),
+        })
+    }
+}
+
+/// Set on a listener when the thread that bound it ends.
+struct End {
+    over: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    listener: std::sync::Weak<std::net::TcpListener>,
+}
+
+impl Drop for End {
+    fn drop(&mut self) {
+        self.over.store(true, std::sync::atomic::Ordering::SeqCst);
+        // One connection wakes an accept that is waiting. Only while the listener is still open: on Windows a refused
+        // loopback connection takes about two seconds to fail, which every test would wait out at its end.
+        if let Some(addr) = self.listener.upgrade().and_then(|l| l.local_addr().ok()) {
+            drop(TcpStream::connect_timeout(&addr, Duration::from_secs(2)));
+        }
+    }
+}
+
+thread_local! {
+    static ENDS: std::cell::RefCell<Vec<End>> = const { std::cell::RefCell::new(Vec::new()) };
 }
 
 /// [`respond`] with a JSON body.
@@ -230,8 +302,35 @@ mod tests {
         assert!(text.starts_with("HTTP/1.1 200 OK\r\n") && text.ends_with("\r\n\r\n{}"), "{text}");
     }
 
-    /// Every fake server reads its requests through this module. A file that binds a `TcpListener` must say
-    /// `test_http::` (or be listed in `OTHER_STREAMS` with the reason), and nothing else may parse Content-Length by hand.
+    /// `bind`'s promise: a fake's thread does not outlive its test (each one that did was a thread for the rest of the run).
+    #[test]
+    fn a_fakes_accept_loop_ends_when_the_test_that_bound_it_is_over() {
+        let (tx, rx) = channel();
+        // The thread stands for a test: it binds, starts a fake's accept loop the usual way, and ends.
+        std::thread::spawn(move || {
+            let listener = bind().unwrap();
+            let addr = listener.local_addr().unwrap();
+            let serving = std::thread::spawn(move || {
+                for stream in listener.incoming().flatten() {
+                    drop(stream);
+                }
+            });
+            // While the test runs, the fake answers.
+            TcpStream::connect(addr).unwrap();
+            tx.send(serving).unwrap();
+        })
+        .join()
+        .unwrap();
+        let serving = rx.recv().unwrap();
+        let deadline = std::time::Instant::now() + Duration::from_secs(20);
+        while !serving.is_finished() {
+            assert!(std::time::Instant::now() < deadline, "the accept loop outlived the test that bound its listener");
+            std::thread::sleep(Duration::from_millis(10));
+        }
+    }
+
+    /// Every fake server binds and reads its requests through this module: no file but the app's own port probe binds a
+    /// `TcpListener` itself, and nothing parses Content-Length by hand (`OTHER_STREAMS` read over something else).
     #[test]
     fn fakes_read_requests_through_test_http() {
         // A fake that reads over something other than a bare `TcpStream`. tls.rs reads through rustls, byte by byte to the
@@ -248,11 +347,13 @@ mod tests {
                 } else if path.extension().is_some_and(|e| e == "rs") && !path.ends_with("test_http.rs") {
                     let text = std::fs::read_to_string(&path).unwrap();
                     let name = path.strip_prefix(env!("CARGO_MANIFEST_DIR")).unwrap().to_string_lossy().replace('\\', "/");
+                    // A fake binds through `bind`, whose accept loop ends with its test; one that binds its own listener keeps
+                    // a thread for the rest of the run (`bind`'s comment says what that cost on macOS).
+                    if text.contains("TcpListener::bind") && name != "src/desktop/server.rs" {
+                        bad.push(format!("{name}: binds its own TcpListener; use test_http::bind so its thread ends with the test"));
+                    }
                     if OTHER_STREAMS.contains(&name.as_str()) {
                         continue;
-                    }
-                    if text.contains("TcpListener::bind") && !text.contains("test_http::") {
-                        bad.push(format!("{name}: binds a TcpListener but doesn't read through test_http"));
                     }
                     if text.to_ascii_lowercase().contains("strip_prefix(\"content-length:\")") {
                         bad.push(format!("{name}: parses Content-Length by hand; use test_http::read"));

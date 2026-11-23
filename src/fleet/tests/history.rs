@@ -9,7 +9,7 @@ use crate::view::conversation::Older;
 use crate::{State, spec};
 use rune::{App, Env, Runtime, ScrollPos};
 use std::io::Write;
-use std::net::{TcpListener, TcpStream};
+use std::net::TcpStream;
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -454,7 +454,7 @@ fn serve(mut stream: TcpStream, asked: Arc<Mutex<Vec<String>>>) {
 
 #[test]
 fn an_older_page_is_asked_for_over_the_hub_a_refusal_is_retried_and_the_page_joins_the_conversation() {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = crate::test_http::bind().unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let asked = Arc::new(Mutex::new(Vec::new()));
     let counted = asked.clone();

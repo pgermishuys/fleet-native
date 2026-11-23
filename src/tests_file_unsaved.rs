@@ -8,7 +8,6 @@ use crate::mock::file_tab::{Case, PATH};
 use crate::tests::{FRAME, app, click};
 use rune::{App, Env, Runtime, Shell};
 use serde_json::json;
-use std::net::TcpListener;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
@@ -148,7 +147,7 @@ const SERVED_TAB: &str = "file:src/app.py";
 
 /// A fake Fleet (its save answers 200, or 409 when `conflict`), `src/app.py` open and typed into: unsaved, with the Save not yet pressed.
 fn typed(conflict: bool) -> (Runtime<State>, Receiver<Job>, Arc<Mutex<Seen>>) {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = crate::test_http::bind().unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let seen = Arc::new(Mutex::new(Seen::default()));
     let shared = seen.clone();

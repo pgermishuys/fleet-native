@@ -3,7 +3,6 @@
 //! window says. Temporary folders and a fake environment; nothing reads the real home folder.
 use crate::fleet::discover::{self, Os, Place, desktop_user_data_dir, explicit_server, find_in, places, saved_port, server_data_dir};
 use std::io::Write;
-use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 
 fn env<'a>(pairs: &'a [(&'a str, &'a str)]) -> impl Fn(&str) -> Option<String> + 'a {
@@ -19,7 +18,7 @@ fn temp(name: &str) -> PathBuf {
 
 /// A server that answers `/readyz` with 200 for as long as the test runs.
 fn server() -> String {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = crate::test_http::bind().unwrap();
     let url = format!("http://{}", listener.local_addr().unwrap());
     std::thread::spawn(move || {
         while let Ok((mut s, _)) = listener.accept() {
@@ -31,7 +30,7 @@ fn server() -> String {
 }
 
 fn dead_url() -> String {
-    format!("http://127.0.0.1:{}", TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port())
+    format!("http://127.0.0.1:{}", crate::test_http::bind().unwrap().local_addr().unwrap().port())
 }
 
 fn instance_json(url: &str) -> String {

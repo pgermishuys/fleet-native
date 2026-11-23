@@ -11,7 +11,7 @@ use crate::test_http;
 use rune::{Key, Mods, Runtime};
 use serde_json::{Value, json};
 use std::io::Write;
-use std::net::{TcpListener, TcpStream};
+use std::net::TcpStream;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
@@ -153,7 +153,7 @@ pub(super) struct Fx {
 impl Fx {
     /// The fixture's first session open on a fake Fleet that already holds `side` and, maybe, a discard.
     pub(super) fn start(side: Option<Value>, discarded: Option<(Value, u64)>) -> Fx {
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let listener = crate::test_http::bind().unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
         let fake = Arc::new(Mutex::new(Fake { side, discarded, ..Default::default() }));
         let shared = fake.clone();

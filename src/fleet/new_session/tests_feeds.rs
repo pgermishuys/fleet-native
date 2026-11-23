@@ -508,12 +508,11 @@ mod live {
     use crate::fleet::link::{Job, Link, Post};
     use crate::tests::app;
     use std::io::Write;
-    use std::net::TcpListener;
     use std::sync::mpsc::channel;
     use std::sync::{Arc, Mutex};
 
     fn serve(route: impl Fn(&str, &str) -> (u16, String) + Send + Sync + 'static) -> (String, Arc<Mutex<Vec<String>>>) {
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let listener = crate::test_http::bind().unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
         let seen: Arc<Mutex<Vec<String>>> = Arc::default();
         let (log, route) = (seen.clone(), Arc::new(route));

@@ -1425,7 +1425,7 @@ pub(crate) fn finish(stream: &mut std::net::TcpStream) {
 #[test]
 fn stop_and_output_calls_go_to_fleets_item_id_and_read_the_answer_as_the_server_writes_it() {
     use std::io::Write;
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = crate::test_http::bind().unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
     let log = seen.clone();
@@ -1654,7 +1654,7 @@ fn activity_stream_and_work_fleet_stopped_says_stopped_not_error_for_a_shell_fle
 fn activity_stream_and_work_fleet_stopped_asks_fleet_for_older_work_when_the_stream_no_longer_has_it() {
     use crate::conv::background::BackgroundState;
     use std::io::Write;
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = crate::test_http::bind().unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
     let (log, stopped) = (seen.clone(), stopped_shell("sh_dev").1);

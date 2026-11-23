@@ -6,7 +6,6 @@ use super::super::session_image::{GONE, Shown, UNREADABLE};
 use super::reconnect::app;
 use super::*;
 use std::io::Write;
-use std::net::TcpListener;
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
 
@@ -47,7 +46,7 @@ fn serve(mut stream: std::net::TcpStream, seen: Arc<Mutex<Seen>>) {
 
 #[test]
 fn an_image_is_read_from_the_sessions_machine_and_again_when_its_tab_comes_back() {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = crate::test_http::bind().unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let seen = Arc::new(Mutex::new(Seen { status: 200, ..Seen::default() }));
     let shared = seen.clone();

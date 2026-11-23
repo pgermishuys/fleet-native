@@ -36,7 +36,7 @@ pub(crate) struct Node {
 }
 
 pub(crate) fn node(sessions: Value) -> Node {
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("a port");
+    let listener = crate::test_http::bind().expect("a port");
     let base = format!("http://{}", listener.local_addr().expect("an address"));
     let heard: Arc<Mutex<Vec<Heard>>> = Arc::default();
     let routes: Arc<Mutex<HashMap<String, (u16, String)>>> = Arc::default();

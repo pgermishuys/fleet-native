@@ -10,7 +10,6 @@ use crate::{State, test_wait};
 use rune::{Key, KeyEvent, Mods};
 use serde_json::{Value, json};
 use std::collections::HashMap;
-use std::net::TcpListener;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 
@@ -29,7 +28,7 @@ struct Home {
 
 impl Home {
     fn new(routes: &[(&str, u16, Value)]) -> Home {
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let listener = crate::test_http::bind().unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
         let home = Home { base, routes: Default::default(), heard: Default::default() };
         for (route, status, body) in routes {

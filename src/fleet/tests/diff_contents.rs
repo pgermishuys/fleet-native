@@ -8,7 +8,6 @@ use super::reconnect::app;
 use super::*;
 use std::collections::VecDeque;
 use std::io::Write;
-use std::net::TcpListener;
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
 
@@ -200,7 +199,7 @@ fn serve(mut stream: std::net::TcpStream, seen: Arc<Mutex<Seen>>) {
 
 #[test]
 fn a_12_file_change_asks_for_its_files_four_at_a_time() {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = crate::test_http::bind().unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let seen = Arc::new(Mutex::new(Seen::default()));
     let shared = seen.clone();

@@ -9,7 +9,6 @@ use super::reconnect::app;
 use super::*;
 use crate::State;
 use std::io::Write;
-use std::net::TcpListener;
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
 
@@ -352,7 +351,7 @@ impl Live {
     /// The first `/diffs` request goes out inside `start`, so a test that needs a particular first answer must give it here,
     /// not set it afterwards (the request may already have been answered with the default).
     fn start_answering(answer: String) -> Live {
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let listener = crate::test_http::bind().unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
         let seen = Arc::new(Mutex::new(Seen { answer, ..Default::default() }));
         let shared = seen.clone();

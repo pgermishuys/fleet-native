@@ -11,7 +11,6 @@ use crate::{State, test_wait};
 use rune::Runtime;
 use serde_json::{Value, json};
 use std::collections::HashMap;
-use std::net::TcpListener;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
@@ -75,7 +74,7 @@ pub(crate) fn default_answer(method: &str, path: &str, body: &Value) -> (u16, Va
 }
 
 pub(crate) fn fleet() -> Fleet {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("a port");
+    let listener = crate::test_http::bind().expect("a port");
     let base = format!("http://{}", listener.local_addr().expect("an address"));
     let heard: Heard = Default::default();
     let routes: Arc<Mutex<HashMap<String, Handler>>> = Default::default();

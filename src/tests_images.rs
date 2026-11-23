@@ -175,7 +175,7 @@ fn a_user_image_shows_in_its_bubble_and_opens_in_the_lightbox_without_a_name() {
 #[test]
 fn a_picture_is_asked_of_fleets_screenshot_path_on_a_thread() {
     use std::io::Write;
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = crate::test_http::bind().unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
     let log = seen.clone();

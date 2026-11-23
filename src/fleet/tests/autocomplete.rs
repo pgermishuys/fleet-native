@@ -244,7 +244,7 @@ use super::super::link::{Job, Link, Post};
 use super::super::sessions;
 use serde_json::{Value, json};
 use std::io::Write;
-use std::net::{TcpListener, TcpStream};
+use std::net::TcpStream;
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -326,7 +326,7 @@ pub(super) struct Live {
 
 impl Live {
     pub(super) fn start(seen: Seen) -> Live {
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let listener = crate::test_http::bind().unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
         let seen = Arc::new(Mutex::new(seen));
         let shared = seen.clone();

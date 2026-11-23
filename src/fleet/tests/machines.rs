@@ -8,7 +8,6 @@ use crate::fleet::machines::{Entry, Listed, Machines, Source, parse_machine_list
 use crate::fleet::{auth, sessions};
 use serde_json::{Value, json};
 use std::io::Write;
-use std::net::TcpListener;
 use std::sync::{Arc, Mutex};
 
 const FALCON_TOKEN: &str = "falcon-token-0123456789";
@@ -19,7 +18,7 @@ type Seen = Arc<Mutex<Vec<(String, Option<String>)>>>;
 
 /// A machine at a loopback port. `route` answers a path (no query) with a status and a body, or None for a 404.
 fn serve(route: impl Fn(&str) -> Option<(u16, String)> + Send + Sync + 'static) -> (String, Seen) {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = crate::test_http::bind().unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let seen: Seen = Arc::default();
     let (log, route) = (seen.clone(), Arc::new(route));

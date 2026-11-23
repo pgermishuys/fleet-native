@@ -5,7 +5,7 @@ use super::super::link::{Link, Post};
 use super::super::presence::{Call, FOCUS_SETTLE, PRESENCE_INTERVAL, Presence};
 use super::*;
 use std::io::Write;
-use std::net::{TcpListener, TcpStream};
+use std::net::TcpStream;
 use std::sync::mpsc::{Sender, channel};
 use std::time::{Duration, Instant};
 use tungstenite::Message;
@@ -238,7 +238,7 @@ struct Hub {
 }
 
 fn hub(drop_after_focus: bool) -> Hub {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = crate::test_http::bind().unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let (tx, calls) = channel();
     let hubs = Arc::new(AtomicUsize::new(0));

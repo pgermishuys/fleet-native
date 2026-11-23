@@ -15,7 +15,6 @@ use super::*;
 use crate::State;
 use std::collections::HashMap;
 use std::io::Write;
-use std::net::TcpListener;
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
 
@@ -279,7 +278,7 @@ struct Fake {
 impl Fake {
     /// A Fleet whose session has `src/` and `docs/` folders and a README, with the Files tab in front and its root read.
     fn start() -> Fake {
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let listener = crate::test_http::bind().unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
         let mut folders = HashMap::new();
         folders.insert(String::new(), root());
